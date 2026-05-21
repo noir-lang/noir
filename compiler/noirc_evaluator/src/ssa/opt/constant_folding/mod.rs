@@ -54,7 +54,7 @@ pub const DEFAULT_MAX_ITER: usize = 5;
 /// Maximum number of SSA instructions to execute during inlining a constant Brillig call.
 ///
 /// The number is based on some experimentation to limit a tight loop to ~100ms.
-pub(crate) const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
+const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
 
 impl Ssa {
     /// Performs constant folding on each instruction.

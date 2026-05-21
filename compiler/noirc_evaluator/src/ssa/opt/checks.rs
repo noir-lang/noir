@@ -15,10 +15,9 @@
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    function::{Function, FunctionId, RuntimeType},
+    function::Function,
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
-    value::Value,
 };
 
 // ---------------------------------------------------------------------------
@@ -178,65 +177,6 @@ pub(super) fn assert_not_mutable_array_set(instruction: &Instruction) {
         !matches!(instruction, Instruction::ArraySet { mutable: true, .. }),
         "Mutable array set instruction found"
     );
-}
-
-/// Panics if `function` contains a call to a non-impure brillig function with all-constant
-/// arguments that the SSA interpreter can fully evaluate.
-///
-/// Such a call should have been replaced by its result during constant folding before
-/// flattening; one surviving here points to a missing or mis-ordered fold pass. After
-/// flattening its results are multiplied by a predicate, turning the constants into
-/// witnesses and blocking further simplification.
-///
-/// A call is only flagged when its interpretation actually completes. Calls whose
-/// interpretation cannot finish for the given constant arguments — e.g. a hint that
-/// asserts or indexes out of bounds, performs a foreign call, or exceeds the interpreter
-/// step limit — are left alone, because constant folding cannot fold them either.
-///
-/// Only non-impure functions are considered — impure brillig functions (e.g. those taking
-/// reference parameters) are not interpreted at compile time. Note that all brillig
-/// functions are at least `PureWithPredicate` since they return bogus values when called
-/// from ACIR with a disabled predicate.
-///
-/// `get_runtime` maps a function id to its runtime type (if known). `interpreter` must be
-/// built over the program's brillig functions, matching what constant folding uses.
-pub(super) fn assert_no_interpretable_constant_pure_brillig_calls(
-    function: &Function,
-    interpreter: &mut crate::ssa::interpreter::Interpreter<std::io::Empty>,
-    get_runtime: &impl Fn(FunctionId) -> Option<RuntimeType>,
-) {
-    use crate::ssa::opt::constant_folding::constant_call_evaluates;
-    use crate::ssa::opt::pure::Purity;
-
-    let dfg = &function.dfg;
-    for block in function.reachable_blocks() {
-        for instruction_id in dfg[block].instructions() {
-            let instruction = &dfg[*instruction_id];
-            let Instruction::Call { func, arguments } = instruction else { continue };
-            let Value::Function(callee_id) = &dfg[*func] else { continue };
-
-            let Some(runtime) = get_runtime(*callee_id) else { continue };
-            if !runtime.is_brillig() {
-                continue;
-            }
-
-            let Some(purity) = dfg.purity_of(*callee_id) else { continue };
-            if purity == Purity::Impure {
-                continue;
-            }
-
-            if arguments.is_empty() || !arguments.iter().all(|arg| dfg.is_constant(*arg)) {
-                continue;
-            }
-
-            assert!(
-                !constant_call_evaluates(instruction, dfg, interpreter),
-                "Call to pure brillig function {callee_id:?} with all-constant arguments ({} args) \
-                 should have been interpreted by constant folding before flattening.",
-                arguments.len(),
-            );
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

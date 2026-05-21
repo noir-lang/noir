@@ -163,7 +163,7 @@ use crate::ssa::{
 };
 
 #[cfg(debug_assertions)]
-use crate::ssa::ir::function::RuntimeType;
+use crate::ssa::ir::dfg::DataFlowGraph;
 
 mod branch_analysis;
 
@@ -180,26 +180,7 @@ impl Ssa {
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
         #[cfg(debug_assertions)]
-        let runtimes: HashMap<_, _> =
-            self.functions.values().map(|f| (f.id(), f.runtime())).collect();
-
-        // Mirror the interpreter constant folding uses so the pre-check can tell a
-        // genuinely-missed constant fold apart from a call that could never be folded
-        // (its interpretation traps, performs a foreign call, or exceeds the step limit).
-        #[cfg(debug_assertions)]
-        let brillig_functions = super::constant_folding::clone_brillig_functions(&self.functions);
-        #[cfg(debug_assertions)]
-        let mut interpreter = crate::ssa::interpreter::Interpreter::new_from_functions(
-            &brillig_functions,
-            crate::ssa::interpreter::InterpreterOptions {
-                no_foreign_calls: true,
-                step_limit: Some(super::constant_folding::DEFAULT_INTERPRETER_STEP_LIMIT),
-                ..Default::default()
-            },
-            std::io::empty(),
-        );
-        #[cfg(debug_assertions)]
-        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+        assert_no_interpretable_constant_brillig_calls(&self);
 
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
@@ -210,7 +191,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function, &runtimes, &mut interpreter);
+            flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -221,36 +202,109 @@ impl Ssa {
     }
 }
 
-/// Pre-check condition for [Ssa::flatten_cfg].
+/// Per-function pre-check condition for [Ssa::flatten_cfg].
 ///
 /// Panics if:
-///   - Any ACIR function has at least 1 loop
-///   - Any ACIR function has a `ConstrainNotEqual` instruction
-///   - Any ACIR function calls a non-impure brillig function with all-constant arguments
-///     that the SSA interpreter can fully evaluate. This is not a correctness issue for
-///     flattening itself, but it hints at sub-optimal simplification: the call could have
-///     been interpreted by constant folding before flattening. After flattening, results
-///     get multiplied by a predicate, turning constants into witnesses and preventing
-///     further simplification. Calls whose interpretation cannot complete (e.g. the hint
-///     asserts or indexes out of bounds for these arguments) are not flagged, since
-///     constant folding cannot fold them either.
+///   - The function has at least 1 loop
+///   - The function has a `ConstrainNotEqual` instruction
 ///
 /// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(
-    function: &Function,
-    runtimes: &HashMap<FunctionId, RuntimeType>,
-    interpreter: &mut crate::ssa::interpreter::Interpreter<std::io::Empty>,
-) {
+fn flatten_cfg_pre_check(function: &Function) {
     super::checks::assert_no_loops(function);
     super::checks::for_each_instruction(function, |instruction, _dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
     });
-    super::checks::assert_no_interpretable_constant_pure_brillig_calls(
-        function,
-        interpreter,
-        &|id| runtimes.get(&id).copied(),
+}
+
+/// Maximum interpreter steps the [`flatten_cfg`][Ssa::flatten_cfg] pre-check spends per
+/// candidate call. A genuinely-missed constant fold evaluates in a handful of steps; this
+/// only has to be large enough to tell that apart from a call that traps or runs long for
+/// the given arguments (which constant folding could not have folded either), while staying
+/// small enough to keep the debug check off the fuzzer's hot path.
+#[cfg(debug_assertions)]
+const PRE_CHECK_INTERPRETER_STEP_LIMIT: usize = 100_000;
+
+/// Asserts that no ACIR function reaching flattening still calls a non-impure brillig
+/// function with all-constant arguments that the SSA interpreter can fully evaluate.
+///
+/// Such a call should have been replaced by its result during constant folding before
+/// flattening; one surviving here points to a missing or mis-ordered fold pass. After
+/// flattening its results are multiplied by a predicate, turning the constants into
+/// witnesses and blocking further simplification.
+///
+/// A call is only flagged when its interpretation actually completes within a small budget.
+/// Calls whose interpretation cannot finish for the given arguments — e.g. a hint that
+/// asserts or indexes out of bounds, performs a foreign call, or simply runs long — are left
+/// alone, because constant folding cannot fold them either.
+///
+/// The interpreter is only built when at least one candidate call exists, so the common case
+/// of no constant brillig calls (and the fuzzer's hot path) pays only for a cheap scan.
+#[cfg(debug_assertions)]
+fn assert_no_interpretable_constant_brillig_calls(ssa: &Ssa) {
+    use crate::ssa::opt::pure::Purity;
+
+    let is_candidate = |instruction: &Instruction, dfg: &DataFlowGraph| -> bool {
+        let Instruction::Call { func, arguments } = instruction else { return false };
+        let Value::Function(callee_id) = &dfg[*func] else { return false };
+        if !ssa.functions.get(callee_id).is_some_and(|f| f.runtime().is_brillig()) {
+            return false;
+        }
+        // Only consider non-impure callees with a known purity, matching what constant
+        // folding is willing to interpret.
+        if !matches!(dfg.purity_of(*callee_id), Some(Purity::Pure | Purity::PureWithPredicate)) {
+            return false;
+        }
+        !arguments.is_empty() && arguments.iter().all(|arg| dfg.is_constant(*arg))
+    };
+
+    let acir_functions = || ssa.functions.values().filter(|f| !f.runtime().is_brillig());
+
+    let any_candidate = acir_functions().any(|function| {
+        let dfg = &function.dfg;
+        function.reachable_blocks().into_iter().any(|block| {
+            dfg[block].instructions().iter().any(|inst| is_candidate(&dfg[*inst], dfg))
+        })
+    });
+    if !any_candidate {
+        return;
+    }
+
+    let brillig_functions = super::constant_folding::clone_brillig_functions(&ssa.functions);
+    let mut interpreter = crate::ssa::interpreter::Interpreter::new_from_functions(
+        &brillig_functions,
+        crate::ssa::interpreter::InterpreterOptions {
+            no_foreign_calls: true,
+            step_limit: Some(PRE_CHECK_INTERPRETER_STEP_LIMIT),
+            ..Default::default()
+        },
+        std::io::empty(),
     );
+    interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+
+    for function in acir_functions() {
+        let dfg = &function.dfg;
+        for block in function.reachable_blocks() {
+            for inst in dfg[block].instructions() {
+                let instruction = &dfg[*inst];
+                if !is_candidate(instruction, dfg) {
+                    continue;
+                }
+                let Instruction::Call { func, arguments } = instruction else { continue };
+                let Value::Function(callee_id) = &dfg[*func] else { continue };
+                assert!(
+                    !super::constant_folding::constant_call_evaluates(
+                        instruction,
+                        dfg,
+                        &mut interpreter
+                    ),
+                    "Call to pure brillig function {callee_id:?} with all-constant arguments \
+                     ({} args) should have been interpreted by constant folding before flattening.",
+                    arguments.len(),
+                );
+            }
+        }
+    }
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
@@ -2857,5 +2911,49 @@ mod merge_provenance_tests {
             return v16
         }
         ");
+    }
+
+    #[test]
+    #[should_panic(expected = "should have been interpreted by constant folding before flattening")]
+    fn flatten_pre_check_flags_foldable_constant_brillig_call() {
+        // An ACIR call to a pure brillig function with all-constant arguments that the
+        // interpreter can evaluate should have been folded away before flattening. With
+        // constant folding skipped, the surviving call must trip the pre-check.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = call f1(u32 2) -> u32
+                return v1
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u32):
+                v1 = unchecked_add v0, u32 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+        let _ = ssa.flatten_cfg();
+    }
+
+    #[test]
+    fn flatten_pre_check_allows_untinterpretable_constant_brillig_call() {
+        // A pure brillig hint that traps for the given constant arguments (here a failing
+        // constraint, mirroring an `assert` in an unconstrained hint) cannot be folded, so
+        // the pre-check must let the surviving call through rather than panic.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = call f1(u32 0) -> u32
+                return v1
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u32):
+                constrain v0 == u32 1
+                return v0
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+        // Must not panic: the call cannot be interpreted, so it is not a missed fold.
+        let _ = ssa.flatten_cfg();
     }
 }
