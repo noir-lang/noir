@@ -1,0 +1,59 @@
+{
+  "schema": "2",
+  "targets": [
+    {
+      "name": "acir_vs_brillig",
+      "display_name": "AST arbtest: ACIR vs Brillig differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "reproduce", "regress"],
+      "resources": { "cpus": 2, "memory_gb": 4 }
+    },
+    {
+      "name": "min_vs_full",
+      "display_name": "AST arbtest: Minimal vs Full pipeline",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "reproduce", "regress"],
+      "resources": { "cpus": 2, "memory_gb": 4 }
+    },
+    {
+      "name": "pass_vs_prev",
+      "display_name": "AST arbtest: Pass vs Previous differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "reproduce", "regress"],
+      "resources": { "cpus": 2, "memory_gb": 4 }
+    },
+    {
+      "name": "orig_vs_morph",
+      "display_name": "AST arbtest: Original vs Morphed differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "reproduce", "regress"],
+      "resources": { "cpus": 2, "memory_gb": 4 }
+    },
+    {
+      "name": "comptime_vs_brillig_nargo",
+      "display_name": "AST arbtest: Comptime vs Brillig (nargo)",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "reproduce", "regress"],
+      "resources": { "cpus": 2, "memory_gb": 4 }
+    },
+    {
+      "name": "comptime_vs_brillig_direct",
+      "display_name": "AST arbtest: Comptime vs Brillig (direct)",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "reproduce", "regress"],
+      "resources": { "cpus": 2, "memory_gb": 4 }
+    }
+  ]
+}

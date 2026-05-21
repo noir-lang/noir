@@ -1,0 +1,83 @@
+name: Build SSA Fuzzer Container
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'tooling/ssa_fuzzer/**'
+      - '.github/workflows/build_ssa_fuzzer.yml'
+  schedule:
+    - cron: '20 0,12 * * *'
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Git commit SHA to build (overrides branch; leave empty to use branch or current ref)"
+        required: false
+        default: ""
+      branch:
+        description: "Git branch to clone (leave empty to build from the dispatched ref)"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    if: github.repository == 'noir-lang/noir'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Free up disk space on runner
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          large-packages: false
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: tooling/ssa_fuzzer/contfuzzer-container/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/noir-lang/contfuzzer-ssa-fuzzer:latest
+            ghcr.io/noir-lang/contfuzzer-ssa-fuzzer:${{ github.sha }}
+          build-args: |
+            CI=true
+            COMMIT=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit || '' }}
+            BRANCH=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit != '' && github.event.inputs.commit || github.sha }}
+            org.opencontainers.image.revision.branch=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch != '' && github.event.inputs.branch || github.ref_name }}
+
+      - name: Install oras
+        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1.2.4
+
+      - name: Extract and attach fuzzer manifest
+        run: |
+          docker create --name manifest-extract ghcr.io/noir-lang/contfuzzer-ssa-fuzzer:${{ github.sha }}
+          docker cp manifest-extract:/fuzzer_manifest.json ./fuzzer_manifest.json
+          docker rm manifest-extract
+          oras attach ghcr.io/noir-lang/contfuzzer-ssa-fuzzer@${{ steps.build.outputs.digest }} \
+            --artifact-type application/vnd.contfuzzer.manifest+json \
+            fuzzer_manifest.json
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+
+      - name: Sign image
+        run: |
+          cosign sign --yes \
+            ghcr.io/noir-lang/contfuzzer-ssa-fuzzer@${{ steps.build.outputs.digest }}
