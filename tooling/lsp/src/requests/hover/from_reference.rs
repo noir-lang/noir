@@ -385,31 +385,18 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_impl = trait_impl.borrow();
         let trait_ = args.interner.get_trait(trait_impl.trait_id);
 
-        let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
-
-        let generics = ordered_generics
+        let impl_generics: Vec<_> = func_meta
+            .all_generics
             .iter()
-            .filter_map(|generic| {
-                if let Type::NamedGeneric(generic) = generic {
-                    Some(generic.name.as_str())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+            .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
+            .cloned()
+            .collect();
+
+        let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
 
         string.push('\n');
         string.push_str("    impl");
-        if !generics.is_empty() {
-            string.push('<');
-            for (index, generic) in generics.into_iter().enumerate() {
-                if index > 0 {
-                    string.push_str(", ");
-                }
-                string.push_str(generic);
-            }
-            string.push('>');
-        }
+        format_generics(&impl_generics, &mut string);
 
         string.push(' ');
         string.push_str(trait_.name.as_str());
