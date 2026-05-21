@@ -375,9 +375,7 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if *argument_type != parameter_type
-                        && !is_mut_ref_to_immutable_ref(&argument_type, &parameter_type)
-                    {
+                    if !argument_type.canonical_eq(&parameter_type) {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -1260,15 +1258,6 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
             }
         }
     }
-}
-
-/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
-/// A mutable reference is compatible with an immutable reference parameter.
-fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
-    matches!(
-        (arg, param),
-        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
-    )
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {

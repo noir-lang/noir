@@ -395,6 +395,10 @@ impl Type {
     /// both types in lockstep instead of allocating cloned trees — the SSA
     /// validator calls this for every block-terminator argument and every call
     /// site, so the no-alloc path matters in debug builds.
+    ///
+    /// This is a validation aid, not a soundness check: the frontend rejects
+    /// trying to use `&T` where `&mut T` is expected, but once compiled to
+    /// SSA, we can treat them as equivalents.
     pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
         let all_eq = |a: &[Type], b: &[Type]| {
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))
