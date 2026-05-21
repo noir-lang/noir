@@ -52,6 +52,7 @@ use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
+use crate::recursion::TypeRecursionContext;
 use crate::shared::{ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
 use crate::{
@@ -68,6 +69,7 @@ use crate::{
 use crate::{NamedGeneric, TypeVariable, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
+use fm::FileMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -146,6 +148,7 @@ pub struct Monomorphizer<'interner> {
 
     /// Used to reference existing definitions in the HIR.
     interner: &'interner mut NodeInterner,
+    files: &'interner FileMap,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -201,9 +204,17 @@ const MAX_TYPE_COMPLEXITY: usize = 100_000;
 pub fn monomorphize(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
+    files: &FileMap,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
+    monomorphize_debug(
+        main,
+        interner,
+        files,
+        &DebugInstrumenter::default(),
+        None,
+        force_unconstrained,
+    )
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
@@ -213,13 +224,19 @@ pub fn monomorphize(
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
+    files: &FileMap,
     debug_instrumenter: &DebugInstrumenter,
     debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    let mut monomorphizer =
-        Monomorphizer::new(interner, debug_type_tracker, debug_crate_id, force_unconstrained);
+    let mut monomorphizer = Monomorphizer::new(
+        interner,
+        files,
+        debug_type_tracker,
+        debug_crate_id,
+        force_unconstrained,
+    );
     monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
@@ -229,6 +246,7 @@ pub fn monomorphize_debug(
 impl<'interner> Monomorphizer<'interner> {
     pub fn new(
         interner: &'interner mut NodeInterner,
+        files: &'interner FileMap,
         debug_type_tracker: DebugTypeTracker,
         debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
@@ -245,6 +263,7 @@ impl<'interner> Monomorphizer<'interner> {
             next_function_id: 0,
             next_ident_id: 0,
             interner,
+            files,
             lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
@@ -469,7 +488,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.oracle().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Oracle(opcode.clone())
+                        Definition::Oracle { name: opcode.clone(), pure: attributes.is_pure() }
                     }
                 }
             }
@@ -754,7 +773,7 @@ impl<'interner> Monomorphizer<'interner> {
                     self.repeated_array(expr, repeated_element, length, true)?
                 }
             },
-            HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
+            HirExpression::Literal(HirLiteral::Unit) => Literal(Unit),
             HirExpression::Block(block) => self.block(block.statements)?,
             HirExpression::Unsafe(block) => self.block(block.statements)?,
 
@@ -828,7 +847,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Constrain(constrain) => {
                 let expr = self.expr(constrain.0)?;
-                let location = self.interner.expr_location(&constrain.0);
+                let location = constrain.1;
                 let assert_message = constrain
                     .2
                     .map(|assert_msg_expr| {
@@ -911,6 +930,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Tuple(fields)
             }
             HirExpression::Constructor(constructor) => {
+                // target_type is most likely None here. We use `expr_or_target_type` defensively
+                // in case a global ever holds a struct with unbound `NamedGeneric`s in its field types.
                 let typ = self.expr_or_target_type(expr, target_type);
                 self.constructor(constructor, expr, typ.as_ref())?
             }
@@ -1054,6 +1075,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Break => Ok(ast::Expression::Break),
             HirStatement::Continue => Ok(ast::Expression::Continue),
             HirStatement::Error => unreachable!(),
+            HirStatement::TraitAssociatedConstant => {
+                unreachable!("trait-associated-constant placeholder reached monomorphization")
+            }
 
             // All `comptime` statements & expressions should be removed before runtime.
             HirStatement::Comptime(_) => unreachable!("comptime statement in runtime code"),
@@ -1092,7 +1116,9 @@ impl<'interner> Monomorphizer<'interner> {
             let location = self.interner.expr_location(&expr_id);
             let typ = Self::convert_type(field_type, location)?;
 
-            field_vars.insert(field_name.to_string(), (new_id, typ));
+            if field_vars.insert(field_name.to_string(), (new_id, typ)).is_some() {
+                unreachable!("ICE - Duplicate field {field_name} in constructor");
+            }
             let expression = Box::new(self.expr(expr_id)?);
 
             new_exprs.push(ast::Expression::Let(ast::Let {
@@ -1444,6 +1470,15 @@ impl<'interner> Monomorphizer<'interner> {
             evaluate_builtin,
         )?;
 
+        // `static_assert` and the `print` oracle cannot be higher-order values because the compiler
+        // adds arguments to their call during monomorphization.
+        if evaluate_builtin && let Some(name) = special_function_name(&definition) {
+            return Err(MonomorphizationError::CannotUseFunctionAsValue {
+                name: name.to_string(),
+                location,
+            });
+        }
+
         if self.function_is_oracle(func_id)
             && let Type::Function(_args, ret, _env, _unconstrained) = typ
         {
@@ -1460,9 +1495,9 @@ impl<'interner> Monomorphizer<'interner> {
 
         if is_closure_type {
             let ident_clone = Box::new(ident_expression.clone());
-            let function = ast::Expression::ExtractTupleField(ident_clone, 0);
-            let env = ast::Expression::ExtractTupleField(Box::new(ident_expression), 1);
-            Ok(ast::Expression::Tuple(vec![function, env]))
+            let env = ast::Expression::ExtractTupleField(ident_clone, 0);
+            let function = ast::Expression::ExtractTupleField(Box::new(ident_expression), 1);
+            Ok(ast::Expression::Tuple(vec![env, function]))
         } else {
             Ok(ident_expression)
         }
@@ -1523,7 +1558,7 @@ impl<'interner> Monomorphizer<'interner> {
             {
                 let contains_function = value.contains_function_or_closure();
                 let expr = value
-                    .into_runtime_hir_expression(self.interner, global.location)
+                    .into_runtime_hir_expression(self.interner, self.files, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, contains_function)
             } else {
@@ -1570,56 +1605,108 @@ impl<'interner> Monomorphizer<'interner> {
     /// This is roughly the number of "nodes" in the type tree.
     ///
     /// To prevent stack overflow on deeply nested types, we stop recursion when
-    /// accumulated complexity exceeds MAX_TYPE_COMPLEXITY.
-    fn type_complexity(typ: &HirType) -> usize {
-        Self::type_complexity_inner(typ, 0)
+    /// accumulated complexity exceeds [MAX_TYPE_COMPLEXITY].
+    fn error_on_complex_type(
+        typ: &HirType,
+        location: &Location,
+    ) -> Result<(), MonomorphizationError> {
+        let complexity = Self::type_complexity(typ);
+        if complexity > MAX_TYPE_COMPLEXITY {
+            return Err(MonomorphizationError::ComplexType {
+                complexity,
+                max_complexity: MAX_TYPE_COMPLEXITY,
+                location: *location,
+            });
+        }
+        Ok(())
     }
 
-    fn type_complexity_inner(typ: &HirType, accumulated: usize) -> usize {
-        // Early return if accumulated complexity exceeds the limit,
-        // this avoids stack overflow due to the recursive nature of this computation
-        if accumulated > MAX_TYPE_COMPLEXITY {
-            return accumulated + 1;
+    /// Estimate the complexity of a type by counting all the types in it (with repetition).
+    fn type_complexity(typ: &Type) -> usize {
+        fn go_fold<I, T>(types: I, acc: usize, ctx: TypeRecursionContext) -> usize
+        where
+            I: IntoIterator<Item = T>,
+            T: std::borrow::Borrow<HirType>,
+        {
+            types.into_iter().fold(acc, |acc, t| go(t.borrow(), acc, ctx.clone()))
         }
 
-        let typ = typ.follow_bindings_shallow();
-        match typ.as_ref() {
-            HirType::Tuple(fields) => {
-                let mut complexity = accumulated + 1;
-                for field in fields {
-                    complexity = Self::type_complexity_inner(field, complexity);
+        fn go(typ: &HirType, mut acc: usize, mut ctx: TypeRecursionContext) -> usize {
+            // Every type increases it by one, even if seen already.
+            acc += 1;
+
+            // Early return if acc complexity exceeds the limit,
+            // this avoids stack overflow due to the recursive nature of this computation
+            if acc > MAX_TYPE_COMPLEXITY {
+                return acc;
+            }
+
+            // This will prevent a stack overflow on overly deep and skinny types,
+            // where we might be well below the MAX_TYPE_COMPLEXITY.
+            ctx = ctx.recur();
+
+            let typ = typ.follow_bindings_shallow();
+            match typ.as_ref() {
+                HirType::Tuple(fields) => go_fold(fields, acc, ctx),
+                HirType::Array(elem_typ, len) => {
+                    go_fold([elem_typ.as_ref(), len.as_ref()], acc, ctx)
                 }
-                complexity
-            }
-            HirType::Array(_len, elem_typ) => {
-                Self::type_complexity_inner(elem_typ, accumulated + 1)
-            }
-            HirType::DataType(_def, generics) => {
-                let mut complexity = accumulated + 1;
-                for generic in generics {
-                    complexity = Self::type_complexity_inner(generic, complexity);
+                HirType::Vector(elem_typ) => go(elem_typ, acc, ctx),
+                HirType::DataType(def, generics) => {
+                    // We count every type multiple times in the complexity, but if we are dealing
+                    // with a recursive type, we have more specific errors than the inevitable max
+                    // complexity we will hit.
+                    if !ctx.insert_data_type(def.borrow().id, generics.clone()) {
+                        return acc;
+                    }
+                    if let Some(fields) = def.borrow().get_fields(generics) {
+                        let types = fields.iter().map(|(_, typ, _)| typ);
+                        acc = go_fold(types, acc, ctx.clone());
+                    } else if let Some(variants) = def.borrow().get_variants(generics) {
+                        let types = variants.iter().flat_map(|(_, fields)| fields);
+                        acc = go_fold(types, acc, ctx.clone());
+                    }
+                    go_fold(generics, acc, ctx)
                 }
-                complexity
-            }
-            HirType::Function(args, ret, env, _) => {
-                let mut complexity = accumulated + 1;
-                for arg in args {
-                    complexity = Self::type_complexity_inner(arg, complexity);
+                HirType::Function(args, ret, env, _) => {
+                    let types = [ret.as_ref(), env.as_ref()].into_iter().chain(args);
+                    go_fold(types, acc, ctx)
                 }
-                complexity = Self::type_complexity_inner(ret, complexity);
-                Self::type_complexity_inner(env, complexity)
-            }
-            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, accumulated + 1),
-            HirType::Alias(_, generics) => {
-                let mut complexity = accumulated + 1;
-                for generic in generics {
-                    complexity = Self::type_complexity_inner(generic, complexity);
+                HirType::Reference(inner, _) => go(inner, acc, ctx),
+                HirType::Alias(alias, generics) => {
+                    if !ctx.insert_alias(alias.borrow().id, generics.clone()) {
+                        return acc;
+                    }
+                    let typ = alias.borrow().get_type(generics);
+                    let types = std::iter::once(&typ).chain(generics);
+                    go_fold(types, acc, ctx)
                 }
-                complexity
+                Type::String(len) => go(len, acc, ctx),
+                Type::FmtString(len, args) => go_fold([len.as_ref(), args.as_ref()], acc, ctx),
+
+                Type::TraitAsType(_, _, trait_generics) => {
+                    let generics = trait_generics
+                        .ordered
+                        .iter()
+                        .chain(trait_generics.named.iter().map(|n| &n.typ));
+                    go_fold(generics, acc, ctx)
+                }
+                Type::CheckedCast { from, to } => go_fold([from.as_ref(), to.as_ref()], acc, ctx),
+                Type::Forall(_, typ) => go(typ, acc, ctx),
+                Type::InfixExpr(lhs, _, rhs, _) => go_fold([lhs.as_ref(), rhs.as_ref()], acc, ctx),
+                Type::Constant(..)
+                | Type::Quoted(..)
+                | Type::TypeVariable(..)
+                | Type::NamedGeneric(..)
+                | Type::Unit
+                | Type::FieldElement
+                | Type::Integer(..)
+                | Type::Bool
+                | Type::Error => acc,
             }
-            // Simple types
-            _ => accumulated + 1,
         }
+
+        go(typ, 0, TypeRecursionContext::default())
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
@@ -1627,6 +1714,7 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         location: Location,
     ) -> Result<ast::Type, MonomorphizationError> {
+        Self::error_on_complex_type(typ, &location)?;
         Self::convert_type_helper(typ, location, &mut HashSet::default())
     }
 
@@ -1644,15 +1732,6 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
-        let complexity = Self::type_complexity(typ);
-        if complexity > MAX_TYPE_COMPLEXITY {
-            return Err(MonomorphizationError::ComplexType {
-                complexity,
-                max_complexity: MAX_TYPE_COMPLEXITY,
-                location,
-            });
-        }
-
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,
@@ -1679,7 +1758,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
-            HirType::Array(length, element) => {
+            HirType::Array(element, length) => {
                 if element.contains_vector() {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
@@ -1875,7 +1954,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) => {
+            HirType::Array(element, _length) => {
                 if element.contains_vector() {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
@@ -1991,24 +2070,22 @@ impl<'interner> Monomorphizer<'interner> {
     /// containing functions.
     fn is_closure_type(&self, t: &ast::Type) -> bool {
         if let ast::Type::Function(_, _, env, _) = t {
-            matches!(env.as_ref(), ast::Type::Tuple(_captures))
+            return matches!(env.as_ref(), ast::Type::Tuple(_captures));
         // All functions should be a pair of (constrained, unconstrained), with
         // closures possibly represented in both. So we unpack the tuple and see
         // if `constrained` is also a tuple.
-        } else if let ast::Type::Tuple(elements) = t {
-            if elements.len() == 2 {
-                match &elements[0] {
-                    ast::Type::Tuple(inner_elements) if inner_elements.len() == 2 => {
-                        matches!(inner_elements[1], ast::Type::Function(..))
-                    }
-                    _ => false,
+        } else if let ast::Type::Tuple(elements) = t
+            && elements.len() == 2
+        {
+            return match &elements[0] {
+                ast::Type::Tuple(inner_elements) if inner_elements.len() == 2 => {
+                    matches!(inner_elements[1], ast::Type::Function(..))
                 }
-            } else {
-                false
-            }
-        } else {
-            false
+                _ => false,
+            };
         }
+
+        unreachable!("ICE - Expected a closure type, found {t}");
     }
 
     /// Resolve a trait item and monomorphize it either as:
@@ -2021,6 +2098,18 @@ impl<'interner> Monomorphizer<'interner> {
         trait_item_id: TraitItemId,
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        // `resolve_trait_item_impl` extends the call expression's stored
+        // instantiation bindings with the resolved impl's bindings (so the
+        // ensuing `queue_function` call sees them) and writes the result back
+        // to the interner. The same call expression can be visited again
+        // under a different monomorphization context when its receiver type
+        // is generic and gets resolved to different concrete types across
+        // monomorphization contexts; on the second visit the freshly-extended
+        // bindings would otherwise inherit impl-specific entries from the
+        // first visit. Snapshot and restore here so each visit starts from
+        // the elaboration-time bindings.
+        let saved_bindings = self.interner.try_get_instantiation_bindings(expr_id).cloned();
+
         let item = resolve_trait_item(self.interner, trait_item_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
@@ -2034,11 +2123,17 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         // Functions are represented as (constrained, unconstrained) pairs
-        self.monomorphize_constrained_and_unconstrained(
+        let result = self.monomorphize_constrained_and_unconstrained(
             use_current_runtime,
             self.force_unconstrained,
             |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
-        )
+        );
+
+        if let Some(saved) = saved_bindings {
+            self.interner.store_instantiation_bindings(expr_id, saved);
+        }
+
+        result
     }
 
     /// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
@@ -2174,7 +2269,7 @@ impl<'interner> Monomorphizer<'interner> {
         let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
-            if let Definition::Oracle(name) = &ident.definition
+            if let Definition::Oracle { name, .. } = &ident.definition
                 && let Some(ForeignCall::Print) = ForeignCall::lookup(name)
             {
                 // Oracle calls are required to be wrapped in an unconstrained function
@@ -2287,6 +2382,13 @@ impl<'interner> Monomorphizer<'interner> {
 
         if return_type.contains_reference() {
             return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                typ: return_type.to_string(),
+                location,
+            });
+        }
+
+        if return_type.contains_function() {
+            return Err(MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
                 typ: return_type.to_string(),
                 location,
             });
@@ -2424,9 +2526,12 @@ impl<'interner> Monomorphizer<'interner> {
                 Some(value) => value,
                 None => ast::LValue::Ident(self.local_ident(&ident, &typ)?.unwrap()),
             },
-            HirLValue::MemberAccess { object, field_index, .. } => {
+            HirLValue::MemberAccess { object, field_index, typ, location, .. } => {
                 let field_index = field_index.unwrap();
                 let object = Box::new(self.lvalue(*object)?);
+                // Validate the field type, so any error `convert_type` would raise
+                // is reported here rather than skipped on the lvalue side.
+                let _ = Self::convert_type(&typ, location)?;
                 ast::LValue::MemberAccess { object, field_index }
             }
             HirLValue::Index { array, index, typ, location } => {
@@ -2908,6 +3013,23 @@ impl<'interner> Monomorphizer<'interner> {
         self.interner.function_modifiers(&func_id).attributes.function.as_ref().is_some_and(
             |(attribute, _)| matches!(attribute.kind, FunctionAttributeKind::Oracle(..)),
         )
+    }
+}
+
+/// If this definition refers to a builtin or oracle whose call site requires
+/// special handling in `function_call` (printable type info append), return
+/// the user-facing name. Otherwise return `None`. Such functions cannot be
+/// used as first-class values because the special handling only fires for
+/// direct calls.
+fn special_function_name(definition: &Definition) -> Option<&str> {
+    match definition {
+        Definition::Builtin(name) if name == "static_assert" => Some(name),
+        Definition::Oracle { name, .. }
+            if matches!(ForeignCall::lookup(name), Some(ForeignCall::Print)) =>
+        {
+            Some(name)
+        }
+        _ => None,
     }
 }
 

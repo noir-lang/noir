@@ -33,10 +33,36 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Run fuzzer
-        run: just fuzz-nightly
+        id: fuzz
+        shell: bash
+        run: |
+          set -o pipefail
+          just fuzz-nightly 2>&1 | tee fuzz-output.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_MIN_STACK: 8388608
+
+      - name: Extract fuzzer seeds
+        if: failure()
+        id: seeds
+        shell: bash
+        run: |
+          ./.github/scripts/extract-fuzz-seeds.sh fuzz-output.log .
+          seed_count=$(wc -l < seeds.txt | tr -d ' ')
+          seeds=$(paste -sd, - < seeds.txt)
+          echo "seed_count=${seed_count}" >> "$GITHUB_OUTPUT"
+          echo "seeds=${seeds}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload fuzz failure artifact
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: nightly-fuzz-failure
+          path: |
+            fuzz-output.log
+            seeds.txt
+            seeds-by-test.tsv
+          retention-days: 30
 
       - name: Get current date
         id: date
@@ -45,9 +71,12 @@ jobs:
       - name: Send an alert in slack
         # Send notifications on weekdays if there's a failure.
         if: ${{ failure() && steps.date.outputs.DAY <= 5 }}
-        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
         with:
           webhook: ${{ secrets.FUZZING_ALERT_URL }}
           webhook-type: webhook-trigger
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            seed-count: ${{ steps.seeds.outputs.seed_count }}
+            seeds: ${{ steps.seeds.outputs.seeds }}
+            artifact-name: nightly-fuzz-failure

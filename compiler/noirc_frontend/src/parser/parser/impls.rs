@@ -235,8 +235,6 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
@@ -244,7 +242,7 @@ mod tests {
         parse_program_with_dummy_file,
         parser::{
             ItemKind,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -545,10 +543,9 @@ mod tests {
     fn recovers_on_unknown_impl_item() {
         let src = "
         impl Foo { hello fn foo() {} }
-                   ^^^^^
+                   ^^^^^ Expected a function but found 'hello'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -556,19 +553,15 @@ mod tests {
             panic!("Expected impl");
         };
         assert_eq!(type_impl.methods.len(), 1);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a function but found 'hello'");
     }
 
     #[test]
     fn recovers_on_unknown_trait_impl_item() {
         let src = "
         impl Foo for i32 { hello fn foo() {} }
-                           ^^^^^
+                           ^^^^^ Expected a trait impl item but found 'hello'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -576,9 +569,6 @@ mod tests {
             panic!("Expected trait impl");
         };
         assert_eq!(trait_imp.items.len(), 1);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a trait impl item but found 'hello'");
     }
 
     #[test]

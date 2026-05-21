@@ -221,7 +221,7 @@ impl DominatorTree {
             changed = false;
             for &block_id in entry_free_post_order.iter().rev() {
                 let immediate_dominator = self.compute_immediate_dominator(block_id, cfg);
-                changed = self
+                changed |= self
                     .nodes
                     .get_mut(&block_id)
                     .expect("Assigned in first pass")

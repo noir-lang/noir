@@ -64,6 +64,7 @@ impl HirStatement {
             }
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_display_ast(interner)),
             HirStatement::Error => StatementKind::Error,
+            HirStatement::TraitAssociatedConstant => StatementKind::Error,
             HirStatement::Comptime(statement) => {
                 StatementKind::Comptime(Box::new(statement.to_display_ast(interner)))
             }
@@ -387,7 +388,7 @@ impl Type {
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
             Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)

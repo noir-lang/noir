@@ -608,7 +608,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("type ");
     string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
-    string.push_str(&format!("{}", &type_alias.typ));
+    string.push_str(&format!("{}", type_alias.typ));
 
     append_doc_comments(ReferenceId::Alias(id), &mut string, args);
 
@@ -790,7 +790,7 @@ struct TypeLinksGatherer<'a> {
 impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
-            Type::Array(typ, _) => self.gather_type_links(typ),
+            Type::Array(_, typ) => self.gather_type_links(typ),
             Type::Vector(typ) => self.gather_type_links(typ),
             Type::Tuple(types) => {
                 for typ in types {
@@ -1095,7 +1095,8 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
         | Value::Zeroed(..)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) => return None,
+        | Value::UnresolvedType(..)
+        | Value::Location(..) => return None,
     }
 
     Some(())

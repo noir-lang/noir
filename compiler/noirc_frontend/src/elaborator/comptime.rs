@@ -14,6 +14,7 @@
 
 use std::{collections::BTreeMap, fmt::Display};
 
+use fm::FileMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
@@ -85,11 +86,14 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let meta = elaborator.interner.function_meta(&function);
+                let (source_crate, source_module, all_generics) = elaborator
+                    .with_function_meta(function, |meta| {
+                        (meta.source_crate, meta.source_module, meta.all_generics.clone())
+                    });
                 elaborator.current_item = Some(DependencyId::Function(function));
-                elaborator.crate_id = meta.source_crate;
-                elaborator.local_module = Some(meta.source_module);
-                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+                elaborator.crate_id = source_crate;
+                elaborator.local_module = Some(source_module);
+                elaborator.introduce_generics_into_scope(all_generics);
             }
         })
     }
@@ -123,7 +127,9 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.files,
             self.interpreter_output,
+            self.evaluation_tracker.as_deref_mut(),
             self.required_unstable_features,
             self.unresolved_globals,
             self.crate_id,
@@ -145,6 +151,10 @@ impl<'context> Elaborator<'context> {
 
         elaborator.local_module = self.local_module;
         elaborator.parent_runtime_variables = parent_runtime_variables;
+        elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
+        elaborator.unresolved_struct_fields = std::mem::take(&mut self.unresolved_struct_fields);
+        elaborator.unresolved_enum_variants = std::mem::take(&mut self.unresolved_enum_variants);
+        elaborator.pending_trait_work = std::mem::take(&mut self.pending_trait_work);
 
         setup(&mut elaborator);
 
@@ -152,6 +162,11 @@ impl<'context> Elaborator<'context> {
 
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
+
+        self.unresolved_function_metas = std::mem::take(&mut elaborator.unresolved_function_metas);
+        self.unresolved_struct_fields = std::mem::take(&mut elaborator.unresolved_struct_fields);
+        self.unresolved_enum_variants = std::mem::take(&mut elaborator.unresolved_enum_variants);
+        self.pending_trait_work = std::mem::take(&mut elaborator.pending_trait_work);
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
@@ -419,7 +434,9 @@ impl<'context> Elaborator<'context> {
 
         let value = result.map_err(CompilationError::from)?;
 
-        self.debug_comptime(location, |interner| value.display(interner).to_string());
+        self.debug_comptime(location, |interner, file_manager| {
+            value.display(interner, file_manager).to_string()
+        });
 
         if value != Value::Unit {
             // Items must be added in the correct module (for a module attribute, this will be the
@@ -453,7 +470,7 @@ impl<'context> Elaborator<'context> {
         arguments: Vec<Expression>,
         location: Location,
     ) -> Result<Vec<(Value, Location)>, CompilationError> {
-        let meta = interpreter.elaborator.interner.function_meta(&function);
+        let meta = interpreter.elaborator.function_meta(function);
 
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
 
@@ -723,13 +740,13 @@ impl<'context> Elaborator<'context> {
     /// When `--debug-comptime` is enabled for a specific file, this will emit
     /// compilation "errors" that show the evaluated comptime values for debugging.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
+    pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner, &FileMap) -> T>(
         &mut self,
         location: Location,
         mut expr_f: F,
     ) {
         if Some(location.file) == self.options.debug_comptime_in_file {
-            let displayed_expr = expr_f(self.interner);
+            let displayed_expr = expr_f(self.interner, self.files);
             let error: CompilationError =
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into();
             self.push_err(error);

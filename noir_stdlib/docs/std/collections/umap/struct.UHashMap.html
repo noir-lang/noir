@@ -16,7 +16,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.21</div>
 <h2><a href="#struct">Struct UHashMap</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -152,7 +152,7 @@ The length of the returned vector will always match the length of this UHashMap.
 <div class="padded-description"><div class="comments">
 <p>Get the value by key. If it does not exist, returns none().</p>
 </div>
-</div><code id="insert" class="code-header">pub unconstrained fn <a href="#insert"><span class="fn">insert</span></a>(&mut self, key: K, value: V)
+</div><code id="insert" class="code-header">pub unconstrained fn <a href="#insert"><span class="fn">insert</span></a>(&mut self, key: K, value: V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -160,6 +160,8 @@ The length of the returned vector will always match the length of this UHashMap.
 
 <div class="padded-description"><div class="comments">
 <p>Insert key-value entry. In case key was already present, value is overridden.</p>
+<p>Returns true if the element was newly-inserted. In other words, this returns false
+if the key already has a value in this map.</p>
 </div>
 </div><code id="remove" class="code-header">pub unconstrained fn <a href="#remove"><span class="fn">remove</span></a>(&mut self, key: K)
 <div class="where-clause">where

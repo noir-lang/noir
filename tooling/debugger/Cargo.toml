@@ -29,6 +29,6 @@ bn254_blackbox_solver.workspace = true
 
 
 [dev-dependencies]
-assert_cmd = "2.0.12"
+assert_cmd = "2.2.2"
 rexpect = "0.7"
 tempfile.workspace = true

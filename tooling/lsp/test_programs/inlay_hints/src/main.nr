@@ -142,3 +142,7 @@ fn test_missing_args() {
     // This is here to prove that inlay hints don't break when arguments are missing
     yet_another_function()
 }
+
+fn test_unicode_identifier() {
+    let xé = 1;
+}

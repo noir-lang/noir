@@ -464,7 +464,7 @@ impl Elaborator<'_> {
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
+            Type::Array(elem_type, Box::new(length))
         } else {
             Type::Vector(elem_type)
         };
@@ -540,6 +540,16 @@ impl Elaborator<'_> {
             if mutable {
                 self.check_can_mutate(rhs, rhs_location);
             }
+            return (rhs, typ);
+        }
+
+        // Simplify `&*x` and `&mut *x` to just `x`
+        if let UnaryOp::Reference { .. } = prefix.operator
+            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
+            && let UnaryOp::Dereference { .. } = inner.operator
+        {
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
+            let (rhs, typ) = self.elaborate_expression(inner.rhs);
             return (rhs, typ);
         }
 
@@ -703,7 +713,7 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            Type::Array(ref size, ref base_type) => {
+            Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()
             }
@@ -910,7 +920,7 @@ impl Elaborator<'_> {
 
         self.usage_tracker.mark_impl_function_as_used(&func_id);
 
-        let function_type = self.interner.function_meta(&func_id).typ.clone();
+        let function_type = self.function_meta(func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
         let generics = method_call.generics;
@@ -1068,7 +1078,7 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location, msg)), Type::Unit)
     }
 
     /// Elaborate a struct constructor.
@@ -1184,6 +1194,8 @@ impl Elaborator<'_> {
             }
         }
 
+        // The struct's fields may still be deferred, so type-check them now.
+        self.define_struct_fields_if_undefined(struct_id);
         let field_types = struct_type
             .borrow()
             .get_fields_with_visibility(&generics)
@@ -1729,7 +1741,7 @@ impl Elaborator<'_> {
         let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
-        self.debug_comptime(location, |interner| {
+        self.debug_comptime(location, |interner, _| {
             interner.expression(&id).to_display_ast(interner, location).kind
         });
 

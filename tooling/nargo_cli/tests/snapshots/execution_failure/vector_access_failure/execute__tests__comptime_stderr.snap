@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: 3 is out of bounds for the array of length 3
+error: Index out of bounds: 3 is out of bounds for the array of length 3
    ┌─ src/main.nr:12:13
    │
 12 │     assert((vector[3] == 0) & (vector[2] != y));
