@@ -429,7 +429,22 @@ fn impl_generic_in_body_only_distinct_monomorphizations() {
     "#;
 
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program);
+    insta::assert_snapshot!(program, @"
+    fn main$f0(x$l0: Field) -> () {
+        check$f1(x$l0);;
+        check$f2(x$l0);
+    }
+    fn check$f1(x$l1: Field) -> () {
+        for _$l2 in 0 .. 0 {
+            assert((x$l1 == 0));
+        }
+    }
+    fn check$f2(x$l3: Field) -> () {
+        for _$l4 in 0 .. 2 {
+            assert((x$l3 == 0));
+        }
+    }
+    ");
 }
 
 #[test]
