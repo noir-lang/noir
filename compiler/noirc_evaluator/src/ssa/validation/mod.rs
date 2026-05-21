@@ -315,7 +315,7 @@ impl<'f> Validator<'f> {
                 };
 
                 let value_type = dfg.type_of_value(*value);
-                if **address_value_type != *value_type {
+                if !address_value_type.canonical_eq(&value_type) {
                     panic!(
                         "Store address type {address_value_type} does not match value type {value_type}"
                     );
@@ -1203,8 +1203,10 @@ impl<'f> Validator<'f> {
                 };
                 let result = dfg.instruction_results(instruction)[0];
                 let result_type = dfg.type_of_value(result);
-                if *result_type != *expected_type {
-                    panic!("load should return {expected_type}, not {result_type}");
+                if !result_type.canonical_eq(expected_type) {
+                    panic!(
+                        "load should return {expected_type}, not {result_type}; address = {address}, result = {result}"
+                    );
                 }
             }
             Instruction::Store { address, value } => {
@@ -1212,8 +1214,10 @@ impl<'f> Validator<'f> {
                     return;
                 };
                 let value_type = dfg.type_of_value(*value);
-                if *value_type != *expected_type {
-                    panic!("store value should have type {expected_type}, not {value_type}");
+                if !value_type.canonical_eq(expected_type) {
+                    panic!(
+                        "store value should have type {expected_type}, not {value_type}; address = {address}, value = {value}"
+                    );
                 }
             }
             _ => (),
@@ -2097,6 +2101,63 @@ mod tests {
             v1 = allocate -> &mut &mut Field
             store v0 at v1
             v2 = make_array [v1] : [&mut &Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn store_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` value is accepted at a `&mut &Field` slot
+        // (and vice versa). The minimal SSA-gen pattern this guards is an
+        // assignment like `b.1 = &b.0` inside an unconstrained mutable tuple:
+        // the slot is allocated as `&mut &T` while the right-hand side carries
+        // `&mut T` because `b.0` itself lives in a mutable binding.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &Field
+            store v0 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn load_allows_reference_mutability_mismatch() {
+        // The Load path mirrors the Store path: when an Allocate's recorded
+        // element type only differs from the Load result type by reference
+        // mutability we must accept it.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &mut Field
+            v1 = load v0 -> &Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &Field
+            v1 = load v0 -> &mut Field
             return
         }
         ";
