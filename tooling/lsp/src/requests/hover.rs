@@ -432,6 +432,19 @@ mod hover_tests {
     }
 
     #[test]
+    async fn hover_on_trait_impl_function_self_generics() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 139, character: 6 },
+            "    two
+    impl<A, B> NoGenericsTrait for (A, B)
+    fn quux(self)",
+        )
+        .await;
+    }
+
+    #[test]
     async fn hover_on_trait_impl_method_uses_docs_from_trait_method() {
         let hover_text =
             get_hover_text("workspace", "two/src/lib.nr", Position { line: 92, character: 8 })

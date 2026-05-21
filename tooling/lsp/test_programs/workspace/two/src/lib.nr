@@ -126,3 +126,16 @@ fn use_invalid_global() {
 fn hover_on_numeric_generic<let N: u32>() {
     println(N);
 }
+
+trait NoGenericsTrait {
+    fn quux(self);
+}
+
+impl<A, B> NoGenericsTrait for (A, B) {
+    fn quux(self) {}
+}
+
+fn call_quux() {
+    let t: (i32, i32) = (1, 2);
+    t.quux();
+}

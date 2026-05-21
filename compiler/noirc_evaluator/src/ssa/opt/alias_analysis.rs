@@ -115,30 +115,13 @@ use crate::ssa::{
         function::{Function, FunctionId},
         instruction::{Instruction, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
-        types::{CompositeType, Type},
+        types::Type,
         union_find::UnionFind,
         value::{Value, ValueId},
     },
     opt::unrolling::{LoopOrder, Loops},
     ssa_gen::Ssa,
 };
-
-/// Canonicalize a type so that `&T` and `&mut T` are treated as the same type
-/// for aliasing. Every `Reference(_, _)` is rewritten to have `mutable = false`.
-fn canonicalize_type(typ: &Type) -> Type {
-    match typ {
-        Type::Reference(inner, _) => Type::Reference(Arc::new(canonicalize_type(inner)), false),
-        Type::Array(composite, size) => {
-            let slots: CompositeType = composite.iter().map(canonicalize_type).collect();
-            Type::Array(Arc::new(slots), *size)
-        }
-        Type::Vector(composite) => {
-            let slots: CompositeType = composite.iter().map(canonicalize_type).collect();
-            Type::Vector(Arc::new(slots))
-        }
-        Type::Numeric(_) | Type::Function => typ.clone(),
-    }
-}
 
 /// Scope of the analysis
 enum Scope<'a> {
@@ -230,14 +213,14 @@ impl AliasAnalysis {
         }
 
         // Field-insensitivity may alias values with distinct types, but such values cannot alias.
-        // Types are canonicalized first so `&T` and `&mut T` compare equal
+        // Types are compared with [Type::canonical_eq] so `&T` and `&mut T` count as equal.
         // Note that this check is done only when both `a` and `b` match the given `function`.
         // This is purely for convenience, because the type filter would need access to the SSA
         // to look up types in other functions, which it doesn't currently.
         if function.id() == a.0 && a.0 == b.0 {
-            let type_a = canonicalize_type(&function.dfg.type_of_value(a.1));
-            let type_b = canonicalize_type(&function.dfg.type_of_value(b.1));
-            if type_a != type_b {
+            let type_a = function.dfg.type_of_value(a.1);
+            let type_b = function.dfg.type_of_value(b.1);
+            if !type_a.canonical_eq(&type_b) {
                 return false;
             }
         }
@@ -998,7 +981,7 @@ impl AliasAnalysisContext {
                     return None;
                 }
                 // Canonicalize so `&T` and `&mut T` have the cache entries
-                let typ = canonicalize_type(&typ);
+                let typ = typ.canonicalized();
                 let refs = self.get_ref_types(&typ);
                 Some((v, typ, refs))
             })
