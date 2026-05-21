@@ -38,7 +38,7 @@ impl Monomorphizer<'_> {
     /// Prerequisite: `typ = typ.follow_bindings()`,
     ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
     ///          and: `bindings_key` was produced by `Monomorphizer::canonicalize_bindings`.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub(super) fn try_evaluate_builtin(
         &mut self,
         opcode_string: &str,
