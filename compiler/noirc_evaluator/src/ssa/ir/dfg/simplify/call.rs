@@ -236,6 +236,13 @@ pub(super) fn simplify_call(
                     vector.pop_front().expect("There are no elements in this vector to be removed")
                 });
 
+                // The popped elements are reused by `ValueId` from the source vector, so any
+                // array-typed element still aliases the source's underlying memory. Bump the
+                // reference count so a subsequent mutation through the popped value does not
+                // mutate the source in place. The same invariant is enforced for plain indexing
+                // by the `ownership` pass (see `handle_index`).
+                inc_rc_array_results(&results, dfg, block, call_stack);
+
                 let new_vector_length =
                     decrement_vector_length(arguments[0], dfg, block, call_stack);
 
@@ -667,6 +674,27 @@ fn decrement_vector_length(
 ) -> ValueId {
     // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
     update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
+}
+
+/// Emit `inc_rc` for each value whose type is an array or vector. Used by vector intrinsic
+/// simplifications that hand back `ValueId`s of elements from the source vector: those elements
+/// still alias the source's memory, so the reference count must be bumped to preserve
+/// copy-on-write semantics. No-op under the ACIR runtime, which does not track reference counts.
+fn inc_rc_array_results(
+    values: &[ValueId],
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) {
+    if dfg.runtime().is_acir() {
+        return;
+    }
+    for value in values {
+        if dfg.type_of_value(*value).is_array() {
+            let instruction = Instruction::IncrementRc { value: *value };
+            dfg.insert_instruction_and_results(instruction, block, None, call_stack);
+        }
+    }
 }
 
 /// Simplify a vector push back when the length is not known to equal capacity, ie. we don't
