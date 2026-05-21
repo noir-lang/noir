@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779399599948,
+  "lastUpdate": 1779399910614,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "20aa04194b2b06fe5e8d3e30276dbaac762cfa3d",
-          "message": "fix: run mem2reg while it keeps making progress (#12664)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-05-14T17:20:50Z",
-          "tree_id": "4d857f06762780fe9ec550db25a3b33594b2750c",
-          "url": "https://github.com/noir-lang/noir/commit/20aa04194b2b06fe5e8d3e30276dbaac762cfa3d"
-        },
-        "date": 1778782296325,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 294.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 517.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 275.37,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 354.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 354.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 355.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6050,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 6050,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 872.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2820,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.92,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 95.44,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 143.81,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4874,6 +4775,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/744f8a87ce22004992ac06a0834ef0179e0cd64e"
         },
         "date": 1779398728915,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 299.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 522.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 280.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 359.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 359.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 360.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 359.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 360.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 877.84,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 359.8,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 100.8,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 149.19,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd8860d83f58e4153b99f7a5f124462d5d213e20",
+          "message": "chore(docs): Clarify immutable refs can be aliased with mutable refs (#12741)",
+          "timestamp": "2026-05-21T20:56:03Z",
+          "tree_id": "dfcd4c09441fb5ffd5ae431e91d48fff6b3175fd",
+          "url": "https://github.com/noir-lang/noir/commit/fd8860d83f58e4153b99f7a5f124462d5d213e20"
+        },
+        "date": 1779399845688,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
