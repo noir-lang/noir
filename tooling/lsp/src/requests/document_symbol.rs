@@ -514,29 +514,18 @@ impl Visitor for DocumentSymbolCollector<'_> {
 
 #[cfg(test)]
 mod document_symbol_tests {
-    use crate::{notifications::on_did_open_text_document, test_utils};
+    use crate::test_utils;
 
     use super::*;
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, PartialResultParams, Range, SymbolKind, TextDocumentIdentifier,
-        TextDocumentItem, WorkDoneProgressParams,
+        PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
 
     async fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
+                .await;
 
         let response = on_document_symbol_request(
             &mut state,

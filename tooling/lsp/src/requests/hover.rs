@@ -45,9 +45,13 @@ mod hover_tests {
     }
 
     async fn get_hover_text(src: &str) -> String {
-        let (mut state, file_uri, position) =
-            test_utils::init_lsp_server_with_inline_source("workspace", "two/src/lib.nr", src)
-                .await;
+        let (mut state, file_uri, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "workspace",
+                "two/src/lib.nr",
+                src,
+            )
+            .await;
 
         let hover = on_hover_request(
             &mut state,

@@ -43,18 +43,18 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
     (state, noir_text_document)
 }
 
-/// Initializes the LSP server against an on-disk workspace, then opens the given file
-/// with inline `src` (so the test's source replaces whatever lives on disk).
+/// Boots the LSP server against the on-disk workspace at `test_programs/<workspace_directory>`,
+/// then opens `relative_file_path` (resolved against the workspace root) with `src` as its
+/// contents. The override sticks for the duration of the test, so on-disk contents of that
+/// file are irrelevant — the workspace directory is only needed as a Nargo root and to supply
+/// dependency crates the test refers to (e.g. `one`, `std`).
 ///
-/// `src` must contain exactly one `>|<` cursor marker, which is stripped and returned as a
-/// `Position`. The on-disk workspace is still needed as a Nargo root and to supply any
-/// dependency crates the test refers to (e.g. `one` under `test_programs/workspace`), but
-/// the contents of `relative_file_path` itself are taken from `src`.
+/// Returns the LSP state and the opened file's URI.
 pub(crate) async fn init_lsp_server_with_inline_source(
     workspace_directory: &str,
     relative_file_path: &str,
     src: &str,
-) -> (LspState, Url, Position) {
+) -> (LspState, Url) {
     let (mut state, root_marker_uri) = init_lsp_server(workspace_directory).await;
 
     // `init_lsp_server` returns a URI pointing at `<workspace>/src/main.nr` regardless of layout;
@@ -62,7 +62,6 @@ pub(crate) async fn init_lsp_server_with_inline_source(
     let workspace_dir =
         root_marker_uri.to_file_path().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
 
-    let (line, column, src) = crate::utils::get_cursor_line_and_column(src);
     let file_uri = Url::from_file_path(workspace_dir.join(relative_file_path)).unwrap();
 
     let _ = on_did_open_text_document(
@@ -72,12 +71,28 @@ pub(crate) async fn init_lsp_server_with_inline_source(
                 uri: file_uri.clone(),
                 language_id: "noir".to_string(),
                 version: 0,
-                text: src,
+                text: src.to_string(),
             },
         },
     );
 
-    (state, file_uri, Position { line: line as u32, character: column as u32 })
+    (state, file_uri)
+}
+
+/// Like `init_lsp_server_with_inline_source`, but `src` is expected to contain exactly one
+/// `>|<` cursor marker. The marker is stripped before the document is opened, and its
+/// position is returned alongside the cleaned source so the caller can issue a request at
+/// the cursor and (e.g.) apply text edits against the cleaned source.
+pub(crate) async fn init_lsp_server_with_inline_source_and_cursor(
+    workspace_directory: &str,
+    relative_file_path: &str,
+    src: &str,
+) -> (LspState, Url, Position, String) {
+    let (line, column, src) = crate::utils::get_cursor_line_and_column(src);
+    let (state, file_uri) =
+        init_lsp_server_with_inline_source(workspace_directory, relative_file_path, &src).await;
+    let position = Position { line: line as u32, character: column as u32 };
+    (state, file_uri, position, src)
 }
 
 /// Searches for all instances of `search_string` in file `file_name` and returns a list of their locations.

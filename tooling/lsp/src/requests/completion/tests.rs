@@ -3,7 +3,6 @@ mod after_change;
 #[cfg(test)]
 mod completion_tests {
     use crate::{
-        notifications::on_did_open_text_document,
         requests::{
             completion::{
                 completion_items::{
@@ -19,42 +18,32 @@ mod completion_tests {
         },
         test_utils,
         tests::apply_text_edits,
-        utils::get_cursor_line_and_column,
     };
 
     use async_lsp::lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
-        CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
-        Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
-        WorkDoneProgressParams,
+        CompletionResponse, Documentation, PartialResultParams, TextDocumentIdentifier,
+        TextDocumentPositionParams, WorkDoneProgressParams,
     };
     use tokio::test;
 
     /// Given a string with ">|<" (cursor) in it, returns all completions that are available
     /// at that position together with the string with ">|<" removed.
     async fn get_completions(src: &str) -> (Vec<CompletionItem>, String) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.clone(),
-                },
-            },
-        );
+        let (mut state, noir_text_document, position, src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         let response = on_completion_request(
             &mut state,
             CompletionParams {
                 text_document_position: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 partial_result_params: PartialResultParams { partial_result_token: None },

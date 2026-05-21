@@ -1,33 +1,21 @@
 #[cfg(test)]
 mod signature_help_tests {
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_signature_help_request, test_utils,
-        utils::get_cursor_line_and_column,
-    };
+    use crate::{requests::on_signature_help_request, test_utils};
 
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, ParameterLabel, Position, SignatureHelp, SignatureHelpParams,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
-        WorkDoneProgressParams,
+        ParameterLabel, SignatureHelp, SignatureHelpParams, TextDocumentIdentifier,
+        TextDocumentPositionParams, WorkDoneProgressParams,
     };
     use tokio::test;
 
     async fn get_signature_help(src: &str) -> SignatureHelp {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.clone(),
-                },
-            },
-        );
+        let (mut state, noir_text_document, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         on_signature_help_request(
             &mut state,
@@ -35,7 +23,7 @@ mod signature_help_tests {
                 context: None,
                 text_document_position_params: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             },

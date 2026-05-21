@@ -28,14 +28,12 @@ pub(crate) fn on_references_request(
 #[cfg(test)]
 mod references_tests {
     use super::*;
+    use crate::notifications;
     use crate::notifications::workspace_from_document_uri;
     use crate::test_utils::{self, search_in_file};
-    use crate::utils::get_cursor_line_and_column;
-    use crate::{notifications, on_did_open_text_document};
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, PartialResultParams, Position, Range, ReferenceContext,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
-        WorkDoneProgressParams,
+        PartialResultParams, Position, Range, ReferenceContext, TextDocumentIdentifier,
+        TextDocumentPositionParams, Url, WorkDoneProgressParams,
     };
     use tokio::test;
 
@@ -185,28 +183,20 @@ mod references_tests {
         }
         ";
 
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.clone(),
-                },
-            },
-        );
+        let (mut state, noir_text_document, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         let result = on_references_request(
             &mut state,
             ReferenceParams {
                 text_document_position: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 partial_result_params: PartialResultParams { partial_result_token: None },
