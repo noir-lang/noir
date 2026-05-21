@@ -102,7 +102,7 @@ impl LexerErrorKind {
                 expected,
                 found,
             } => {
-                let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
+                let found: String = found.map_or_else(|| "<eof>".into(), Into::into);
 
                 (
                     "An unexpected character was found".to_string(),

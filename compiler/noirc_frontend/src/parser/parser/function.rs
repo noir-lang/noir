@@ -233,15 +233,23 @@ impl Parser<'_> {
 
     fn pattern_param(&mut self, pattern: Pattern, start_location: Location) -> Param {
         let (visibility, visibility_location, typ) = if !self.eat_colon() {
-            self.push_error(
-                ParserErrorReason::MissingTypeForFunctionParameter,
-                pattern.location().merge(self.current_token_location),
-            );
+            if let Some(typ) = self.parse_type_allowing_generics(true) {
+                self.push_error(
+                    ParserErrorReason::MissingColonInFunctionParameter,
+                    pattern.location().merge(typ.location),
+                );
+                (Visibility::Private, typ.location, typ)
+            } else {
+                self.push_error(
+                    ParserErrorReason::MissingTypeForFunctionParameter,
+                    pattern.location().merge(self.current_token_location),
+                );
 
-            let visibility = Visibility::Private;
-            let location = self.location_at_previous_token_end();
-            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
-            (visibility, location, typ)
+                let visibility = Visibility::Private;
+                let location = self.location_at_previous_token_end();
+                let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+                (visibility, location, typ)
+            }
         } else {
             let (visibility, location) = self.parse_visibility();
             (
@@ -546,6 +554,27 @@ mod tests {
 
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("Missing type for function parameter"));
+    }
+
+    #[test]
+    fn recovers_on_missing_colon_before_parameter_type() {
+        let src = "
+        fn foo(x u64, y: i32) {}
+               ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (mut module, errors) = parse_program_with_dummy_file(&src);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = module.items.remove(0).kind else {
+            panic!("Expected function");
+        };
+        let params = noir_function.parameters();
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0].typ.typ.to_string(), "u64");
+        assert_eq!(params[1].typ.typ.to_string(), "i32");
+
+        let reason = get_single_error_reason(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingColonInFunctionParameter));
     }
 
     #[test]

@@ -1752,7 +1752,7 @@ impl NodeInterner {
     pub fn clear_in_file(&mut self, file: FileId) {
         // Clear in methods
         for methods in self.methods.values_mut() {
-            for (_name, methods) in methods.iter_mut() {
+            for methods in methods.values_mut() {
                 methods.direct.retain(|method| {
                     let func_id = method.method;
                     self.func_meta.get(&func_id).unwrap().location.file != file

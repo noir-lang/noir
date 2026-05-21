@@ -51,6 +51,10 @@ pub enum ParserErrorReason {
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
+    #[error("Expected a `:` between the parameter name and its type")]
+    MissingColonInFunctionParameter,
+    #[error("Expected a `:` between the variable name and its type")]
+    MissingColonInLetStatement,
     #[error("Missing type for numeric generic")]
     MissingTypeForNumericGeneric,
     #[error("Expected a function body (`{{ ... }}`), not `;`")]
