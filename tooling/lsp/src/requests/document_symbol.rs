@@ -547,35 +547,10 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol() {
+    async fn test_document_symbol_for_function() {
         let src = r#"fn foo(_x: i32) {
     let _ = 1;
 }
-
-struct SomeStruct {
-    field: i32,
-}
-
-impl SomeStruct {
-    fn new() -> SomeStruct {
-        SomeStruct { field: 0 }
-    }
-}
-
-trait SomeTrait<U> {
-    fn some_method(x: U);
-}
-
-impl SomeTrait<i32> for SomeStruct {
-    fn some_method(_x: i32) {
-    }
-}
-
-mod submodule {
-    global SOME_GLOBAL = 1;
-}
-
-impl i32 {}
 "#;
         let symbols = get_document_symbols(src).await;
 
@@ -599,6 +574,21 @@ impl i32 {}
                     },
                     children: None,
                 },
+            ]
+        );
+    }
+
+    #[test]
+    async fn test_document_symbol_for_struct_with_field() {
+        let src = r#"struct SomeStruct {
+    field: i32,
+}
+"#;
+        let symbols = get_document_symbols(src).await;
+
+        assert_eq!(
+            symbols,
+            vec![
                 #[allow(deprecated)]
                 DocumentSymbol {
                     name: "SomeStruct".to_string(),
@@ -607,12 +597,12 @@ impl i32 {}
                     tags: None,
                     deprecated: None,
                     range: Range {
-                        start: Position { line: 4, character: 0 },
-                        end: Position { line: 6, character: 1 },
+                        start: Position { line: 0, character: 0 },
+                        end: Position { line: 2, character: 1 },
                     },
                     selection_range: Range {
-                        start: Position { line: 4, character: 7 },
-                        end: Position { line: 4, character: 17 },
+                        start: Position { line: 0, character: 7 },
+                        end: Position { line: 0, character: 17 },
                     },
                     children: Some(vec![
                         #[allow(deprecated)]
@@ -623,52 +613,84 @@ impl i32 {}
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 5, character: 4 },
-                                end: Position { line: 5, character: 14 },
+                                start: Position { line: 1, character: 4 },
+                                end: Position { line: 1, character: 14 },
                             },
                             selection_range: Range {
-                                start: Position { line: 5, character: 4 },
-                                end: Position { line: 5, character: 9 },
+                                start: Position { line: 1, character: 4 },
+                                end: Position { line: 1, character: 9 },
                             },
                             children: None,
                         },
                     ],),
                 },
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "SomeStruct".to_string(),
-                    detail: None,
-                    kind: SymbolKind::NAMESPACE,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 8, character: 0 },
-                        end: Position { line: 12, character: 1 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 8, character: 5 },
-                        end: Position { line: 8, character: 15 },
-                    },
-                    children: Some(vec![
-                        #[allow(deprecated)]
-                        DocumentSymbol {
-                            name: "new".to_string(),
-                            detail: Some("fn new() -> SomeStruct".to_string()),
-                            kind: SymbolKind::FUNCTION,
-                            tags: None,
-                            deprecated: None,
-                            range: Range {
-                                start: Position { line: 9, character: 4 },
-                                end: Position { line: 11, character: 5 },
-                            },
-                            selection_range: Range {
-                                start: Position { line: 9, character: 7 },
-                                end: Position { line: 9, character: 10 },
-                            },
-                            children: None,
-                        },
-                    ],),
-                },
+            ]
+        );
+    }
+
+    #[test]
+    async fn test_document_symbol_for_inherent_impl() {
+        let src = r#"struct SomeStruct {}
+
+impl SomeStruct {
+    fn new() -> SomeStruct {
+        SomeStruct {}
+    }
+}
+"#;
+        let symbols = get_document_symbols(src).await;
+
+        let impl_symbol = &symbols[1];
+        assert_eq!(impl_symbol.name, "SomeStruct");
+        assert_eq!(impl_symbol.kind, SymbolKind::NAMESPACE);
+        assert_eq!(
+            impl_symbol.range,
+            Range {
+                start: Position { line: 2, character: 0 },
+                end: Position { line: 6, character: 1 },
+            }
+        );
+        assert_eq!(
+            impl_symbol.selection_range,
+            Range {
+                start: Position { line: 2, character: 5 },
+                end: Position { line: 2, character: 15 },
+            }
+        );
+
+        let children = impl_symbol.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 1);
+        let method = &children[0];
+        assert_eq!(method.name, "new");
+        assert_eq!(method.detail.as_deref(), Some("fn new() -> SomeStruct"));
+        assert_eq!(method.kind, SymbolKind::FUNCTION);
+        assert_eq!(
+            method.range,
+            Range {
+                start: Position { line: 3, character: 4 },
+                end: Position { line: 5, character: 5 },
+            }
+        );
+        assert_eq!(
+            method.selection_range,
+            Range {
+                start: Position { line: 3, character: 7 },
+                end: Position { line: 3, character: 10 },
+            }
+        );
+    }
+
+    #[test]
+    async fn test_document_symbol_for_trait() {
+        let src = r#"trait SomeTrait<U> {
+    fn some_method(x: U);
+}
+"#;
+        let symbols = get_document_symbols(src).await;
+
+        assert_eq!(
+            symbols,
+            vec![
                 #[allow(deprecated)]
                 DocumentSymbol {
                     name: "SomeTrait".to_string(),
@@ -677,12 +699,12 @@ impl i32 {}
                     tags: None,
                     deprecated: None,
                     range: Range {
-                        start: Position { line: 14, character: 0 },
-                        end: Position { line: 16, character: 1 },
+                        start: Position { line: 0, character: 0 },
+                        end: Position { line: 2, character: 1 },
                     },
                     selection_range: Range {
-                        start: Position { line: 14, character: 6 },
-                        end: Position { line: 14, character: 15 },
+                        start: Position { line: 0, character: 6 },
+                        end: Position { line: 0, character: 15 },
                     },
                     children: Some(vec![
                         #[allow(deprecated)]
@@ -693,52 +715,75 @@ impl i32 {}
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 15, character: 7 },
-                                end: Position { line: 15, character: 25 },
+                                start: Position { line: 1, character: 7 },
+                                end: Position { line: 1, character: 25 },
                             },
                             selection_range: Range {
-                                start: Position { line: 15, character: 7 },
-                                end: Position { line: 15, character: 18 },
+                                start: Position { line: 1, character: 7 },
+                                end: Position { line: 1, character: 18 },
                             },
                             children: None,
                         },
                     ],),
                 },
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "impl SomeTrait<i32> for SomeStruct".to_string(),
-                    detail: None,
-                    kind: SymbolKind::NAMESPACE,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 18, character: 0 },
-                        end: Position { line: 21, character: 1 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 18, character: 5 },
-                        end: Position { line: 18, character: 14 },
-                    },
-                    children: Some(vec![
-                        #[allow(deprecated)]
-                        DocumentSymbol {
-                            name: "some_method".to_string(),
-                            detail: Some("fn some_method(_x: i32)".to_string()),
-                            kind: SymbolKind::FUNCTION,
-                            tags: None,
-                            deprecated: None,
-                            range: Range {
-                                start: Position { line: 19, character: 4 },
-                                end: Position { line: 20, character: 5 },
-                            },
-                            selection_range: Range {
-                                start: Position { line: 19, character: 7 },
-                                end: Position { line: 19, character: 18 },
-                            },
-                            children: None,
-                        },
-                    ],),
-                },
+            ]
+        );
+    }
+
+    #[test]
+    async fn test_document_symbol_for_trait_impl() {
+        let src = r#"struct SomeStruct {}
+
+trait SomeTrait<U> {
+    fn some_method(x: U);
+}
+
+impl SomeTrait<i32> for SomeStruct {
+    fn some_method(_x: i32) {
+    }
+}
+"#;
+        let symbols = get_document_symbols(src).await;
+
+        // [struct SomeStruct, trait SomeTrait, impl SomeTrait<i32> for SomeStruct]
+        assert_eq!(symbols.len(), 3);
+        let impl_symbol = &symbols[2];
+        assert_eq!(impl_symbol.name, "impl SomeTrait<i32> for SomeStruct");
+        assert_eq!(impl_symbol.kind, SymbolKind::NAMESPACE);
+        assert_eq!(
+            impl_symbol.range,
+            Range {
+                start: Position { line: 6, character: 0 },
+                end: Position { line: 9, character: 1 },
+            }
+        );
+        assert_eq!(
+            impl_symbol.selection_range,
+            Range {
+                start: Position { line: 6, character: 5 },
+                end: Position { line: 6, character: 14 },
+            }
+        );
+
+        let children = impl_symbol.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 1);
+        let method = &children[0];
+        assert_eq!(method.name, "some_method");
+        assert_eq!(method.detail.as_deref(), Some("fn some_method(_x: i32)"));
+        assert_eq!(method.kind, SymbolKind::FUNCTION);
+    }
+
+    #[test]
+    async fn test_document_symbol_for_module_with_global() {
+        let src = r#"mod submodule {
+    global SOME_GLOBAL = 1;
+}
+"#;
+        let symbols = get_document_symbols(src).await;
+
+        assert_eq!(
+            symbols,
+            vec![
                 #[allow(deprecated)]
                 DocumentSymbol {
                     name: "submodule".to_string(),
@@ -747,12 +792,12 @@ impl i32 {}
                     tags: None,
                     deprecated: None,
                     range: Range {
-                        start: Position { line: 23, character: 0 },
-                        end: Position { line: 25, character: 1 },
+                        start: Position { line: 0, character: 0 },
+                        end: Position { line: 2, character: 1 },
                     },
                     selection_range: Range {
-                        start: Position { line: 23, character: 4 },
-                        end: Position { line: 23, character: 13 },
+                        start: Position { line: 0, character: 4 },
+                        end: Position { line: 0, character: 13 },
                     },
                     children: Some(vec![
                         #[allow(deprecated)]
@@ -763,17 +808,29 @@ impl i32 {}
                             tags: None,
                             deprecated: None,
                             range: Range {
-                                start: Position { line: 24, character: 4 },
-                                end: Position { line: 24, character: 27 }
+                                start: Position { line: 1, character: 4 },
+                                end: Position { line: 1, character: 27 },
                             },
                             selection_range: Range {
-                                start: Position { line: 24, character: 11 },
-                                end: Position { line: 24, character: 22 }
+                                start: Position { line: 1, character: 11 },
+                                end: Position { line: 1, character: 22 },
                             },
-                            children: None
-                        }
+                            children: None,
+                        },
                     ]),
                 },
+            ]
+        );
+    }
+
+    #[test]
+    async fn test_document_symbol_for_primitive_impl() {
+        let src = "impl i32 {}\n";
+        let symbols = get_document_symbols(src).await;
+
+        assert_eq!(
+            symbols,
+            vec![
                 #[allow(deprecated)]
                 DocumentSymbol {
                     name: "i32".to_string(),
@@ -782,15 +839,15 @@ impl i32 {}
                     tags: None,
                     deprecated: None,
                     range: Range {
-                        start: Position { line: 27, character: 0 },
-                        end: Position { line: 27, character: 11 }
+                        start: Position { line: 0, character: 0 },
+                        end: Position { line: 0, character: 11 },
                     },
                     selection_range: Range {
-                        start: Position { line: 27, character: 5 },
-                        end: Position { line: 27, character: 8 }
+                        start: Position { line: 0, character: 5 },
+                        end: Position { line: 0, character: 8 },
                     },
-                    children: Some(Vec::new())
-                }
+                    children: Some(Vec::new()),
+                },
             ]
         );
     }
