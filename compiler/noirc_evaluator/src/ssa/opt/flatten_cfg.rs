@@ -153,7 +153,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
