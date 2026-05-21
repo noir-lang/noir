@@ -475,16 +475,11 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -578,11 +573,9 @@ mod tests {
     fn parses_let_statement_with_two_mut() {
         let src = "
         let mut mut x = 1;
-                ^^^
+                ^^^ `mut` on a binding cannot be repeated
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement().unwrap().0;
+        let (statement, _) = check_errors(src, |parser| parser.parse_statement()).unwrap();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -590,29 +583,21 @@ mod tests {
         assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
     }
 
     #[test]
     fn recovers_on_missing_colon_in_let_binding() {
         let src = "
         let x u64 = 2;
-            ^^^^^
+            ^^^^^ Expected a `:` between the variable name and its type
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement().unwrap().0;
+        let (statement, _) = check_errors(src, |parser| parser.parse_statement()).unwrap();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
         assert_eq!(let_statement.r#type.unwrap().to_string(), "u64");
         assert_eq!(let_statement.expression.to_string(), "2");
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingColonInLetStatement));
     }
 
     #[test]
@@ -817,28 +802,20 @@ mod tests {
         // This shouldn't be parsed as a call
         let src = "
         return 1
-        ^^^^^^^^
+        ^^^^^^^^ Early 'return' is unsupported
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement_or_error();
+        let statement = check_errors(src, |parser| parser.parse_statement_or_error());
         assert!(matches!(statement.kind, StatementKind::Error));
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::EarlyReturn));
     }
 
     #[test]
     fn recovers_on_unknown_statement_followed_by_actual_statement() {
         let src = "
         ] let x = 1;
-        ^
+        ^ Expected a statement but found ']'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement_or_error();
+        let statement = check_errors(src, |parser| parser.parse_statement_or_error());
         assert!(matches!(statement.kind, StatementKind::Let(..)));
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a statement but found ']'");
     }
 
     #[test]
