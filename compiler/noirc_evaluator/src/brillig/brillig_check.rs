@@ -1121,4 +1121,46 @@ mod tests {
             "expected an OverwrittenBeforeRead advisory, got: {advisories:?}"
         );
     }
+
+    /// Exercise the [`CallRegion`] suppression: the `Mov` opcodes that
+    /// `codegen_call` emits to copy arguments into the *next* stack frame
+    /// would otherwise look like dead writes (the callee reads them, but
+    /// the advisor only sees the caller's bytecode). The boundary opcodes
+    /// — the stack-pointer save/restore and the `Const` carrying the
+    /// frame size — would also be flagged. The `CallRegion` walk ignores
+    /// writes inside the region, so a `main` whose only work is making
+    /// one call should produce zero advisories.
+    #[test]
+    fn no_advisories_for_call_argument_writes() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> u32
+            return v2
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: u32):
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = const u32 5
+        1: sp[5] = @0
+        2: sp[7] = sp[2]
+        3: @0 = u32 add @0, sp[4]
+        4: call 0 // -> f1
+        5: @0 = sp[0]
+        6: sp[3] = sp[7]
+        7: sp[2] = sp[3]
+        8: return
+        ");
+
+        assert!(
+            advisories.is_empty(),
+            "expected no advisories — call-region writes target the next stack frame and should be suppressed, got: {advisories:?}"
+        );
+    }
 }
