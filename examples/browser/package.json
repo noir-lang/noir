@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "@types/node": "^22.19.17",
+    "@types/node": "^22.19.19",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
     "vite-plugin-node-polyfills": "0.26.0"
