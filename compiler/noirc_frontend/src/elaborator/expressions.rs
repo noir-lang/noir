@@ -943,17 +943,15 @@ impl Elaborator<'_> {
         // as a parameter. By unifying `self` with the first argument we'll potentially get more
         // concrete types in the arguments that are function types, which will later be passed as
         // lambda parameter hints.
-        if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
-            let _ = first_arg_type.unify(&object_type);
-
+        if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first())
+            && first_arg_type.unify(&object_type).is_err()
+            && let Type::Reference(inner_expected, _) = first_arg_type
+            && let Type::Reference(inner_actual, _) = &object_type
+        {
             // If unification failed due to a reference mutability mismatch
             // (e.g. `& self` method called on `&mut T`), unify the inner types
             // to still bind generic type parameters.
-            if let Type::Reference(inner_expected, _) = first_arg_type
-                && let Type::Reference(inner_actual, _) = &object_type
-            {
-                let _ = inner_expected.unify(inner_actual);
-            }
+            let _ = inner_expected.unify(inner_actual);
         }
 
         // These arguments will be given to the desugared function call.
