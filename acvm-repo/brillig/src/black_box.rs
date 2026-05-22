@@ -91,14 +91,10 @@ pub enum BlackBoxOp {
         #[tag(1)]
         input1_y: MemoryAddress,
         #[tag(2)]
-        input1_infinite: MemoryAddress,
-        #[tag(3)]
         input2_x: MemoryAddress,
-        #[tag(4)]
+        #[tag(3)]
         input2_y: MemoryAddress,
-        #[tag(5)]
-        input2_infinite: MemoryAddress,
-        #[tag(6)]
+        #[tag(4)]
         result: HeapArray,
     },
     /// Applies the Poseidon2 permutation function to the given state,

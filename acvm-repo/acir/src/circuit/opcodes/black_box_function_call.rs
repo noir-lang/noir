@@ -248,7 +248,7 @@ pub enum BlackBoxFuncCall<F> {
         #[tag(2)]
         predicate: FunctionInput<F>,
         #[tag(3)]
-        outputs: (Witness, Witness, Witness),
+        outputs: (Witness, Witness),
     },
     /// Addition over the embedded curve on which the witness is defined.
     /// The opcode makes the following assumptions but does not enforce them because
@@ -267,13 +267,13 @@ pub enum BlackBoxFuncCall<F> {
     #[tag(9)]
     EmbeddedCurveAdd {
         #[tag(0)]
-        input1: Box<[FunctionInput<F>; 3]>,
+        input1: Box<[FunctionInput<F>; 2]>,
         #[tag(1)]
-        input2: Box<[FunctionInput<F>; 3]>,
+        input2: Box<[FunctionInput<F>; 2]>,
         #[tag(2)]
         predicate: FunctionInput<F>,
         #[tag(3)]
-        outputs: (Witness, Witness, Witness),
+        outputs: (Witness, Witness),
     },
     /// Keccak Permutation function of width 1600
     /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
