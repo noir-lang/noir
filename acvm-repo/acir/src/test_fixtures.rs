@@ -28,10 +28,10 @@ pub fn addition_program() -> Program<FieldElement> {
 
 pub fn multi_scalar_mul_program() -> Program<FieldElement> {
     let src = "
-    private parameters: [w1, w2, w3, w4, w5, w6]
+    private parameters: [w1, w2, w3, w4, w5]
     public parameters: []
-    return values: [w7, w8, w9]
-    BLACKBOX::MULTI_SCALAR_MUL points: [w1, w2], scalars: [w4, w5], predicate: w6, outputs: [w7, w8]
+    return values: [w6, w7]
+    BLACKBOX::MULTI_SCALAR_MUL points: [w1, w2], scalars: [w3, w4], predicate: w5, outputs: [w6, w7]
     ";
     let circuit = Circuit::from_str(src).unwrap();
     Program { functions: vec![circuit], unconstrained_functions: vec![] }
