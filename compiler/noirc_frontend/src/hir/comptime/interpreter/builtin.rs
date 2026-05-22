@@ -11,10 +11,10 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
-    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_builtin_attribute,
-    get_location, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident,
-    visibility_to_quoted,
+    get_location, get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl,
+    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
+    has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
+    parse, quote_ident, visibility_to_quoted,
 };
 use fm::FileMap;
 use im::Vector;

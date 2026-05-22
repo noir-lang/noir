@@ -608,19 +608,7 @@ pub(super) fn has_named_attribute(
 }
 
 pub(super) fn has_builtin_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
-    let matches_kind: fn(&SecondaryAttributeKind) -> bool = match name {
-        "deprecated" => |k| matches!(k, SecondaryAttributeKind::Deprecated(..)),
-        "contract_library_method" => |k| matches!(k, SecondaryAttributeKind::ContractLibraryMethod),
-        "export" => |k| matches!(k, SecondaryAttributeKind::Export),
-        "field" => |k| matches!(k, SecondaryAttributeKind::Field(_)),
-        "abi" => |k| matches!(k, SecondaryAttributeKind::Abi(_)),
-        "varargs" => |k| matches!(k, SecondaryAttributeKind::Varargs),
-        "use_callers_scope" => |k| matches!(k, SecondaryAttributeKind::UseCallersScope),
-        "allow" => |k| matches!(k, SecondaryAttributeKind::Allow(_)),
-        "must_use" => |k| matches!(k, SecondaryAttributeKind::MustUse(_)),
-        _ => return false,
-    };
-    attributes.iter().any(|attr| matches_kind(&attr.kind))
+    attributes.iter().any(|attr| builtin_secondary_attribute_name(attr) == Some(name))
 }
 
 fn secondary_attribute_name(
