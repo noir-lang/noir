@@ -691,44 +691,131 @@ mod tests {
     use noirc_frontend::test_utils::get_monomorphized;
 
     use crate::{
+        assert_artifact_snapshot,
         brillig::BrilligOptions,
         ssa::{minimal_passes, ssa_gen::generate_ssa},
     };
     use acvm::{
         FieldElement,
-        acir::brillig::{BinaryIntOp, Opcode},
+        acir::brillig::{BinaryIntOp, MemoryAddress, Opcode},
     };
 
+    use super::BrilligArtifact;
+
     /// Compile a Noir snippet through monomorphization → SSA (`minimal_passes`)
-    /// → Brillig and return the bytecode of `main`. Used to exercise paths that
-    /// depend on brillig-gen lowering (e.g. shift/overflow range-check
-    /// insertion) rather than testing a hand-crafted SSA in isolation.
+    /// → Brillig and return the artifact of `main`.
     ///
     /// Running `minimal_passes` brings the initial SSA into the smallest shape
     /// that can be lowered to Brillig (signed-check expansion, defunctionalization,
     /// removal of unreachable functions, and `static_assert` evaluation) while
     /// preserving the surface structure the test wants to observe.
-    fn noir_to_brillig_main(noir_src: &str) -> Vec<Opcode<FieldElement>> {
+    fn noir_to_brillig_main(noir_src: &str) -> BrilligArtifact<FieldElement> {
         let program = get_monomorphized(noir_src).expect("Noir source should compile");
         let mut ssa = generate_ssa(program).expect("SSA generation should succeed");
         for pass in minimal_passes() {
             ssa = pass.run(ssa).expect("minimal SSA pass should not fail");
         }
         let mut brillig = ssa.to_brillig(&BrilligOptions::default());
-        let artifact = brillig
-            .ssa_function_to_brillig
-            .remove(&ssa.main_id)
-            .expect("main expected to be Brillig");
-        artifact.byte_code
+        brillig.ssa_function_to_brillig.remove(&ssa.main_id).expect("main expected to be Brillig")
     }
 
-    /// Evidence for the doc claim that `is_fallible_opcode` does *not* mark
-    /// `Shl`/`Shr` as fallible: when a Noir program performs a shift, the
-    /// Brillig codegen emits the user-facing range check (`LessThan` +
-    /// `JumpIf` over a `Call` to the error procedure) as a separate sequence
-    /// *before* the shift opcode. The shift's destination register is
-    /// independent of the range check, so flagging the shift's result as
-    /// `NeverRead` does not weaken the trap.
+    /// Extract the destination register of a binary opcode, if any.
+    fn binary_destination<F>(op: &Opcode<F>) -> Option<MemoryAddress> {
+        match op {
+            Opcode::BinaryIntOp { destination, .. } | Opcode::BinaryFieldOp { destination, .. } => {
+                Some(*destination)
+            }
+            _ => None,
+        }
+    }
+
+    /// Assert the canonical "predicate-gated trap" shape that brillig-gen emits
+    /// for runtime checks (bit-shift range check, arithmetic overflow check, …):
+    ///
+    /// * A `target` opcode produces a value (the operation being checked).
+    /// * A `predicate` opcode writes a boolean into a register that is
+    ///   *different* from the target's destination — proving the trap branch
+    ///   does not depend on the target's result register.
+    /// * A `JumpIf` reads the predicate register and skips over the trap. It
+    ///   appears *after* the predicate in opcode order.
+    /// * A `Call` (to the `ErrorWithString` procedure) or a `Trap` opcode
+    ///   provides the trap branch and appears *after* the gating `JumpIf`.
+    ///
+    /// Both shift and arithmetic-overflow checks share this shape; only the
+    /// concrete `target` / `predicate` opcodes differ (and whether the
+    /// predicate is computed before or after the target — that order is *not*
+    /// asserted here).
+    fn assert_predicate_gated_trap<F>(
+        bytecode: &[Opcode<F>],
+        target_kind: &str,
+        is_target: impl Fn(&Opcode<F>) -> bool,
+        is_predicate: impl Fn(&Opcode<F>) -> bool,
+    ) {
+        let target_dst = bytecode
+            .iter()
+            .find_map(|op| if is_target(op) { binary_destination(op) } else { None })
+            .unwrap_or_else(|| panic!("brillig should contain a {target_kind} opcode"));
+
+        let (predicate_idx, predicate_dst) = bytecode
+            .iter()
+            .enumerate()
+            .find_map(|(i, op)| {
+                if is_predicate(op) { binary_destination(op).map(|dst| (i, dst)) } else { None }
+            })
+            .unwrap_or_else(|| panic!("brillig should contain the predicate for {target_kind}"));
+
+        assert_ne!(
+            predicate_dst, target_dst,
+            "{target_kind} predicate register must differ from its target destination"
+        );
+
+        // The JumpIf reading the predicate's result must appear *after* the
+        // predicate; otherwise it would be gating on a stale value.
+        let jmpif_idx = bytecode
+            .iter()
+            .enumerate()
+            .find_map(|(i, op)| match op {
+                Opcode::JumpIf { condition, .. } if *condition == predicate_dst => Some(i),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected a JumpIf gating the trap for {target_kind}"));
+        assert!(
+            jmpif_idx > predicate_idx,
+            "{target_kind} JumpIf at {jmpif_idx} must follow the predicate at {predicate_idx}"
+        );
+
+        // The trap branch (Call to the error procedure or a direct Trap) must
+        // sit between the JumpIf and the next opcode the JumpIf skips to.
+        let trap_idx = bytecode
+            .iter()
+            .enumerate()
+            .skip(jmpif_idx + 1)
+            .find_map(|(i, op)| match op {
+                Opcode::Call { .. } | Opcode::Trap { .. } => Some(i),
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                panic!("expected a Trap or Call (ErrorWithString) for {target_kind}")
+            });
+        assert!(
+            trap_idx > jmpif_idx,
+            "{target_kind} trap at {trap_idx} must follow the gating JumpIf at {jmpif_idx}"
+        );
+    }
+
+    /// Evidence that the Brillig `Shr` is not intrinsically fallible: the
+    /// range check on the shift amount is emitted as an independent
+    /// `LessThan` + `JumpIf` + `Call`-to-error sequence before the shift
+    /// opcode, writing to a different register from the shift's destination.
+    ///
+    /// Reading the snapshot below:
+    /// * `0` allocates the bit-size constant.
+    /// * `1` is the predicate `lt(shift_amount, bit_size)`, writing to a fresh
+    ///   register (`sp[5]`).
+    /// * `2` jumps over the trap when the predicate holds.
+    /// * `3` is the trap branch (`call 0 // -> ErrorWithString`).
+    /// * `4` is the actual `shr`, with its destination (`sp[4]`) independent of
+    ///   the predicate register.
     #[test]
     fn shift_emits_range_check_independent_of_shift_destination() {
         let noir_src = "
@@ -736,65 +823,54 @@ mod tests {
                 x >> y
             }
         ";
-        let bytecode = noir_to_brillig_main(noir_src);
+        let artifact = noir_to_brillig_main(noir_src);
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[6] = const u32 32
+        1: sp[5] = u32 lt sp[3], sp[6]
+        2: jump if sp[5] to 0 // -> 4: f0/b0/1
+        3: call 0 // -> ErrorWithString
+        4: sp[4] = u32 shr sp[2], sp[3] // f0/b0/1
+        5: sp[2] = sp[4]
+        6: return
+        ");
 
-        let shr_idx = bytecode
-            .iter()
-            .position(|op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Shr, .. }))
-            .expect("brillig for `x >> y` should contain a Shr opcode");
-
-        let Opcode::BinaryIntOp { destination: shr_dst, lhs: shr_lhs, rhs: shr_rhs, .. } =
-            &bytecode[shr_idx]
-        else {
-            unreachable!()
-        };
-
-        // The range check is emitted before the shift. It computes
-        // `LessThan(y, bit_size)` into a fresh boolean and jumps over a `Call`
-        // to the `ErrorWithString` procedure (or a `Trap`) on failure. We look
-        // for the LessThan immediately preceding the shift.
-        let range_check_idx = bytecode[..shr_idx]
-            .iter()
-            .rposition(|op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThan, .. }))
-            .expect("brillig for a shift should contain a LessThan range check");
-
-        let Opcode::BinaryIntOp { destination: rc_dst, lhs: rc_lhs, .. } =
-            &bytecode[range_check_idx]
-        else {
-            unreachable!()
-        };
-
-        // The check's LHS is the shift amount, not the shift's input value.
-        assert_eq!(rc_lhs, shr_rhs, "range check should constrain the shift amount");
-
-        // The check writes to a separate register from the shift's destination,
-        // so removing the shift would not erase the check.
-        assert_ne!(
-            rc_dst, shr_dst,
-            "range-check register should be independent of the shift's destination"
+        assert_predicate_gated_trap(
+            &artifact.byte_code,
+            "Shr",
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Shr, .. }),
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThan, .. }),
         );
-        assert_ne!(rc_dst, shr_lhs);
+    }
 
-        // A JumpIf reading the range-check result must appear between the check
-        // and the shift — that's what gates the trap.
-        let jumpif_between = bytecode[range_check_idx..shr_idx]
-            .iter()
-            .any(|op| matches!(op, Opcode::JumpIf { condition, .. } if condition == rc_dst));
-        assert!(
-            jumpif_between,
-            "expected a JumpIf on the range-check result between the check and the shift"
-        );
+    /// Evidence that the Brillig `Add` is not intrinsically fallible either:
+    /// the overflow check is emitted *after* the add as a `LessThanEquals` on
+    /// the result, followed by `JumpIf` + `Call`-to-error. The add and the
+    /// predicate write to different registers, so the trap survives even if
+    /// the add's destination is ever flagged as `NeverRead`.
+    #[test]
+    fn checked_add_emits_overflow_check_independent_of_add_destination() {
+        let noir_src = "
+            unconstrained fn main(x: u32, y: u32) -> pub u32 {
+                x + y
+            }
+        ";
+        let artifact = noir_to_brillig_main(noir_src);
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 add sp[2], sp[3]
+        1: sp[5] = u32 lt_eq sp[2], sp[4]
+        2: jump if sp[5] to 0 // -> 4: f0/b0/1
+        3: call 0 // -> ErrorWithString
+        4: sp[2] = sp[4] // f0/b0/1
+        5: return
+        ");
 
-        // The trap is reached via either a Call to the ErrorWithString
-        // procedure or a direct Trap opcode — both are emitted by
-        // `codegen_constrain`. Confirm one of them sits between the check and
-        // the shift, independent of the shift's destination.
-        let trap_between = bytecode[range_check_idx..shr_idx]
-            .iter()
-            .any(|op| matches!(op, Opcode::Call { .. } | Opcode::Trap { .. }));
-        assert!(
-            trap_between,
-            "expected a Trap or Call (ErrorWithString) between the range check and the shift"
+        assert_predicate_gated_trap(
+            &artifact.byte_code,
+            "Add",
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Add, .. }),
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThanEquals, .. }),
         );
     }
 }
