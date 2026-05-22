@@ -39,25 +39,30 @@ pub struct Program<F: AcirField> {
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
 /// is dictated by the construction of a [crate::native_types::WitnessMap]
-#[derive(Clone, PartialEq, Eq, Default, Hash, MsgpackTagged)]
+#[derive(Clone, PartialEq, Eq, Default, Hash, Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-#[tagged(via(CircuitWire<F>))]
+#[tagged(allow_unknown_tags)]
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
+    #[tag(0)]
     pub function_name: String,
     /// The circuit opcodes representing the relationship between witness values.
     ///
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
+    #[tag(1)]
     pub opcodes: Vec<Opcode<F>>,
     /// The set of private inputs to the circuit.
+    #[tag(2)]
     pub private_parameters: BTreeSet<Witness>,
     // ACIR distinguishes between the public inputs which are provided externally or calculated within the circuit and returned.
     // The elements of these sets may not be mutually exclusive, i.e. a parameter may be returned from the circuit.
     // All public inputs (parameters and return values) must be provided to the verifier at verification time.
     /// The set of public inputs provided by the prover.
+    #[tag(3)]
     pub public_parameters: PublicInputs,
     /// The set of public inputs calculated within the circuit.
+    #[tag(4)]
     pub return_values: PublicInputs,
     /// Maps opcode locations to failed assertion payloads.
     /// The data in the payload is embedded in the circuit to provide useful feedback to users
@@ -66,60 +71,8 @@ pub struct Circuit<F: AcirField> {
     // Note: This should be a BTreeMap, but serde-reflect is creating invalid
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
-    pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
-}
-
-/// Wire format for `Circuit` — preserves backwards-compatible serialization that includes
-/// `current_witness_index`. The `serde(rename)` ensures this type registers under the same
-/// name ("Circuit") as the public type so that `serde_reflection` traces it correctly.
-#[derive(Serialize, Deserialize, MsgpackTagged)]
-#[serde(rename = "Circuit")]
-#[tagged(allow_unknown_tags)] // To make it forward compatible with future extensions.
-struct CircuitWire<F: AcirField> {
-    #[serde(default)]
-    #[tag(0)]
-    function_name: String,
-    #[tag(1)]
-    current_witness_index: u32,
-    #[tag(2)]
-    opcodes: Vec<Opcode<F>>,
-    #[tag(3)]
-    private_parameters: BTreeSet<Witness>,
-    #[tag(4)]
-    public_parameters: PublicInputs,
     #[tag(5)]
-    return_values: PublicInputs,
-    #[tag(6)]
-    assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
-}
-
-impl<F: AcirField + Serialize> Serialize for Circuit<F> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        CircuitWire {
-            function_name: self.function_name.clone(),
-            current_witness_index: 0,
-            opcodes: self.opcodes.clone(),
-            private_parameters: self.private_parameters.clone(),
-            public_parameters: self.public_parameters.clone(),
-            return_values: self.return_values.clone(),
-            assert_messages: self.assert_messages.clone(),
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de, F: AcirField + Deserialize<'de>> Deserialize<'de> for Circuit<F> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let wire = CircuitWire::<F>::deserialize(deserializer)?;
-        Ok(Circuit {
-            function_name: wire.function_name,
-            opcodes: wire.opcodes,
-            private_parameters: wire.private_parameters,
-            public_parameters: wire.public_parameters,
-            return_values: wire.return_values,
-            assert_messages: wire.assert_messages,
-        })
-    }
+    pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
 /// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
