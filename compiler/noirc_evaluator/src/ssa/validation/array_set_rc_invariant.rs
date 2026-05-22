@@ -43,8 +43,24 @@
 //!    the alias-set as the initial use-set. At each block-parameter crossing
 //!    we both **kill** params that the predecessor rebinds to a non-alias and
 //!    **add** params whose arg is still an alias (so alias propagation stays
-//!    accurate as the walk crosses joins and loops). A non-terminator
-//!    instruction reading any value still in the use-set is the hazard.
+//!    accurate as the walk crosses joins and loops). The walk maintains two
+//!    additional pieces of state:
+//!
+//!    - **`derived`**, the set of values that may share the source's storage
+//!      through transitive in-place chain mutations. Seeded with the
+//!      array_set's own result; extended by every later `array_set` whose
+//!      `array` operand is already in `derived`.
+//!    - **`tainted_indices`**, the storage positions any chain link may
+//!      already have written. Seeded with the array_set's own write index
+//!      (when constant) and widened by chain-link writes; collapsed to "all
+//!      positions" if any chain link uses a dynamic index.
+//!
+//!    An `array_get` on a use-set member is a hazard iff its read index is
+//!    covered by `tainted_indices`. Non-`array_get` uses are always hazards.
+//!    An `inc_rc v` with `v ∈ use_set ∪ derived` lifts the storage's RC,
+//!    so chain writes after it run on fresh storage — `derived` is cleared
+//!    at that point. `tainted_indices` is *not* cleared: prior chain writes
+//!    have already mutated the source's storage.
 //!
 //! # Precondition
 //!
@@ -226,11 +242,6 @@ struct Context<'f> {
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
     inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
-    /// Per-block sorted list of `(idx, instruction-id, array-operand)`
-    /// triples — one entry per array-typed operand of each non-terminator
-    /// instruction. Lets the reachable-use walk skip over instructions that
-    /// have no array operand.
-    array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
     /// Values that appear at least once as a jmp/jmpif arg on a loop
     /// back-edge. Used by both:
     ///
@@ -277,8 +288,6 @@ impl<'f> Context<'f> {
                 .collect();
 
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
-        let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
-            HashMap::default();
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut make_array_values: HashSet<ValueId> = HashSet::default();
@@ -293,7 +302,6 @@ impl<'f> Context<'f> {
         // Single pass over every reachable block to populate
         // per-instruction indices and per-block incoming-edge tables.
         for &block_id in &rpo {
-            let mut operand_uses: Vec<ArrayOperandUse> = Vec::new();
             for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
                 let instruction = &function.dfg[*instruction_id];
 
@@ -315,25 +323,6 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
-
-                // `inc_rc` / `dec_rc` are ref-count bumps, not reads of the
-                // array contents, so their operands aren't "aliased reads" of
-                // pre-mutation storage. `inc_rc` is already accounted for
-                // separately by `inc_rc_locations` / `some_inc_rc_precedes`.
-                let is_rc_op = matches!(
-                    instruction,
-                    Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
-                );
-                if !is_rc_op {
-                    instruction.for_each_value(|v| {
-                        if function.dfg.type_of_value(v).contains_an_array() {
-                            operand_uses.push((idx, *instruction_id, v));
-                        }
-                    });
-                }
-            }
-            if !operand_uses.is_empty() {
-                array_operand_uses.insert(block_id, operand_uses);
             }
 
             if let Some(terminator) = function.dfg[block_id].terminator() {
@@ -392,7 +381,6 @@ impl<'f> Context<'f> {
             non_aliasing_array_values,
             iteration_local_make_arrays,
             inc_rc_locations,
-            array_operand_uses,
             back_edge_args,
         }
     }
@@ -587,21 +575,41 @@ impl<'f> Context<'f> {
     /// re-enters its block — it is, by construction, a use of its own
     /// source, not a hazard.
     ///
-    /// **Index-aware filtering.** `write_index_const` is the `array_set`'s
-    /// index when it is a constant. When both the write and a candidate
-    /// `array_get` on the aliased operand have constant indices that
-    /// differ, the access is at a disjoint position from the in-place
-    /// mutation — runtime contents at the read index are unaffected by
-    /// the write — so we skip the candidate. Conservative whenever
-    /// either side is dynamic, and applied only to `array_get` (other
-    /// instruction kinds that use an alias-set operand are always
-    /// flagged, since the SSA-vs-runtime divergence isn't index-local
-    /// for them).
+    /// **Chain-aware index filter.** Two auxiliary sets evolve alongside the
+    /// `use_set` to make the filter sound in the presence of `array_set`
+    /// chains:
     ///
-    /// **Cycle detection.** Re-visiting a block with a use-set that is a
-    /// subset of what we already explored at that block adds no new
-    /// information. We record the *union* of use-sets seen per block and
-    /// skip on subset matches.
+    /// - **`derived`** tracks values that may share the array_set's source
+    ///   storage at runtime through transitive in-place mutations. Seeded
+    ///   with the array_set's own result; grown on every later `array_set`
+    ///   whose `array` operand is already in `derived`; propagated across
+    ///   block-param edges the same way the alias use-set is.
+    /// - **`tainted_indices`** tracks the set of storage positions any
+    ///   chain link may have already written. `Some(set)` accumulates
+    ///   constant write indices (seeded with `write_index_const`); set to
+    ///   `None` (= "all positions") as soon as any chain write uses a
+    ///   dynamic index.
+    ///
+    /// When we encounter `array_get v, idx` with `v ∈ use_set`, the read
+    /// is a hazard iff `tainted_indices` covers `idx`. With both indices
+    /// constant, that's a set-membership test; otherwise (either side
+    /// dynamic, or `tainted_indices == None`) the verifier conservatively
+    /// flags. Non-`array_get` uses on a `use_set` member are always
+    /// flagged — the SSA-vs-runtime divergence isn't index-local for them.
+    ///
+    /// **IncrementRc clears `derived`.** A program-point `inc_rc v` with
+    /// `v ∈ use_set ∪ derived` lifts the storage's RC ≥ 2, so any
+    /// subsequent `array_set` on a chain participant runs on fresh
+    /// storage and can no longer clobber the source. We clear `derived`
+    /// at that point. `tainted_indices` is *not* cleared — past damage
+    /// to the shared storage is still observable through `use_set` reads.
+    ///
+    /// **Cycle detection.** Re-entering a block with a state that's a
+    /// (use_set, derived, tainted_indices)-subset of the frontier we've
+    /// already explored adds no new information. Each component is
+    /// unioned into the frontier on entry; for `tainted_indices`, `None`
+    /// is the absorbing element (a previously-`None` frontier covers any
+    /// re-entry).
     fn find_reachable_aliased_use(
         &self,
         alias_set: &im::HashSet<ValueId>,
@@ -610,18 +618,24 @@ impl<'f> Context<'f> {
         array_set_idx: usize,
         write_index_const: Option<FieldElement>,
     ) -> Option<AliasedUse> {
-        let mut visited: HashMap<BasicBlockId, im::HashSet<ValueId>> = HashMap::default();
+        let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
-        // (block, start_idx, use_set_on_entry)
-        //
-        // `start_idx > 0` denotes the very first frame, which continues
-        // inside the array_set's own block past the array_set instruction
-        // itself.
-        let mut worklist: Vec<(BasicBlockId, usize, im::HashSet<ValueId>)> =
-            vec![(array_set_block, array_set_idx + 1, alias_set.clone())];
+        let array_set_result = self.function.dfg.instruction_results(array_set_id)[0];
+        let initial_state = WalkState {
+            use_set: alias_set.clone(),
+            derived: im::HashSet::unit(array_set_result),
+            tainted: write_index_const.map(im::HashSet::unit),
+        };
+        let mut worklist: Vec<WalkFrame> = vec![WalkFrame {
+            block: array_set_block,
+            start_idx: array_set_idx + 1,
+            state: initial_state,
+        }];
 
-        while let Some((block, start_idx, use_set)) = worklist.pop() {
-            if use_set.is_empty() {
+        while let Some(WalkFrame { block, start_idx, mut state }) = worklist.pop() {
+            // No alias-set members in use means no read of this array_set's
+            // source's storage can surface a hazard from here on.
+            if state.use_set.is_empty() {
                 continue;
             }
 
@@ -632,48 +646,106 @@ impl<'f> Context<'f> {
             // entry to the same block skip the unexplored prefix.
             if start_idx == 0 {
                 if let Some(prev) = visited.get(&block)
-                    && use_set.is_subset(prev)
+                    && state.is_covered_by(prev)
                 {
                     continue;
                 }
-                let merged =
-                    visited.get(&block).cloned().unwrap_or_default().union(use_set.clone());
-                visited.insert(block, merged);
+                let new_frontier = match visited.get(&block) {
+                    Some(prev) => state.merge(prev),
+                    None => state.clone(),
+                };
+                visited.insert(block, new_frontier);
             }
 
-            // Iterate only non-terminator instructions that have an
-            // array-typed operand. Entries are pre-sorted by `idx`.
-            if let Some(uses) = self.array_operand_uses.get(&block) {
-                for &(_idx, inst_id, operand) in
-                    uses.iter().skip_while(|(idx, _, _)| *idx < start_idx)
-                {
-                    if inst_id == array_set_id {
-                        continue;
+            let instructions = self.function.dfg[block].instructions();
+            for inst_idx in start_idx..instructions.len() {
+                let inst_id = instructions[inst_idx];
+                if inst_id == array_set_id {
+                    continue;
+                }
+                let inst = &self.function.dfg[inst_id];
+
+                match inst {
+                    // `inc_rc` on an alias or chain-derived value lifts the
+                    // shared storage's RC; subsequent chain writes run on
+                    // fresh storage and stop tainting the source. Past
+                    // tainted indices survive — the damage is already done.
+                    Instruction::IncrementRc { value } => {
+                        if state.derived.contains(value) || state.use_set.contains(value) {
+                            state.derived.clear();
+                        }
                     }
-                    if !use_set.contains(&operand) {
-                        continue;
+                    // Well-formed Brillig SSA shouldn't contain dec_rc;
+                    // skip if encountered.
+                    Instruction::DecrementRc { .. } => {}
+                    Instruction::ArraySet { array, index, value, .. } => {
+                        if state.use_set.contains(array) {
+                            return Some(AliasedUse { instruction: inst_id, value: *array });
+                        }
+                        if self.function.dfg.type_of_value(*value).contains_an_array()
+                            && state.use_set.contains(value)
+                        {
+                            return Some(AliasedUse { instruction: inst_id, value: *value });
+                        }
+                        // Chain extension: this array_set writes through a
+                        // value that may share the source's storage with
+                        // this iteration's earlier in-place mutations.
+                        if state.derived.contains(array) {
+                            match (
+                                state.tainted.as_mut(),
+                                self.function.dfg.get_numeric_constant(*index),
+                            ) {
+                                (Some(t), Some(c)) => {
+                                    t.insert(c);
+                                }
+                                _ => {
+                                    state.tainted = None;
+                                }
+                            }
+                            let [result] = self.function.dfg.instruction_result(inst_id);
+                            state.derived.insert(result);
+                        }
                     }
-                    // Index-disjoint filter: if both the array_set and a
-                    // candidate `array_get` use constant indices that
-                    // don't match, the read is at a position the write
-                    // didn't touch — skip.
-                    if let Some(write_idx) = write_index_const
-                        && let Instruction::ArrayGet { index: read_idx, .. } =
-                            self.function.dfg[inst_id]
-                        && let Some(read_idx) = self.function.dfg.get_numeric_constant(read_idx)
-                        && write_idx != read_idx
-                    {
-                        continue;
+                    Instruction::ArrayGet { array, index, .. } => {
+                        if state.use_set.contains(array) {
+                            let read_idx = self.function.dfg.get_numeric_constant(*index);
+                            let hazard = match (&state.tainted, read_idx) {
+                                (None, _) | (_, None) => true,
+                                (Some(set), Some(c)) => set.contains(&c),
+                            };
+                            if hazard {
+                                return Some(AliasedUse { instruction: inst_id, value: *array });
+                            }
+                        }
                     }
-                    return Some(AliasedUse { instruction: inst_id, value: operand });
+                    other => {
+                        // Any other instruction reading an alias-set member
+                        // through an array-typed operand is a hazard. The
+                        // SSA-vs-runtime divergence isn't index-local for
+                        // these instruction kinds.
+                        let mut hit: Option<ValueId> = None;
+                        other.for_each_value(|v| {
+                            if hit.is_some() {
+                                return;
+                            }
+                            if self.function.dfg.type_of_value(v).contains_an_array()
+                                && state.use_set.contains(&v)
+                            {
+                                hit = Some(v);
+                            }
+                        });
+                        if let Some(v) = hit {
+                            return Some(AliasedUse { instruction: inst_id, value: v });
+                        }
+                    }
                 }
             }
 
             let Some(terminator) = self.function.dfg[block].terminator() else { continue };
             match terminator {
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                    let next = self.succ_use_set(*destination, arguments, &use_set);
-                    worklist.push((*destination, 0, next));
+                    let next = self.succ_walk_state(*destination, arguments, &state);
+                    worklist.push(WalkFrame { block: *destination, start_idx: 0, state: next });
                 }
                 TerminatorInstruction::JmpIf {
                     then_destination,
@@ -682,10 +754,20 @@ impl<'f> Context<'f> {
                     else_arguments,
                     ..
                 } => {
-                    let then_next = self.succ_use_set(*then_destination, then_arguments, &use_set);
-                    worklist.push((*then_destination, 0, then_next));
-                    let else_next = self.succ_use_set(*else_destination, else_arguments, &use_set);
-                    worklist.push((*else_destination, 0, else_next));
+                    let then_state =
+                        self.succ_walk_state(*then_destination, then_arguments, &state);
+                    worklist.push(WalkFrame {
+                        block: *then_destination,
+                        start_idx: 0,
+                        state: then_state,
+                    });
+                    let else_state =
+                        self.succ_walk_state(*else_destination, else_arguments, &state);
+                    worklist.push(WalkFrame {
+                        block: *else_destination,
+                        start_idx: 0,
+                        state: else_state,
+                    });
                 }
                 TerminatorInstruction::Return { .. }
                 | TerminatorInstruction::Unreachable { .. } => (),
@@ -693,6 +775,23 @@ impl<'f> Context<'f> {
         }
 
         None
+    }
+
+    /// Propagate the walk state across a block-parameter edge. `use_set`
+    /// and `derived` follow the same kill/add rules ([`Context::succ_use_set`]);
+    /// `tainted` is carried unchanged, since it tracks storage positions
+    /// (not SSA values).
+    fn succ_walk_state(
+        &self,
+        dest: BasicBlockId,
+        arguments: &[ValueId],
+        state: &WalkState,
+    ) -> WalkState {
+        WalkState {
+            use_set: self.succ_use_set(dest, arguments, &state.use_set),
+            derived: self.succ_use_set(dest, arguments, &state.derived),
+            tainted: state.tainted.clone(),
+        }
     }
 
     /// Compute the use-set carried into `dest` when its predecessor jumps
@@ -858,12 +957,72 @@ fn compute_backward_aliases(
     result
 }
 
-/// A non-terminator instruction's reference to an array-typed value.
-///
-/// One entry per (instruction, array-typed operand) pair — an instruction
-/// with two array operands contributes two entries. Tuples are
-/// `(instruction-index-within-block, instruction-id, operand-value)`.
-type ArrayOperandUse = (usize, InstructionId, ValueId);
+/// Per-frame state of the forward reachable-use walk: which alias-set
+/// members are live, which chain-derived values share storage with the
+/// source, and which storage positions any chain link may already have
+/// clobbered. Also serves as the per-block visited frontier for cycle
+/// detection — see [`WalkState::is_covered_by`] / [`WalkState::merge`].
+#[derive(Clone)]
+struct WalkState {
+    /// Alias-set members live at this point: values that may share the
+    /// array_set's source storage *at the array_set's program point*. A
+    /// non-terminator read of one of these is the hazard the walk is
+    /// looking for.
+    use_set: im::HashSet<ValueId>,
+    /// Values that may share the source's storage through transitive
+    /// in-place chain mutations. Seeded with the array_set's own result;
+    /// extended by every later `array_set` whose `array` operand is
+    /// already in `derived`.
+    derived: im::HashSet<ValueId>,
+    /// Storage positions any chain link may already have written. `None`
+    /// (= "all positions") absorbs a dynamic chain write — once we lose
+    /// precise tracking we can't recover it.
+    tainted: Option<im::HashSet<FieldElement>>,
+}
+
+impl WalkState {
+    /// `self` is covered by `prev` when every potential hazard `self`
+    /// could surface is also reachable from `prev`. For `use_set` and
+    /// `derived` that's the subset relation; for `tainted`, `None`
+    /// (= "all positions") absorbs as the upper bound — a previously
+    /// `None` frontier covers any re-entry, but a current `None`
+    /// requires `prev` also to be `None`.
+    fn is_covered_by(&self, prev: &Self) -> bool {
+        if !self.use_set.is_subset(&prev.use_set) || !self.derived.is_subset(&prev.derived) {
+            return false;
+        }
+        match (&prev.tainted, &self.tainted) {
+            (None, _) => true,
+            (_, None) => false,
+            (Some(p), Some(c)) => c.is_subset(p),
+        }
+    }
+
+    /// Component-wise union — the frontier we record after visiting a
+    /// block, so future re-entries can be cycle-checked against
+    /// everything we've already explored from that block.
+    fn merge(&self, other: &Self) -> Self {
+        Self {
+            use_set: self.use_set.clone().union(other.use_set.clone()),
+            derived: self.derived.clone().union(other.derived.clone()),
+            tainted: match (&self.tainted, &other.tainted) {
+                (None, _) | (_, None) => None,
+                (Some(a), Some(b)) => Some(a.clone().union(b.clone())),
+            },
+        }
+    }
+}
+
+/// One entry on the forward reachable-use walk's worklist: a block to
+/// enter, the instruction index to start at within that block, and the
+/// walk's evolving state. `start_idx > 0` denotes the very first frame,
+/// which continues inside the array_set's own block past the array_set
+/// instruction itself; all later frames enter at block start.
+struct WalkFrame {
+    block: BasicBlockId,
+    start_idx: usize,
+    state: WalkState,
+}
 
 /// A non-terminator instruction reachable forward from an `array_set` that
 /// reads a value still in the alias-set — the *aliased use* that the
@@ -1096,6 +1255,157 @@ mod tests {
                 return v7
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// Chain of `array_set`s on the same backing storage where the read
+    /// is at an index hit by a *later* link in the chain. The first
+    /// array_set's write index alone is disjoint from the read, so the
+    /// pre-chain-aware filter would have skipped — but a downstream
+    /// chain link writes the read's index on the same storage, so the
+    /// read does observe the in-place mutation. The chain-aware filter
+    /// must reject.
+    #[test]
+    fn end_to_end_chain_taints_downstream_index_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 3]):
+                v2 = array_set v0, index u32 0, value u32 10
+                v4 = array_set v2, index u32 1, value u32 20
+                v6 = array_set v4, index u32 2, value u32 30
+                v8 = array_get v0, index u32 1 -> u32
+                return v8
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Variant of the chain hazard with an `inc_rc` on the *source*
+    /// placed *after* the chain. The inc_rc cannot undo the damage that
+    /// the in-place chain writes have already done to `v0`'s storage;
+    /// `tainted_indices` survives the inc_rc and the read at the
+    /// tainted index is still a hazard.
+    #[test]
+    fn end_to_end_chain_with_late_inc_rc_on_source_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 3]):
+                v2 = array_set v0, index u32 0, value u32 10
+                v4 = array_set v2, index u32 1, value u32 20
+                v6 = array_set v4, index u32 2, value u32 30
+                inc_rc v0
+                v8 = array_get v0, index u32 1 -> u32
+                return v8
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Variant of the chain hazard with `inc_rc` on the *last* chain link
+    /// placed before the read. The inc_rc still doesn't help — by the
+    /// time it runs, the chain has already in-place mutated the storage
+    /// at index 1 of `v0`. `tainted_indices` survives.
+    #[test]
+    fn end_to_end_chain_with_late_inc_rc_on_chain_tail_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 3]):
+                v2 = array_set v0, index u32 0, value u32 10
+                v4 = array_set v2, index u32 1, value u32 20
+                v6 = array_set v4, index u32 2, value u32 30
+                inc_rc v6
+                v8 = array_get v0, index u32 1 -> u32
+                return v8
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Mirror of [`end_to_end_chain_taints_downstream_index_is_rejected`]
+    /// where the read sits at an index that *no* chain write touched.
+    /// `tainted_indices` accumulates to `{0, 1}` and the read at index 2
+    /// remains safely disjoint.
+    #[test]
+    fn end_to_end_chain_with_read_at_untouched_index_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 3]):
+                v2 = array_set v0, index u32 0, value u32 10
+                v4 = array_set v2, index u32 1, value u32 20
+                v6 = array_get v0, index u32 2 -> u32
+                return v6
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "chain writes idx 0 and 1; read at idx 2 is untouched",
+        );
+    }
+
+    /// Mid-chain `inc_rc` on a chain link clears `derived`: subsequent
+    /// chain writes run on fresh storage and so don't taint the source.
+    /// The post-inc_rc write at index 2 is correctly *not* added to
+    /// `tainted_indices`; the read at index 2 of the original source
+    /// is safe.
+    #[test]
+    fn end_to_end_mid_chain_inc_rc_on_chain_link_prevents_later_taint() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 3]):
+                v2 = array_set v0, index u32 0, value u32 10
+                v4 = array_set v2, index u32 1, value u32 20
+                inc_rc v4
+                v6 = array_set v4, index u32 2, value u32 30
+                v8 = array_get v0, index u32 2 -> u32
+                return v8
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "inc_rc v4 clears derived; subsequent array_set v4, 2 is on fresh storage \
+             and doesn't taint v0[2]",
+        );
+    }
+
+    /// Poseidon2-style interleaved chain: each read happens *before* the
+    /// chain link that writes its index, so `tainted_indices` only
+    /// covers earlier-in-program writes when each read is checked. This
+    /// pattern was the original motivation for the index filter and
+    /// must stay green under the chain-aware version.
+    ///
+    /// **Where this lives in the wild.** The SSA shape below is distilled
+    /// from `<impl Hasher for Poseidon2Hasher>::finish_ref` in
+    /// `noir_stdlib/src/hash/poseidon2.nr` (~lines 22–26):
+    ///
+    /// ```text
+    /// state[0] += self._state[i * RATE];
+    /// state[1] += self._state[i * RATE + 1];
+    /// state[2] += self._state[i * RATE + 2];
+    /// ```
+    ///
+    /// After `mem2reg_brillig` each `state[i] += ...` becomes an
+    /// `array_get state, i` immediately followed by an `array_set` that
+    /// extends the chain, producing the interleaved
+    /// read-then-chain-write shape this test pins down.
+    ///
+    /// End-to-end coverage comes from
+    /// `collections::umap::test::test_no_duplicate_keys_after_deletion_and_insertion`
+    /// in the stdlib tests (`cargo nextest run -p nargo_cli --test stdlib-tests`),
+    /// which transitively hashes a value via `Poseidon2Hasher::finish_ref`
+    /// and so exercises this SSA shape under `debug_assertions`.
+    #[test]
+    fn end_to_end_interleaved_chain_writes_and_reads_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 4]):
+                v2 = array_get v0, index u32 0 -> u32
+                v3 = array_set v0, index u32 0, value v2
+                v5 = array_get v0, index u32 1 -> u32
+                v6 = array_set v3, index u32 1, value v5
+                v8 = array_get v0, index u32 2 -> u32
+                v9 = array_set v6, index u32 2, value v8
+                v11 = array_get v0, index u32 3 -> u32
+                return v11
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "Poseidon2-style: each read at idx i precedes the chain write at idx i, \
+             so tainted_indices doesn't yet cover the read",
+        );
     }
 
     /// Direct shape that the `MakeArray`-non-aliasing filter must NOT
@@ -1550,11 +1860,12 @@ mod tests {
     /// `inc_rc w` of a *different* value `w` that the backward
     /// alias-set walk places in `v0`'s alias-set (because both `v0` and
     /// `w` flow into the same `b3` block parameter from two branches).
-    /// The `inc_rc` is a ref-count bump, not a content read — `inc_rc`
-    /// and `dec_rc` operands are excluded from `array_operand_uses`, so
-    /// the walk skips them. Symmetric to the `Instruction::ArraySet` /
-    /// `Call` "non-aliasing-result" filter: an instruction whose
-    /// semantics don't read pre-mutation storage is not a hazard.
+    /// The `inc_rc` is a ref-count bump, not a content read — the walk
+    /// handles `IncrementRc` explicitly (it can only *clear* `derived`,
+    /// never count as an aliased use). Symmetric to the
+    /// `Instruction::ArraySet` / `Call` "non-aliasing-result" filter: an
+    /// instruction whose semantics don't read pre-mutation storage is
+    /// not a hazard.
     #[test]
     fn end_to_end_array_set_followed_by_inc_rc_of_aliased_param_is_accepted() {
         let src = r#"
