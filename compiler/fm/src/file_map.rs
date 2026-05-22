@@ -44,7 +44,9 @@ pub struct FileMap {
 }
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub struct FileId(usize);
 
 impl FileId {
