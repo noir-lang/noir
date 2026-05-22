@@ -78,23 +78,29 @@
 <a href=#78 id=78 data-nosnippet>78</a>    ) {
 <a href=#79 id=79 data-nosnippet>79</a>        <span class="macro">assert!</span>(source_field.bit_size == F::max_num_bits());
 <a href=#80 id=80 data-nosnippet>80</a>        <span class="macro">assert!</span>(radix.bit_size == <span class="number">32</span>);
-<a href=#81 id=81 data-nosnippet>81</a>
-<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>bits_register = <span class="self">self</span>.make_constant_instruction(output_bits.into(), <span class="number">1</span>);
-<a href=#83 id=83 data-nosnippet>83</a>        <span class="self">self</span>.codegen_initialize_array(target_array);
-<a href=#84 id=84 data-nosnippet>84</a>        <span class="kw">let </span>pointer = <span class="self">self</span>.codegen_make_array_items_pointer(target_array);
-<a href=#85 id=85 data-nosnippet>85</a>        <span class="kw">let </span>num_limbs = <span class="self">self</span>.make_usize_constant_instruction(target_array.size.<span class="number">0</span>.into());
-<a href=#86 id=86 data-nosnippet>86</a>
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="comment">// Perform big-endian ToRadix
-<a href=#88 id=88 data-nosnippet>88</a>        </span><span class="self">self</span>.black_box_op_instruction(BlackBoxOp::ToRadix {
-<a href=#89 id=89 data-nosnippet>89</a>            input: source_field.address,
-<a href=#90 id=90 data-nosnippet>90</a>            radix: radix.address,
-<a href=#91 id=91 data-nosnippet>91</a>            output_pointer: <span class="kw-2">*</span>pointer,
-<a href=#92 id=92 data-nosnippet>92</a>            num_limbs: num_limbs.address,
-<a href=#93 id=93 data-nosnippet>93</a>            output_bits: bits_register.address,
-<a href=#94 id=94 data-nosnippet>94</a>        });
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>        <span class="kw">if </span>little_endian {
-<a href=#97 id=97 data-nosnippet>97</a>            <span class="self">self</span>.codegen_array_reverse(<span class="kw-2">*</span>pointer, num_limbs.address);
-<a href=#98 id=98 data-nosnippet>98</a>        }
-<a href=#99 id=99 data-nosnippet>99</a>    }
-<a href=#100 id=100 data-nosnippet>100</a>}</code></pre></div></section></main></body></html>
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="macro">assert!</span>(
+<a href=#82 id=82 data-nosnippet>82</a>            target_array.size.<span class="number">0 </span>&lt;= F::max_num_bits(),
+<a href=#83 id=83 data-nosnippet>83</a>            <span class="string">"ToRadix num_limbs ({}) exceeds the maximum useful number of limbs ({}) for this field"</span>,
+<a href=#84 id=84 data-nosnippet>84</a>            target_array.size.<span class="number">0</span>,
+<a href=#85 id=85 data-nosnippet>85</a>            F::max_num_bits()
+<a href=#86 id=86 data-nosnippet>86</a>        );
+<a href=#87 id=87 data-nosnippet>87</a>
+<a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let </span>bits_register = <span class="self">self</span>.make_constant_instruction(output_bits.into(), <span class="number">1</span>);
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="self">self</span>.codegen_initialize_array(target_array);
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>pointer = <span class="self">self</span>.codegen_make_array_items_pointer(target_array);
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">let </span>num_limbs = <span class="self">self</span>.make_usize_constant_instruction(target_array.size.<span class="number">0</span>.into());
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>        <span class="comment">// Perform big-endian ToRadix
+<a href=#94 id=94 data-nosnippet>94</a>        </span><span class="self">self</span>.black_box_op_instruction(BlackBoxOp::ToRadix {
+<a href=#95 id=95 data-nosnippet>95</a>            input: source_field.address,
+<a href=#96 id=96 data-nosnippet>96</a>            radix: radix.address,
+<a href=#97 id=97 data-nosnippet>97</a>            output_pointer: <span class="kw-2">*</span>pointer,
+<a href=#98 id=98 data-nosnippet>98</a>            num_limbs: num_limbs.address,
+<a href=#99 id=99 data-nosnippet>99</a>            output_bits: bits_register.address,
+<a href=#100 id=100 data-nosnippet>100</a>        });
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">if </span>little_endian {
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="self">self</span>.codegen_array_reverse(<span class="kw-2">*</span>pointer, num_limbs.address);
+<a href=#104 id=104 data-nosnippet>104</a>        }
+<a href=#105 id=105 data-nosnippet>105</a>    }
+<a href=#106 id=106 data-nosnippet>106</a>}</code></pre></div></section></main></body></html>
