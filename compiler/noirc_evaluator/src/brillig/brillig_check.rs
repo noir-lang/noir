@@ -837,6 +837,20 @@ mod tests {
         }
     }
 
+    /// Whether the advisor produced any [`OpcodeAdvisory::NeverRead`] advisory.
+    fn has_never_read(advisories: &OpcodeAdvisories) -> bool {
+        advisories.values().flatten().any(|a| matches!(a, OpcodeAdvisory::NeverRead { .. }))
+    }
+
+    /// Whether the advisor produced any
+    /// [`OpcodeAdvisory::OverwrittenBeforeRead`] advisory.
+    fn has_overwritten_before_read(advisories: &OpcodeAdvisories) -> bool {
+        advisories
+            .values()
+            .flatten()
+            .any(|a| matches!(a, OpcodeAdvisory::OverwrittenBeforeRead { .. }))
+    }
+
     /// Assert the canonical "predicate-gated trap" shape that brillig-gen emits
     /// for runtime checks (bit-shift range check, arithmetic overflow check, …):
     ///
@@ -1005,19 +1019,106 @@ mod tests {
         2: return
         ");
 
-        let never_reads: Vec<_> = advisories
-            .iter()
-            .flat_map(|(loc, ads)| {
-                ads.iter().filter_map(move |a| match a {
-                    OpcodeAdvisory::NeverRead { addr } => Some((*loc, *addr)),
-                    _ => None,
-                })
-            })
-            .collect();
+        assert!(
+            has_never_read(&advisories),
+            "expected a NeverRead advisory for the dead `unchecked_add` destination, got: {advisories:?}"
+        );
+    }
+
+    /// Sanity check: every SSA value is properly consumed, so the advisor
+    /// should not flag anything. This guards against accidental
+    /// over-reporting — e.g. the return-region heuristic not suppressing the
+    /// final `Mov` into the return register, or a dead-write false positive
+    /// on a value that is actually read.
+    #[test]
+    fn no_advisories_for_clean_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 add sp[2], sp[3]
+        1: sp[2] = sp[4]
+        2: return
+        ");
 
         assert!(
-            !never_reads.is_empty(),
-            "expected at least one NeverRead advisory for the dead `unchecked_add` destination, got: {advisories:?}"
+            advisories.is_empty(),
+            "expected no advisories for a clean function, got: {advisories:?}"
+        );
+    }
+
+    /// Counterpart to [`never_read_advisory_for_dead_unchecked_add`]: when
+    /// the dead write is a *fallible* operation (here `div`, which traps on
+    /// a zero divisor) the advisor must NOT emit a `NeverRead`, because
+    /// removing the opcode would silently drop the trap.
+    #[test]
+    fn fallible_div_with_unused_result_not_flagged() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = div v0, v1
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 div sp[2], sp[3]
+        1: return
+        ");
+
+        // The bytecode must actually contain the Div we care about —
+        // otherwise the absence of advisories below is meaningless.
+        assert!(
+            artifact
+                .byte_code
+                .iter()
+                .any(|op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. })),
+            "expected an integer Div opcode in the bytecode"
+        );
+
+        assert!(
+            !has_never_read(&advisories),
+            "expected no NeverRead advisory for fallible `div` whose result is unused, got: {advisories:?}"
+        );
+    }
+
+    /// Provoke an [`OpcodeAdvisory::OverwrittenBeforeRead`]: two SSA values
+    /// with non-overlapping lifetimes share a register through the
+    /// allocator, so the first write to that register is overwritten by the
+    /// second write before any opcode reads it.
+    #[test]
+    fn overwritten_before_read_advisory_for_register_reuse() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_mul v0, u32 2
+            return v3
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 add sp[2], sp[3]
+        1: sp[3] = const u32 2
+        2: sp[4] = u32 mul sp[2], sp[3]
+        3: sp[2] = sp[4]
+        4: return
+        ");
+
+        assert!(
+            has_overwritten_before_read(&advisories),
+            "expected an OverwrittenBeforeRead advisory, got: {advisories:?}"
         );
     }
 }
