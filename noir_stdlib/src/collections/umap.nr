@@ -103,14 +103,13 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(&self, key: K) -> bool
+    pub unconstrained fn contains_key(&self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher,
     {
         // docs:end:contains_key
-        // Safety: unconstrained context
-        unsafe { self.get(key) }.is_some()
+        self.get(key).is_some()
     }
 
     /// Returns true if the map contains no elements.
