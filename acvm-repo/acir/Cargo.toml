@@ -18,7 +18,6 @@ workspace = true
 [dependencies]
 acir_field.workspace = true
 brillig.workspace = true
-msgpack_tagged.workspace = true
 
 serde.workspace = true
 thiserror.workspace = true

@@ -8,7 +8,6 @@ use acir_field::AcirField;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
-use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -34,8 +33,7 @@ enum SerializationError {
 pub struct WitnessMapError(#[from] SerializationError);
 
 /// A map from the witnesses in a constraint system to the field element values
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-#[derive(Serialize, Deserialize, MsgpackTagged)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct WitnessMap<F>(BTreeMap<Witness, F>);
 
@@ -93,7 +91,7 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
     }
 }
 
-impl<F: AcirField + Serialize + MsgpackTagged> WitnessMap<F> {
+impl<F: AcirField + Serialize> WitnessMap<F> {
     /// Serialize and compress.
     pub fn serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
         let format = SerializationFormat::from_env()
@@ -119,7 +117,7 @@ impl<F: AcirField + Serialize + MsgpackTagged> WitnessMap<F> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> WitnessMap<F> {
+impl<F: AcirField + for<'a> Deserialize<'a>> WitnessMap<F> {
     /// Decompress and deserialize.
     pub fn deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
         let mut deflater = GzDecoder::new(buf);
