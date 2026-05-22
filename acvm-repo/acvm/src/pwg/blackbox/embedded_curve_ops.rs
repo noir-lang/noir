@@ -32,13 +32,7 @@ pub(crate) fn execute_multi_scalar_mul<F: AcirField>(
     scalars: &[FunctionInput<F>],
     predicate: FunctionInput<F>,
 ) -> Result<(F, F, F), OpcodeResolutionError<F>> {
-    assert!(scalars.len().is_multiple_of(2), "Number of scalars must be even");
-    assert!(points.len().is_multiple_of(3), "Number of points must be a multiple of 3");
-    assert_eq!(
-        scalars.len() / 2,
-        points.len() / 3,
-        "Number of scalars must be the same as the number of points"
-    );
+    validate_multi_scalar_mul_inputs(points, scalars)?;
 
     let points: Result<Vec<_>, _> =
         points.iter().map(|input| input_to_value(initial_witness, *input)).collect();
@@ -62,6 +56,41 @@ pub(crate) fn execute_multi_scalar_mul<F: AcirField>(
     let (res_x, res_y, is_infinite) =
         backend.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, predicate)?;
     Ok((res_x, res_y, is_infinite))
+}
+
+fn validate_multi_scalar_mul_inputs<F: AcirField>(
+    points: &[FunctionInput<F>],
+    scalars: &[FunctionInput<F>],
+) -> Result<(), OpcodeResolutionError<F>> {
+    if !scalars.len().is_multiple_of(2) {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::MultiScalarMul,
+            format!("expected an even number of scalar limbs, got {}", scalars.len()),
+        ));
+    }
+
+    if !points.len().is_multiple_of(3) {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::MultiScalarMul,
+            format!(
+                "expected point inputs in triples of (x, y, is_infinite), got {} values",
+                points.len()
+            ),
+        ));
+    }
+
+    let point_count = points.len() / 3;
+    let scalar_count = scalars.len() / 2;
+    if scalar_count != point_count {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::MultiScalarMul,
+            format!(
+                "expected the same number of points and scalars, got {point_count} points and {scalar_count} scalars"
+            ),
+        ));
+    }
+
+    Ok(())
 }
 
 pub(super) fn embedded_curve_add<F: AcirField>(
