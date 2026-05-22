@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779460352831,
+  "lastUpdate": 1779461438230,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23226,48 +23226,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "4e25c46c2f395fd44356426c9eac711f78ad30cd",
-          "message": "feat: allow referencing types generated at comptime in function signatures (#12602)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-05-15T13:03:12Z",
-          "tree_id": "d3b91832c975b7f4bf279fe299582717cd31d567",
-          "url": "https://github.com/noir-lang/noir/commit/4e25c46c2f395fd44356426c9eac711f78ad30cd"
-        },
-        "date": 1778851710083,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128611,
-            "range": "± 349",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 114722,
-            "range": "± 1481",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041816,
-            "range": "± 12264",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c70e0b424ceb07aeee02a3ad51a216d1e2b0e71b",
           "message": "fix(coverage): include impl trait generics in name (#12644)",
           "timestamp": "2026-05-15T13:17:28Z",
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2124707,
             "range": "± 2720",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0f776ea68140e06a4e11ab6061cf9324243a3aca",
+          "message": "chore: autogenerate acvm_js shared test files (#12405)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-22T14:23:21Z",
+          "tree_id": "8f3802583a162d570bb37884e594e09d1080ca52",
+          "url": "https://github.com/noir-lang/noir/commit/0f776ea68140e06a4e11ab6061cf9324243a3aca"
+        },
+        "date": 1779461374240,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169016,
+            "range": "± 633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136065,
+            "range": "± 190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650256,
+            "range": "± 1431",
             "unit": "ns/iter"
           }
         ]
