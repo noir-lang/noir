@@ -685,3 +685,116 @@ impl CallRegion {
         !matches!(self, CallRegion::Outside)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use noirc_frontend::test_utils::get_monomorphized;
+
+    use crate::{
+        brillig::BrilligOptions,
+        ssa::{minimal_passes, ssa_gen::generate_ssa},
+    };
+    use acvm::{
+        FieldElement,
+        acir::brillig::{BinaryIntOp, Opcode},
+    };
+
+    /// Compile a Noir snippet through monomorphization → SSA (`minimal_passes`)
+    /// → Brillig and return the bytecode of `main`. Used to exercise paths that
+    /// depend on brillig-gen lowering (e.g. shift/overflow range-check
+    /// insertion) rather than testing a hand-crafted SSA in isolation.
+    ///
+    /// Running `minimal_passes` brings the initial SSA into the smallest shape
+    /// that can be lowered to Brillig (signed-check expansion, defunctionalization,
+    /// removal of unreachable functions, and `static_assert` evaluation) while
+    /// preserving the surface structure the test wants to observe.
+    fn noir_to_brillig_main(noir_src: &str) -> Vec<Opcode<FieldElement>> {
+        let program = get_monomorphized(noir_src).expect("Noir source should compile");
+        let mut ssa = generate_ssa(program).expect("SSA generation should succeed");
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa).expect("minimal SSA pass should not fail");
+        }
+        let mut brillig = ssa.to_brillig(&BrilligOptions::default());
+        let artifact = brillig
+            .ssa_function_to_brillig
+            .remove(&ssa.main_id)
+            .expect("main expected to be Brillig");
+        artifact.byte_code
+    }
+
+    /// Evidence for the doc claim that `is_fallible_opcode` does *not* mark
+    /// `Shl`/`Shr` as fallible: when a Noir program performs a shift, the
+    /// Brillig codegen emits the user-facing range check (`LessThan` +
+    /// `JumpIf` over a `Call` to the error procedure) as a separate sequence
+    /// *before* the shift opcode. The shift's destination register is
+    /// independent of the range check, so flagging the shift's result as
+    /// `NeverRead` does not weaken the trap.
+    #[test]
+    fn shift_emits_range_check_independent_of_shift_destination() {
+        let noir_src = "
+            unconstrained fn main(x: u32, y: u32) -> pub u32 {
+                x >> y
+            }
+        ";
+        let bytecode = noir_to_brillig_main(noir_src);
+
+        let shr_idx = bytecode
+            .iter()
+            .position(|op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Shr, .. }))
+            .expect("brillig for `x >> y` should contain a Shr opcode");
+
+        let Opcode::BinaryIntOp { destination: shr_dst, lhs: shr_lhs, rhs: shr_rhs, .. } =
+            &bytecode[shr_idx]
+        else {
+            unreachable!()
+        };
+
+        // The range check is emitted before the shift. It computes
+        // `LessThan(y, bit_size)` into a fresh boolean and jumps over a `Call`
+        // to the `ErrorWithString` procedure (or a `Trap`) on failure. We look
+        // for the LessThan immediately preceding the shift.
+        let range_check_idx = bytecode[..shr_idx]
+            .iter()
+            .rposition(|op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThan, .. }))
+            .expect("brillig for a shift should contain a LessThan range check");
+
+        let Opcode::BinaryIntOp { destination: rc_dst, lhs: rc_lhs, .. } =
+            &bytecode[range_check_idx]
+        else {
+            unreachable!()
+        };
+
+        // The check's LHS is the shift amount, not the shift's input value.
+        assert_eq!(rc_lhs, shr_rhs, "range check should constrain the shift amount");
+
+        // The check writes to a separate register from the shift's destination,
+        // so removing the shift would not erase the check.
+        assert_ne!(
+            rc_dst, shr_dst,
+            "range-check register should be independent of the shift's destination"
+        );
+        assert_ne!(rc_dst, shr_lhs);
+
+        // A JumpIf reading the range-check result must appear between the check
+        // and the shift — that's what gates the trap.
+        let jumpif_between = bytecode[range_check_idx..shr_idx]
+            .iter()
+            .any(|op| matches!(op, Opcode::JumpIf { condition, .. } if condition == rc_dst));
+        assert!(
+            jumpif_between,
+            "expected a JumpIf on the range-check result between the check and the shift"
+        );
+
+        // The trap is reached via either a Call to the ErrorWithString
+        // procedure or a direct Trap opcode — both are emitted by
+        // `codegen_constrain`. Confirm one of them sits between the check and
+        // the shift, independent of the shift's destination.
+        let trap_between = bytecode[range_check_idx..shr_idx]
+            .iter()
+            .any(|op| matches!(op, Opcode::Call { .. } | Opcode::Trap { .. }));
+        assert!(
+            trap_between,
+            "expected a Trap or Call (ErrorWithString) between the range check and the shift"
+        );
+    }
+}
