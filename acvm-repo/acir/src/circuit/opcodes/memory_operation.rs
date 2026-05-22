@@ -1,8 +1,13 @@
-use crate::native_types::Witness;
+use std::marker::PhantomData;
+
+use crate::native_types::{Expression, Witness};
+use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Identifier for a block of memory
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy, Default)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BlockId(pub u32);
 
@@ -34,7 +39,9 @@ impl<'de> Deserialize<'de> for MemOpKind {
 
 /// Operation on a block of memory
 /// We can either write or read at an index in memory
-#[derive(Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(MsgpackTagged)]
+#[tagged(via(MemOpWire<F>))]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct MemOp {
     #[serde(rename = "read")]
@@ -43,6 +50,62 @@ pub struct MemOp {
     pub index: Witness,
     /// the witness we are reading into (read), or the witness whose value is written (write)
     pub value: Witness,
+    #[cfg_attr(feature = "arb", proptest(value = "PhantomData"))]
+    _phantom: PhantomData<F>,
+}
+
+/// Wire format for `MemOp` — preserves backwards-compatible serialization where all three
+/// fields are `Expression<F>`. The `serde(rename)` ensures this type registers under the
+/// same name ("MemOp") as the public type so that `serde_reflection` traces it correctly.
+#[derive(Serialize, Deserialize, MsgpackTagged)]
+#[serde(rename = "MemOp")]
+struct MemOpWire<F> {
+    #[tag(0)]
+    operation: Expression<F>,
+    #[tag(1)]
+    index: Expression<F>,
+    #[tag(2)]
+    value: Expression<F>,
+}
+
+impl<F: AcirField + Serialize> Serialize for MemOp<F> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        MemOpWire {
+            operation: match self.operation {
+                MemOpKind::Read => Expression::<F>::zero(),
+                MemOpKind::Write => Expression::<F>::one(),
+            },
+            index: Expression::<F>::from(self.index),
+            value: Expression::<F>::from(self.value),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de, F: AcirField + Deserialize<'de>> Deserialize<'de> for MemOp<F> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = MemOpWire::<F>::deserialize(deserializer)?;
+
+        let operation = if wire.operation.is_zero() {
+            MemOpKind::Read
+        } else if wire.operation.is_one() {
+            MemOpKind::Write
+        } else {
+            return Err(serde::de::Error::custom(
+                "MemOp operation must be either 0 (Read) or 1 (Write)",
+            ));
+        };
+        let index = wire
+            .index
+            .to_witness()
+            .ok_or_else(|| serde::de::Error::custom("MemOp index must be a single witness"))?;
+        let value = wire
+            .value
+            .to_witness()
+            .ok_or_else(|| serde::de::Error::custom("MemOp value must be a single witness"))?;
+
+        Ok(MemOp { operation, index, value, _phantom: PhantomData })
+    }
 }
 
 impl MemOp {

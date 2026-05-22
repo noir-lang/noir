@@ -124,7 +124,7 @@ macro_rules! field_wrapper {
             Copy,
             Default,
             serde::Serialize,
-            serde::Deserialize,
+            serde::Deserialize
         )]
         struct $wrapper(pub $field);
 
