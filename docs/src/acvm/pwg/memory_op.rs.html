@@ -104,7 +104,7 @@
 <a href=#104 id=104 data-nosnippet>104</a>    /// If a requirement is not met, it returns an error.
 <a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve_memory_op(
 <a href=#106 id=106 data-nosnippet>106</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#107 id=107 data-nosnippet>107</a>        op: <span class="kw-2">&amp;</span>MemOp&lt;F&gt;,
+<a href=#107 id=107 data-nosnippet>107</a>        op: <span class="kw-2">&amp;</span>MemOp,
 <a href=#108 id=108 data-nosnippet>108</a>        initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
 <a href=#109 id=109 data-nosnippet>109</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
 <a href=#110 id=110 data-nosnippet>110</a>        <span class="comment">// Find the memory index associated with this memory operation.

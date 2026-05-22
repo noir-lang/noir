@@ -501,8 +501,8 @@
 <a href=#501 id=501 data-nosnippet>501</a>                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
 <a href=#502 id=502 data-nosnippet>502</a>                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 <a href=#503 id=503 data-nosnippet>503</a>
-<a href=#504 id=504 data-nosnippet>504</a>                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">3</span>&gt;()<span class="question-mark">?</span>;
-<a href=#505 id=505 data-nosnippet>505</a>                <span class="kw">let </span>outputs = (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]);
+<a href=#504 id=504 data-nosnippet>504</a>                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">2</span>&gt;()<span class="question-mark">?</span>;
+<a href=#505 id=505 data-nosnippet>505</a>                <span class="kw">let </span>outputs = (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>]);
 <a href=#506 id=506 data-nosnippet>506</a>
 <a href=#507 id=507 data-nosnippet>507</a>                BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
 <a href=#508 id=508 data-nosnippet>508</a>            }
@@ -542,17 +542,17 @@
 <a href=#542 id=542 data-nosnippet>542</a>                }
 <a href=#543 id=543 data-nosnippet>543</a>            }
 <a href=#544 id=544 data-nosnippet>544</a>            BlackBoxFunc::EmbeddedCurveAdd =&gt; {
-<a href=#545 id=545 data-nosnippet>545</a>                <span class="kw">let </span>input1 = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">3</span>&gt;(Keyword::Input1)<span class="question-mark">?</span>;
+<a href=#545 id=545 data-nosnippet>545</a>                <span class="kw">let </span>input1 = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">2</span>&gt;(Keyword::Input1)<span class="question-mark">?</span>;
 <a href=#546 id=546 data-nosnippet>546</a>                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 <a href=#547 id=547 data-nosnippet>547</a>
-<a href=#548 id=548 data-nosnippet>548</a>                <span class="kw">let </span>input2 = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">3</span>&gt;(Keyword::Input2)<span class="question-mark">?</span>;
+<a href=#548 id=548 data-nosnippet>548</a>                <span class="kw">let </span>input2 = <span class="self">self</span>.parse_blackbox_inputs_array::&lt;<span class="number">2</span>&gt;(Keyword::Input2)<span class="question-mark">?</span>;
 <a href=#549 id=549 data-nosnippet>549</a>                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 <a href=#550 id=550 data-nosnippet>550</a>
 <a href=#551 id=551 data-nosnippet>551</a>                <span class="kw">let </span>predicate = <span class="self">self</span>.parse_blackbox_input(Keyword::Predicate)<span class="question-mark">?</span>;
 <a href=#552 id=552 data-nosnippet>552</a>                <span class="self">self</span>.eat_comma_or_error()<span class="question-mark">?</span>;
 <a href=#553 id=553 data-nosnippet>553</a>
-<a href=#554 id=554 data-nosnippet>554</a>                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">3</span>&gt;()<span class="question-mark">?</span>;
-<a href=#555 id=555 data-nosnippet>555</a>                <span class="kw">let </span>outputs = (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>], outputs[<span class="number">2</span>]);
+<a href=#554 id=554 data-nosnippet>554</a>                <span class="kw">let </span>outputs = <span class="self">self</span>.parse_blackbox_outputs_array::&lt;<span class="number">2</span>&gt;()<span class="question-mark">?</span>;
+<a href=#555 id=555 data-nosnippet>555</a>                <span class="kw">let </span>outputs = (outputs[<span class="number">0</span>], outputs[<span class="number">1</span>]);
 <a href=#556 id=556 data-nosnippet>556</a>
 <a href=#557 id=557 data-nosnippet>557</a>                BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
 <a href=#558 id=558 data-nosnippet>558</a>            }

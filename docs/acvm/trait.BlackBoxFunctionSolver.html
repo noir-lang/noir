@@ -6,17 +6,15 @@
         scalars_lo: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.slice.html">[F]</a>,
         scalars_hi: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.slice.html">[F]</a>,
         predicate: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
-    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;;
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;;
 <span class="item-spacer"></span>    fn <a href="#tymethod.ec_add" class="fn">ec_add</a>(
         &amp;self,
         input1_x: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
         input1_y: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
-        input1_infinite: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
         input2_x: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
         input2_y: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
-        input2_infinite: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
         predicate: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
-    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;;
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;;
 <span class="item-spacer"></span>    fn <a href="#tymethod.poseidon2_permutation" class="fn">poseidon2_permutation</a>(
         &amp;self,
         inputs: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.slice.html">[F]</a>,
@@ -30,16 +28,14 @@ doesn’t have a canonical Rust implementation.</p>
     scalars_lo: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.slice.html">[F]</a>,
     scalars_hi: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.slice.html">[F]</a>,
     predicate: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;</h4></section><section id="tymethod.ec_add" class="method"><h4 class="code-header">fn <a href="#tymethod.ec_add" class="fn">ec_add</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;</h4></section><section id="tymethod.ec_add" class="method"><h4 class="code-header">fn <a href="#tymethod.ec_add" class="fn">ec_add</a>(
     &amp;self,
     input1_x: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
     input1_y: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
-    input1_infinite: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
     input2_x: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
     input2_y: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
-    input2_infinite: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.reference.html">&amp;F</a>,
     predicate: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;</h4></section><section id="tymethod.poseidon2_permutation" class="method"><h4 class="code-header">fn <a href="#tymethod.poseidon2_permutation" class="fn">poseidon2_permutation</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.tuple.html">(F, F)</a>, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;</h4></section><section id="tymethod.poseidon2_permutation" class="method"><h4 class="code-header">fn <a href="#tymethod.poseidon2_permutation" class="fn">poseidon2_permutation</a>(
     &amp;self,
     inputs: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.slice.html">[F]</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;F&gt;, <a class="enum" href="enum.BlackBoxResolutionError.html" title="enum acvm::BlackBoxResolutionError">BlackBoxResolutionError</a>&gt;</h4></section></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><section id="impl-BlackBoxFunctionSolver%3CF%3E-for-StubbedBlackBoxSolver" class="impl"><a href="#impl-BlackBoxFunctionSolver%3CF%3E-for-StubbedBlackBoxSolver" class="anchor">§</a><h3 class="code-header">impl&lt;F&gt; <a class="trait" href="trait.BlackBoxFunctionSolver.html" title="trait acvm::BlackBoxFunctionSolver">BlackBoxFunctionSolver</a>&lt;F&gt; for StubbedBlackBoxSolver</h3></section></div><script src="../trait.impl/acvm_blackbox_solver/curve_specific_solver/trait.BlackBoxFunctionSolver.js" data-ignore-extern-crates="acvm_blackbox_solver" async></script></section></div></main></body></html>

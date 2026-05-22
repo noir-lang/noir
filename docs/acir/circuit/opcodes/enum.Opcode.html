@@ -3,7 +3,7 @@
     BlackBoxFuncCall(<a class="enum" href="enum.BlackBoxFuncCall.html" title="enum acir::circuit::opcodes::BlackBoxFuncCall">BlackBoxFuncCall</a>&lt;F&gt;),
     MemoryOp {
         block_id: <a class="struct" href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId">BlockId</a>,
-        op: <a class="struct" href="struct.MemOp.html" title="struct acir::circuit::opcodes::MemOp">MemOp</a>&lt;F&gt;,
+        op: <a class="struct" href="struct.MemOp.html" title="struct acir::circuit::opcodes::MemOp">MemOp</a>,
     },
     MemoryInit {
         block_id: <a class="struct" href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId">BlockId</a>,
@@ -60,7 +60,7 @@ index and the value we read/write as arithmetic expressions. Note that
 ACIR arrays all have a known fixed length (given in the <a href="enum.Opcode.html#variant.MemoryInit" title="variant acir::circuit::opcodes::Opcode::MemoryInit">Opcode::MemoryInit</a>
 opcode below)</p>
 </div><div class="sub-variant" id="variant.MemoryOp.fields"><h4>Fields</h4><div class="sub-variant-field"><span id="variant.MemoryOp.field.block_id" class="section-header"><a href="#variant.MemoryOp.field.block_id" class="anchor field">§</a><code>block_id: <a class="struct" href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId">BlockId</a></code></span><div class="docblock"><p>Identifier of the array</p>
-</div></div><div class="sub-variant-field"><span id="variant.MemoryOp.field.op" class="section-header"><a href="#variant.MemoryOp.field.op" class="anchor field">§</a><code>op: <a class="struct" href="struct.MemOp.html" title="struct acir::circuit::opcodes::MemOp">MemOp</a>&lt;F&gt;</code></span><div class="docblock"><p>Describe the memory operation to perform</p>
+</div></div><div class="sub-variant-field"><span id="variant.MemoryOp.field.op" class="section-header"><a href="#variant.MemoryOp.field.op" class="anchor field">§</a><code>op: <a class="struct" href="struct.MemOp.html" title="struct acir::circuit::opcodes::MemOp">MemOp</a></code></span><div class="docblock"><p>Describe the memory operation to perform</p>
 </div></div></div><section id="variant.MemoryInit" class="variant"><a href="#variant.MemoryInit" class="anchor">§</a><h3 class="code-header">MemoryInit</h3></section><div class="docblock"><p>Initialize an ACIR array from a vector of witnesses.</p>
 <p>There must be only one MemoryInit per block_id, and MemoryOp opcodes must
 come after the MemoryInit.</p>

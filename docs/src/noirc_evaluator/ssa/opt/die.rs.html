@@ -1143,10 +1143,10 @@
 <a href=#1143 id=1143 data-nosnippet>1143</a>        <span class="kw">let </span>src = <span class="string">r#"
 <a href=#1144 id=1144 data-nosnippet>1144</a>        acir(inline) fn main f0 {
 <a href=#1145 id=1145 data-nosnippet>1145</a>            b0(v0: Field, v1: Field, v2: Field):
-<a href=#1146 id=1146 data-nosnippet>1146</a>            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+<a href=#1146 id=1146 data-nosnippet>1146</a>            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 1]
 <a href=#1147 id=1147 data-nosnippet>1147</a>            v8 = make_array [v0, Field 0] : [(Field, Field); 1]
-<a href=#1148 id=1148 data-nosnippet>1148</a>            v11 = call multi_scalar_mul(v6, v8, u1 1) -&gt; [(Field, Field, u1); 1]
-<a href=#1149 id=1149 data-nosnippet>1149</a>            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -&gt; [(Field, Field, u1); 1]
+<a href=#1148 id=1148 data-nosnippet>1148</a>            v11 = call multi_scalar_mul(v6, v8, u1 1) -&gt; [(Field, Field); 1]
+<a href=#1149 id=1149 data-nosnippet>1149</a>            v12 = call embedded_curve_add(v0, v1, v2, Field 3, u1 0) -&gt; [(Field, Field); 1]
 <a href=#1150 id=1150 data-nosnippet>1150</a>            return v12
 <a href=#1151 id=1151 data-nosnippet>1151</a>        }
 <a href=#1152 id=1152 data-nosnippet>1152</a>        "#</span>;

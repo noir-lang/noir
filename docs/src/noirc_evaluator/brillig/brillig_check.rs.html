@@ -582,39 +582,29 @@
 <a href=#582 id=582 data-nosnippet>582</a>                <span class="self">self</span>.read_heap_array(scalars, location);
 <a href=#583 id=583 data-nosnippet>583</a>                <span class="self">self</span>.write_heap_array(outputs, location);
 <a href=#584 id=584 data-nosnippet>584</a>            }
-<a href=#585 id=585 data-nosnippet>585</a>            BlackBoxOp::EmbeddedCurveAdd {
-<a href=#586 id=586 data-nosnippet>586</a>                input1_x,
-<a href=#587 id=587 data-nosnippet>587</a>                input1_y,
-<a href=#588 id=588 data-nosnippet>588</a>                input1_infinite,
-<a href=#589 id=589 data-nosnippet>589</a>                input2_x,
-<a href=#590 id=590 data-nosnippet>590</a>                input2_y,
-<a href=#591 id=591 data-nosnippet>591</a>                input2_infinite,
-<a href=#592 id=592 data-nosnippet>592</a>                result,
-<a href=#593 id=593 data-nosnippet>593</a>            } =&gt; {
-<a href=#594 id=594 data-nosnippet>594</a>                <span class="self">self</span>.read(input1_x, location);
-<a href=#595 id=595 data-nosnippet>595</a>                <span class="self">self</span>.read(input1_y, location);
-<a href=#596 id=596 data-nosnippet>596</a>                <span class="self">self</span>.read(input1_infinite, location);
-<a href=#597 id=597 data-nosnippet>597</a>                <span class="self">self</span>.read(input2_x, location);
-<a href=#598 id=598 data-nosnippet>598</a>                <span class="self">self</span>.read(input2_y, location);
-<a href=#599 id=599 data-nosnippet>599</a>                <span class="self">self</span>.read(input2_infinite, location);
-<a href=#600 id=600 data-nosnippet>600</a>                <span class="self">self</span>.write_heap_array(result, location);
-<a href=#601 id=601 data-nosnippet>601</a>            }
-<a href=#602 id=602 data-nosnippet>602</a>            BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
-<a href=#603 id=603 data-nosnippet>603</a>                <span class="self">self</span>.read_heap_array(message, location);
-<a href=#604 id=604 data-nosnippet>604</a>                <span class="self">self</span>.write_heap_array(output, location);
-<a href=#605 id=605 data-nosnippet>605</a>            }
-<a href=#606 id=606 data-nosnippet>606</a>            BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {
-<a href=#607 id=607 data-nosnippet>607</a>                <span class="self">self</span>.read_heap_array(input, location);
-<a href=#608 id=608 data-nosnippet>608</a>                <span class="self">self</span>.read_heap_array(hash_values, location);
-<a href=#609 id=609 data-nosnippet>609</a>                <span class="self">self</span>.write_heap_array(output, location);
-<a href=#610 id=610 data-nosnippet>610</a>            }
-<a href=#611 id=611 data-nosnippet>611</a>            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } =&gt; {
-<a href=#612 id=612 data-nosnippet>612</a>                <span class="self">self</span>.read(input, location);
-<a href=#613 id=613 data-nosnippet>613</a>                <span class="self">self</span>.read(radix, location);
-<a href=#614 id=614 data-nosnippet>614</a>                <span class="self">self</span>.read(num_limbs, location);
-<a href=#615 id=615 data-nosnippet>615</a>                <span class="self">self</span>.read(output_bits, location);
-<a href=#616 id=616 data-nosnippet>616</a>                <span class="self">self</span>.read(output_pointer, location); <span class="comment">// indirect
-<a href=#617 id=617 data-nosnippet>617</a>            </span>}
-<a href=#618 id=618 data-nosnippet>618</a>        }
-<a href=#619 id=619 data-nosnippet>619</a>    }
-<a href=#620 id=620 data-nosnippet>620</a>}</code></pre></div></section></main></body></html>
+<a href=#585 id=585 data-nosnippet>585</a>            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } =&gt; {
+<a href=#586 id=586 data-nosnippet>586</a>                <span class="self">self</span>.read(input1_x, location);
+<a href=#587 id=587 data-nosnippet>587</a>                <span class="self">self</span>.read(input1_y, location);
+<a href=#588 id=588 data-nosnippet>588</a>                <span class="self">self</span>.read(input2_x, location);
+<a href=#589 id=589 data-nosnippet>589</a>                <span class="self">self</span>.read(input2_y, location);
+<a href=#590 id=590 data-nosnippet>590</a>                <span class="self">self</span>.write_heap_array(result, location);
+<a href=#591 id=591 data-nosnippet>591</a>            }
+<a href=#592 id=592 data-nosnippet>592</a>            BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
+<a href=#593 id=593 data-nosnippet>593</a>                <span class="self">self</span>.read_heap_array(message, location);
+<a href=#594 id=594 data-nosnippet>594</a>                <span class="self">self</span>.write_heap_array(output, location);
+<a href=#595 id=595 data-nosnippet>595</a>            }
+<a href=#596 id=596 data-nosnippet>596</a>            BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {
+<a href=#597 id=597 data-nosnippet>597</a>                <span class="self">self</span>.read_heap_array(input, location);
+<a href=#598 id=598 data-nosnippet>598</a>                <span class="self">self</span>.read_heap_array(hash_values, location);
+<a href=#599 id=599 data-nosnippet>599</a>                <span class="self">self</span>.write_heap_array(output, location);
+<a href=#600 id=600 data-nosnippet>600</a>            }
+<a href=#601 id=601 data-nosnippet>601</a>            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } =&gt; {
+<a href=#602 id=602 data-nosnippet>602</a>                <span class="self">self</span>.read(input, location);
+<a href=#603 id=603 data-nosnippet>603</a>                <span class="self">self</span>.read(radix, location);
+<a href=#604 id=604 data-nosnippet>604</a>                <span class="self">self</span>.read(num_limbs, location);
+<a href=#605 id=605 data-nosnippet>605</a>                <span class="self">self</span>.read(output_bits, location);
+<a href=#606 id=606 data-nosnippet>606</a>                <span class="self">self</span>.read(output_pointer, location); <span class="comment">// indirect
+<a href=#607 id=607 data-nosnippet>607</a>            </span>}
+<a href=#608 id=608 data-nosnippet>608</a>        }
+<a href=#609 id=609 data-nosnippet>609</a>    }
+<a href=#610 id=610 data-nosnippet>610</a>}</code></pre></div></section></main></body></html>
