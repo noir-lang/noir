@@ -6,6 +6,11 @@ impl Module {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(module_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     #[builtin(module_is_contract)]
     // docs:start:is_contract
     pub comptime fn is_contract(self) -> bool {}
