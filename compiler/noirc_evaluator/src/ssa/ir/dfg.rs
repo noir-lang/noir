@@ -41,6 +41,36 @@ use simplify::{SimplifyResult, simplify};
 
 pub(crate) mod simplify;
 
+#[derive(Clone, Copy)]
+struct UnsignedValueRange {
+    min: u128,
+    max: u128,
+}
+
+impl UnsignedValueRange {
+    fn new(min: u128, max: u128) -> Self {
+        debug_assert!(min <= max);
+        Self { min, max }
+    }
+
+    fn max_num_bits(self) -> u32 {
+        u128_num_bits(self.max)
+    }
+}
+
+pub(crate) fn max_unsigned_value_for_bit_size(bit_size: u32) -> Option<u128> {
+    match bit_size {
+        0 => Some(0),
+        1..=127 => Some((1u128 << bit_size) - 1),
+        128 => Some(u128::MAX),
+        _ => None,
+    }
+}
+
+fn u128_num_bits(value: u128) -> u32 {
+    u128::BITS - value.leading_zeros()
+}
+
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
@@ -558,6 +588,10 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
+        if let Some(range) = self.get_unsigned_value_range(value) {
+            return self.type_of_value(value).bit_size().min(range.max_num_bits());
+        }
+
         match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
@@ -579,6 +613,82 @@ impl DataFlowGraph {
 
             Value::NumericConstant { constant, .. } => constant.num_bits(),
             _ => self.type_of_value(value).bit_size(),
+        }
+    }
+
+    pub(crate) fn get_unsigned_value_bounds(&self, value: ValueId) -> Option<(u128, u128)> {
+        self.get_unsigned_value_range(value).map(|range| (range.min, range.max))
+    }
+
+    fn get_unsigned_value_range(&self, value: ValueId) -> Option<UnsignedValueRange> {
+        let value_bit_size = self.type_of_value(value).bit_size();
+
+        match self[value] {
+            Value::NumericConstant { constant, typ } => {
+                if typ.is_signed() {
+                    return None;
+                }
+
+                constant
+                    .try_into_u128()
+                    .map(|constant| UnsignedValueRange { min: constant, max: constant })
+            }
+            Value::Instruction { instruction, .. } => match &self[instruction] {
+                Instruction::Cast(original_value, _) => {
+                    if !matches!(
+                        self.type_of_value(value).as_ref(),
+                        Type::Numeric(NumericType::Unsigned { .. })
+                    ) {
+                        return None;
+                    }
+
+                    let max = max_unsigned_value_for_bit_size(value_bit_size)?;
+                    let original_range = self.get_unsigned_value_range(*original_value);
+
+                    match original_range {
+                        Some(original_range) if original_range.max <= max => Some(original_range),
+                        _ => Some(UnsignedValueRange::new(0, max)),
+                    }
+                }
+                Instruction::Truncate { value: original_value, bit_size, .. } => {
+                    if !matches!(
+                        self.type_of_value(value).as_ref(),
+                        Type::Numeric(NumericType::Unsigned { .. } | NumericType::NativeField)
+                    ) {
+                        return None;
+                    }
+
+                    let max = max_unsigned_value_for_bit_size(value_bit_size.min(*bit_size))?;
+                    let original_range = self.get_unsigned_value_range(*original_value);
+
+                    match original_range {
+                        Some(original_range) if original_range.max <= max => Some(original_range),
+                        _ => Some(UnsignedValueRange::new(0, max)),
+                    }
+                }
+                Instruction::Binary(binary) => {
+                    self.get_binary_unsigned_value_range(binary, value_bit_size)
+                }
+                Instruction::Not(original_value) => {
+                    if !matches!(
+                        self.type_of_value(value).as_ref(),
+                        Type::Numeric(NumericType::Unsigned { .. })
+                    ) {
+                        return None;
+                    }
+
+                    let type_max = max_unsigned_value_for_bit_size(value_bit_size)?;
+                    let original_range = self
+                        .get_unsigned_value_range(*original_value)
+                        .unwrap_or_else(|| UnsignedValueRange::new(0, type_max));
+                    Some(UnsignedValueRange::new(
+                        type_max - original_range.max,
+                        type_max - original_range.min,
+                    ))
+                }
+                _ => self.get_type_unsigned_value_range(value),
+            },
+            _ => self.get_type_unsigned_value_range(value),
         }
     }
 
@@ -605,6 +715,119 @@ impl DataFlowGraph {
         };
 
         value_bit_size.min(max_bits)
+    }
+
+    fn get_binary_unsigned_value_range(
+        &self,
+        binary: &Binary,
+        value_bit_size: u32,
+    ) -> Option<UnsignedValueRange> {
+        if matches!(binary.operator, BinaryOp::Eq | BinaryOp::Lt) {
+            return Some(UnsignedValueRange::new(0, 1));
+        }
+
+        let operand_type = self.type_of_value(binary.lhs).unwrap_numeric();
+        if !operand_type.is_unsigned() {
+            return None;
+        }
+
+        let type_max = max_unsigned_value_for_bit_size(value_bit_size)?;
+        let lhs = self.get_unsigned_value_range(binary.lhs)?;
+        let rhs = self.get_unsigned_value_range(binary.rhs)?;
+
+        let range = match binary.operator {
+            BinaryOp::Add { .. } => {
+                let max_sum = lhs.max.checked_add(rhs.max);
+                let overflow_possible = max_sum.is_none_or(|sum| sum > type_max);
+                let max = max_sum.unwrap_or(type_max).min(type_max);
+                let min = if overflow_possible {
+                    0
+                } else {
+                    lhs.min.checked_add(rhs.min).filter(|sum| *sum <= type_max).unwrap_or(0)
+                };
+                UnsignedValueRange::new(min, max)
+            }
+            BinaryOp::Sub { unchecked: false } => {
+                let min = lhs.min.checked_sub(rhs.max).unwrap_or(0);
+                let max = lhs.max.saturating_sub(rhs.min);
+                UnsignedValueRange::new(min, max)
+            }
+            BinaryOp::Sub { unchecked: true } => {
+                if lhs.min >= rhs.max {
+                    UnsignedValueRange::new(lhs.min - rhs.max, lhs.max - rhs.min)
+                } else {
+                    UnsignedValueRange::new(0, type_max)
+                }
+            }
+            BinaryOp::Mul { .. } => {
+                let max_product = lhs.max.checked_mul(rhs.max);
+                let overflow_possible = max_product.is_none_or(|product| product > type_max);
+                let max = max_product.unwrap_or(type_max).min(type_max);
+                let min = if overflow_possible {
+                    0
+                } else {
+                    lhs.min.checked_mul(rhs.min).filter(|product| *product <= type_max).unwrap_or(0)
+                };
+                UnsignedValueRange::new(min, max)
+            }
+            BinaryOp::Div => {
+                let max = if rhs.min == 0 { lhs.max } else { lhs.max / rhs.min };
+                let min = if rhs.min == 0 { 0 } else { lhs.min / rhs.max };
+                UnsignedValueRange::new(min, max)
+            }
+            BinaryOp::Mod => {
+                let max =
+                    if rhs.min == 0 { lhs.max } else { lhs.max.min(rhs.max.saturating_sub(1)) };
+                UnsignedValueRange::new(0, max)
+            }
+            BinaryOp::Eq | BinaryOp::Lt => unreachable!("comparison ranges are handled above"),
+            BinaryOp::And => UnsignedValueRange::new(0, lhs.max.min(rhs.max)),
+            BinaryOp::Or | BinaryOp::Xor => {
+                let max_bits = lhs.max_num_bits().max(rhs.max_num_bits());
+                let max =
+                    max_unsigned_value_for_bit_size(max_bits).unwrap_or(type_max).min(type_max);
+                UnsignedValueRange::new(0, max)
+            }
+            BinaryOp::Shl => {
+                if rhs.min == rhs.max && rhs.max < 128 {
+                    let shift = rhs.max as u32;
+                    let max_shifted = lhs.max.checked_shl(shift);
+                    let overflow_possible = max_shifted.is_none_or(|shifted| shifted > type_max);
+                    let max = max_shifted.unwrap_or(type_max).min(type_max);
+                    let min = if overflow_possible {
+                        0
+                    } else {
+                        lhs.min
+                            .checked_shl(shift)
+                            .filter(|shifted| *shifted <= type_max)
+                            .unwrap_or(0)
+                    };
+                    UnsignedValueRange::new(min, max)
+                } else {
+                    UnsignedValueRange::new(0, type_max)
+                }
+            }
+            BinaryOp::Shr => {
+                if rhs.max < u128::from(value_bit_size) {
+                    let max = lhs.max >> rhs.min as u32;
+                    let min = lhs.min >> rhs.max as u32;
+                    UnsignedValueRange::new(min, max)
+                } else {
+                    UnsignedValueRange::new(0, type_max)
+                }
+            }
+        };
+
+        Some(range)
+    }
+
+    fn get_type_unsigned_value_range(&self, value: ValueId) -> Option<UnsignedValueRange> {
+        let typ = self.type_of_value(value);
+        let Type::Numeric(NumericType::Unsigned { bit_size }) = typ.as_ref() else {
+            return None;
+        };
+
+        Some(UnsignedValueRange::new(0, max_unsigned_value_for_bit_size(*bit_size)?))
     }
 
     /// True if the type of this value is Type::Reference.
@@ -1104,7 +1327,10 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::{instruction::Instruction, types::Type};
+    use crate::ssa::{
+        ir::{instruction::Instruction, types::Type},
+        ssa_gen::Ssa,
+    };
 
     #[test]
     fn make_instruction() {
@@ -1114,5 +1340,102 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
+    }
+
+    fn returned_value_max_bits(src: &str) -> u32 {
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let return_value = main.returns().unwrap()[0];
+        main.dfg.get_value_max_num_bits(return_value)
+    }
+
+    #[test]
+    fn unsigned_range_uses_precise_add_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, u8 9
+            v3 = mod v1, u8 8
+            v4 = unchecked_add v2, v3
+            return v4
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 4);
+    }
+
+    #[test]
+    fn unsigned_range_uses_precise_mul_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, u8 9
+            v3 = mod v1, u8 8
+            v4 = unchecked_mul v2, v3
+            return v4
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 6);
+    }
+
+    #[test]
+    fn unsigned_range_uses_subtraction_rhs_lower_bound() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = unchecked_add v1, u128 240
+            v3 = unchecked_sub u128 511, v2
+            return v3
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 9);
+    }
+
+    #[test]
+    fn unsigned_range_uses_divisor_lower_bound() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = cast v0 as u128
+            v3 = cast v1 as u128
+            v4 = unchecked_add v3, u128 16
+            v5 = div v2, v4
+            return v5
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 4);
+    }
+
+    #[test]
+    fn unsigned_range_uses_mod_lhs_bound() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = unchecked_add v1, u128 100
+            v3 = mod v2, u128 512
+            return v3
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 9);
+    }
+
+    #[test]
+    fn unsigned_range_uses_shift_amount_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = shr v1, u128 4
+            return v2
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 4);
     }
 }
