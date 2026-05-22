@@ -28,6 +28,44 @@ use crate::{
 
 type Offset = usize;
 
+/// Position of the visitor relative to a call's argument-passing region while
+/// walking opcodes in reverse.
+///
+/// `codegen_call` emits a fixed prologue/epilogue around an external `Call`. Going
+/// backwards through the bytecode, the boundary opcodes are:
+///
+/// * `Mov { destination: stack_pointer, source: relative(0) }` — restores the
+///   caller's stack pointer (encountered first when walking backwards;
+///   marks the end of the call region).
+/// * `Mov { destination: <next-frame-slot-0>, source: stack_pointer }` — saves
+///   the caller's stack pointer into the next frame (encountered second).
+/// * `Const { .. }` — sets the stack-size register (encountered last;
+///   marks the start of the call region).
+///
+/// Writes inside this region target the *callee*'s stack frame, so the local
+/// advisory logic ignores them. Reads inside the region still count, since they
+/// consume values prepared by the current function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CallRegion {
+    /// Not in a call's argument-passing region.
+    Outside,
+    /// Inside the call region — between the stack-pointer-restore Mov and the
+    /// stack-pointer-save Mov, walking backwards.
+    Inside,
+    /// One opcode away from leaving the call region. The next visited opcode is
+    /// expected to be the Const that holds the saved stack size; once seen the
+    /// visitor transitions back to [`CallRegion::Outside`].
+    AtStackSize,
+}
+
+impl CallRegion {
+    /// Whether the visitor is currently traversing the argument-passing region
+    /// of a call (or its boundary opcodes).
+    fn is_active(self) -> bool {
+        !matches!(self, CallRegion::Outside)
+    }
+}
+
 pub(crate) enum OpcodeAdvisory {
     /// A memory address is being written by the opcode that no other following opcode reads.
     NeverRead { addr: MemoryAddress },
@@ -266,15 +304,12 @@ struct AdvisoryCollector<'a> {
     writes: HashMap<MemoryAddress, OpcodeLocation>,
     /// Advisories collected in this block.
     advisories: OpcodeAdvisories,
-    /// Indicate that we are in a region where call parameters are being passed.
-    /// * 2 means we are in a call region
-    /// * 1 means we are 1 step before the start of the call region
-    /// * 0 means we are not in a call region
-    in_call_region: u8,
+    /// Position relative to a call's argument-passing region, walking backwards.
+    in_call_region: CallRegion,
     /// Indicate that we are in the region where we are passing out return parameters.
     in_return_region: bool,
-    /// Indicate whether the current opcode can fail, which means it needs to be kept
-    /// even if its value is unused.
+    /// Indicate whether the current opcode can fail or has side effects, which
+    /// means it needs to be kept even if its result is never read.
     is_fallible: bool,
 }
 
@@ -289,7 +324,7 @@ impl<'a> AdvisoryCollector<'a> {
             reads: HashMap::new(),
             writes: HashMap::new(),
             advisories: HashMap::new(),
-            in_call_region: 0,
+            in_call_region: CallRegion::Outside,
             in_return_region: false,
             is_fallible: false,
         }
@@ -341,13 +376,14 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                     && *source == MemoryAddress::relative(0)
                 {
                     // This is the restore of the stack pointer, the end of a call.
-                    self.in_call_region = 2;
+                    self.in_call_region = CallRegion::Inside;
                     false
-                } else if self.in_call_region == 2 && *source == ReservedRegisters::stack_pointer()
+                } else if self.in_call_region == CallRegion::Inside
+                    && *source == ReservedRegisters::stack_pointer()
                 {
                     // This is where we store the stack pointer in the first address of the next stack frame.
                     // The next opcode is a const that contains the current stack size.
-                    self.in_call_region = 1;
+                    self.in_call_region = CallRegion::AtStackSize;
                     false
                 } else {
                     // We can visit the Mov instructions that copy parameters and return values;
@@ -355,9 +391,9 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                     true
                 }
             }
-            Opcode::Const { .. } if self.in_call_region == 1 => {
+            Opcode::Const { .. } if self.in_call_region == CallRegion::AtStackSize => {
                 // This is the instruction where we set the stack size at the beginning of the call.
-                self.in_call_region = 0;
+                self.in_call_region = CallRegion::Outside;
                 true
             }
             // A `constrain` of some arbitrary expression is usually broken up into an instruction with
@@ -390,7 +426,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         if !self.addr_in_range(addr) {
             return;
         }
-        if self.in_call_region != 0 || self.in_return_region {
+        if self.in_call_region.is_active() || self.in_return_region {
             // Ignore the write, it's a parameter meant for another function.
             // The reads can be inspected, as they should consume data we have prepared.
             return;
