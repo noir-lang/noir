@@ -187,6 +187,25 @@ pub(crate) fn show_opcode_advisories<F: Display>(
 
 /// Go through the labels in the [BrilligContext] and collect the opcode locations
 /// where each block starts and ends.
+///
+/// # Assumptions on the label set
+///
+/// This function operates on a per-function Brillig artifact, *before* linking.
+/// At that point the artifact's `labels` map is expected to only contain
+/// `LabelType::Function(_, _)` entries:
+///
+/// 1. All entries share a single `FunctionId` — the function this artifact
+///    belongs to.
+/// 2. When sorted by opcode location, labels for one `block_id` form a
+///    contiguous run. Section markers (`Label { section: Some(n), .. }`) sit
+///    between a block's primary label and the next block's first label.
+///    A given `block_id` never reappears after another block's labels.
+/// 3. No `Procedure`, `GlobalInit`, or `Entrypoint` labels appear here.
+///
+/// If a future change violated these invariants the close-on-non-block-label
+/// logic below would silently produce wrong ranges (e.g. truncating a block
+/// when an unexpected label lands inside it). The `debug_assert!`s woven into
+/// the iteration below make such a regression loud rather than subtle.
 fn block_opcode_ranges<F, R: RegisterAllocator>(
     brillig_context: &BrilligContext<F, R>,
 ) -> HashMap<BasicBlockId, Range<OpcodeLocation>> {
@@ -195,27 +214,71 @@ fn block_opcode_ranges<F, R: RegisterAllocator>(
     let mut labels = brillig_context.artifact().labels.iter().collect::<Vec<_>>();
     labels.sort_by_key(|(_, location)| **location);
 
+    // Close out a block range. Debug-asserts that the block hasn't already
+    // been closed, which is how invariant 2 (contiguity) is enforced: a
+    // non-contiguous label sequence would close the same `block_id` twice.
+    let close_block = |ranges: &mut HashMap<BasicBlockId, Range<OpcodeLocation>>,
+                       block_id: BasicBlockId,
+                       range: Range<OpcodeLocation>| {
+        let previous = ranges.insert(block_id, range);
+        debug_assert!(
+            previous.is_none(),
+            "block_opcode_ranges: labels for block {block_id:?} are not contiguous when sorted \
+             by location"
+        );
+    };
+
+    // Used only by the debug assertion below: the artifact must contain labels
+    // for a single function.
+    let mut function_id = None;
+
     let mut last_start = None;
     for (label, location) in labels {
+        // Invariant 1: every label in a per-function artifact belongs to the
+        // same function.
+        if let LabelType::Function(fid, _) = &label.label_type {
+            match function_id {
+                None => function_id = Some(*fid),
+                Some(expected) => debug_assert_eq!(
+                    *fid, expected,
+                    "block_opcode_ranges expects all labels to share one FunctionId"
+                ),
+            }
+        }
+
         match (&label.label_type, last_start) {
             (LabelType::Function(_, Some(block_id)), None) => {
                 last_start = Some((*block_id, *location));
             }
             (LabelType::Function(_, Some(new_block_id)), Some((block_id, start))) => {
                 if *new_block_id != block_id {
-                    ranges.insert(block_id, Range { start, end: *location });
+                    close_block(&mut ranges, block_id, Range { start, end: *location });
                     last_start = Some((*new_block_id, *location));
                 }
             }
-            (_, Some((block_id, start))) => {
-                ranges.insert(block_id, Range { start, end: *location });
+            (LabelType::Function(_, None), Some((block_id, start))) => {
+                // A function-entry label closes the current block range.
+                close_block(&mut ranges, block_id, Range { start, end: *location });
                 last_start = None;
             }
-            (_, None) => {}
+            (LabelType::Function(_, None), None) => {
+                // Function-entry label encountered before any block label — no-op.
+            }
+            (other, _) => {
+                debug_assert!(
+                    false,
+                    "block_opcode_ranges expects only Function labels in a per-function \
+                     artifact, found {other:?}"
+                );
+            }
         }
     }
     if let Some((block_id, start)) = last_start {
-        ranges.insert(block_id, Range { start, end: brillig_context.artifact().byte_code.len() });
+        close_block(
+            &mut ranges,
+            block_id,
+            Range { start, end: brillig_context.artifact().byte_code.len() },
+        );
     }
 
     ranges
@@ -844,10 +907,10 @@ mod tests {
     }
 
     /// Evidence that the Brillig `Add` is not intrinsically fallible either:
-    /// the overflow check is emitted *after* the add as a `LessThanEquals` on
-    /// the result, followed by `JumpIf` + `Call`-to-error. The add and the
+    /// the overflow check is emitted *after* the `add` as a `LessThanEquals` on
+    /// the result, followed by `JumpIf` + `Call`-to-error. The `add` and the
     /// predicate write to different registers, so the trap survives even if
-    /// the add's destination is ever flagged as `NeverRead`.
+    /// the `add`'s destination is ever flagged as `NeverRead`.
     #[test]
     fn checked_add_emits_overflow_check_independent_of_add_destination() {
         let noir_src = "
