@@ -12,12 +12,7 @@ struct Wrapper {
     inner: [Pair; 2],
 }
 
-fn main(
-    arr: call_data(0) [Wrapper; 3],
-    zero: u32,
-    one: u32,
-    two: u32,
-) -> pub u32 {
+fn main(arr: call_data(0) [Wrapper; 3], zero: u32, one: u32, two: u32) -> pub u32 {
     assert_eq(arr[zero].x, 1);
     assert_eq(arr[one].x, 2);
     assert_eq(arr[two].x, 3);
