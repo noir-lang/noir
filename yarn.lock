@@ -1897,7 +1897,7 @@ __metadata:
     "@noir-lang/types": "workspace:*"
     "@types/chai": "npm:^5"
     "@types/mocha": "npm:^10.0.10"
-    "@types/node": "npm:^22.19.17"
+    "@types/node": "npm:^22.19.19"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
     eslint: "npm:^10.3.0"
@@ -1922,7 +1922,7 @@ __metadata:
     "@noir-lang/types": "workspace:*"
     "@types/chai": "npm:^5"
     "@types/mocha": "npm:^10.0.10"
-    "@types/node": "npm:^22.19.17"
+    "@types/node": "npm:^22.19.19"
     "@types/pako": "npm:^2"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
@@ -1948,7 +1948,7 @@ __metadata:
     "@types/chai": "npm:^5"
     "@types/mocha": "npm:^10.0.10"
     "@types/mocha-each": "npm:^2.0.4"
-    "@types/node": "npm:^22.19.17"
+    "@types/node": "npm:^22.19.19"
     "@types/pako": "npm:^2"
     "@types/path-browserify": "npm:^1"
     "@types/readable-stream": "npm:^4"
@@ -3478,12 +3478,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^22.19.17":
-  version: 22.19.17
-  resolution: "@types/node@npm:22.19.17"
+"@types/node@npm:^22.19.19":
+  version: 22.19.19
+  resolution: "@types/node@npm:22.19.19"
   dependencies:
     undici-types: "npm:~6.21.0"
-  checksum: 10/8adcf9c2e9e7c524196efdd5ee60ebeda980b4ec9b5b8650e2341a2cabe46d368f3a4e4c0050b3bf26eb9cf383453ea2193ec5604079cdf9493a11a742f62018
+  checksum: 10/d404eb0bc391805537a172fcc607f7f9c142e20edc01a4203ec33e33a3c4e98fbe3a7ddb63725c399dd05947fac938722a6e05afe1c3d92017ac05c9a6b3ed8f
   languageName: node
   linkType: hard
 
@@ -4799,7 +4799,7 @@ __metadata:
     "@aztec/bb.js": "npm:5.0.0-nightly.20260522"
     "@noir-lang/noir_js": "workspace:*"
     "@playwright/test": "npm:^1.58.2"
-    "@types/node": "npm:^22.19.17"
+    "@types/node": "npm:^22.19.19"
     typescript: "npm:^6.0.3"
     vite: "npm:^8.0.10"
     vite-plugin-node-polyfills: "npm:0.26.0"
