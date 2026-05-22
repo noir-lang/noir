@@ -50,7 +50,9 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default, Deserialize, Serialize)]
+#[derive(
+    PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default, Deserialize, Serialize,
+)]
 pub struct Span(ByteSpan);
 
 impl Span {
