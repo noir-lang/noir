@@ -567,6 +567,10 @@ impl Elaborator<'_> {
             });
         }
 
+        // The module to use for visibility check.
+        // Use the caller's module if set, else use the resolution scope.
+        let visibility_module = self.caller_module.unwrap_or(importing_module);
+
         let first_segment_is_always_visible =
             first_segment_is_always_visible(&path, importing_module, starting_module);
 
@@ -673,7 +677,7 @@ impl Elaborator<'_> {
             if !((first_segment_is_always_visible && index == 0)
                 || item_in_module_is_visible(
                     self.def_maps,
-                    importing_module,
+                    visibility_module,
                     current_module_id,
                     visibility,
                 ))
@@ -686,13 +690,13 @@ impl Elaborator<'_> {
 
             // Check if namespace
             let found_ns = if current_module_id_is_type {
-                match self.resolve_method(importing_module, current_module, current_ident) {
+                match self.resolve_method(visibility_module, current_module, current_ident) {
                     MethodLookupResult::NotFound(method_traits) => {
                         // Before returning an error, try to look up as an associated constant
                         if let Some(result) = self.try_resolve_trait_constant(
                             &intermediate_item,
                             current_ident,
-                            importing_module,
+                            visibility_module,
                         ) {
                             return result.map(|item| PathResolution { item, errors });
                         }
@@ -769,7 +773,7 @@ impl Elaborator<'_> {
 
         let item = self.per_ns_item_to_path_resolution_item(
             path,
-            importing_module,
+            visibility_module,
             intermediate_item,
             current_module_id,
             &mut errors,
