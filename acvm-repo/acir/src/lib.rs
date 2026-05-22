@@ -13,6 +13,9 @@ pub mod native_types;
 mod parser;
 mod serialization;
 
+#[cfg(feature = "test-fixtures")]
+pub mod test_fixtures;
+
 pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};
 pub use brillig;

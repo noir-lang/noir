@@ -29,6 +29,10 @@ impl TypeDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(type_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
     #[builtin(type_def_location)]
     // docs:start:location
     pub comptime fn location(self) -> Location {}
