@@ -3,7 +3,11 @@ use-cross := env("JUST_USE_CROSS", "")
 
 # target information
 
-target-host := `rustc -vV | grep host: | cut -d ' ' -f 2`
+target-host := if os() == "windows" {
+    `powershell -NoProfile -Command "(rustc -vV | Select-String 'host:').ToString().Split(' ')[1]"`
+} else {
+    `rustc -vV | grep host: | cut -d ' ' -f 2`
+}
 target := env("CARGO_BUILD_TARGET", target-host)
 
 # Install tools
