@@ -427,19 +427,17 @@ where
                 self.fold_inputs(points.as_slice());
                 self.fold_inputs(scalars.as_slice());
                 self.fold_input(predicate);
-                let (x, y, i) = outputs;
+                let (x, y) = outputs;
                 self.fold(*x);
                 self.fold(*y);
-                self.fold(*i);
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
                 self.fold_inputs(input1.as_slice());
                 self.fold_inputs(input2.as_slice());
                 self.fold_input(predicate);
-                let (x, y, i) = outputs;
+                let (x, y) = outputs;
                 self.fold(*x);
                 self.fold(*y);
-                self.fold(*i);
             }
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
                 self.fold_inputs(inputs.as_slice());

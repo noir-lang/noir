@@ -308,14 +308,13 @@ impl From<Type> for SsaType {
 pub struct Point {
     pub x: TypedValue,
     pub y: TypedValue,
-    pub is_infinite: TypedValue,
 }
 impl Point {
     pub fn validate(&self) -> bool {
-        self.x.is_field() && self.y.is_field() && self.is_infinite.is_boolean()
+        self.x.is_field() && self.y.is_field()
     }
     pub fn to_id_vec(&self) -> Vec<Id<Value>> {
-        vec![self.x.value_id, self.y.value_id, self.is_infinite.value_id]
+        vec![self.x.value_id, self.y.value_id]
     }
 }
 
