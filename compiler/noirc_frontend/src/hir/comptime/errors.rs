@@ -316,6 +316,11 @@ pub enum InterpreterError {
         module: String,
         location: Location,
     },
+    FunctionNotVisible {
+        name: String,
+        defining_module: String,
+        location: Location,
+    },
     CannotCastNumericToBool {
         typ: Type,
         location: Location,
@@ -434,7 +439,8 @@ impl InterpreterError {
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. }
-            | InterpreterError::UserDefinedError { location, .. }
+            | InterpreterError::FunctionNotVisible { location, .. } => *location,
+            InterpreterError::UserDefinedError { location, .. }
             | InterpreterError::UserDefinedWarning { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
@@ -919,6 +925,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::CannotModifyExternalItem { item, module, location } => {
                 let primary = "Cannot mutate something from an external crate".to_string();
                 let secondary = format!("`{item}` was declared in `{module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::FunctionNotVisible { name, defining_module, location } => {
+                let primary = format!("Function `{name}` is private");
+                let secondary = format!("`{name}` is declared in `{defining_module}`");
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
             InterpreterError::CannotCastNumericToBool { typ, location } => {

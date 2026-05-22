@@ -45,7 +45,8 @@ use crate::{
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_map::{ModuleDefId, ModuleId},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        resolution::visibility::item_in_module_is_visible,
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -2425,34 +2426,44 @@ fn expr_resolve(
         interpreter.current_function
     };
 
+    // When the user provides a foreign function scope, enforce visibility from the caller's
+    // module so that private items in the foreign scope cannot be accessed.
+    let caller_module = is_some.then(|| interpreter.elaborator.module_id());
+
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
-    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
-    {
-        ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, location: self_argument_location };
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
+        if is_some {
+            elaborator.caller_module = caller_module;
         }
-        ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, location: self_argument_location };
-            let (stmt_id, _) = elaborator.elaborate_statement(statement);
-            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-        }
-        ExprValue::LValue(lvalue) => {
-            let expr = lvalue.as_expression();
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-        }
-        ExprValue::Pattern(pattern) => {
-            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                let (expr_id, _) = elaborator.elaborate_expression(expression);
+
+        match expr_value {
+            ExprValue::Expression(expression_kind) => {
+                let expr = Expression { kind: expression_kind, location: self_argument_location };
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
                 Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            } else {
-                let expression = Value::pattern(pattern)
-                    .display(elaborator.interner, elaborator.files)
-                    .to_string();
-                let location = self_argument_location;
-                Err(InterpreterError::CannotResolveExpression { location, expression })
+            }
+            ExprValue::Statement(statement_kind) => {
+                let statement =
+                    Statement { kind: statement_kind, location: self_argument_location };
+                let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+            }
+            ExprValue::LValue(lvalue) => {
+                let expr = lvalue.as_expression();
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            }
+            ExprValue::Pattern(pattern) => {
+                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                    let (expr_id, _) = elaborator.elaborate_expression(expression);
+                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                } else {
+                    let expression = Value::pattern(pattern)
+                        .display(elaborator.interner, elaborator.files)
+                        .to_string();
+                    let location = self_argument_location;
+                    Err(InterpreterError::CannotResolveExpression { location, expression })
+                }
             }
         }
     })
@@ -2549,6 +2560,29 @@ fn function_def_as_typed_expr(
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
     let trait_impl_id = interpreter.elaborator.function_meta(func_id).trait_impl;
+
+    // Check visibility for non-trait functions
+    if trait_impl_id.is_none() {
+        let defining_module = interpreter.elaborator.interner.function_module(func_id);
+        let visibility = interpreter.elaborator.interner.function_visibility(func_id);
+        let caller_module = interpreter.elaborator.module_id();
+        if !item_in_module_is_visible(
+            interpreter.elaborator.def_maps,
+            caller_module,
+            defining_module,
+            visibility,
+        ) {
+            let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+            let defining_module = fully_qualified_module_path(
+                interpreter.elaborator.def_maps,
+                interpreter.elaborator.crate_graph,
+                &caller_module.krate,
+                defining_module,
+            );
+            return Err(InterpreterError::FunctionNotVisible { name, defining_module, location });
+        }
+    }
+
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
