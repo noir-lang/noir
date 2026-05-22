@@ -28,6 +28,7 @@ use crate::{
 
 type Offset = usize;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum OpcodeAdvisory {
     /// A memory address is being written by the opcode that no other following opcode reads.
     NeverRead { addr: MemoryAddress },
@@ -202,20 +203,24 @@ pub(crate) fn show_opcode_advisories<F: Display>(
 ///    A given `block_id` never reappears after another block's labels.
 /// 3. No `Procedure`, `GlobalInit`, or `Entrypoint` labels appear here.
 ///
-/// If a future change violated these invariants the close-on-non-block-label
-/// logic below would silently produce wrong ranges (e.g. truncating a block
-/// when an unexpected label lands inside it). The `debug_assert!`s woven into
-/// the iteration below make such a regression loud rather than subtle.
+/// Function-entry labels (`Function(_, None)`) frequently share an opcode
+/// location with the first block label (both land at offset 0 when there is
+/// no `check_max_stack_depth` call and no spill prologue). They are not block
+/// boundaries — only block labels are — so we drop them up-front. Otherwise
+/// the non-deterministic iteration order of equal-location entries in the
+/// underlying `HashMap` could land a function-entry label between block
+/// labels of the same `block_id` and produce an empty or truncated range.
+///
+/// `debug_assert!`s catch regressions in invariants 1 and 3 directly, and the
+/// `close_block` helper catches a violation of invariant 2 by refusing to
+/// overwrite an existing range.
 fn block_opcode_ranges<F, R: RegisterAllocator>(
     brillig_context: &BrilligContext<F, R>,
 ) -> HashMap<BasicBlockId, Range<OpcodeLocation>> {
     let mut ranges = HashMap::new();
 
-    let mut labels = brillig_context.artifact().labels.iter().collect::<Vec<_>>();
-    labels.sort_by_key(|(_, location)| **location);
-
     // Close out a block range. Debug-asserts that the block hasn't already
-    // been closed, which is how invariant 2 (contiguity) is enforced: a
+    // been closed: this is how invariant 2 (contiguity) is enforced — a
     // non-contiguous label sequence would close the same `block_id` twice.
     let close_block = |ranges: &mut HashMap<BasicBlockId, Range<OpcodeLocation>>,
                        block_id: BasicBlockId,
@@ -232,44 +237,44 @@ fn block_opcode_ranges<F, R: RegisterAllocator>(
     // for a single function.
     let mut function_id = None;
 
-    let mut last_start = None;
-    for (label, location) in labels {
-        // Invariant 1: every label in a per-function artifact belongs to the
-        // same function.
-        if let LabelType::Function(fid, _) = &label.label_type {
-            match function_id {
-                None => function_id = Some(*fid),
-                Some(expected) => debug_assert_eq!(
-                    *fid, expected,
-                    "block_opcode_ranges expects all labels to share one FunctionId"
-                ),
-            }
-        }
-
-        match (&label.label_type, last_start) {
-            (LabelType::Function(_, Some(block_id)), None) => {
-                last_start = Some((*block_id, *location));
-            }
-            (LabelType::Function(_, Some(new_block_id)), Some((block_id, start))) => {
-                if *new_block_id != block_id {
-                    close_block(&mut ranges, block_id, Range { start, end: *location });
-                    last_start = Some((*new_block_id, *location));
+    // Project to (block_id, location) pairs, dropping non-block (function-entry)
+    // labels and asserting invariants 1 and 3.
+    let mut block_labels: Vec<(BasicBlockId, OpcodeLocation)> = brillig_context
+        .artifact()
+        .labels
+        .iter()
+        .filter_map(|(label, location)| match &label.label_type {
+            LabelType::Function(fid, block_id) => {
+                match function_id {
+                    None => function_id = Some(*fid),
+                    Some(expected) => debug_assert_eq!(
+                        *fid, expected,
+                        "block_opcode_ranges expects all labels to share one FunctionId"
+                    ),
                 }
+                block_id.map(|bid| (bid, *location))
             }
-            (LabelType::Function(_, None), Some((block_id, start))) => {
-                // A function-entry label closes the current block range.
-                close_block(&mut ranges, block_id, Range { start, end: *location });
-                last_start = None;
-            }
-            (LabelType::Function(_, None), None) => {
-                // Function-entry label encountered before any block label — no-op.
-            }
-            (other, _) => {
+            other => {
                 debug_assert!(
                     false,
                     "block_opcode_ranges expects only Function labels in a per-function \
                      artifact, found {other:?}"
                 );
+                None
+            }
+        })
+        .collect();
+    block_labels.sort_by_key(|(_, location)| *location);
+
+    let mut last_start: Option<(BasicBlockId, OpcodeLocation)> = None;
+    for (block_id, location) in block_labels {
+        match last_start {
+            None => last_start = Some((block_id, location)),
+            Some((current_block, start)) => {
+                if current_block != block_id {
+                    close_block(&mut ranges, current_block, Range { start, end: location });
+                    last_start = Some((block_id, location));
+                }
             }
         }
     }
@@ -752,18 +757,48 @@ impl CallRegion {
 #[cfg(test)]
 mod tests {
     use noirc_frontend::test_utils::get_monomorphized;
+    use rustc_hash::FxHashMap;
 
     use crate::{
         assert_artifact_snapshot,
-        brillig::BrilligOptions,
-        ssa::{minimal_passes, ssa_gen::generate_ssa},
+        brillig::{Brillig, BrilligOptions},
+        ssa::{minimal_passes, ssa_gen::Ssa, ssa_gen::generate_ssa},
     };
     use acvm::{
         FieldElement,
         acir::brillig::{BinaryIntOp, MemoryAddress, Opcode},
     };
 
-    use super::BrilligArtifact;
+    use super::{BrilligArtifact, OpcodeAdvisories, OpcodeAdvisory, opcode_advisories};
+
+    /// Parse hand-crafted SSA, run brillig generation on `main`, and return
+    /// both the artifact and the advisories the post-codegen checks produce.
+    ///
+    /// Unlike the high-level `Ssa::to_brillig`, this skips the optimization
+    /// pipeline so deliberately-dead writes and other shapes the advisor is
+    /// supposed to flag survive into the bytecode.
+    fn ssa_to_brillig_with_advisories(
+        src: &str,
+    ) -> (BrilligArtifact<FieldElement>, OpcodeAdvisories) {
+        let ssa = Ssa::from_str(src).expect("SSA source should parse");
+        let func = ssa.main();
+        let options = BrilligOptions::default();
+        let globals = FxHashMap::default();
+        let hoisted_global_constants = FxHashMap::default();
+
+        let mut brillig = Brillig::default();
+        let (function_context, brillig_context) = brillig.build_function_contexts(
+            func,
+            &options,
+            &globals,
+            &hoisted_global_constants,
+            /* is_entry_point */ true,
+            /* check_max_stack_depth */ false,
+        );
+
+        let advisories = opcode_advisories(func, &function_context, &brillig_context);
+        (brillig_context.into_artifact(), advisories)
+    }
 
     /// Compile a Noir snippet through monomorphization → SSA (`minimal_passes`)
     /// → Brillig and return the artifact of `main`.
@@ -934,6 +969,45 @@ mod tests {
             "Add",
             |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Add, .. }),
             |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThanEquals, .. }),
+        );
+    }
+
+    /// First exercise of the advisor: an `unchecked_add` whose destination is
+    /// never read anywhere afterwards. The advisor should flag exactly one
+    /// `NeverRead` for that destination register.
+    #[test]
+    fn never_read_advisory_for_dead_unchecked_add() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = unchecked_add v0, u32 1
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        // Bytecode snapshot for visual reference — the `add` at this location
+        // produces a value that is never consumed by a later opcode.
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[3] = const u32 1
+        1: sp[4] = u32 add sp[2], sp[3]
+        2: return
+        ");
+
+        let never_reads: Vec<_> = advisories
+            .iter()
+            .flat_map(|(loc, ads)| {
+                ads.iter().filter_map(move |a| match a {
+                    OpcodeAdvisory::NeverRead { addr } => Some((*loc, *addr)),
+                    _ => None,
+                })
+            })
+            .collect();
+
+        assert!(
+            !never_reads.is_empty(),
+            "expected at least one NeverRead advisory for the dead `unchecked_add` destination, got: {advisories:?}"
         );
     }
 }
