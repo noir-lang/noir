@@ -1646,13 +1646,11 @@ namespace Acir {
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_array(7);
+                packer.pack_array(5);
                 packer.pack(input1_x);
                 packer.pack(input1_y);
-                packer.pack(input1_infinite);
                 packer.pack(input2_x);
                 packer.pack(input2_y);
-                packer.pack(input2_infinite);
                 packer.pack(result);
             }
 
@@ -1669,18 +1667,12 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "input1_y", input1_y);
                                     break;
                                 case 2:
-                                    Helpers::convert_or_throw(val, name, "input1_infinite", input1_infinite);
-                                    break;
-                                case 3:
                                     Helpers::convert_or_throw(val, name, "input2_x", input2_x);
                                     break;
-                                case 4:
+                                case 3:
                                     Helpers::convert_or_throw(val, name, "input2_y", input2_y);
                                     break;
-                                case 5:
-                                    Helpers::convert_or_throw(val, name, "input2_infinite", input2_infinite);
-                                    break;
-                                case 6:
+                                case 4:
                                     Helpers::convert_or_throw(val, name, "result", result);
                                     break;
                                 default:
@@ -1689,19 +1681,17 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_size(o.via.map.size, name, 7, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
-                        Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
-                        Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_size(array.size, name, 7, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_x", input1_x, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_y", input1_y, 1);
                     Helpers::conv_fld_from_array(array, name, "input2_x", input2_x, 2);
@@ -6180,7 +6170,7 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             packer.pack_array(3);
-            packer.pack(operation);
+            packer.pack(read);
             packer.pack(index);
             packer.pack(value);
         }
@@ -6192,7 +6182,7 @@ namespace Acir {
                     Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
                         switch (tag) {
                             case 0:
-                                Helpers::convert_or_throw(val, name, "operation", operation);
+                                Helpers::convert_or_throw(val, name, "read", read);
                                 break;
                             case 1:
                                 Helpers::convert_or_throw(val, name, "index", index);
@@ -6208,14 +6198,14 @@ namespace Acir {
                 } else {
                     Helpers::check_size(o.via.map.size, name, 3, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "read", read, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
                 Helpers::check_size(array.size, name, 3, 0);
-                Helpers::conv_fld_from_array(array, name, "operation", operation, 0);
+                Helpers::conv_fld_from_array(array, name, "read", read, 0);
                 Helpers::conv_fld_from_array(array, name, "index", index, 1);
                 Helpers::conv_fld_from_array(array, name, "value", value, 2);
             } else {
@@ -7118,9 +7108,8 @@ namespace Acir {
         friend bool operator==(const Circuit&, const Circuit&);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_array(7);
+            packer.pack_array(6);
             packer.pack(function_name);
-            packer.pack(current_witness_index);
             packer.pack(opcodes);
             packer.pack(private_parameters);
             packer.pack(public_parameters);
@@ -7138,21 +7127,18 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "function_name", function_name);
                                 break;
                             case 1:
-                                Helpers::convert_or_throw(val, name, "current_witness_index", current_witness_index);
-                                break;
-                            case 2:
                                 Helpers::convert_or_throw(val, name, "opcodes", opcodes);
                                 break;
-                            case 3:
+                            case 2:
                                 Helpers::convert_or_throw(val, name, "private_parameters", private_parameters);
                                 break;
-                            case 4:
+                            case 3:
                                 Helpers::convert_or_throw(val, name, "public_parameters", public_parameters);
                                 break;
-                            case 5:
+                            case 4:
                                 Helpers::convert_or_throw(val, name, "return_values", return_values);
                                 break;
-                            case 6:
+                            case 5:
                                 Helpers::convert_or_throw(val, name, "assert_messages", assert_messages);
                                 break;
                             default:
@@ -7164,7 +7150,6 @@ namespace Acir {
                 } else {
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);

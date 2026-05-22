@@ -519,7 +519,7 @@ mod tests {
         // override, so it should land on Array → fixarray.
         let opcodes_value = circuit_entries
             .iter()
-            .find(|(k, _)| k.as_u64() == Some(2))
+            .find(|(k, _)| k.as_u64() == Some(1))
             .map(|(_, v)| v)
             .expect("opcodes tag present on Circuit wire");
         let Value::Array(opcodes) = opcodes_value else {
