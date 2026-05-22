@@ -84,6 +84,7 @@ impl Elaborator<'_> {
                 // but it is not a real variable so it does not resolve to a valid Identifier.
                 // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
                 let type_alias = self.interner.get_type_alias(type_alias_id);
+                let alias_module_id = type_alias.borrow().module_id;
                 if let Some(type_alias_expr) = &type_alias.borrow().numeric_expr {
                     // Extract the declared numeric type from the type alias's kind.
                     let declared_type = match type_alias.borrow().typ.kind() {
@@ -149,7 +150,14 @@ impl Elaborator<'_> {
                     // literals queued for the function-context fit check during
                     // re-elaboration so the same overflow is not reported twice.
                     let literals_before = self.integer_literal_expr_ids_len();
+                    // Re-elaborate the alias body in the alias's defining module
+                    // so unqualified names resolve against the alias's scope,
+                    // not the caller's. Mirrors `define_type_alias` in mod.rs.
+                    let previous_module = self.replace_module(alias_module_id);
                     let (id, typ) = self.elaborate_expression(var_expr);
+                    if let Some(previous_module) = previous_module {
+                        self.replace_module(previous_module);
+                    }
                     self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
