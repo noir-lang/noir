@@ -78,6 +78,8 @@ dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
 notify-debouncer-full = "0.7.0"
+
+[target.'cfg(unix)'.dependencies]
 termion = "4"
 
 # Logs
