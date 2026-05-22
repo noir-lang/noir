@@ -534,6 +534,86 @@ fn lt_u8() {
 }
 
 #[test]
+fn lt_uses_inferred_cast_bit_size() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u8):
+        v2 = cast v0 as u128
+        v3 = cast v1 as u128
+        v4 = lt v2, v3
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Although the comparison operands have type u128, the original values are known to fit
+    // in 8 bits, so the comparison can use the same small circuit as lt_u8.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 - w1 + 256, 256], outputs: [w3, w4]
+    BLACKBOX::RANGE input: w3, bits: 1
+    BLACKBOX::RANGE input: w4, bits: 8
+    ASSERT w4 = w0 - w1 - 256*w3 + 256
+    ASSERT w2 = -w3 + 1
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop @[@11; @10]
+    ");
+}
+
+#[test]
+fn lt_uses_inferred_arithmetic_bit_size() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u8, v1: u8):
+        v2 = cast v0 as u128
+        v3 = cast v1 as u128
+        v4 = unchecked_add v2, v3
+        v5 = lt v4, u128 256
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // v4 is typed as u128, but it is the sum of two 8-bit values, so it fits in 9 bits.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 + w1 + 256, 512], outputs: [w3, w4]
+    BLACKBOX::RANGE input: w3, bits: 1
+    BLACKBOX::RANGE input: w4, bits: 9
+    ASSERT w4 = w0 + w1 - 512*w3 + 256
+    ASSERT w2 = -w3 + 1
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop @[@11; @10]
+    ");
+}
+
+#[test]
 fn and_u1() {
     let src = "
     acir(inline) fn main f0 {

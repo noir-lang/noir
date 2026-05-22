@@ -15,7 +15,8 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        TerminatorInstruction,
     },
     integer::IntegerConstant,
     map::DenseMap,
@@ -560,20 +561,50 @@ impl DataFlowGraph {
         match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.get_value_max_num_bits(original_value);
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                } else {
-                    value_bit_size
+                match &self[instruction] {
+                    Instruction::Cast(original_value, _) => {
+                        let original_bit_size = self.get_value_max_num_bits(*original_value);
+                        // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                        // in which case we want to recover the original smaller bit size;
+                        // OTOH if we cast down, then we don't need the higher original size.
+                        value_bit_size.min(original_bit_size)
+                    }
+                    Instruction::Truncate { bit_size, .. } => value_bit_size.min(*bit_size),
+                    Instruction::Binary(binary) => {
+                        self.get_binary_max_num_bits(binary, value_bit_size)
+                    }
+                    _ => value_bit_size,
                 }
             }
 
             Value::NumericConstant { constant, .. } => constant.num_bits(),
             _ => self.type_of_value(value).bit_size(),
         }
+    }
+
+    fn get_binary_max_num_bits(&self, binary: &Binary, value_bit_size: u32) -> u32 {
+        let operand_type = self.type_of_value(binary.lhs).unwrap_numeric();
+        if !operand_type.is_unsigned() {
+            return value_bit_size;
+        }
+
+        let lhs_bits = self.get_value_max_num_bits(binary.lhs);
+        let rhs_bits = self.get_value_max_num_bits(binary.rhs);
+
+        let max_bits = match binary.operator {
+            BinaryOp::Add { .. } => lhs_bits.max(rhs_bits).saturating_add(1),
+            BinaryOp::Sub { unchecked: false } => lhs_bits,
+            BinaryOp::Sub { unchecked: true } => value_bit_size,
+            BinaryOp::Mul { .. } => lhs_bits.saturating_add(rhs_bits),
+            BinaryOp::Div => lhs_bits,
+            BinaryOp::Mod => rhs_bits,
+            BinaryOp::Eq | BinaryOp::Lt => 1,
+            BinaryOp::And => lhs_bits.min(rhs_bits),
+            BinaryOp::Or | BinaryOp::Xor => lhs_bits.max(rhs_bits),
+            BinaryOp::Shl | BinaryOp::Shr => value_bit_size,
+        };
+
+        value_bit_size.min(max_bits)
     }
 
     /// True if the type of this value is Type::Reference.
