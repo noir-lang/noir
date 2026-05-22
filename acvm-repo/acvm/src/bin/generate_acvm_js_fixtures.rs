@@ -145,7 +145,7 @@ fn main() {
         let program = test_fixtures::addition_program();
         let bytecode = Program::serialize_program(&program);
 
-        let initial = BTreeMap::from_iter([
+        let initial: WitnessMap<FieldElement> = BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
             (Witness(2), FieldElement::from(2u128)),
         ])
@@ -181,7 +181,7 @@ export const expectedResult = {er};
         let bytecode = Program::serialize_program(&program);
 
         // Generator point of BN254 (G1): x=1, y as below; scalar=1; predicate=1.
-        let initial = BTreeMap::from_iter([
+        let initial: WitnessMap<FieldElement> = BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
             (
                 Witness(2),
@@ -219,7 +219,8 @@ export const expectedWitnessMap = {expected_map};
         let program = test_fixtures::simple_brillig_foreign_call_program();
         let bytecode = Program::serialize_program(&program);
 
-        let initial = BTreeMap::from_iter([(Witness(1), FieldElement::from(5u128))]).into();
+        let initial: WitnessMap<FieldElement> =
+            BTreeMap::from_iter([(Witness(1), FieldElement::from(5u128))]).into();
 
         let oracle_call_name = RefCell::new(String::new());
         let oracle_call_inputs = RefCell::new(Vec::new());
@@ -268,7 +269,7 @@ export const oracleResponse = {oracle_resp};
         let program = test_fixtures::complex_brillig_foreign_call_program();
         let bytecode = Program::serialize_program(&program);
 
-        let initial = BTreeMap::from_iter([
+        let initial: WitnessMap<FieldElement> = BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
             (Witness(2), FieldElement::from(2u128)),
             (Witness(3), FieldElement::from(3u128)),
@@ -334,7 +335,7 @@ export const oracleResponse = {oracle_resp};
         let bytecode = Program::serialize_program(&program);
 
         // w1=1, w2=1 initialize the block; w3=2 is the value to write; w5=1 is the index.
-        let initial = BTreeMap::from_iter([
+        let initial: WitnessMap<FieldElement> = BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
             (Witness(2), FieldElement::from(1u128)),
             (Witness(3), FieldElement::from(2u128)),
@@ -365,7 +366,7 @@ export const expectedWitnessMap = {expected_map};
         let bytecode = Program::serialize_program(&program);
 
         // main: private w0=8, public w1=10
-        let initial = BTreeMap::from_iter([
+        let initial: WitnessMap<FieldElement> = BTreeMap::from_iter([
             (Witness(0), FieldElement::from(8u128)),
             (Witness(1), FieldElement::from(10u128)),
         ])
