@@ -278,40 +278,29 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         parse_program_with_dummy_file,
-        parser::{
-            ItemKind, Parser, ParserErrorReason,
-            parser::tests::{get_single_error, get_source_with_error_span},
-        },
+        parser::{ItemKind, parser::tests::check_errors},
     };
 
     #[test]
     fn recovers_on_unknown_item() {
         let src = "
         fn foo() {} hello fn bar() {}
-                    ^^^^^
+                    ^^^^^ Expected an item but found 'hello'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 2);
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an item but found 'hello'");
     }
 
     #[test]
     fn errors_on_eof_in_nested_mod() {
         let src = "
         mod foo { fn foo() {}
-                            ^
+                            ^ Expected a '}' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a '}' but found end of input");
     }
 
     #[test]
@@ -319,13 +308,10 @@ mod tests {
         let src = "
         fn foo() {}
         /// doc comment
-        ^^^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^^^ This doc comment doesn't document anything
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
-        let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("This doc comment doesn't document anything"));
     }
 
     #[test]
@@ -361,131 +347,87 @@ mod tests {
     fn error_recovery_for_missing_fn_between_visibility_and_name() {
         let src = "
         pub foo() { }
-            ^^^
+            ^^^ Expected a 'fn' but found 'foo'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let module = parser.parse_program();
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
         };
         assert_eq!(noir_function.name(), "foo");
-
-        let reason = get_single_error(&parser.errors, span);
-        assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
     }
 
     #[test]
     fn error_recovery_for_missing_fn_between_unconstrained_and_name() {
         let src = "
         unconstrained foo() { }
-                      ^^^
+                      ^^^ Expected a 'fn' but found 'foo'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let module = parser.parse_program();
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
         };
         assert_eq!(noir_function.name(), "foo");
-
-        let reason = get_single_error(&parser.errors, span);
-        assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
     }
 
     #[test]
     fn errors_on_missing_mod_identifier() {
         let src = "
         mod ; fn foo() {}
-            ^
+            ^ Expected an identifier but found ';'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found ';'");
     }
 
     #[test]
     fn errors_on_mod_named_underscore() {
         let src = "
         mod _ {}
-            ^
+            ^ expected an identifier, found reserved identifier `_`
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
-        let error = get_single_error(&errors, span);
-        assert!(matches!(error.reason(), Some(ParserErrorReason::ExpectedIdentifierGotUnderscore)));
     }
 
     #[test]
     fn errors_on_lonely_pub() {
         let src = "
         pub
-        ^^^
+        ^^^ Visibility `pub` is not followed by an item
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert!(module.items.is_empty());
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @r"
-        Unexpected end of input in input
-        reason: Visibility `pub` is not followed by an item
-        secondary:
-        ");
     }
 
     #[test]
     fn errors_on_lonely_unconstrained() {
         let src = "
         unconstrained
-        ^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^ `unconstrained` is not followed by an item
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert!(module.items.is_empty());
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @r"
-        Unexpected end of input in input
-        reason: `unconstrained` is not followed by an item
-        secondary:
-        ");
     }
 
     #[test]
     fn errors_on_lonely_comptime() {
         let src = "
         comptime
-        ^^^^^^^^
+        ^^^^^^^^ `comptime` is not followed by an item
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert!(module.items.is_empty());
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @r"
-        Unexpected end of input in input
-        reason: `comptime` is not followed by an item
-        secondary:
-        ");
     }
 
     #[test]
     fn errors_on_lonely_mut() {
         let src = "
-        mut 
-        ^^^
+        mut
+        ^^^ `mut` is not followed by an item
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert!(module.items.is_empty());
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @r"
-        Unexpected end of input in input
-        reason: `mut` is not followed by an item
-        secondary:
-        ");
     }
 }

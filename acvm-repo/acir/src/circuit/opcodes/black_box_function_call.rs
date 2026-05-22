@@ -177,11 +177,13 @@ pub enum BlackBoxFuncCall<F> {
     /// Coordinates of each point must be all witnesses or all constants.
     /// Similarly, both halves (lo, hi) of each scalar must be all witnesses or
     /// all constants. This is a backend requirement from Barretenberg.
+    ///
+    /// The point at infinity is represented as `(0, 0)`.
     MultiScalarMul {
         points: Vec<FunctionInput<F>>,
         scalars: Vec<FunctionInput<F>>,
         predicate: FunctionInput<F>,
-        outputs: (Witness, Witness, Witness),
+        outputs: (Witness, Witness),
     },
     /// Addition over the embedded curve on which the witness is defined.
     /// The opcode makes the following assumptions but does not enforce them because
@@ -193,13 +195,15 @@ pub enum BlackBoxFuncCall<F> {
     /// If not, it assumes that the points' x-coordinates are not equal.
     /// It also assumes neither point is the infinity point.
     ///
+    /// The point at infinity is represented as `(0, 0)`.
+    ///
     /// Coordinates of each point must be all witnesses or all constants.
     /// This is a backend requirement from Barretenberg.
     EmbeddedCurveAdd {
-        input1: Box<[FunctionInput<F>; 3]>,
-        input2: Box<[FunctionInput<F>; 3]>,
+        input1: Box<[FunctionInput<F>; 2]>,
+        input2: Box<[FunctionInput<F>; 2]>,
         predicate: FunctionInput<F>,
-        outputs: (Witness, Witness, Witness),
+        outputs: (Witness, Witness),
     },
     /// Keccak Permutation function of width 1600
     /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
@@ -331,7 +335,7 @@ impl<F> BlackBoxFuncCall<F> {
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
             BlackBoxFuncCall::MultiScalarMul { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
-                vec![outputs.0, outputs.1, outputs.2]
+                vec![outputs.0, outputs.1]
             }
             BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
                 vec![]
@@ -364,7 +368,7 @@ impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
                 [points.as_slice(), scalars.as_slice(), &[*predicate]].concat()
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs: _ } => {
-                vec![input1[0], input1[1], input1[2], input2[0], input2[1], input2[2], *predicate]
+                vec![input1[0], input1[1], input2[0], input2[1], *predicate]
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
                 public_key_x,
@@ -494,8 +498,8 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
                 let scalars = slice_to_string(scalars);
                 write!(
                     f,
-                    "points: {points}, scalars: {scalars}, predicate: {predicate}, outputs: [{}, {}, {}]",
-                    outputs.0, outputs.1, outputs.2
+                    "points: {points}, scalars: {scalars}, predicate: {predicate}, outputs: [{}, {}]",
+                    outputs.0, outputs.1
                 )?;
             }
             BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
@@ -503,8 +507,8 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
                 let input2 = slice_to_string(&input2.to_vec());
                 write!(
                     f,
-                    "input1: {input1}, input2: {input2}, predicate: {predicate}, outputs: [{}, {}, {}]",
-                    outputs.0, outputs.1, outputs.2
+                    "input1: {input1}, input2: {input2}, predicate: {predicate}, outputs: [{}, {}]",
+                    outputs.0, outputs.1
                 )?;
             }
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
@@ -627,6 +631,7 @@ mod arb {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let input = any::<FunctionInput<F>>();
             let input_vec = any::<Vec<FunctionInput<F>>>();
+            let input_arr_2 = any::<Box<[FunctionInput<F>; 2]>>();
             let input_arr_3 = any::<Box<[FunctionInput<F>; 3]>>();
             let input_arr_8 = any::<Box<[FunctionInput<F>; 8]>>();
             let input_arr_16 = any::<Box<[FunctionInput<F>; 16]>>();
@@ -660,7 +665,7 @@ mod arb {
                 },
             );
 
-            let case_xor = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
+            let case_xor = (input_arr_3, input_arr_8.clone(), witness.clone()).prop_map(
                 |(lhs, rhs, output)| BlackBoxFuncCall::XOR {
                     lhs: lhs[0],
                     rhs: rhs[1],
@@ -732,33 +737,26 @@ mod arb {
                 input.clone(),
                 witness.clone(),
                 witness.clone(),
-                witness.clone(),
             )
-                .prop_map(|(points, scalars, predicate, w1, w2, w3)| {
+                .prop_map(|(points, scalars, predicate, w1, w2)| {
                     BlackBoxFuncCall::MultiScalarMul {
                         points,
                         scalars,
                         predicate,
-                        outputs: (w1, w2, w3),
+                        outputs: (w1, w2),
                     }
                 });
 
-            let case_embedded_curve_add = (
-                input_arr_3.clone(),
-                input_arr_3,
-                input.clone(),
-                witness.clone(),
-                witness.clone(),
-                witness,
-            )
-                .prop_map(|(input1, input2, predicate, w1, w2, w3)| {
-                    BlackBoxFuncCall::EmbeddedCurveAdd {
-                        input1,
-                        input2,
-                        predicate,
-                        outputs: (w1, w2, w3),
-                    }
-                });
+            let case_embedded_curve_add =
+                (input_arr_2.clone(), input_arr_2, input.clone(), witness.clone(), witness)
+                    .prop_map(|(input1, input2, predicate, w1, w2)| {
+                        BlackBoxFuncCall::EmbeddedCurveAdd {
+                            input1,
+                            input2,
+                            predicate,
+                            outputs: (w1, w2),
+                        }
+                    });
 
             let case_keccakf1600 = (input_arr_25, witness_arr_25)
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Keccakf1600 { inputs, outputs });

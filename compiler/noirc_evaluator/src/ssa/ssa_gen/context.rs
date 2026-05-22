@@ -42,7 +42,7 @@ pub(super) struct FunctionContext<'a> {
     pub(super) redefinitions_allowed: bool,
 
     pub(super) builder: FunctionBuilder,
-    shared_context: &'a SharedContext,
+    pub(super) shared_context: &'a SharedContext,
 
     /// Contains any loops we're currently in the middle of translating.
     /// These are ordered such that an inner loop is at the end of the vector and

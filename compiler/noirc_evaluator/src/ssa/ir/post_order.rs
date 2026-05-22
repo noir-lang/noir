@@ -34,7 +34,18 @@ impl PostOrder {
 
     /// Allocate and compute a function's block post-order.
     pub(crate) fn with_cfg(cfg: &ControlFlowGraph) -> Self {
-        PostOrder(Self::compute_post_order(cfg))
+        let roots = cfg.compute_entry_blocks();
+        PostOrder(Self::compute_post_order(cfg, roots))
+    }
+
+    /// Allocate and compute a function's block post-order, always rooted at the
+    /// function's entry block.
+    ///
+    /// Unlike [`Self::with_function`], this includes the entry block even when
+    /// it has incoming edges (e.g. malformed SSA with a back-edge to entry).
+    pub(crate) fn with_function_from_entry(func: &Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(func);
+        PostOrder(Self::compute_post_order(&cfg, vec![func.entry_block()]))
     }
 
     /// Return blocks in post-order.
@@ -63,16 +74,16 @@ impl PostOrder {
         blocks
     }
 
-    // Computes the post-order of the CFG by doing a depth-first traversal of the
-    // function's entry block's previously unvisited children. Each block is sequenced according
+    // Computes the post-order of the CFG by doing a depth-first traversal of the given
+    // root blocks' previously unvisited children. Each block is sequenced according
     // to when the traversal exits it.
-    fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+    fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
         let mut stack = vec![];
         let mut visited: HashSet<BasicBlockId> = HashSet::new();
         let mut post_order: Vec<BasicBlockId> = Vec::new();
 
         // Set root blocks
-        stack.extend(cfg.compute_entry_blocks().into_iter().map(|root| (Visit::First, root)));
+        stack.extend(roots.into_iter().map(|root| (Visit::First, root)));
 
         while let Some((visit, block_id)) = stack.pop() {
             match visit {

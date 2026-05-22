@@ -417,7 +417,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
     fn from(error: &'a TypeCheckError) -> Diagnostic {
         match error {
             TypeCheckError::TypeCannotBeUsed { typ, place, location } => Diagnostic::simple_error(
-                format!("The type {} cannot be used in a {}", &typ, place),
+                format!("The type {typ} cannot be used in a {place}"),
                 String::new(),
                 *location,
             ),

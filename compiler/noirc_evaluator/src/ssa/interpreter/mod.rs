@@ -252,7 +252,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 super::ir::value::Value::Function(id) => Value::Function(*id),
                 super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-                super::ir::value::Value::ForeignFunction(name) => {
+                super::ir::value::Value::ForeignFunction { name, .. } => {
                     Value::ForeignFunction(name.clone())
                 }
                 super::ir::value::Value::Global(_) | super::ir::value::Value::Param { .. } => {
@@ -415,7 +415,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-            super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
+            super::ir::value::Value::ForeignFunction { name, .. } => {
+                Value::ForeignFunction(name.clone())
+            }
             super::ir::value::Value::Instruction { .. }
             | super::ir::value::Value::Param { .. }
             | super::ir::value::Value::Global(_) => {
@@ -1151,8 +1153,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
+        // Per `Instruction::requires_acir_gen_predicate`, in Brillig an
+        // `array_get` is pure-in-isolation: the OOB check is inserted as a
+        // separate constraint, not part of the access itself. Match that here
+        // so the interpreter agrees with the Brillig VM on dead/unused gets.
+        let oob_is_pure = self.current_function().runtime().is_brillig();
+
         let index = match self.lookup_array_index(index, "array get index", length) {
-            Err(InterpreterError::IndexOutOfBounds { .. }) if !side_effects_enabled => {
+            Err(InterpreterError::IndexOutOfBounds { .. })
+                if !side_effects_enabled || oob_is_pure =>
+            {
                 return uninitialized(self);
             }
             other => other?,
@@ -1164,11 +1174,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
-            if side_effects_enabled {
+            if side_effects_enabled && !oob_is_pure {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
                 return uninitialized(self);
             }
+        }
+
+        if oob_is_pure && index >= length {
+            return uninitialized(self);
         }
 
         let element = {
@@ -1199,7 +1213,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_vector: array.is_vector,
+                        length: array.length,
                     })
                 } else {
                     element.clone()
@@ -1250,8 +1264,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_vector = array.is_vector;
-                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
+                let length = array.length;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
             }
         } else {
             // Side effects are disabled, return the original array
@@ -1340,7 +1354,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_vector = matches!(&result_type, Type::Vector(..));
+        let length = if let Type::Array(_, length) = result_type { Some(*length) } else { None };
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1365,7 +1379,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements.iter().zip(element_types.iter().cycle()).enumerate()
         {
             let actual_type = element.get_type();
-            if &actual_type != expected_type {
+            if !actual_type.canonical_eq(expected_type) {
                 return Err(internal(InternalError::MakeArrayElementTypeMismatch {
                     result,
                     index,
@@ -1379,7 +1393,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_vector,
+            length,
         });
         self.define(result, array)
     }
@@ -1535,7 +1549,11 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
+            // For `Div`/`Mod`, `checked_div`/`checked_rem` return `None` either because
+            // the divisor is zero or because the operation overflows
+            // (e.g. signed `MIN / -1`). Distinguish the two by inspecting the divisor.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs.convert_to_field().is_zero()
+            {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();

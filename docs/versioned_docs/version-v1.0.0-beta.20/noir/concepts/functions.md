@@ -68,15 +68,16 @@ returned.
 
 If you're writing a binary, the `main` function is the starting point of your program. You can pass all types of expressions to it, as long as they have a fixed size at compile time:
 
-```rust
-fn main(x : Field) // this is fine: passing a Field
-fn main(x : [Field; 2]) // this is also fine: passing a Field with known size at compile-time
-fn main(x : (Field, bool)) // 👌: passing a (Field, bool) tuple means size 2
-fn main(x : str<5>) // this is fine, as long as you pass a string of size 5
+Valid signatures (fixed-size types):
 
-fn main(x : [Field]) // can't compile, has variable size
-fn main(....// i think you got it by now
-```
+- `fn main(x: Field)` - a single `Field`.
+- `fn main(x: [Field; 2])` - a fixed-size array whose length is known at compile time.
+- `fn main(x: (Field, bool))` - a tuple of two fixed-size elements.
+- `fn main(x: str<5>)` - a string whose length is known at compile time.
+
+Invalid signatures (variable-size types):
+
+- `fn main(x: [Field])` - can't compile, has variable size.
 
 Keep in mind [tests](../../tooling/tests.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
 

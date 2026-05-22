@@ -378,13 +378,13 @@ mod completion_tests {
     async fn test_complete_path_with_local_variable() {
         let src = r#"
           fn main() {
-            let local = 1;
-            l>|<
+            let some_local = 1;
+            some_l>|<
           }
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![variable_completion_item("local", Some("Field".to_string()))],
+            vec![variable_completion_item("some_local", Some("Field".to_string()))],
         )
         .await;
     }
@@ -393,14 +393,14 @@ mod completion_tests {
     async fn test_complete_path_with_shadowed_local_variable() {
         let src = r#"
           fn main() {
-            let local = 1;
-            let local = true;
-            l>|<
+            let some_local = 1;
+            let some_local = true;
+            some_l>|<
           }
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![variable_completion_item("local", Some("bool".to_string()))],
+            vec![variable_completion_item("some_local", Some("bool".to_string()))],
         )
         .await;
     }
@@ -408,13 +408,13 @@ mod completion_tests {
     #[test]
     async fn test_complete_path_with_function_argument() {
         let src = r#"
-          fn main(local: Field) {
-            l>|<
+          fn main(some_local: Field) {
+            some_l>|<
           }
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![variable_completion_item("local", Some("Field".to_string()))],
+            vec![variable_completion_item("some_local", Some("Field".to_string()))],
         )
         .await;
     }
@@ -3664,5 +3664,48 @@ fn main() {
             )],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_auto_imports_does_not_add_to_existing_use_in_a_different_module() {
+        let src = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        fn foo() {
+            StructT>|<
+        }
+    }
+}"#;
+
+        let expected = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        use crate::moo::StructTwo;
+
+        fn foo() {
+            StructT
+        }
+    }
+}"#;
+
+        let (mut items, src) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
 }

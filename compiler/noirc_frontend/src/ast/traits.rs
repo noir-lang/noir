@@ -329,21 +329,29 @@ fn desugar_generic_trait_bounds(
     where_clause: &mut Vec<UnresolvedTraitConstraint>,
 ) {
     for generic in generics {
-        let UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(ident), trait_bounds) = generic
-        else {
-            continue;
-        };
+        match generic {
+            UnresolvedGeneric::Variable(ident_or_quoted_type, trait_bounds) => {
+                if trait_bounds.is_empty() {
+                    continue;
+                }
 
-        if trait_bounds.is_empty() {
-            continue;
-        }
+                let mut make_type = || match ident_or_quoted_type {
+                    IdentOrQuotedType::Ident(ident) => {
+                        let path = Path::from_ident(ident.clone());
+                        let typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
+                        UnresolvedType { typ, location: ident.location() }
+                    }
+                    IdentOrQuotedType::Quoted(quoted_type_id, location) => UnresolvedType {
+                        typ: UnresolvedTypeData::Resolved(*quoted_type_id),
+                        location: *location,
+                    },
+                };
 
-        for trait_bound in std::mem::take(trait_bounds) {
-            let path = Path::from_ident(ident.clone());
-            let typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
-            let typ = UnresolvedType { typ, location: ident.location() };
-            let trait_constraint = UnresolvedTraitConstraint { typ, trait_bound };
-            where_clause.push(trait_constraint);
+                for trait_bound in std::mem::take(trait_bounds) {
+                    where_clause.push(UnresolvedTraitConstraint { typ: make_type(), trait_bound });
+                }
+            }
+            UnresolvedGeneric::Numeric { .. } => (),
         }
     }
 }

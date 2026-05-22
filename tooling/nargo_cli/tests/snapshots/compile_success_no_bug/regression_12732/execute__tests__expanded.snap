@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    foo(&[1_Field]);
+    foo(&[2_Field]);
+}
+
+fn foo<T>(_x: &T) {}

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 432
+expression: expanded_code
+---
+struct Pair {
+    a: Field,
+    b: Field,
+}
+
+fn main() {
+    let mut pair: Pair = Pair { a: 1_Field, b: 2_Field };
+    let pair_ref: &mut Pair = &mut pair;
+    let field_ref: &mut Field = &mut (*pair_ref).b;
+    *field_ref = 9_Field;
+    assert(pair.b == 9_Field);
+}

@@ -278,21 +278,25 @@ where
     /// }
     /// ```
     pub fn sort_via<Env>(&self, ordering: fn[Env](T, T) -> bool) -> Self {
-        // Safety: `sorted` array is checked to be:
-        // a. a permutation of `input`'s elements
-        // b. satisfying the predicate `ordering`
-        let sorted = unsafe { quicksort::quicksort(self, ordering) };
+        if N != 0 {
+            // Safety: `sorted` array is checked to be:
+            // a. a permutation of `input`'s elements
+            // b. satisfying the predicate `ordering`
+            let sorted = unsafe { quicksort::quicksort(self, ordering) };
 
-        if !is_unconstrained() {
-            for i in 0..N - 1 {
-                assert(
-                    ordering(sorted[i], sorted[i + 1]),
-                    "Array has not been sorted correctly according to `ordering`.",
-                );
+            if !is_unconstrained() {
+                for i in 0..N - 1 {
+                    assert(
+                        ordering(sorted[i], sorted[i + 1]),
+                        "Array has not been sorted correctly according to `ordering`.",
+                    );
+                }
+                check_shuffle::check_shuffle(self, &sorted);
             }
-            check_shuffle::check_shuffle(self, &sorted);
+            sorted
+        } else {
+            *self
         }
-        sorted
     }
 }
 
@@ -351,6 +355,20 @@ mod test {
 
         let expected: [u32; 7] = [1, 1, 2, 3, 6, 8, 10];
         assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_empty() {
+        let arr: [u32; 0] = [];
+        let sorted = arr.sort();
+        assert(sorted == arr);
+    }
+
+    #[test]
+    fn test_sort_via_empty() {
+        let arr: [u32; 0] = [];
+        let sorted = arr.sort_via(sort_u32);
+        assert(sorted == arr);
     }
 
     #[test]
@@ -498,5 +516,52 @@ mod test {
         let arr2: [Field; 0] = [];
         let concatenated_arr = arr1.concat(arr2);
         assert_eq(concatenated_arr, []);
+    }
+
+    #[test]
+    fn test_fold() {
+        let array = [1, 2, 3];
+        let sum_plus_10 = array.fold(10, |x, y| x + y);
+        assert_eq(sum_plus_10, 16);
+    }
+
+    #[test]
+    fn test_reduce() {
+        let array = [1, 2, 3];
+        let sum = array.reduce(|x, y| x + y);
+        assert_eq(sum, 6);
+    }
+
+    #[test(should_fail_with = "Index out of bounds")]
+    fn test_reduce_failure_on_empty_array() {
+        let array: [Field; 0] = [];
+        let sum = array.reduce(|x, y| x + y);
+        assert_eq(sum, 6);
+    }
+
+    #[test]
+    fn test_all() {
+        let array = [1, 2, 3];
+        assert(array.all(|x| x >= 1));
+        assert(!array.all(|x| x >= 2));
+    }
+
+    #[test]
+    fn test_any() {
+        let array = [1, 2, 3];
+        assert(array.any(|x| x >= 3));
+        assert(!array.any(|x| x >= 4));
+    }
+
+    #[test]
+    fn test_to_string() {
+        let str = [78_u8, 111, 105, 114].as_str_unchecked();
+        assert_eq(str, "Noir");
+    }
+
+    #[test]
+    fn test_bytes_from_string() {
+        let bytes: [u8; 4] = crate::convert::From::from("Noir");
+        assert_eq(bytes, [78_u8, 111, 105, 114]);
     }
 }

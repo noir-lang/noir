@@ -493,5 +493,19 @@ fn calling_immutable_self_method_on_mutable_ref_binds_generic_params() {
         assert(w.any(|(index, value)| (index == 0) & (value == 4)));
     }
     "#;
-    assert_no_errors_using_features(src, &[UnstableFeature::Ownership]);
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_mutate_mutable_reference_inside_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let mut a = 1;
+
+        let p = &&mut a;
+
+        **p += 1;
+    }
+    "#;
+    assert_no_errors(src);
 }

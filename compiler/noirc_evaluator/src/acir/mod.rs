@@ -318,13 +318,13 @@ impl<'a> Context<'a> {
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
-        let unsafe_return_values = true;
+        let skip_output_range_checks = true;
         let output_values = self.acir_context.brillig_call(
             self.current_side_effects_enabled_var,
             &code,
             inputs,
             outputs,
-            unsafe_return_values,
+            skip_output_range_checks,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             BrilligFunctionId(0),
             None,
@@ -691,7 +691,7 @@ impl<'a> Context<'a> {
                 let id = self.acir_context.add_constant(function_id.to_u32());
                 AcirValue::Var(id, NumericType::NativeField)
             }
-            Value::ForeignFunction(_) => unimplemented!(
+            Value::ForeignFunction { .. } => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
             Value::Instruction { .. } | Value::Param { .. } => {
@@ -914,6 +914,7 @@ impl<'a> Context<'a> {
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::opcodes::MemOpKind;
     for opcode in acir.opcodes() {
         match opcode {
             Opcode::AssertZero(expr) => {
@@ -923,7 +924,7 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                 );
             }
             Opcode::MemoryOp { block_id, op } => {
-                if op.operation.is_one() {
+                if op.operation == MemOpKind::Write {
                     // Check that we have no writes to the type size arrays
                     let is_type_sizes_array =
                         context.element_type_sizes_blocks.values().any(|id| id == block_id);

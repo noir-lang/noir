@@ -38,7 +38,7 @@ where
 {
     fn default() -> Self {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L451-L457" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L451-L457</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L451-L457" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L451-L457</a></sub></sup>
 
 
 Creates a fresh, empty UHashMap.
@@ -52,7 +52,7 @@ Example:
 let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
     assert(hashmap.is_empty());
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L205-L208" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L205-L208</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L205-L208" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L205-L208</a></sub></sup>
 
 
 Because `UHashMap` has so many generic arguments that are likely to be the same throughout
@@ -61,7 +61,7 @@ your program, it may be helpful to create a type alias:
 ```rust title="type_alias" showLineNumbers 
 type MyMap = UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>>;
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L199-L201" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L199-L201</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L199-L201" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L199-L201</a></sub></sup>
 
 
 ### with_hasher
@@ -72,7 +72,7 @@ pub fn with_hasher(_build_hasher: B) -> Self
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L72-L77" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L72-L77</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L72-L77" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L72-L77</a></sub></sup>
 
 
 Creates a hash map with an existing `BuildHasher`. This can be used to ensure multiple
@@ -86,7 +86,7 @@ let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
         UHashMap::with_hasher(my_hasher);
     assert(hashmap.is_empty());
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L209-L214" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L209-L214</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L209-L214" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L209-L214</a></sub></sup>
 
 
 ### get
@@ -98,7 +98,7 @@ pub unconstrained fn get(&self, key: K) -> Option<V>
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L275-L281" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L275-L281</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L275-L281" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L275-L281</a></sub></sup>
 
 
 Retrieves a value from the hash map, returning `Option::none()` if it was not found.
@@ -115,7 +115,7 @@ fn get_example(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L294-L303" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L294-L303</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L294-L303" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L294-L303</a></sub></sup>
 
 
 ### insert
@@ -127,7 +127,7 @@ pub unconstrained fn insert(&mut self, key: K, value: V)
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L303-L309" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L303-L309</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L303-L309" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L303-L309</a></sub></sup>
 
 
 Inserts a new key-value pair into the map. If the key was already in the map, its
@@ -140,7 +140,7 @@ let mut map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = UHash
     map.insert(12, 42);
     assert(map.len() == 1);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L215-L219" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L215-L219</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L215-L219" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L215-L219</a></sub></sup>
 
 
 ### remove
@@ -152,7 +152,7 @@ pub unconstrained fn remove(&mut self, key: K)
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L370-L376" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L370-L376</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L370-L376" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L370-L376</a></sub></sup>
 
 
 Removes the given key-value pair from the map. If the key was not already present
@@ -168,7 +168,7 @@ map.remove(12);
     map.remove(12);
     assert(map.is_empty());
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L222-L229" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L222-L229</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L222-L229" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L222-L229</a></sub></sup>
 
 
 ### is_empty
@@ -176,7 +176,7 @@ map.remove(12);
 ```rust title="is_empty" showLineNumbers 
 pub fn is_empty(&self) -> bool {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L116-L118" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L116-L118</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L116-L118" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L116-L118</a></sub></sup>
 
 
 True if the length of the hash map is empty.
@@ -192,7 +192,7 @@ assert(map.is_empty());
     map.remove(1);
     assert(map.is_empty());
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L230-L238" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L230-L238</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L230-L238" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L230-L238</a></sub></sup>
 
 
 ### len
@@ -200,7 +200,7 @@ assert(map.is_empty());
 ```rust title="len" showLineNumbers 
 pub fn len(&self) -> u32 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L261-L263" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L261-L263</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L261-L263" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L261-L263</a></sub></sup>
 
 
 Returns the current length of this hash map.
@@ -223,7 +223,7 @@ Example:
     map.remove(1);
     assert(map.len() == 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L239-L254" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L239-L254</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L239-L254" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L239-L254</a></sub></sup>
 
 
 ### clear
@@ -231,7 +231,7 @@ Example:
 ```rust title="clear" showLineNumbers 
 pub fn clear(&mut self) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L96-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L96-L98</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L96-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L96-L98</a></sub></sup>
 
 
 Clears the hash map, removing all key-value pairs from it.
@@ -243,7 +243,7 @@ assert(!map.is_empty());
     map.clear();
     assert(map.is_empty());
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L261-L265" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L261-L265</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L261-L265" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L261-L265</a></sub></sup>
 
 
 ### contains_key
@@ -255,7 +255,7 @@ pub fn contains_key(&self, key: K) -> bool
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L104-L110" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L104-L110</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L104-L110" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L104-L110</a></sub></sup>
 
 
 True if the hash map contains the given key. Unlike `get`, this will not also return
@@ -271,7 +271,7 @@ if map.contains_key(7) {
         println("No value for key 7!");
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L266-L273" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L266-L273</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L266-L273" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L266-L273</a></sub></sup>
 
 
 ### entries
@@ -279,7 +279,7 @@ if map.contains_key(7) {
 ```rust title="entries" showLineNumbers 
 pub fn entries(&self) -> [(K, V)] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L124-L126" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L124-L126</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L124-L126" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L124-L126</a></sub></sup>
 
 
 Returns a vector of each key-value pair present in the hash map.
@@ -300,7 +300,7 @@ let entries = map.entries();
         }
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L306-L317" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L306-L317</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L306-L317" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L306-L317</a></sub></sup>
 
 
 ### keys
@@ -308,7 +308,7 @@ let entries = map.entries();
 ```rust title="keys" showLineNumbers 
 pub fn keys(&self) -> [K] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L147-L149" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L147-L149</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L147-L149" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L147-L149</a></sub></sup>
 
 
 Returns a vector of each key present in the hash map.
@@ -326,7 +326,7 @@ let keys = map.keys();
         println(f"{key} -> {value}");
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L318-L326" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L318-L326</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L318-L326" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L318-L326</a></sub></sup>
 
 
 ### values
@@ -334,7 +334,7 @@ let keys = map.keys();
 ```rust title="values" showLineNumbers 
 pub fn values(&self) -> [V] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L169-L171" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L169-L171</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L169-L171" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L169-L171</a></sub></sup>
 
 
 Returns a vector of each value present in the hash map.
@@ -350,7 +350,7 @@ let values = map.values();
         println(f"Found value {value}");
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L327-L333" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L327-L333</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L327-L333" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L327-L333</a></sub></sup>
 
 
 ### iter_mut
@@ -362,7 +362,7 @@ pub unconstrained fn iter_mut(&mut self, f: fn(K, V) -> (K, V))
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L190-L196" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L190-L196</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L190-L196" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L190-L196</a></sub></sup>
 
 
 Iterates through each key-value pair of the UHashMap, setting each key-value pair to the
@@ -381,7 +381,7 @@ Example:
 // Add 1 to each key in the map, and double the value associated with that key.
     map.iter_mut(|k, v| (k + 1, v * 2));
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L339-L342" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L339-L342</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L339-L342" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L339-L342</a></sub></sup>
 
 
 ### iter_keys_mut
@@ -393,7 +393,7 @@ pub unconstrained fn iter_keys_mut(&mut self, f: fn(K) -> K)
         B: BuildHasher,
     {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L210-L216" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L210-L216</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L210-L216" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L210-L216</a></sub></sup>
 
 
 Iterates through the UHashMap, mutating each key to the result returned from
@@ -412,7 +412,7 @@ Example:
 // Double each key, leaving the value associated with that key untouched
     map.iter_keys_mut(|k| k * 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L343-L346" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L343-L346</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L343-L346" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L343-L346</a></sub></sup>
 
 
 ### iter_values_mut
@@ -420,7 +420,7 @@ Example:
 ```rust title="iter_values_mut" showLineNumbers 
 pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L232-L234" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L232-L234</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L232-L234" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L232-L234</a></sub></sup>
 
 
 Iterates through the UHashMap, applying the given function to each value and mutating the
@@ -433,7 +433,7 @@ Example:
 // Halve each value
     map.iter_values_mut(|v| v / 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L347-L350" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L347-L350</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L347-L350" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L347-L350</a></sub></sup>
 
 
 ### retain
@@ -441,7 +441,7 @@ Example:
 ```rust title="retain" showLineNumbers 
 pub fn retain(&mut self, f: fn(K, V) -> bool) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L245-L247" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L245-L247</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L245-L247" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L245-L247</a></sub></sup>
 
 
 Retains only the key-value pairs for which the given function returns true.
@@ -452,7 +452,7 @@ Example:
 ```rust title="retain_example" showLineNumbers 
 map.retain(|k, v| (k != 0) & (v != 0));
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L277-L279" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L277-L279</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L277-L279" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L277-L279</a></sub></sup>
 
 
 ## Trait Implementations
@@ -466,7 +466,7 @@ where
 {
     fn default() -> Self {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L451-L457" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L451-L457</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L451-L457" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L451-L457</a></sub></sup>
 
 
 Constructs an empty UHashMap.
@@ -477,7 +477,7 @@ Example:
 let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
     assert(hashmap.is_empty());
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L205-L208" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L205-L208</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L205-L208" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L205-L208</a></sub></sup>
 
 
 ### eq
@@ -491,7 +491,7 @@ where
 {
     fn eq(self, other: UHashMap<K, V, B>) -> bool {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L416-L424" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L416-L424</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/collections/umap.nr#L416-L424" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L416-L424</a></sub></sup>
 
 
 Checks if two UHashMaps are equal.
@@ -510,5 +510,5 @@ let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashM
 
     assert(map1 == map2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/uhashmap/src/main.nr#L280-L291" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L280-L291</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/execution_success/uhashmap/src/main.nr#L280-L291" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/uhashmap/src/main.nr#L280-L291</a></sub></sup>
 

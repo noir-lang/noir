@@ -710,12 +710,15 @@ impl<'f> LoopInvariantContext<'f> {
         let returns_array = if dfg.runtime().is_brillig() {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
-                Instruction::MakeArray { .. } => true,
+                Instruction::MakeArray { .. } | Instruction::ArraySet { .. } => true,
                 Instruction::Call { .. } => {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
-                // RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
+                // RefCount for ArrayGet is managed by the ownership analysis, e.g.
+                // for multi dimensional arrays, `let aij = a[i][j];` would make sure
+                // it only inserts clones at the last get; we shouldn't need more
+                // increments here.
                 _ => false,
             }
         } else {
@@ -877,6 +880,10 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
             let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
                 Value::Function(id) => dfg.purity_of(id),
+                // A `#[pure]` oracle behaves like `PureWithPredicate`: its return is a
+                // function of its arguments, so hoisting it from a non-empty loop is sound.
+                Value::ForeignFunction { pure: true, .. } => Some(Purity::PureWithPredicate),
+                Value::ForeignFunction { pure: false, .. } => Some(Purity::Impure),
                 _ => None,
             };
             match purity {
@@ -2235,6 +2242,7 @@ mod tests {
     enum TestCall {
         Function(Option<Purity>),
         ForeignFunction,
+        PureForeignFunction,
         Intrinsic(Intrinsic),
     }
 
@@ -2245,7 +2253,9 @@ mod tests {
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
     #[test_case(1, TestCall::Function(None), false; "purity unknown")]
-    #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
+    #[test_case(1, TestCall::ForeignFunction, false; "non-pure foreign functions stay impure")]
+    #[test_case(1, TestCall::PureForeignFunction, true; "non-empty loop, pure foreign function hoists")]
+    #[test_case(0, TestCall::PureForeignFunction, false; "empty loop, pure foreign function does not hoist")]
     #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
     #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
@@ -2253,10 +2263,13 @@ mod tests {
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
 
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
-        let call_target = match test_call {
-            TestCall::Function(_) => "f1".to_string(),
-            TestCall::ForeignFunction => "print".to_string(),
-            TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
+        // The `pure` modifier on the call (e.g. `call pure my_oracle(...)`) is how the SSA textual
+        // parser recognizes a `#[pure]` oracle declaration.
+        let (call_target, pure_modifier) = match test_call {
+            TestCall::Function(_) => ("f1".to_string(), ""),
+            TestCall::ForeignFunction => ("print".to_string(), ""),
+            TestCall::PureForeignFunction => ("my_oracle".to_string(), "pure "),
+            TestCall::Intrinsic(intrinsic) => (format!("{intrinsic}"), ""),
         };
 
         let src = format!(
@@ -2268,7 +2281,7 @@ mod tests {
             v2 = lt v1, u32 {upper}
             jmpif v2 then: b2(), else: b3()
           b2():
-            v3 = call {call_target}(v0) -> [u64; 25]
+            v3 = call {pure_modifier}{call_target}(v0) -> [u64; 25]
             v4 = unchecked_add v1, u32 1
             jmp b1(v4)
           b3():
@@ -2532,6 +2545,127 @@ mod tests {
         };
 
         assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
+    }
+
+    #[test]
+    fn inserts_inc_rc_for_hoisted_array_set() {
+        // The SSA below has been captured during the pre-processing of functions in the following:
+
+        // unconstrained fn main() {
+        //     func_1((0, [10]))
+        // }
+        // unconstrained fn func_1(a: (u8, [u64; 1])) {
+        //     let mut c = a.1;
+        //     for _ in 0..2 {
+        //         c[0_u32] = 20;
+        //         println(c);
+        //         c = {
+        //             {
+        //                 let mut idx_e: u32 = 0_u32;
+        //                 loop {
+        //                     if (idx_e == 1_u32) {
+        //                         break
+        //                     } else {
+        //                         idx_e = (idx_e + 1_u32);
+        //                         c[0_u32] = 30;
+        //                     }
+        //                 }
+        //             };
+        //             a.1
+        //         };
+        //     }
+        // }
+
+        // In the SSA the `inc_rc` that normally comes with the print has
+        // been removed; it would have been removed for any other direct
+        // oracle call as well.
+
+        // If the LICM hoists the `array_set v1, index u32 0, value u64 20` out
+        // out of the loop, and doesn't leave an `inc_rc` for its result,
+        // then the subsequent `array_set v3, index u32 0, value u64 30`
+        // will modify the array and it never gets reset in the next loop.
+
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = make_array [u64 10] : [u64; 1]
+            call f1(u8 0, v1)
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u8, v1: [u64; 1]):
+            inc_rc v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 2
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v9 = array_set v1, index u32 0, value u64 20
+            v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+            call print(u1 1, v9, v34, u1 0)
+            jmp b4(v9, u32 0)
+          b3():
+            return
+          b4(v3: [u64; 1], v4: u32):
+            v39 = eq v4, u32 1
+            jmpif v39 then: b5(), else: b6()
+          b5():
+            jmp b7()
+          b6():
+            v40 = add v4, u32 1
+            v42 = array_set v3, index u32 0, value u64 30
+            jmp b8()
+          b7():
+            inc_rc v1
+            v43 = unchecked_add v2, u32 1
+            jmp b1(v43)
+          b8():
+            jmp b4(v42, v40)
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = make_array [u64 10] : [u64; 1]
+            call f1(u8 0, v1)
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u8, v1: [u64; 1]):
+            inc_rc v1
+            v7 = array_set v1, index u32 0, value u64 20
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 2
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            inc_rc v7
+            v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+            call print(u1 1, v7, v34, u1 0)
+            jmp b4(v7, u32 0)
+          b3():
+            return
+          b4(v3: [u64; 1], v4: u32):
+            v39 = eq v4, u32 1
+            jmpif v39 then: b5(), else: b6()
+          b5():
+            jmp b7()
+          b6():
+            v40 = add v4, u32 1
+            v42 = array_set v3, index u32 0, value u64 30
+            jmp b8()
+          b7():
+            inc_rc v1
+            v43 = unchecked_add v2, u32 1
+            jmp b1(v43)
+          b8():
+            jmp b4(v42, v40)
+        }
+        "#);
     }
 }
 
@@ -3822,5 +3956,44 @@ mod control_dependence {
             jmp b1(v4)
         }
         "#);
+    }
+
+    #[test]
+    fn does_not_consider_descending_loop_bounds_as_valid() {
+        // The loop header is `b1(v0: u8, v1: u32)` where `v0` is the first block parameter
+        // and is therefore mistakenly identified as the induction variable. The header exits
+        // via `eq v0, u8 0`, which causes `get_const_upper_bound` to return 0 as the upper
+        // bound while the pre-header supplies 5 as the lower bound — an inverted range (5, 0).
+        // The bounds simplification must not use an inverted range: doing so would wrongly
+        // fold `v12 = lt v0, u8 3` to `u1 1` because `upper_bound (0) <= constant (3)`.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u8 5, u32 0)
+          b1(v0: u8, v1: u32):
+            v6 = eq v0, u8 0
+            jmpif v6 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v8 = eq v1, u32 2
+            jmpif v8 then: b4(), else: b5()
+          b4():
+            jmp b2()
+          b5():
+            v10 = add v1, u32 1
+            v12 = lt v0, u8 3
+            jmpif v12 then: b6(), else: b7()
+          b6():
+            jmp b8(u8 3)
+          b7():
+            jmp b8(u8 1)
+          b8(v2: u8):
+            v32 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v2, v32, u1 0)
+            jmp b1(v2, v10)
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 }

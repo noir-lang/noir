@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Phantom {}
+
+fn main(idx: u32) {
+    let s: [Phantom] = @[Phantom {}, Phantom {}, Phantom {}];
+    let _: ([Phantom], Phantom) = s.remove(idx);
+}

@@ -11,7 +11,19 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
+use crate::{
+    acir::ssa::Artifacts,
+    brillig::BrilligOptions,
+    errors::RuntimeError,
+    ssa::{
+        checks::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH},
+        opt::{
+            CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+            MAX_UNROLL_ITERATIONS,
+        },
+    },
+};
 use acvm::{
     FieldElement,
     acir::{
@@ -42,7 +54,7 @@ pub use builder::{SsaBuilder, SsaPass};
 
 mod artifact;
 mod builder;
-mod checks;
+pub mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
@@ -98,6 +110,11 @@ pub struct SsaEvaluatorOptions {
 
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    pub brillig_constraints_check_max_array_output_length: u32,
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    pub brillig_constraints_check_max_ancestor_distance: u32,
 
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
@@ -132,6 +149,32 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+}
+
+/// Defaults used in tests.
+impl Default for SsaEvaluatorOptions {
+    fn default() -> Self {
+        Self {
+            ssa_logging: SsaLogging::None,
+            ssa_logging_hide_unchanged: false,
+            brillig_options: BrilligOptions::default(),
+            print_codegen_timings: false,
+            emit_ssa: None,
+            skip_underconstrained_check: true,
+            skip_brillig_constraints_check: true,
+            brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
+            inliner_aggressiveness: 0,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            skip_passes: Vec::new(),
+        }
+    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -314,6 +357,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
@@ -338,9 +382,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
             .and_then(|ssa| {
-                // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-                // that we don't know how to attribute to a concrete error with the Noir code.
-                ssa.dead_instruction_elimination_post_check();
+                // Sanity check at the end of the pipeline: ACIR should be free of memory ops
+                // (Load/Store/Allocate). Mem2reg + flatten_cfg own that; this asserts the
+                // invariant so a regression upstream surfaces here, not as a panic in a
+                // later pass that assumes the invariant.
+                #[cfg(debug_assertions)]
+                validation::validate_no_acir_memory_ops(&ssa);
                 ssa
             }),
     ]
@@ -364,6 +411,10 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
     ]
 }
 
@@ -417,7 +468,12 @@ pub fn optimize_ssa_builder_into_acir(
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
-            || ssa.check_for_missing_brillig_constraints(),
+            || {
+                ssa.check_for_missing_brillig_constraints(
+                    options.brillig_constraints_check_max_array_output_length,
+                    options.brillig_constraints_check_max_ancestor_distance,
+                )
+            },
         ));
     }
 
@@ -565,7 +621,6 @@ pub fn convert_generated_acir_into_circuit(
     debug_types: DebugTypes,
 ) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
-    let current_witness_index = generated_acir.current_witness_index();
 
     let GeneratedAcir {
         return_witnesses,
@@ -587,9 +642,6 @@ pub fn convert_generated_acir_into_circuit(
 
     let circuit = Circuit {
         function_name: name.clone(),
-        // XXX: The Circuit cannot differentiate between having 0 or 1 witnesses,
-        // but making this field optional could break serialization.
-        current_witness_index: current_witness_index.unwrap_or_default().witness_index(),
         opcodes,
         private_parameters,
         public_parameters,
@@ -661,4 +713,46 @@ fn split_public_and_private_inputs(
             }
             (acc.0, acc.1)
         })
+}
+
+#[cfg(test)]
+mod minimal_passes_tests {
+    use super::{Ssa, minimal_passes};
+    use crate::errors::RuntimeError;
+
+    fn run_minimal(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        let mut ssa = ssa;
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa)?;
+        }
+        Ok(ssa)
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_assert_constant() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::AssertConstantFailed { .. })));
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_static_assert() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array b"Assertion failed"
+            v2 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(v0, v1, v2, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::StaticAssertDynamicPredicate { .. })));
+    }
 }

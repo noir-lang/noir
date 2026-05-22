@@ -496,9 +496,7 @@ impl<F: AcirField> AcirContext<F> {
 
         self.acir_ir.assert_is_zero(diff_expr);
         if let Some(payload) = assert_message {
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         self.mark_variables_equivalent(lhs, rhs)?;
 
@@ -547,9 +545,7 @@ impl<F: AcirField> AcirContext<F> {
             if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
                 return Ok(());
             }
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
 
         Ok(())
@@ -1040,10 +1036,12 @@ impl<F: AcirField> AcirContext<F> {
             let r = two_pow_bit_size_minus_one - rhs_offset;
 
             // we need to ensure lhs_offset + r does not overflow
-            if bits + bit_size_u128(r) < F::max_num_bits() {
-                // lhs_offset < rhs_offset
-                // -> lhs_offset + r < rhs_offset + r = 2^bit_size
-                // -> lhs_offset + r < 2^bit_size
+            if u32::max(bits, bit_size_u128(r)) + 1 < F::max_num_bits() {
+                // let max = u32::max(bits, bit_size_u128(r)), then
+                // - lhs_offset < 2^max
+                // - r < 2^max
+                // -> lhs_offset + r < 2^(max+1)
+                // the condition above is: 2^(max +1) < 2^bit_size
 
                 let r_var = self.add_constant(r);
                 let aor = self.add_var(lhs_offset, r_var)?;
@@ -1107,9 +1105,7 @@ impl<F: AcirField> AcirContext<F> {
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
             let payload = self.generate_assertion_message_payload(message);
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         if return_zero {
             let zero = self.add_constant(F::zero());
@@ -1348,7 +1344,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Add the memory read operation to the list of opcodes
-        let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
+        let op = MemOp::read_at_mem_index(index_witness, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
@@ -1370,7 +1366,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Add the memory write operation to the list of opcodes
-        let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
+        let op = MemOp::write_to_mem_index(index_witness, value_write_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())
