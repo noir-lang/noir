@@ -22,6 +22,7 @@ brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
+bn254_blackbox_solver = { workspace = true, optional = true }
 
 [features]
 bn254 = ["acir/bn254", "brillig_vm/bn254", "acvm_blackbox_solver/bn254"]
@@ -30,6 +31,11 @@ bls12_381 = [
     "brillig_vm/bls12_381",
     "acvm_blackbox_solver/bls12_381",
 ]
+generate-test-fixtures = ["dep:bn254_blackbox_solver", "acir/test-fixtures"]
+
+[[bin]]
+name = "generate_acvm_js_fixtures"
+required-features = ["generate-test-fixtures", "bn254"]
 
 [dev-dependencies]
 ark-bls12-381 = { workspace = true }
