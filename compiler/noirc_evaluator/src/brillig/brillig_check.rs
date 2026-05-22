@@ -28,44 +28,6 @@ use crate::{
 
 type Offset = usize;
 
-/// Position of the visitor relative to a call's argument-passing region while
-/// walking opcodes in reverse.
-///
-/// `codegen_call` emits a fixed prologue/epilogue around an external `Call`. Going
-/// backwards through the bytecode, the boundary opcodes are:
-///
-/// * `Mov { destination: stack_pointer, source: relative(0) }` — restores the
-///   caller's stack pointer (encountered first when walking backwards;
-///   marks the end of the call region).
-/// * `Mov { destination: <next-frame-slot-0>, source: stack_pointer }` — saves
-///   the caller's stack pointer into the next frame (encountered second).
-/// * `Const { .. }` — sets the stack-size register (encountered last;
-///   marks the start of the call region).
-///
-/// Writes inside this region target the *callee*'s stack frame, so the local
-/// advisory logic ignores them. Reads inside the region still count, since they
-/// consume values prepared by the current function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CallRegion {
-    /// Not in a call's argument-passing region.
-    Outside,
-    /// Inside the call region — between the stack-pointer-restore Mov and the
-    /// stack-pointer-save Mov, walking backwards.
-    Inside,
-    /// One opcode away from leaving the call region. The next visited opcode is
-    /// expected to be the Const that holds the saved stack size; once seen the
-    /// visitor transitions back to [`CallRegion::Outside`].
-    AtStackSize,
-}
-
-impl CallRegion {
-    /// Whether the visitor is currently traversing the argument-passing region
-    /// of a call (or its boundary opcodes).
-    fn is_active(self) -> bool {
-        !matches!(self, CallRegion::Outside)
-    }
-}
-
 pub(crate) enum OpcodeAdvisory {
     /// A memory address is being written by the opcode that no other following opcode reads.
     NeverRead { addr: MemoryAddress },
@@ -683,5 +645,43 @@ fn is_fallible_opcode<F>(opcode: &Opcode<F>) -> bool {
         // may fail on bad inputs.
         Opcode::ForeignCall { .. } => true,
         _ => false,
+    }
+}
+
+/// Position of the visitor relative to a call's argument-passing region while
+/// walking opcodes in reverse.
+///
+/// `codegen_call` emits a fixed prologue/epilogue around an external `Call`. Going
+/// backwards through the bytecode, the boundary opcodes are:
+///
+/// * `Mov { destination: stack_pointer, source: relative(0) }` — restores the
+///   caller's stack pointer (encountered first when walking backwards;
+///   marks the end of the call region).
+/// * `Mov { destination: <next-frame-slot-0>, source: stack_pointer }` — saves
+///   the caller's stack pointer into the next frame (encountered second).
+/// * `Const { .. }` — sets the stack-size register (encountered last;
+///   marks the start of the call region).
+///
+/// Writes inside this region target the *callee*'s stack frame, so the local
+/// advisory logic ignores them. Reads inside the region still count, since they
+/// consume values prepared by the current function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CallRegion {
+    /// Not in a call's argument-passing region.
+    Outside,
+    /// Inside the call region — between the stack-pointer-restore Mov and the
+    /// stack-pointer-save Mov, walking backwards.
+    Inside,
+    /// One opcode away from leaving the call region. The next visited opcode is
+    /// expected to be the Const that holds the saved stack size; once seen the
+    /// visitor transitions back to [`CallRegion::Outside`].
+    AtStackSize,
+}
+
+impl CallRegion {
+    /// Whether the visitor is currently traversing the argument-passing region
+    /// of a call (or its boundary opcodes).
+    fn is_active(self) -> bool {
+        !matches!(self, CallRegion::Outside)
     }
 }
