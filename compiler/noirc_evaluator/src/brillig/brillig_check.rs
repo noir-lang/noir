@@ -26,6 +26,8 @@ use crate::{
     },
 };
 
+type Offset = usize;
+
 pub(crate) enum OpcodeAdvisory {
     /// A memory address is being written by the opcode that no other following opcode reads.
     NeverRead { addr: MemoryAddress },
@@ -219,14 +221,14 @@ fn block_opcode_ranges<F, R: RegisterAllocator>(
     ranges
 }
 
-/// Collect all the relative addresses read in a range.
+/// Collect all the relative addresses read in a range of relative address offsets.
 struct ReadCollector<'a> {
-    addr_range: &'a Range<OpcodeLocation>,
+    addr_range: &'a Range<Offset>,
     reads: im::HashSet<MemoryAddress>,
 }
 
 impl<'a> ReadCollector<'a> {
-    fn new(addr_range: &'a Range<usize>) -> Self {
+    fn new(addr_range: &'a Range<Offset>) -> Self {
         Self { addr_range, reads: im::HashSet::new() }
     }
 
@@ -255,7 +257,7 @@ impl OpcodeAddressVisitor for ReadCollector<'_> {
 ///
 /// Assumes that we are visiting the opcodes going backwards.
 struct AdvisoryCollector<'a> {
-    addr_range: &'a Range<OpcodeLocation>,
+    addr_range: &'a Range<Offset>,
     /// Addresses read in any of the descendants of the block.
     reads_in_descendants: &'a im::HashSet<MemoryAddress>,
     /// Last location the address was read from in this block.
@@ -278,7 +280,7 @@ struct AdvisoryCollector<'a> {
 
 impl<'a> AdvisoryCollector<'a> {
     fn new(
-        addr_range: &'a Range<usize>,
+        addr_range: &'a Range<Offset>,
         reads_in_descendants: &'a im::HashSet<MemoryAddress>,
     ) -> Self {
         Self {
