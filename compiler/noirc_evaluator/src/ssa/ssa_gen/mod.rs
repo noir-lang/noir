@@ -1334,7 +1334,54 @@ impl FunctionContext<'_> {
             }
         }
 
-        Ok(self.insert_call(function, arguments, &call.return_type, call.location))
+        let result = self.insert_call(function, arguments, &call.return_type, call.location);
+        self.codegen_intrinsic_inc_rc_results(function, &call.return_type, &result);
+        Ok(result)
+    }
+
+    /// For vector intrinsics that hand back an element extracted from the source vector
+    /// (`pop_front`, `pop_back`, `remove`), bump the reference count of any array- or
+    /// vector-typed element value. The intrinsic's returned tuple component for the new
+    /// (post-pop) vector is skipped: it is a distinct result, not an alias of the source.
+    ///
+    /// Without this bump the popped element shares its underlying memory with the source
+    /// vector, so a mutation through it would also mutate the source — breaking the
+    /// copy-on-write invariant the rest of the pipeline relies on. The `ownership` pass
+    /// enforces the same invariant for plain `array[i]` accesses (see `handle_index`),
+    /// but it does not see through these intrinsic calls.
+    fn codegen_intrinsic_inc_rc_results(
+        &mut self,
+        function: ValueId,
+        return_type: &ast::Type,
+        result: &Values,
+    ) {
+        if self.builder.current_function.runtime().is_acir() {
+            return;
+        }
+        let Some(intrinsic) = self.builder.get_intrinsic_from_value(function) else {
+            return;
+        };
+        if !matches!(
+            intrinsic,
+            Intrinsic::VectorPopFront | Intrinsic::VectorPopBack | Intrinsic::VectorRemove
+        ) {
+            return;
+        }
+        // All of these vector operations return either ([T], T) or (T, [T])
+        let (ast::Type::Tuple(types), Tree::Branch(value_trees)) = (return_type, result) else {
+            return;
+        };
+        // We are looking for the T in the tuple, ignoring the [T].
+        for (ty, subtree) in types.iter().zip_eq(value_trees.iter()) {
+            if matches!(ty, ast::Type::Vector(_)) {
+                continue;
+            }
+            for value in subtree.clone().into_value_list(self) {
+                if self.builder.type_of_value(value).is_array() {
+                    self.builder.insert_inc_rc(value);
+                }
+            }
+        }
     }
 
     /// Generate SSA for a `multi_scalar_mul` blackbox call.
@@ -1698,7 +1745,7 @@ fn is_oracle_func(expr: &Expression) -> bool {
 
 /// Return whether the expression refers to a function whose body, after peeling block/semi
 /// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
-/// or another oracle wrapper.
+/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
 ///
 /// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
 /// only read their inputs (values are copied across the runtime boundary), so a wrapper
@@ -1724,6 +1771,9 @@ fn is_oracle_wrapper(expr: &Expression, program: &Program) -> bool {
         let Some(inner) = peel_to_single_call(&program[*func_id].body) else {
             return false;
         };
+        if !inner.arguments.iter().all(is_side_effect_free_arg) {
+            return false;
+        }
         is_oracle_func(&inner.func) || go(&inner.func, program, depth - 1)
     }
 
@@ -1738,5 +1788,39 @@ fn peel_to_single_call(expr: &Expression) -> Option<&ast::Call> {
         Expression::Semi(inner) => peel_to_single_call(inner),
         Expression::Block(stmts) if stmts.len() == 1 => peel_to_single_call(&stmts[0]),
         _ => None,
+    }
+}
+
+/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
+///
+/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
+/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
+/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
+/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
+/// side-effectful and rejects the wrapper classification.
+fn is_side_effect_free_arg(expr: &Expression) -> bool {
+    match expr {
+        Expression::Ident(_) => true,
+        Expression::Literal(lit) => match lit {
+            ast::Literal::Array(arr) | ast::Literal::Vector(arr) => {
+                arr.contents.iter().all(is_side_effect_free_arg)
+            }
+            ast::Literal::Repeated { element, .. } => is_side_effect_free_arg(element),
+            ast::Literal::Integer(..)
+            | ast::Literal::Bool(_)
+            | ast::Literal::Unit
+            | ast::Literal::Str(_) => true,
+            ast::Literal::FmtStr(_, _, inner) => is_side_effect_free_arg(inner),
+        },
+        Expression::ExtractTupleField(inner, _) => is_side_effect_free_arg(inner),
+        Expression::Tuple(items) => items.iter().all(is_side_effect_free_arg),
+        Expression::Index(idx) => {
+            is_side_effect_free_arg(&idx.collection) && is_side_effect_free_arg(&idx.index)
+        }
+        Expression::Cast(cast) => is_side_effect_free_arg(&cast.lhs),
+        Expression::Unary(u) => is_side_effect_free_arg(&u.rhs),
+        Expression::Binary(b) => is_side_effect_free_arg(&b.lhs) && is_side_effect_free_arg(&b.rhs),
+        Expression::Clone(inner) => is_side_effect_free_arg(inner),
+        _ => false,
     }
 }

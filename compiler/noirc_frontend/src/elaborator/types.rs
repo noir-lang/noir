@@ -2562,6 +2562,8 @@ impl Elaborator<'_> {
 
         match &lhs_type {
             Type::DataType(s, args) => {
+                let type_id = s.borrow().id;
+                self.define_struct_fields_if_undefined(type_id);
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     self.interner.add_struct_member_reference(s.id, index, location);
@@ -2957,6 +2959,7 @@ impl Elaborator<'_> {
         // Check if it's `foo.bar()` where `bar` is a member of the struct `foo`.
         // In that case we tell the user that they need to write it like `(foo.bar)()`.
         if let Type::DataType(datatype, _) = object_type {
+            self.define_struct_fields_if_undefined(datatype.borrow().id);
             let datatype = datatype.borrow();
             let has_field_with_function_type = datatype.fields_raw().is_some_and(|fields| {
                 fields
@@ -3078,6 +3081,17 @@ impl Elaborator<'_> {
                 UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
             }
 
+            // Resolve any deferred struct fields reachable through the arg
+            // types so the boundary validity check sees real fields instead
+            // of stub `StructWithUnknownFields`. Without this, an unresolved
+            // struct is misread as an enum (`get_fields` returns `None`) and
+            // the check reports a spurious "mutable reference" error. This
+            // matters inside recursive `elaborate_items` (from `run_attributes`)
+            // where outer-pending structs haven't been drained yet.
+            for (typ, _, _) in &args {
+                self.define_deferred_data_types_in(typ);
+            }
+
             let errors = lints::unconstrained_function_args(&args);
             self.push_errors(errors);
         }
@@ -3085,6 +3099,7 @@ impl Elaborator<'_> {
         let return_type = self.bind_function_type(func_type, args, location);
 
         if crossing_runtime_boundary {
+            self.define_deferred_data_types_in(&return_type);
             self.run_lint(|_| {
                 lints::unconstrained_function_return(&return_type, location).map(Into::into)
             });

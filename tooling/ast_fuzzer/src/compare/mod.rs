@@ -17,10 +17,7 @@ pub use compiled::{
     CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
 };
 pub use comptime::CompareComptime;
-pub use interpreted::{
-    CompareInterpreted, CompareInterpretedResult, ComparePass, input_value_to_ssa,
-    input_values_to_ssa,
-};
+pub use interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass, encode_to_ssa};
 
 /// Help iterate over the program(s) in the comparable artifact.
 pub trait HasPrograms {

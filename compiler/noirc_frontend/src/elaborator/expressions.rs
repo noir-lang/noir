@@ -1194,6 +1194,8 @@ impl Elaborator<'_> {
             }
         }
 
+        // The struct's fields may still be deferred, so type-check them now.
+        self.define_struct_fields_if_undefined(struct_id);
         let field_types = struct_type
             .borrow()
             .get_fields_with_visibility(&generics)

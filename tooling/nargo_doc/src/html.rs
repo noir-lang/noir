@@ -1803,7 +1803,7 @@ fn generics_to_string(generics: &[Generic]) -> String {
             string.push_str(", ");
         }
         if let Some(numeric) = &generic.numeric {
-            string.push_str(&format!("let {}: {}", generic.name, &type_to_string(numeric, None)));
+            string.push_str(&format!("let {}: {}", generic.name, type_to_string(numeric, None)));
         } else {
             string.push_str(&generic.name);
         }

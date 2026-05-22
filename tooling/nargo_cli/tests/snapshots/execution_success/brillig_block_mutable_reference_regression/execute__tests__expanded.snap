@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(arr: [u32; 3], idx: u32) -> pub [u32; 3] {
+    let x: [u32; 3] = arr;
+    let z: &mut [u32; 3] = &mut {
+        let _: Field = 0_Field;
+        x
+    };
+    let y: [u32; 3] = x;
+    (*z)[0_u32] = 100_u32;
+    assert((*z)[idx] == 100_u32);
+    assert(y == [1_u32, 2_u32, 3_u32]);
+    y
+}

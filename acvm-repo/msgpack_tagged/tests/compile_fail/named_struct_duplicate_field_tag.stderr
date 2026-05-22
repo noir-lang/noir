@@ -1,0 +1,6 @@
+error: tag 1 is used more than once
+  --> tests/compile_fail/named_struct_duplicate_field_tag.rs:11:5
+   |
+11 | /     #[tag(1)]
+12 | |     b: bool,
+   | |___________^
