@@ -180,7 +180,7 @@ export const expectedResult = {er};
         let program = test_fixtures::multi_scalar_mul_program();
         let bytecode = Program::serialize_program(&program);
 
-        // Generator point of BN254 (G1): x=1, y as below; scalar=1; predicate=1.
+        // Generator point of BN254 (G1): x=1, y as below; scalars=(1, 0); predicate=1.
         let initial: WitnessMap<FieldElement> = BTreeMap::from_iter([
             (Witness(1), FieldElement::from(1u128)),
             (
@@ -190,10 +190,9 @@ export const expectedResult = {er};
                 )
                 .unwrap(),
             ),
-            (Witness(3), FieldElement::zero()),
-            (Witness(4), FieldElement::from(1u128)),
-            (Witness(5), FieldElement::zero()),
-            (Witness(6), FieldElement::from(1u128)),
+            (Witness(3), FieldElement::from(1u128)),
+            (Witness(4), FieldElement::zero()),
+            (Witness(5), FieldElement::from(1u128)),
         ])
         .into();
 
