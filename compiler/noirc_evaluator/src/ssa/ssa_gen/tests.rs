@@ -18,6 +18,62 @@ use noirc_frontend::test_utils::{
     get_monomorphized_with_stdlib, stdlib_src,
 };
 
+#[test]
+fn zeroed_closure_type_arity() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+    insta::assert_snapshot!(program.to_string(), @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    ");
+
+    let _ = generate_ssa(program).unwrap();
+}
+
+#[test]
+fn zeroed_closure_type_no_args() {
+    let src = r#"
+    fn main() {
+        let f: fn[(Field,)]() -> Field = zeroed();
+        let _ = f();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+    insta::assert_snapshot!(program.to_string(), @r"
+    fn main$f0() -> () {
+        let f$l2 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l4 = {
+            let tmp$l3 = f$l2.0;
+            tmp$l3.1(tmp$l3.0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l0: (Field,)) -> Field {
+        0
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l1: (Field,)) -> Field {
+        0
+    }
+    ");
+
+    let _ = generate_ssa(program).unwrap();
+}
+
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
     let program = match get_monomorphized(src) {
         Ok(program) => program,
