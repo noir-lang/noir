@@ -82,6 +82,7 @@ notify-debouncer-full = "0.7.0"
 [target.'cfg(unix)'.dependencies]
 termion = "4"
 
+[dependencies]
 # Logs
 tracing.workspace = true
 tracing-subscriber.workspace = true
