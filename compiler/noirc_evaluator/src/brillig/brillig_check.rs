@@ -310,6 +310,8 @@ impl<'a> AdvisoryCollector<'a> {
 
 impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
     /// Maintain some contextual information about regions.
+    ///
+    /// This is assuming that we are visiting the opcodes in reverse.
     fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
         // The return instruction can be preceded by a number of moves from various parts of the stack
         // to the beginning, depending on the number of return values. They destinations can be shuffled.
@@ -325,7 +327,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                 op: BinaryFieldOp::Div | BinaryFieldOp::IntegerDiv, ..
             }
             | Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. } => true,
-            // I'm sure there are many others.
+            // TODO: I'm sure there are many others.
             _ => false,
         };
 
