@@ -774,9 +774,19 @@ mod tests {
     /// Parse hand-crafted SSA, run brillig generation on `main`, and return
     /// both the artifact and the advisories the post-codegen checks produce.
     ///
-    /// Unlike the high-level `Ssa::to_brillig`, this skips the optimization
-    /// pipeline so deliberately-dead writes and other shapes the advisor is
-    /// supposed to flag survive into the bytecode.
+    /// We deliberately bypass `Ssa::to_brillig` here: it consumes the
+    /// `FunctionContext` and `BrilligContext` into the final artifact before
+    /// the advisor can see them, so calling it would give us a real Brillig
+    /// but no way to ask the advisor questions about it. Instead, we drive
+    /// `build_function_contexts` directly on `main` and run the advisor on
+    /// the resulting (still un-consumed) contexts.
+    ///
+    /// Globals are intentionally not supported in the test snippets passed
+    /// here — we always invoke `build_function_contexts` with empty
+    /// `globals` and `hoisted_global_constants`. If a future advisor test
+    /// needs a program that uses globals, take it through `noir_to_brillig_main`
+    /// from Noir source instead and add a variant that captures advisories
+    /// from the full `to_brillig` setup.
     fn ssa_to_brillig_with_advisories(
         src: &str,
     ) -> (BrilligArtifact<FieldElement>, OpcodeAdvisories) {
