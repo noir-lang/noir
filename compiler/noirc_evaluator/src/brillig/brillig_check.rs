@@ -4,6 +4,7 @@ use std::{collections::HashMap, fmt::Display, ops::Range};
 
 use acvm::{
     AcirField,
+    acir::BlackBoxFunc,
     acir::brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapArray, HeapVector, IntegerBitSize,
         MemoryAddress, Opcode, ValueOrArray,
@@ -587,10 +588,19 @@ trait OpcodeAddressVisitor {
     }
 
     fn write_heap_array(&mut self, array: &HeapArray, location: OpcodeLocation) {
+        // The pointer register is read by the VM to find the heap location
+        // it should write through. Marking it as read ensures upstream
+        // instructions that set up this pointer aren't mistakenly flagged
+        // as dead writes. The accompanying `write` tracks the
+        // heap-side effect for `OverwrittenBeforeRead` purposes.
+        self.read(&array.pointer, location);
         self.write(&array.pointer, location);
     }
 
     fn write_heap_vector(&mut self, vector: &HeapVector, location: OpcodeLocation) {
+        // Same reasoning as `write_heap_array`: the pointer is read by the
+        // VM, so mark it as both read and written.
+        self.read(&vector.pointer, location);
         self.write(&vector.pointer, location);
         self.write(&vector.size, location);
     }
@@ -705,14 +715,49 @@ fn is_fallible_opcode<F>(opcode: &Opcode<F>) -> bool {
         // Division by zero traps in the VM.
         Opcode::BinaryFieldOp { op: BinaryFieldOp::Div | BinaryFieldOp::IntegerDiv, .. }
         | Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. } => true,
-        // Black-box ops are treated as opaque: some validate inputs (e.g.
-        // signature verification, curve operations) and several have side
-        // effects through indirect heap writes.
-        Opcode::BlackBox(_) => true,
+        // Mirror the classification used by ACIR's
+        // [`acvm::acir::BlackBoxFunc::has_side_effects`]: only black-box ops that
+        // validate inputs, alter circuit state, or produce constraint-relevant
+        // side effects are treated as fallible. Pure hashes and ciphers can be
+        // removed when their result is never observed.
+        Opcode::BlackBox(black_box_op) => is_fallible_black_box_op(black_box_op),
         // Foreign calls invoke an oracle which is externally observable and
         // may fail on bad inputs.
         Opcode::ForeignCall { .. } => true,
         _ => false,
+    }
+}
+
+/// Side-effecting / failing black-box ops. Delegates to ACIR's
+/// [`acvm::acir::BlackBoxFunc::has_side_effects`] for the ACIR-mapped
+/// variants (so any future change to that classification flows through here
+/// automatically), with [`BlackBoxOp::ToRadix`] handled explicitly because
+/// the brillig VM validates its `radix` argument against `[2, 256]` at
+/// runtime and ToRadix has no ACIR analog.
+fn is_fallible_black_box_op(op: &BlackBoxOp) -> bool {
+    if let Some(func) = black_box_op_to_acir_func(op) {
+        func.has_side_effects()
+    } else {
+        matches!(op, BlackBoxOp::ToRadix { .. })
+    }
+}
+
+/// Map a brillig [`BlackBoxOp`] to its ACIR [`BlackBoxFunc`] counterpart.
+/// `None` for brillig-only ops with no ACIR analog (currently
+/// [`BlackBoxOp::ToRadix`]).
+fn black_box_op_to_acir_func(op: &BlackBoxOp) -> Option<BlackBoxFunc> {
+    match op {
+        BlackBoxOp::AES128Encrypt { .. } => Some(BlackBoxFunc::AES128Encrypt),
+        BlackBoxOp::Blake2s { .. } => Some(BlackBoxFunc::Blake2s),
+        BlackBoxOp::Blake3 { .. } => Some(BlackBoxFunc::Blake3),
+        BlackBoxOp::Keccakf1600 { .. } => Some(BlackBoxFunc::Keccakf1600),
+        BlackBoxOp::EcdsaSecp256k1 { .. } => Some(BlackBoxFunc::EcdsaSecp256k1),
+        BlackBoxOp::EcdsaSecp256r1 { .. } => Some(BlackBoxFunc::EcdsaSecp256r1),
+        BlackBoxOp::MultiScalarMul { .. } => Some(BlackBoxFunc::MultiScalarMul),
+        BlackBoxOp::EmbeddedCurveAdd { .. } => Some(BlackBoxFunc::EmbeddedCurveAdd),
+        BlackBoxOp::Poseidon2Permutation { .. } => Some(BlackBoxFunc::Poseidon2Permutation),
+        BlackBoxOp::Sha256Compression { .. } => Some(BlackBoxFunc::Sha256Compression),
+        BlackBoxOp::ToRadix { .. } => None,
     }
 }
 
@@ -766,7 +811,7 @@ mod tests {
     };
     use acvm::{
         FieldElement,
-        acir::brillig::{BinaryIntOp, MemoryAddress, Opcode},
+        acir::brillig::{BinaryIntOp, BlackBoxOp, MemoryAddress, Opcode},
     };
 
     use super::{BrilligArtifact, OpcodeAdvisories, OpcodeAdvisory, opcode_advisories};
@@ -849,6 +894,22 @@ mod tests {
             .values()
             .flatten()
             .any(|a| matches!(a, OpcodeAdvisory::OverwrittenBeforeRead { .. }))
+    }
+
+    /// Sanity check that `artifact`'s bytecode contains an opcode matching
+    /// `matcher`. A subsequent "no advisory was produced" assertion is only
+    /// meaningful if the opcode it's about actually made it into the bytecode,
+    /// so each fallibility test sandwiches its call between this helper and
+    /// the advisory check.
+    fn assert_bytecode_contains<F: std::fmt::Display>(
+        artifact: &BrilligArtifact<F>,
+        description: &str,
+        matcher: impl Fn(&Opcode<F>) -> bool,
+    ) {
+        assert!(
+            artifact.byte_code.iter().any(matcher),
+            "expected {description} in the bytecode, got: {artifact}"
+        );
     }
 
     /// Assert the canonical "predicate-gated trap" shape that brillig-gen emits
@@ -1075,15 +1136,9 @@ mod tests {
         1: return
         ");
 
-        // The bytecode must actually contain the Div we care about —
-        // otherwise the absence of advisories below is meaningless.
-        assert!(
-            artifact
-                .byte_code
-                .iter()
-                .any(|op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. })),
-            "expected an integer Div opcode in the bytecode"
-        );
+        assert_bytecode_contains(&artifact, "an integer Div opcode", |op| {
+            matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. })
+        });
 
         assert!(
             !has_never_read(&advisories),
@@ -1161,6 +1216,80 @@ mod tests {
         assert!(
             advisories.is_empty(),
             "expected no advisories — call-region writes target the next stack frame and should be suppressed, got: {advisories:?}"
+        );
+    }
+
+    /// Companion to [`fallible_div_with_unused_result_not_flagged`] for the
+    /// `BlackBox` branch of [`is_fallible_opcode`]: an ECDSA verify whose
+    /// boolean result is never consumed must not be flagged as `NeverRead`.
+    /// ECDSA verification is on the side-effecting side of
+    /// [`is_fallible_black_box_op`] (it mirrors ACIR's
+    /// `BlackBoxFunc::has_side_effects`), so the advisor must leave it alone.
+    #[test]
+    fn fallible_blackbox_with_unused_result_not_flagged() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[6] = const bool 1
+        1: sp[8] = u32 add sp[5], @2
+        2: sp[9] = u32 add sp[2], @2
+        3: sp[10] = u32 add sp[3], @2
+        4: sp[11] = u32 add sp[4], @2
+        5: ecdsa_secp256k1(hashed_msg: [sp[8]; 32], public_key_x: [sp[9]; 32], public_key_y: [sp[10]; 32], signature: [sp[11]; 64], result: sp[7])
+        6: return
+        ");
+
+        assert_bytecode_contains(&artifact, "an EcdsaSecp256k1 opcode", |op| {
+            matches!(op, Opcode::BlackBox(BlackBoxOp::EcdsaSecp256k1 { .. }))
+        });
+
+        assert!(
+            !has_never_read(&advisories),
+            "expected no NeverRead advisory for fallible `ecdsa_secp256k1` whose result is unused, got: {advisories:?}"
+        );
+    }
+
+    /// Companion to [`fallible_div_with_unused_result_not_flagged`] for the
+    /// `ForeignCall` branch of [`is_fallible_opcode`]: an oracle call whose
+    /// return value is never consumed must not be flagged as `NeverRead`,
+    /// since the oracle has externally observable effects and may fail on
+    /// bad inputs.
+    ///
+    /// The SSA parser treats any callee whose name contains `oracle` as a
+    /// foreign function (see `into_ssa.rs`), which is exactly what we need
+    /// to exercise the `ForeignCall` arm without going through Noir source.
+    #[test]
+    fn fallible_foreign_call_with_unused_result_not_flagged() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call my_oracle(v0) -> u32
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[3]: u32 = foreign call my_oracle(sp[2]: u32)
+        1: return
+        ");
+
+        assert_bytecode_contains(&artifact, "a ForeignCall opcode", |op| {
+            matches!(op, Opcode::ForeignCall { .. })
+        });
+
+        assert!(
+            !has_never_read(&advisories),
+            "expected no NeverRead advisory for fallible `my_oracle` whose result is unused, got: {advisories:?}"
         );
     }
 }
