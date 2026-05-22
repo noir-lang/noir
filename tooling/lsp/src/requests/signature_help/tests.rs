@@ -311,4 +311,20 @@ mod signature_help_tests {
 
         assert_eq!(signature.active_parameter, Some(0));
     }
+
+    #[test]
+    async fn test_signature_help_for_incomplete_call_after_open_paren() {
+        let src = r#"
+        fn foo(x: i32, y: Field) -> u32 { 0 }
+
+        fn bar() {
+            foo(>|<
+        }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "fn foo(x: i32, y: Field) -> u32");
+        assert_eq!(signature.active_parameter, Some(0));
+    }
 }
