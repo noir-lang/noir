@@ -614,6 +614,45 @@ fn lt_uses_inferred_arithmetic_bit_size() {
 }
 
 #[test]
+fn lt_uses_backpropagated_range_check_bit_size() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u128, v1: u128):
+        v2 = add v0, v1
+        range_check v2 to 8 bits
+        v3 = lt v0, u128 255
+        return v3
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 128
+    BLACKBOX::RANGE input: w1, bits: 128
+    ASSERT w3 = w0 + w1
+    BLACKBOX::RANGE input: w3, bits: 8
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0 + 1, 256], outputs: [w4, w5]
+    BLACKBOX::RANGE input: w4, bits: 1
+    BLACKBOX::RANGE input: w5, bits: 8
+    ASSERT w5 = w0 - 256*w4 + 1
+    ASSERT w2 = -w4 + 1
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop @[@11; @10]
+    ");
+}
+
+#[test]
 fn and_u1() {
     let src = "
     acir(inline) fn main f0 {

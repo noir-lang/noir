@@ -368,4 +368,26 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn checked_to_unchecked_when_result_range_check_prevents_overflow() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ");
+    }
 }
