@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779463706649,
+  "lastUpdate": 1779463880908,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "be7d17552aea5a97c01a86677a3af3123b88b855",
-          "message": "fix(ssa-gen): consider `&mut (*x)` to be `x` in codegen_reference (#12684)",
-          "timestamp": "2026-05-15T15:50:34Z",
-          "tree_id": "ffc7b4acecae3ee4f991810687ba5f291908586c",
-          "url": "https://github.com/noir-lang/noir/commit/be7d17552aea5a97c01a86677a3af3123b88b855"
-        },
-        "date": 1778861659935,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168489,
-            "range": "± 421",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137611,
-            "range": "± 624",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650551,
-            "range": "± 11344",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3044050,
             "range": "± 14277",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f4c3bd564239334f142248a9b49a329ce3c80b0",
+          "message": "fix: use caller's module in macro visibility checks (#11759)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-05-22T15:04:35Z",
+          "tree_id": "32db4939a4aaa3b05020501861c3aa736885aba0",
+          "url": "https://github.com/noir-lang/noir/commit/2f4c3bd564239334f142248a9b49a329ce3c80b0"
+        },
+        "date": 1779463816351,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169034,
+            "range": "± 1373",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137993,
+            "range": "± 772",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646706,
+            "range": "± 7731",
             "unit": "ns/iter"
           }
         ]
