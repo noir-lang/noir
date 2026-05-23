@@ -661,7 +661,7 @@ impl DataFlowGraph {
         &self,
         ranges: &mut HashMap<ValueId, UnsignedValueRange>,
     ) {
-        // Branch-local or predicated range checks cannot be used as global value bounds.
+        // Branch-local or predicated constraints cannot be used as global value bounds.
         if self.blocks.len() != 1 || self.has_side_effect_predicates() {
             return;
         }
@@ -717,8 +717,53 @@ impl DataFlowGraph {
 
         changed |=
             self.propagate_unsigned_instruction_range_backwards(instruction_data, result, ranges);
+        changed |= self.propagate_unsigned_constrain_range(instruction_data, ranges);
 
         changed
+    }
+
+    fn propagate_unsigned_constrain_range(
+        &self,
+        instruction: &Instruction,
+        ranges: &mut HashMap<ValueId, UnsignedValueRange>,
+    ) -> bool {
+        let Instruction::Constrain(lhs, rhs, _) = instruction else {
+            return false;
+        };
+
+        self.propagate_unsigned_equality_range(*lhs, *rhs, ranges)
+    }
+
+    fn propagate_unsigned_equality_range(
+        &self,
+        lhs: ValueId,
+        rhs: ValueId,
+        ranges: &mut HashMap<ValueId, UnsignedValueRange>,
+    ) -> bool {
+        let lhs_range = ranges.get(&lhs).copied();
+        let rhs_range = ranges.get(&rhs).copied();
+
+        match (lhs_range, rhs_range) {
+            (Some(lhs_range), Some(rhs_range)) => {
+                let min = lhs_range.min.max(rhs_range.min);
+                let max = lhs_range.max.min(rhs_range.max);
+                if min > max {
+                    return false;
+                }
+
+                let mut changed = false;
+                changed |= self.refine_unsigned_value_range(ranges, lhs, min, max);
+                changed |= self.refine_unsigned_value_range(ranges, rhs, min, max);
+                changed
+            }
+            (Some(range), None) => {
+                self.refine_unsigned_value_range(ranges, rhs, range.min, range.max)
+            }
+            (None, Some(range)) => {
+                self.refine_unsigned_value_range(ranges, lhs, range.min, range.max)
+            }
+            (None, None) => false,
+        }
     }
 
     fn get_instruction_unsigned_value_range(
@@ -1897,6 +1942,33 @@ mod tests {
     }
 
     #[test]
+    fn unsigned_range_flows_from_equality_constraint() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            constrain v0 == u128 100
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 7);
+    }
+
+    #[test]
+    fn unsigned_range_flows_backwards_from_equality_constraint_through_add() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            constrain v2 == u128 100
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 7);
+    }
+
+    #[test]
     fn unsigned_range_flows_forward_from_field_range_check_through_cast() {
         let src = "
         acir(inline) fn main f0 {
@@ -1932,6 +2004,23 @@ mod tests {
             jmpif v1 then: b1(), else: b2()
           b1():
             range_check v0 to 8 bits
+            jmp b2()
+          b2():
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 128);
+    }
+
+    #[test]
+    fn unsigned_range_does_not_use_branch_local_equality_globally() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            constrain v0 == u128 100
             jmp b2()
           b2():
             return v0

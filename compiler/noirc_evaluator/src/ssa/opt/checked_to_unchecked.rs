@@ -140,6 +140,30 @@ mod tests {
     }
 
     #[test]
+    fn checked_to_unchecked_uses_equality_constraint_ranges() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            constrain v2 == u128 100
+            v3 = add v0, u128 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = unchecked_add v0, v1
+            constrain v2 == u128 100
+            v5 = unchecked_add v0, u128 1
+            return v5
+        }
+        ");
+    }
+
+    #[test]
     fn checked_to_unchecked_when_subtracting_u32() {
         let src = "
         acir(inline) fn main f0 {
