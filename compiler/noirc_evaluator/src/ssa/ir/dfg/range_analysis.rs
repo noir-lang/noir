@@ -338,7 +338,7 @@ impl<'dfg> Analysis<'dfg> {
                     return None;
                 }
 
-                constant.try_into_u128().map(Range::exact)
+                constant.try_into_u128().map(|value| Range::new(value, value))
             }
             Value::Instruction { instruction, .. } => match &self.dfg[instruction] {
                 Instruction::Cast(original_value, _) => {
@@ -507,10 +507,6 @@ impl Range {
     fn new(min: u128, max: u128) -> Self {
         debug_assert!(min <= max);
         Self { min, max }
-    }
-
-    fn exact(value: u128) -> Self {
-        Self::new(value, value)
     }
 
     fn bool() -> Self {
