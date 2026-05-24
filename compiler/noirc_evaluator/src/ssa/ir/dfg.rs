@@ -41,6 +41,10 @@ use simplify::{SimplifyResult, simplify};
 
 pub(crate) mod simplify;
 
+/// Inclusive range of possible values for an unsigned SSA value.
+///
+/// These ranges are deliberately conservative: if an operation can overflow or truncate, the
+/// lower bound falls back to zero rather than assuming the overflowing case is unreachable.
 #[derive(Clone, Copy)]
 struct UnsignedValueRange {
     min: u128,
@@ -53,6 +57,20 @@ impl UnsignedValueRange {
         Self { min, max }
     }
 
+    fn exact(value: u128) -> Self {
+        Self::new(value, value)
+    }
+
+    fn for_unsigned_bit_size(bit_size: u32) -> Option<Self> {
+        Some(Self::new(0, max_unsigned_value_for_bit_size(bit_size)?))
+    }
+
+    fn intersect(self, other: Self) -> Option<Self> {
+        let min = self.min.max(other.min);
+        let max = self.max.min(other.max);
+        if min <= max { Some(Self::new(min, max)) } else { None }
+    }
+
     fn truncate_to_unsigned_max(self, max: u128) -> Self {
         if self.max <= max {
             self
@@ -60,6 +78,34 @@ impl UnsignedValueRange {
             // If the source can exceed the target max, truncation may wrap to any target value.
             Self::new(0, max)
         }
+    }
+
+    fn max_result_fits(
+        self,
+        rhs: Self,
+        type_max: u128,
+        operation: impl FnOnce(u128, u128) -> Option<u128>,
+    ) -> bool {
+        operation(self.max, rhs.max).is_some_and(|result| result <= type_max)
+    }
+
+    /// Return a conservative result range for an unsigned operation that is monotonic in both
+    /// operands while it fits in the result type, such as add or multiply.
+    fn range_after_monotonic_op(
+        self,
+        rhs: Self,
+        type_max: u128,
+        operation: impl Fn(u128, u128) -> Option<u128>,
+    ) -> Self {
+        let max_result = operation(self.max, rhs.max);
+        let may_exceed_type = max_result.is_none_or(|result| result > type_max);
+        let max = max_result.unwrap_or(type_max).min(type_max);
+        let min = if may_exceed_type {
+            0
+        } else {
+            operation(self.min, rhs.min).filter(|result| *result <= type_max).unwrap_or(0)
+        };
+        Self::new(min, max)
     }
 
     fn max_num_bits(self) -> u32 {
@@ -646,10 +692,12 @@ impl DataFlowGraph {
 
     fn get_constrained_unsigned_value_range(&self, value: ValueId) -> Option<UnsignedValueRange> {
         let mut ranges = self.collect_unsigned_value_ranges();
-        self.apply_unconditional_use_range_constraints(&mut ranges);
+        self.apply_unconditional_unsigned_range_constraints(&mut ranges);
         ranges.get(&value).copied()
     }
 
+    /// Seed ranges from local instruction/type information, without using constraints imposed by
+    /// separate range-check or equality instructions.
     fn collect_unsigned_value_ranges(&self) -> HashMap<ValueId, UnsignedValueRange> {
         let mut ranges = HashMap::default();
 
@@ -662,7 +710,12 @@ impl DataFlowGraph {
         ranges
     }
 
-    fn apply_unconditional_use_range_constraints(
+    /// Apply constraints that are guaranteed to hold whenever this function executes.
+    ///
+    /// The fixed-point loop propagates range information in both directions through instructions:
+    /// result ranges refine operand ranges, operand ranges refine result ranges, and equality
+    /// constraints intersect the ranges of both sides.
+    fn apply_unconditional_unsigned_range_constraints(
         &self,
         ranges: &mut HashMap<ValueId, UnsignedValueRange>,
     ) {
@@ -750,15 +803,13 @@ impl DataFlowGraph {
 
         match (lhs_range, rhs_range) {
             (Some(lhs_range), Some(rhs_range)) => {
-                let min = lhs_range.min.max(rhs_range.min);
-                let max = lhs_range.max.min(rhs_range.max);
-                if min > max {
+                let Some(range) = lhs_range.intersect(rhs_range) else {
                     return false;
-                }
+                };
 
                 let mut changed = false;
-                changed |= self.refine_unsigned_value_range(ranges, lhs, min, max);
-                changed |= self.refine_unsigned_value_range(ranges, rhs, min, max);
+                changed |= self.refine_unsigned_value_range(ranges, lhs, range.min, range.max);
+                changed |= self.refine_unsigned_value_range(ranges, rhs, range.min, range.max);
                 changed
             }
             (Some(range), None) => {
@@ -771,6 +822,7 @@ impl DataFlowGraph {
         }
     }
 
+    /// Compute an instruction result range from already-known operand ranges.
     fn get_instruction_unsigned_value_range(
         &self,
         instruction: &Instruction,
@@ -839,6 +891,8 @@ impl DataFlowGraph {
         }
     }
 
+    /// Use a known result range to tighten operand ranges where the operation is invertible enough
+    /// to produce sound bounds.
     fn propagate_unsigned_instruction_range_backwards(
         &self,
         instruction: &Instruction,
@@ -935,7 +989,8 @@ impl DataFlowGraph {
 
         match binary.operator {
             BinaryOp::Add { unchecked } => {
-                if unchecked && lhs.max.checked_add(rhs.max).is_none_or(|sum| sum > type_max) {
+                if unchecked && !lhs.max_result_fits(rhs, type_max, |lhs, rhs| lhs.checked_add(rhs))
+                {
                     return false;
                 }
 
@@ -963,8 +1018,7 @@ impl DataFlowGraph {
                 changed |= self.refine_unsigned_value_range(ranges, binary.rhs, rhs_min, rhs_max);
             }
             BinaryOp::Mul { unchecked } => {
-                if unchecked
-                    && lhs.max.checked_mul(rhs.max).is_none_or(|product| product > type_max)
+                if unchecked && !lhs.max_result_fits(rhs, type_max, |lhs, rhs| lhs.checked_mul(rhs))
                 {
                     return false;
                 }
@@ -1035,6 +1089,10 @@ impl DataFlowGraph {
         changed
     }
 
+    /// Intersect `value`'s current range with `min..=max`.
+    ///
+    /// Empty refinements are ignored. They can appear when independent conservative facts cannot
+    /// overlap, and inventing a replacement singleton would make later inferences unsound.
     fn refine_unsigned_value_range(
         &self,
         ranges: &mut HashMap<ValueId, UnsignedValueRange>,
@@ -1098,9 +1156,7 @@ impl DataFlowGraph {
                     return None;
                 }
 
-                constant
-                    .try_into_u128()
-                    .map(|constant| UnsignedValueRange { min: constant, max: constant })
+                constant.try_into_u128().map(UnsignedValueRange::exact)
             }
             Value::Instruction { instruction, .. } => match &self[instruction] {
                 Instruction::Cast(original_value, _) => {
@@ -1226,15 +1282,7 @@ impl DataFlowGraph {
 
         let range = match binary.operator {
             BinaryOp::Add { .. } => {
-                let max_sum = lhs.max.checked_add(rhs.max);
-                let overflow_possible = max_sum.is_none_or(|sum| sum > type_max);
-                let max = max_sum.unwrap_or(type_max).min(type_max);
-                let min = if overflow_possible {
-                    0
-                } else {
-                    lhs.min.checked_add(rhs.min).filter(|sum| *sum <= type_max).unwrap_or(0)
-                };
-                UnsignedValueRange::new(min, max)
+                lhs.range_after_monotonic_op(rhs, type_max, |lhs, rhs| lhs.checked_add(rhs))
             }
             BinaryOp::Sub { unchecked: false } => {
                 let min = lhs.min.checked_sub(rhs.max).unwrap_or(0);
@@ -1249,15 +1297,7 @@ impl DataFlowGraph {
                 }
             }
             BinaryOp::Mul { .. } => {
-                let max_product = lhs.max.checked_mul(rhs.max);
-                let overflow_possible = max_product.is_none_or(|product| product > type_max);
-                let max = max_product.unwrap_or(type_max).min(type_max);
-                let min = if overflow_possible {
-                    0
-                } else {
-                    lhs.min.checked_mul(rhs.min).filter(|product| *product <= type_max).unwrap_or(0)
-                };
-                UnsignedValueRange::new(min, max)
+                lhs.range_after_monotonic_op(rhs, type_max, |lhs, rhs| lhs.checked_mul(rhs))
             }
             BinaryOp::Div => {
                 let max = if rhs.min == 0 { lhs.max } else { lhs.max / rhs.min };
@@ -1316,7 +1356,7 @@ impl DataFlowGraph {
             return None;
         };
 
-        Some(UnsignedValueRange::new(0, max_unsigned_value_for_bit_size(*bit_size)?))
+        UnsignedValueRange::for_unsigned_bit_size(*bit_size)
     }
 
     /// True if the type of this value is Type::Reference.

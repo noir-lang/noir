@@ -6,10 +6,11 @@
 
 use crate::ssa::{
     ir::{
-        dfg::max_unsigned_value_for_bit_size,
+        dfg::{DataFlowGraph, max_unsigned_value_for_bit_size},
         function::Function,
         instruction::{Binary, BinaryOp, Instruction},
         types::NumericType,
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -47,18 +48,9 @@ impl Function {
 
             let unchecked = match binary.operator {
                 BinaryOp::Add { unchecked: false } => {
-                    let bit_size = dfg.type_of_value(lhs).bit_size();
-                    let Some(type_max) = max_unsigned_value_for_bit_size(bit_size) else {
-                        return;
-                    };
-                    let Some((_, lhs_max)) = dfg.get_unsigned_value_bounds(lhs) else {
-                        return;
-                    };
-                    let Some((_, rhs_max)) = dfg.get_unsigned_value_bounds(rhs) else {
-                        return;
-                    };
-
-                    lhs_max.checked_add(rhs_max).is_some_and(|sum| sum <= type_max)
+                    unsigned_operation_cannot_overflow(dfg, lhs, rhs, |lhs, rhs| {
+                        lhs.checked_add(rhs)
+                    })
                 }
                 BinaryOp::Sub { unchecked: false } => {
                     let Some((lhs_min, _)) = dfg.get_unsigned_value_bounds(lhs) else {
@@ -71,18 +63,9 @@ impl Function {
                     lhs_min >= rhs_max
                 }
                 BinaryOp::Mul { unchecked: false } => {
-                    let bit_size = dfg.type_of_value(lhs).bit_size();
-                    let Some(type_max) = max_unsigned_value_for_bit_size(bit_size) else {
-                        return;
-                    };
-                    let Some((_, lhs_max)) = dfg.get_unsigned_value_bounds(lhs) else {
-                        return;
-                    };
-                    let Some((_, rhs_max)) = dfg.get_unsigned_value_bounds(rhs) else {
-                        return;
-                    };
-
-                    lhs_max.checked_mul(rhs_max).is_some_and(|product| product <= type_max)
+                    unsigned_operation_cannot_overflow(dfg, lhs, rhs, |lhs, rhs| {
+                        lhs.checked_mul(rhs)
+                    })
                 }
                 _ => false,
             };
@@ -96,6 +79,28 @@ impl Function {
             }
         });
     }
+}
+
+fn unsigned_operation_cannot_overflow(
+    dfg: &DataFlowGraph,
+    lhs: ValueId,
+    rhs: ValueId,
+    operation: impl FnOnce(u128, u128) -> Option<u128>,
+) -> bool {
+    // For unsigned monotonic operations, the maximum possible result is produced by the maximum
+    // possible operands. If that result fits in the destination type, the checked op is redundant.
+    let bit_size = dfg.type_of_value(lhs).bit_size();
+    let Some(type_max) = max_unsigned_value_for_bit_size(bit_size) else {
+        return false;
+    };
+    let Some((_, lhs_max)) = dfg.get_unsigned_value_bounds(lhs) else {
+        return false;
+    };
+    let Some((_, rhs_max)) = dfg.get_unsigned_value_bounds(rhs) else {
+        return false;
+    };
+
+    operation(lhs_max, rhs_max).is_some_and(|result| result <= type_max)
 }
 
 /// Pre-check condition for [Function::checked_to_unchecked].
