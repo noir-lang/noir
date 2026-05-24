@@ -66,9 +66,11 @@ impl<'dfg> Analysis<'dfg> {
                             return value_bit_size;
                         }
 
-                        let lhs_bits = self.bits(binary.lhs);
-                        let rhs_bits = self.bits(binary.rhs);
-                        binary.operator.max_bits(lhs_bits, rhs_bits, value_bit_size)
+                        binary.operator.max_bits(
+                            self.bits(binary.lhs),
+                            self.bits(binary.rhs),
+                            value_bit_size,
+                        )
                     }
                     _ => value_bit_size,
                 }
