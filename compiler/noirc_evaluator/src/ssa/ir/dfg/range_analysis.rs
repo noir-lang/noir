@@ -279,7 +279,7 @@ impl<'dfg> Analysis<'dfg> {
             return false;
         };
 
-        binary.operator.backward(BinaryBack { analysis: self, facts, binary, result, ranges })
+        binary.operator.backward(BinaryBack { dfg: self.dfg, facts, binary, result, ranges })
     }
 
     fn equality(&self, instruction: &Instruction, facts: &mut Facts) -> bool {
@@ -660,23 +660,17 @@ impl BinaryRanges {
     }
 }
 
-struct BinaryBack<'a, 'dfg> {
-    analysis: &'a Analysis<'dfg>,
+struct BinaryBack<'a> {
+    dfg: &'a DataFlowGraph,
     facts: &'a mut Facts,
     binary: &'a Binary,
     result: Range,
     ranges: BinaryRanges,
 }
 
-impl<'a, 'dfg> BinaryBack<'a, 'dfg> {
+impl<'a> BinaryBack<'a> {
     fn add(&mut self, unchecked: bool) -> bool {
-        if unchecked
-            && !self.ranges.lhs.max_result_fits(
-                self.ranges.rhs,
-                self.ranges.type_max,
-                |lhs, rhs| lhs.checked_add(rhs),
-            )
-        {
+        if unchecked && self.result_may_wrap(|lhs, rhs| lhs.checked_add(rhs)) {
             return false;
         }
 
@@ -704,13 +698,7 @@ impl<'a, 'dfg> BinaryBack<'a, 'dfg> {
     }
 
     fn mul(&mut self, unchecked: bool) -> bool {
-        if unchecked
-            && !self.ranges.lhs.max_result_fits(
-                self.ranges.rhs,
-                self.ranges.type_max,
-                |lhs, rhs| lhs.checked_mul(rhs),
-            )
-        {
+        if unchecked && self.result_may_wrap(|lhs, rhs| lhs.checked_mul(rhs)) {
             return false;
         }
 
@@ -776,11 +764,15 @@ impl<'a, 'dfg> BinaryBack<'a, 'dfg> {
     }
 
     fn refine_lhs(&mut self, min: u128, max: u128) -> bool {
-        self.facts.refine_bounds(self.analysis.dfg, self.binary.lhs, min, max)
+        self.facts.refine_bounds(self.dfg, self.binary.lhs, min, max)
     }
 
     fn refine_rhs(&mut self, min: u128, max: u128) -> bool {
-        self.facts.refine_bounds(self.analysis.dfg, self.binary.rhs, min, max)
+        self.facts.refine_bounds(self.dfg, self.binary.rhs, min, max)
+    }
+
+    fn result_may_wrap(&self, operation: impl FnOnce(u128, u128) -> Option<u128>) -> bool {
+        !self.ranges.lhs.max_result_fits(self.ranges.rhs, self.ranges.type_max, operation)
     }
 }
 
@@ -817,7 +809,7 @@ impl BinaryOp {
         }
     }
 
-    fn backward(self, mut back: BinaryBack<'_, '_>) -> bool {
+    fn backward(self, mut back: BinaryBack<'_>) -> bool {
         match self {
             BinaryOp::Add { unchecked } => back.add(unchecked),
             BinaryOp::Sub { unchecked } => back.sub(unchecked),
