@@ -669,9 +669,9 @@ struct BinaryBack<'a> {
 }
 
 impl<'a> BinaryBack<'a> {
-    fn add(&mut self, unchecked: bool) -> bool {
+    fn add(&self, unchecked: bool) -> Option<OperandRanges> {
         if unchecked && self.result_may_wrap(|lhs, rhs| lhs.checked_add(rhs)) {
-            return false;
+            return None;
         }
 
         let lhs_max = self.result.max.saturating_sub(self.ranges.rhs.min);
@@ -679,12 +679,16 @@ impl<'a> BinaryBack<'a> {
         let lhs_min = self.result.min.saturating_sub(self.ranges.rhs.max);
         let rhs_min = self.result.min.saturating_sub(self.ranges.lhs.max);
 
-        self.refine_lhs(lhs_min, lhs_max) | self.refine_rhs(rhs_min, rhs_max)
+        Some(
+            self.operands()
+                .tighten_lhs_bounds(lhs_min, lhs_max)
+                .tighten_rhs_bounds(rhs_min, rhs_max),
+        )
     }
 
-    fn sub(&mut self, unchecked: bool) -> bool {
+    fn sub(&self, unchecked: bool) -> Option<OperandRanges> {
         if unchecked && self.ranges.lhs.min < self.ranges.rhs.max {
-            return false;
+            return None;
         }
 
         let lhs_min =
@@ -694,32 +698,36 @@ impl<'a> BinaryBack<'a> {
         let rhs_min = self.ranges.lhs.min.saturating_sub(self.result.max);
         let rhs_max = self.ranges.lhs.max.saturating_sub(self.result.min);
 
-        self.refine_lhs(lhs_min, lhs_max) | self.refine_rhs(rhs_min, rhs_max)
+        Some(
+            self.operands()
+                .tighten_lhs_bounds(lhs_min, lhs_max)
+                .tighten_rhs_bounds(rhs_min, rhs_max),
+        )
     }
 
-    fn mul(&mut self, unchecked: bool) -> bool {
+    fn mul(&self, unchecked: bool) -> Option<OperandRanges> {
         if unchecked && self.result_may_wrap(|lhs, rhs| lhs.checked_mul(rhs)) {
-            return false;
+            return None;
         }
 
-        let mut changed = false;
+        let mut operands = self.operands();
         if self.ranges.rhs.min > 0 {
-            changed |= self.refine_lhs(
+            operands = operands.tighten_lhs_bounds(
                 ceil_div(self.result.min, self.ranges.rhs.max),
                 self.result.max / self.ranges.rhs.min,
             );
         }
         if self.ranges.lhs.min > 0 {
-            changed |= self.refine_rhs(
+            operands = operands.tighten_rhs_bounds(
                 ceil_div(self.result.min, self.ranges.lhs.max),
                 self.result.max / self.ranges.lhs.min,
             );
         }
-        changed
+        Some(operands)
     }
 
-    fn div(&mut self) -> bool {
-        let mut changed = false;
+    fn div(&self) -> Option<OperandRanges> {
+        let mut operands = self.operands();
 
         if self.ranges.rhs.max > 0 {
             let lhs_max = self
@@ -730,7 +738,7 @@ impl<'a> BinaryBack<'a> {
                 .and_then(|exclusive_bound| exclusive_bound.checked_sub(1))
                 .unwrap_or(self.ranges.type_max)
                 .min(self.ranges.type_max);
-            changed |= self.refine_lhs(0, lhs_max);
+            operands = operands.tighten_lhs_bounds(0, lhs_max);
         }
 
         if self.ranges.rhs.min > 0 {
@@ -740,39 +748,78 @@ impl<'a> BinaryBack<'a> {
                 .checked_mul(self.ranges.rhs.min)
                 .unwrap_or(self.ranges.type_max)
                 .min(self.ranges.type_max);
-            changed |= self.refine_lhs(lhs_min, self.ranges.type_max);
+            operands = operands.tighten_lhs_bounds(lhs_min, self.ranges.type_max);
         }
 
-        changed
+        Some(operands)
     }
 
-    fn bitor(&mut self) -> bool {
-        self.refine_lhs(0, self.result.max) | self.refine_rhs(0, self.result.max)
+    fn bitor(&self) -> Option<OperandRanges> {
+        Some(
+            self.operands()
+                .tighten_lhs(Range::new(0, self.result.max))
+                .tighten_rhs(Range::new(0, self.result.max)),
+        )
     }
 
-    fn shl(&mut self) -> bool {
+    fn shl(&self) -> Option<OperandRanges> {
         if self.ranges.rhs.min != self.ranges.rhs.max || self.ranges.rhs.max >= 128 {
-            return false;
+            return None;
         }
 
         let shift = self.ranges.rhs.max as u32;
         if !self.ranges.lhs.max.checked_shl(shift).is_some_and(|max| max <= self.ranges.type_max) {
-            return false;
+            return None;
         }
 
-        self.refine_lhs(0, self.result.max >> shift)
+        Some(self.operands().tighten_lhs(Range::new(0, self.result.max >> shift)))
     }
 
-    fn refine_lhs(&mut self, min: u128, max: u128) -> bool {
-        self.facts.refine_bounds(self.dfg, self.binary.lhs, min, max)
+    fn apply(&mut self, operands: Option<OperandRanges>) -> bool {
+        let Some(operands) = operands else {
+            return false;
+        };
+
+        self.facts.refine(self.dfg, self.binary.lhs, operands.lhs)
+            | self.facts.refine(self.dfg, self.binary.rhs, operands.rhs)
     }
 
-    fn refine_rhs(&mut self, min: u128, max: u128) -> bool {
-        self.facts.refine_bounds(self.dfg, self.binary.rhs, min, max)
+    fn operands(&self) -> OperandRanges {
+        OperandRanges { lhs: self.ranges.lhs, rhs: self.ranges.rhs }
     }
 
     fn result_may_wrap(&self, operation: impl FnOnce(u128, u128) -> Option<u128>) -> bool {
         !self.ranges.lhs.max_result_fits(self.ranges.rhs, self.ranges.type_max, operation)
+    }
+}
+
+struct OperandRanges {
+    lhs: Range,
+    rhs: Range,
+}
+
+impl OperandRanges {
+    // Empty intersections are ignored to match `Facts::refine`.
+    fn tighten_lhs_bounds(self, min: u128, max: u128) -> Self {
+        if min <= max { self.tighten_lhs(Range::new(min, max)) } else { self }
+    }
+
+    fn tighten_rhs_bounds(self, min: u128, max: u128) -> Self {
+        if min <= max { self.tighten_rhs(Range::new(min, max)) } else { self }
+    }
+
+    fn tighten_lhs(mut self, range: Range) -> Self {
+        if let Some(range) = self.lhs.intersect(range) {
+            self.lhs = range;
+        }
+        self
+    }
+
+    fn tighten_rhs(mut self, range: Range) -> Self {
+        if let Some(range) = self.rhs.intersect(range) {
+            self.rhs = range;
+        }
+        self
     }
 }
 
@@ -810,7 +857,7 @@ impl BinaryOp {
     }
 
     fn backward(self, mut back: BinaryBack<'_>) -> bool {
-        match self {
+        let operands = match self {
             BinaryOp::Add { unchecked } => back.add(unchecked),
             BinaryOp::Sub { unchecked } => back.sub(unchecked),
             BinaryOp::Mul { unchecked } => back.mul(unchecked),
@@ -822,7 +869,8 @@ impl BinaryOp {
             | BinaryOp::Xor
             | BinaryOp::Shr
             | BinaryOp::Eq
-            | BinaryOp::Lt => false,
-        }
+            | BinaryOp::Lt => None,
+        };
+        back.apply(operands)
     }
 }
