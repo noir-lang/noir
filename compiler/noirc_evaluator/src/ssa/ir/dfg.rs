@@ -53,6 +53,15 @@ impl UnsignedValueRange {
         Self { min, max }
     }
 
+    fn truncate_to_unsigned_max(self, max: u128) -> Self {
+        if self.max <= max {
+            self
+        } else {
+            // If the source can exceed the target max, truncation may wrap to any target value.
+            Self::new(0, max)
+        }
+    }
+
     fn max_num_bits(self) -> u32 {
         u128_num_bits(self.max)
     }
@@ -69,10 +78,6 @@ pub(crate) fn max_unsigned_value_for_bit_size(bit_size: u32) -> Option<u128> {
 
 fn u128_num_bits(value: u128) -> u32 {
     u128::BITS - value.leading_zeros()
-}
-
-fn normalize_range(min: u128, max: u128) -> (u128, u128) {
-    if min <= max { (min, max) } else { (max, max) }
 }
 
 fn ceil_div(numerator: u128, denominator: u128) -> u128 {
@@ -788,11 +793,7 @@ impl DataFlowGraph {
                     Type::Numeric(NumericType::NativeField) => Some(original_range),
                     Type::Numeric(NumericType::Unsigned { bit_size }) => {
                         let max = max_unsigned_value_for_bit_size(*bit_size)?;
-                        if original_range.max <= max {
-                            Some(original_range)
-                        } else {
-                            Some(UnsignedValueRange::new(0, max))
-                        }
+                        Some(original_range.truncate_to_unsigned_max(max))
                     }
                     _ => None,
                 }
@@ -807,11 +808,7 @@ impl DataFlowGraph {
 
                 let max = max_unsigned_value_for_bit_size(value_bit_size.min(*bit_size))?;
                 let original_range = ranges.get(original_value).copied()?;
-                if original_range.max <= max {
-                    Some(original_range)
-                } else {
-                    Some(UnsignedValueRange::new(0, max))
-                }
+                Some(original_range.truncate_to_unsigned_max(max))
             }
             Instruction::Binary(binary) => {
                 let lhs = ranges.get(&binary.lhs).copied()?;
@@ -1065,16 +1062,20 @@ impl DataFlowGraph {
 
         let min = min.min(type_max);
         let max = max.min(type_max);
+        if min > max {
+            return false;
+        }
 
         let Some(existing) = ranges.get(&value).copied() else {
-            let (min, max) = normalize_range(min, max);
             ranges.insert(value, UnsignedValueRange::new(min, max));
             return true;
         };
 
         let min = existing.min.max(min);
         let max = existing.max.min(max);
-        let (min, max) = normalize_range(min, max);
+        if min > max {
+            return false;
+        }
 
         if min != existing.min || max != existing.max {
             ranges.insert(value, UnsignedValueRange::new(min, max));
@@ -1114,7 +1115,7 @@ impl DataFlowGraph {
                     let original_range = self.get_unsigned_value_range(*original_value);
 
                     match original_range {
-                        Some(original_range) if original_range.max <= max => Some(original_range),
+                        Some(original_range) => Some(original_range.truncate_to_unsigned_max(max)),
                         _ => Some(UnsignedValueRange::new(0, max)),
                     }
                 }
@@ -1130,7 +1131,7 @@ impl DataFlowGraph {
                     let original_range = self.get_unsigned_value_range(*original_value);
 
                     match original_range {
-                        Some(original_range) if original_range.max <= max => Some(original_range),
+                        Some(original_range) => Some(original_range.truncate_to_unsigned_max(max)),
                         _ => Some(UnsignedValueRange::new(0, max)),
                     }
                 }
