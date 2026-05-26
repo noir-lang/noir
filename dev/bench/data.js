@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779467419787,
+  "lastUpdate": 1779789289697,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f6a584c410f78f4d9c53c830dabbf730d3f8c939",
-          "message": "fix: elaborate op-assign RHS before LHS (#12682)",
-          "timestamp": "2026-05-15T20:09:29Z",
-          "tree_id": "99dbb7ec118521a269d7d6b5134a954a75386223",
-          "url": "https://github.com/noir-lang/noir/commit/f6a584c410f78f4d9c53c830dabbf730d3f8c939"
-        },
-        "date": 1778877199029,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169129,
-            "range": "± 977",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138062,
-            "range": "± 1430",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649520,
-            "range": "± 1840",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646236,
             "range": "± 1673",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "be64e1e5dfd1dafd11d8bef99feaa77afd88d6ef",
+          "message": "chore(deps): bump EmbarkStudios/cargo-deny-action from 2.0.18 to 2.0.19 (#12782)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-05-26T09:20:23Z",
+          "tree_id": "f239fbe3b1b6eb0a371fc59eeaae2c42b417ecee",
+          "url": "https://github.com/noir-lang/noir/commit/be64e1e5dfd1dafd11d8bef99feaa77afd88d6ef"
+        },
+        "date": 1779789224097,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 139003,
+            "range": "± 451",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 121459,
+            "range": "± 1959",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3052586,
+            "range": "± 19267",
             "unit": "ns/iter"
           }
         ]
