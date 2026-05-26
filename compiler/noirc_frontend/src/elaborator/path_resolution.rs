@@ -11,7 +11,9 @@ use crate::hir::resolution::import::{
 };
 
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::visibility::item_in_module_is_visible;
+use crate::hir::resolution::visibility::{
+    item_in_module_is_visible, trait_visibility_for_method_is_satisfied,
+};
 
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
@@ -825,7 +827,7 @@ impl Elaborator<'_> {
                 source_module,
                 visibility,
             ) {
-                errors.push(PathResolutionError::Private(name));
+                errors.push(PathResolutionError::Private(name.clone()));
             }
         } else if !item_in_module_is_visible(
             self.def_maps,
@@ -833,6 +835,20 @@ impl Elaborator<'_> {
             current_module_id,
             visibility,
         ) {
+            errors.push(PathResolutionError::Private(name.clone()));
+        }
+
+        // A trait method imported via `Type::method` must also be reachable through its trait's
+        // visibility (e.g. a `pub(crate) trait` is not accessible from another crate, even if the
+        // method's own visibility check above passes).
+        if let ModuleDefId::FunctionId(func_id) = module_def_id
+            && !trait_visibility_for_method_is_satisfied(
+                func_id,
+                importing_module,
+                self.interner,
+                self.def_maps,
+            )
+        {
             errors.push(PathResolutionError::Private(name));
         }
 
