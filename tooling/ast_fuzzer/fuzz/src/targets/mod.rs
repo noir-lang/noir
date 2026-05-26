@@ -96,24 +96,6 @@ mod tests {
         .run();
     }
 
-    /// Run a fuzz target against a list of seeds that previously triggered a
-    /// real bug. Each seed must compile/execute without panicking under the
-    /// given `f`, otherwise the bug has regressed.
-    pub fn run_regression_seeds(
-        f: impl Fn(&mut Unstructured) -> eyre::Result<()>,
-        seeds: &[u64],
-    ) {
-        let _ = env_logger::try_init();
-        for &seed in seeds {
-            arbtest::arbtest(|u| {
-                f(u).unwrap();
-                Ok(())
-            })
-            .seed(seed)
-            .run();
-        }
-    }
-
     /// Run the tests non-deterministically until the timeout.
     ///
     /// This is the local behavior.
