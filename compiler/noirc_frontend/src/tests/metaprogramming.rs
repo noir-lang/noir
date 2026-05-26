@@ -1781,3 +1781,142 @@ fn inline_bound_on_quoted_generic_is_preserved() {
     "#;
     check_errors_with_stdlib(src, [stdlib]);
 }
+
+#[test]
+fn reference_generated_struct_in_function_signature() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub fn bar(_: MyStruct) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_two_generated_structs_should_work() {
+    let src = r#"
+    #[gen_struct(quote { Foo })]
+    mod Foo {
+        #[super::gen_struct(quote { Bar })]
+        pub mod Bar {}
+    }
+
+    comptime fn gen_struct(_: Module, name: Quoted) -> Quoted {
+        quote {
+            pub struct $name {
+            }
+        }
+    }
+
+    pub fn use_struct(_: Foo::Foo) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl Bar {
+        pub fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_trait_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+    pub trait Trait {
+        fn bar(_: MyStruct);
+    }
+
+    impl Trait for Bar {
+        fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_another_struct_field() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {
+        s: MyStruct,
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_a_global() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub global s: MyStruct = MyStruct {};
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_an_enum_variant() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub enum Bar {
+        Variant(MyStruct),
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    crate::tests::assert_no_errors_using_features(src, &features);
+}

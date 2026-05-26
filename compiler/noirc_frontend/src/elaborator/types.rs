@@ -25,8 +25,9 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
         resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::item_in_module_is_visible,
+            errors::ResolverError,
+            import::PathResolutionError,
+            visibility::{item_in_module_is_visible, trait_visibility_for_method_is_satisfied},
         },
         type_check::{
             Source, TypeCheckError,
@@ -1477,6 +1478,53 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a path of the form `Type::method` or `Type::<turbofish>::method`.
+    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_direct_method].
+    /// Resolves each candidate's meta first so that the type-aware lookup (which reads
+    /// `function_meta` directly via `Methods::method_matches`) doesn't ICE on a
+    /// still-deferred meta.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn lookup_direct_method(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> Option<FuncId> {
+        self.resolve_method_candidate_metas(typ, method_name);
+        self.interner.lookup_direct_method(typ, method_name, check_self_param)
+    }
+
+    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_trait_methods].
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn lookup_trait_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId)> {
+        self.resolve_method_candidate_metas(typ, method_name);
+        self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
+    }
+
+    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_generic_methods].
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn lookup_generic_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId)> {
+        for func_id in self.interner.generic_method_candidate_ids(method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
+        self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
+    }
+
+    fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
+        for func_id in self.interner.method_candidate_ids(typ, method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
+    }
+
     ///
     /// When turbofish generics are present, uses type-directed lookup to select the correct impl
     /// (e.g. `S::<u32, u64>::foo` picks the impl whose self type unifies with `S<u32, u64>`).
@@ -1548,7 +1596,7 @@ impl Elaborator<'_> {
         let mut trait_methods = None;
 
         let check_self_param = false;
-        let direct_method = self.interner.lookup_direct_method(&typ, method_name, check_self_param);
+        let direct_method = self.lookup_direct_method(&typ, method_name, check_self_param);
 
         // When turbofish generics are provided, use type-directed method lookup to pick the
         // correct impl. Without turbofish, fall through to module-based lookup, which handles
@@ -1585,8 +1633,7 @@ impl Elaborator<'_> {
             }
 
             let has_self_arg = false;
-            let type_trait_methods =
-                self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
+            let type_trait_methods = self.lookup_trait_methods(&typ, method_name, has_self_arg);
 
             // If no method matches the turbofish type but the name is a known method for this
             // type (just incompatible), report an error. If the name isn't a method at all
@@ -1623,7 +1670,7 @@ impl Elaborator<'_> {
 
         let has_self_arg = false;
         let trait_methods = trait_methods
-            .unwrap_or_else(|| self.interner.lookup_trait_methods(&typ, method_name, has_self_arg));
+            .unwrap_or_else(|| self.lookup_trait_methods(&typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
@@ -1668,6 +1715,17 @@ impl Elaborator<'_> {
                 let mut errors = path_resolution.errors;
                 if let Some(error) = error {
                     errors.push(error);
+                }
+
+                let importing_module =
+                    ModuleId { krate: self.crate_id, local_id: self.local_module() };
+                if !trait_visibility_for_method_is_satisfied(
+                    func_id,
+                    importing_module,
+                    self.interner,
+                    self.def_maps,
+                ) {
+                    errors.push(PathResolutionError::Private(last_segment.ident.clone()));
                 }
 
                 let method = TraitPathResolutionMethod::TraitItem(trait_method);
@@ -2516,6 +2574,8 @@ impl Elaborator<'_> {
 
         match &lhs_type {
             Type::DataType(s, args) => {
+                let type_id = s.borrow().id;
+                self.define_struct_fields_if_undefined(type_id);
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     self.interner.add_struct_member_reference(s.id, index, location);
@@ -2646,14 +2706,13 @@ impl Elaborator<'_> {
     ) -> Option<HirMethodReference> {
         // First search in the type methods. If there is one, that's the one.
         if let Some(method_id) =
-            self.interner.lookup_direct_method(object_type, method_name, check_self_param)
+            self.lookup_direct_method(object_type, method_name, check_self_param)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
         // Next lookup all matching trait methods.
-        let trait_methods =
-            self.interner.lookup_trait_methods(object_type, method_name, check_self_param);
+        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
@@ -2663,7 +2722,7 @@ impl Elaborator<'_> {
         // If we couldn't find any trait methods, search in
         // impls for all types `T`, e.g. `impl<T> Foo for T`
         let generic_methods =
-            self.interner.lookup_generic_methods(object_type, method_name, check_self_param);
+            self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
         }
@@ -2813,10 +2872,13 @@ impl Elaborator<'_> {
         };
 
         // The function we are elaborating, ie. where we make the method call from.
-        let func_meta = self.interner.function_meta(&func_id);
+        let (func_meta_trait_id, func_trait_constraints) = self
+            .with_function_meta(func_id, |meta| {
+                (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
+            });
 
         // If inside a trait method, check if it's a method on `self`
-        if let Some(trait_id) = func_meta.trait_id
+        if let Some(trait_id) = func_meta_trait_id
             && Some(object_type) == self.self_type.as_ref()
         {
             let the_trait = self.interner.get_trait(trait_id);
@@ -2853,7 +2915,7 @@ impl Elaborator<'_> {
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
 
-        for constraint in func_meta.all_trait_constraints() {
+        for constraint in &func_trait_constraints {
             if *object_type == constraint.typ
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
@@ -2909,6 +2971,7 @@ impl Elaborator<'_> {
         // Check if it's `foo.bar()` where `bar` is a member of the struct `foo`.
         // In that case we tell the user that they need to write it like `(foo.bar)()`.
         if let Type::DataType(datatype, _) = object_type {
+            self.define_struct_fields_if_undefined(datatype.borrow().id);
             let datatype = datatype.borrow();
             let has_field_with_function_type = datatype.fields_raw().is_some_and(|fields| {
                 fields
@@ -3030,6 +3093,17 @@ impl Elaborator<'_> {
                 UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
             }
 
+            // Resolve any deferred struct fields reachable through the arg
+            // types so the boundary validity check sees real fields instead
+            // of stub `StructWithUnknownFields`. Without this, an unresolved
+            // struct is misread as an enum (`get_fields` returns `None`) and
+            // the check reports a spurious "mutable reference" error. This
+            // matters inside recursive `elaborate_items` (from `run_attributes`)
+            // where outer-pending structs haven't been drained yet.
+            for (typ, _, _) in &args {
+                self.define_deferred_data_types_in(typ);
+            }
+
             let errors = lints::unconstrained_function_args(&args);
             self.push_errors(errors);
         }
@@ -3037,6 +3111,7 @@ impl Elaborator<'_> {
         let return_type = self.bind_function_type(func_type, args, location);
 
         if crossing_runtime_boundary {
+            self.define_deferred_data_types_in(&return_type);
             self.run_lint(|_| {
                 lints::unconstrained_function_return(&return_type, location).map(Into::into)
             });

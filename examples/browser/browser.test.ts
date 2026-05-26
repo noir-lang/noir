@@ -90,7 +90,7 @@ test.describe('Noir Web App', () => {
 
   test('should generate and verify proof for valid age', async ({ page }) => {
     // Increase test timeout as proof generation can take time
-    test.setTimeout(30000);
+    test.setTimeout(60000);
 
     await page.goto(`http://localhost:${SERVER_PORT}`);
     await page.waitForLoadState('networkidle');
@@ -104,7 +104,7 @@ test.describe('Noir Web App', () => {
 
     // Wait for backend creation (this can take some time)
     await expect(page.locator('#logs')).toContainText('Creating Barretenberg... ⏳');
-    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 20000});
+    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 40000});
 
     // Wait for witness generation
     await expect(page.locator('#logs')).toContainText('Generating witness... ⏳', {timeout: 10000});
@@ -125,7 +125,7 @@ test.describe('Noir Web App', () => {
   });
 
   test('should fail for invalid age', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(60000);
 
     await page.goto(`http://localhost:${SERVER_PORT}`);
     await page.waitForLoadState('networkidle');

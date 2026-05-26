@@ -138,6 +138,12 @@ comptime fn make_tuple_eq_body(n: u32) -> Quoted {
     f"{body}".quoted_contents()
 }
 
+impl<A: Eq> Eq for (A,) {
+    fn eq(self, other: (A,)) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl<A: Eq, B: Eq> Eq for (A, B) {
     fn eq(self, other: (A, B)) -> bool {
         make_tuple_eq_body!(2u32)
@@ -458,6 +464,12 @@ comptime fn make_tuple_ord_body(n: u32) -> Quoted {
     f"{body}".quoted_contents()
 }
 
+impl<A: Ord> Ord for (A,) {
+    fn cmp(self, other: (A,)) -> Ordering {
+        self.0.cmp(other.0)
+    }
+}
+
 impl<A: Ord, B: Ord> Ord for (A, B) {
     fn cmp(self, other: (A, B)) -> Ordering {
         make_tuple_ord_body!(2u32)
@@ -571,7 +583,8 @@ where
 }
 
 mod cmp_tests {
-    use super::{Eq, max, min, Ord};
+    use crate::meta::unquote;
+    use super::{Eq, max, min, Ord, Ordering};
 
     #[test]
     fn sanity_check_min() {
@@ -606,5 +619,161 @@ mod cmp_tests {
             [1_u32, 2_u32].as_vector().cmp([1_u32, 2_u32, 3_u32].as_vector())
                 == super::Ordering::less(),
         );
+    }
+
+    #[test]
+    fn eq_unit() {
+        assert(().eq(()));
+    }
+
+    #[test]
+    fn eq_bool() {
+        assert(false.eq(false));
+        assert(!(false.eq(true)));
+        assert(!(true.eq(false)));
+        assert(true.eq(true));
+    }
+
+    #[test]
+    fn eq_integers() {
+        comptime {
+            for typ in @[
+                quote { u8 },
+                quote { i8 },
+                quote { u16 },
+                quote { i16 },
+                quote { u32 },
+                quote { i32 },
+                quote { u64 },
+                quote { i64 },
+                quote { u128 },
+                quote { Field },
+            ] {
+                let one = f"1_{typ}".quoted_contents();
+                let two = f"2_{typ}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert($one.eq($one));
+                        assert(!($one.eq($two)));
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn eq_tuples() {
+        comptime {
+            for i in 1..=12 {
+                let mut tuple1 = @[];
+                let mut tuple2 = @[];
+                for _ in 0..i - 1 {
+                    tuple1 = tuple1.push_back(quote { 0 });
+                    tuple2 = tuple2.push_back(quote { 0 });
+                }
+                tuple1 = tuple1.push_back(quote { 0 });
+                tuple2 = tuple2.push_back(quote { 1 });
+                let tuple1 = tuple1.join(quote { , });
+                let tuple2 = tuple2.join(quote { , });
+                let tuple1 = quote { ($tuple1,) };
+                let tuple2 = quote { ($tuple2,) };
+                unquote!(
+                    quote {
+                    assert($tuple1.eq($tuple1));
+                    assert(!($tuple1.eq($tuple2)));
+                },
+                )
+            }
+        }
+    }
+
+    #[test]
+    fn cmp_unit() {
+        assert_eq(().cmp(()), Ordering::equal());
+    }
+
+    #[test]
+    fn cmp_bool() {
+        assert_eq(false.cmp(true), Ordering::less());
+        assert_eq(false.cmp(false), Ordering::equal());
+        assert_eq(true.cmp(true), Ordering::equal());
+        assert_eq(true.cmp(false), Ordering::greater());
+    }
+
+    #[test]
+    fn cmp_integers() {
+        comptime {
+            for typ in @[
+                quote { u8 },
+                quote { i8 },
+                quote { u16 },
+                quote { i16 },
+                quote { u32 },
+                quote { i32 },
+                quote { u64 },
+                quote { i64 },
+                quote { u128 },
+            ] {
+                let one = f"1_{typ}".quoted_contents();
+                let two = f"2_{typ}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert_eq($one.cmp($two), Ordering::less());
+                        assert_eq($one.cmp($one), Ordering::equal());
+                        assert_eq($two.cmp($one), Ordering::greater());
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn cmp_tuples() {
+        comptime {
+            for i in 1..=12 {
+                let mut tuple1 = @[];
+                let mut tuple2 = @[];
+                for _ in 0..i - 1 {
+                    tuple1 = tuple1.push_back(quote { 0_u8 });
+                    tuple2 = tuple2.push_back(quote { 0_u8 });
+                }
+                tuple1 = tuple1.push_back(quote { 0_u8 });
+                tuple2 = tuple2.push_back(quote { 1_u8 });
+                let tuple1 = tuple1.join(quote { , });
+                let tuple2 = tuple2.join(quote { , });
+                let tuple1 = quote { ($tuple1,) };
+                let tuple2 = quote { ($tuple2,) };
+                unquote!(
+                    quote {
+                    assert_eq($tuple1.cmp($tuple1), Ordering::equal());
+                    assert_eq($tuple1.cmp($tuple2), Ordering::less());
+                    assert_eq($tuple2.cmp($tuple1), Ordering::greater());
+                },
+                )
+            }
+        }
+    }
+
+    #[test]
+    fn cmp_array() {
+        assert_eq([1_u8, 2, 3].cmp([1, 2, 3]), Ordering::equal());
+        assert_eq([1_u8, 2, 3].cmp([1, 3, 2]), Ordering::less());
+        assert_eq([1_u8, 3, 3].cmp([1, 2, 3]), Ordering::greater());
+    }
+
+    #[test]
+    fn cmp_vectors() {
+        // Equal lengths
+        assert_eq(@[1_u8, 2, 3].cmp(@[1, 2, 3]), Ordering::equal());
+        assert_eq(@[1_u8, 3, 3].cmp(@[1, 2, 3]), Ordering::greater());
+        assert_eq(@[1_u8, 2, 3].cmp(@[1, 3, 3]), Ordering::less());
+
+        // Different lengths
+        assert_eq(@[1_u8, 2].cmp(@[1, 2, 3]), Ordering::less());
+        assert_eq(@[1_u8, 2, 3].cmp(@[1, 2]), Ordering::greater());
+        assert_eq(@[10_u8, 0].cmp(@[9]), Ordering::greater());
+        assert_eq(@[9_u8, 0].cmp(@[10]), Ordering::less());
+        assert_eq(@[9_u8].cmp(@[10, 0]), Ordering::less());
+        assert_eq(@[10_u8].cmp(@[9, 0]), Ordering::greater());
     }
 }

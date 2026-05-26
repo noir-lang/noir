@@ -1324,4 +1324,39 @@ impl Foo {
 ";
         assert_format_wrapping_comments(src, src, 120);
     }
+
+    #[test]
+    fn preserves_utf8_in_line_comment() {
+        // cSpell:disable-next-line
+        let src = "// schön — héllo 🙂
+fn main() {}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn preserves_utf8_in_block_comment() {
+        let src = "/* 日本語 in a block comment */
+fn main() {}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn preserves_utf8_in_doc_comment() {
+        let src = "/// 日本語 doc on a function
+fn main() {}
+";
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn preserves_utf8_in_trailing_line_comment() {
+        // cSpell:disable-next-line
+        let src = "fn main() {
+    let x = 1; // héllo 🙂
+}
+";
+        assert_format(src, src);
+    }
 }

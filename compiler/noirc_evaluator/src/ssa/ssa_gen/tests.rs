@@ -273,6 +273,97 @@ fn foreign_call_args_do_not_get_cloned() {
 }
 
 #[test]
+fn oracle_wrapper_call_args_do_not_get_cloned() {
+    let src = "
+    unconstrained fn main() -> pub u64 {
+        foo([1])
+    }
+    unconstrained fn foo(a: [u64; 1]) -> u64 {
+        println(a);
+        a[0]
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
+
+    // The ownership pass wraps `a` in `.clone()` in `foo` because `a` is used again
+    // after the `println` call. The clone is unnecessary: the wrapper chain only
+    // forwards the argument to the `print` oracle, which cannot modify the array.
+    insta::assert_snapshot!(program.to_string(), @r##"
+    unconstrained fn main$f0() -> pub u64 {
+        foo$f1([1])
+    }
+    unconstrained fn foo$f1(a$l0: [u64; 1]) -> u64 {
+        println$f2(a$l0.clone());;
+        a$l0[0]
+    }
+    unconstrained fn println$f2(input$l1: [u64; 1]) -> () {
+        print_unconstrained$f3(true, input$l1);
+    }
+    unconstrained fn print_unconstrained$f3(with_newline$l2: bool, input$l3: [u64; 1]) -> () {
+        print_oracle$print(with_newline$l2, input$l3, r#"{"kind":"array","length":1,"type":{"kind":"unsignedinteger","width":64}}"#, false);
+    }
+    "##);
+
+    let ssa = generate_ssa(program).unwrap();
+
+    // `foo` does not emit `inc_rc v0` before the call to `println` even though the
+    // monomorphized AST contains `a.clone()`: the SSA-gen call lowering recognizes
+    // `println` as a thin wrapper around the `print` oracle and skips the clone.
+    assert_ssa_snapshot!(ssa, @r#"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = make_array [u64 1] : [u64; 1]
+        v3 = call f1(v1) -> u64
+        return v3
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [u64; 1]):
+        call f2(v0)
+        v3 = array_get v0, index u32 0 -> u64
+        return v3
+    }
+    brillig(inline) fn println f2 {
+      b0(v0: [u64; 1]):
+        call f3(u1 1, v0)
+        return
+    }
+    brillig(inline) fn print_unconstrained f3 {
+      b0(v0: u1, v1: [u64; 1]):
+        v26 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+        call print(v0, v1, v26, u1 0)
+        return
+    }
+    "#);
+}
+
+#[test]
+fn oracle_wrapper_with_mutating_arg_keeps_clone() {
+    let src = "
+    unconstrained fn main(seed: Field, idx: u32) -> pub Field {
+        let array: [Field; 3] = [seed, seed + 1, seed + 2];
+        mutating_print_wrapper(array);
+        array[idx]
+    }
+
+    unconstrained fn mutating_print_wrapper(mut array: [Field; 3]) {
+        println({
+            array[0] = 9;
+            array
+        });
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+
+    let results = ssa
+        .interpret(vec![InterpreterValue::field(FieldElement::one()), InterpreterValue::u32(0)])
+        .unwrap();
+    assert_eq!(results, vec![InterpreterValue::field(FieldElement::one())]);
+}
+
+#[test]
 fn for_loop_exclusive() {
     let assert_src = "
     fn main() -> pub u32 {

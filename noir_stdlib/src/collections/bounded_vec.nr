@@ -750,8 +750,10 @@ mod bounded_vec_tests {
 
     mod any {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         #[test]
+        #[test_unconstrained]
         fn returns_false_if_predicate_not_satisfied() {
             let vec: BoundedVec<bool, 4> = BoundedVec::from_array([false, false, false, false]);
             let result = vec.any(|value| value);
@@ -760,6 +762,7 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        #[test_unconstrained]
         fn returns_true_if_predicate_satisfied() {
             let vec: BoundedVec<bool, 4> = BoundedVec::from_array([false, false, true, true]);
             let result = vec.any(|value| value);
@@ -776,6 +779,7 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        #[test_unconstrained]
         fn any_with_complex_predicates() {
             let vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
 
@@ -799,8 +803,10 @@ mod bounded_vec_tests {
 
     mod map {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         #[test]
+        #[test_unconstrained]
         fn applies_function_correctly() {
             // docs:start:bounded-vec-map-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
@@ -860,8 +866,10 @@ mod bounded_vec_tests {
 
     mod mapi {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         #[test]
+        #[test_unconstrained]
         fn applies_function_correctly() {
             // docs:start:bounded-vec-mapi-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
@@ -903,6 +911,7 @@ mod bounded_vec_tests {
 
     mod for_each {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         // map in terms of for_each
         fn for_each_map<T, U, Env, let MaxLen: u32>(
@@ -916,6 +925,7 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        #[test_unconstrained]
         fn smoke_test() {
             let mut acc = 0;
             let acc_ref = &mut acc;
@@ -975,6 +985,7 @@ mod bounded_vec_tests {
 
     mod for_eachi {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         // mapi in terms of for_eachi
         fn for_eachi_mapi<T, U, Env, let MaxLen: u32>(
@@ -988,6 +999,7 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        #[test_unconstrained]
         fn smoke_test() {
             let mut acc = 0;
             let acc_ref = &mut acc;
@@ -1137,20 +1149,34 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        fn equality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+
+            bounded_vec1.push(1);
+            bounded_vec2.push(1);
+            assert(bounded_vec1 == bounded_vec2);
+        }
+
+        #[test]
         fn inequality() {
             let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
             let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
-            bounded_vec1.push(1);
-            bounded_vec2.push(2);
 
+            bounded_vec1.push(1);
+            assert(bounded_vec1 != bounded_vec2);
+
+            bounded_vec2.push(2);
             assert(bounded_vec1 != bounded_vec2);
         }
     }
 
     mod from_parts {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         #[test]
+        #[test_unconstrained]
         fn from_parts() {
             // docs:start:from-parts
             let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
@@ -1246,6 +1272,7 @@ mod bounded_vec_tests {
 
     mod extend {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::internal::test_unconstrained;
 
         #[test]
         fn extend_from_array() {
@@ -1272,6 +1299,7 @@ mod bounded_vec_tests {
         }
 
         #[test]
+        #[test_unconstrained]
         fn extend_from_bounded_vec() {
             // The source deliberately has a higher capacity,
             // to make sure we are not trying to assign out-of-bounds.

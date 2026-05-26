@@ -58,7 +58,7 @@ fn main() {
         assert_eq(visibility2, quote {});
 
         // Test TypeDefinition::as_type_with_generics
-        let i32_type = quote [i32].as_type();
+        let i32_type = quote [ i32 ].as_type();
 
         let applied = struct_def.as_type_with_generics([i32_type, i32_type, i32_type].as_vector());
         let invalid = struct_def.as_type_with_generics([i32_type, i32_type].as_vector()); // invalid generic count

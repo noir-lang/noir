@@ -501,7 +501,7 @@ mod tests {
             return
         }
         acir(inline_always) pure fn apply_dummy f3 {
-          b0(v0: &mut Field):
+          b0(v0: &Field):
             return
         }
         ");
