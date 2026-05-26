@@ -302,8 +302,16 @@ pub fn validate_witness<F: AcirField>(
                             }
                         }
                     }
-                    // Recursive aggregation is checked outside of ACVM
-                    BlackBoxFuncCall::RecursiveAggregation { .. } => (),
+                    // Recursive aggregation is verified by the backend rather than the ACVM, so
+                    // there is no constraint to evaluate here. Its operands must still be present
+                    // in the witness map though, matching the PWG solver which requires every
+                    // `get_inputs_vec()` operand to be assigned before treating the opcode as
+                    // backend-owned.
+                    BlackBoxFuncCall::RecursiveAggregation { .. } => {
+                        for input in black_box_func_call.get_inputs_vec() {
+                            input_to_value(&witness_map, input)?;
+                        }
+                    }
                     BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                         let state = blackbox::hash::execute_poseidon2_permutation_opcode(
                             backend,
@@ -912,5 +920,50 @@ mod tests {
             1,
             format!("Attempted reinitialization of memory block {}", block_id.0).as_str(),
         );
+    }
+
+    fn recursive_aggregation_opcode() -> Opcode<FieldElement> {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation {
+            verification_key: vec![FunctionInput::Witness(Witness(1))],
+            proof: vec![FunctionInput::Witness(Witness(2))],
+            public_inputs: vec![FunctionInput::Witness(Witness(3))],
+            key_hash: FunctionInput::Witness(Witness(4)),
+            proof_type: 0,
+            predicate: FunctionInput::Witness(Witness(5)),
+        })
+    }
+
+    #[test]
+    fn test_recursive_aggregation_missing_inputs() {
+        // Recursive aggregation is verified by the backend, but its operands must still be
+        // assigned. An empty witness map leaves every operand unassigned, so validation must
+        // report the first missing operand rather than silently succeeding.
+        let circuit = make_circuit(vec![recursive_aggregation_opcode()]);
+
+        let witness_map = WitnessMap::default();
+
+        let backend = Bn254BlackBoxSolver;
+        assert_eq!(
+            validate_witness(&backend, witness_map, &circuit).unwrap_err(),
+            OpcodeResolutionError::OpcodeNotSolvable(OpcodeNotSolvable::MissingAssignment(1)),
+        );
+    }
+
+    #[test]
+    fn test_recursive_aggregation_with_assigned_inputs() {
+        // With every operand assigned the opcode is treated as backend-owned and validation
+        // succeeds without evaluating a constraint.
+        let circuit = make_circuit(vec![recursive_aggregation_opcode()]);
+
+        let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::zero()),
+            (Witness(2), FieldElement::zero()),
+            (Witness(3), FieldElement::zero()),
+            (Witness(4), FieldElement::zero()),
+            (Witness(5), FieldElement::one()),
+        ]));
+
+        let backend = Bn254BlackBoxSolver;
+        assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
     }
 }
