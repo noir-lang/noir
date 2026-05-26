@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779801832397,
+  "lastUpdate": 1779801861123,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a79c909d03d869e9c0842514fa7174a080fa7ad4",
-          "message": "chore(deps): bump @babel/plugin-transform-modules-systemjs from 7.27.1 to 7.29.4 in /docs (#12637)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-18T12:35:19Z",
-          "tree_id": "0cf41ceaeb19bf65ac423e47cafbd972aefa855d",
-          "url": "https://github.com/noir-lang/noir/commit/a79c909d03d869e9c0842514fa7174a080fa7ad4"
-        },
-        "date": 1779109181755,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169135,
-            "range": "± 1057",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138040,
-            "range": "± 1119",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2654767,
-            "range": "± 33314",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648243,
             "range": "± 1474",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "165563006+Kuhai9801@users.noreply.github.com",
+            "name": "Cyne Jarvis J. Zarceno",
+            "username": "Kuhai9801"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c1f34cdad6c7cd98bd3f04ba4a6ff790c402543a",
+          "message": "fix: avoid panic on zero-limb field byte decomposition (#12738)",
+          "timestamp": "2026-05-26T12:58:26Z",
+          "tree_id": "1be8547de3beac4a6694f5f0dbedd0682e477149",
+          "url": "https://github.com/noir-lang/noir/commit/c1f34cdad6c7cd98bd3f04ba4a6ff790c402543a"
+        },
+        "date": 1779801786865,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 165125,
+            "range": "± 831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138714,
+            "range": "± 630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2126461,
+            "range": "± 20069",
             "unit": "ns/iter"
           }
         ]
