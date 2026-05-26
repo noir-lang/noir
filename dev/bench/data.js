@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779805866990,
+  "lastUpdate": 1779805873748,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "93bb72f87af3db12718577cf908961331a46e691",
-          "message": "feat!: allow UTF-8 in comments (#12699)",
-          "timestamp": "2026-05-18T16:33:11Z",
-          "tree_id": "c19d30fb8d9498986997c4fec21d44d10c3caf7d",
-          "url": "https://github.com/noir-lang/noir/commit/93bb72f87af3db12718577cf908961331a46e691"
-        },
-        "date": 1779124705727,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 294.42,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 517.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 275.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 354.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 354.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 355.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6050,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 6050,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 872.84,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2820,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.99,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 95.45,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 143.81,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4874,6 +4775,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5186339edc1ed66465dbe6b639a1a3e2916ccb19"
         },
         "date": 1779805332287,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 298.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 522.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 279.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 359.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 359.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 360.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 359.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 359.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 877.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 359.39,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 100.85,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 149.24,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf1f2b3f2320974eeb62f717f5dcc141a5ee0000",
+          "message": "fix(ast_fuzzer): forbid rebinding `&mut T` locals in constrained code (#12791)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-26T13:45:33Z",
+          "tree_id": "7958015e49c24ae9d54036bd0ebe4a9d23567d67",
+          "url": "https://github.com/noir-lang/noir/commit/bf1f2b3f2320974eeb62f717f5dcc141a5ee0000"
+        },
+        "date": 1779805799028,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
