@@ -12,7 +12,11 @@ use crate::usage_tracker::UnusedItem;
 use crate::{ResolvedGenerics, Type};
 
 use crate::hir::Context;
-use crate::hir::resolution::import::{ImportDirective, ResolvedImport, resolve_import};
+use crate::hir::def_map::ModuleDefId;
+use crate::hir::resolution::import::{
+    ImportDirective, PathResolutionError, ResolvedImport, resolve_import,
+};
+use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
 
 use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
@@ -681,6 +685,28 @@ impl DefCollector {
         errors: &mut CompilationErrors,
     ) {
         let local_module_id = collected_import.module_id;
+        let name = collected_import.name();
+
+        // Importing a trait method via `Type::method` must respect the trait's own visibility
+        // (e.g. a `pub(crate) trait` is not reachable from another crate, even though the
+        // method is registered as `Public` in the type's module scope). Compute this before
+        // taking a mutable borrow of `context.def_maps` below.
+        let importing_module = ModuleId { krate: crate_id, local_id: local_module_id };
+        for (module_def_id, _, _) in resolved_import.namespace.iter_items() {
+            if let ModuleDefId::FunctionId(func_id) = module_def_id
+                && !trait_visibility_for_method_is_satisfied(
+                    func_id,
+                    importing_module,
+                    &context.def_interner,
+                    &context.def_maps,
+                )
+            {
+                errors.push(DefCollectorErrorKind::PathResolutionError(
+                    PathResolutionError::Private(name.clone()),
+                ));
+            }
+        }
+
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
         let file_id = current_def_map.file_id(local_module_id);
 
@@ -690,7 +716,6 @@ impl DefCollector {
         }
 
         // Populate module namespaces according to the imports used
-        let name = collected_import.name();
         let visibility = collected_import.visibility;
         let is_prelude = collected_import.is_prelude;
         for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
@@ -786,7 +811,7 @@ impl DefCollector {
 }
 
 fn add_import_reference(
-    def_id: crate::hir::def_map::ModuleDefId,
+    def_id: ModuleDefId,
     name: &Ident,
     interner: &mut NodeInterner,
     file_id: FileId,

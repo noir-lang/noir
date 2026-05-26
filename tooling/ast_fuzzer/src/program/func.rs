@@ -1340,7 +1340,14 @@ impl<'a> FunctionContext<'a> {
         let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
 
         // Generate the part fo the ident we assign to.
-        let lvalue = self.gen_lvalue(u, ident, typ, mutable)?;
+        // In constrained code we cannot rebind a `&mut T` variable directly
+        // (`b = &mut x;`) because the frontend rejects it via
+        // `AssignedToVarContainingReference`. The variable is still in `opts`
+        // because deref-assign (`*b = x;`) is allowed for `&mut`; force
+        // `can_rebind = false` here so `gen_lvalue` only generates the
+        // deref form.
+        let can_rebind = mutable && (self.unconstrained() || !types::contains_reference(&typ));
+        let lvalue = self.gen_lvalue(u, ident, typ, can_rebind)?;
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
