@@ -1,0 +1,6 @@
+[package]
+name = "oracle_reference_parameter"
+type = "bin"
+authors = [""]
+
+[dependencies]

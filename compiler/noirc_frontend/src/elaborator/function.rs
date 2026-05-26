@@ -626,7 +626,12 @@ impl Elaborator<'_> {
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
-        self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
+        self.run_lint(|_| {
+            lints::oracle_signature_contains_reference(func, modifiers).map(Into::into)
+        });
+        self.run_lint(|_| {
+            lints::oracle_signature_contains_function(func, modifiers).map(Into::into)
+        });
         self.run_lint(|_| {
             lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
         });

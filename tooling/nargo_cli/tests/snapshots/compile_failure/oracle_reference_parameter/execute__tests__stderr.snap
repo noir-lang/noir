@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Oracle functions cannot use references in their signature
+  ┌─ src/main.nr:9:18
+  │
+9 │ unconstrained fn oracle_get_ref(f: &mut Field) -> Field {}
+  │                  --------------
+  │
+
+Aborting due to 1 previous error

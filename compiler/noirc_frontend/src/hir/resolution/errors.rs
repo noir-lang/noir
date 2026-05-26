@@ -84,8 +84,10 @@ pub enum ResolverError {
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
-    #[error("Oracle functions cannot return references")]
-    OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot use references in their signature")]
+    OracleSignatureContainsReference { location: Location },
+    #[error("Oracle functions cannot use function types in their signature")]
+    OracleSignatureContainsFunction { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
     #[error(
@@ -308,7 +310,8 @@ impl ResolverError {
             | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
-            | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleSignatureContainsReference { location, .. }
+            | ResolverError::OracleSignatureContainsFunction { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
             | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
@@ -565,7 +568,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::OracleReturnsReference { location } => {
+            ResolverError::OracleSignatureContainsReference { location }
+            | ResolverError::OracleSignatureContainsFunction { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),

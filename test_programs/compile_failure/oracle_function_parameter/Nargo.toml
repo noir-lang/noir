@@ -1,0 +1,6 @@
+[package]
+name = "oracle_function_parameter"
+type = "bin"
+authors = [""]
+
+[dependencies]

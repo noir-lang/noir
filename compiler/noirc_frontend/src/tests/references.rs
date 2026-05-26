@@ -176,7 +176,9 @@ fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_oracle() {
+fn higher_order_oracle_signature_is_rejected() {
+    // An oracle whose signature carries function types (here closures over a mutable
+    // reference) is rejected at elaboration, before the reference could ever escape.
     let src = r#"
     unconstrained fn main() {
         let y = &mut 10;
@@ -184,18 +186,18 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         let mul = |x: Field| { *y = *y * x; };
 
         let f = choose_func(add, mul);
-                ^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
 
         f(20);
     }
 
     #[oracle(choose_func)]
     unconstrained fn choose_func<Env>(
+                     ^^^^^^^^^^^ Oracle functions cannot use function types in their signature
         f: fn[Env](Field) -> (),
         g: fn[Env](Field) -> (),
     ) -> fn[Env](Field) -> () {}
     "#;
-    check_monomorphization_error(src);
+    check_errors(src);
 }
 
 #[test]
@@ -207,7 +209,7 @@ fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
 
     unconstrained fn foo<T>() {
         let f = get_array::<T>;
-                ^^^^^^^^^ Mutable reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
+                ^^^^^^^^^ Reference `[&[(u8, u8); 3]]` cannot be used in an oracle function's signature
         let _result = f();
     }
 

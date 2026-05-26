@@ -28,7 +28,8 @@ pub enum MonomorphizationError {
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
-    ReferenceReturnedFromOracle { typ: String, location: Location },
+    ReferenceInOracleSignature { typ: String, location: Location },
+    FunctionInOracleSignature { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
@@ -63,7 +64,8 @@ impl MonomorphizationError {
             | MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
                 location, ..
             }
-            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::ReferenceInOracleSignature { location, .. }
+            | MonomorphizationError::FunctionInOracleSignature { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
@@ -175,8 +177,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Function `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
-            MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
-                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+            MonomorphizationError::ReferenceInOracleSignature { typ, .. } => {
+                format!("Reference `{typ}` cannot be used in an oracle function's signature")
+            }
+            MonomorphizationError::FunctionInOracleSignature { typ, .. } => {
+                format!("Function `{typ}` cannot be used in an oracle function's signature")
             }
             MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
                 format!(

@@ -1521,8 +1521,16 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         if self.function_is_oracle(func_id)
-            && let Type::Function(_args, ret, _env, _unconstrained) = typ
+            && let Type::Function(args, ret, _env, _unconstrained) = typ
         {
+            // The `print` oracle accepts arbitrary printable values (handled specially via
+            // appended printable type info), so it is exempt from the first-order restriction.
+            if !self.function_is_print_oracle(func_id) {
+                for arg in args {
+                    self.check_oracle_signature_type(arg, location)?;
+                }
+                self.check_oracle_signature_type(ret.as_ref(), location)?;
+            }
             self.check_return_type_returned_from_oracle(ret.as_ref(), location)?;
         }
 
@@ -2438,16 +2446,34 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    /// Forbids function and reference types anywhere in an oracle function's signature.
+    ///
+    /// The elaborator already rejects directly-spelled function and reference types in oracle
+    /// signatures; this catches the cases where a generic was only resolved to such a type at
+    /// a call site, which the elaborator cannot see.
+    fn check_oracle_signature_type(
+        &self,
+        typ: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if typ.contains_function() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::FunctionInOracleSignature { typ, location });
+        }
+
+        if typ.contains_reference() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::ReferenceInOracleSignature { typ, location });
+        }
+
+        Ok(())
+    }
+
     fn check_return_type_returned_from_oracle(
         &self,
         return_type: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if return_type.contains_reference() {
-            let typ = return_type.to_string();
-            return Err(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
-        }
-
         if return_type.contains_vector_with_nested_array() {
             let typ = return_type.to_string();
             return Err(MonomorphizationError::VectorWithNestedArrayReturnedFromOracle {
@@ -3074,6 +3100,18 @@ impl<'interner> Monomorphizer<'interner> {
     fn function_is_oracle(&self, func_id: node_interner::FuncId) -> bool {
         self.interner.function_modifiers(&func_id).attributes.function.as_ref().is_some_and(
             |(attribute, _)| matches!(attribute.kind, FunctionAttributeKind::Oracle(..)),
+        )
+    }
+
+    /// The `print` oracle accepts arbitrary printable values rather than a fixed ABI, so its
+    /// signature is exempt from the first-order (no functions/references) restriction.
+    fn function_is_print_oracle(&self, func_id: node_interner::FuncId) -> bool {
+        self.interner.function_modifiers(&func_id).attributes.function.as_ref().is_some_and(
+            |(attribute, _)| {
+                attribute.kind.oracle().is_some_and(|name| {
+                    matches!(ForeignCall::lookup(name), Some(ForeignCall::Print))
+                })
+            },
         )
     }
 }

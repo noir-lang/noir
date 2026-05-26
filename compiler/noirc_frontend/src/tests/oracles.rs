@@ -121,7 +121,7 @@ fn errors_if_oracle_returns_reference() {
     let src = r#"
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call() -> &mut Field {}
-                         ^^^^^^^^^^^ Oracle functions cannot return references
+                         ^^^^^^^^^^^ Oracle functions cannot use references in their signature
     "#;
     check_errors(src);
 }
@@ -131,7 +131,7 @@ fn errors_if_oracle_returns_reference_in_tuple() {
     let src = r#"
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call() -> (Field, &Field) {}
-                         ^^^^^^^^^^^ Oracle functions cannot return references
+                         ^^^^^^^^^^^ Oracle functions cannot use references in their signature
     "#;
     check_errors_using_features(src, &[]);
 }
@@ -145,10 +145,50 @@ fn errors_if_oracle_returns_reference_in_struct() {
 
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call() -> Foo {}
-                         ^^^^^^^^^^^ Oracle functions cannot return references
+                         ^^^^^^^^^^^ Oracle functions cannot use references in their signature
     "#;
     //check_errors(src);
     check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &mut Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot use references in their signature
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_has_immutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot use references in their signature
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_function_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(f: fn(Field) -> Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot use function types in their signature
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_returns_function() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call() -> fn(Field) -> Field {}
+                         ^^^^^^^^^^^ Oracle functions cannot use function types in their signature
+    "#;
+    check_errors(src);
 }
 
 #[test]
@@ -172,6 +212,37 @@ fn vector_with_nested_array_behind_generics_returned_from_oracle() {
 
     #[oracle(get_array)]
     unconstrained fn get_array<T>() -> [T] {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn function_behind_generics_passed_to_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        foo(bar);
+        ^^^ Function `unconstrained fn() -> ()` cannot be used in an oracle function's signature
+    }
+
+    #[oracle(foo)]
+    unconstrained fn foo<T>(_x: T) {}
+
+    unconstrained fn bar() {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn reference_behind_generics_passed_to_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x: Field = 1;
+        foo(&mut x);
+        ^^^ Reference `&mut Field` cannot be used in an oracle function's signature
+    }
+
+    #[oracle(foo)]
+    unconstrained fn foo<T>(_x: T) {}
     "#;
     check_monomorphization_error(src);
 }

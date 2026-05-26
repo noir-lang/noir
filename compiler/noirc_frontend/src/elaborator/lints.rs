@@ -235,8 +235,10 @@ pub(super) fn oracle_returns_multiple_vectors(
     }
 }
 
-/// Oracle functions cannot return references
-pub(super) fn oracle_returns_reference(
+/// Oracle functions cannot use references anywhere in their signature, whether in a
+/// parameter type or the return type. References have no representation across the
+/// foreign-call boundary.
+pub(super) fn oracle_signature_contains_reference(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
@@ -245,12 +247,38 @@ pub(super) fn oracle_returns_reference(
         return None;
     }
 
-    if func.return_type().contains_reference() {
+    if oracle_signature_types(func).any(|typ| typ.contains_reference()) {
         let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleReturnsReference { location: ident.location() })
+        Some(ResolverError::OracleSignatureContainsReference { location: ident.location() })
     } else {
         None
     }
+}
+
+/// Oracle functions cannot use function types anywhere in their signature, whether in a
+/// parameter type or the return type. Function values have no representation across the
+/// foreign-call boundary.
+pub(super) fn oracle_signature_contains_function(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    if oracle_signature_types(func).any(|typ| typ.contains_function()) {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleSignatureContainsFunction { location: ident.location() })
+    } else {
+        None
+    }
+}
+
+/// Yields the types making up an oracle function's signature: each parameter type
+/// followed by the return type.
+fn oracle_signature_types(func: &FuncMeta) -> impl Iterator<Item = &Type> {
+    func.parameters.0.iter().map(|(_, typ, _)| typ).chain(std::iter::once(func.return_type()))
 }
 
 /// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
