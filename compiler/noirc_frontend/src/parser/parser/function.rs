@@ -316,10 +316,7 @@ impl Parser<'_> {
                     self.eat_or_error(Token::RightParen);
                     let location = self.location_since(start_location);
                     let id = int.try_to_u32().unwrap_or_else(|| {
-                        self.push_error(
-                            ParserErrorReason::CallDataIdMustFitInU32,
-                            int_location,
-                        );
+                        self.push_error(ParserErrorReason::CallDataIdMustFitInU32, int_location);
                         0
                     });
                     return (Visibility::CallData(id), location);
