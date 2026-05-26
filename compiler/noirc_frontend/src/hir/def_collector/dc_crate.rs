@@ -104,6 +104,13 @@ pub struct UnresolvedTraitImpl {
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
+
+    /// FuncIds in `methods.functions` that refer to a trait's own default-method
+    /// FuncId because this impl did not override the method. The default body
+    /// has already been elaborated once at the trait definition, so these
+    /// slots must not be re-registered or re-elaborated per impl. Populated by
+    /// `collect_trait_impl_methods`.
+    pub inherited_default_method_func_ids: rustc_hash::FxHashSet<FuncId>,
 }
 
 #[derive(Clone)]

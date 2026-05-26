@@ -203,6 +203,14 @@ impl Elaborator<'_> {
 
             let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
+                // Slots inherited from the trait's default method point at the trait's
+                // own FuncId, which is shared by every inheriting impl. Skip per-impl
+                // bookkeeping for those — `func_id_to_trait` is single-valued and
+                // visibility/modifiers were set when the trait method was collected.
+                if trait_impl.inherited_default_method_func_ids.contains(func_id) {
+                    continue;
+                }
+
                 if self.interner.set_function_trait(*func_id, self_type.clone(), trait_id).is_some()
                 {
                     self.push_err(TypeCheckError::expecting_other_error(
@@ -312,29 +320,23 @@ impl Elaborator<'_> {
 
             if overrides.is_empty() {
                 if let Some(default_impl) = &method.default_impl {
-                    // copy 'where' clause from unresolved trait impl
-                    let mut default_impl_clone = default_impl.clone();
-                    default_impl_clone.def.where_clause.extend(trait_impl.where_clause.clone());
-
-                    let func_id = self.interner.push_empty_fn();
-                    let module = self.module_id();
-                    let location = default_impl.def.location;
-                    self.interner.push_function(func_id, &default_impl.def, module, location);
-                    self.recover_generics(|this| {
-                        let no_trait_id = None;
-                        let no_extra_trait_constraints = &[];
-                        this.define_function_meta(
-                            &mut default_impl_clone,
-                            func_id,
-                            no_trait_id,
-                            no_extra_trait_constraints,
-                        );
-                    });
-                    func_ids_in_trait.insert(func_id);
+                    // Reuse the trait's own FuncId for the default method instead of cloning
+                    // the body into a fresh FuncId per impl. The body has already been
+                    // elaborated once at the trait definition (`elaborate_traits` walks
+                    // `UnresolvedTrait::fns_with_default_impl`). Sharing the FuncId means
+                    // the body is type-checked exactly once, errors are reported once, and
+                    // paths in the body resolve from the trait's module rather than each
+                    // impl's. Per-call `Self` substitution still happens at the call site
+                    // via the instantiation bindings recorded during trait method
+                    // resolution, so dispatch needs no extra work.
+                    let trait_func_id =
+                        self.interner.get_trait(trait_id).method_ids[method.name.as_str()];
+                    trait_impl.inherited_default_method_func_ids.insert(trait_func_id);
+                    func_ids_in_trait.insert(trait_func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
-                        func_id,
-                        *default_impl_clone,
+                        trait_func_id,
+                        *default_impl.clone(),
                     ));
                 } else {
                     self.push_err(DefCollectorErrorKind::TraitMissingMethod {
