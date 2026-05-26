@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779804681587,
+  "lastUpdate": 1779804798395,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "73e99ddf3d5edf81566602b23aa6ceabc3f81ca3",
-          "message": "fix: normalize signatures during defunctionalization (#12700)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-05-18T16:50:39Z",
-          "tree_id": "1bfc74909a25891338f9f7b9fcdb5de075261caf",
-          "url": "https://github.com/noir-lang/noir/commit/73e99ddf3d5edf81566602b23aa6ceabc3f81ca3"
-        },
-        "date": 1779124539923,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169088,
-            "range": "± 682",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137590,
-            "range": "± 369",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649175,
-            "range": "± 18162",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042787,
             "range": "± 19980",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf1f2b3f2320974eeb62f717f5dcc141a5ee0000",
+          "message": "fix(ast_fuzzer): forbid rebinding `&mut T` locals in constrained code (#12791)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-26T13:45:33Z",
+          "tree_id": "7958015e49c24ae9d54036bd0ebe4a9d23567d67",
+          "url": "https://github.com/noir-lang/noir/commit/bf1f2b3f2320974eeb62f717f5dcc141a5ee0000"
+        },
+        "date": 1779804732324,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128728,
+            "range": "± 1005",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 114011,
+            "range": "± 2175",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042002,
+            "range": "± 18027",
             "unit": "ns/iter"
           }
         ]
