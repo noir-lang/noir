@@ -95,4 +95,14 @@ mod tests {
     fn fuzz_with_arbtest() {
         crate::targets::tests::fuzz_with_arbtest(super::fuzz, 20000);
     }
+
+    /// Regression: this seed previously made the AST fuzzer emit a
+    /// `ref_var = &mut X;` rebind inside constrained code, so the
+    /// `Remove IfElse` SSA pass tripped on it with
+    /// `ReturnedReferenceFromDynamicIf`. Constrained code must only assign
+    /// to `&mut T` variables via `*ref_var = ...` deref-assigns.
+    #[test]
+    fn regression_constrained_reference_rebind() {
+        crate::targets::tests::run_regression_seeds(super::fuzz, &[0x66eee82e00100000]);
+    }
 }
