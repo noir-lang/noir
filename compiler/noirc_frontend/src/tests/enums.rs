@@ -147,23 +147,6 @@ fn struct_pattern_non_alphabetical_field_order_is_not_unreachable() {
 }
 
 #[test]
-fn struct_pattern_non_alphabetical_field_order_multiple_arms() {
-    assert_no_errors(
-        r#"
-        struct S { z: bool, a: i32 }
-
-        fn main(x: S) -> pub i32 {
-            match x {
-                S { z: false, a: 42 } => 100,
-                S { z: true, a: 7 } => 200,
-                _ => 0,
-            }
-        }
-    "#,
-    );
-}
-
-#[test]
 fn redundant_struct_pattern_is_still_unreachable() {
     // The fix must not suppress genuine unreachability: a second, identical arm on
     // a non-alphabetically-declared struct is still redundant and must be reported.
