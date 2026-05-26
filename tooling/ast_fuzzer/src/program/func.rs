@@ -1346,8 +1346,7 @@ impl<'a> FunctionContext<'a> {
         // because deref-assign (`*b = x;`) is allowed for `&mut`; force
         // `can_rebind = false` here so `gen_lvalue` only generates the
         // deref form.
-        let can_rebind =
-            mutable && (self.unconstrained() || !types::contains_reference(&typ));
+        let can_rebind = mutable && (self.unconstrained() || !types::contains_reference(&typ));
         let lvalue = self.gen_lvalue(u, ident, typ, can_rebind)?;
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
