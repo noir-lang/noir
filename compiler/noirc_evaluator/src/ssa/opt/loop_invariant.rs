@@ -94,7 +94,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId},
+        instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
@@ -811,13 +811,9 @@ fn does_loop_execute(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool
         .unwrap_or(false)
 }
 
-/// Keep track of a loop induction variable and respective upper bound.
-///
-/// In the case of a nested loop, this will be used by later loops to determine
-/// whether they have operations reliant upon the maximum induction variable.
-///
-/// When within the current loop, the known upper bound can be used to simplify instructions,
-/// such as transforming a checked add to an unchecked add.
+/// Keep track of a loop induction variable and respective lower/upper bound,
+/// but only when the loop's back-edge proves the bounds are real iteration
+/// invariants (see [`back_edge_advances_monotonically`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
@@ -826,7 +822,49 @@ fn get_induction_var_bounds(
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
+    if !back_edge_advances_monotonically(&inserter.function.dfg, loop_, induction_variable) {
+        return None;
+    }
     Some((induction_variable, bounds))
+}
+
+/// Whether the loop's back-edge passes back an induction value of the form
+/// `induction_variable + positive_constant`. This is what makes the lower/upper
+/// bounds returned by [`Loop::get_const_bounds`] true loop invariants —
+/// otherwise the values reaching the header on each iteration may fall outside
+/// the inferred `[lower, upper)` interval, and downstream passes that rely on
+/// the bounds (e.g. converting checked arithmetic to unchecked) become unsound.
+fn back_edge_advances_monotonically(
+    dfg: &DataFlowGraph,
+    loop_: &Loop,
+    induction_variable: ValueId,
+) -> bool {
+    let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
+        dfg[loop_.back_edge_start].terminator()
+    else {
+        return false;
+    };
+    if *destination != loop_.header || arguments.is_empty() {
+        return false;
+    }
+    let Some(instruction) = dfg.get_local_or_global_instruction(arguments[0]) else {
+        return false;
+    };
+    let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs }) = instruction
+    else {
+        return false;
+    };
+    let step_value = if *lhs == induction_variable {
+        *rhs
+    } else if *rhs == induction_variable {
+        *lhs
+    } else {
+        return false;
+    };
+    let Some(step) = dfg.get_integer_constant(step_value) else {
+        return false;
+    };
+    !step.is_zero() && !step.is_negative()
 }
 
 /// Indicate whether an instruction can be hoisted.
@@ -1007,6 +1045,82 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ =
             assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn decreasing_while_back_edge_keeps_sub_checked() {
+        // Regression for noir-lang/noir-claude#1303: `get_const_bounds` infers `[5, 10)`
+        // from the pre-header and the `lt` in the header, but the back-edge subtracts 1
+        // each iteration so `v0` actually takes the values 5, 4, 3, 2, 1, 0. LICM must
+        // not rewrite `sub v0, u32 2` to `unchecked_sub` here.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v4 = lt v0, u32 10
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v5 = mul v0, v0
+            v7 = eq v5, u32 0
+            v9 = sub v0, u32 2
+            jmpif v7 then: b4(v9), else: b1(v9)
+          b3():
+            jmp b4(v0)
+          b4(v1: u32):
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn decreasing_while_keeps_constrain_not_equal() {
+        // Latent vulnerability tied to noir-lang/noir-claude#1303: with a decreasing
+        // back-edge, `[5, 10)` is not a real loop invariant, so the rewrite of
+        // `constrain v0 != 3` in `simplify_not_equal_constraint` (which would lift the
+        // constrain into the pre-header as `3 < 5 || 3 > 10`, always true) must not
+        // fire. Pre-fix, the constrain was silently elided, hiding a real failure when
+        // `v0` reached 3.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != u32 3
+            v6 = sub v0, u32 1
+            jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn non_additive_back_edge_keeps_sub_checked() {
+        // Sibling regression for the same bug class: the back-edge multiplies the
+        // induction variable, so the inferred `[5, 10)` interval is not a true loop
+        // invariant.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = sub v0, u32 1
+            v7 = unchecked_mul v0, u32 2
+            jmp b1(v7)
+          b3():
+            return v0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1679,8 +1793,8 @@ mod tests {
 
     #[test]
     fn transform_safe_sub_to_unchecked() {
-        // This test is identical to `do_not_transform_unsafe_sub_to_unchecked`, except the loop
-        // in this test starts with a lower bound of `1`.
+        // Like `do_not_transform_unsafe_sub_to_unchecked`, but the loop starts with a
+        // lower bound of `1` so `v2 - 1` cannot underflow at any iteration.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -1692,13 +1806,14 @@ mod tests {
               return
           b3():
               v8 = sub v2, u32 1
-              jmp b1(v8)
+              v9 = unchecked_add v2, u32 1
+              jmp b1(v9)
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
+        // `v8 = sub v2, u32 1` in b3 should now be `unchecked_sub v2, u32 1` in b3
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1711,7 +1826,8 @@ mod tests {
             return
           b3():
             v6 = unchecked_sub v2, u32 1
-            jmp b1(v6)
+            v7 = unchecked_add v2, u32 1
+            jmp b1(v7)
         }
         ");
     }
