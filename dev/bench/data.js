@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779810047478,
+  "lastUpdate": 1779810866023,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4fa88ae9dfa21238fbd2f338f07bf9815a2c2f84",
-          "message": "chore: add more tests to the stdlib (#12650)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
-          "timestamp": "2026-05-19T12:15:11Z",
-          "tree_id": "68420e012f5a2490bfb5275bbd27a51d1f2777cf",
-          "url": "https://github.com/noir-lang/noir/commit/4fa88ae9dfa21238fbd2f338f07bf9815a2c2f84"
-        },
-        "date": 1779194411079,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168839,
-            "range": "± 890",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137431,
-            "range": "± 5100",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649044,
-            "range": "± 203659",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2653340,
             "range": "± 2646",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b1913053e13eee7000ee5219955164f909aa17b",
+          "message": "fix(frontend): reject `call_data` ids that exceed u32::MAX (#12796)",
+          "timestamp": "2026-05-26T15:25:32Z",
+          "tree_id": "c51b18fa9215fdbe1e11c412b74191edf4e0f95a",
+          "url": "https://github.com/noir-lang/noir/commit/3b1913053e13eee7000ee5219955164f909aa17b"
+        },
+        "date": 1779810802547,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 179206,
+            "range": "± 644",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143750,
+            "range": "± 576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2649328,
+            "range": "± 2760",
             "unit": "ns/iter"
           }
         ]
