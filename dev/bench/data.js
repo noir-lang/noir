@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779801714762,
+  "lastUpdate": 1779801832397,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23200,48 +23200,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "e062616cb7acf998485b6b42b1c2f00e467b8eb5",
-          "message": "chore(deps): bump follow-redirects from 1.15.11 to 1.16.0 in /docs (#12698)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-18T12:33:24Z",
-          "tree_id": "a0f32d239d64324b6d52c57dcb112a762c4ec17a",
-          "url": "https://github.com/noir-lang/noir/commit/e062616cb7acf998485b6b42b1c2f00e467b8eb5"
-        },
-        "date": 1779109012497,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 164742,
-            "range": "± 529",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137136,
-            "range": "± 4411",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2121731,
-            "range": "± 1204",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "a79c909d03d869e9c0842514fa7174a080fa7ad4",
           "message": "chore(deps): bump @babel/plugin-transform-modules-systemjs from 7.27.1 to 7.29.4 in /docs (#12637)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647585,
             "range": "± 15730",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8f1cde6ff7428495c0e6f064fd7fc620813a0958",
+          "message": "fix: Fix private trait's method being visible when imported directly (#12770)",
+          "timestamp": "2026-05-26T12:55:05Z",
+          "tree_id": "6ae0816d121565aa20186f811f5a365fa037338c",
+          "url": "https://github.com/noir-lang/noir/commit/8f1cde6ff7428495c0e6f064fd7fc620813a0958"
+        },
+        "date": 1779801768719,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175411,
+            "range": "± 488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141443,
+            "range": "± 284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648243,
+            "range": "± 1474",
             "unit": "ns/iter"
           }
         ]
