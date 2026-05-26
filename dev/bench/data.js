@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779789289697,
+  "lastUpdate": 1779789436069,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9dfec15dd6ad0a43f25b3f3496703f0f8b6286b1",
-          "message": "fix: Change error exprs to return SkippedDueToEarlierErrors (#12686)",
-          "timestamp": "2026-05-15T21:27:15Z",
-          "tree_id": "70c1e0452d9a9ca291c0719f47432c9b97acef15",
-          "url": "https://github.com/noir-lang/noir/commit/9dfec15dd6ad0a43f25b3f3496703f0f8b6286b1"
-        },
-        "date": 1778881914431,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127277,
-            "range": "± 424",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113854,
-            "range": "± 1898",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3044774,
-            "range": "± 1845",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3052586,
             "range": "± 19267",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "83b8190cd0392fe6fde35919d668defaa7b3d083",
+          "message": "chore(deps-dev): bump vite-plugin-node-polyfills from 0.26.0 to 0.28.0 (#12790)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-05-26T09:25:07Z",
+          "tree_id": "c4b38457e108340a79c6195e85b2d1945fb16a52",
+          "url": "https://github.com/noir-lang/noir/commit/83b8190cd0392fe6fde35919d668defaa7b3d083"
+        },
+        "date": 1779789369919,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126697,
+            "range": "± 436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112343,
+            "range": "± 2615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3045567,
+            "range": "± 10884",
             "unit": "ns/iter"
           }
         ]
