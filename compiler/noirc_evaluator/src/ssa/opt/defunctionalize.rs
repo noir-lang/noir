@@ -49,7 +49,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::pure::{FunctionPurities, Purity},
     ssa_gen::Ssa,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -449,15 +449,15 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// - [ApplyFunctions] keyed by each function's signature _before_ functions are changed
 ///   into field types. The inner apply function itself will have its defunctionalized type,
 ///   with function values represented as field values.
-/// - [HashMap<FunctionId, Purity>] with purities that must be set to all functions in the SSA,
+/// - [FunctionPurities] with purities that must be set to all functions in the SSA,
 ///   as this function might have created dummy pure functions.
 fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: Variants,
-) -> (ApplyFunctions, HashMap<FunctionId, Purity>) {
+) -> (ApplyFunctions, FunctionPurities) {
     let mut apply_functions = HashMap::default();
     let mut purities = if ssa.functions.is_empty() {
-        HashMap::default()
+        FunctionPurities::default()
     } else {
         (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
     };
@@ -721,7 +721,7 @@ fn create_dummy_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
-    purities: &mut HashMap<FunctionId, Purity>,
+    purities: &mut FunctionPurities,
 ) -> FunctionId {
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply_dummy".to_string(), id);
@@ -743,7 +743,10 @@ fn create_dummy_function(
         // As the dummy function is just meant to be a placeholder for any calls to
         // higher-order functions without variants, we want the function to be marked pure
         // so that dead instruction elimination can remove any calls to it.
-        purities.insert(id, Purity::Pure);
+        purities.purities.insert(id, Purity::Pure);
+        if runtime.is_brillig() {
+            purities.brillig_functions.insert(id);
+        }
 
         let results =
             vecmap(signature.returns, |typ| make_dummy_return_data(&mut function_builder, &typ));

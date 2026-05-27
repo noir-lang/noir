@@ -107,7 +107,7 @@ impl FunctionBuilder {
         self.current_function.set_globals(self.globals.clone());
     }
 
-    pub fn set_purities(&mut self, purities: Arc<FunctionPurities>) {
+    pub(crate) fn set_purities(&mut self, purities: Arc<FunctionPurities>) {
         self.purities = purities.clone();
         self.current_function.dfg.set_function_purities(purities);
     }

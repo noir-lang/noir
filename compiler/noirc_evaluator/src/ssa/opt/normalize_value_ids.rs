@@ -16,6 +16,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
@@ -61,22 +62,29 @@ struct IdMaps {
 
 impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
-        let Some(old_purities) = &functions.iter().next().map(|f| &f.1.dfg.function_purities)
+        let Some(old_purities) = functions.iter().next().map(|f| f.1.dfg.function_purities.clone())
         else {
             return;
         };
-        let mut new_purities = HashMap::default();
+        let mut new_purities = FunctionPurities::default();
 
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
 
                 if let Some(purity) = old_purities.get(id) {
-                    new_purities.insert(new_id, *purity);
+                    new_purities.purities.insert(new_id, *purity);
                 }
 
                 Function::clone_signature(new_id, function)
             });
+        }
+
+        // Remap the set of Brillig functions onto the new ids.
+        for old_id in &old_purities.brillig_functions {
+            if let Some(new_id) = self.new_ids.function_ids.get(old_id) {
+                new_purities.brillig_functions.insert(*new_id);
+            }
         }
 
         let new_purities = Arc::new(new_purities);

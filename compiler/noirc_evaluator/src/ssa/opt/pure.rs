@@ -37,15 +37,25 @@ impl Ssa {
 
         let (sccs, recursive_functions) = call_graph.sccs();
 
+        let brillig_functions: HashSet<FunctionId> = self
+            .functions
+            .values()
+            .filter(|function| function.runtime().is_brillig())
+            .map(|function| function.id())
+            .collect();
+
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> =
-            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+        let purities: HashMap<_, _> = self
+            .functions
+            .values()
+            .map(|function| (function.id(), function.is_pure(&brillig_functions)))
+            .collect();
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
         let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
-        let purities = Arc::new(purities);
+        let purities = Arc::new(FunctionPurities { purities, brillig_functions });
 
         // We're done, now store purities somewhere every dfg can find it.
         for function in self.functions.values_mut() {
@@ -74,10 +84,36 @@ fn purity_analysis_post_check(ssa: &Ssa) {
     }
 }
 
-pub(crate) type FunctionPurities = HashMap<FunctionId, Purity>;
+/// The purity of every function in the SSA, as computed by [Ssa::purity_analysis].
+///
+/// Alongside each function's own purity we record which functions are Brillig. This lets a
+/// caller observe the *call-site* purity rather than only the callee's intrinsic purity: a pure
+/// Brillig function called from an ACIR function lowers to a predicated `Opcode::BrilligCall`
+/// whose outputs are unconstrained when the predicate is disabled, so from an ACIR caller it
+/// must be observed as [Purity::PureWithPredicate] even though the function itself is pure.
+/// See [crate::ssa::ir::dfg::DataFlowGraph::purity_of].
+#[derive(Debug, Default, Clone)]
+pub(crate) struct FunctionPurities {
+    pub(crate) purities: HashMap<FunctionId, Purity>,
+    pub(crate) brillig_functions: HashSet<FunctionId>,
+}
+
+impl FunctionPurities {
+    pub(crate) fn get(&self, id: &FunctionId) -> Option<&Purity> {
+        self.purities.get(id)
+    }
+}
+
+impl std::ops::Index<&FunctionId> for FunctionPurities {
+    type Output = Purity;
+
+    fn index(&self, id: &FunctionId) -> &Purity {
+        &self.purities[id]
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Purity {
+pub(crate) enum Purity {
     /// Function is completely pure and doesn't rely on a predicate at all.
     /// Pure functions can be freely deduplicated or even removed from the program.
     Pure,
@@ -120,7 +156,7 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self) -> Purity {
+    fn is_pure(&self, brillig_functions: &HashSet<FunctionId>) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -154,13 +190,12 @@ impl Function {
         // that have nested arrays.
         let mut brillig_array_input_was_moved = false;
 
-        let mut result = if self.runtime().is_acir() {
-            Purity::Pure
-        } else {
-            // Because we return bogus values when a brillig function is called from acir
-            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
-            Purity::PureWithPredicate
-        };
+        // A function's purity reflects the function itself. The predicate sensitivity of calling
+        // a Brillig function from ACIR (its `Opcode::BrilligCall` yields unconstrained outputs
+        // when the predicate is disabled) is a property of the ACIR calling opcode, not of the
+        // callee, so it is applied at the call site instead (see `DataFlowGraph::purity_of` and
+        // the `Instruction::Call` handling below).
+        let mut result = Purity::Pure;
 
         for block in self.reachable_blocks() {
             for instruction in self.dfg[block].instructions() {
@@ -192,13 +227,21 @@ impl Function {
                     }
                     Instruction::Call { func, .. } => {
                         match &self.dfg[*func] {
-                            Value::Function(_) => {
+                            Value::Function(callee) => {
                                 // We don't know if this function is pure or not yet,
                                 //
                                 // `is_pure` is intended to be called on each function, building
                                 // up a call graph of sorts to check afterwards to propagate impurity
                                 // from called functions to their callers. Therefore, an initial "Pure"
                                 // result here could be overridden by one of these dependencies being impure.
+                                //
+                                // Calling a Brillig function from ACIR lowers to a predicated
+                                // `Opcode::BrilligCall`, which returns unconstrained outputs when
+                                // the predicate is disabled. That makes this function's result
+                                // depend on the predicate, so it is at best `PureWithPredicate`.
+                                if self.runtime().is_acir() && brillig_functions.contains(callee) {
+                                    result = Purity::PureWithPredicate;
+                                }
                             }
                             Value::Intrinsic(intrinsic) => match intrinsic.purity() {
                                 Purity::Pure => (),
@@ -324,10 +367,10 @@ impl Function {
 
 fn analyze_call_graph(
     call_graph: CallGraph,
-    starting_purities: FunctionPurities,
+    starting_purities: HashMap<FunctionId, Purity>,
     sccs: &[Vec<FunctionId>],
     recursive_functions: &HashSet<FunctionId>,
-) -> FunctionPurities {
+) -> HashMap<FunctionId, Purity> {
     let mut finished = HashMap::default();
 
     // Map FunctionId -> SCC index for quick lookup
@@ -583,7 +626,8 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
+        // A genuinely pure Brillig function is reported as `Pure`.
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Pure);
     }
 
     #[test]
@@ -603,8 +647,9 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        // Empty Brillig functions are genuinely pure.
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
@@ -888,7 +933,7 @@ mod tests {
     }
 
     #[test]
-    fn brillig_functions_are_pure_with_predicate_if_they_are_an_entry_point() {
+    fn pure_brillig_function_called_from_acir_is_pure_but_observed_as_predicate_pure() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -910,12 +955,21 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
+        // The ACIR `main` calls a Brillig function, so its own result is predicate-dependent.
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        // The Brillig function itself is genuinely pure.
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+
+        // Observed from the ACIR caller, however, the predicated `BrilligCall` opcode means the
+        // pure Brillig callee behaves as `PureWithPredicate`.
+        assert_eq!(
+            ssa.main().dfg.purity_of(FunctionId::test_new(1)),
+            Some(Purity::PureWithPredicate)
+        );
     }
 
     #[test]
-    fn brillig_functions_are_pure_with_predicate_if_they_are_not_an_entry_point() {
+    fn pure_brillig_function_called_from_brillig_is_pure() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -937,11 +991,11 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
 
-        // Note: even though it would be fine to mark f1 as pure, something in Aztec-Packages
-        // gets broken so until we figure out what that is we can't mark these as pure.
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        // A Brillig caller observes the callee's true purity, since its calls are not predicated.
+        assert_eq!(ssa.main().dfg.purity_of(FunctionId::test_new(1)), Some(Purity::Pure));
     }
 
     #[test]

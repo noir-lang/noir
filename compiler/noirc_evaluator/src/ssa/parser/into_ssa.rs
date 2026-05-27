@@ -105,7 +105,10 @@ impl Translator {
         builder.simplify = simplify;
 
         if let Some(purity) = main_function.purity {
-            purities.insert(main_id, purity);
+            purities.purities.insert(main_id, purity);
+        }
+        if main_function.runtime_type.is_brillig() {
+            purities.brillig_functions.insert(main_id);
         }
 
         // Map function names to their IDs so calls can be resolved
@@ -121,7 +124,10 @@ impl Translator {
             functions.insert(function.internal_name.clone(), function_id);
 
             if let Some(purity) = function.purity {
-                purities.insert(function_id, purity);
+                purities.purities.insert(function_id, purity);
+            }
+            if function.runtime_type.is_brillig() {
+                purities.brillig_functions.insert(function_id);
             }
         }
 
