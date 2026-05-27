@@ -8,7 +8,7 @@ keywords:
 sidebar_position: 1
 ---
 
-This section breaks down our hello world program from the previous section.
+This section breaks down the hello world program from [Getting Started](../getting_started.md).
 
 ## Anatomy of a Nargo Project
 

@@ -6,6 +6,11 @@ export default {
       id: 'index',
     },
     {
+      type: 'doc',
+      id: 'getting_started',
+      label: 'Getting Started',
+    },
+    {
       type: 'category',
       label: 'Getting Started',
       items: [
