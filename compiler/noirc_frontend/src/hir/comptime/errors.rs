@@ -316,8 +316,23 @@ pub enum InterpreterError {
         module: String,
         location: Location,
     },
+    FunctionNotVisible {
+        name: String,
+        defining_module: String,
+        location: Location,
+    },
     CannotCastNumericToBool {
         typ: Type,
+        location: Location,
+    },
+    UserDefinedError {
+        message: String,
+        secondary: Option<String>,
+        location: Location,
+    },
+    UserDefinedWarning {
+        message: String,
+        secondary: Option<String>,
         location: Location,
     },
 
@@ -423,7 +438,10 @@ impl InterpreterError {
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
-            | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
+            | InterpreterError::CannotModifyExternalItem { location, .. }
+            | InterpreterError::FunctionNotVisible { location, .. } => *location,
+            InterpreterError::UserDefinedError { location, .. }
+            | InterpreterError::UserDefinedWarning { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -595,7 +613,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
-                let msg = format!("{index} is out of bounds for the array of length {length}");
+                let msg = format!("Index out of bounds: {index} is out of bounds for the array of length {length}");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
@@ -626,6 +644,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "+" => "add",
                     "-" => "subtract",
                     "*" => "multiply",
+                    "/" => "divide",
+                    "%" => "calculate the remainder",
                     ">>" | "<<" => "bit-shift",
                     _ => operator,
                 };
@@ -907,10 +927,23 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = format!("`{item}` was declared in `{module}`");
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
+            InterpreterError::FunctionNotVisible { name, defining_module, location } => {
+                let primary = format!("Function `{name}` is private");
+                let secondary = format!("`{name}` is declared in `{defining_module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
             InterpreterError::CannotCastNumericToBool { typ, location } => {
                 let primary = format!("Cannot cast `{typ}` as `bool`");
                 let secondary = "Compare with zero instead: ` != 0`".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::UserDefinedError { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_error(message.clone(), secondary, *location)
+            }
+            InterpreterError::UserDefinedWarning { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_warning(message.clone(), secondary, *location)
             },
         }
     }

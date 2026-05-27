@@ -32,6 +32,7 @@ struct ExecutorCli {
 }
 
 #[derive(Subcommand, Debug)]
+#[allow(clippy::large_enum_variant)]
 enum Command {
     /// Execute a binary program or a circuit artifact.
     Execute(execute_cmd::ExecuteCommand),

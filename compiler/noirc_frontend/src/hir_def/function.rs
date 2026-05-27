@@ -196,6 +196,18 @@ impl FuncMeta {
         self.kind.can_ignore_return_type()
     }
 
+    /// Number of generics introduced by the enclosing `impl<...>` (or trait `Self`),
+    /// i.e. the prefix of `all_generics` that is not part of `direct_generics`.
+    pub fn impl_generics_count(&self) -> usize {
+        self.all_generics.len() - self.direct_generics.len()
+    }
+
+    /// The generics introduced by the enclosing `impl<...>` (or trait `Self`).
+    /// These are the leading entries of `all_generics`; the remainder are `direct_generics`.
+    pub fn impl_generics(&self) -> &[ResolvedGeneric] {
+        &self.all_generics[..self.impl_generics_count()]
+    }
+
     pub fn is_unconstrained(&self) -> bool {
         match &self.typ {
             Type::Function(_, _, _, unconstrained) => {

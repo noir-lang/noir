@@ -161,12 +161,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 }
 
                 Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
-                    if let Some(witness) = index.to_witness() {
-                        let num_bits = *memory_block_lengths_bit_size
-                            .get(block_id)
-                            .expect("memory must be initialized before any reads/writes");
-                        update_witness_entry(&mut infos, witness, num_bits, true, idx);
-                    }
+                    let num_bits = *memory_block_lengths_bit_size
+                        .get(block_id)
+                        .expect("memory must be initialized before any reads/writes");
+                    update_witness_entry(&mut infos, *index, num_bits, true, idx);
                 }
 
                 // Barretenberg implementation of the AND and XOR blackbox constrain the inputs and output to be 'num_bit' bits
@@ -649,7 +647,7 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 128
         BLACKBOX::RANGE input: w2, bits: 128
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
@@ -675,7 +673,7 @@ mod tests {
         private parameters: [w1, w2, w3, w4, w5, w6]
         public parameters: []
         return values: []
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ");
     }
 
@@ -688,7 +686,7 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 64
         BLACKBOX::RANGE input: w2, bits: 64
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
@@ -714,7 +712,7 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 64
         BLACKBOX::RANGE input: w2, bits: 64
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ");
     }
 }

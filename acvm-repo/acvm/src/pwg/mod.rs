@@ -495,18 +495,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
             }
             Opcode::MemoryInit { block_id, init, .. } => {
-                MemoryOpSolver::new(init, &self.witness_map).map(|solver| {
-                    let existing_block_id = self.block_solvers.insert(*block_id, solver);
-                    assert!(existing_block_id.is_none(), "Memory block already initialized");
-                })
+                self.solve_memory_init_opcode(*block_id, init)
             }
-            Opcode::MemoryOp { block_id, op } => {
-                let solver = self
-                    .block_solvers
-                    .get_mut(block_id)
-                    .expect("Memory block should have been initialized before use");
-                solver.solve_memory_op(op, &mut self.witness_map)
-            }
+            Opcode::MemoryOp { block_id, op } => match self.block_solvers.get_mut(block_id) {
+                Some(solver) => solver.solve_memory_op(op, &mut self.witness_map),
+                None => Err(OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::MissingMemoryBlock(block_id.0),
+                )),
+            },
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
                 match self.solve_brillig_call_opcode(id, inputs, outputs, predicate) {
                     Ok(Some(foreign_call)) => return self.wait_for_foreign_call(foreign_call),
@@ -599,6 +595,24 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             selector: error_selector,
             data: fields,
         }))
+    }
+
+    /// Initializes a memory block with values loaded from the witness map.
+    ///
+    /// Fails if the block has already been initialized.
+    fn solve_memory_init_opcode(
+        &mut self,
+        block_id: BlockId,
+        init: &[Witness],
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        let solver = MemoryOpSolver::new(init, &self.witness_map)?;
+        if self.block_solvers.insert(block_id, solver).is_some() {
+            return Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                opcode_location: ErrorLocation::Unresolved,
+                payload: None,
+            });
+        }
+        Ok(())
     }
 
     /// Solves a Brillig Call opcode, which represents a call to an unconstrained function.
@@ -941,7 +955,7 @@ mod tests {
         parse_opcodes,
     };
 
-    use crate::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
+    use crate::pwg::{ACVM, ACVMStatus, OpcodeNotSolvable, OpcodeResolutionError};
 
     #[test]
     fn solve_simple_circuit() {
@@ -983,6 +997,59 @@ mod tests {
             "expected UnsatisfiedConstrain error on conflicting insert"
         );
         assert_eq!(witness_map[&witness], old_value, "map should still hold the original value");
+    }
+
+    #[test]
+    fn errors_on_memory_op_without_init() {
+        let initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::from(0u128)),
+            (Witness(1), FieldElement::from(0u128)),
+        ]));
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+
+        // READ against b0 without a prior `INIT b0 = ...` should error rather than panic.
+        let src = "
+        READ w1 = b0[w0]
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
+        let status = acvm.solve();
+        assert!(
+            matches!(
+                status,
+                ACVMStatus::Failure(OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::MissingMemoryBlock(0)
+                ))
+            ),
+            "expected MissingMemoryBlock(0) failure, got {status:?}",
+        );
+    }
+
+    #[test]
+    fn errors_on_duplicate_memory_init() {
+        let initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(1u128)),
+            (Witness(2), FieldElement::from(2u128)),
+        ]));
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+
+        let src = "
+        INIT b0 = [w1, w2]
+        INIT b0 = [w1, w2]
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
+        let status = acvm.solve();
+        assert!(
+            matches!(
+                status,
+                ACVMStatus::Failure(OpcodeResolutionError::UnsatisfiedConstrain { .. })
+            ),
+            "expected UnsatisfiedConstrain failure, got {status:?}",
+        );
+        assert_eq!(acvm.get_status(), &status, "status field should reflect the returned failure");
     }
 
     #[test]

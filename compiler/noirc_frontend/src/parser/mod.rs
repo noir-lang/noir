@@ -22,8 +22,9 @@ pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Location;
 pub use parser::{
-    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars, parse_program,
-    parse_program_with_dummy_file,
+    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars,
+    parse_expression_in_quote_body, parse_program, parse_program_in_quote_body,
+    parse_program_with_dummy_file, parse_statement_in_quote_body,
 };
 
 #[derive(Clone, Default)]

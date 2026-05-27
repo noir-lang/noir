@@ -1408,6 +1408,9 @@ impl AsTraitPath {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.trait_path.accept(visitor);
         self.trait_generics.accept(visitor);
+        if let Some(turbofish) = &self.turbofish {
+            turbofish.accept(visitor);
+        }
     }
 }
 

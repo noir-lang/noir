@@ -91,6 +91,28 @@ pub fn trait_member_is_visible(
     type_member_is_visible(trait_id.0, visibility, current_module_id, def_maps)
 }
 
+/// Returns true if the trait that `func_id` belongs to (as a trait declaration or trait impl)
+/// is visible from `current_module`. Returns true if `func_id` is not a trait method, or if
+/// its function meta has not been registered yet (in which case there's nothing to check).
+pub fn trait_visibility_for_method_is_satisfied(
+    func_id: FuncId,
+    current_module: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    let Some(func_meta) = interner.try_function_meta(&func_id) else { return true };
+    let visibility = interner.function_modifiers(&func_id).visibility;
+
+    if let Some(trait_id) = func_meta.trait_id {
+        return trait_member_is_visible(trait_id, visibility, current_module, def_maps);
+    }
+    if let Some(trait_impl_id) = func_meta.trait_impl {
+        let trait_id = interner.get_trait_implementation(trait_impl_id).borrow().trait_id;
+        return trait_member_is_visible(trait_id, visibility, current_module, def_maps);
+    }
+    true
+}
+
 /// Returns whether a struct or trait member with the given visibility is visible from `current_module_id`.
 fn type_member_is_visible(
     type_module_id: ModuleId,
@@ -146,21 +168,11 @@ pub fn method_call_is_visible(
         ItemVisibility::PublicCrate | ItemVisibility::Private => {
             let func_meta = interner.function_meta(&func_id);
 
-            if let Some(trait_id) = func_meta.trait_id {
-                return trait_member_is_visible(
-                    trait_id,
-                    modifiers.visibility,
+            if func_meta.trait_id.is_some() || func_meta.trait_impl.is_some() {
+                return trait_visibility_for_method_is_satisfied(
+                    func_id,
                     current_module,
-                    def_maps,
-                );
-            }
-
-            if let Some(trait_impl_id) = func_meta.trait_impl {
-                let trait_impl = interner.get_trait_implementation(trait_impl_id);
-                return trait_member_is_visible(
-                    trait_impl.borrow().trait_id,
-                    modifiers.visibility,
-                    current_module,
+                    interner,
                     def_maps,
                 );
             }

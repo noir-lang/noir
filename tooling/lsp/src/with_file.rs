@@ -567,6 +567,9 @@ fn as_trait_path_with_file(as_trait_path: AsTraitPath, file: FileId) -> AsTraitP
         trait_path: path_with_file(as_trait_path.trait_path, file),
         trait_generics: generic_type_args_with_file(as_trait_path.trait_generics, file),
         impl_item: ident_with_file(as_trait_path.impl_item, file),
+        turbofish: as_trait_path
+            .turbofish
+            .map(|turbofish| generic_type_args_with_file(turbofish, file)),
     }
 }
 
@@ -609,7 +612,8 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
         | SecondaryAttributeKind::MustUse(_)
-        | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
+        | SecondaryAttributeKind::Allow(_)
+        | SecondaryAttributeKind::Pure => secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }
