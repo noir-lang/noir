@@ -268,6 +268,30 @@ fn duplicate_field_in_non_alphabetical_match_struct_pattern() {
 }
 
 #[test]
+fn duplicate_field_with_missing_field_in_match_struct_pattern() {
+    // Both fields of `Pair` have the same type, so duplicating one and omitting the
+    // other cannot be caught by a later type error. Struct patterns must bind every
+    // field (there is no partial or `..` rest pattern), so this must report both the
+    // duplicate field and the missing field.
+    let src = r#"
+    fn main() {
+        let pair = Pair { a: 1, b: 2 };
+        match pair {
+            Pair { a: _, a: _ } => {}
+            ^^^^ missing field b in struct Pair
+                         ^ duplicate field a
+        }
+    }
+
+    struct Pair {
+        a: i32,
+        b: i32,
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn match_integer_type_mismatch_in_pattern() {
     let src = r#"
         fn main() {
