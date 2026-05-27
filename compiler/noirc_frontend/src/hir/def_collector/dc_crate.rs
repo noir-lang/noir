@@ -36,7 +36,8 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 use fm::FileId;
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use rustc_hash::FxHashSet as HashSet;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -104,6 +105,13 @@ pub struct UnresolvedTraitImpl {
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
+
+    /// FuncIds in `methods.functions` that refer to a trait's own default-method
+    /// FuncId because this impl did not override the method. The default body
+    /// has already been elaborated once at the trait definition, so these
+    /// slots must not be re-registered or re-elaborated per impl. Populated by
+    /// `collect_trait_impl_methods`.
+    pub inherited_default_method_func_ids: HashSet<FuncId>,
 }
 
 #[derive(Clone)]
@@ -191,7 +199,7 @@ impl CollectedItems {
 /// since it would be non-deterministic.
 pub(crate) type ImplMap = HashMap<
     (UnresolvedType, LocalModuleId),
-    Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+    Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
 >;
 
 /// Wraps a list of compilation errors.
@@ -903,7 +911,7 @@ fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<Compi
 /// in the output repeatedly.
 fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
     // Using a HashSet of the inner error, because CompilationError does not implement Ord or Hash.
-    let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+    let mut seen: HashSet<ExpectingOtherError> = HashSet::default();
     errors.retain(|error| match error.as_expecting_other_error() {
         Some(e) if seen.contains(e) => false,
         Some(e) => {

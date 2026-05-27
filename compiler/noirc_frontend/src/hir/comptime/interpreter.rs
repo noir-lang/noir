@@ -839,7 +839,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // the matching trait impl method. We need to have them resolved first.
         self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
 
-        match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
+        // `resolve_trait_item_impl` extends the call expression's stored instantiation
+        // bindings with the resolved impl's bindings (and, for shared default methods,
+        // pins the trait's `Self` to the impl's concrete self type). Snapshot and restore
+        // around the call so the same expression — visited again under a different
+        // monomorphization context — sees the elaboration-time bindings rather than
+        // leftover impl-specific entries from a previous visit. This mirrors the snapshot
+        // logic in `resolve_trait_item_expr` on the monomorphization side.
+        let saved_bindings = self.elaborator.interner.try_get_instantiation_bindings(id).cloned();
+        let resolved = resolve_trait_item(self.elaborator.interner, item.id(), id);
+
+        let result = match resolved? {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
@@ -847,7 +857,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
                 self.evaluate_numeric_generic(value, &expected_type, id)
             }
+        };
+
+        if let Some(saved) = saved_bindings {
+            self.elaborator.interner.store_instantiation_bindings(id, saved);
         }
+        result
     }
 
     fn evaluate_literal(&mut self, literal: HirLiteral, id: ExprId) -> IResult<Value> {

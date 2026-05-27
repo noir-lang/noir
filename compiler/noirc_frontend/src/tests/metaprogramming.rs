@@ -190,6 +190,81 @@ fn generate_function_with_macros() {
     ");
 }
 
+// Regression for #11880: comptime attributes on impl methods used to be silently ignored.
+#[test]
+fn generate_function_with_macros_on_impl_method() {
+    let src = "
+    pub struct Spam {}
+
+    impl Spam {
+        #[foo]
+        pub fn struct_method() {}
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ";
+
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Spam {
+    }
+
+    impl Spam {
+        pub fn struct_method() {
+        }
+
+        pub fn bar(x: i32) -> i32 {
+            x + 1_i32
+        }
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ");
+}
+
+// Regression for asterite's review on #12649: when an attribute on an impl method
+// generates a new function, the impl's `where_clause` must be carried into the
+// synthetic impl so the generated function can use the bounded generics.
+#[test]
+fn generate_function_with_macros_on_impl_method_carries_where_clause() {
+    let src = "
+    pub trait MyDefault {
+        fn my_default() -> Self;
+    }
+
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> where T: MyDefault {
+        #[generate_bar]
+        pub fn foo() {}
+    }
+
+    pub comptime fn generate_bar(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar() -> T {
+                T::my_default()
+            }
+        }
+    }
+
+    fn main() {}
+    ";
+
+    assert_no_errors(src);
+}
+
 #[test]
 fn generate_function_with_macros_on_trait() {
     let src = "
@@ -608,6 +683,52 @@ fn attributes_run_in_textual_order_within_module() {
             let _ = first();
             let _ = second();
             let _ = third();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_and_free_function_attributes_run_in_source_order() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        #[assert_source_order(0)]
+        fn first_free() {}
+
+        pub struct S {}
+
+        impl S {
+            #[assert_source_order(1)]
+            fn m1() {}
+
+            #[assert_source_order(2)]
+            fn m2() {}
+        }
+
+        #[assert_source_order(3)]
+        fn middle_free() {}
+
+        impl S {
+            #[assert_source_order(4)]
+            fn m3() {}
+        }
+
+        #[assert_source_order(5)]
+        fn last_free() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = first_free();
+            let _ = S::m1();
+            let _ = S::m2();
+            let _ = middle_free();
+            let _ = S::m3();
+            let _ = last_free();
         }
     "#;
     assert_no_errors(src);

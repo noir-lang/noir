@@ -2585,7 +2585,15 @@ impl<'interner> Monomorphizer<'interner> {
         let value = match lvalue {
             HirLValue::Ident(ident, typ) => match self.lookup_captured_lvalue(ident.id) {
                 Some(value) => value,
-                None => ast::LValue::Ident(self.local_ident(&ident, &typ)?.unwrap()),
+                None => {
+                    let Some(ident) = self.local_ident(&ident, &typ)? else {
+                        return Err(MonomorphizationError::InternalError {
+                            location: ident.location,
+                            message: "ICE: lvalue not found during monomorphization",
+                        });
+                    };
+                    ast::LValue::Ident(ident)
+                }
             },
             HirLValue::MemberAccess { object, field_index, typ, location, .. } => {
                 let field_index = field_index.unwrap();
@@ -2720,7 +2728,12 @@ impl<'interner> Monomorphizer<'interner> {
                 }
                 None => {
                     let typ = self.interner.definition_type(capture.ident.id);
-                    let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
+                    let Some(ident) = self.local_ident(&capture.ident, &typ)? else {
+                        return Err(MonomorphizationError::InternalError {
+                            location: capture.ident.location,
+                            message: "ICE: closure capture not found during monomorphization",
+                        });
+                    };
                     Ok(ast::Expression::Ident(ident))
                 }
             }
@@ -3203,7 +3216,17 @@ fn resolve_trait_item_impl(
     })?;
 
     match trait_impl {
-        TraitImplKind::Normal(impl_id) => Ok(impl_id),
+        TraitImplKind::Normal(impl_id) => {
+            // If the impl's matching method shares the trait's default-method `FuncId`
+            // (the impl inherited the default), bind the trait's `Self` to the impl's self
+            // type so monomorphization of the shared body can look up impl-specific items
+            // (`Self::N`, etc.). For overridden impl methods this is a no-op — the impl's
+            // own `FuncId` carries the binding via `set_function_trait`.
+            let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
+            bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
+            interner.store_instantiation_bindings(expr_id, bindings);
+            Ok(impl_id)
+        }
         TraitImplKind::Prepared { .. } => {
             unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
         }
@@ -3228,6 +3251,8 @@ fn resolve_trait_item_impl(
                         impl_id,
                         &mut bindings,
                     );
+
+                    bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
 
                     interner.store_instantiation_bindings(expr_id, bindings);
                     Ok(impl_id)
@@ -3268,6 +3293,42 @@ fn resolve_trait_item_impl(
             }
         }
     }
+}
+
+/// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's
+/// matching method shares the trait's default-method `FuncId`. In this case the impl has
+/// no per-impl `FuncId` to attach `func_id_to_trait` to, so `function()`'s usual `force_bind`
+/// of `Self` doesn't run; without this helper the shared body's references to `Self`
+/// (e.g. `Self::N`) can't resolve at monomorphization.
+///
+/// For impl methods with their own `FuncId` (the typical case), `set_function_trait` is set
+/// during elaboration and `function()` already binds `Self`, so this helper is a no-op for
+/// them.
+fn bind_trait_self_to_impl_self(
+    interner: &NodeInterner,
+    method_id: TraitItemId,
+    impl_id: node_interner::TraitImplId,
+    bindings: &mut TypeBindings,
+) {
+    // Only bind `Self` when the impl inherited the trait's default body, i.e. when
+    // the impl's slot for this method is the trait's own `FuncId`. For overridden
+    // methods the impl's per-impl `FuncId` has `func_id_to_trait` set, and
+    // `function()` already binds `Self` from there.
+    let DefinitionKind::Function(trait_func_id) = interner.definition(method_id.item_id).kind
+    else {
+        return;
+    };
+    let impl_ = interner.get_trait_implementation(impl_id);
+    let impl_ = impl_.borrow();
+    if !impl_.methods.contains(&trait_func_id) {
+        return;
+    }
+
+    let trait_def = interner.get_trait(method_id.trait_id);
+    let self_typevar = trait_def.self_type_typevar.clone();
+    let kind = self_typevar.kind();
+    let impl_self_type = impl_.typ.clone();
+    bindings.insert(self_typevar.id(), (self_typevar, kind, impl_self_type));
 }
 
 /// Binds direct generics on a trait impl function to those on a corresponding trait function.

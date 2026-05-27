@@ -20,12 +20,15 @@ use noirc_errors::Location;
 
 use crate::{
     Type, TypeBindings,
-    ast::{Documented, Expression, ExpressionKind},
+    ast::{
+        Documented, Expression, ExpressionKind, TypeImpl, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType,
+    },
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, CompilationErrors, ModuleAttribute,
+                CollectedItems, CompilationError, CompilationErrors, ImplMap, ModuleAttribute,
                 UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
             },
             dc_mod,
@@ -51,6 +54,18 @@ struct AttributeContext {
     attribute_module: LocalModuleId,
 }
 
+/// The impl block an attribute originates from, if the attribute decorates an
+/// `impl` method. Carries the parts of the impl needed to register generated
+/// items back onto the same type so a macro-generated function becomes a
+/// method of the struct rather than a free function in the surrounding module.
+#[derive(Debug, Clone)]
+struct AttributeImplTarget {
+    object_type: UnresolvedType,
+    generics: UnresolvedGenerics,
+    where_clause: Vec<UnresolvedTraitConstraint>,
+    type_location: Location,
+}
+
 /// A collected attribute ready to be executed.
 struct CollectedAttribute {
     /// The attribute function to call
@@ -61,6 +76,9 @@ struct CollectedAttribute {
     arguments: Vec<Expression>,
     /// Module context for the attribute
     context: AttributeContext,
+    /// When Some, this attribute will target & insert-into a type impl.
+    /// Any functions will be added as methods on the type.
+    impl_target: Option<AttributeImplTarget>,
     /// Location of the attribute in source code
     location: Location,
 }
@@ -214,6 +232,7 @@ impl<'context> Elaborator<'context> {
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
         types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
+        impls: &ImplMap,
         module_attributes: &[ModuleAttribute],
     ) -> CollectedAttributes {
         let mut attributes_to_run = Vec::new();
@@ -226,6 +245,7 @@ impl<'context> Elaborator<'context> {
                 attributes,
                 item,
                 context,
+                None,
                 &mut attributes_to_run,
             );
         }
@@ -238,11 +258,13 @@ impl<'context> Elaborator<'context> {
                 attributes,
                 item,
                 context,
+                None,
                 &mut attributes_to_run,
             );
         }
 
-        self.collect_attributes_on_functions(functions, &mut attributes_to_run);
+        self.collect_attributes_on_functions(functions, None, &mut attributes_to_run);
+        self.collect_attributes_on_impls(impls, &mut attributes_to_run);
         self.collect_attributes_on_modules(module_attributes, &mut attributes_to_run);
 
         self.sort_attributes_by_run_order(&mut attributes_to_run);
@@ -277,7 +299,36 @@ impl<'context> Elaborator<'context> {
                 attribute_module: module_attribute.attribute_module_id,
             };
 
-            self.collect_comptime_attribute_on_item(attribute, &item, context, attributes_to_run);
+            self.collect_comptime_attribute_on_item(
+                attribute,
+                &item,
+                context,
+                None,
+                attributes_to_run,
+            );
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_impls(
+        &mut self,
+        impls: &ImplMap,
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        for ((object_type, _impl_module), impls_in_module) in impls {
+            for (generics, where_clause, type_location, methods) in impls_in_module {
+                let impl_target = AttributeImplTarget {
+                    object_type: object_type.clone(),
+                    generics: generics.clone(),
+                    where_clause: where_clause.clone(),
+                    type_location: *type_location,
+                };
+                self.collect_attributes_on_functions(
+                    std::slice::from_ref(methods),
+                    Some(&impl_target),
+                    attributes_to_run,
+                );
+            }
         }
     }
 
@@ -285,6 +336,7 @@ impl<'context> Elaborator<'context> {
     fn collect_attributes_on_functions(
         &mut self,
         function_sets: &[UnresolvedFunctions],
+        impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for function_set in function_sets {
@@ -298,6 +350,7 @@ impl<'context> Elaborator<'context> {
                     attributes,
                     item,
                     context,
+                    impl_target,
                     attributes_to_run,
                 );
             }
@@ -311,6 +364,7 @@ impl<'context> Elaborator<'context> {
         attributes: &[SecondaryAttribute],
         item: Value,
         attribute_context: AttributeContext,
+        impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for attribute in attributes {
@@ -318,6 +372,7 @@ impl<'context> Elaborator<'context> {
                 attribute,
                 &item,
                 attribute_context,
+                impl_target,
                 attributes_to_run,
             );
         }
@@ -329,6 +384,7 @@ impl<'context> Elaborator<'context> {
         attribute: &SecondaryAttribute,
         item: &Value,
         attribute_context: AttributeContext,
+        impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) {
         if let SecondaryAttributeKind::Meta(meta) = &attribute.kind {
@@ -338,6 +394,7 @@ impl<'context> Elaborator<'context> {
                     attribute.location,
                     item.clone(),
                     attribute_context,
+                    impl_target,
                     attributes_to_run,
                 ) {
                     this.push_err(error);
@@ -354,6 +411,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         item: Value,
         attribute_context: AttributeContext,
+        impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
         self.local_module = Some(attribute_context.attribute_module);
@@ -392,6 +450,7 @@ impl<'context> Elaborator<'context> {
             item,
             arguments,
             context: attribute_context,
+            impl_target: impl_target.cloned(),
             location,
         });
         Ok(())
@@ -405,12 +464,14 @@ impl<'context> Elaborator<'context> {
     /// 3. Calls the attribute function with the item as the first argument
     /// 4. Processes any items generated by the attribute (if the return value is not Unit)
     #[tracing::instrument(level = "trace", skip_all)]
+    #[allow(clippy::too_many_arguments)]
     fn run_attribute(
         &mut self,
         attribute_context: AttributeContext,
         function: FuncId,
         arguments: Vec<Expression>,
         item: Value,
+        impl_target: Option<&AttributeImplTarget>,
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
@@ -445,7 +506,7 @@ impl<'context> Elaborator<'context> {
 
             let items =
                 value.into_top_level_items(location, self).map_err(CompilationError::from)?;
-            self.add_items(items, generated_items, location);
+            self.add_items(items, impl_target, generated_items, location);
         }
 
         Ok(())
@@ -574,15 +635,16 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn add_items(
+    fn add_items(
         &mut self,
         items: Vec<Item>,
+        impl_target: Option<&AttributeImplTarget>,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
         self.with_elaborate_reason(ElaborateReason::RunningAttribute(location), |elaborator| {
             for item in items {
-                elaborator.add_item(item, generated_items, location);
+                elaborator.add_item(item, impl_target, generated_items, location);
             }
         });
     }
@@ -597,11 +659,41 @@ impl<'context> Elaborator<'context> {
     /// All other item kinds are unsupported for unquoting. These restrictions often exist because certain items
     /// (e.g., module declarations and submodules) would require additional def-map updates
     /// thus potentially affecting the source order of attributes and would not be safe during elaboration.
+    ///
+    /// When `impl_target` is `Some`, the attribute originated from an `impl`
+    /// method, so generated [`ItemKind::Function`] items are routed back onto
+    /// that impl's type rather than registered as free functions in the
+    /// surrounding module.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn add_item(&mut self, item: Item, generated_items: &mut CollectedItems, location: Location) {
+    fn add_item(
+        &mut self,
+        item: Item,
+        impl_target: Option<&AttributeImplTarget>,
+        generated_items: &mut CollectedItems,
+        location: Location,
+    ) {
         let local_module = self.local_module();
 
         match item.kind {
+            ItemKind::Function(function) if impl_target.is_some() => {
+                let target = impl_target.expect("checked by match arm guard");
+                let synthetic_impl = TypeImpl {
+                    object_type: target.object_type.clone(),
+                    type_location: target.type_location,
+                    generics: target.generics.clone(),
+                    where_clause: target.where_clause.clone(),
+                    methods: vec![(Documented::new(function, item.doc_comments), location)],
+                };
+                let module = self.module_id();
+                dc_mod::collect_impl(
+                    self.interner,
+                    generated_items,
+                    synthetic_impl,
+                    location.file,
+                    module,
+                    &mut self.errors,
+                );
+            }
             ItemKind::Function(mut function) => {
                 let module_id = self.module_id();
 
@@ -651,6 +743,7 @@ impl<'context> Elaborator<'context> {
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
                     unresolved_associated_types: Vec::new(),
+                    inherited_default_method_func_ids: Default::default(),
                 });
             }
             ItemKind::Global(global, visibility) => {
@@ -769,10 +862,11 @@ impl<'context> Elaborator<'context> {
         traits: &BTreeMap<TraitId, UnresolvedTrait>,
         types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
+        impls: &ImplMap,
         module_attributes: &[ModuleAttribute],
     ) {
         let attributes_to_run =
-            self.collect_all_attributes_to_run(traits, types, functions, module_attributes);
+            self.collect_all_attributes_to_run(traits, types, functions, impls, module_attributes);
 
         // Execute each collected attribute
         for attr in attributes_to_run {
@@ -796,12 +890,14 @@ impl<'context> Elaborator<'context> {
             self.macro_expansion_depth += 1;
 
             let mut generated_items = CollectedItems::default();
+            let impl_target = attr.impl_target;
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
                     attr.context,
                     attr.function,
                     attr.arguments,
                     attr.item,
+                    impl_target.as_ref(),
                     attr.location,
                     &mut generated_items,
                 ) {
