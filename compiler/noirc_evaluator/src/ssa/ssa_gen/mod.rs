@@ -1570,12 +1570,10 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function
-/// that does not modify its array inputs.
-///
-/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-/// when the reference count is 1. We must NOT skip clones for these operations.
+/// Return whether the expression refers to a builtin or low level function for
+/// which the ownership pass's `Clone` around an array argument can be safely
+/// elided: the callee must neither modify the input nor return an alias of it
+/// that a later Brillig mutation could observe.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1588,9 +1586,11 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
         return false;
     };
 
-    // Vector operations can modify their input array in Brillig when RC=1,
-    // so we must clone them to ensure that they are "pure".
-    if intrinsic.modifies_input_array_in_brillig() {
+    // Some intrinsics are technically pure but unsafe to elide clones around in
+    // Brillig: vector mutators mutate through the input pointer when RC=1, and
+    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
+    // alias of their input that a later mutation could corrupt.
+    if intrinsic.unsafe_for_clone_elision_in_brillig() {
         return false;
     }
 

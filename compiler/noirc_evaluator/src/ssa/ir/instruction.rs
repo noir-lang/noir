@@ -219,13 +219,16 @@ impl Intrinsic {
         }
     }
 
-    /// Returns true if this intrinsic can modify its input array in Brillig
-    /// due to copy-on-write optimization when the reference count is 1.
+    /// Returns true if eliding the ownership pass's `Clone` around this intrinsic's
+    /// argument would be unsafe in Brillig, even though the intrinsic is otherwise
+    /// "pure" (no observable side effects). Two cases qualify:
     ///
-    /// This is used to ensure we don't skip clones for these operations,
-    /// even though they're technically "pure" (no observable side effects).
-    /// Without proper reference counting, the caller's array could be corrupted.
-    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+    /// * Vector mutators (`push`/`pop`/`insert`/`remove`) can write through the input
+    ///   pointer when the copy-on-write reference count is 1.
+    /// * `StrAsBytes` and `ArrayAsStrUnchecked` simplify to their input value, so the
+    ///   returned array aliases the source. A later array_set against the result
+    ///   would, under RC=1 COW, mutate the source as well.
+    pub(crate) fn unsafe_for_clone_elision_in_brillig(&self) -> bool {
         matches!(
             self,
             Intrinsic::VectorPushBack
@@ -234,6 +237,8 @@ impl Intrinsic {
                 | Intrinsic::VectorPopFront
                 | Intrinsic::VectorInsert
                 | Intrinsic::VectorRemove
+                | Intrinsic::StrAsBytes
+                | Intrinsic::ArrayAsStrUnchecked
         )
     }
 
