@@ -35,7 +35,7 @@ yarn add @noir-lang/noir_codegen -D
 
 ### Nargo library
 
-Make sure you have Nargo, v0.25.0 or greater, installed. If you don't, follow the [installation guide](../getting_started/noir_installation.md).
+Make sure you have Nargo, v0.25.0 or greater, installed. If you don't, follow the [installation guide](../installation.md).
 
 If you're in a new project, make a `circuits` folder and create a new Noir library:
 

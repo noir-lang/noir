@@ -16,7 +16,7 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
-We'll also need version 1.0.0-beta.20 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
+We'll also need version 1.0.0-beta.20 nargo installed, see the Noir [installation guide](../installation.md) for details.
 
 Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
@@ -47,7 +47,7 @@ It's not just you. We also enjoy syntax highlighting. [Check out the Language Se
 
 :::
 
-All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.20`, or just create them by hand:
+All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../installation.md) installation and just run `noirup -v 1.0.0-beta.20`, or just create them by hand:
 
 ```bash
 mkdir -p circuit/src
@@ -199,7 +199,7 @@ At this point, you have a working ZK app that works on the browser. Actually, it
 
 If you want to continue learning by doing, here are some challenges for you:
 
-- Install [nargo](https://noir-lang.org/docs/getting_started/noir_installation) and write [Noir tests](../tooling/tests)
+- Install [nargo](https://noir-lang.org/docs/installation) and write [Noir tests](../tooling/tests)
 - Change the circuit to accept a [public input](../noir/concepts/data_types/#private--public-types) as the cutoff age. It could be different depending on the purpose, for example!
 - Enjoy Noir's Rust-like syntax and write a struct `Country` that implements a trait `MinAge` with a method `get_min_age`. Then, make a struct `Person` have an `u8` as its age and a country of type `Country`. You can pass a `person` in JS just like a JSON object `person: { age, country: { min_age: 18 }}`
 

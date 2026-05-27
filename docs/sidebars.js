@@ -11,6 +11,11 @@ export default {
       label: 'Getting Started',
     },
     {
+      type: 'doc',
+      id: 'installation',
+      label: 'Installation',
+    },
+    {
       type: 'category',
       label: 'Getting Started',
       items: [
