@@ -160,6 +160,78 @@ fn default_method_type_error_reported_once() {
     check_errors(src);
 }
 
+/// Multiple impls of the same trait inherit the trait's default method
+/// (so they share the same `FuncId`). A dot-notation call on an explicitly-typed
+/// receiver should resolve to the right impl. An ambiguous polymorphic receiver
+/// should produce a "no matching impl" diagnostic (after kind-based defaulting),
+/// not a panic and not "type annotations needed" for an internal type variable.
+#[test]
+fn shared_default_method_with_multiple_impls() {
+    let src = r#"
+    pub trait Identity {
+        fn id(self) -> Self {
+            self
+        }
+    }
+
+    impl Identity for u32 {}
+    impl Identity for u64 {}
+
+    fn main() {
+        // Explicit type annotations: each call resolves unambiguously.
+        let _ = 2_u32.id();
+        let _ = 2_u64.id();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// When one of the impls is for the receiver's *default* type (`Field` for an
+/// untyped integer literal), the polymorphic receiver defaults to `Field` and the
+/// constraint check picks that impl — no annotation needed.
+#[test]
+fn shared_default_method_with_field_and_int_impls() {
+    let src = r#"
+    pub trait Identity {
+        fn id(self) -> Self {
+            self
+        }
+    }
+
+    impl Identity for u32 {}
+    impl Identity for Field {}
+
+    fn main() {
+        // Polymorphic literal defaults to `Field`, dispatches to the `Field` impl.
+        let _ = 2.id();
+        // Explicit `u32` steers to the `u32` impl.
+        let _u: u32 = 2_u32.id();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn shared_default_method_with_multiple_impls_ambiguous_receiver() {
+    let src = r#"
+    pub trait Identity {
+        fn id(self) -> Self {
+            self
+        }
+    }
+
+    impl Identity for u32 {}
+    impl Identity for u64 {}
+
+    fn main() {
+        let _ = 2.id();
+                ^^^^ No matching impl found for `Field: Identity`
+                ~~~~ No impl for `Field: Identity`
+    }
+    "#;
+    check_errors(src);
+}
+
 /// Regression test for https://github.com/noir-lang/noir/issues/11552.
 /// A numeric generic on a generic trait must be visible in a default method body.
 /// Was fixed as a side effect of #9020 (default bodies are now typed once at the
