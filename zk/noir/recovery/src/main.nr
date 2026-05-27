@@ -2,7 +2,7 @@ use dep::std;
 
 fn main(
     device_secret: Field,           // Private input
-    commitment: pub Field,         // Public: Poseidon2(device_secret)
+    commitment: pub Field,         // Public: demo commitment for device_secret
     challenge: pub Field,          // Public: Prevent replay/ensure freshness
     user_id_hash: pub Field        // Public: Anchors to specific user
 ) -> pub Field {                   // Return Nullifier
