@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const { Barretenberg, UltraHonkBackend } = require('@aztec/bb.js');
 
 const app = express();
@@ -92,7 +94,7 @@ app.post('/v1/recovery/verify', async (req, res) => {
     }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
     console.log(`ZK Recovery Server running on http://localhost:${PORT}`);
 });

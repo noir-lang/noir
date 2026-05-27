@@ -3,17 +3,28 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig({
   plugins: [
-    // NoirJS needs the barretenberg WASM files to be served
     viteStaticCopy({
       targets: [
         {
-          src: 'node_modules/@aztec/bb.js/dist/*.wasm',
+          // bb.js WASM files are usually in the dest or dist folder
+          src: 'node_modules/@aztec/bb.js/dest/browser/*.wasm',
           dest: 'assets'
         }
       ]
     })
   ],
+  build: {
+    target: 'esnext'
+  },
   optimizeDeps: {
-    exclude: ['@noir-lang/backend_barretenberg', '@noir-lang/noir_js']
+    esbuildOptions: {
+      target: 'esnext'
+    },
+    exclude: [
+      '@noir-lang/noir_js',
+      '@noir-lang/noirc_abi',
+      '@noir-lang/acvm_js',
+      '@aztec/bb.js'
+    ]
   }
 });

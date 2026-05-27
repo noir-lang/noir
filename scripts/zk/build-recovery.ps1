@@ -9,7 +9,12 @@ Write-Host "--- Noir ZK Build Pipeline ---" -ForegroundColor Cyan
 # 1. Compile the circuit
 Write-Host "Compiling Noir Recovery Circuit..."
 Push-Location $CircuitDir
-nargo compile
+if (Get-Command nargo -ErrorAction SilentlyContinue) {
+    nargo compile
+} else {
+    Write-Host "nargo not found in PATH, using cargo run..." -ForegroundColor Yellow
+    cargo run --manifest-path ../../../tooling/nargo_cli/Cargo.toml -- compile
+}
 Pop-Location
 
 # 2. Sync Artifacts to Server
