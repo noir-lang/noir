@@ -23,7 +23,7 @@ use crate::ssa::{
         instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::FunctionPurities,
+    opt::pure::{FunctionPurities, compute_function_purities},
     parser::ast::ParsedDataBus,
     ssa_gen::validate_ssa,
 };
@@ -84,7 +84,10 @@ impl Translator {
             translator.translate_non_main_function(function)?;
         }
 
+        let stated_purities = translator.purities.clone();
         let ssa = translator.finish();
+
+        validate_stated_purities(&ssa, &stated_purities)?;
 
         if validate {
             validate_ssa(&ssa);
@@ -682,3 +685,35 @@ impl Translator {
         Ok(())
     }
 }
+
+/// Check that every explicit purity annotation in the parsed source agrees with the
+/// purity that would be computed from the function's instructions (after call-graph
+/// propagation). A disagreement means the SSA file is lying about its functions and
+/// any subsequent pass that trusts the stated purity will work off a false premise.
+/// Functions whose purity was not explicitly stated in the source are skipped — the
+/// parser must remain a no-op for those.
+fn validate_stated_purities(
+    ssa: &Ssa,
+    stated_purities: &FunctionPurities,
+) -> Result<(), SsaError> {
+    if stated_purities.is_empty() {
+        return Ok(());
+    }
+
+    let computed_purities = compute_function_purities(ssa);
+
+    for (function_id, stated) in stated_purities {
+        let computed = computed_purities[function_id];
+        if *stated != computed {
+            let function_name = ssa.functions[function_id].name().to_string();
+            return Err(SsaError::PurityMismatch {
+                function_name,
+                stated: *stated,
+                computed,
+            });
+        }
+    }
+
+    Ok(())
+}
+

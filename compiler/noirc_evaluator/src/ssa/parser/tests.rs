@@ -103,7 +103,7 @@ fn test_make_composite_array() {
 #[test]
 fn test_make_composite_vector() {
     let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v2 = make_array [Field 2, Field 3] : [Field; 2]
             v4 = make_array [Field 1, v2] : [(Field, [Field; 2])]
@@ -731,11 +731,13 @@ fn parses_purity() {
             return
         }
         acir(inline) predicate_pure fn one f1 {
-          b0():
+          b0(v0: Field):
+            constrain v0 == Field 0
             return
         }
         acir(inline) impure fn two f2 {
-          b0():
+          b0(v0: &mut Field):
+            store Field 1 at v0
             return
         }
         acir(inline) fn three f3 {
@@ -744,6 +746,47 @@ fn parses_purity() {
         }
     ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parser_rejects_pure_annotation_over_impure_body() {
+    // A function with a `&mut` reference parameter is classified as `Impure` by
+    // `Function::is_pure`, so a `pure` annotation on it is a lie. The parser must catch this.
+    let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            return
+        }
+        ";
+    let Err(err) = Ssa::from_str(src) else {
+        panic!("parser must reject mismatched purity");
+    };
+    let message = format!("{err:?}");
+    assert!(
+        message.contains("declared as `pure`") && message.contains("compute `impure`"),
+        "unexpected error message: {message}",
+    );
+}
+
+#[test]
+fn parser_rejects_impure_annotation_over_pure_body() {
+    // Underclaiming is a lie too: a side-effect-free ACIR function is `Pure`, not `Impure`.
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+    let Err(err) = Ssa::from_str(src) else {
+        panic!("parser must reject mismatched purity");
+    };
+    let message = format!("{err:?}");
+    assert!(
+        message.contains("declared as `impure`") && message.contains("compute `pure`"),
+        "unexpected error message: {message}",
+    );
 }
 
 #[test]
@@ -824,7 +867,7 @@ fn test_parses_oracle() {
 #[test]
 fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             jmp b2()
           b1():
@@ -842,7 +885,7 @@ fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_
 #[test]
 fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmpif() {
     let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1):
             jmpif v0 then: b2(), else: b3()
           b1():

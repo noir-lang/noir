@@ -138,6 +138,10 @@ pub(crate) enum SsaError {
     GlobalAlreadyDefined(Identifier),
     #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
     IllegalOffset(Identifier, ArrayOffset),
+    #[error(
+        "Function '{function_name}' is declared as `{stated}` but its instructions compute `{computed}`"
+    )]
+    PurityMismatch { function_name: String, stated: Purity, computed: Purity },
 }
 
 impl SsaError {
@@ -153,6 +157,7 @@ impl SsaError {
             | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
+            SsaError::PurityMismatch { .. } => Span::default(),
         }
     }
 }
