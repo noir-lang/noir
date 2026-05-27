@@ -263,6 +263,7 @@ impl ModCollector<'_> {
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
                 unresolved_associated_types: Vec::new(),
+                inherited_default_method_func_ids: Default::default(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);

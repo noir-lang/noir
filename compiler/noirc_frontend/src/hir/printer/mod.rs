@@ -536,7 +536,14 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             printed_item = true;
         }
 
+        // If a slot in the impl's methods list is the trait's own default-method
+        // `FuncId`, the impl inherited the default body — printing that method here
+        // would falsely suggest the user wrote an override.
+        let trait_method_func_ids: HashSet<FuncId> = trait_.method_ids.values().copied().collect();
         for method in &item_trait_impl.methods {
+            if trait_method_func_ids.contains(method) {
+                continue;
+            }
             if printed_item {
                 self.push_str("\n\n");
             }
