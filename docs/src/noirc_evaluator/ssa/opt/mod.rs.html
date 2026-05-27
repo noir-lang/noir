@@ -165,11 +165,15 @@
 <a href=#165 id=165 data-nosnippet>165</a>    inputs: Vec&lt;Value&gt;,
 <a href=#166 id=166 data-nosnippet>166</a>    ssa_pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa,
 <a href=#167 id=167 data-nosnippet>167</a>) -&gt; (Ssa, <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, InterpreterError&gt;) {
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">let </span>before = ssa.interpret(inputs.clone());
-<a href=#169 id=169 data-nosnippet>169</a>
-<a href=#170 id=170 data-nosnippet>170</a>    <span class="kw">let </span>new_ssa = ssa_pass(ssa);
-<a href=#171 id=171 data-nosnippet>171</a>
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">let </span>after = new_ssa.interpret(inputs);
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="macro">assert_eq!</span>(before, after, <span class="string">"SSA pass has resulted in a different execution result"</span>);
-<a href=#174 id=174 data-nosnippet>174</a>    (new_ssa, after)
-<a href=#175 id=175 data-nosnippet>175</a>}</code></pre></div></section></main></body></html>
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="comment">// Each run gets its own deep copy of the inputs. A shallow `Vec::clone` would share the
+<a href=#169 id=169 data-nosnippet>169</a>    // backing `Shared&lt;Vec&lt;Value&gt;&gt;` of any array argument, so an in-place `array_set` in the
+<a href=#170 id=170 data-nosnippet>170</a>    // first run would corrupt the inputs of the second — masking exactly the kind of
+<a href=#171 id=171 data-nosnippet>171</a>    // copy-on-write difference this helper is meant to detect.
+<a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">let </span>before = ssa.interpret(Value::snapshot_args(<span class="kw-2">&amp;</span>inputs));
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">let </span>new_ssa = ssa_pass(ssa);
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">let </span>after = new_ssa.interpret(Value::snapshot_args(<span class="kw-2">&amp;</span>inputs));
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="macro">assert_eq!</span>(before, after, <span class="string">"SSA pass has resulted in a different execution result"</span>);
+<a href=#178 id=178 data-nosnippet>178</a>    (new_ssa, after)
+<a href=#179 id=179 data-nosnippet>179</a>}</code></pre></div></section></main></body></html>
