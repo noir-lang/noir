@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot inline values of type `fn[(Field,)](Field) -> Field` into this position
+  ┌─ src/main.nr:4:14
+  │
+4 │     quote { $f }
+  │              - Cannot inline value `(closure)`
+  │
+
+Aborting due to 1 previous error
