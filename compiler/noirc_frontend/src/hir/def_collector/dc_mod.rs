@@ -1465,7 +1465,12 @@ pub fn collect_impl(
 
     let key = (r#impl.object_type, module_id.local_id);
     let methods = items.impls.entry(key).or_default();
-    methods.push((r#impl.generics, r#impl.type_location, unresolved_functions));
+    methods.push((
+        r#impl.generics,
+        r#impl.where_clause,
+        r#impl.type_location,
+        unresolved_functions,
+    ));
 }
 
 fn find_module(

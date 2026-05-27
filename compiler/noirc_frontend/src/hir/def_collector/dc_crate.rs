@@ -191,7 +191,7 @@ impl CollectedItems {
 /// since it would be non-deterministic.
 pub(crate) type ImplMap = HashMap<
     (UnresolvedType, LocalModuleId),
-    Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+    Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
 >;
 
 /// Wraps a list of compilation errors.
