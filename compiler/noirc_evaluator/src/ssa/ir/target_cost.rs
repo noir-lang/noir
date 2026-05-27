@@ -22,9 +22,13 @@ impl Instruction {
     ///
     /// Instructions with side effects (constraints, calls, memory ops) cannot be
     /// flattened because they would execute unconditionally in the merged block.
-    /// A few instructions that report side effects are still safe in Brillig conditionals.
-    ///  These instructions are expected to be handled by this method's caller:
-    /// - `Allocate`, `IncrementRc`, `DecrementRc` are not predicate-dependent.
+    /// Memory ops are expected to be handled by this method's caller, which is why
+    /// they panic here:
+    /// - `Allocate` is not predicate-dependent and is duplicated freely.
+    /// - `IncrementRc` / `DecrementRc` ARE predicate-dependent: hoisting them out of a
+    ///   branch changes an array's runtime reference count, which changes the
+    ///   copy-on-write behavior of a later `array_set`. The caller refuses to flatten
+    ///   any branch containing them.
     ///
     /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
     /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.

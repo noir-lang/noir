@@ -246,22 +246,29 @@ fn differing_merge_cost(
 /// flattened (side-effectful instructions like constraints, calls, memory ops,
 /// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
 ///
-/// Memory management instructions (IncrementRc, DecrementRc, Allocate) are
-/// excluded from the cost — they are safe to flatten but represent overhead
-/// that shouldn't influence the flatten/not-flatten decision.
+/// `Allocate` and `Noop` are excluded from the cost — they are safe to execute
+/// unconditionally and represent overhead that shouldn't influence the
+/// flatten/not-flatten decision.
+///
+/// Reference-count instructions (`IncrementRc`, `DecrementRc`) are branch-local
+/// side effects and force `None`: flattening would move them into the
+/// unconditionally executed merged block, changing the runtime reference count.
+/// Because Brillig `array_set` mutates in place only when an array's RC is 1,
+/// hoisting a branch-local `inc_rc` can turn a later in-place `array_set` into a
+/// copy (or vice versa), which is not semantics-preserving.
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
-        // Skip memory management instructions — these are always allowed to flatten
-        // but don't represent meaningful compute that should affect the decision.
-        if matches!(
-            instruction,
-            Instruction::Allocate
-                | Instruction::IncrementRc { .. }
-                | Instruction::DecrementRc { .. }
-                | Instruction::Noop
-        ) {
+        // Reference-count ops cannot be hoisted out of the branch without changing
+        // copy-on-write behavior, so refuse to flatten any branch that contains them.
+        if matches!(instruction, Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. })
+        {
+            return None;
+        }
+        // Skip memory management instructions that are safe to execute unconditionally —
+        // these don't represent meaningful compute that should affect the decision.
+        if matches!(instruction, Instruction::Allocate | Instruction::Noop) {
             continue;
         }
 
@@ -491,7 +498,7 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{Ssa, interpreter::value::Value, ir::types::Type, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -755,6 +762,71 @@ mod tests {
             return v8
         }
         ");
+    }
+
+    /// A branch-local `inc_rc` must keep the conditional from flattening.
+    ///
+    /// In Brillig, `array_set` mutates its array in place only when the runtime
+    /// reference count is 1, and `inc_rc` bumps that count. Flattening would hoist the
+    /// `then`-branch `inc_rc` into the unconditionally executed merged block, so it would
+    /// run even when the condition is false. That changes the reference count seen by the
+    /// later `array_set`, turning an in-place mutation into a copy. The pass must leave
+    /// the conditional intact.
+    #[test]
+    fn does_not_flatten_branch_local_inc_rc() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+    }
+
+    /// Interpreter-level companion to `does_not_flatten_branch_local_inc_rc`.
+    ///
+    /// With `v0 = false` the `then`-branch `inc_rc` is skipped, so `v1` keeps a reference
+    /// count of 1 and the `array_set` mutates it in place — the `array_get` then observes
+    /// `Field 7`. Flattening (before the fix) hoisted `inc_rc` unconditionally, so the
+    /// `array_set` copied and the read returned the stale `Field 1`. We interpret with
+    /// freshly built inputs before and after the pass (the interpreter mutates arrays in
+    /// place, so the two runs must not share state) and assert the result is unchanged.
+    #[test]
+    fn branch_local_inc_rc_preserves_execution() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }
+            ";
+        let inputs = || {
+            vec![
+                Value::bool(false),
+                Value::array(vec![Value::field(1_u128.into())], vec![Type::field()]),
+            ]
+        };
+        let before = Ssa::from_str(src).unwrap().interpret(inputs());
+        let after = Ssa::from_str(src).unwrap().flatten_basic_conditionals().interpret(inputs());
+        assert_eq!(before, after, "flattening changed the observable execution result");
+        assert_eq!(after.unwrap(), vec![Value::field(7_u128.into())]);
     }
 
     /// Non-diamond (then-only) case with JmpIf arguments: the optimization must be
