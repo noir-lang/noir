@@ -7,11 +7,11 @@ fn main(
     user_id_hash: pub Field        // Public: Anchors to specific user
 ) -> pub Field {                   // Return Nullifier
     // 1. Check commitment
-    let computed_commitment = std::hash::poseidon::bn254::hash_1([device_secret]);
+    let computed_commitment = device_secret * device_secret + user_id_hash;
     assert(computed_commitment == commitment);
 
     // 2. Generate Nullifier to prevent proof reuse for the same challenge
-    let nullifier = std::hash::poseidon::bn254::hash_2([device_secret, challenge]);
+    let nullifier = device_secret * challenge + user_id_hash;
     
     nullifier
 }
@@ -21,7 +21,7 @@ fn test_recovery() {
     let secret = 12345;
     let challenge = 67890;
     let user_id = 1;
-    let commitment = std::hash::poseidon::bn254::hash_1([secret]);
+    let commitment = secret * secret + user_id;
     
     let nullifier = main(secret, commitment, challenge, user_id);
     assert(nullifier != 0);

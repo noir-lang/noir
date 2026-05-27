@@ -25,6 +25,9 @@ async function log(msg) {
 
 const userId = "admin-01";
 const SERVER_URL = 'http://localhost:3002';
+const DEVICE_SECRET = "123456789";
+const USER_ID_HASH = "1";
+const COMMITMENT = "15241578750190522";
 
 async function readJson(response, label) {
     const contentType = response.headers.get('content-type') || '';
@@ -46,16 +49,14 @@ document.getElementById('registerBtn').onclick = async () => {
         document.getElementById('registerBtn').disabled = true;
         log("Generating device secret...");
 
-        const secret = "123456789";
-        localStorage.setItem('zk_recovery_secret', secret);
+        localStorage.setItem('zk_recovery_secret', DEVICE_SECRET);
 
         log("Computing commitment...");
-        const commitment = "0x28639695646197170138612745304918512140682229562719280975878893118742880056637";
 
         const registerRes = await fetch(`${SERVER_URL}/v1/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, commitment })
+            body: JSON.stringify({ userId, commitment: COMMITMENT })
         });
         await readJson(registerRes, 'Registration request');
 
@@ -91,13 +92,11 @@ document.getElementById('recoverBtn').onclick = async () => {
             throw new Error("No local recovery secret found. Register first.");
         }
 
-        const commitment = "0x28639695646197170138612745304918512140682229562719280975878893118742880056637";
-
         const input = {
             device_secret: secret,
-            commitment: commitment,
+            commitment: COMMITMENT,
             challenge: challenge,
-            user_id_hash: "1"
+            user_id_hash: USER_ID_HASH
         };
 
         log("Generating witness...");

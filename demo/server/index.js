@@ -22,6 +22,10 @@ const users = {}; // { userId: commitment }
 const usedNullifiers = new Set();
 const activeChallenges = {}; // { userId: challenge }
 
+function normalizeField(value) {
+    return BigInt(value).toString();
+}
+
 // Load circuit artifact (Expected at this path after build script)
 const circuitPath = path.join(__dirname, 'artifacts', 'recovery.json');
 let recoveryCircuit;
@@ -33,7 +37,7 @@ if (fs.existsSync(circuitPath)) {
 
 app.post('/v1/register', (req, res) => {
     const { userId, commitment } = req.body;
-    users[userId] = commitment;
+    users[userId] = normalizeField(commitment);
     console.log(`Registered user ${userId} with commitment ${commitment}`);
     res.json({ status: 'success' });
 });
@@ -69,7 +73,7 @@ app.post('/v1/recovery/verify', async (req, res) => {
         // Input: commitment (pub), challenge (pub), user_id_hash (pub)
         // Return: nullifier (pub)
         // So publicInputs might be [commitment, challenge, user_id_hash, nullifier]
-        const [commitment, challenge, userIdHash, nullifier] = publicInputs;
+        const [commitment, challenge, userIdHash, nullifier] = publicInputs.map(normalizeField);
 
         // 1. Cryptographic Verification
         const isValid = await backend.verifyProof({ proof: new Uint8Array(proof), publicInputs });
