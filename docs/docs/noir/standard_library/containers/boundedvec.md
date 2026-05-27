@@ -256,22 +256,6 @@ Example:
 
 #include_code from-parts noir_stdlib/src/collections/bounded_vec.nr rust
 
-### from_parts_unchecked
-
-```rust
-pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self
-```
-
-Creates a new BoundedVec from the given array and length.
-The given length must be less than or equal to the length of the array.
-
-This function used to be different from `BoundedVec::from_parts`, but is now identical
-and thus deprecated.
-
-Example:
-
-#include_code from-parts-unchecked noir_stdlib/src/collections/bounded_vec.nr rust
-
 ### map
 
 ```rust
