@@ -22,13 +22,15 @@ impl Instruction {
     ///
     /// Instructions with side effects (constraints, calls, memory ops) cannot be
     /// flattened because they would execute unconditionally in the merged block.
-    /// Memory ops are expected to be handled by this method's caller, which is why
-    /// they panic here:
-    /// - `Allocate` is not predicate-dependent and is duplicated freely.
-    /// - `IncrementRc` / `DecrementRc` ARE predicate-dependent: hoisting them out of a
-    ///   branch changes an array's runtime reference count, which changes the
-    ///   copy-on-write behavior of a later `array_set`. The caller refuses to flatten
-    ///   any branch containing them.
+    ///
+    /// `Allocate` is not predicate-dependent and is safe to duplicate, but the caller
+    /// excludes it from the flatten-cost estimate before asking, so reaching it here is
+    /// an ICE.
+    ///
+    /// `IncrementRc` / `DecrementRc` ARE predicate-dependent: hoisting them out of a
+    /// branch changes an array's runtime reference count, which in turn changes the
+    /// copy-on-write behavior of a later `array_set`. They are reported as
+    /// non-flattenable, consistent with their `has_side_effects` classification.
     ///
     /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
     /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.
@@ -41,11 +43,11 @@ impl Instruction {
                     true
                 }
             }
-            Instruction::Allocate
-            | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => {
-                panic!("ICE: Caller should handle memory ops");
+            Instruction::Allocate => {
+                panic!("ICE: Caller should handle Allocate");
             }
+
+            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => false,
 
             // Calls are never worth flattening — even pure intrinsics can expand
             // into many Brillig opcodes, making unconditional execution expensive.

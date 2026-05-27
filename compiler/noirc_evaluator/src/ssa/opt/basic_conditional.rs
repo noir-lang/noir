@@ -242,30 +242,19 @@ fn differing_merge_cost(
 
 /// Computes a cost estimate for flattening a basic block in a conditional.
 ///
-/// Returns `None` if the block contains instructions that cannot be safely
-/// flattened (side-effectful instructions like constraints, calls, memory ops,
-/// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
+/// Returns `None` if the block contains an instruction that cannot be safely
+/// flattened (side-effectful instructions like constraints, calls, reference-count
+/// ops, memory ops, div/mod, shifts — see `can_flatten_in_conditional`). Otherwise
+/// returns the estimated Brillig opcode cost.
 ///
 /// `Allocate` and `Noop` are excluded from the cost — they are safe to execute
 /// unconditionally and represent overhead that shouldn't influence the
-/// flatten/not-flatten decision.
-///
-/// Reference-count instructions (`IncrementRc`, `DecrementRc`) are branch-local
-/// side effects and force `None`: flattening would move them into the
-/// unconditionally executed merged block, changing the runtime reference count.
-/// Because Brillig `array_set` mutates in place only when an array's RC is 1,
-/// hoisting a branch-local `inc_rc` can turn a later in-place `array_set` into a
-/// copy (or vice versa), which is not semantics-preserving.
+/// flatten/not-flatten decision. (`Allocate` must be skipped before the
+/// `can_flatten_in_conditional` call, which treats reaching it as an ICE.)
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
-        // Reference-count ops cannot be hoisted out of the branch without changing
-        // copy-on-write behavior, so refuse to flatten any branch that contains them.
-        if matches!(instruction, Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. })
-        {
-            return None;
-        }
         // Skip memory management instructions that are safe to execute unconditionally —
         // these don't represent meaningful compute that should affect the decision.
         if matches!(instruction, Instruction::Allocate | Instruction::Noop) {
