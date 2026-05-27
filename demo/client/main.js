@@ -24,7 +24,7 @@ async function log(msg) {
 }
 
 const userId = "admin-01";
-const SERVER_URL = 'http://localhost:3002';
+const SERVER_URL = import.meta.env.VITE_API_BASE_URL || (location.hostname === 'localhost' ? 'http://localhost:3002' : '');
 const DEVICE_SECRET = "123456789";
 const USER_ID_HASH = "1";
 const COMMITMENT = "15241578750190522";
@@ -74,7 +74,7 @@ document.getElementById('recoverBtn').onclick = async () => {
         document.getElementById('recoverBtn').disabled = true;
         log("Fetching challenge from server...");
         const challengeRes = await fetch(`${SERVER_URL}/v1/challenge/${userId}`);
-        const { challenge } = await readJson(challengeRes, 'Challenge request');
+        const { challenge, challengeToken } = await readJson(challengeRes, 'Challenge request');
         log(`Challenge received: ${challenge}`);
 
         log("Loading Noir circuit...");
@@ -113,7 +113,8 @@ document.getElementById('recoverBtn').onclick = async () => {
             body: JSON.stringify({
                 userId,
                 proof: Array.from(proofData.proof),
-                publicInputs: proofData.publicInputs
+                publicInputs: proofData.publicInputs,
+                challengeToken
             })
         });
 

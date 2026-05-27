@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "server/artifacts/recovery.json"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/v1/(.*)",
+      "destination": "/api/index"
+    }
+  ]
+}
