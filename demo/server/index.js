@@ -27,6 +27,8 @@ const circuitPath = path.join(__dirname, 'artifacts', 'recovery.json');
 let recoveryCircuit;
 if (fs.existsSync(circuitPath)) {
     recoveryCircuit = JSON.parse(fs.readFileSync(circuitPath, 'utf8'));
+} else {
+    console.warn(`Circuit artifact not found at ${circuitPath}. Run scripts/zk/build-recovery.ps1 before recovery.`);
 }
 
 app.post('/v1/register', (req, res) => {
@@ -40,6 +42,14 @@ app.get('/v1/challenge/:userId', (req, res) => {
     const challenge = Math.floor(Math.random() * 1000000).toString();
     activeChallenges[req.params.userId] = challenge;
     res.json({ challenge });
+});
+
+app.get('/v1/circuit', (req, res) => {
+    if (!recoveryCircuit) {
+        return res.status(500).json({ error: 'Circuit artifact not found. Run scripts/zk/build-recovery.ps1.' });
+    }
+
+    res.json(recoveryCircuit);
 });
 
 app.post('/v1/recovery/verify', async (req, res) => {
