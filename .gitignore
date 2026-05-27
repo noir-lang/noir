@@ -72,3 +72,5 @@ mutants.out.old
 
 # Claude Code worktrees
 .claude/worktrees/
+/.nargo-logs
+.nargo-logs2/nargo-log.2026-05-27
