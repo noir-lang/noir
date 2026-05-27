@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779898824864,
+  "lastUpdate": 1779898933553,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b1c7761066128687a155d987f2708538fbdd0eae",
-          "message": "chore(deps): bump the hardhat group with 12 updates (#12717)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-19T23:04:28Z",
-          "tree_id": "1a3fa67215c25a3110d410711f99d381af5cdc9e",
-          "url": "https://github.com/noir-lang/noir/commit/b1c7761066128687a155d987f2708538fbdd0eae"
-        },
-        "date": 1779233414074,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165351,
-            "range": "± 354",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136901,
-            "range": "± 1956",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2120915,
-            "range": "± 3887",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651292,
             "range": "± 2337",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7e476b27614a3f57e6a8ce9e81b946cc087ef6b8",
+          "message": "fix: Change mod by 0 error message (#12691)",
+          "timestamp": "2026-05-27T15:53:27Z",
+          "tree_id": "46fd7ed3bb0c52fba8009ecf882acd3ce36fc34e",
+          "url": "https://github.com/noir-lang/noir/commit/7e476b27614a3f57e6a8ce9e81b946cc087ef6b8"
+        },
+        "date": 1779898869243,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 179604,
+            "range": "± 1070",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144361,
+            "range": "± 2116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651561,
+            "range": "± 17333",
             "unit": "ns/iter"
           }
         ]
