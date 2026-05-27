@@ -45,5 +45,6 @@ export default defineConfig([
     'tooling/noir_js/lib/',
     'tooling/noirc_abi_wasm/web/',
     'tooling/noirc_abi_wasm/nodejs/',
+    'demo/',
   ]),
 ]);
