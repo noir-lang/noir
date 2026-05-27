@@ -738,8 +738,7 @@ impl Elaborator<'_> {
         // with these args by index. Collect each pattern into its declaration-order
         // slot rather than by field name, so a struct whose fields are not declared
         // alphabetically still pairs each pattern with the correct branch variable.
-        let mut field_patterns: Vec<Option<Pattern>> =
-            std::iter::repeat_with(|| None).take(expected_field_types.len()).collect();
+        let mut field_patterns: Vec<Option<Pattern>> = vec![None; expected_field_types.len()];
 
         for (field_name, field) in constructor.fields {
             let Some(field_index) =
@@ -775,9 +774,9 @@ impl Elaborator<'_> {
         }
 
         // A `None` slot is a field that produced an error above (missing or unknown).
-        // Such errors set `errored`, so `elaborate_match_rows` is skipped and these
-        // placeholders are never matched on; filling them only keeps `args` at the
-        // struct's full field arity in declaration order.
+        // Pushing any of those errors makes the caller skip `elaborate_match_rows`, so
+        // these `Pattern::Error` placeholders are never matched on; filling the slots
+        // only keeps `args` at the struct's full field arity in declaration order.
         let args = vecmap(field_patterns, |pattern| pattern.unwrap_or(Pattern::Error));
         Pattern::Constructor(Constructor::Variant(typ, 0), args)
     }
