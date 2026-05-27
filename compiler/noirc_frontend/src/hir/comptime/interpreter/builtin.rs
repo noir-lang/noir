@@ -13,8 +13,8 @@ use builtin_helpers::{
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
     get_location, get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl,
     get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident,
-    visibility_to_quoted,
+    has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
+    parse, quote_ident, visibility_to_quoted,
 };
 use fm::FileMap;
 use im::Vector;
@@ -45,7 +45,8 @@ use crate::{
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_map::{ModuleDefId, ModuleId},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        resolution::visibility::item_in_module_is_visible,
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -155,8 +156,11 @@ impl Interpreter<'_, '_> {
             "function_def_body" => function_def_body(self, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
+            "function_def_has_builtin_attribute" => {
+                function_def_has_attribute(interner, arguments, location, true)
+            }
             "function_def_has_named_attribute" => {
-                function_def_has_named_attribute(interner, arguments, location)
+                function_def_has_attribute(interner, arguments, location, false)
             }
             "function_def_hash" => function_def_hash(arguments, location),
             "function_def_is_unconstrained" => {
@@ -171,7 +175,8 @@ impl Interpreter<'_, '_> {
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
-            "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
+            "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
+            "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
             "module_hash" => module_hash(arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_location" => module_location(interner, arguments, location),
@@ -239,13 +244,14 @@ impl Interpreter<'_, '_> {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
             }
             "type_def_eq" => type_def_eq(arguments, location),
-            "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
-            "type_def_fields_as_written" => {
-                type_def_fields_as_written(interner, arguments, location)
-            }
+            "type_def_fields" => type_def_fields(self, arguments, location, call_stack),
+            "type_def_fields_as_written" => type_def_fields_as_written(self, arguments, location),
             "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
+            "type_def_has_builtin_attribute" => {
+                type_def_has_attribute(interner, arguments, location, true)
+            }
             "type_def_has_named_attribute" => {
-                type_def_has_named_attribute(interner, arguments, location)
+                type_def_has_attribute(interner, arguments, location, false)
             }
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_location" => type_def_location(interner, arguments, location),
@@ -277,7 +283,14 @@ impl Interpreter<'_, '_> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => Ok(zeroed(return_type, location)),
+            "zeroed" => {
+                // Resolve any deferred struct fields or enum variants in the
+                // return type so `zeroed` returns a real `Value::Struct`/`Enum`
+                // instead of an opaque `Value::Zeroed` placeholder when called
+                // before the post-attribute drain.
+                self.elaborator.define_deferred_data_types_in(&return_type);
+                Ok(zeroed(return_type, location))
+            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -597,10 +610,12 @@ fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn type_def_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn type_def_has_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let type_id = get_type_id(self_argument)?;
@@ -608,21 +623,30 @@ fn type_def_has_named_attribute(
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
+    let attrs = interner.type_attributes(&type_id);
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, attrs)
+    } else {
+        has_named_attribute(&name, attrs, interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)]
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
     let struct_id = get_type_id(typ)?;
-    let struct_def = interner.get_type(struct_id);
+
+    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let args_location = generic_args.1;
@@ -682,13 +706,16 @@ fn type_def_fields(
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_type_id(argument)?;
-    let struct_def = interner.get_type(struct_id);
+
+    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let mut fields = Vector::new();
@@ -2399,34 +2426,44 @@ fn expr_resolve(
         interpreter.current_function
     };
 
+    // When the user provides a foreign function scope, enforce visibility from the caller's
+    // module so that private items in the foreign scope cannot be accessed.
+    let caller_module = is_some.then(|| interpreter.elaborator.module_id());
+
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
-    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
-    {
-        ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, location: self_argument_location };
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
+        if is_some {
+            elaborator.caller_module = caller_module;
         }
-        ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, location: self_argument_location };
-            let (stmt_id, _) = elaborator.elaborate_statement(statement);
-            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-        }
-        ExprValue::LValue(lvalue) => {
-            let expr = lvalue.as_expression();
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-        }
-        ExprValue::Pattern(pattern) => {
-            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                let (expr_id, _) = elaborator.elaborate_expression(expression);
+
+        match expr_value {
+            ExprValue::Expression(expression_kind) => {
+                let expr = Expression { kind: expression_kind, location: self_argument_location };
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
                 Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            } else {
-                let expression = Value::pattern(pattern)
-                    .display(elaborator.interner, elaborator.files)
-                    .to_string();
-                let location = self_argument_location;
-                Err(InterpreterError::CannotResolveExpression { location, expression })
+            }
+            ExprValue::Statement(statement_kind) => {
+                let statement =
+                    Statement { kind: statement_kind, location: self_argument_location };
+                let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+            }
+            ExprValue::LValue(lvalue) => {
+                let expr = lvalue.as_expression();
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            }
+            ExprValue::Pattern(pattern) => {
+                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                    let (expr_id, _) = elaborator.elaborate_expression(expression);
+                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                } else {
+                    let expression = Value::pattern(pattern)
+                        .display(elaborator.interner, elaborator.files)
+                        .to_string();
+                    let location = self_argument_location;
+                    Err(InterpreterError::CannotResolveExpression { location, expression })
+                }
             }
         }
     })
@@ -2523,6 +2560,29 @@ fn function_def_as_typed_expr(
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
     let trait_impl_id = interpreter.elaborator.function_meta(func_id).trait_impl;
+
+    // Check visibility for non-trait functions
+    if trait_impl_id.is_none() {
+        let defining_module = interpreter.elaborator.interner.function_module(func_id);
+        let visibility = interpreter.elaborator.interner.function_visibility(func_id);
+        let caller_module = interpreter.elaborator.module_id();
+        if !item_in_module_is_visible(
+            interpreter.elaborator.def_maps,
+            caller_module,
+            defining_module,
+            visibility,
+        ) {
+            let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+            let defining_module = fully_qualified_module_path(
+                interpreter.elaborator.def_maps,
+                interpreter.elaborator.crate_graph,
+                &caller_module.krate,
+                defining_module,
+            );
+            return Err(InterpreterError::FunctionNotVisible { name, defining_module, location });
+        }
+    }
+
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
@@ -2612,10 +2672,12 @@ fn function_def_disable(
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn function_def_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn function_def_has_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
@@ -2630,7 +2692,13 @@ fn function_def_has_named_attribute(
         return Ok(Value::Bool(true));
     }
 
-    Ok(Value::Bool(has_named_attribute(&name, &modifiers.attributes.secondary, interner)))
+    let secondary = &modifiers.attributes.secondary;
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, secondary)
+    } else {
+        has_named_attribute(&name, secondary, interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2851,10 +2919,12 @@ fn module_structs(
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn module_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn module_has_attribute(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
@@ -2863,11 +2933,13 @@ fn module_has_named_attribute(
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
 
-    Ok(Value::Bool(has_named_attribute(
-        &name,
-        &module_data.attributes,
-        interpreter.elaborator.interner,
-    )))
+    let attrs = &module_data.attributes;
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, attrs)
+    } else {
+        has_named_attribute(&name, attrs, interpreter.elaborator.interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 // fn is_contract(self) -> bool

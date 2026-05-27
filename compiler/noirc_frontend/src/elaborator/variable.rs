@@ -84,6 +84,7 @@ impl Elaborator<'_> {
                 // but it is not a real variable so it does not resolve to a valid Identifier.
                 // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
                 let type_alias = self.interner.get_type_alias(type_alias_id);
+                let alias_module_id = type_alias.borrow().module_id;
                 if let Some(type_alias_expr) = &type_alias.borrow().numeric_expr {
                     // Extract the declared numeric type from the type alias's kind.
                     let declared_type = match type_alias.borrow().typ.kind() {
@@ -149,7 +150,14 @@ impl Elaborator<'_> {
                     // literals queued for the function-context fit check during
                     // re-elaboration so the same overflow is not reported twice.
                     let literals_before = self.integer_literal_expr_ids_len();
+                    // Re-elaborate the alias body in the alias's defining module
+                    // so unqualified names resolve against the alias's scope,
+                    // not the caller's. Mirrors `define_type_alias` in mod.rs.
+                    let previous_module = self.replace_module(alias_module_id);
                     let (id, typ) = self.elaborate_expression(var_expr);
+                    if let Some(previous_module) = previous_module {
+                        self.replace_module(previous_module);
+                    }
                     self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
@@ -196,14 +204,10 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` has the enclosing type generics first, followed by `direct_generics`
-                // (the method's own generics). We must only bind the type-level portion here;
-                // method generics are handled separately by the method turbofish.
+                // We must only bind the type-level portion here; method generics are handled
+                // separately by the method turbofish.
                 let func_meta = self.function_meta(*func_id);
-                let impl_generic_count =
-                    func_meta.all_generics.len() - func_meta.direct_generics.len();
-                let impl_generics =
-                    vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
+                let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
                 let self_type =
                     func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
 
@@ -659,13 +663,9 @@ impl Elaborator<'_> {
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
         // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-        let (self_type_generics_count, function_typ, function_self_type) =
-            self.with_function_meta(func_id, |meta| {
-                (
-                    meta.all_generics.len() - meta.direct_generics.len(),
-                    meta.typ.clone(),
-                    meta.self_type.clone(),
-                )
+        let (self_type_generics_count, function_typ, function_self_type) = self
+            .with_function_meta(func_id, |meta| {
+                (meta.impl_generics_count(), meta.typ.clone(), meta.self_type.clone())
             });
         let bindings = if self_type_generics_count > 0 {
             if let Type::Forall(type_vars, _) = &function_typ

@@ -13,6 +13,9 @@ pub mod native_types;
 mod parser;
 mod serialization;
 
+#[cfg(feature = "test-fixtures")]
+pub mod test_fixtures;
+
 pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};
 pub use brillig;
@@ -92,16 +95,10 @@ mod reflection {
 
         let mut samples = Samples::new();
         tracer
-            .trace_value(
-                &mut samples,
-                &MemOp::<FieldElement>::read_at_mem_index(Witness(0), Witness(0)),
-            )
+            .trace_value(&mut samples, &MemOp::read_at_mem_index(Witness(0), Witness(0)))
             .unwrap();
         tracer
-            .trace_value(
-                &mut samples,
-                &MemOp::<FieldElement>::write_to_mem_index(Witness(0), Witness(0)),
-            )
+            .trace_value(&mut samples, &MemOp::write_to_mem_index(Witness(0), Witness(0)))
             .unwrap();
 
         tracer.trace_simple_type::<BlockType>().unwrap();

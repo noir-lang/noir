@@ -11,7 +11,9 @@ use crate::hir::resolution::import::{
 };
 
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::visibility::item_in_module_is_visible;
+use crate::hir::resolution::visibility::{
+    item_in_module_is_visible, trait_visibility_for_method_is_satisfied,
+};
 
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
@@ -567,6 +569,10 @@ impl Elaborator<'_> {
             });
         }
 
+        // The module to use for visibility check.
+        // Use the caller's module if set, else use the resolution scope.
+        let visibility_module = self.caller_module.unwrap_or(importing_module);
+
         let first_segment_is_always_visible =
             first_segment_is_always_visible(&path, importing_module, starting_module);
 
@@ -673,7 +679,7 @@ impl Elaborator<'_> {
             if !((first_segment_is_always_visible && index == 0)
                 || item_in_module_is_visible(
                     self.def_maps,
-                    importing_module,
+                    visibility_module,
                     current_module_id,
                     visibility,
                 ))
@@ -686,13 +692,13 @@ impl Elaborator<'_> {
 
             // Check if namespace
             let found_ns = if current_module_id_is_type {
-                match self.resolve_method(importing_module, current_module, current_ident) {
+                match self.resolve_method(visibility_module, current_module, current_ident) {
                     MethodLookupResult::NotFound(method_traits) => {
                         // Before returning an error, try to look up as an associated constant
                         if let Some(result) = self.try_resolve_trait_constant(
                             &intermediate_item,
                             current_ident,
-                            importing_module,
+                            visibility_module,
                         ) {
                             return result.map(|item| PathResolution { item, errors });
                         }
@@ -769,7 +775,7 @@ impl Elaborator<'_> {
 
         let item = self.per_ns_item_to_path_resolution_item(
             path,
-            importing_module,
+            visibility_module,
             intermediate_item,
             current_module_id,
             &mut errors,
@@ -821,7 +827,7 @@ impl Elaborator<'_> {
                 source_module,
                 visibility,
             ) {
-                errors.push(PathResolutionError::Private(name));
+                errors.push(PathResolutionError::Private(name.clone()));
             }
         } else if !item_in_module_is_visible(
             self.def_maps,
@@ -829,6 +835,20 @@ impl Elaborator<'_> {
             current_module_id,
             visibility,
         ) {
+            errors.push(PathResolutionError::Private(name.clone()));
+        }
+
+        // A trait method imported via `Type::method` must also be reachable through its trait's
+        // visibility (e.g. a `pub(crate) trait` is not accessible from another crate, even if the
+        // method's own visibility check above passes).
+        if let ModuleDefId::FunctionId(func_id) = module_def_id
+            && !trait_visibility_for_method_is_satisfied(
+                func_id,
+                importing_module,
+                self.interner,
+                self.def_maps,
+            )
+        {
             errors.push(PathResolutionError::Private(name));
         }
 

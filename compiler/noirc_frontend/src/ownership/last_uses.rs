@@ -449,6 +449,12 @@ impl LastUseContext {
 /// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
 /// - `&mut x.a.b`     → `Some(x_id)`
 /// - `&mut some_call()` → `None`
+///
+/// Block expressions intentionally return `None`: `&mut { ...; expr }` always allocates
+/// fresh storage and copies the tail's value into it, so the operand is no longer a
+/// "direct reference" to a local. The clones needed to keep refcounts honest are
+/// inserted by the forward pass when it processes the block's tail in normal context
+/// (see `handle_reference_expression`).
 fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
     match expr {
         Expression::Ident(ident) => {

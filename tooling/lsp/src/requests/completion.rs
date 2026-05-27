@@ -1105,9 +1105,9 @@ impl<'a> NodeFinder<'a> {
             let stub = stub.strip_prefix("fn ").unwrap();
 
             let label = if func_meta.parameters.is_empty() {
-                format!("fn {}()", &name)
+                format!("fn {name}()")
             } else {
-                format!("fn {}(..)", &name)
+                format!("fn {name}(..)")
             };
 
             let completion_item = trait_impl_method_completion_item(label, stub);
@@ -1376,8 +1376,8 @@ impl Visitor for NodeFinder<'_> {
                     while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
                         cursor += 1;
                     }
-                    let char = bytes[cursor] as char;
-                    if char != '(' && char != '<' {
+                    let char = bytes.get(cursor).copied().map(char::from);
+                    if !matches!(char, Some('(') | Some('<')) {
                         self.suggest_trait_impl_function(noir_trait_impl, noir_function);
                         return false;
                     }
