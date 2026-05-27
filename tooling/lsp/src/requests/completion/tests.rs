@@ -2617,7 +2617,7 @@ fn main() {
     }
 
     #[test]
-    async fn test_suggests_trait_impl_function_when_impl_does_not_have_closing_curly() {
+    async fn suggests_trait_impl_function_when_impl_does_not_have_closing_curly() {
         let src = r#"
         trait Trait {
             fn foo(x: i32) -> i32;
