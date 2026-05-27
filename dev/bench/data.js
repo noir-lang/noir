@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779902803384,
+  "lastUpdate": 1779904783467,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "30638e177f88170903c4b9e0321748515f971255",
-          "message": "chore(deps): bump webpack-dev-server from 5.2.2 to 5.2.4 in /docs (#12709)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-20T09:48:35Z",
-          "tree_id": "4e31628eef7ed2f1c00879d46e185c87f3ea00d7",
-          "url": "https://github.com/noir-lang/noir/commit/30638e177f88170903c4b9e0321748515f971255"
-        },
-        "date": 1779272013767,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171230,
-            "range": "± 587",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138638,
-            "range": "± 6169",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2681592,
-            "range": "± 8954",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3048306,
             "range": "± 3333",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1cdfd150579411e48117740126a18afa9c934478",
+          "message": "fix: composite offsets in array_set (#12701)",
+          "timestamp": "2026-05-27T17:34:16Z",
+          "tree_id": "050ae130c5554b80f19eafebb8c6fbbb24c61376",
+          "url": "https://github.com/noir-lang/noir/commit/1cdfd150579411e48117740126a18afa9c934478"
+        },
+        "date": 1779904710578,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 163002,
+            "range": "± 1968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135067,
+            "range": "± 1457",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2122004,
+            "range": "± 1045",
             "unit": "ns/iter"
           }
         ]
