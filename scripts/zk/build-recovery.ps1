@@ -11,9 +11,15 @@ Write-Host "Compiling Noir Recovery Circuit..."
 Push-Location $CircuitDir
 if (Get-Command nargo -ErrorAction SilentlyContinue) {
     nargo compile
+} elseif (Test-Path "$PSScriptRoot/../../target/debug/nargo.exe") {
+    Write-Host "nargo not found in PATH, using local workspace nargo..." -ForegroundColor Yellow
+    & "$PSScriptRoot/../../target/debug/nargo.exe" compile
+} elseif (Test-Path "$PSScriptRoot/../../target/release/nargo.exe") {
+    Write-Host "nargo not found in PATH, using local workspace nargo..." -ForegroundColor Yellow
+    & "$PSScriptRoot/../../target/release/nargo.exe" compile
 } else {
-    Write-Host "nargo not found in PATH, using cargo run..." -ForegroundColor Yellow
-    cargo run --manifest-path ../../../tooling/nargo_cli/Cargo.toml -- compile
+    Write-Host "nargo not found in PATH or target folder. Please install nargo or compile it first." -ForegroundColor Red
+    exit 1
 }
 Pop-Location
 
