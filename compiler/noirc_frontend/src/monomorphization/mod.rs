@@ -2585,7 +2585,15 @@ impl<'interner> Monomorphizer<'interner> {
         let value = match lvalue {
             HirLValue::Ident(ident, typ) => match self.lookup_captured_lvalue(ident.id) {
                 Some(value) => value,
-                None => ast::LValue::Ident(self.local_ident(&ident, &typ)?.unwrap()),
+                None => {
+                    let Some(ident) = self.local_ident(&ident, &typ)? else {
+                        return Err(MonomorphizationError::InternalError {
+                            location: ident.location,
+                            message: "ICE: lvalue not found during monomorphization",
+                        });
+                    };
+                    ast::LValue::Ident(ident)
+                }
             },
             HirLValue::MemberAccess { object, field_index, typ, location, .. } => {
                 let field_index = field_index.unwrap();
@@ -2720,7 +2728,12 @@ impl<'interner> Monomorphizer<'interner> {
                 }
                 None => {
                     let typ = self.interner.definition_type(capture.ident.id);
-                    let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
+                    let Some(ident) = self.local_ident(&capture.ident, &typ)? else {
+                        return Err(MonomorphizationError::InternalError {
+                            location: capture.ident.location,
+                            message: "ICE: closure capture not found during monomorphization",
+                        });
+                    };
                     Ok(ast::Expression::Ident(ident))
                 }
             }
