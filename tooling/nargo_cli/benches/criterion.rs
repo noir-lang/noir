@@ -5,6 +5,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 
 use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
 use noirc_artifacts::program::CompiledProgram;
+#[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};
 use std::cell::RefCell;
 use std::hint::black_box;
@@ -128,9 +129,17 @@ fn criterion_selected_tests_execution(c: &mut Criterion) {
     }
 }
 
+#[cfg(unix)]
 criterion_group! {
     name = execution_benches;
     config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = criterion_selected_tests_execution
+}
+
+#[cfg(not(unix))]
+criterion_group! {
+    name = execution_benches;
+    config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20));
     targets = criterion_selected_tests_execution
 }
 criterion_main!(execution_benches);

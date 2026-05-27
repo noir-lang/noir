@@ -42,6 +42,8 @@ num-bigint.workspace = true
 test-case.workspace = true
 
 criterion.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
 pprof.workspace = true
 
 [lib]

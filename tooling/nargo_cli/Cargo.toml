@@ -101,17 +101,19 @@ assert_fs = "1.0.10"
 predicates = "3"
 fm.workspace = true
 criterion.workspace = true
-pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
 serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
-iai = "0.1.1"
 test-case.workspace = true
 insta = { workspace = true, features = ["json", "redactions"] }
 base64.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+pprof.workspace = true
+iai = "0.1.1"
 
 noirc_evaluator.workspace = true
 

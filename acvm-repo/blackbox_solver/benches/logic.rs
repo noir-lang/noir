@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use acir::{AcirField, FieldElement};
 
+#[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};
 
 use acvm_blackbox_solver::{bit_and, bit_xor};
@@ -47,12 +48,22 @@ fn bench_logic_ops(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(unix)]
 criterion_group!(
     name = benches;
     config = Criterion::default()
         .sample_size(50)
         .measurement_time(Duration::from_secs(15))
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench_logic_ops
+);
+
+#[cfg(not(unix))]
+criterion_group!(
+    name = benches;
+    config = Criterion::default()
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(15));
     targets = bench_logic_ops
 );
 

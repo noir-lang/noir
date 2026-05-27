@@ -65,7 +65,7 @@ fn generate_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
 #[test]
 {ignored}
 fn debug_{test_name}() {{
-    debugger_execution_success("{test_dir}");
+    debugger_execution_success(r"{test_dir}");
 }}
             "#,
             test_dir = test_dir.display(),
@@ -128,7 +128,7 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
     #[test]
     {ignored}
     fn debug_test_{test_file_name}_{test_name}() {{
-        debugger_test_success("{test_dir}", "{test_name}");
+        debugger_test_success(r"{test_dir}", "{test_name}");
     }}
                 "#,
                 test_dir = test_dir.display(),

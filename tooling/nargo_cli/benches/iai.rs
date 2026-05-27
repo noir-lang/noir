@@ -1,10 +1,15 @@
-//! Select representative tests to bench with iai
+#[cfg(unix)]
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
+#[cfg(unix)]
 use iai::black_box;
+#[cfg(unix)]
 use paste::paste;
+#[cfg(unix)]
 use std::process::Command;
+#[cfg(unix)]
 include!("./utils.rs");
 
+#[cfg(unix)]
 macro_rules! iai_command {
     ($command_name:tt, $command_string:expr_2021) => {
         paste! {
@@ -22,5 +27,10 @@ macro_rules! iai_command {
         }
     };
 }
+#[cfg(unix)]
 iai_command!(execution, "execute");
+#[cfg(unix)]
 iai::main!(iai_selected_tests_execution);
+
+#[cfg(not(unix))]
+fn main() {}

@@ -7,6 +7,7 @@ use acir::{
     native_types::{Expression, Witness},
 };
 
+#[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};
 
 const SIZES: [usize; 9] = [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000];
@@ -113,9 +114,17 @@ fn bench_deserialization(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(unix)]
 criterion_group!(
     name = benches;
     config = Criterion::default().sample_size(40).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench_serialization, bench_deserialization
+);
+
+#[cfg(not(unix))]
+criterion_group!(
+    name = benches;
+    config = Criterion::default().sample_size(40).measurement_time(Duration::from_secs(20));
     targets = bench_serialization, bench_deserialization
 );
 

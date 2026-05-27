@@ -45,6 +45,8 @@ cbc = "0.2"
 [dev-dependencies]
 proptest.workspace = true
 criterion.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
 pprof.workspace = true
 
 [lib]
