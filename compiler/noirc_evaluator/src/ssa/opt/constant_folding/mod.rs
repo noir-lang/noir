@@ -1184,6 +1184,27 @@ mod test {
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
+    // Regression for noir-claude#1021.
+    // Two identical `vector_push_back` calls under complementary
+    // `enable_side_effects` predicates must not be deduplicated: doing so
+    // replaces the second push's result with the first's, which observed the
+    // opposite predicate.
+    #[test]
+    fn vector_push_back_predicate_regression() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32, v2: [Field], v3: Field):
+            enable_side_effects v0
+            v4, v5 = call vector_push_back(v1, v2, v3) -> (u32, [Field])
+            v6 = not v0
+            enable_side_effects v6
+            v7, v8 = call vector_push_back(v1, v2, v3) -> (u32, [Field])
+            return v8
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
     #[test]
     fn deduplicate_instructions_with_predicates() {
         let src = "
