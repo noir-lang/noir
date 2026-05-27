@@ -2,6 +2,9 @@
   "name": "zk-recovery-demo",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "build": "npm run build --workspace client"
   },
