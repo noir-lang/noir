@@ -347,8 +347,11 @@ impl Elaborator<'_> {
                 let ordered_generics =
                     self.interner.get_ordered_generics_for_impl(impl_id).to_vec();
                 for (_, func_id, _) in &overrides {
-                    self.check_where_clause_against_trait(
-                        func_id,
+                    // Defer the where-clause check until after the post-attribute
+                    // drain so that the impl method's meta and the trait method's
+                    // `TraitFunction` record are both fully resolved.
+                    self.queue_pending_where_clause_check(
+                        *func_id,
                         method,
                         trait_impl_where_clause,
                         &ordered_generics,
@@ -409,6 +412,72 @@ impl Elaborator<'_> {
     ///     fn foo<B>() where B: MyTrait {}
     /// }
     /// ```
+    /// Records a pending where-clause-against-trait check to run after the
+    /// post-attribute drain. Until then, neither the impl method's meta nor
+    /// the trait method's [`TraitFunction`] record is guaranteed to be
+    /// populated, so we capture only the data needed to look them up later.
+    fn queue_pending_where_clause_check(
+        &mut self,
+        impl_method_func_id: FuncId,
+        trait_method: &TraitFunction,
+        trait_impl_where_clause: &[TraitConstraint],
+        ordered_generics: &[Type],
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+    ) {
+        let module_id = self.local_module.expect("local_module is set inside collect_trait_impl");
+        self.pending_trait_work.where_clause_checks.push(super::PendingWhereClauseCheck {
+            impl_method_func_id,
+            trait_id,
+            impl_id,
+            module_id,
+            trait_method_name: trait_method.name.as_str().to_string(),
+            trait_impl_where_clause: trait_impl_where_clause.to_vec(),
+            ordered_generics: ordered_generics.to_vec(),
+        });
+    }
+
+    /// Runs every pending where-clause check queued by
+    /// [Self::queue_pending_where_clause_check]. Must be called after the
+    /// post-attribute drain has resolved every involved meta and after
+    /// [Elaborator::populate_resolved_trait_method_records] has updated the
+    /// trait's `TraitFunction` records.
+    pub(super) fn run_pending_where_clause_checks(&mut self) {
+        let pending = std::mem::take(&mut self.pending_trait_work.where_clause_checks);
+        for check in pending {
+            // Re-fetch the trait method's TraitFunction record (now populated)
+            // by name, mirroring how `collect_trait_impl_methods` matched it.
+            let the_trait = self.interner.get_trait(check.trait_id);
+            let Some(trait_method) =
+                the_trait.methods.iter().find(|m| m.name.as_str() == check.trait_method_name)
+            else {
+                continue;
+            };
+            let trait_method = trait_method.clone();
+
+            let impl_self_type =
+                self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
+            let prev_local_module = self.local_module.replace(check.module_id);
+            let prev_current_trait_impl = self.current_trait_impl.replace(check.impl_id);
+            let prev_current_trait = self.current_trait.replace(check.trait_id);
+            let prev_self_type = self.self_type.replace(impl_self_type);
+
+            self.check_where_clause_against_trait(
+                &check.impl_method_func_id,
+                &trait_method,
+                &check.trait_impl_where_clause,
+                &check.ordered_generics,
+                check.trait_id,
+                check.impl_id,
+            );
+
+            self.local_module = prev_local_module;
+            self.current_trait_impl = prev_current_trait_impl;
+            self.current_trait = prev_current_trait;
+            self.self_type = prev_self_type;
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn check_where_clause_against_trait(
         &mut self,
@@ -426,6 +495,10 @@ impl Elaborator<'_> {
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
+        // The override method's meta may not have been resolved yet — function metas are
+        // resolved lazily so they can see fully-bound trait impls and globals. Resolve it
+        // now before we read it.
+        self.define_function_meta_if_undefined(*func_id);
         let override_meta = self.interner.remove_function_meta(func_id);
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
@@ -465,11 +538,7 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.typ == override_trait_constraint.typ
-                        && impl_constraint.trait_bound.trait_id
-                            == override_trait_constraint.trait_bound.trait_id
-                        && impl_constraint.trait_bound.trait_generics
-                            == override_trait_constraint.trait_bound.trait_generics
+                    constraints_unify(impl_constraint, &override_trait_constraint).is_some()
                 });
             if override_constraint_is_from_impl {
                 continue;
@@ -588,6 +657,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Verifies that the impl satisfies every obligation the trait's where clause
+    /// places on it, including the super-trait bounds that are stored in the trait's
+    /// where clause as constraints on `Self`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_trait_impl_where_clause_matches_trait_where_clause(
         &mut self,
@@ -617,10 +689,24 @@ impl Elaborator<'_> {
             return;
         };
 
+        let Some(object_type) = &trait_impl.resolved_object_type else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing object type",
+                trait_impl.object_type.location,
+            ));
+            return;
+        };
+
         let impl_trait = the_trait.name.to_string();
         let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
+        // Bind Self to the object type of the impl so that parent-trait bounds
+        // (which are stored in the trait's where clause as constraints on Self)
+        // get checked against the concrete impl type.
+        let self_var = the_trait.self_type_typevar.clone();
+        let self_kind = self_var.kind();
         let mut bindings = TypeBindings::default();
+        bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         self.check_trait_bounds_are_satisfied(
@@ -725,67 +811,6 @@ impl Elaborator<'_> {
                 _ => (),
             }
         }
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
-        let Some(trait_id) = trait_impl.trait_id else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing trait ID",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let Some(object_type) = &trait_impl.resolved_object_type else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing object type",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing trait",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let Some(impl_id) = trait_impl.impl_id else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing impl ID",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let impl_trait = the_trait.name.to_string();
-        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
-
-        let mut bindings = TypeBindings::default();
-        bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
-
-        // Note: we only check if the immediate parents are implemented, we don't check recursively.
-        // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
-        // do the same check for the parent, so this trait's parents parents will be checked, so the
-        // recursion is guaranteed.
-        //
-        // Convert parent trait bounds (ResolvedTraitBound) to TraitConstraints using
-        // {Self, ResolvedTraitBound} where Self is the object type being implemented for.
-        let constraints: Vec<TraitConstraint> = the_trait
-            .trait_bounds
-            .iter()
-            .map(|bound| TraitConstraint { typ: object_type.clone(), trait_bound: bound.clone() })
-            .collect();
-
-        self.check_trait_bounds_are_satisfied(
-            constraints,
-            &impl_trait,
-            &trait_impl.object_type.location,
-            &mut bindings,
-        );
     }
 
     /// Prepares a trait impl for function metadata definition.
@@ -1061,4 +1086,44 @@ impl Elaborator<'_> {
             wildcard_allowed,
         )
     }
+}
+
+/// Returns true if the impl-level `where` constraint and the method-level
+/// override constraint refer to the same trait on the same type with the same
+/// trait generics. Note that no type bindings are committed on success.
+///
+/// Returns a `Option` so we can use `?` without `try` blocks being stable
+fn constraints_unify(
+    impl_constraint: &TraitConstraint,
+    override_constraint: &TraitConstraint,
+) -> Option<()> {
+    // This just lets us early-return `None` for `false` conditions
+    let require = |cond: bool| cond.then_some(());
+
+    require(impl_constraint.trait_bound.trait_id == override_constraint.trait_bound.trait_id)?;
+
+    let mut bindings = TypeBindings::default();
+    impl_constraint.typ.try_unify(&override_constraint.typ, &mut bindings).ok()?;
+
+    let impl_generics = &impl_constraint.trait_bound.trait_generics;
+    let override_generics = &override_constraint.trait_bound.trait_generics;
+
+    require(impl_generics.ordered.len() == override_generics.ordered.len())?;
+
+    let generics = impl_generics.ordered.iter().zip(&override_generics.ordered);
+    for (impl_generic, override_generic) in generics {
+        impl_generic.try_unify(override_generic, &mut bindings).ok()?;
+    }
+
+    require(impl_generics.named.len() == override_generics.named.len())?;
+
+    let named_override_generics = &override_generics.named;
+    for impl_named in &impl_generics.named {
+        let override_named = named_override_generics
+            .iter()
+            .find(|named| named.name.as_str() == impl_named.name.as_str())?;
+
+        impl_named.typ.try_unify(&override_named.typ, &mut bindings).ok()?;
+    }
+    Some(())
 }

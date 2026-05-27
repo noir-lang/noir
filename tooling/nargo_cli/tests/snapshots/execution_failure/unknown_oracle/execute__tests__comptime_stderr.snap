@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Comptime evaluation for oracle functions like 'foobar' is currently unimplemented
+  ┌─ src/main.nr:6:13
+  │
+6 │     unsafe {oracle()}
+  │             --------
+  │
+
+Error interpreting main function

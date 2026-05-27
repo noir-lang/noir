@@ -83,10 +83,11 @@ the expression and the for loop body.
 
 ### as_for_range
 
-#include_code as_for noir_stdlib/src/meta/expr.nr rust
+#include_code as_for_range noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a for statement over a range, return the identifier,
-the range start, the range end and the for loop body.
+the range start, the range end, whether the range is inclusive, and the
+for loop body.
 
 ### as_function_call
 
@@ -216,18 +217,6 @@ comptime {
 #include_code is_continue noir_stdlib/src/meta/expr.nr rust
 
 `true` if this expression is `continue`.
-
-### modify
-
-#include_code modify noir_stdlib/src/meta/expr.nr rust
-
-Applies a mapping function to this expression and to all of its sub-expressions.
-`f` will be applied to each sub-expression first, then applied to the expression itself.
-
-This happens recursively for every expression within `self`.
-
-For example, calling `modify` on `(@[1], @[2, 3])` with an `f` that returns `Option::some`
-for expressions that are integers, doubling them, would return `(@[2], @[4, 6])`.
 
 ### quoted
 

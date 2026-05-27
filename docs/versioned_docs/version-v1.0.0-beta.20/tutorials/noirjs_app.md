@@ -16,14 +16,14 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
-We'll also need version 1.0.0-beta.15 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
+We'll also need version 1.0.0-beta.20 nargo installed, see the Noir [installation guide](../getting_started/noir_installation.md) for details.
 
 Let's go barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-beta.15 @aztec/bb.js@3.0.0-nightly.20251104 buffer vite vite-plugin-node-polyfills@0.17.0
+yarn add @noir-lang/noir_js@1.0.0-beta.20 @aztec/bb.js@3.0.0-nightly.20251104 buffer vite vite-plugin-node-polyfills@0.17.0
 ```
 
 Wait, what are these dependencies?
@@ -33,7 +33,7 @@ Wait, what are these dependencies?
 
 :::info
 
-In this guide, we will install versions pinned to 1.0.0-beta.15. These work with Barretenberg version 3.0.0-nightly.20251104, so we are using that one version too. Feel free to try with older or later versions, though!
+In this guide, we will install versions pinned to 1.0.0-beta.20. These work with Barretenberg version 3.0.0-nightly.20251104, so we are using that one version too. Feel free to try with older or later versions, though!
 
 :::
 
@@ -47,7 +47,7 @@ It's not just you. We also enjoy syntax highlighting. [Check out the Language Se
 
 :::
 
-All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.15`, or just create them by hand:
+All you need is a `main.nr` and a `Nargo.toml` file. You can follow the [noirup](../getting_started/noir_installation.md) installation and just run `noirup -v 1.0.0-beta.20`, or just create them by hand:
 
 ```bash
 mkdir -p circuit/src
@@ -61,7 +61,7 @@ fn main(age: u8) {
     assert(age > 18);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/src/main.nr#L1-L5" target="_blank" rel="noopener noreferrer">Source code: examples/browser/src/main.nr#L1-L5</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/src/main.nr#L1-L5" target="_blank" rel="noopener noreferrer">Source code: examples/browser/src/main.nr#L1-L5</a></sub></sup>
 
 
 This program accepts a private input called age, and simply proves this number is higher than 18. But to run this code, we need to give the compiler a `Nargo.toml` with at least a name and a type:
@@ -131,7 +131,7 @@ And add something useful to our HTML file:
 </body>
 </html>
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.html#L1-L31" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.html#L1-L31</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/index.html#L1-L31" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.html#L1-L31</a></sub></sup>
 
 
 It _could_ be a beautiful UI... Depending on which universe you live in. In any case, we're using some scary CSS to make two boxes that will show cool things on the screen.
@@ -189,7 +189,7 @@ import circuit from './target/circuit.json';
 // Initialize WASM modules
 await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L1-L11" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L1-L11</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/index.js#L1-L11" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L1-L11</a></sub></sup>
 
 
 And instantiate them inside our try-catch block:
@@ -203,7 +203,7 @@ show('logs', 'Creating Noir...');
     show('logs', 'Creating UltraHonkBackend...');
     const backend = new UltraHonkBackend(circuit.bytecode, barretenbergAPI);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L23-L31" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L23-L31</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/index.js#L23-L31" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L23-L31</a></sub></sup>
 
 
 ## Executing and proving
@@ -216,7 +216,7 @@ const age = document.getElementById('age').value;
     const { witness } = await noir.execute({ age });
     show('logs', 'Generated witness... ✅');
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L32-L37" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L32-L37</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/index.js#L32-L37" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L32-L37</a></sub></sup>
 
 
 :::note
@@ -233,7 +233,7 @@ show('logs', 'Generating proof... ⏳');
     show('logs', 'Generated proof... ✅');
     show('results', proof.proof);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L38-L43" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L38-L43</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/index.js#L38-L43" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L38-L43</a></sub></sup>
 
 
 Our program is technically **done** . You're probably eager to see stuff happening! To serve this in a convenient way, we can use a bundler like `vite` by creating a `vite.config.js` file:
@@ -272,7 +272,7 @@ export default defineConfig({
   },
 });
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/vite.config.js#L1-L27" target="_blank" rel="noopener noreferrer">Source code: examples/browser/vite.config.js#L1-L27</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/vite.config.js#L1-L27" target="_blank" rel="noopener noreferrer">Source code: examples/browser/vite.config.js#L1-L27</a></sub></sup>
 
 
 This should be enough for vite. We don't even need to install it, just run:
@@ -298,7 +298,7 @@ show('logs', 'Verifying proof... ⌛');
     const isValid = await backend.verifyProof(proof);
     show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L45-L49" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L45-L49</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/examples/browser/index.js#L45-L49" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L45-L49</a></sub></sup>
 
 
 You have successfully generated a client-side Noir web app!

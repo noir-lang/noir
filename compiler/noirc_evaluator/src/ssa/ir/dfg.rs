@@ -471,11 +471,11 @@ impl DataFlowGraph {
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+    pub(crate) fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        let result = self.values.insert(Value::ForeignFunction { name: function.to_owned(), pure });
         self.foreign_functions.insert(function.to_owned(), result);
         result
     }
@@ -798,7 +798,7 @@ impl DataFlowGraph {
 
     pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
         let call_stack = self.get_instruction_call_stack_id(instruction);
-        self.call_stack_data.get_call_stack(call_stack)
+        self.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
@@ -812,7 +812,7 @@ impl DataFlowGraph {
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[value] {
             Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
-            _ => CallStack::new(),
+            _ => CallStack::empty(),
         }
     }
 

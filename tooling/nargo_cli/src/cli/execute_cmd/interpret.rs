@@ -95,8 +95,9 @@ fn run_package_comptime(
             if let Some(return_value) = return_value
                 && result != return_value
             {
-                let return_value_as_string =
-                    return_value.display(&context.def_interner).to_string();
+                let return_value_as_string = return_value
+                    .display(&context.def_interner, context.file_manager.as_file_map())
+                    .to_string();
                 return Err(CliError::Generic(format!(
                     "Unexpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
                 )));
@@ -214,7 +215,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             };
             Value::field(*value)
         }
-        Type::Array(length, element_typ) => {
+        Type::Array(element_typ, length) => {
             let length =
                 length.evaluate_to_u32(location).expect("Could not evaluate array length to u32");
             let InputValue::Vec(inputs) = input else {
@@ -374,8 +375,12 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         | Value::TypedExpr(..)
         | Value::UnresolvedType(..)
         | Value::FormatString(..)
-        | Value::CtString(..) => {
-            panic!("Unexpected output value: {}", value.display(&context.def_interner))
+        | Value::CtString(..)
+        | Value::Location(..) => {
+            panic!(
+                "Unexpected output value: {}",
+                value.display(&context.def_interner, context.file_manager.as_file_map())
+            )
         }
     }
 }

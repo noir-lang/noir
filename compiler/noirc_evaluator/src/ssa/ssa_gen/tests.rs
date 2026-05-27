@@ -1,6 +1,15 @@
 #![cfg(test)]
 
-use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
+use acvm::{AcirField, FieldElement};
+
+use crate::{
+    assert_ssa_snapshot,
+    errors::RuntimeError,
+    ssa::{
+        interpreter::value::Value as InterpreterValue, ir::types::NumericType,
+        opt::assert_normalized_ssa_equals,
+    },
+};
 
 use super::{Ssa, generate_ssa};
 
@@ -261,6 +270,97 @@ fn foreign_call_args_do_not_get_cloned() {
     }
     "#;
     assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn oracle_wrapper_call_args_do_not_get_cloned() {
+    let src = "
+    unconstrained fn main() -> pub u64 {
+        foo([1])
+    }
+    unconstrained fn foo(a: [u64; 1]) -> u64 {
+        println(a);
+        a[0]
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
+
+    // The ownership pass wraps `a` in `.clone()` in `foo` because `a` is used again
+    // after the `println` call. The clone is unnecessary: the wrapper chain only
+    // forwards the argument to the `print` oracle, which cannot modify the array.
+    insta::assert_snapshot!(program.to_string(), @r##"
+    unconstrained fn main$f0() -> pub u64 {
+        foo$f1([1])
+    }
+    unconstrained fn foo$f1(a$l0: [u64; 1]) -> u64 {
+        println$f2(a$l0.clone());;
+        a$l0[0]
+    }
+    unconstrained fn println$f2(input$l1: [u64; 1]) -> () {
+        print_unconstrained$f3(true, input$l1);
+    }
+    unconstrained fn print_unconstrained$f3(with_newline$l2: bool, input$l3: [u64; 1]) -> () {
+        print_oracle$print(with_newline$l2, input$l3, r#"{"kind":"array","length":1,"type":{"kind":"unsignedinteger","width":64}}"#, false);
+    }
+    "##);
+
+    let ssa = generate_ssa(program).unwrap();
+
+    // `foo` does not emit `inc_rc v0` before the call to `println` even though the
+    // monomorphized AST contains `a.clone()`: the SSA-gen call lowering recognizes
+    // `println` as a thin wrapper around the `print` oracle and skips the clone.
+    assert_ssa_snapshot!(ssa, @r#"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = make_array [u64 1] : [u64; 1]
+        v3 = call f1(v1) -> u64
+        return v3
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [u64; 1]):
+        call f2(v0)
+        v3 = array_get v0, index u32 0 -> u64
+        return v3
+    }
+    brillig(inline) fn println f2 {
+      b0(v0: [u64; 1]):
+        call f3(u1 1, v0)
+        return
+    }
+    brillig(inline) fn print_unconstrained f3 {
+      b0(v0: u1, v1: [u64; 1]):
+        v26 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+        call print(v0, v1, v26, u1 0)
+        return
+    }
+    "#);
+}
+
+#[test]
+fn oracle_wrapper_with_mutating_arg_keeps_clone() {
+    let src = "
+    unconstrained fn main(seed: Field, idx: u32) -> pub Field {
+        let array: [Field; 3] = [seed, seed + 1, seed + 2];
+        mutating_print_wrapper(array);
+        array[idx]
+    }
+
+    unconstrained fn mutating_print_wrapper(mut array: [Field; 3]) {
+        println({
+            array[0] = 9;
+            array
+        });
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+
+    let results = ssa
+        .interpret(vec![InterpreterValue::field(FieldElement::one()), InterpreterValue::u32(0)])
+        .unwrap();
+    assert_eq!(results, vec![InterpreterValue::field(FieldElement::one())]);
 }
 
 #[test]
@@ -726,6 +826,252 @@ fn mut_ref_and_immutable_ref_to_same_data_ssa() {
         v8 = eq v7, Field 42
         constrain v7 == Field 42
         return
+    }
+    ");
+}
+
+/// Accessing a single field of `&mut self` (a flattened struct passed as individual references)
+/// should only load that field's reference, not all fields.
+#[test]
+fn mut_ref_struct_field_access_only_loads_needed_field() {
+    let src = "
+    struct Counter {
+        storage: [Field; 4],
+        len: u32,
+        counter: Field,
+    }
+
+    impl Counter {
+        fn next_counter(&mut self) -> Field {
+            let counter = self.counter;
+            self.counter += 1;
+            counter
+        }
+    }
+
+    unconstrained fn main() {
+        let mut c = Counter { storage: [0; 4], len: 0, counter: 0 };
+        let _ = c.next_counter();
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // next_counter should only load/store v2 (counter ref), not v0 (storage ref) or v1 (len ref)
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+        v2 = allocate -> &mut [Field; 4]
+        store v1 at v2
+        v3 = allocate -> &mut u32
+        store u32 0 at v3
+        v5 = allocate -> &mut Field
+        store Field 0 at v5
+        v7 = call f1(v2, v3, v5) -> Field
+        return
+    }
+    brillig(inline) fn next_counter f1 {
+      b0(v0: &mut [Field; 4], v1: &mut u32, v2: &mut Field):
+        v3 = load v2 -> Field
+        v4 = load v2 -> Field
+        v6 = add v4, Field 1
+        store v6 at v2
+        return v3
+    }
+    ");
+}
+
+/// Assigning to a single field of `&mut self` should only store to that field's reference,
+/// not load/store all fields.
+#[test]
+fn mut_ref_struct_field_assign_only_stores_needed_field() {
+    let src = "
+    struct Pair {
+        a: Field,
+        b: Field,
+    }
+
+    impl Pair {
+        fn set_b(&mut self, val: Field) {
+            self.b = val;
+        }
+    }
+
+    unconstrained fn main() {
+        let mut p = Pair { a: 0, b: 0 };
+        p.set_b(42);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // set_b should only store to v1 (b ref), not load/store v0 (a ref)
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 0 at v0
+        v2 = allocate -> &mut Field
+        store Field 0 at v2
+        call f1(v0, v2, Field 42)
+        return
+    }
+    brillig(inline) fn set_b f1 {
+      b0(v0: &mut Field, v1: &mut Field, v2: Field):
+        store v2 at v1
+        return
+    }
+    ");
+}
+
+/// Accessing a single field of a `let mut` local struct should only load that field's
+/// allocation, not all fields.
+#[test]
+fn mut_local_struct_field_access_only_loads_needed_field() {
+    let src = "
+    struct Pair {
+        a: Field,
+        b: Field,
+    }
+
+    unconstrained fn main() {
+        let mut p = Pair { a: 0, b: 0 };
+        assert(p.b == 0);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Reading p.b should only load from v2, not v0
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 0 at v0
+        v2 = allocate -> &mut Field
+        store Field 0 at v2
+        v3 = load v2 -> Field
+        v4 = eq v3, Field 0
+        constrain v3 == Field 0
+        return
+    }
+    ");
+}
+
+/// Assigning to a single field of a `let mut` local struct should only store to that
+/// field's allocation, not load/store all fields.
+#[test]
+fn mut_local_struct_field_assign_only_stores_needed_field() {
+    let src = "
+    struct Pair {
+        a: Field,
+        b: Field,
+    }
+
+    unconstrained fn main() {
+        let mut p = Pair { a: 0, b: 0 };
+        p.b = 42;
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Assigning p.b = 42 should only store to v2, no loads/stores of v0
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 0 at v0
+        v2 = allocate -> &mut Field
+        store Field 0 at v2
+        store Field 42 at v2
+        return
+    }
+    ");
+}
+
+/// `&mut *p` is a re-borrow and must alias the same memory location as `p`.
+#[test]
+fn mut_reborrow_aliases_original_location() {
+    let src = "
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut f;
+        let p1 = &mut *p;
+        *p1 = 15;
+        assert(f == 15);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Exactly one `allocate` for f. The store from `*p1 = 15` writes directly to v0,
+    // and the subsequent `f == 15` load observes the updated value.
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u64
+        store u64 10 at v0
+        store u64 15 at v0
+        v3 = load v0 -> u64
+        v4 = eq v3, u64 15
+        constrain v3 == u64 15
+        return
+    }
+    ");
+}
+
+/// Shows that `&mut (*&f)` is Ok in Noir, contrary to Rust.
+#[test]
+fn can_reborrow_through_immutable_ref() {
+    let src = "
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut (*&f);
+        *p = 15;
+        assert(f == 15);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u64
+        store u64 10 at v0
+        store u64 15 at v0
+        v3 = load v0 -> u64
+        v4 = eq v3, u64 15
+        constrain v3 == u64 15
+        return
+    }
+    ");
+}
+
+/// Reassigning a mutable tuple using its own fields (`b = (false, b.0)`) must load
+/// the old values before any stores. Regression test for a lazy `codegen_ident` bug
+/// where stores were interleaved with lazy loads, causing stale reads.
+#[test]
+fn mutable_tuple_self_assign_loads_before_stores() {
+    let src = "
+    unconstrained fn main() -> pub bool {
+        let mut b: (bool, bool) = (true, false);
+        // After: b should be (false, true), so b.1 = true
+        b = (false, b.0);
+        b.1
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let results = ssa.interpret(Vec::new()).unwrap();
+    let expected = InterpreterValue::from_constant(FieldElement::one(), NumericType::bool())
+        .expect("should create bool value");
+    assert_eq!(results.len(), 1, "expected one return value");
+    assert_eq!(results[0], expected, "b.1 should be true (the old b.0) after b = (false, b.0)");
+
+    // The load of b.0 (v0) must appear before the store to v0.
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u1
+        store u1 1 at v0
+        v2 = allocate -> &mut u1
+        store u1 0 at v2
+        v4 = load v0 -> u1
+        store u1 0 at v0
+        store v4 at v2
+        v5 = load v2 -> u1
+        return v5
     }
     ");
 }

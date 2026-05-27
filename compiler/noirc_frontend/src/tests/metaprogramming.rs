@@ -1190,6 +1190,26 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 }
 
 #[test]
+fn no_duplicate_comptime_type_error_for_self_type_variable() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+            self
+        }
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    // 2 uses of Quoted in non-comptime positions (the Self types) (with duplicates we were getting 4 diagnostics)
+    assert_eq!(errors.len(), 2);
+}
+
+#[test]
 fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
     let src = r#"
     trait Trait {
@@ -1602,4 +1622,301 @@ fn runtime_variable_in_macro_gives_specific_error() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn does_not_allow_constructing_struct_with_private_fields_with_macro_call() {
+    let src = r#"
+    mod victim_crate {
+        pub struct Account {
+            balance: Field,
+        }
+    }
+
+    use victim_crate::Account;
+
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    fn main() {
+        let _: Account = unquote!(quote { Account { balance: 0 }});
+                                                    ^^^^^^^ balance is private and not visible from the current module
+                                                    ~~~~~~~ balance is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn function_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    pub struct Marker {}
+
+    #[generate_function]
+    comptime fn generate_function(_: FunctionDefinition) -> Quoted {
+        quote {
+            fn run<T: Constraint>(_: T) {}
+        }
+    }
+
+    fn main() {
+        run(true);
+        ^^^ No matching impl found for `bool: Constraint`
+        ~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker {}
+
+    comptime fn generate_impl(_s: TypeDefinition) -> Quoted {
+        quote {
+            impl<T: Constraint> Wrapper<T> {
+                fn run(_self: Self) { 
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker {}
+
+    comptime fn generate_impl(_s: TypeDefinition) -> Quoted {
+        quote {
+            impl<T: Constraint> Target for Wrapper<T> {
+                fn run(_self: Self) { }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn inline_bound_on_quoted_generic_is_preserved() {
+    let stdlib = r#"
+        pub enum Option<T> { None, Some(T) }
+        impl TypeDefinition {
+            #[builtin(type_def_generics)]
+            pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
+        }
+    "#;
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target { fn run(self); }
+    pub struct Wrapper<T> { inner: T }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker<T> {}
+
+    comptime fn generate_impl(s: TypeDefinition) -> Quoted {
+        let t = s.generics()[0].0;
+        quote {
+            impl<$t: Constraint> Target for Wrapper<$t> {
+                fn run(_self: Self) { }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+#[test]
+fn reference_generated_struct_in_function_signature() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub fn bar(_: MyStruct) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_two_generated_structs_should_work() {
+    let src = r#"
+    #[gen_struct(quote { Foo })]
+    mod Foo {
+        #[super::gen_struct(quote { Bar })]
+        pub mod Bar {}
+    }
+
+    comptime fn gen_struct(_: Module, name: Quoted) -> Quoted {
+        quote {
+            pub struct $name {
+            }
+        }
+    }
+
+    pub fn use_struct(_: Foo::Foo) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl Bar {
+        pub fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_trait_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+    pub trait Trait {
+        fn bar(_: MyStruct);
+    }
+
+    impl Trait for Bar {
+        fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_another_struct_field() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {
+        s: MyStruct,
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_a_global() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub global s: MyStruct = MyStruct {};
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_an_enum_variant() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub enum Bar {
+        Variant(MyStruct),
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    crate::tests::assert_no_errors_using_features(src, &features);
 }

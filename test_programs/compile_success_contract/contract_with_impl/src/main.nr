@@ -4,7 +4,7 @@ contract Foo {
     }
 
     impl T {
-        fn t(self) {
+        pub fn t(self) {
             let _ = self;
         }
     }

@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn fill_local<let N: u32>(enable: [bool; N]) -> ([Field; N], [Field; N]) {
+    let mut data_a: [Field; N] = [0_Field; N];
+    let mut data_b: [Field; N] = [0_Field; N];
+    let mut ptr: u32 = 0_u32;
+    for i in 0_u32..N {
+        data_a[ptr] = i as Field;
+        data_b[ptr] = i as Field;
+        ptr = ptr + (enable[i] as u32);
+    }
+    (data_a, data_b)
+}
+
+fn main(enable: [bool; 32]) {
+    let (a, b): ([Field; 32], [Field; 32]) = fill_local(enable);
+    for i in 0_u32..32_u32 {
+        assert(a[i] == b[i]);
+    }
+    assert(a[0_u32] == 0_Field);
+    assert(a[15_u32] == 15_Field);
+    assert(a[31_u32] == 31_Field);
+}

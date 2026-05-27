@@ -71,7 +71,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         let mut hasher = Sha1::new();
         hasher.update(data);
         let sha1_hash = hasher.finalize();
-        let test_id = format!("{sha1_hash:x}");
+        let test_id = hex::encode(sha1_hash);
         match push_fuzzer_output_to_redis_queue("fuzzer_output", test_id, fuzzer_output) {
             Ok(json_str) => log::debug!("{json_str}"),
             Err(e) => log::error!("Failed to push to Redis queue: {e}"),

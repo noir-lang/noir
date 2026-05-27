@@ -367,8 +367,9 @@ impl Visitor for SignatureFinder<'_> {
     fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
         call_expression.accept_children(self);
 
-        let arguments_span =
-            Span::from(call_expression.func.location.span.end() + 1..span.end() - 1);
+        let arguments_start = call_expression.func.location.span.end() + 1;
+        let arguments_end = (span.end() - 1).max(arguments_start);
+        let arguments_span = Span::from(arguments_start..arguments_end);
         let span = call_expression.func.location.span;
         let name_span = Span::from(span.end() - 1..span.end());
         let has_self = false;

@@ -151,7 +151,7 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::ForeignFunction(function) => function.clone(),
+        Value::ForeignFunction { name, .. } => name.clone(),
         Value::Param { .. } | Value::Instruction { .. } => {
             if dfg.is_global(id) {
                 format!("g{}", id.to_u32())
@@ -294,6 +294,7 @@ fn write_location_information(
     let call_stack = dfg.get_instruction_call_stack(instruction);
 
     if let Some(location) = call_stack.last()
+        && !location.is_dummy()
         && let Ok(name) = fm.as_file_map().get_name(location.file)
     {
         let files = fm.as_file_map();
@@ -352,7 +353,17 @@ fn display_instruction_inner(
         }
         Instruction::Call { func, arguments } => {
             let arguments = value_list(dfg, arguments);
-            write!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
+            let pure_modifier = match &dfg[*func] {
+                Value::ForeignFunction { pure: true, .. } => "pure ",
+                _ => "",
+            };
+            write!(
+                f,
+                "call {pure_modifier}{}({}){}",
+                show(*func),
+                arguments,
+                result_types(dfg, results)
+            )
         }
         Instruction::Allocate => {
             write!(f, "allocate{}", result_types(dfg, results))

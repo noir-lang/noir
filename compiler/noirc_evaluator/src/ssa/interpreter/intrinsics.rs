@@ -36,9 +36,11 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::AsVector => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
-                let length = array.elements.borrow().len();
-                let length = Value::u32(length as u32);
-
+                let typ = array.get_type();
+                let Type::Array(_, length) = typ else {
+                    panic!("Expected array type for argument to as_vector intrinsic, got {typ}");
+                };
+                let length = Value::u32(length.0);
                 let elements = array.elements.borrow().to_vec();
                 let vector = Value::vector(elements, array.element_types);
                 Ok(vec![length, vector])
@@ -262,18 +264,8 @@ impl<W: Write> Interpreter<'_, W> {
                     let input_points =
                         self.lookup_array_or_vector(args[0], "call to MultiScalarMul blackbox")?;
                     let mut points = Vec::new();
-                    for (i, v) in input_points.elements.borrow().iter().enumerate() {
-                        if i % 3 == 2 {
-                            points.push(u128::from(v.as_bool().ok_or(
-                                InterpreterError::Internal(InternalError::TypeError {
-                                    value_id: args[0],
-                                    value: v.to_string(),
-                                    expected_type: "bool",
-                                    instruction: "retrieving is_infinite in call to MultiScalarMul blackbox",
-                                })
-                            )?).into());
-                        } else {
-                            points.push(
+                    for v in input_points.elements.borrow().iter() {
+                        points.push(
                             v.as_field().ok_or(
                                 InterpreterError::Internal(InternalError::TypeError {
                                     value_id: args[0],
@@ -282,7 +274,6 @@ impl<W: Write> Interpreter<'_, W> {
                                     instruction: "retrieving ec points in call to MultiScalarMul blackbox",
                                 })
                             )?);
-                        }
                     }
                     let scalars =
                         self.lookup_array_or_vector(args[1], "call to MultiScalarMul blackbox")?;
@@ -317,8 +308,8 @@ impl<W: Write> Interpreter<'_, W> {
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let result =
                         solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, predicate);
-                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
-                    let result = new_embedded_curve_point(x, y, is_infinite)?;
+                    let (x, y) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -344,30 +335,20 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(vec![])
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
-                    check_argument_count(args, 7, intrinsic)?;
+                    check_argument_count(args, 5, intrinsic)?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let lhs = (
                         self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_field(args[1], "call EmbeddedCurveAdd BlackBox")?,
-                        self.lookup_bool(args[2], "call EmbeddedCurveAdd BlackBox")?,
                     );
                     let rhs = (
+                        self.lookup_field(args[2], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_field(args[3], "call EmbeddedCurveAdd BlackBox")?,
-                        self.lookup_field(args[4], "call EmbeddedCurveAdd BlackBox")?,
-                        self.lookup_bool(args[5], "call EmbeddedCurveAdd BlackBox")?,
                     );
-                    let predicate = self.lookup_bool(args[6], "call EmbeddedCurveAdd BlackBox")?;
-                    let result = solver.ec_add(
-                        &lhs.0,
-                        &lhs.1,
-                        &lhs.2.into(),
-                        &rhs.0,
-                        &rhs.1,
-                        &rhs.2.into(),
-                        predicate,
-                    );
-                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
-                    let result = new_embedded_curve_point(x, y, is_infinite)?;
+                    let predicate = self.lookup_bool(args[4], "call EmbeddedCurveAdd BlackBox")?;
+                    let result = solver.ec_add(&lhs.0, &lhs.1, &rhs.0, &rhs.1, predicate);
+                    let (x, y) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y)?;
                     Ok(vec![result])
                 }
 
@@ -800,22 +781,10 @@ fn check_vector_can_pop_all_element_types(vector_id: ValueId, vector: &ArrayValu
     }
 }
 
-fn new_embedded_curve_point(
-    x: FieldElement,
-    y: FieldElement,
-    is_infinite: FieldElement,
-) -> IResult<Value> {
+fn new_embedded_curve_point(x: FieldElement, y: FieldElement) -> IResult<Value> {
     let x = Value::from_constant(x, NumericType::NativeField)?;
     let y = Value::from_constant(y, NumericType::NativeField)?;
-    let is_infinite = Value::from_constant(is_infinite, NumericType::bool())?;
-    Ok(Value::array(
-        vec![x, y, is_infinite],
-        vec![
-            Type::Numeric(NumericType::NativeField),
-            Type::Numeric(NumericType::NativeField),
-            Type::Numeric(NumericType::bool()),
-        ],
-    ))
+    Ok(Value::array(vec![x, y], vec![Type::field(), Type::field()]))
 }
 
 /// Convert a vector of [Value] to a flattened vector of [FieldElement] for printing.
@@ -839,7 +808,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                 }
                 Value::ArrayOrVector(array_value) => {
                     let length = match vector_length {
-                        Some(length) if array_value.is_vector => {
+                        Some(length) if array_value.is_vector() => {
                             length * array_value.element_types.len()
                         }
                         _ => array_value.elements.borrow().len(),

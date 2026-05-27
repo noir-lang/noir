@@ -29,11 +29,31 @@ Returns each function defined in the module.
 
 Returns true if this module has a custom attribute with the given name.
 
+This matches both built-in attributes and user-written attributes (tags and
+applied comptime macros). Use `has_builtin_attribute` if you need to match
+only the built-in attribute of the given name.
+
+### has_builtin_attribute
+
+#include_code has_builtin_attribute noir_stdlib/src/meta/module.nr rust
+
+Returns true if this module has a built-in attribute with the given name.
+
+Unlike `has_named_attribute`, this ignores user-written tag attributes and
+applied comptime macros.
+
 ### is_contract
 
 #include_code is_contract noir_stdlib/src/meta/module.nr rust
 
 `true` if this module is a contract module (was declared via `contract foo { ... }`).
+
+### location
+
+#include_code location noir_stdlib/src/meta/module.nr rust
+
+Returns the source [`Location`](./location.md) where this module is declared.
+This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagnostic to the module.
 
 ### name
 

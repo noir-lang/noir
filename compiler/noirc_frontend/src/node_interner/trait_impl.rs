@@ -216,6 +216,7 @@ impl NodeInterner {
         location: Location,
     ) -> Result<Result<(), Location>, CompilationError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
+        self.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
 
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
@@ -617,15 +618,15 @@ impl NodeInterner {
         entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Assumed { .. }));
 
         // Also remove assumed implementations for the parent traits, if any
-        if let Some(trait_bounds) =
-            self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
-        {
-            for parent_trait_bound in trait_bounds {
-                self.remove_assumed_trait_implementations_for_trait_and_parents(
-                    parent_trait_bound.trait_id,
-                    visited_trait_ids,
-                );
-            }
+        let parent_trait_ids: Vec<TraitId> = self
+            .try_get_trait(trait_id)
+            .map(|the_trait| the_trait.parent_bounds().map(|b| b.trait_id).collect())
+            .unwrap_or_default();
+        for parent_trait_id in parent_trait_ids {
+            self.remove_assumed_trait_implementations_for_trait_and_parents(
+                parent_trait_id,
+                visited_trait_ids,
+            );
         }
     }
 }
