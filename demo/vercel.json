@@ -1,4 +1,5 @@
 {
+  "installCommand": "rm -f package-lock.json client/package-lock.json && npm install --include=optional",
   "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
   "functions": {
