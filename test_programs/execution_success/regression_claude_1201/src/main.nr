@@ -1,6 +1,8 @@
 fn main(s: str<2>, x: u8) -> pub [u8; 2] {
     // Safety: testing context
-    unsafe { mutate_bytes_then_observe_original(s, x) }
+    unsafe {
+        mutate_bytes_then_observe_original(s, x)
+    }
 }
 
 // Asserts that mutating the byte array returned by `as_bytes` does not
