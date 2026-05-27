@@ -62,7 +62,7 @@ app.post('/v1/recovery/verify', async (req, res) => {
         const [commitment, challenge, userIdHash, nullifier] = publicInputs;
 
         // 1. Cryptographic Verification
-        const isValid = await backend.verifyProof({ proof, publicInputs });
+        const isValid = await backend.verifyProof({ proof: new Uint8Array(proof), publicInputs });
 
         if (!isValid) {
             return res.status(400).json({ error: 'Invalid ZK Proof' });

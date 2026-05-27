@@ -93,7 +93,7 @@ document.getElementById('recoverBtn').onclick = async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 userId, 
-                proof: proofData.proof, 
+                proof: Array.from(proofData.proof), 
                 publicInputs: proofData.publicInputs 
             })
         });

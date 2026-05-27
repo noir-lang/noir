@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   plugins: [
@@ -11,6 +12,14 @@ export default defineConfig({
           dest: 'assets'
         }
       ]
+    }),
+    nodePolyfills({
+      include: ['buffer', 'crypto', 'stream', 'path', 'os', 'util'],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
     })
   ],
   build: {
