@@ -1981,17 +1981,8 @@
 <a href=#1981 id=1981 data-nosnippet>1981</a>        <span class="comment">// In `&lt;Type as Trait&gt;::method` we know `Self` is `Type` so we bind that now
 <a href=#1982 id=1982 data-nosnippet>1982</a>        </span>bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 <a href=#1983 id=1983 data-nosnippet>1983</a>
-<a href=#1984 id=1984 data-nosnippet>1984</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-<a href=#1985 id=1985 data-nosnippet>1985</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
-<a href=#1986 id=1986 data-nosnippet>1986</a>
-<a href=#1987 id=1987 data-nosnippet>1987</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
-<a href=#1988 id=1988 data-nosnippet>1988</a>            ident,
-<a href=#1989 id=1989 data-nosnippet>1989</a>            <span class="kw-2">&amp;</span>id,
-<a href=#1990 id=1990 data-nosnippet>1990</a>            generics,
-<a href=#1991 id=1991 data-nosnippet>1991</a>            bindings,
-<a href=#1992 id=1992 data-nosnippet>1992</a>            push_required_type_variables,
-<a href=#1993 id=1993 data-nosnippet>1993</a>        );
-<a href=#1994 id=1994 data-nosnippet>1994</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
-<a href=#1995 id=1995 data-nosnippet>1995</a>        (id, typ)
-<a href=#1996 id=1996 data-nosnippet>1996</a>    }
-<a href=#1997 id=1997 data-nosnippet>1997</a>}</code></pre></div></section></main></body></html>
+<a href=#1984 id=1984 data-nosnippet>1984</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(ident, <span class="kw-2">&amp;</span>id, generics, bindings);
+<a href=#1985 id=1985 data-nosnippet>1985</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
+<a href=#1986 id=1986 data-nosnippet>1986</a>        (id, typ)
+<a href=#1987 id=1987 data-nosnippet>1987</a>    }
+<a href=#1988 id=1988 data-nosnippet>1988</a>}</code></pre></div></section></main></body></html>
