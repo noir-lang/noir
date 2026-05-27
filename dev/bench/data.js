@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779899609438,
+  "lastUpdate": 1779899742857,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a4b5246814af86c845472ffd4a40f45d5e6a153a",
-          "message": "chore(deps): bump ws from 8.17.1 to 8.20.1 (#12727)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-20T09:35:11Z",
-          "tree_id": "1628a21d8682d1dd0d4e22dcd6518ee621826752",
-          "url": "https://github.com/noir-lang/noir/commit/a4b5246814af86c845472ffd4a40f45d5e6a153a"
-        },
-        "date": 1779271192705,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169243,
-            "range": "± 1289",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137720,
-            "range": "± 4298",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653164,
-            "range": "± 19319",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651814,
             "range": "± 5607",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a8889cad1a8b2375b9ea97e617782be2031ef0e3",
+          "message": "fix: disallow inlining closures (#12805)",
+          "timestamp": "2026-05-27T16:05:54Z",
+          "tree_id": "c14071410108a25575be72b700e428b9fa4519e5",
+          "url": "https://github.com/noir-lang/noir/commit/a8889cad1a8b2375b9ea97e617782be2031ef0e3"
+        },
+        "date": 1779899677802,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 178078,
+            "range": "± 972",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144470,
+            "range": "± 7484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655228,
+            "range": "± 2333",
             "unit": "ns/iter"
           }
         ]
