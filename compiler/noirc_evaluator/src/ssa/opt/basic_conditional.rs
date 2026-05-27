@@ -487,7 +487,12 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, interpreter::value::Value, ir::types::Type, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            ir::types::Type,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
 
     #[test]
@@ -753,16 +758,16 @@ mod tests {
         ");
     }
 
-    /// A branch-local `inc_rc` must keep the conditional from flattening.
+    /// A branch-local `inc_rc` must not be hoisted out of its branch when flattening.
     ///
-    /// In Brillig, `array_set` mutates its array in place only when the runtime
-    /// reference count is 1, and `inc_rc` bumps that count. Flattening would hoist the
-    /// `then`-branch `inc_rc` into the unconditionally executed merged block, so it would
-    /// run even when the condition is false. That changes the reference count seen by the
-    /// later `array_set`, turning an in-place mutation into a copy. The pass must leave
-    /// the conditional intact.
+    /// In Brillig, `array_set` mutates its array in place only when the runtime reference
+    /// count is 1, and `inc_rc` bumps that count. Flattening this diamond would move the
+    /// `then`-branch `inc_rc` into the unconditionally executed entry block, so it would run
+    /// even when the condition is false; the later `array_set` would then copy instead of
+    /// mutating in place. With `v0 = false` the `inc_rc` is skipped, `array_set` mutates `v1`
+    /// in place, and `array_get` observes `Field 7` — the pass must preserve that result.
     #[test]
-    fn does_not_flatten_branch_local_inc_rc() {
+    fn does_not_hoist_branch_local_inc_rc() {
         let src = "
             brillig(inline) fn main f0 {
               b0(v0: u1, v1: [Field; 1]):
@@ -778,44 +783,14 @@ mod tests {
                 return v3
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
-    }
-
-    /// Interpreter-level companion to `does_not_flatten_branch_local_inc_rc`.
-    ///
-    /// With `v0 = false` the `then`-branch `inc_rc` is skipped, so `v1` keeps a reference
-    /// count of 1 and the `array_set` mutates it in place — the `array_get` then observes
-    /// `Field 7`. Flattening (before the fix) hoisted `inc_rc` unconditionally, so the
-    /// `array_set` copied and the read returned the stale `Field 1`. We interpret with
-    /// freshly built inputs before and after the pass (the interpreter mutates arrays in
-    /// place, so the two runs must not share state) and assert the result is unchanged.
-    #[test]
-    fn branch_local_inc_rc_preserves_execution() {
-        let src = "
-            brillig(inline) fn main f0 {
-              b0(v0: u1, v1: [Field; 1]):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                inc_rc v1
-                jmp b3()
-              b2():
-                jmp b3()
-              b3():
-                v2 = array_set v1, index u32 0, value Field 7
-                v3 = array_get v1, index u32 0 -> Field
-                return v3
-            }
-            ";
-        let inputs = || {
-            vec![
-                Value::bool(false),
-                Value::array(vec![Value::field(1_u128.into())], vec![Type::field()]),
-            ]
-        };
-        let before = Ssa::from_str(src).unwrap().interpret(inputs());
-        let after = Ssa::from_str(src).unwrap().flatten_basic_conditionals().interpret(inputs());
-        assert_eq!(before, after, "flattening changed the observable execution result");
-        assert_eq!(after.unwrap(), vec![Value::field(7_u128.into())]);
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![
+            Value::bool(false),
+            Value::array(vec![Value::field(1_u128.into())], vec![Type::field()]),
+        ];
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, Ssa::flatten_basic_conditionals);
+        assert_eq!(result.unwrap(), vec![Value::field(7_u128.into())]);
     }
 
     /// Non-diamond (then-only) case with JmpIf arguments: the optimization must be
