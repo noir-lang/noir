@@ -3381,6 +3381,22 @@ impl Elaborator<'_> {
             let self_type = the_trait.self_type_typevar.clone();
             let kind = the_trait.self_type_typevar.kind();
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+
+            // When the constraint is `assumed` (e.g. for a call on `self` inside a trait
+            // default method), the trait's generics in the bound point back at the trait's
+            // own type variables, so `bind_generic`'s occurs check skips them as `t = t`.
+            // Without these bindings, instantiating the called method replaces its forall'd
+            // `T` with a fresh type variable, leaving the result rendered as `_` and
+            // unsoundly unifying with any type. Pin each trait generic to its own
+            // `NamedGeneric` here so the method's `T` resolves to the trait's `T`.
+            for (param, arg) in
+                the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
+            {
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.clone()),
+                );
+            }
         }
     }
 

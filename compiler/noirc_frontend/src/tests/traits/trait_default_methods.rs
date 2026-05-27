@@ -271,3 +271,22 @@ fn generic_trait_numeric_generic_default_method() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/8687.
+#[test]
+fn issue_8687_trait_default_method_return_type_is_trait_generic() {
+    let src = r#"
+    pub trait Trait<T> {
+        fn one(self) -> T;
+
+        fn foo(self) {
+            let t = self.one();
+            let _: i32 = t;
+                         ^ Expected type i32, found type T
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
