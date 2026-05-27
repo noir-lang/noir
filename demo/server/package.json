@@ -1,0 +1,12 @@
+{
+  "name": "zk-recovery-server",
+  "version": "1.0.0",
+  "description": "Demo server for Noir ZK Recovery",
+  "main": "index.js",
+  "dependencies": {
+    "@noir-lang/backend_barretenberg": "^0.37.0",
+    "@noir-lang/noir_js": "^0.37.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

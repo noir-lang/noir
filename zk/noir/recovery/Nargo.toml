@@ -1,0 +1,7 @@
+[package]
+name = "recovery"
+type = "bin"
+authors = ["dennis.lee"]
+compiler_version = ">=0.31.0"
+
+[dependencies]

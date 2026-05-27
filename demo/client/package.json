@@ -1,0 +1,19 @@
+{
+  "name": "zk-recovery-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@noir-lang/backend_barretenberg": "^0.37.0",
+    "@noir-lang/noir_js": "^0.37.0"
+  },
+  "devDependencies": {
+    "vite": "^5.2.0",
+    "vite-plugin-static-copy": "^1.0.0"
+  }
+}
