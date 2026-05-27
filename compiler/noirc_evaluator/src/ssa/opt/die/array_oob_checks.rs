@@ -249,16 +249,20 @@ fn handle_array_get_group(
         return;
     }
 
-    // The base index used by the *current* (first) ArrayGet in the group.
-    // Subsequent gets only join the group when their index is `base_index + k`
-    // for a small constant `k`, which is the structural pattern the SSA
-    // generator emits for the trailing flattened reads of one composite access.
-    // Without this check, two unrelated dynamic gets on the same composite
-    // array would collapse into a single OOB constraint, dropping the OOB
-    // side effect of every grouped access after the first.
-    let Instruction::ArrayGet { index: base_index, .. } = function.dfg[instructions[index]] else {
+    // The flattened reads of a single composite `array_get` all share one common base index
+    // and differ only by a small constant offset (`base`, `base + 1`, ...; see the example
+    // above). A subsequent get only joins the group when it shares that common base. Without
+    // this, two unrelated dynamic gets on the same composite array would collapse into a single
+    // OOB constraint, dropping the OOB side effect of every grouped access after the first.
+    //
+    // We compare against the common base rather than the first surviving read's literal index:
+    // an earlier DIE pass may have removed the offset-0 read, leaving the group's first read at
+    // `base + k`. Its trailing reads are still offset from the original `base`, not from each
+    // other, so a `first_index + k` comparison would wrongly split a legitimate group.
+    let Instruction::ArrayGet { index: first_index, .. } = function.dfg[instructions[index]] else {
         return;
     };
+    let (base, base_offset) = index_base_and_offset(&function.dfg, first_index);
 
     // Initially we would expect the last index of the group (5 in the example above)
     // to be `index + 2 * (element_size - 1)`, however, we can't expect this to hold
@@ -288,10 +292,15 @@ fn handle_array_get_group(
                 if function.dfg.is_safe_index(*next_index, *next_array) {
                     break;
                 }
-                // Require that this `array_get` reads `base + k` of the original
-                // composite element; otherwise it is an independent access on the
+                // Require that this `array_get` reads another slot of the *same* composite
+                // element: it must share the group's common base index and sit within one
+                // `element_size` window of it. Otherwise it is an independent access on the
                 // same array and must keep its own OOB check.
-                if !is_composite_offset(&function.dfg, *next_index, base_index, element_size) {
+                let (next_base, next_offset) = index_base_and_offset(&function.dfg, *next_index);
+                if next_base != base
+                    || next_offset == base_offset
+                    || next_offset.abs_diff(base_offset) >= element_size as u64
+                {
                     break;
                 }
                 // This instruction is also OOB, so it belongs to the same group.
@@ -334,39 +343,26 @@ fn handle_array_get_group(
     }
 }
 
-/// True when `next_index` is `base_index + k` (in either operand order) where
-/// `k` is a non-zero constant strictly less than `element_size`. This is the
-/// structural pattern the SSA generator emits for the trailing flattened reads
-/// of a single composite `array_get` (see the example in
-/// [`handle_array_get_group`]). Any other relationship between the indices
-/// means the gets are independent accesses that need their own OOB checks.
-fn is_composite_offset(
-    dfg: &DataFlowGraph,
-    next_index: ValueId,
-    base_index: ValueId,
-    element_size: usize,
-) -> bool {
-    let Value::Instruction { instruction: inst_id, .. } = dfg[next_index] else {
-        return false;
+/// Decompose an array index into its `(common_base, offset)`. The SSA generator emits each
+/// flattened read of one composite `array_get` as `add(common_base, constant_offset)` (see the
+/// example in [`handle_array_get_group`]); a bare index, or any index that is not such an add,
+/// is treated as the base with offset 0. Two reads belong to the same composite access when they
+/// share a common base and their offsets sit within one `element_size` window of each other.
+fn index_base_and_offset(dfg: &DataFlowGraph, index: ValueId) -> (ValueId, u64) {
+    let Value::Instruction { instruction, .. } = dfg[index] else {
+        return (index, 0);
     };
-    let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add { .. } }) = dfg[inst_id]
+    let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add { .. } }) = dfg[instruction]
     else {
-        return false;
+        return (index, 0);
     };
-    let other = if lhs == base_index {
-        rhs
-    } else if rhs == base_index {
-        lhs
+    if let Some(offset) = dfg.get_numeric_constant(rhs).and_then(|c| c.try_to_u64()) {
+        (lhs, offset)
+    } else if let Some(offset) = dfg.get_numeric_constant(lhs).and_then(|c| c.try_to_u64()) {
+        (rhs, offset)
     } else {
-        return false;
-    };
-    let Some(k) = dfg.get_numeric_constant(other) else {
-        return false;
-    };
-    let Some(k) = k.try_to_u64() else {
-        return false;
-    };
-    k >= 1 && (k as usize) < element_size
+        (index, 0)
+    }
 }
 
 /// Given `lhs` and `rhs` values, if there's a side effects condition this will
