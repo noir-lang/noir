@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - master
+      - main
+
 
 permissions:
   contents: read
@@ -19,7 +21,7 @@ jobs:
   run-tests-windows:
     name: Run tests (Windows)
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
