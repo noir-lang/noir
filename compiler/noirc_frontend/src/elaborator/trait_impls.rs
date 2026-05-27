@@ -28,7 +28,7 @@ use crate::{
 };
 
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -153,6 +153,11 @@ impl Elaborator<'_> {
                         unresolved_type,
                         &associated_type.typ.kind(),
                         wildcard_allowed,
+                    );
+                    self.check_trait_impl_associated_type_visibility(
+                        trait_id,
+                        &associated_type.name,
+                        &resolved_type,
                     );
                     if let Err(error) = named_generic.type_var.try_bind(
                         resolved_type,
@@ -566,6 +571,30 @@ impl Elaborator<'_> {
         }
 
         self.interner.push_fn_meta(override_meta, *func_id);
+    }
+
+    /// Check that an associated type in a trait impl is not assigned a type that is more
+    /// private than the trait itself. Otherwise, a private type would leak through the
+    /// trait's public surface.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn check_trait_impl_associated_type_visibility(
+        &mut self,
+        trait_id: TraitId,
+        associated_type_name: &Ident,
+        resolved_type: &Type,
+    ) {
+        let the_trait = self.interner.get_trait(trait_id);
+        let trait_visibility = the_trait.visibility;
+        let item = Ident::from(Located::from(
+            associated_type_name.location(),
+            format!("{}::{}", the_trait.name, associated_type_name),
+        ));
+        self.check_type_is_not_more_private_then_item(
+            &item,
+            trait_visibility,
+            resolved_type,
+            associated_type_name.location(),
+        );
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
