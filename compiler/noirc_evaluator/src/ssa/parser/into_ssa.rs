@@ -691,10 +691,7 @@ impl Translator {
 /// any subsequent pass that trusts the stated purity will work off a false premise.
 /// Functions whose purity was not explicitly stated in the source are skipped — the
 /// parser must remain a no-op for those.
-fn validate_stated_purities(
-    ssa: &Ssa,
-    stated_purities: &FunctionPurities,
-) -> Result<(), SsaError> {
+fn validate_stated_purities(ssa: &Ssa, stated_purities: &FunctionPurities) -> Result<(), SsaError> {
     if stated_purities.is_empty() {
         return Ok(());
     }
@@ -705,14 +702,9 @@ fn validate_stated_purities(
         let computed = computed_purities[function_id];
         if *stated != computed {
             let function_name = ssa.functions[function_id].name().to_string();
-            return Err(SsaError::PurityMismatch {
-                function_name,
-                stated: *stated,
-                computed,
-            });
+            return Err(SsaError::PurityMismatch { function_name, stated: *stated, computed });
         }
     }
 
     Ok(())
 }
-
