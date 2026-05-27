@@ -10,10 +10,12 @@ app.use(cors());
 app.use(express.json());
 
 // Singleton Barretenberg API for server
+// Use single-threaded mode: verification doesn't need workers, and Vercel
+// serverless functions can't use SharedArrayBuffer-based threading.
 let barretenbergAPI;
 async function getBarretenbergAPI() {
     if (!barretenbergAPI) {
-        barretenbergAPI = await Barretenberg.new();
+        barretenbergAPI = await Barretenberg.newSingleThread();
     }
     return barretenbergAPI;
 }

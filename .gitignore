@@ -46,6 +46,13 @@ execution_report.json
 # This gives a location to download artifacts into the repository in CI without making git dirty.
 libbarretenberg-wasm32
 
+# Demo app build artifacts and lock files (demo uses its own npm setup)
+demo/client/dist/
+demo/**/node_modules/
+demo/package-lock.json
+demo/client/package-lock.json
+demo/server/package-lock.json
+
 # Wasm build atifacts
 compiler/wasm/nodejs
 compiler/wasm/web
@@ -75,3 +82,4 @@ mutants.out.old
 /.nargo-logs
 .nargo-logs2/nargo-log.2026-05-27
 options.txt
+.ignore.txt
