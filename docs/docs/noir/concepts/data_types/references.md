@@ -36,6 +36,21 @@ fn increment(x: &mut Field) {
 
 When creating a mutable reference, the original variable must be declared `mut`.
 
+Also note that unlike Rust, Noir allows multiple mutable references to the same value.
+This is safe because Noir has no concurrency and values are never dropped.
+
+```rust
+fn main() {
+    let mut array = [1, 2, 3];
+
+    let ref1 = &mut array;
+    let ref2 = &mut array;
+
+    ref1[0] = 42;
+    println(*ref2);  // [42, 2, 3]
+}
+```
+
 ## Immutable References
 
 Immutable references provide read-only access to a value and can be created with `&`:
@@ -62,6 +77,23 @@ fn main() {
     let s = [0];
     let ps = &s;
     ps[0] = 1; // Error: `ps` is a `&` reference, so it cannot be written to
+}
+```
+
+Since Noir has no borrow-checker, it is possible to have immutable references alongside mutable
+references to the same data. This is usually undesired but developers should consider this as
+a corner case since it is possible for mutations to be observed from an immutable reference:
+
+```rust
+fn mutate_and_print(a: &[Field; 3], b: &mut [Field; 3]) {
+    println(*a);
+    *b = [100, 200, 300];
+    println(*a);  // This line can be different from the first print if a = b
+}
+
+fn main() {
+    let mut array = [1, 2, 3];
+    mutate_and_print(&array, &mut array);
 }
 ```
 

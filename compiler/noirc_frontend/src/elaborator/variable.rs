@@ -196,14 +196,10 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` has the enclosing type generics first, followed by `direct_generics`
-                // (the method's own generics). We must only bind the type-level portion here;
-                // method generics are handled separately by the method turbofish.
+                // We must only bind the type-level portion here; method generics are handled
+                // separately by the method turbofish.
                 let func_meta = self.function_meta(*func_id);
-                let impl_generic_count =
-                    func_meta.all_generics.len() - func_meta.direct_generics.len();
-                let impl_generics =
-                    vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
+                let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
                 let self_type =
                     func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
 
@@ -659,13 +655,9 @@ impl Elaborator<'_> {
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
         // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-        let (self_type_generics_count, function_typ, function_self_type) =
-            self.with_function_meta(func_id, |meta| {
-                (
-                    meta.all_generics.len() - meta.direct_generics.len(),
-                    meta.typ.clone(),
-                    meta.self_type.clone(),
-                )
+        let (self_type_generics_count, function_typ, function_self_type) = self
+            .with_function_meta(func_id, |meta| {
+                (meta.impl_generics_count(), meta.typ.clone(), meta.self_type.clone())
             });
         let bindings = if self_type_generics_count > 0 {
             if let Type::Forall(type_vars, _) = &function_typ

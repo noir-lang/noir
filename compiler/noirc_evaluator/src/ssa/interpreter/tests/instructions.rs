@@ -1162,6 +1162,31 @@ fn make_array() {
 }
 
 #[test]
+fn make_array_allows_reference_mutability_mismatch() {
+    // Reference mutability is a frontend concern with no meaning at the SSA
+    // level: the validator accepts a `&mut T` value in a `&T` MakeArray slot,
+    // and the interpreter must agree so that running the post-validation SSA
+    // doesn't fail with `MakeArrayElementTypeMismatch`. The unconstrained
+    // SSA-gen pattern this guards is a tuple `[&mut T, &T]` constructed from
+    // a mutable allocate alongside an immutable one — exactly what the
+    // `pass_vs_prev` fuzzer surfaces when it interprets intermediate SSA
+    // between passes.
+    executes_with_no_errors(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &Field
+            store Field 2 at v1
+            v2 = make_array [v0, v1] : [&Field; 2]
+            return
+        }
+    ",
+    );
+}
+
+#[test]
 fn nop() {
     executes_with_no_errors(
         "

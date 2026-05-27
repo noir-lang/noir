@@ -50,13 +50,14 @@ pprof.workspace = true
 
 [dev-dependencies.acir]
 path = "."
-features = ["arb"]
+features = ["arb", "test-fixtures"] # Self to turn on `arb` and expose test fixtures.
 
 [features]
 default = []
 bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]
 arb = ["proptest", "proptest-derive", "brillig/arb"]
+test-fixtures = []
 
 [lib]
 # See https://bheisler.github.io/criterion.rs/book/faq.html#cargo-bench-gives-unrecognized-option-errors-for-valid-command-line-options

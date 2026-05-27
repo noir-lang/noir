@@ -140,6 +140,12 @@ doc:
 
 # Noir
 
+# Regenerates the acvm_js TypeScript test fixtures from the Rust circuit definitions.
+# Run from the workspace root.
+generate-acvm-js-fixtures:
+    cargo run -p acvm --features generate-test-fixtures,bn254 --bin generate_acvm_js_fixtures
+    yarn lint --fix
+
 # Format noir code
 format-noir:
     cargo run -- --program-dir={{ justfile_dir() }}/noir_stdlib fmt --check

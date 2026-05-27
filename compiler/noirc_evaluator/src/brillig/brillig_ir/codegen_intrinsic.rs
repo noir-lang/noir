@@ -78,6 +78,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
         assert!(radix.bit_size == 32);
+        assert!(
+            target_array.size.0 <= F::max_num_bits(),
+            "ToRadix num_limbs ({}) exceeds the maximum useful number of limbs ({}) for this field",
+            target_array.size.0,
+            F::max_num_bits()
+        );
 
         let bits_register = self.make_constant_instruction(output_bits.into(), 1);
         self.codegen_initialize_array(target_array);

@@ -25,8 +25,9 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
         resolution::{
-            errors::ResolverError, import::PathResolutionError,
-            visibility::item_in_module_is_visible,
+            errors::ResolverError,
+            import::PathResolutionError,
+            visibility::{item_in_module_is_visible, trait_visibility_for_method_is_satisfied},
         },
         type_check::{
             Source, TypeCheckError,
@@ -1714,6 +1715,17 @@ impl Elaborator<'_> {
                 let mut errors = path_resolution.errors;
                 if let Some(error) = error {
                     errors.push(error);
+                }
+
+                let importing_module =
+                    ModuleId { krate: self.crate_id, local_id: self.local_module() };
+                if !trait_visibility_for_method_is_satisfied(
+                    func_id,
+                    importing_module,
+                    self.interner,
+                    self.def_maps,
+                ) {
+                    errors.push(PathResolutionError::Private(last_segment.ident.clone()));
                 }
 
                 let method = TraitPathResolutionMethod::TraitItem(trait_method);
