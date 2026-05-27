@@ -1012,7 +1012,7 @@ mod tests {
     #[test]
     fn hoists_casts() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             jmp b1(u32 2)
           b1(v1: u32):
@@ -1029,7 +1029,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v2 = cast v0 as u64
             jmp b1(u32 2)
@@ -2203,7 +2203,7 @@ mod tests {
 
         let src = format!(
             r#"
-        acir(inline) predicate_pure fn main f0 {{
+        acir(inline) fn main f0 {{
           b0(v0: {typ}):
             jmp b1({typ} {lower})
           b1(v1: {typ}):
@@ -2295,7 +2295,7 @@ mod tests {
         "#,
         );
 
-        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = Ssa::from_str_no_validation(&src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
         // The pre-header of the loop b1 is b0
@@ -2530,7 +2530,7 @@ mod tests {
         // This is just a stub to create a function with the expected runtime.
         let src = format!(
             r#"
-        {runtime} predicate_pure fn main f0 {{
+        {runtime} fn main f0 {{
           b0():
             return
         }}
@@ -3823,7 +3823,7 @@ mod control_dependence {
         // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
         let src = format!(
             r#"
-          {runtime} impure fn main f0 {{
+          {runtime} predicate_pure fn main f0 {{
             b0(v0: u32, v1: u1):
               v2 = make_array [u8 0, u8 1] : [u8; 2]
               jmp b1(u32 0)

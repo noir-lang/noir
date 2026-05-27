@@ -81,8 +81,12 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: Ssa, expected: &str) {
 
     // First check if `expected` is valid SSA by parsing it, otherwise
     // the comparison will always fail but it won't be clear that it's because
-    // expected is not valid.
-    let mut expected_ssa = match Ssa::from_str(&expected) {
+    // expected is not valid. Purity is not re-validated here: tests that build
+    // an `expected` from a fixture used with `from_str_no_validation` (e.g. to
+    // exercise the optimizer under an overclaimed purity) would otherwise be
+    // rejected here even though the test was already passing strict validation
+    // on the input.
+    let mut expected_ssa = match Ssa::from_str_no_validation(&expected) {
         Ok(ssa) => ssa,
         Err(err) => {
             panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}")

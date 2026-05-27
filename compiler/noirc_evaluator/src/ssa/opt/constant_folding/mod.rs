@@ -3090,7 +3090,12 @@ mod test {
         }}
         "
         );
-        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+        // Brillig functions can never compute as `Pure` (they default to `PureWithPredicate`,
+        // see `Function::is_pure`). The test still asserts the optimizer's behavior when the
+        // callee is *declared* `pure`, so we bypass the parser's purity check.
+        let ssa = Ssa::from_str_no_validation(&src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_normalized_ssa_equals(ssa, &src);
     }
 
     /// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited

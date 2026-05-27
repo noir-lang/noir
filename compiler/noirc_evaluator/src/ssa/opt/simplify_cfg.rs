@@ -974,7 +974,7 @@ mod tests {
         // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
         let src = format!(
             "
-        {runtime}(inline) impure fn main f0 {{
+        {runtime}(inline) fn main f0 {{
           b0():
             jmpif u1 1 then: b1(), else: b2()
           b1():
@@ -998,7 +998,7 @@ mod tests {
 
         let expected = format!(
             "\
-{runtime}(inline) impure fn main f0 {{
+{runtime}(inline) fn main f0 {{
   b0():
     return
 }}"

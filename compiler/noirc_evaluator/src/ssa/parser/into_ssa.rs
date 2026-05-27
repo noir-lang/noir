@@ -87,9 +87,8 @@ impl Translator {
         let stated_purities = translator.purities.clone();
         let ssa = translator.finish();
 
-        validate_stated_purities(&ssa, &stated_purities)?;
-
         if validate {
+            validate_stated_purities(&ssa, &stated_purities)?;
             validate_ssa(&ssa);
         }
 
