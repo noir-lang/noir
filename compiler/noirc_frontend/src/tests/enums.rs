@@ -245,6 +245,29 @@ fn missing_field_in_non_alphabetical_match_struct_pattern() {
 }
 
 #[test]
+fn duplicate_field_in_non_alphabetical_match_struct_pattern() {
+    // `Foo` declares `y` before `x`, and the duplicated field (`x`) is not the
+    // first declared field. Duplicate detection keys off the field's
+    // declaration-order slot, so it must still flag the repeat regardless of
+    // declaration order or which slot the field occupies.
+    let src = r#"
+    fn main() {
+        let foo = Foo { y: 10, x: 20 };
+        match foo {
+            Foo { x: _, x: _, y: _ } => {}
+                        ^ duplicate field x
+        }
+    }
+
+    struct Foo {
+        y: i32,
+        x: Field,
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn match_integer_type_mismatch_in_pattern() {
     let src = r#"
         fn main() {
