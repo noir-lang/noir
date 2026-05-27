@@ -273,3 +273,39 @@ fn oracle_returning_multiple_vectors() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_if_oracle_defined_in_trait_impl() {
+    // Dispatching to a trait-impl oracle method generically (e.g. `T::fetch(x)`) used to
+    // reach an `unreachable!()` in monomorphization. Reject the definition up front instead.
+    let src = r#"
+    pub trait Fetcher {
+        unconstrained fn fetch(x: Field) -> Field;
+    }
+
+    pub struct Remote {}
+
+    impl Fetcher for Remote {
+        #[oracle(fetch_value)]
+        ^^^^^^^^^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on free functions
+        unconstrained fn fetch(x: Field) -> Field {}
+                         ~~~~~ Oracle functions cannot be defined within a trait or impl block
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_defined_in_regular_impl() {
+    let src = r#"
+    pub struct Remote {}
+
+    impl Remote {
+        #[oracle(fetch_value)]
+        ^^^^^^^^^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is only valid on free functions
+        pub unconstrained fn fetch(x: Field) -> Field {}
+                             ~~~~~ Oracle functions cannot be defined within a trait or impl block
+    }
+    "#;
+    check_errors(src);
+}

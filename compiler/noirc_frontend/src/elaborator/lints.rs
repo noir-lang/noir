@@ -139,6 +139,32 @@ pub(super) fn oracle_not_marked_unconstrained(
     }
 }
 
+/// Oracle definitions (functions with the `#[oracle]` attribute) must be free functions.
+///
+/// An oracle defined as a method of a regular impl or a trait impl is rejected here.
+/// Generic dispatch through a trait-impl oracle method panics during monomorphization, and
+/// binding an oracle to a `Self` type has no meaningful semantics: the `#[oracle(name)]`
+/// attribute already names the single foreign call the function lowers to.
+///
+/// `self_type` is set for both regular and trait impls; the parser already rejects attributes
+/// on trait method declarations, so a trait that is not an impl never reaches here.
+pub(super) fn oracle_must_be_a_free_function(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    if func.self_type.is_some() {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleNotAFreeFunction { ident, location: attribute.location })
+    } else {
+        None
+    }
+}
+
 /// Oracle functions cannot return more than 1 vector in their output.
 ///
 /// This is currently a limitation with the AVM: to return multiple vectors

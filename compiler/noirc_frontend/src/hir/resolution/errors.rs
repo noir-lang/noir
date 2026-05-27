@@ -82,6 +82,8 @@ pub enum ResolverError {
     OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
+    #[error("Usage of the `#[oracle]` function attribute is only valid on free functions")]
+    OracleNotAFreeFunction { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
     #[error("Oracle functions cannot return references")]
@@ -307,6 +309,7 @@ impl ResolverError {
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
+            | ResolverError::OracleNotAFreeFunction { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
@@ -556,6 +559,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 );
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
+                diagnostic
+            },
+            ResolverError::OracleNotAFreeFunction { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("Oracle functions cannot be defined within a trait or impl block".into(), ident.location());
                 diagnostic
             },
             ResolverError::OracleReturnsMultipleVectors { location } => {
