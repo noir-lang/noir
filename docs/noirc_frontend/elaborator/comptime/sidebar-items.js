@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AttributeContext","CollectedAttribute"],"type":["CollectedAttributes"]};
+window.SIDEBAR_ITEMS = {"struct":["AttributeContext","AttributeImplTarget","CollectedAttribute"],"type":["CollectedAttributes"]};

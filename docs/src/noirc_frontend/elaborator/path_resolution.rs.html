@@ -1065,7 +1065,7 @@
 <a href=#1065 id=1065 data-nosnippet>1065</a>        <span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
 <a href=#1066 id=1066 data-nosnippet>1066</a>
 <a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
-<a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
+<a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="kw">for </span>(func_id, trait_id, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
 <a href=#1069 id=1069 data-nosnippet>1069</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id) {
 <a href=#1070 id=1070 data-nosnippet>1070</a>                results.push((<span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>func_id, name));
 <a href=#1071 id=1071 data-nosnippet>1071</a>            }
@@ -1073,7 +1073,7 @@
 <a href=#1073 id=1073 data-nosnippet>1073</a>
 <a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="kw">if </span>results.is_empty() {
 <a href=#1075 id=1075 data-nosnippet>1075</a>            <span class="kw">if </span>trait_methods.len() == <span class="number">1 </span>{
-<a href=#1076 id=1076 data-nosnippet>1076</a>                <span class="kw">let </span>(func_id, trait_id) = trait_methods.first().expect(<span class="string">"Expected an item"</span>);
+<a href=#1076 id=1076 data-nosnippet>1076</a>                <span class="kw">let </span>(func_id, trait_id, <span class="kw">_</span>) = trait_methods.first().expect(<span class="string">"Expected an item"</span>);
 <a href=#1077 id=1077 data-nosnippet>1077</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
 <a href=#1078 id=1078 data-nosnippet>1078</a>                <span class="kw">let </span>trait_name = <span class="self">self</span>.fully_qualified_trait_path(trait_);
 <a href=#1079 id=1079 data-nosnippet>1079</a>                <span class="kw">let </span>ident = method_name_ident.clone();
@@ -1082,7 +1082,7 @@
 <a href=#1082 id=1082 data-nosnippet>1082</a>            } <span class="kw">else if </span>trait_methods.is_empty() {
 <a href=#1083 id=1083 data-nosnippet>1083</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(method_name_ident.clone()));
 <a href=#1084 id=1084 data-nosnippet>1084</a>            } <span class="kw">else </span>{
-<a href=#1085 id=1085 data-nosnippet>1085</a>                <span class="kw">let </span>traits = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id)| {
+<a href=#1085 id=1085 data-nosnippet>1085</a>                <span class="kw">let </span>traits = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id, <span class="kw">_</span>)| {
 <a href=#1086 id=1086 data-nosnippet>1086</a>                    <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
 <a href=#1087 id=1087 data-nosnippet>1087</a>                });
 <a href=#1088 id=1088 data-nosnippet>1088</a>                <span class="kw">let </span>ident = method_name_ident.clone();
