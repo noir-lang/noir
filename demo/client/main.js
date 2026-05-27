@@ -1,8 +1,23 @@
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
-// We will fetch the compiled circuit from the server artifacts or local copy
-// For demo purposes, we assume recovery.json is available at /recovery.json in the client root
-// In a real build, the build script would copy it to demo/client/public/
+import { Barretenberg, UltraHonkBackend } from '@aztec/bb.js';
+import initNoirC from '@noir-lang/noirc_abi';
+import initACVM from '@noir-lang/acvm_js';
+
+// Initialize WASM modules
+// We'll try to let Vite handle the URL resolution or assume they are in assets
+async function initNoir() {
+    try {
+        // In a real Vite app, you'd use ?url imports. 
+        // For this demo, we'll try to initialize without arguments which works if files are in standard locations
+        // or we'll fetch them from the public/assets directory if we copied them there.
+        await Promise.all([initACVM(), initNoirC()]);
+        log("Noir WASM initialized.");
+    } catch (e) {
+        log("WASM Init Warning (expected in some environments): " + e.message);
+    }
+}
+
+initNoir();
 
 async function log(msg) {
     const logEl = document.getElementById('log');
@@ -54,8 +69,11 @@ document.getElementById('recoverBtn').onclick = async () => {
         const response = await fetch('/recovery.json');
         const circuit = await response.json();
 
-        const backend = new BarretenbergBackend(circuit);
-        const noir = new Noir(circuit, backend);
+        const noir = new Noir(circuit);
+        log("Creating Barretenberg... ⏳");
+        const barretenbergAPI = await Barretenberg.new();
+        log("Creating UltraHonkBackend...");
+        const backend = new UltraHonkBackend(circuit.bytecode, barretenbergAPI);
 
         const secret = localStorage.getItem('zk_recovery_secret');
         const commitment = "0x28639695646197170138612745304918512140682229562719280975878893118742880056637";
@@ -67,15 +85,22 @@ document.getElementById('recoverBtn').onclick = async () => {
             user_id_hash: "1" // Simplified
         };
 
+        log("Generating witness... ⏳");
+        const { witness } = await noir.execute(input);
+        
         log("Generating ZK Proof locally (this may take a few seconds)...");
-        const { proof, publicInputs } = await noir.generateProof(input);
+        const proofData = await backend.generateProof(witness);
         log("Proof generated successfully!");
 
         log("Sending proof to server for verification...");
         const verifyRes = await fetch('http://localhost:3001/v1/recovery/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, proof, publicInputs })
+            body: JSON.stringify({ 
+                userId, 
+                proof: proofData.proof, 
+                publicInputs: proofData.publicInputs 
+            })
         });
 
         const result = await verifyRes.json();

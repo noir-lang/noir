@@ -1,13 +1,19 @@
 const express = require('express');
 const cors = require('cors');
-const { Noir } = require('@noir-lang/noir_js');
-const { BarretenbergBackend } = require('@noir-lang/backend_barretenberg');
-const fs = require('fs');
-const path = require('path');
+const { Barretenberg, UltraHonkBackend } = require('@aztec/bb.js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Singleton Barretenberg API for server
+let barretenbergAPI;
+async function getBarretenbergAPI() {
+    if (!barretenbergAPI) {
+        barretenbergAPI = await Barretenberg.new();
+    }
+    return barretenbergAPI;
+}
 
 // In-memory DB for demo
 const users = {}; // { userId: commitment }
@@ -42,18 +48,19 @@ app.post('/v1/recovery/verify', async (req, res) => {
     }
 
     try {
-        const backend = new BarretenbergBackend(recoveryCircuit);
-        const noir = new Noir(recoveryCircuit, backend);
+        const api = await getBarretenbergAPI();
+        const backend = new UltraHonkBackend(recoveryCircuit.bytecode, api);
 
         // Public Inputs Structure (from circuit main function returns/inputs):
-        // 0: commitment
-        // 1: challenge
-        // 2: user_id_hash
-        // 3: nullifier (return value)
+        // Note: The order depends on how Noir organizes public inputs and return values.
+        // In Noir circuits, parameters are usually first, then the return value.
+        // Input: commitment (pub), challenge (pub), user_id_hash (pub)
+        // Return: nullifier (pub)
+        // So publicInputs might be [commitment, challenge, user_id_hash, nullifier]
         const [commitment, challenge, userIdHash, nullifier] = publicInputs;
 
         // 1. Cryptographic Verification
-        const isValid = await noir.verifyProof({ proof, publicInputs });
+        const isValid = await backend.verifyProof({ proof, publicInputs });
 
         if (!isValid) {
             return res.status(400).json({ error: 'Invalid ZK Proof' });
