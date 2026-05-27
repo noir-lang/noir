@@ -173,18 +173,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
-            let points: Vec<F> = read_heap_array(memory, points)
-                .iter()
-                .enumerate()
-                .map(|(i, x)| {
-                    if i % 3 == 2 {
-                        let is_infinite: bool = x.expect_u1().unwrap();
-                        F::from(is_infinite)
-                    } else {
-                        x.expect_field().unwrap()
-                    }
-                })
-                .collect();
+            let points: Vec<F> =
+                read_heap_array(memory, points).iter().map(|x| x.expect_field().unwrap()).collect();
             let scalars: Vec<F> = read_heap_array(memory, scalars)
                 .iter()
                 .map(|x| x.expect_field().unwrap())
@@ -198,7 +188,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     scalars_hi.push(*scalar);
                 }
             }
-            let (x, y, is_infinite) = solver.multi_scalar_mul(
+            let (x, y) = solver.multi_scalar_mul(
                 &points,
                 &scalars_lo,
                 &scalars_hi,
@@ -207,47 +197,24 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             write_heap_array(
                 memory,
                 result,
-                &[
-                    MemoryValue::new_field(x),
-                    MemoryValue::new_field(y),
-                    MemoryValue::U1(is_infinite != F::zero()),
-                ],
+                &[MemoryValue::new_field(x), MemoryValue::new_field(y)],
             );
             Ok(())
         }
-        BlackBoxOp::EmbeddedCurveAdd {
-            input1_x,
-            input1_y,
-            input2_x,
-            input2_y,
-            result,
-            input1_infinite,
-            input2_infinite,
-        } => {
+        BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
             let input1_x = memory.read(*input1_x).expect_field().unwrap();
             let input1_y = memory.read(*input1_y).expect_field().unwrap();
-            let input1_infinite: bool = memory.read(*input1_infinite).expect_u1().unwrap();
             let input2_x = memory.read(*input2_x).expect_field().unwrap();
             let input2_y = memory.read(*input2_y).expect_field().unwrap();
-            let input2_infinite: bool = memory.read(*input2_infinite).expect_u1().unwrap();
-            let (x, y, infinite) = solver.ec_add(
-                &input1_x,
-                &input1_y,
-                &input1_infinite.into(),
-                &input2_x,
-                &input2_y,
-                &input2_infinite.into(),
+            let (x, y) = solver.ec_add(
+                &input1_x, &input1_y, &input2_x, &input2_y,
                 true, // Predicate is always true as brillig has control flow to handle false case
             )?;
 
             write_heap_array(
                 memory,
                 result,
-                &[
-                    MemoryValue::new_field(x),
-                    MemoryValue::new_field(y),
-                    MemoryValue::U1(infinite != F::zero()),
-                ],
+                &[MemoryValue::new_field(x), MemoryValue::new_field(y)],
             );
             Ok(())
         }
@@ -344,11 +311,6 @@ fn to_be_radix<F: AcirField>(
     );
 
     assert!(
-        num_limbs >= 1 || input.is_zero(),
-        "Input value {input} is not zero but number of limbs is zero."
-    );
-
-    assert!(
         !output_bits || radix == 2u32,
         "Radix {radix} is not equal to 2 and bit mode is activated."
     );
@@ -434,5 +396,18 @@ mod to_be_radix_tests {
             .map(|byte| byte.expect_u8().unwrap())
             .collect();
         assert_eq!(limbs, expected_limbs);
+    }
+
+    #[test]
+    fn rejects_non_zero_field_with_zero_limbs() {
+        let value = FieldElement::from(1u128);
+
+        let error = to_be_radix(value, 256, 0, false).unwrap_err();
+        assert_eq!(
+            error,
+            acvm_blackbox_solver::BlackBoxResolutionError::AssertFailed(
+                "Field failed to decompose into specified 0 limbs".to_string()
+            )
+        );
     }
 }
