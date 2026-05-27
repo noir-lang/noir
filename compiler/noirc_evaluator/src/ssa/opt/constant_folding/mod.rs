@@ -3287,7 +3287,7 @@ mod test {
         // We must not hoist into the header either — loop unrolling only maps
         // header parameters, not instruction results.
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0(v1: u1):
             v2 = allocate -> &mut u1
             store v1 at v2

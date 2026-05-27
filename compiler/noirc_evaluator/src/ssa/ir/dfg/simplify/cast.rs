@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_i8_minus_1_to_i16() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast i8 -1 as i16
             return v0
@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_i16_minus_1_to_i8() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast i16 -1 as i8
             return v0
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_field_4_to_i8() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 4 as i8
             return v0
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_field_255_to_i8() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 255 as i8
             return v0

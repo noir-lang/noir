@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn replaces_shl_identity_with_lhs() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             v1 = shl v0, u8 0
             return v1
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn replaces_shr_identity_with_lhs() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             v1 = shr v0, u8 0
             return v1

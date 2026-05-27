@@ -683,7 +683,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_push_back() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -735,7 +735,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_push_front() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -787,7 +787,7 @@ mod tests {
         // Same as the previous test, but using `as_vector` to prove that vector length tracking
         // is working correctly.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v102 = make_array [] : [Field; 0]
             v103, v3 = call as_vector(v102) -> (u32, [Field])
@@ -839,7 +839,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_insert() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -889,7 +889,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_pop_back() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [Field 2, Field 3] : [Field]
             v4 = allocate -> &mut u32
@@ -945,7 +945,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_pop_front() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [Field 2, Field 3] : [Field]
             v4 = allocate -> &mut u32
@@ -1001,7 +1001,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_remove() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [Field 2, Field 3] : [Field]
             v4 = allocate -> &mut u32
@@ -1057,7 +1057,7 @@ mod tests {
     #[test]
     fn can_handle_vector_with_zero_size_elements() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
             b0(v0: u32):
                 v3 = make_array [] : [()]
                 v4 = make_array [] : [()]

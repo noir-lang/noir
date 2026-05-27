@@ -93,7 +93,7 @@ fn test_aes() {
 #[test]
 fn test_blake3() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0(v0: [u8; 5]):
         v3 = call blake3(v0) -> [u8; 32]
         return v3
@@ -118,7 +118,7 @@ fn test_blake3() {
 #[test]
 fn test_blake2s() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0(v0: [u8; 5]):
         v3 = call blake2s(v0) -> [u8; 32]
         return v3
@@ -143,7 +143,7 @@ fn test_blake2s() {
 #[test]
 fn test_keccak() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0(v0: [u64; 25]):
         v1 = call keccakf1600(v0) -> [u64; 25]
         return v1
@@ -161,7 +161,7 @@ fn test_keccak() {
 #[test]
 fn test_poseidon() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0(v0: [Field; 4]):
         v1 = call poseidon2_permutation(v0) -> [Field; 4]
         return v1
@@ -176,7 +176,7 @@ fn test_poseidon() {
 #[test]
 fn test_sha256() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0(v0: [u32; 16], v1: [u32; 8]):
         v2 = call sha256_compression(v0, v1) -> [u32; 8]
         return v2

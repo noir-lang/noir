@@ -806,7 +806,7 @@ mod tests {
     #[test]
     fn do_not_remove_non_converging_jmpif_acir() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v23 = array_get v13, index u32 8 -> u1
             jmpif v23 then: b1(), else: b2()
@@ -1009,7 +1009,7 @@ mod tests {
     #[test]
     fn fully_simplifies_negated_constant_condition() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u1 1)
           b1(v0: u1):
@@ -1039,7 +1039,7 @@ mod tests {
     #[test]
     fn removes_unreachable_block() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1()
           b1():
@@ -1115,7 +1115,7 @@ mod tests {
         // causes the first jmpif to be folded, the second `jmpif v0` also has a
         // constant condition and must be folded in the same pass invocation.
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             jmp b1(u1 0)
           b1(v0: u1):
@@ -1150,7 +1150,7 @@ mod tests {
         // other went through extra blocks, causing "Expected two blocks to join
         // to the same block" in flatten_cfg.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v1: u1, v2: u1, v3: u1, v4: u32):
             v5 = eq v4, u32 1
             jmpif v5 then: b1(), else: b2()
