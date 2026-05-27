@@ -3509,7 +3509,7 @@ mod test {
 
     /// Counts how many `call f<callee>` instructions remain in `main` across all reachable blocks.
     /// Used to pin down exactly when identical calls to a pure function are deduplicated.
-    fn count_calls_in_main_to(ssa: &Ssa, callee: u32) -> usize {
+    fn count_calls_to_callee_in_main(ssa: &Ssa, callee: u32) -> usize {
         use crate::ssa::ir::{function::FunctionId, instruction::Instruction, value::Value};
 
         let callee = FunctionId::test_new(callee);
@@ -3558,7 +3558,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap().purity_analysis();
         let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_eq!(
-            count_calls_in_main_to(&ssa, 1),
+            count_calls_to_callee_in_main(&ssa, 1),
             1,
             "calls under the same predicate should be deduplicated"
         );
@@ -3616,7 +3616,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap().purity_analysis();
         let ssa = ssa.fold_constants(MIN_ITER);
         assert_eq!(
-            count_calls_in_main_to(&ssa, 1),
+            count_calls_to_callee_in_main(&ssa, 1),
             1,
             "a Brillig caller's repeated calls to a pure Brillig function should be deduplicated"
         );
