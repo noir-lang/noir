@@ -766,18 +766,9 @@ impl Context {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
     ) -> Option<ValueId> {
-        if !self.use_constraint_info {
-            return None;
-        }
-        // A call that can always be deduplicated (e.g. a pure callee invoked from a Brillig
-        // caller, whose call opcode is not predicated) does not depend on the side effects
-        // predicate, so it must not be keyed by it.
-        if matches!(instruction, Instruction::Call { .. })
-            && matches!(can_be_deduplicated(instruction, dfg), CanBeDeduplicated::Always)
-        {
-            return None;
-        }
-        instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var)
+        let use_predicate =
+            self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+        use_predicate.then_some(side_effects_enabled_var)
     }
 }
 
@@ -853,21 +844,15 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
                 Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
                 Purity::Impure => CanBeDeduplicated::Never,
             },
-            // From an ACIR caller, calls to user-defined functions lower to predicated
-            // `Opcode::Call` or `Opcode::BrilligCall`. Even when the callee is pure, the
-            // predicated opcode skips the callee's constraints when the predicate is false,
-            // leaving outputs unconstrained. We must therefore include the predicate in the
-            // cache key to prevent deduplication across different `enable_side_effects` contexts.
-            //
-            // A Brillig caller has no such predicate: Brillig has no `enable_side_effects`
-            // concept and its calls execute unconditionally. The predicate sensitivity is a
-            // property of the ACIR calling opcode, not of the callee, so identical calls to a
-            // non-impure function from a Brillig caller always observe the same value and can be
-            // deduplicated freely.
+            // A call to a user-defined function from an ACIR caller lowers to a predicated
+            // `Opcode::Call` or `Opcode::BrilligCall`, which leaves the callee's outputs
+            // unconstrained when the predicate is disabled. `DataFlowGraph::purity_of` already
+            // reflects this: from an ACIR caller a pure Brillig callee is observed as
+            // `PureWithPredicate`, so a callee seen here as `Pure` is one that genuinely does not
+            // depend on the predicate (e.g. any callee from a Brillig caller, whose calls are not
+            // predicated) and can be deduplicated freely.
             Value::Function(id) => match dfg.purity_of(id) {
-                Some(Purity::Pure | Purity::PureWithPredicate) if dfg.runtime().is_brillig() => {
-                    CanBeDeduplicated::Always
-                }
+                Some(Purity::Pure) if dfg.runtime().is_brillig() => CanBeDeduplicated::Always,
                 Some(Purity::Pure | Purity::PureWithPredicate) => {
                     CanBeDeduplicated::UnderSamePredicate
                 }
