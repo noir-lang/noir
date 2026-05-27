@@ -3568,7 +3568,7 @@ mod test {
     #[test]
     fn acir_caller_does_not_deduplicate_pure_brillig_call_under_different_predicates() {
         let src = "
-        acir(inline) fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field):
             enable_side_effects v0
             v2 = call f1(v1) -> Field
@@ -3579,19 +3579,13 @@ mod test {
             v5 = add v2, v4
             return v5
         }
-        brillig(inline) fn pure_callee f1 {
+        brillig(inline) pure fn pure_callee f1 {
           b0(v0: Field):
             v1 = add v0, Field 1
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        assert_eq!(
-            count_calls_in_main_to(&ssa, 1),
-            2,
-            "calls under different predicates must not be deduplicated"
-        );
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     // === Spec: a Brillig function calling a pure Brillig function ===
@@ -3714,25 +3708,19 @@ mod test {
     #[test]
     fn acir_caller_does_not_deduplicate_pure_brillig_call_without_constraint_info() {
         let src = "
-        acir(inline) fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v1: Field):
             v2 = call f1(v1) -> Field
             v4 = call f1(v1) -> Field
             v5 = add v2, v4
             return v5
         }
-        brillig(inline) fn pure_callee f1 {
+        brillig(inline) pure fn pure_callee f1 {
           b0(v0: Field):
             v1 = add v0, Field 1
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
-        let ssa = ssa.fold_constants(MIN_ITER);
-        assert_eq!(
-            count_calls_in_main_to(&ssa, 1),
-            2,
-            "plain constant folding must not deduplicate an ACIR caller's predicated calls"
-        );
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 }
