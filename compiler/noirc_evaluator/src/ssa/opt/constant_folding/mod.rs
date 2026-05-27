@@ -766,9 +766,18 @@ impl Context {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
     ) -> Option<ValueId> {
-        let use_predicate =
-            self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-        use_predicate.then_some(side_effects_enabled_var)
+        if !self.use_constraint_info {
+            return None;
+        }
+        // A call that can always be deduplicated (e.g. a pure callee invoked from a Brillig
+        // caller, whose call opcode is not predicated) does not depend on the side effects
+        // predicate, so it must not be keyed by it.
+        if matches!(instruction, Instruction::Call { .. })
+            && matches!(can_be_deduplicated(instruction, dfg), CanBeDeduplicated::Always)
+        {
+            return None;
+        }
+        instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var)
     }
 }
 
@@ -844,12 +853,21 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
                 Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
                 Purity::Impure => CanBeDeduplicated::Never,
             },
-            // Calls to user-defined functions may lower to predicated `Opcode::Call` or
-            // `Opcode::BrilligCall` in ACIR. Even when the callee is pure, the predicated
-            // opcode skips the callee's constraints when the predicate is false, leaving
-            // outputs unconstrained. We must therefore include the predicate in the cache
-            // key to prevent deduplication across different `enable_side_effects` contexts.
+            // From an ACIR caller, calls to user-defined functions lower to predicated
+            // `Opcode::Call` or `Opcode::BrilligCall`. Even when the callee is pure, the
+            // predicated opcode skips the callee's constraints when the predicate is false,
+            // leaving outputs unconstrained. We must therefore include the predicate in the
+            // cache key to prevent deduplication across different `enable_side_effects` contexts.
+            //
+            // A Brillig caller has no such predicate: Brillig has no `enable_side_effects`
+            // concept and its calls execute unconditionally. The predicate sensitivity is a
+            // property of the ACIR calling opcode, not of the callee, so identical calls to a
+            // non-impure function from a Brillig caller always observe the same value and can be
+            // deduplicated freely.
             Value::Function(id) => match dfg.purity_of(id) {
+                Some(Purity::Pure | Purity::PureWithPredicate) if dfg.runtime().is_brillig() => {
+                    CanBeDeduplicated::Always
+                }
                 Some(Purity::Pure | Purity::PureWithPredicate) => {
                     CanBeDeduplicated::UnderSamePredicate
                 }
@@ -3502,5 +3520,234 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(3));
+    }
+
+    /// Counts how many `call f<callee>` instructions remain in `main` across all reachable blocks.
+    /// Used to pin down exactly when identical calls to a pure function are deduplicated.
+    fn count_calls_to_callee_in_main(ssa: &Ssa, callee: u32) -> usize {
+        use crate::ssa::ir::{function::FunctionId, instruction::Instruction, value::Value};
+
+        let callee = FunctionId::test_new(callee);
+        let main = ssa.main();
+        let mut count = 0;
+        for block in main.reachable_blocks() {
+            for instruction in main.dfg[block].instructions() {
+                if let Instruction::Call { func, .. } = &main.dfg[*instruction]
+                    && let Value::Function(id) = &main.dfg[*func]
+                    && *id == callee
+                {
+                    count += 1;
+                }
+            }
+        }
+        count
+    }
+
+    // === Spec: an ACIR function calling a pure Brillig function ===
+    //
+    // When an ACIR function calls a Brillig function the call lowers to a predicated
+    // `Opcode::BrilligCall`: if the side effects predicate is disabled the call is skipped and
+    // its outputs are left unconstrained ("bogus"). Two identical calls therefore observe the
+    // *same* value only when they run under the *same* predicate. Deduplication across differing
+    // predicates would be unsound, so the pure Brillig callee behaves as `PureWithPredicate` from
+    // the perspective of an ACIR caller.
+
+    /// Identical calls to a pure Brillig function under the *same* predicate may be merged.
+    #[test]
+    fn acir_caller_deduplicates_pure_brillig_call_under_same_predicate() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_eq!(
+            count_calls_to_callee_in_main(&ssa, 1),
+            1,
+            "calls under the same predicate should be deduplicated"
+        );
+    }
+
+    /// Identical calls to a pure Brillig function under *different* predicates must NOT be merged.
+    #[test]
+    fn acir_caller_does_not_deduplicate_pure_brillig_call_under_different_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = not v0
+            enable_side_effects v3
+            v4 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_eq!(
+            count_calls_to_callee_in_main(&ssa, 1),
+            2,
+            "calls under different predicates must not be deduplicated"
+        );
+    }
+
+    // === Spec: a Brillig function calling a pure Brillig function ===
+    //
+    // A Brillig caller's call opcode is NOT predicated: Brillig has no `enable_side_effects`
+    // concept and executes unconditionally. Identical calls to a pure Brillig function from a
+    // Brillig caller therefore always observe the same value and can be deduplicated freely,
+    // without needing the constraint/predicate information an ACIR caller relies on.
+
+    /// Identical calls to a pure Brillig function from a Brillig caller are deduplicated even by
+    /// the plain constant folding pass (which does not propagate predicate/constraint info).
+    #[test]
+    fn brillig_caller_deduplicates_repeated_pure_brillig_call() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v1: Field):
+            v2 = call f1(v1) -> Field
+            v4 = call f1(v1) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_eq!(
+            count_calls_to_callee_in_main(&ssa, 1),
+            1,
+            "a Brillig caller's repeated calls to a pure Brillig function should be deduplicated"
+        );
+    }
+
+    /// Deduplicating a Brillig caller's repeated pure calls must not change execution.
+    #[test]
+    fn brillig_caller_pure_call_dedup_preserves_execution() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v1: Field):
+            v2 = call f1(v1) -> Field
+            v4 = call f1(v1) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let input = Value::from_constant(7_u128.into(), NumericType::NativeField).unwrap();
+        let (_, _) = assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| {
+            ssa.purity_analysis().fold_constants(MIN_ITER)
+        });
+    }
+
+    /// Soundness boundary: a Brillig callee that can *trap* (here via `constrain`, classified
+    /// `PureWithPredicate`) must never be deduplicated onto a path that originally avoided it.
+    /// The two calls sit in sibling branches (`b2`, `b4`) whose only common dominator (`b1`) is
+    /// also reachable via a path (`b1 -> b3 -> b5`) that executes neither call. Hoisting the call
+    /// there would make its `constrain` fire unconditionally. This is prevented because such a
+    /// call reports `has_side_effects`, which blocks hoisting to a non-dominating common block;
+    /// deduplication is still only allowed against a strictly dominating instance.
+    #[test]
+    fn brillig_caller_trapping_call_is_not_deduplicated_onto_new_path() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1, v3: u32):
+            jmpif v0 then: b1(), else: b7()
+          b1():
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            v4 = call f1(v3) -> u32
+            jmp b8(v4)
+          b3():
+            jmpif v2 then: b4(), else: b5()
+          b4():
+            v5 = call f1(v3) -> u32
+            jmp b8(v5)
+          b5():
+            jmp b8(u32 77)
+          b7():
+            jmp b8(u32 88)
+          b8(v9: u32):
+            return v9
+        }
+        brillig(inline) fn checker f1 {
+          b0(v0: u32):
+            v1 = eq v0, u32 0
+            constrain v1 == u1 0
+            return v0
+        }
+        ";
+        // Inputs steer execution to b1 -> b3 -> b5 (v0=1, v1=0, v2=0), which calls neither
+        // instance of f1; v3 = 0 would trap inside f1 if it were ever called on this path.
+        let inputs = vec![
+            Value::from_constant(1_u128.into(), NumericType::bool()).unwrap(),
+            Value::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+            Value::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+            Value::from_constant(0_u128.into(), NumericType::unsigned(32)).unwrap(),
+        ];
+        let (_, _) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            inputs.clone(),
+            |ssa| ssa.purity_analysis().fold_constants(DEFAULT_MAX_ITER),
+        );
+        let (_, _) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), inputs, |ssa| {
+                ssa.purity_analysis().fold_constants_using_constraints(DEFAULT_MAX_ITER)
+            });
+    }
+
+    /// Guard: the Brillig-caller relaxation must not leak to ACIR callers. The plain constant
+    /// folding pass must not deduplicate an ACIR caller's repeated calls to a pure Brillig
+    /// function, since that would drop the predicate sensitivity of the call opcode.
+    #[test]
+    fn acir_caller_does_not_deduplicate_pure_brillig_call_without_constraint_info() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v1: Field):
+            v2 = call f1(v1) -> Field
+            v4 = call f1(v1) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_eq!(
+            count_calls_to_callee_in_main(&ssa, 1),
+            2,
+            "plain constant folding must not deduplicate an ACIR caller's predicated calls"
+        );
     }
 }
