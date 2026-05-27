@@ -3127,7 +3127,7 @@ mod tests {
             call f1(u1 1)
             return
         }
-        brillig(inline) impure fn func f1 {
+        brillig(inline) predicate_pure fn func f1 {
           b0(v0: u1):
             v2 = not v0
             v3 = allocate -> &mut u1
