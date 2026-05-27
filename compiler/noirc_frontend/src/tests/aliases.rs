@@ -195,7 +195,7 @@ fn numeric_type_alias_body_resolves_in_defining_module() {
     pub mod lib {
         pub global N: u32 = 2;
 
-        // This N must refere to the N above, not the global N one.
+        // This N must refer to the N above, not the global N one.
         // There was a bug around this.
         pub type Size: u32 = N;
     }
