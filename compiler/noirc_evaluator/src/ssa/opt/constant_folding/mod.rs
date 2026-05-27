@@ -3310,8 +3310,8 @@ mod test {
         let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         // `not v3` stays in b2 and b3 — not hoisted into the header.
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v2 = allocate -> &mut u1
             store v0 at v2

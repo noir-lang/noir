@@ -802,8 +802,8 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0():
             v3 = call f1(u1 1, u32 5) -> u1
             constrain v3 == u1 0
@@ -825,7 +825,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) impure fn func_2 f2 {
+        brillig(inline) predicate_pure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -928,8 +928,8 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0():
             call f1(Field 1)
             call f2(Field 1)
@@ -940,7 +940,7 @@ mod tests {
             call f5(v0)
             return
         }
-        brillig(inline) impure fn bar f2 {
+        brillig(inline) predicate_pure fn bar f2 {
           b0(v0: Field):
             call f4(Field 1)
             call f3(Field 1)
