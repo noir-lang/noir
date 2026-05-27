@@ -3297,25 +3297,21 @@ fn bind_trait_self_to_impl_self(
     impl_id: node_interner::TraitImplId,
     bindings: &mut TypeBindings,
 ) {
-    let trait_def = interner.get_trait(method_id.trait_id);
-    // Only bind `Self` when this impl's matching method *is* the trait's own `FuncId`
-    // (i.e. the impl inherits the default body). For overridden methods, `set_function_trait`
-    // already handles the `Self` binding from inside `function()`.
-    let trait_func_definition = interner.definition(method_id.item_id);
-    let DefinitionKind::Function(trait_func_id) = trait_func_definition.kind else {
+    // Only bind `Self` when the impl inherited the trait's default body, i.e. when
+    // the impl's slot for this method is the trait's own `FuncId`. For overridden
+    // methods the impl's per-impl `FuncId` has `func_id_to_trait` set, and
+    // `function()` already binds `Self` from there.
+    let DefinitionKind::Function(trait_func_id) = interner.definition(method_id.item_id).kind
+    else {
         return;
     };
     let impl_ = interner.get_trait_implementation(impl_id);
     let impl_ = impl_.borrow();
-    let trait_func_name = interner.function_name(&trait_func_id);
-    let impl_uses_trait_func_id = impl_
-        .methods
-        .iter()
-        .any(|m| interner.function_name(m) == trait_func_name && *m == trait_func_id);
-    if !impl_uses_trait_func_id {
+    if !impl_.methods.contains(&trait_func_id) {
         return;
     }
 
+    let trait_def = interner.get_trait(method_id.trait_id);
     let self_typevar = trait_def.self_type_typevar.clone();
     let kind = self_typevar.kind();
     let impl_self_type = impl_.typ.clone();

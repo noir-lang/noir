@@ -1074,7 +1074,7 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_trait_impl(&mut self, mut trait_impl: UnresolvedTraitImpl) {
+    fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         self.local_module = Some(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
@@ -1085,10 +1085,11 @@ impl<'context> Elaborator<'context> {
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
+        // Inherited defaults are typed once at the trait definition; their bodies match the
+        // declaration by construction and re-elaborating them per impl would duplicate
+        // diagnostics (and waste work).
         for (module, function, noir_function) in &trait_impl.methods.functions {
             if trait_impl.inherited_default_method_func_ids.contains(function) {
-                // Inherited defaults are typed once at the trait definition; their
-                // body matches the declaration by construction.
                 continue;
             }
             self.local_module = Some(*module);
@@ -1097,13 +1098,11 @@ impl<'context> Elaborator<'context> {
             self.push_errors(errors);
         }
 
-        let inherited_defaults = std::mem::take(&mut trait_impl.inherited_default_method_func_ids);
-        let methods = trait_impl.methods;
-        for (_, id, _) in methods.functions {
-            if inherited_defaults.contains(&id) {
+        for (_, id, _) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(id) {
                 continue;
             }
-            self.elaborate_function(id);
+            self.elaborate_function(*id);
         }
         self.generics.clear();
 
