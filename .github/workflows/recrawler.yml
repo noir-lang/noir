@@ -12,6 +12,7 @@ permissions: {}
 jobs:
   algolia_recrawl:
     name: Algolia Recrawl
+    if: github.repository == 'noir-lang/noir'
     runs-on: ubuntu-22.04
     permissions:
       contents: read
