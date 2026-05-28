@@ -1,31 +1,9 @@
 ---
-title: Getting Started
-description: Create and run your first Noir project.
+title: Getting Started Manually
+description: Create and run your first Noir project manually.
 ---
 
-## Using AI
-
-Paste this into your AI agent to get started:
-
-```
-Follow https://noir-lang.org/docs/getting_started#manual and walk me through creating and running my first Noir project step-by-step end-to-end (from installation to proof verification); explain what each step does
-```
-
-The prompt walks you through setting up and interacting with a basic Noir project.
-
-### Installing MCP server
-
-Additionally, paste this into your AI agent to install Noir's MCP server:
-
-```
-If you support MCP, install noir-mcp-server following the instructions in https://github.com/critesjosh/noir-mcp-server/blob/master/README.md#install; test and make sure it is properly installed and configured to be accessible whenever you would need it (e.g. answering Noir questions, writing Noir code)
-```
-
-The prompt installs [noir-mcp-server](https://github.com/critesjosh/noir-mcp-server), which provides your AI agent with efficient access to Noir's repository, documentation, libraries, etc.
-
-## Manual
-
-### Installing Nargo
+## Installing Nargo
 
 The Nargo CLI tool provides you the ability to create, compile, execute and test Noir programs from the terminal.
 
@@ -38,7 +16,7 @@ noirup
 
 This installs `noirup`, the installation script, and runs it to install the latest version of Nargo.
 
-### Creating a project
+## Creating a project
 
 Create a new Noir project named _hello\_world_:
 
@@ -48,7 +26,7 @@ nargo new hello_world
 
 This command creates a new _hello\_world_ project directory, in which contains _src/main.nr_ that hosts a simple Noir program asserting _x_ does not equal _y_.
 
-### Executing the project
+## Executing the project
 
 Change directory into your _hello\_world_ project:
 
@@ -83,7 +61,7 @@ This command:
 
 Both to be used when proving your Noir program.
 
-### Proving the execution
+## Proving the execution
 
 Noir is designed to be proving backend agnostic, which means you can choose to use different proving backends to prove and verify your Noir programs, hence the corresponding workflows could differ.
 
@@ -106,7 +84,7 @@ This command:
 
 Both to be used when verifying your proof.
 
-### Verifying the proof
+## Verifying the proof
 
 Verify your proof:
 

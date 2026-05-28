@@ -7,8 +7,13 @@ export default {
     },
     {
       type: 'doc',
-      id: 'getting_started',
-      label: 'Getting Started',
+      id: 'getting_started_with_ai',
+      label: 'Getting Started with AI',
+    },
+    {
+      type: 'doc',
+      id: 'getting_started_manually',
+      label: 'Getting Started Manually',
     },
     {
       type: 'doc',
