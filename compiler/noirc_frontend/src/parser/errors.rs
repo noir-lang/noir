@@ -139,6 +139,8 @@ pub enum ParserErrorReason {
     UnexpectedTypeExpressionInTypeAlias,
     #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
     DeprecatedDep(String),
+    #[error("`call_data` id must fit in a `u32`")]
+    CallDataIdMustFitInU32,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

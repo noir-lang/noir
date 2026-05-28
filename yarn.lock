@@ -937,12 +937,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@eslint/config-helpers@npm:^0.5.5":
-  version: 0.5.5
-  resolution: "@eslint/config-helpers@npm:0.5.5"
+"@eslint/config-helpers@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "@eslint/config-helpers@npm:0.6.0"
   dependencies:
     "@eslint/core": "npm:^1.2.1"
-  checksum: 10/19072449502b928a716df87b2d9b13c7befb21974b0f93fdbea705ddba098792142808105170ef2183c28ce13ac9fa1713ef0599749f8469434ac2b914fc8f4d
+  checksum: 10/2daa66b0c3821313a6239beed2236ad7f3a45540050b5ce69527206ba7e58e9c17aff2f68be6d3f0f95d6294a911da86aa50863a1aeadd607faa943c11677a46
   languageName: node
   linkType: hard
 
@@ -1880,7 +1880,7 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     mocha: "npm:^11.7.5"
     prettier: "npm:3.8.3"
@@ -1900,7 +1900,7 @@ __metadata:
     "@types/node": "npm:^22.19.19"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     glob: "npm:^13.0.6"
     mocha: "npm:^11.7.5"
@@ -1926,7 +1926,7 @@ __metadata:
     "@types/pako": "npm:^2"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     mocha: "npm:^11.7.5"
     pako: "npm:^2.1.0"
@@ -1963,7 +1963,7 @@ __metadata:
     chai: "npm:^6.2.2"
     copy-webpack-plugin: "npm:^14.0.0"
     esbuild-register: "npm:^3.6.0"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     html-webpack-plugin: "npm:^5.6.7"
     memfs: "npm:^4.57.2"
@@ -1974,7 +1974,7 @@ __metadata:
     prettier: "npm:3.8.3"
     process: "npm:^0.11.10"
     readable-stream: "npm:^4.7.0"
-    sinon: "npm:^21.1.2"
+    sinon: "npm:^22.0.0"
     ts-loader: "npm:^9.5.7"
     tsx: "npm:^4.21.0"
     typescript: "npm:^6.0.3"
@@ -1995,7 +1995,7 @@ __metadata:
     "@web/dev-server-esbuild": "npm:^1.0.5"
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     mocha: "npm:^11.7.5"
     tsx: "npm:^4.21.0"
   languageName: unknown
@@ -2010,7 +2010,7 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.58.0"
     chai: "npm:^6.2.2"
     cspell: "npm:^10.0.0"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     globals: "npm:^17.6.0"
     mocha: "npm:^11.7.5"
@@ -2025,7 +2025,7 @@ __metadata:
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
     "@types/prettier": "npm:^3.0.0"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     prettier: "npm:3.8.3"
     typescript: "npm:^6.0.3"
@@ -3074,12 +3074,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sinonjs/fake-timers@npm:^15.3.2":
-  version: 15.3.2
-  resolution: "@sinonjs/fake-timers@npm:15.3.2"
+"@sinonjs/fake-timers@npm:^15.4.0":
+  version: 15.4.0
+  resolution: "@sinonjs/fake-timers@npm:15.4.0"
   dependencies:
     "@sinonjs/commons": "npm:^3.0.1"
-  checksum: 10/270a0f440bbcee2ad3fbe50b3c3cf311afd82e3cfcdff9572485fc17948b66c2cdfc5c906d64884ec623eced97ceb23c7639c3066ad4696976acf9f63a93c4c8
+  checksum: 10/3960a9fe065f38a4228c66d184eeb101e8a6af9cbfc8454dd5d45ac397201da72134048d4e808a25993494885b172dd6deecdad9949bbf4c1d3a220ef561f6cc
   languageName: node
   linkType: hard
 
@@ -4802,7 +4802,7 @@ __metadata:
     "@types/node": "npm:^22.19.19"
     typescript: "npm:^6.0.3"
     vite: "npm:^8.0.10"
-    vite-plugin-node-polyfills: "npm:0.26.0"
+    vite-plugin-node-polyfills: "npm:0.28.0"
   languageName: unknown
   linkType: soft
 
@@ -6063,10 +6063,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diff@npm:^8.0.4":
-  version: 8.0.4
-  resolution: "diff@npm:8.0.4"
-  checksum: 10/b4036ceda0d1e10683a2313079ed52c5e6b09553ae29da87bce81d98714d9725dbf3c0f6f7c3b1f16eec049fe17087e38ee329e732580fa62f6ec1c2487b2435
+"diff@npm:^9.0.0":
+  version: 9.0.0
+  resolution: "diff@npm:9.0.0"
+  checksum: 10/f8b5e38a6a7ec73d1850ccb7ff19cda1d02502dc0f2c562ada0f40d7211bfb3075c2f3742104619a1f8f47ae333d48a6c77bffb080a2df900db36935080ea4fb
   languageName: node
   linkType: hard
 
@@ -6566,14 +6566,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^10.3.0":
-  version: 10.3.0
-  resolution: "eslint@npm:10.3.0"
+"eslint@npm:^10.4.0":
+  version: 10.4.0
+  resolution: "eslint@npm:10.4.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.8.0"
     "@eslint-community/regexpp": "npm:^4.12.2"
     "@eslint/config-array": "npm:^0.23.5"
-    "@eslint/config-helpers": "npm:^0.5.5"
+    "@eslint/config-helpers": "npm:^0.6.0"
     "@eslint/core": "npm:^1.2.1"
     "@eslint/plugin-kit": "npm:^0.7.1"
     "@humanfs/node": "npm:^0.16.6"
@@ -6607,7 +6607,7 @@ __metadata:
       optional: true
   bin:
     eslint: bin/eslint.js
-  checksum: 10/7d8131e5ef65754f61afd807d875377403f1c89b5f5529f23506776c2df504ba0d53d378b8aeec1996c66c6d428ea3e2ea5c04b226474ce89b6e28443fd3b7b6
+  checksum: 10/ab20a8fd250ee7c31a162d35a71e534a4f959736a7198661e5c963069b12880a53acfb349f3dc94fa82c91c74dd0594accbd878576bf65c33fa4225342ad7df6
   languageName: node
   linkType: hard
 
@@ -7876,7 +7876,7 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     buffer-esm: "npm:^1.2.0"
-    eslint: "npm:^10.3.0"
+    eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     ethers: "npm:^6.16.0"
     hardhat: "npm:^3.4.5"
@@ -10309,11 +10309,11 @@ __metadata:
   linkType: hard
 
 "qs@npm:^6.12.3, qs@npm:^6.5.2, qs@npm:~6.14.0":
-  version: 6.14.1
-  resolution: "qs@npm:6.14.1"
+  version: 6.14.2
+  resolution: "qs@npm:6.14.2"
   dependencies:
     side-channel: "npm:^1.1.0"
-  checksum: 10/34b5ab00a910df432d55180ef39c1d1375e550f098b5ec153b41787f1a6a6d7e5f9495593c3b112b77dbc6709d0ae18e55b82847a4c2bbbb0de1e8ccbb1794c5
+  checksum: 10/682933a85bb4b7bd0d66e13c0a40d9e612b5e4bcc2cb9238f711a9368cd22d91654097a74fff93551e58146db282c56ac094957dfdc60ce64ea72c3c9d7779ac
   languageName: node
   linkType: hard
 
@@ -11075,15 +11075,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sinon@npm:^21.1.2":
-  version: 21.1.2
-  resolution: "sinon@npm:21.1.2"
+"sinon@npm:^22.0.0":
+  version: 22.0.0
+  resolution: "sinon@npm:22.0.0"
   dependencies:
     "@sinonjs/commons": "npm:^3.0.1"
-    "@sinonjs/fake-timers": "npm:^15.3.2"
+    "@sinonjs/fake-timers": "npm:^15.4.0"
     "@sinonjs/samsam": "npm:^10.0.2"
-    diff: "npm:^8.0.4"
-  checksum: 10/dccad5c6d1b5e9d6707b2b0349ffc888d2f5a1fd583c0b1383b247232bb897aeca087432f9e2f7043c3860e87bc793476347a511f6bb2777968dd9a75d391cba
+    diff: "npm:^9.0.0"
+  checksum: 10/5d0a692c2f1cc463b86d18a57e8db80e1a7f5829252edfc4d11162a555e4d005bf03698549d7cf9ad65f79b7e77a4f87534b4c76220bb81a1ec5e2b30be19929
   languageName: node
   linkType: hard
 
@@ -12119,15 +12119,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite-plugin-node-polyfills@npm:0.26.0":
-  version: 0.26.0
-  resolution: "vite-plugin-node-polyfills@npm:0.26.0"
+"vite-plugin-node-polyfills@npm:0.28.0":
+  version: 0.28.0
+  resolution: "vite-plugin-node-polyfills@npm:0.28.0"
   dependencies:
     "@rollup/plugin-inject": "npm:^5.0.5"
     node-stdlib-browser: "npm:^1.3.1"
   peerDependencies:
     vite: ^2.0.0 || ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
-  checksum: 10/538076561ccfe16e6aa24f7fe9fdb86e0e23ac066fc42b4a6e8af491b2c5d7e3e4a5344694355015d684e2faa69f92e20978b1a1b944770e0d3b8acfea53cbe8
+  checksum: 10/5cd0747888748f91041ddc90a8bafa8b6e7a8539ee45a547319e4b1c97fb08c473e449cc31563f6f4e9c405cc93830be183a67dfe367abdbbbb0e8ce4b850985
   languageName: node
   linkType: hard
 
