@@ -352,14 +352,16 @@ impl MustAliasAnalysis {
         // Callees before  their callers, so that callee summaries
         // are computed before their callers consume them.
         let mut work_list: VecDeque<FunctionId> = sccs.iter().flatten().copied().collect();
+        let mut in_work_list: HashSet<FunctionId> = work_list.iter().copied().collect();
 
         while let Some(fid) = work_list.pop_front() {
+            in_work_list.remove(&fid);
             let Some(function) = ssa.functions.get(&fid) else { continue };
 
             let changes = self.analyze_function(function, aliases);
             // Re-queue every function flagged by the pass
             for updated_function in changes.updated_functions {
-                if !work_list.contains(&updated_function) {
+                if in_work_list.insert(updated_function) {
                     work_list.push_back(updated_function);
                 }
             }
@@ -370,7 +372,7 @@ impl MustAliasAnalysis {
                 && let Some(my_callers) = callers.get(&fid)
             {
                 for &caller in my_callers.keys() {
-                    if !work_list.contains(&caller) {
+                    if in_work_list.insert(caller) {
                         work_list.push_back(caller);
                     }
                 }
@@ -415,14 +417,16 @@ impl MustAliasAnalysis {
         // Seed the work list with reverse post order for better efficiency (compute predecessors before successors).
         let mut work_list: VecDeque<BasicBlockId> =
             PostOrder::with_cfg(&cfg).into_vec_reverse().into();
+        let mut in_work_list: HashSet<BasicBlockId> = work_list.iter().copied().collect();
 
         while let Some(block_id) = work_list.pop_front() {
+            in_work_list.remove(&block_id);
             let mut site_update = self.meet_predecessors(function, block_id, &cfg);
             site_update |= self.transfer_block(function, block_id, aliases, &mut changes);
 
             if site_update {
                 for successor in cfg.successors(block_id) {
-                    if !work_list.contains(&successor) {
+                    if in_work_list.insert(successor) {
                         work_list.push_back(successor);
                     }
                 }
