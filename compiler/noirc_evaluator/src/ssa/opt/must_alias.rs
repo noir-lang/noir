@@ -41,9 +41,9 @@
 //!    When a pointee information is modified, the whole function needs to be re-processed because
 //!    a store may impact a load in any other block.
 //!
-//! 4. **Query** — [`MustAliasAnalysis::must_alias`] is true iff both values
+//! 4. **Query** — `MustAliasAnalysis::must_alias` is true iff both values
 //!    carry the same `Known(s)` (single-firing site).
-//!    cannot_equal queries benefit from `Multiple(s)`
+//!    `cannot_equal` queries benefit from `Multiple(s)`
 //!
 //! # Lattice
 //!
