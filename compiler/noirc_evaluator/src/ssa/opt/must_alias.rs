@@ -1525,7 +1525,7 @@ mod tests {
         let (ssa, analysis) = analyze_source(src);
         let allocs = collect_allocates_main(&ssa);
         // Both are `Known(_)` with distinct sites → cannot alias.
-        assert!(analysis.cannot_equal(allocs[0], allocs[1]))
+        assert!(analysis.cannot_equal(allocs[0], allocs[1]));
     }
 
     // -----------------------------------------------------------------------
