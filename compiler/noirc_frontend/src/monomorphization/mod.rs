@@ -3223,6 +3223,12 @@ fn resolve_trait_item_impl(
             // (`Self::N`, etc.). For overridden impl methods this is a no-op — the impl's
             // own `FuncId` carries the binding via `set_function_trait`.
             let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
+            bind_trait_impl_func_generics_to_trait_func_generics(
+                interner,
+                method_id,
+                impl_id,
+                &mut bindings,
+            );
             bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
             interner.store_instantiation_bindings(expr_id, bindings);
             Ok(impl_id)
