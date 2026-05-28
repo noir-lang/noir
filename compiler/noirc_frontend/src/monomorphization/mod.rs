@@ -600,7 +600,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let body_expr_id = self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
-        let return_type = match meta.return_type() {
+        let return_target_type = match meta.return_type() {
             Type::TraitAsType(..) => &body_return_type,
             other => other,
         };
@@ -629,7 +629,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             let output = true;
-            if let Some(invalid_type) = return_type.program_validity(output) {
+            if let Some(invalid_type) = return_target_type.program_validity(output) {
                 let location = meta.return_type.location();
                 return Err(MonomorphizationError::InvalidTypeForEntryPoint {
                     invalid_type,
@@ -641,12 +641,12 @@ impl<'interner> Monomorphizer<'interner> {
         // If `convert_type` fails here it is most likely because of generics at the
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
-        let return_type = Self::convert_type(return_type, location)?;
+        let return_type = Self::convert_type(return_target_type, location)?;
         let return_visibility = meta.return_visibility;
 
         let parameters = self.parameters(&meta.parameters)?;
 
-        let body = self.expr(body_expr_id)?;
+        let body = self.expr_with_target_type(body_expr_id, Some(return_target_type))?;
         let function = Function {
             id,
             name,
@@ -753,6 +753,31 @@ impl<'interner> Monomorphizer<'interner> {
     /// and a type with unbound named generic on the RHS, and we don't want the unbound
     /// types to be converted to default values.
     fn expr_with_target_type(
+        &mut self,
+        expr: ExprId,
+        target_type: Option<&Type>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        // If the target type is `unconstrained fn(...)`, set `force_unconstrained` while
+        // monomorphizing so that any function reference whose ultimate destination is an
+        // `unconstrained fn` slot is built as `(unconstrained, unconstrained)` rather than
+        // `(constrained, unconstrained)`. Without this, a constrained caller reading slot `.0`
+        // would dispatch to the constrained specialization despite the source-level type being
+        // `unconstrained fn`. Same mechanism as the existing per-argument logic in `function_call`.
+        let needs_force_unconstrained = target_type
+            .is_some_and(|t| matches!(t.follow_bindings(), Type::Function(_, _, _, true)));
+        let old_force_unconstrained = needs_force_unconstrained
+            .then(|| std::mem::replace(&mut self.force_unconstrained, true));
+
+        let result = self.expr_with_target_type_inner(expr, target_type);
+
+        if let Some(old) = old_force_unconstrained {
+            self.force_unconstrained = old;
+        }
+
+        result
+    }
+
+    fn expr_with_target_type_inner(
         &mut self,
         expr: ExprId,
         target_type: Option<&Type>,
@@ -1106,30 +1131,10 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         let_statement: HirLetStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let expr = self.with_force_unconstrained_for_target(&let_statement.r#type, |this| {
-            this.expr(let_statement.expression)
-        })?;
+        let expr =
+            self.expr_with_target_type(let_statement.expression, Some(&let_statement.r#type))?;
         let expected_type = self.interner.id_type(let_statement.expression);
         self.unpack_pattern(let_statement.pattern, expr, &expected_type)
-    }
-
-    /// Runs `f` with `force_unconstrained = true` whenever `target_type` is an
-    /// `unconstrained fn(...)` type. This ensures that a function reference monomorphized
-    /// into a `(constrained, unconstrained)` tuple is built as `(unconstrained, unconstrained)`
-    /// so that a constrained caller dispatching via tuple slot `.0` still ends up running
-    /// the unconstrained specialization, matching the source-level type of the stored value.
-    fn with_force_unconstrained_for_target<F, R>(&mut self, target_type: &Type, f: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R,
-    {
-        if matches!(target_type.follow_bindings(), Type::Function(_, _, _, true)) {
-            let old = std::mem::replace(&mut self.force_unconstrained, true);
-            let result = f(self);
-            self.force_unconstrained = old;
-            result
-        } else {
-            f(self)
-        }
     }
 
     fn constructor(
@@ -1158,9 +1163,7 @@ impl<'interner> Monomorphizer<'interner> {
             if field_vars.insert(field_name.to_string(), (new_id, typ)).is_some() {
                 unreachable!("ICE - Duplicate field {field_name} in constructor");
             }
-            let expression = Box::new(
-                self.with_force_unconstrained_for_target(field_type, |this| this.expr(expr_id))?,
-            );
+            let expression = Box::new(self.expr_with_target_type(expr_id, Some(field_type))?);
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
@@ -2599,9 +2602,22 @@ impl<'interner> Monomorphizer<'interner> {
             return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
         }
 
-        let expression = Box::new(self.expr(assign.expression)?);
+        let target_type = Self::lvalue_target_type(&assign.lvalue);
+        let expression =
+            Box::new(self.expr_with_target_type(assign.expression, Some(target_type))?);
         let lvalue = self.lvalue(assign.lvalue)?;
         Ok(ast::Expression::Assign(ast::Assign { expression, lvalue }))
+    }
+
+    /// Return the type the lvalue holds, used as the target type for the RHS of an assignment.
+    fn lvalue_target_type(lvalue: &HirLValue) -> &Type {
+        match lvalue {
+            HirLValue::Ident(_, typ) => typ,
+            HirLValue::MemberAccess { typ, .. } => typ,
+            HirLValue::Index { typ, .. } => typ,
+            HirLValue::Dereference { element_type, .. } => element_type,
+            HirLValue::Error { .. } => unreachable!("Error lvalue encountered in monomorphization"),
+        }
     }
 
     fn lvalue(&mut self, lvalue: HirLValue) -> Result<ast::LValue, MonomorphizationError> {
