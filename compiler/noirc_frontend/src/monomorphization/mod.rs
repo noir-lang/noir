@@ -1106,9 +1106,30 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         let_statement: HirLetStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let expr = self.expr(let_statement.expression)?;
+        let expr = self.with_force_unconstrained_for_target(&let_statement.r#type, |this| {
+            this.expr(let_statement.expression)
+        })?;
         let expected_type = self.interner.id_type(let_statement.expression);
         self.unpack_pattern(let_statement.pattern, expr, &expected_type)
+    }
+
+    /// Runs `f` with `force_unconstrained = true` whenever `target_type` is an
+    /// `unconstrained fn(...)` type. This ensures that a function reference monomorphized
+    /// into a `(constrained, unconstrained)` tuple is built as `(unconstrained, unconstrained)`
+    /// so that a constrained caller dispatching via tuple slot `.0` still ends up running
+    /// the unconstrained specialization, matching the source-level type of the stored value.
+    fn with_force_unconstrained_for_target<F, R>(&mut self, target_type: &Type, f: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        if matches!(target_type.follow_bindings(), Type::Function(_, _, _, true)) {
+            let old = std::mem::replace(&mut self.force_unconstrained, true);
+            let result = f(self);
+            self.force_unconstrained = old;
+            result
+        } else {
+            f(self)
+        }
     }
 
     fn constructor(
@@ -1137,7 +1158,9 @@ impl<'interner> Monomorphizer<'interner> {
             if field_vars.insert(field_name.to_string(), (new_id, typ)).is_some() {
                 unreachable!("ICE - Duplicate field {field_name} in constructor");
             }
-            let expression = Box::new(self.expr(expr_id)?);
+            let expression = Box::new(
+                self.with_force_unconstrained_for_target(field_type, |this| this.expr(expr_id))?,
+            );
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,

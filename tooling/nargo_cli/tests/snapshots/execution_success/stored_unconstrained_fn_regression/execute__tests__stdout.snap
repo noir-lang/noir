@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[stored_unconstrained_fn_regression] Circuit output: 218

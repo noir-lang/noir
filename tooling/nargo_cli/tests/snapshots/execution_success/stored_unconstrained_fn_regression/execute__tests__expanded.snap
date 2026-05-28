@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::runtime::is_unconstrained;
+
+struct Holder {
+    f: unconstrained fn(u32) -> u32,
+}
+
+fn choose(x: u32) -> u32 {
+    if is_unconstrained() {
+        x + 100_u32
+    } else {
+        x + 1_u32
+    }
+}
+
+fn call_holder(holder: Holder, x: u32) -> u32 {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        (holder.f)(x)
+    }
+}
+
+fn main() -> pub u32 {
+    let f: unconstrained fn(u32) -> u32 = choose;
+    // Safety: comment added by `nargo expand`
+    let from_local: u32 = unsafe { f(7_u32) };
+    assert(from_local == 107_u32);
+    let holder: Holder = Holder { f: choose };
+    let from_field: u32 = call_holder(holder, 11_u32);
+    assert(from_field == 111_u32);
+    from_local + from_field
+}
