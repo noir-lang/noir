@@ -18,6 +18,7 @@ workspace = true
 [dependencies]
 acir_field.workspace = true
 itertools.workspace = true
+msgpack_tagged.workspace = true
 serde.workspace = true
 proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
