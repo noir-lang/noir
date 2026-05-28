@@ -252,6 +252,46 @@ mod tests {
     }
 
     #[test]
+    fn simplifies_cast_from_i16_256_to_i8() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast i16 256 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return i8 256
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_i32_384_to_i8() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast i32 384 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return i8 384
+        }
+        ");
+    }
+
+    #[test]
     fn simplifies_cast_from_field_4_to_i8() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
