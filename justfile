@@ -103,6 +103,7 @@ package: build-bins
     Copy-Item ./target/{{ target }}/release/nargo.exe ./dist/nargo.exe
     Copy-Item ./target/{{ target }}/release/noir-profiler.exe ./dist/noir-profiler.exe
     Copy-Item ./target/{{ target }}/release/noir-inspector.exe ./dist/noir-inspector.exe
+    Compress-Archive -Path ./dist/nargo.exe -DestinationPath nargo-{{ target }}.zip -Force
     Compress-Archive -Path ./dist/* -DestinationPath noir-{{ target }}.zip -Force
 
 # Run tests
