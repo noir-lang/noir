@@ -27,7 +27,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "serde-generate",
- "serde-reflection",
+ "serde-reflection 0.5.2",
  "serde_json",
  "similar-asserts",
  "strum",
@@ -5454,16 +5454,16 @@ dependencies = [
 
 [[package]]
 name = "serde-generate"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f0cd15a5e1d4648c9ba334c936c4d3047acbe275f571c9be07cda925ed82ba6"
+checksum = "7a32f50ca0e77cb88f4aaa778a3562f0d2644cc0ceefa980a829a09f074d53b5"
 dependencies = [
  "anyhow",
  "heck 0.3.3",
  "include_dir",
  "phf",
  "serde",
- "serde-reflection",
+ "serde-reflection 0.6.0",
  "textwrap 0.13.4",
 ]
 
@@ -5472,6 +5472,20 @@ name = "serde-reflection"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68fb2363ca88876b3e16442b02dde5305646fd50df297c79a4b54fc5f5cf51d4"
+dependencies = [
+ "erased-discriminant",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "typeid",
+]
+
+[[package]]
+name = "serde-reflection"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af0fdf9c543af37502581e3d6cf4e6cd1628d6616d6a1f8f4ca88aae3a405f5c"
 dependencies = [
  "erased-discriminant",
  "once_cell",
