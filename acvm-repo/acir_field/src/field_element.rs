@@ -1,8 +1,8 @@
 use ark_ff::PrimeField;
 use ark_ff::Zero;
+use msgpack_tagged::MsgpackTagged;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 use crate::AcirField;
@@ -118,7 +118,29 @@ impl<T: PrimeField> Serialize for FieldElement<T> {
     where
         S: serde::Serializer,
     {
-        self.to_be_bytes().serialize(serializer)
+        // Call `serialize_bytes` rather than `self.to_be_bytes().serialize(...)`
+        // (which would forward to `Vec<u8>::serialize` and then
+        // `serializer.collect_seq(...)`). A field element is
+        // semantically a fixed-width byte blob, not a sequence of u8
+        // elements, and going through `serialize_bytes` keeps the wire
+        // shape consistent across serializers:
+        //
+        // * `rmp_serde`'s `serialize_bytes` is unconditional
+        //   `write_bin` — independent of `BytesMode` — so all three
+        //   `Format::Msgpack*` variants emit the same `bin` blob the
+        //   C++ codegen's `std::vector<uint8_t>` adapter expects.
+        // * Without this, our `MsgpackTagged` wrapper would have to intercept
+        //   the `collect_seq` call and emit a `fixarray` of `fixint`s
+        //   instead (per its tagged-recursion contract for sequences),
+        //   which msgpack-c's `std::vector<uint8_t>` adapter refuses
+        //   with `type_error` mid-decode — a confusing failure mode
+        //   that's much easier to land in than to debug. The other two
+        //   `Msgpack*` formats would have to remember to create a
+        //   `RmpSerializer::with_bytes(BytesMode::ForceAll)`.
+        //
+        // The corresponding `Deserialize` (see below) calls
+        // `deserialize_bytes` via a visitor — the symmetric read hook.
+        serializer.serialize_bytes(&self.to_be_bytes())
     }
 }
 
@@ -127,8 +149,18 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: Cow<'de, [u8]> = Deserialize::deserialize(deserializer)?;
-        Ok(Self::from_be_bytes_reduce(&s))
+        // Mirror of `Serialize`: route explicitly through the bytes
+        // hook (`deserialize_byte_buf` under the covers) so the read
+        // side is symmetric with the write side and matches the
+        // msgpack `bin` shape `FieldElement::serialize` emits.
+        // `serde_bytes::ByteBuf` is serde-ecosystem's standard wrapper
+        // for "deserialize as bytes, give me an owned `Vec<u8>`",
+        // wrapping the same visitor boilerplate a hand-rolled one
+        // would. The default `Vec<u8>::deserialize` would instead
+        // route to `deserialize_seq` and reject `bin` under our
+        // `MsgpackTagged` wrapper.
+        let bytes = serde_bytes::ByteBuf::deserialize(deserializer)?;
+        Ok(Self::from_be_bytes_reduce(&bytes))
     }
 }
 
@@ -589,6 +621,15 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     fn sub_assign(&mut self, rhs: FieldElement<F>) {
         self.0.sub_assign(&rhs.0);
     }
+}
+
+impl<F: PrimeField> MsgpackTagged for FieldElement<F> {
+    const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::empty_product();
+
+    /// `F` is going to be a prime field from e.g. arkworks,
+    /// which is a primitive and doesn't implement `MsgpackTagged`,
+    /// so we have nothing to register.
+    fn register_into(_reg: &mut msgpack_tagged::TagRegistry) {}
 }
 
 #[cfg(test)]

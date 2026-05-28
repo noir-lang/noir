@@ -624,7 +624,8 @@ impl Type {
         match &this {
             Type::String(..) | Type::FmtString(..) => {
                 // as_ctstring is defined as a trait method
-                for (func_id, trait_id) in interner.lookup_trait_methods(&this, "as_ctstring", true)
+                for (func_id, trait_id, _) in
+                    interner.lookup_trait_methods(&this, "as_ctstring", true)
                 {
                     // Look up the one that's in the standard library.
                     let trait_ = interner.get_trait(trait_id);

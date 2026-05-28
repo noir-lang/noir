@@ -2608,14 +2608,7 @@ fn function_def_as_typed_expr(
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             let bindings = TypeBindings::default();
-            let push_required_type_variables = false;
-            elaborator.type_check_variable_with_bindings(
-                hir_ident,
-                &expr_id,
-                generics,
-                bindings,
-                push_required_type_variables,
-            )
+            elaborator.type_check_variable_with_bindings(hir_ident, &expr_id, generics, bindings)
         });
     let expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))

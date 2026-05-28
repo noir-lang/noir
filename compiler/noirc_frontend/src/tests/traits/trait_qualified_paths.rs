@@ -187,7 +187,6 @@ fn uses_self_type_in_trait_where_clause() {
                               ~~~~~ required by this bound in `Foo`
         fn foo(self) -> bool {
             self.trait_func()
-            ^^^^^^^^^^^^^^^^^ No method named 'trait_func' found for type 'Bar'
         }
     }
 

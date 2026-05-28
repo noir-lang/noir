@@ -923,6 +923,17 @@ impl Elaborator<'_> {
         let function_type = self.function_meta(func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
+        // When an impl inherits a trait's default method, the impl's slot points at the
+        // trait's own `FuncId`, so the function meta's self parameter is the trait's `Self`
+        // type variable. If we let the receiver be unified directly with that `Self` and a
+        // polymorphic receiver (e.g. an integer literal) is involved, the receiver will
+        // default to the kind's default type (e.g. `Field`) before the trait constraint
+        // check can pick the right impl. Capture the matching impl's concrete self type
+        // here so we can unify the receiver with it below, pinning the polymorphic type
+        // to the impl's type before defaulting runs.
+        let shared_trait_impl_self_type =
+            self.shared_trait_impl_self_type_for_method(func_id, &object_type, method_name);
+
         let generics = method_call.generics;
         let generics = generics.map(|generics| {
             vecmap(generics, |generic| {
@@ -957,6 +968,14 @@ impl Elaborator<'_> {
         // lambda parameter hints.
         if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
             let _ = first_arg_type.unify(&object_type);
+            // For a shared trait-default method, also unify the impl's concrete self type
+            // with the receiver. The first arg is the trait's `Self` type variable, so the
+            // unify above only ties Self to the receiver (still polymorphic if the receiver
+            // was a literal). Unifying again with the impl's self type pins both Self and the
+            // receiver to the impl's concrete type before kind-based defaulting runs.
+            if let Some(impl_self_type) = &shared_trait_impl_self_type {
+                let _ = first_arg_type.unify(impl_self_type);
+            }
         }
 
         // These arguments will be given to the desugared function call.
@@ -1000,6 +1019,26 @@ impl Elaborator<'_> {
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
 
         (function_call, typ)
+    }
+
+    /// If `func_id` is a trait method declaration whose `FuncId` is shared with this call's
+    /// matching impl (because the impl inherits the default body), return the impl's concrete
+    /// self type. Returns `None` when the function is a regular impl method or when zero/multiple
+    /// impls match the receiver — in those cases the existing impl-selection paths take over.
+    fn shared_trait_impl_self_type_for_method(
+        &self,
+        func_id: FuncId,
+        object_type: &Type,
+        method_name: &str,
+    ) -> Option<Type> {
+        let trait_id = self.interner.function_meta(&func_id).trait_id?;
+        let candidates = self.interner.lookup_trait_methods(object_type, method_name, true);
+        let mut matching = candidates
+            .into_iter()
+            .filter(|(f, t, _)| *f == func_id && *t == trait_id)
+            .map(|(_, _, self_typ)| self_typ);
+        let first = matching.next()?;
+        if matching.next().is_some() { None } else { Some(first) }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1942,16 +1981,7 @@ impl Elaborator<'_> {
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
         bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-
-        let typ = self.type_check_variable_with_bindings(
-            ident,
-            &id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        );
+        let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
     }
