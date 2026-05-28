@@ -1,4 +1,5 @@
-#[cfg(test)]
+// PTY-based tests require Unix; expectrl's spawn uses /bin/sh which is unavailable on Windows.
+#[cfg(all(test, unix))]
 mod tests {
     use std::collections::VecDeque;
 
@@ -55,7 +56,9 @@ mod tests {
         let mut dbg_session = spawn(command).expect("Could not start debugger session");
 
         // Start debugger and test that it loads for the given program.
-        dbg_session.expect(expectrl::Regex(".*\\Starting debugger.*")).expect("Could not start debugger");
+        dbg_session
+            .expect(expectrl::Regex(".*\\Starting debugger.*"))
+            .expect("Could not start debugger");
         dbg_session
     }
 
@@ -106,7 +109,6 @@ mod tests {
         dbg_session
             .expect(expectrl::Regex(".*\\Starting debugger.*"))
             .expect("Could not start debugger");
-
 
         let expected_lines_by_command: Vec<VecDeque<&str>> = vec![
             VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
@@ -167,7 +169,8 @@ mod tests {
             while let Some(expected_line) = expected_lines.pop_front() {
                 let line = loop {
                     // Let's use expectrl's session.expect(Regex(".*\\n")) to simulate read_line.
-                    let found = dbg_session.expect(expectrl::Regex(".+\\n")).expect("Failed to read line");
+                    let found =
+                        dbg_session.expect(expectrl::Regex(".+\\n")).expect("Failed to read line");
                     let read_line = String::from_utf8_lossy(found.get(0).unwrap()).to_string();
 
                     if !(read_line.contains("> next")

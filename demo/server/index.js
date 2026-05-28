@@ -15,7 +15,7 @@ app.use(express.json());
 let barretenbergAPI;
 async function getBarretenbergAPI() {
     if (!barretenbergAPI) {
-        barretenbergAPI = await Barretenberg.newSingleThread();
+        barretenbergAPI = await Barretenberg.new(1);
     }
     return barretenbergAPI;
 }
