@@ -94,7 +94,10 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{
+            Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+        },
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
@@ -822,22 +825,35 @@ fn get_induction_var_bounds(
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
-    if !back_edge_advances_monotonically(&inserter.function.dfg, loop_, induction_variable) {
+    if !back_edge_advances_monotonically(
+        &inserter.function.dfg,
+        loop_,
+        induction_variable,
+        bounds.1,
+    ) {
         return None;
     }
     Some((induction_variable, bounds))
 }
 
-/// Whether the loop's back-edge passes back an induction value of the form
-/// `induction_variable + positive_constant`. This is what makes the lower/upper
-/// bounds returned by [`Loop::get_const_bounds`] true loop invariants —
-/// otherwise the values reaching the header on each iteration may fall outside
-/// the inferred `[lower, upper)` interval, and downstream passes that rely on
-/// the bounds (e.g. converting checked arithmetic to unchecked) become unsound.
+/// Whether the loop's back-edge preserves the inferred `[lower, upper)` interval.
+/// Two shapes qualify:
+///
+/// 1. The back-edge passes the induction variable through unchanged
+///    (`jmp header(v_induction, ..)`). This is the canonical form a zero-step
+///    loop is reduced to once `x + 0` has been folded; the variable is constant
+///    at `lower`, which is a subset of `[lower, upper)`.
+/// 2. The back-edge passes back `induction_variable + positive_constant`. For
+///    an unchecked Add we additionally verify that the largest reachable
+///    induction value (`upper - 1`) plus the step does not wrap the underlying
+///    numeric type — otherwise wrapping could deposit an out-of-range value
+///    back into the header. A checked Add cannot violate the invariant: any
+///    wrap would trap before the back-edge fires.
 fn back_edge_advances_monotonically(
     dfg: &DataFlowGraph,
     loop_: &Loop,
     induction_variable: ValueId,
+    upper: IntegerConstant,
 ) -> bool {
     let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
         dfg[loop_.back_edge_start].terminator()
@@ -847,10 +863,14 @@ fn back_edge_advances_monotonically(
     if *destination != loop_.header || arguments.is_empty() {
         return false;
     }
+    if arguments[0] == induction_variable {
+        return true;
+    }
     let Some(instruction) = dfg.get_local_or_global_instruction(arguments[0]) else {
         return false;
     };
-    let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs }) = instruction
+    let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
+        instruction
     else {
         return false;
     };
@@ -864,7 +884,29 @@ fn back_edge_advances_monotonically(
     let Some(step) = dfg.get_integer_constant(step_value) else {
         return false;
     };
-    !step.is_zero() && !step.is_negative()
+    if step.is_zero() || step.is_negative() {
+        return false;
+    }
+    if *unchecked {
+        let Some(max_induction_value) = upper.dec() else {
+            return false;
+        };
+        let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
+        let (max_field, _) = max_induction_value.into_numeric_constant();
+        let (step_field, _) = step.into_numeric_constant();
+        match eval_constant_binary_op(
+            max_field,
+            step_field,
+            BinaryOp::Add { unchecked: false },
+            operand_type,
+        ) {
+            BinaryEvaluationResult::Success(..) => {}
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 /// Indicate whether an instruction can be hoisted.
@@ -1098,6 +1140,70 @@ mod tests {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn wrapping_unchecked_back_edge_keeps_add_checked() {
+        // With bounds `(0, 251)` but a step of `10` from an unchecked back-edge,
+        // `v0` wraps past `upper - 1 = 250` (250 + 10 = 260, wrap to 4) and
+        // re-enters the body with values not in the inferred interval. LICM must
+        // not record bounds, so the checked `add v0, u8 4` stays checked even
+        // though both `0 + 4` and `251 + 4` evaluate safely at the extremes.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = lt v0, u8 251
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = add v0, u8 4
+            v7 = unchecked_add v0, u8 10
+            jmp b1(v7)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn back_edge_passing_induction_through_unchanged_still_allows_simplification() {
+        // After `x + 0` is folded by an earlier pass the back-edge becomes a
+        // plain `jmp header(v_induction, ..)`. The induction variable is then
+        // constant at the lower bound, which is still inside `[lower, upper)`,
+        // so `sub v0, u32 1` may be rewritten to `unchecked_sub` because the
+        // bound extremes prove it cannot underflow.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 1)
+          b1(v0: u32):
+            v3 = lt v0, u32 4
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = sub v0, u32 1
+            jmp b1(v0)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 1)
+          b1(v0: u32):
+            v3 = lt v0, u32 4
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = unchecked_sub v0, u32 1
+            jmp b1(v0)
+          b3():
+            return
+        }
+        ");
     }
 
     #[test]
