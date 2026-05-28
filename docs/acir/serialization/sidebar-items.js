@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["FORMAT_ENV_VAR"],"enum":["Format"],"fn":["deserialize_any_format","msgpack_deserialize","msgpack_serialize","serialize_with_format"]};
+window.SIDEBAR_ITEMS = {"constant":["FORMAT_ENV_VAR"],"enum":["Format"],"fn":["deserialize_any_format","msgpack_deserialize","msgpack_serialize","msgpack_tagged_serialize_acir","serialize_with_format"]};
