@@ -35,6 +35,11 @@ function tagExists(tag) {
   }
 }
 
+function isShallowRepository() {
+  const out = childProcess.execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: ROOT });
+  return out.toString().trim() === 'true';
+}
+
 function readAtRef(ref, relPath) {
   if (ref === WORKTREE) return fs.readFileSync(path.resolve(ROOT, relPath), 'utf-8');
   return childProcess.execFileSync('git', ['show', `${ref}:${relPath}`], { cwd: ROOT }).toString();
@@ -73,12 +78,26 @@ function targets({ noir, bb, poly }) {
   ];
 }
 
-function resolveVersions() {
+function resolveVersions(expect) {
   const noir = JSON.parse(fs.readFileSync(path.resolve(ROOT, MANIFEST), 'utf-8'))['.'];
   if (!noir) throw new Error(`Could not read version from ${MANIFEST}`);
+  if (expect && expect.replace(/^v/, '') !== noir) {
+    throw new Error(`Expected version ${expect} does not match ${MANIFEST} (${noir}).`);
+  }
 
+  // Resolve bb.js/polyfills from the last release tag. A missing tag is only
+  // trusted as "this version is not tagged yet" (the release-please PR that cuts
+  // it) when the clone is complete; in a shallow clone a missing tag may just be
+  // unfetched, so we fail rather than risk pinning master's incompatible versions.
   const tag = `v${noir}`;
-  const ref = tagExists(tag) ? tag : WORKTREE;
+  let ref;
+  if (tagExists(tag)) {
+    ref = tag;
+  } else if (isShallowRepository()) {
+    throw new Error(`Release tag ${tag} is unavailable in a shallow clone. Checkout with fetch-depth: 0.`);
+  } else {
+    ref = WORKTREE;
+  }
   console.log(
     `[sync_tutorial_versions] noir_js ${noir}; bb.js/polyfills source: ${ref === WORKTREE ? 'working tree' : tag}`,
   );
@@ -118,11 +137,14 @@ function write(content, want) {
 function main() {
   const mode = process.argv[2];
   if (mode !== '--check' && mode !== '--write') {
-    console.error('Usage: node docs/scripts/sync_tutorial_versions.js --check|--write');
+    console.error('Usage: node docs/scripts/sync_tutorial_versions.js --check|--write [--expect <version>]');
     process.exit(2);
   }
 
-  const want = resolveVersions();
+  const expectIndex = process.argv.indexOf('--expect');
+  const expect = expectIndex === -1 ? null : process.argv[expectIndex + 1];
+
+  const want = resolveVersions(expect);
   const tutorialPath = path.resolve(ROOT, TUTORIAL);
   const content = fs.readFileSync(tutorialPath, 'utf-8');
   const summary = `noir_js ${want.noir}, bb.js ${want.bb}, polyfills ${want.poly}`;
@@ -149,4 +171,9 @@ function main() {
   console.log(`[sync_tutorial_versions] updated ${TUTORIAL} (${summary}).`);
 }
 
-main();
+try {
+  main();
+} catch (err) {
+  console.error(`::error file=${TUTORIAL}::${err.message}`);
+  process.exit(1);
+}
