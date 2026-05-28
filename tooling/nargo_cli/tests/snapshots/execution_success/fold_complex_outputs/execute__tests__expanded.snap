@@ -22,7 +22,7 @@ struct ParentStruct {
 
 fn main(x: u32, y: pub u32) {
     let nested_struct: InnerStruct =
-        InnerStruct { small_array: [1_Field as u32; 2], big_array: [0_Field as u32; 5] };
+        InnerStruct { small_array: [1_u32 as u32; 2], big_array: [0_u32 as u32; 5] };
     let s: MyStruct = MyStruct { x: x, y: y, z: x + y, nested_struct: nested_struct };
     let parent: ParentStruct =
         ParentStruct { basic_array: [1_Field; 3], id: 100_u32, my_structs: [s, s] };

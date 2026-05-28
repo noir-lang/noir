@@ -1,0 +1,6 @@
+[package]
+name = "cast_negative_literal_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

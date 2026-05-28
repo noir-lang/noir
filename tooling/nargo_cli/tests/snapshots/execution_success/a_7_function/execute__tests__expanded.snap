@@ -41,7 +41,7 @@ fn pow(base: Field, exponent: Field) -> Field {
 }
 
 fn test3(x: [u8; 3]) -> [u8; 3] {
-    let mut buffer: [u8; 3] = [0_Field as u8; 3];
+    let mut buffer: [u8; 3] = [0_u8 as u8; 3];
     for i in 0_u32..3_u32 {
         buffer[i] = x[i];
     }
@@ -54,7 +54,7 @@ fn test_multiple(x: u32, y: u32) -> (u32, u32) {
 }
 
 fn test_multiple2() -> my_struct {
-    my_struct { a: 5_Field as u32, b: 7_Field as u32 }
+    my_struct { a: 5_u32 as u32, b: 7_u32 as u32 }
 }
 
 fn test_multiple3(x: u32, y: u32) {
@@ -110,16 +110,16 @@ fn main(x: u32, y: u32, a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     test1(a);
     test2(x as Field, y);
     assert(bar()[0_u32] == 0_Field);
-    let mut b: [u8; 3] = [0_Field as u8, 5_Field as u8, 2_Field as u8];
+    let mut b: [u8; 3] = [0_u8 as u8, 5_u8 as u8, 2_u8 as u8];
     let c: [u8; 3] = test3(b);
     assert(b == c);
-    b[0_u32] = 1_Field as u8;
+    b[0_u32] = 1_u8 as u8;
     let cc: [u8; 3] = test3(b);
     assert(c != cc);
     let e: (u32, u32) = test_multiple(x, y);
-    assert(e.1 == (e.0 + (54_Field as u32)));
+    assert(e.1 == (e.0 + (54_u32 as u32)));
     let d: my_struct = test_multiple2();
-    assert(d.b == (d.a + (2_Field as u32)));
+    assert(d.b == (d.a + (2_u32 as u32)));
     test_multiple3(y, y);
     let result: [Field; 9] = first(arr_to_field(arr1), arr_to_field(arr2));
     assert(result[0_u32] == (arr1[0_u32] as Field));
