@@ -9,7 +9,8 @@ export default {
       collapsible: false,
       items: [
         { type: 'doc', id: 'index', label: 'Noir' },
-        { type: 'doc', id: 'getting_started', label: 'Getting Started' },
+        { type: 'doc', id: 'getting_started_with_ai', label: 'Getting Started with AI' },
+        { type: 'doc', id: 'getting_started_manually', label: 'Getting Started Manually' },
         { type: 'doc', id: 'installation', label: 'Installation' },
       ],
     },

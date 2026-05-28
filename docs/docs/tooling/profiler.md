@@ -10,7 +10,7 @@ The profiler is a sampling profiler designed to analyze and visualize Noir progr
 
 The profiler is automatically installed with Nargo starting noirup v0.1.4.
 
-Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started.md#installing-nargo).
+Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started_manually.md#installing-nargo).
 
 ## Usage
 
