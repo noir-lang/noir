@@ -1554,7 +1554,7 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::{collections::BTreeMap, ops::Sub};
 
     use acvm::{
         AcirField, FieldElement,
@@ -1694,6 +1694,51 @@ mod tests {
 
         let mut witness_map = WitnessMap::new();
         witness_map.insert(lhs_witness, limit - FieldElement::one());
+        let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
+
+        assert!(matches!(acvm.solve(), ACVMStatus::Solved));
+    }
+
+    /// Exercise bound_constraint_with_offset() with the invalid inputs:
+    /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
+    #[test]
+    #[should_panic = "range check with bit size + 1 >= the prime field bit size is not implemented yet"]
+    fn bound_constraint_shifted_path_rhs_const() {
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+
+        let bits = 253;
+
+        let lhs = context.add_variable();
+        let rhs = context.add_variable();
+        let predicate = context.add_variable();
+        let one = context.add_constant(1_u128);
+
+        let lhs_witness = context.var_to_witness(lhs).unwrap();
+        let rhs_witness = context.var_to_witness(rhs).unwrap();
+        let predicate_witness = context.var_to_witness(predicate).unwrap();
+        context.acir_ir.input_witnesses = vec![lhs_witness, rhs_witness, predicate_witness];
+
+        context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
+
+        let circuit = context.finish(Vec::new(), Vec::new());
+        let circuit = convert_generated_acir_into_circuit(
+            circuit,
+            &[(1, Visibility::Private)],
+            BTreeMap::default(),
+            BTreeMap::default(),
+            BTreeMap::default(),
+        )
+        .circuit;
+
+        let solver = StubbedBlackBoxSolver;
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(
+            lhs_witness,
+            FieldElement::from(2_u128).pow(&FieldElement::from(bits)).sub(FieldElement::one()),
+        );
+        witness_map.insert(rhs_witness, FieldElement::zero());
+        witness_map.insert(predicate_witness, FieldElement::one());
+
         let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
 
         assert!(matches!(acvm.solve(), ACVMStatus::Solved));
