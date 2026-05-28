@@ -21,7 +21,7 @@ use crate::{
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
-        comptime::Integer,
+        comptime::{Integer, Value, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
         resolution::{
@@ -2135,8 +2135,23 @@ impl Elaborator<'_> {
             }
         };
 
-        // TODO(https://github.com/noir-lang/noir/issues/6247):
-        // handle negative literals
+        // Warn if a user casts to an integer from a negative field literal.
+        // `-1 as i8 == 0`, not `-1` which can be confusing.
+        if let Some(value) = from_value_opt
+            && -value < value
+            && to.is_integer()
+            && (from_follow_bindings.is_field() || from_follow_bindings.is_bindable())
+            && let Ok(Value::Integer(result)) =
+                evaluate_cast_one_step(&to, location, Value::field(value))
+        {
+            self.push_err(TypeCheckError::NegativeLiteralCastToInteger {
+                value,
+                result: result.to_string(),
+                to: to.clone(),
+                location,
+            });
+        }
+
         // when casting a polymorphic value to a specifically sized type,
         // check that it fits or throw a warning
         if let (Some(from_value), Some(to_maximum_size)) =
