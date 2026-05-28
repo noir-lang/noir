@@ -2,5 +2,3 @@ This directory contains design decisions for the Noir language, including the la
 
 This is meant as a record to keep track of specific design decisions and is _not_ meant to be an easily digestible
 form of documentation - for that see the `docs/docs` directory of this repository.
-
-Each file in this directory contains some tags such as `#foo` or `#bar` to make finding existing documentation easier.
