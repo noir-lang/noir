@@ -1,6 +1,76 @@
-use noirc_frontend::{parser::block_comment_has_all_leading_stars, token::Token};
+use noirc_frontend::{
+    parser::block_comment_has_all_leading_stars,
+    token::{DocStyle, Token},
+};
 
 use super::Formatter;
+
+/// Whether a comment line must stay on its own line rather than being merged into a
+/// reflowed prose paragraph with its neighbours. The `content` is the text of the line
+/// after its comment prefix (`//`, `///`, `//!`, or a block comment's ` * `).
+///
+/// This keeps markdown structure intact when wrapping comments: blank lines, headings,
+/// list items, code fences and table rows are never merged.
+pub(crate) fn comment_line_is_standalone(content: &str) -> bool {
+    let trimmed = content.trim_start();
+    trimmed.is_empty()
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("```")
+        || trimmed.starts_with("~~~")
+        || trimmed.starts_with('|')
+        || comment_line_is_list_item(trimmed)
+        || trimmed == "noir-fmt:ignore"
+}
+
+/// Like [`comment_line_is_standalone`], but for line comments (`//`, `///`, `//!`) where a
+/// run of four or more spaces (beyond the single conventional leading space) or a leading
+/// tab marks an indented markdown code block that must not be reflowed.
+pub(crate) fn line_comment_is_standalone(content: &str) -> bool {
+    let body = content.strip_prefix(' ').unwrap_or(content);
+    if body.starts_with("    ") || body.starts_with('\t') {
+        return true;
+    }
+
+    comment_line_is_standalone(content)
+}
+
+/// Whether a trimmed line begins with a markdown list marker (`- `, `* `, `+ `, `1. `, `1) `).
+fn comment_line_is_list_item(trimmed: &str) -> bool {
+    if let Some(rest) = trimmed.strip_prefix(['-', '*', '+']) {
+        return rest.starts_with(' ');
+    }
+
+    let digits = trimmed.chars().take_while(|c| c.is_ascii_digit()).count();
+    if digits > 0
+        && let Some(rest) = trimmed[digits..].strip_prefix(['.', ')'])
+    {
+        return rest.starts_with(' ');
+    }
+
+    false
+}
+
+/// Whether a code fence (` ``` ` or `~~~`) opens or closes on this trimmed line.
+fn comment_line_is_code_fence(trimmed: &str) -> bool {
+    trimmed.starts_with("```") || trimmed.starts_with("~~~")
+}
+
+/// The classification content of a block-comment source line: the text after a leading
+/// `*` (for `all_stars` comments) or after leading whitespace.
+fn block_comment_line_content(line: &str, all_stars: bool) -> &str {
+    if all_stars {
+        let trimmed = line.trim_start();
+        trimmed.strip_prefix('*').unwrap_or(trimmed)
+    } else {
+        line.trim_start()
+    }
+}
+
+/// The text of a block-comment source line to append when merging it into a reflowed
+/// paragraph: its content with leading whitespace and any leading `*` removed.
+fn block_comment_line_text(line: &str, all_stars: bool) -> &str {
+    block_comment_line_content(line, all_stars).trim_start()
+}
 
 #[cfg(windows)]
 const NEWLINE: &str = "\r\n";
@@ -137,13 +207,24 @@ impl Formatter<'_> {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
-                    self.write_line_comment(&comment, "//");
-                    self.write_line_without_skipping_whitespace_and_comments();
-                    number_of_newlines = 1;
-                    self.bump();
+                    if self.config.wrap_comments && !self.ignore_next && !self.in_chunk {
+                        // Gather the whole run of consecutive line comments so prose can be
+                        // reflowed as a paragraph rather than wrapped one source line at a
+                        // time. The run consumes its own trailing newline (and comments), so
+                        // the surrounding bookkeeping is restored from its result.
+                        number_of_newlines = self.write_line_comment_run("//", None).unwrap_or(1);
+                        if self.ignore_next {
+                            ignore_next = true;
+                        }
+                    } else {
+                        self.write_line_comment(&comment, "//");
+                        self.write_line_without_skipping_whitespace_and_comments();
+                        number_of_newlines = 1;
+                        self.bump();
+                        self.written_comments_count += 1;
+                    }
                     passed_whitespace = false;
                     last_was_block_comment = false;
-                    self.written_comments_count += 1;
                 }
                 Token::BlockComment(comment, None) => {
                     let comment = comment.clone();
@@ -219,6 +300,126 @@ impl Formatter<'_> {
         }
     }
 
+    /// Gathers a maximal run of consecutive line comments of the given kind (`doc_style`
+    /// distinguishes `//`, `///` and `//!`), separated only by single newlines, and writes
+    /// it with paragraph reflow: prose lines that overflow `comment_width` are merged and
+    /// re-wrapped together so an overflowing word is never stranded on its own line, while
+    /// blank lines and markdown structure (headings, list items, code fences, ...) keep
+    /// their own lines.
+    ///
+    /// `self.token` must be the first comment of the run, with the first line's indentation
+    /// already written. A trailing newline is written after the run. Returns `Some(1)` when
+    /// a single trailing newline was consumed and `self.token` now holds the token after the
+    /// run; returns `None` when the run ended at a blank line or `EOF` left in `self.token`
+    /// for the caller to reprocess.
+    pub(crate) fn write_line_comment_run(
+        &mut self,
+        prefix: &str,
+        doc_style: Option<DocStyle>,
+    ) -> Option<usize> {
+        let mut paragraph: Vec<String> = Vec::new();
+        let mut wrote_segment = false;
+        let mut in_code_fence = false;
+
+        let result = loop {
+            let Token::LineComment(content, _) = &self.token else {
+                unreachable!("write_line_comment_run called on a non-line-comment token")
+            };
+            let content = content.clone();
+            self.written_comments_count += 1;
+
+            if content.trim() == "noir-fmt:ignore" {
+                self.ignore_next = true;
+            }
+
+            let is_fence = comment_line_is_code_fence(content.trim_start());
+            let standalone =
+                in_code_fence || self.ignore_next || line_comment_is_standalone(&content);
+
+            if standalone {
+                self.flush_line_comment_paragraph(&mut paragraph, prefix, &mut wrote_segment);
+                if wrote_segment {
+                    self.start_new_line();
+                }
+                self.write(prefix);
+                self.write(content.trim_end());
+                wrote_segment = true;
+                if is_fence {
+                    in_code_fence = !in_code_fence;
+                }
+            } else {
+                paragraph.push(content);
+            }
+
+            // Advance past this comment and decide whether the run continues.
+            self.bump();
+            match &self.token {
+                Token::Whitespace(whitespace)
+                    if whitespace.chars().filter(|c| *c == '\n').count() == 1 =>
+                {
+                    // Consume the single newline separating two comments and peek the next.
+                    self.bump();
+                    if matches!(&self.token, Token::LineComment(_, style) if *style == doc_style) {
+                        continue;
+                    }
+                    break Some(1);
+                }
+                // A blank line (or `EOF`) ends the run; leave the token for the caller.
+                _ => break None,
+            }
+        };
+
+        self.flush_line_comment_paragraph(&mut paragraph, prefix, &mut wrote_segment);
+        self.write_line_without_skipping_whitespace_and_comments();
+
+        result
+    }
+
+    /// Writes the accumulated prose `paragraph` (if any) as a reflowed segment, preceded by
+    /// a newline when an earlier segment was already written. Clears `paragraph`.
+    fn flush_line_comment_paragraph(
+        &mut self,
+        paragraph: &mut Vec<String>,
+        prefix: &str,
+        wrote_segment: &mut bool,
+    ) {
+        if paragraph.is_empty() {
+            return;
+        }
+
+        if *wrote_segment {
+            self.start_new_line();
+        }
+
+        let lines = std::mem::take(paragraph);
+        self.write_line_comment_paragraph(&lines, prefix);
+        *wrote_segment = true;
+    }
+
+    /// Writes a single prose paragraph. If every line already fits within `comment_width`
+    /// the original line breaks are preserved; otherwise the lines are joined and greedily
+    /// re-wrapped, which is what pulls an overflowing trailing word down onto the next line.
+    fn write_line_comment_paragraph(&mut self, lines: &[String], prefix: &str) {
+        let base = self.current_line_width();
+        let prefix_width = prefix.chars().count();
+        let overflows = lines.iter().any(|line| {
+            base + prefix_width + line.trim_end().chars().count() > self.config.comment_width
+        });
+
+        if overflows {
+            let joined = lines.iter().map(|line| line.trim()).collect::<Vec<_>>().join(" ");
+            self.write_comment_with_prefix(&format!(" {joined}"), prefix);
+        } else {
+            for (index, line) in lines.iter().enumerate() {
+                if index > 0 {
+                    self.start_new_line();
+                }
+                self.write(prefix);
+                self.write(line.trim_end());
+            }
+        }
+    }
+
     pub(crate) fn write_block_comment(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
 
@@ -234,13 +435,27 @@ impl Formatter<'_> {
             self.start_new_line_no_indentation();
         }
 
-        for (index, line) in comment.lines().enumerate() {
-            // When moving to the next source line, only emit a newline. The line itself
-            // carries the leading whitespace from the source, so re-emitting the
-            // structural indent here would double it up.
-            if index > 0 {
-                self.start_new_line_no_indentation();
-            }
+        let lines: Vec<&str> = comment.lines().collect();
+        let merge_with_previous = self.block_comment_merge_flags(&lines, all_stars);
+
+        for (index, source_line) in lines.iter().enumerate() {
+            // Consecutive prose lines that overflow `comment_width` are reflowed together
+            // as one paragraph: instead of breaking onto a new source line, join the line's
+            // text (stripped of its leading `*`/indentation) to the running word stream.
+            let line: &str = if merge_with_previous[index] {
+                if !self.buffer.ends_with_space() {
+                    self.write(" ");
+                }
+                block_comment_line_text(source_line, all_stars)
+            } else {
+                // When moving to the next source line, only emit a newline. The line itself
+                // carries the leading whitespace from the source, so re-emitting the
+                // structural indent here would double it up.
+                if index > 0 {
+                    self.start_new_line_no_indentation();
+                }
+                source_line
+            };
 
             for word in line.split_inclusive([' ', '\n', '\t']) {
                 if self.current_line_width() + word.trim().chars().count()
@@ -267,6 +482,59 @@ impl Formatter<'_> {
         }
 
         self.write("*/");
+    }
+
+    /// For each source line of a block comment, whether it should be merged onto the
+    /// previous line when reflowing. A run of consecutive non-standalone (prose) lines is
+    /// merged into one paragraph only when at least one of its lines overflows
+    /// `comment_width`; otherwise the existing line breaks are preserved verbatim.
+    fn block_comment_merge_flags(&self, lines: &[&str], all_stars: bool) -> Vec<bool> {
+        let mut standalone = vec![false; lines.len()];
+        let mut in_code_fence = false;
+        for (index, line) in lines.iter().enumerate() {
+            let content = block_comment_line_content(line, all_stars);
+            standalone[index] = in_code_fence || comment_line_is_standalone(content);
+            if comment_line_is_code_fence(content.trim_start()) {
+                in_code_fence = !in_code_fence;
+            }
+        }
+
+        let mut merge_with_previous = vec![false; lines.len()];
+        let mut index = 0;
+        while index < lines.len() {
+            if standalone[index] {
+                index += 1;
+                continue;
+            }
+
+            let mut end = index + 1;
+            while end < lines.len() && !standalone[end] {
+                end += 1;
+            }
+
+            if lines[index..end]
+                .iter()
+                .any(|line| self.block_comment_line_overflows(line, all_stars))
+            {
+                for flag in &mut merge_with_previous[index + 1..end] {
+                    *flag = true;
+                }
+            }
+
+            index = end;
+        }
+
+        merge_with_previous
+    }
+
+    /// Whether a single block-comment source line, rendered at the comment's indentation,
+    /// would exceed `comment_width`.
+    fn block_comment_line_overflows(&self, line: &str, all_stars: bool) -> bool {
+        let indentation = (self.indentation.max(0) as usize) * self.config.tab_spaces;
+        let content_width = block_comment_line_text(line, all_stars).chars().count();
+        // `all_stars` lines render with a leading `* ` prefix.
+        let star_width = if all_stars { " * ".len() } else { 0 };
+        indentation + star_width + content_width > self.config.comment_width
     }
 
     /// Returns the number of newlines that come next, if we are at a whitespace
@@ -1136,9 +1404,8 @@ global x: Field = 1;
         ";
         let expected = "/*
 This is a long comment that's
-wrapped.
-This is a long comment that's
-wrapped.
+wrapped. This is a long
+comment that's wrapped.
 */
 global x: Field = 1;
 ";
@@ -1156,9 +1423,9 @@ global x: Field = 1;
         ";
         let expected = "/*
  * This is a long comment
- * that's wrapped.
- * This is a long comment
- * that's wrapped.
+ * that's wrapped. This is a
+ * long comment that's
+ * wrapped.
  */
 global x: Field = 1;
 ";
@@ -1358,5 +1625,74 @@ fn main() {}
 }
 ";
         assert_format(src, src);
+    }
+
+    #[test]
+    fn reflows_line_comment_paragraph_without_stranding_a_word() {
+        let src = "// This comment is sized so it sits just barely over one hundred and twenty columns when the trailing word and word2 here
+// continues onto a second line that is shorter than the limit
+fn main() {}
+";
+        let expected = "// This comment is sized so it sits just barely over one hundred and twenty columns when the trailing word and word2
+// here continues onto a second line that is shorter than the limit
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 120);
+    }
+
+    #[test]
+    fn reflows_each_comment_paragraph_independently_around_a_blank_comment_line() {
+        let src = "// This is the first paragraph that is long
+// and continues here
+//
+// This is the second paragraph that is long
+// and continues here
+fn main() {}
+";
+        let expected = "// This is the first
+// paragraph that is long and
+// continues here
+//
+// This is the second
+// paragraph that is long and
+// continues here
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn does_not_merge_markdown_list_items_when_wrapping() {
+        let src = "// Here is a list of things:
+// - the first item in the list
+// - the second item in the list
+fn main() {}
+";
+        let expected = "// Here is a list of things:
+// - the first item in the list
+// - the second item in the list
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn does_not_reflow_a_code_fence_when_wrapping() {
+        let src = "/// Example of using the function below:
+/// ```
+/// let result = the_function(a, b);
+/// let other = result + another_value;
+/// ```
+fn main() {}
+";
+        let expected = "/// Example of using the
+/// function below:
+/// ```
+/// let result = the_function(a, b);
+/// let other = result + another_value;
+/// ```
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
     }
 }

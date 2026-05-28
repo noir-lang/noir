@@ -11,13 +11,23 @@ impl Formatter<'_> {
                 break;
             }
 
-            match self.bump() {
-                Token::LineComment(comment, Some(DocStyle::Inner)) => {
+            match &self.token {
+                Token::LineComment(_, Some(DocStyle::Inner)) => {
                     self.write_indentation();
-                    self.write_line_comment(&comment, "//!");
-                    self.write_line();
+                    if self.config.wrap_comments && !self.ignore_next && !self.in_chunk {
+                        self.write_line_comment_run("//!", Some(DocStyle::Inner));
+                    } else {
+                        let Token::LineComment(comment, _) = self.bump() else {
+                            unreachable!("Expected an inner doc line comment")
+                        };
+                        self.write_line_comment(&comment, "//!");
+                        self.write_line();
+                    }
                 }
-                Token::BlockComment(comment, Some(DocStyle::Inner)) => {
+                Token::BlockComment(_, Some(DocStyle::Inner)) => {
+                    let Token::BlockComment(comment, _) = self.bump() else {
+                        unreachable!("Expected an inner doc block comment")
+                    };
                     self.write_indentation();
                     self.write_block_comment(&comment, "/*!");
                     self.write_line();
@@ -35,15 +45,23 @@ impl Formatter<'_> {
                 break;
             }
 
-            match self.bump() {
-                Token::LineComment(comment, Some(DocStyle::Outer)) => {
-                    let comment = comment.clone();
+            match &self.token {
+                Token::LineComment(_, Some(DocStyle::Outer)) => {
                     self.write_indentation();
-                    self.write_line_comment(&comment, "///");
-                    self.write_line();
+                    if self.config.wrap_comments && !self.ignore_next && !self.in_chunk {
+                        self.write_line_comment_run("///", Some(DocStyle::Outer));
+                    } else {
+                        let Token::LineComment(comment, _) = self.bump() else {
+                            unreachable!("Expected an outer doc line comment")
+                        };
+                        self.write_line_comment(&comment, "///");
+                        self.write_line();
+                    }
                 }
-                Token::BlockComment(comment, Some(DocStyle::Outer)) => {
-                    let comment = comment.clone();
+                Token::BlockComment(_, Some(DocStyle::Outer)) => {
+                    let Token::BlockComment(comment, _) = self.bump() else {
+                        unreachable!("Expected an outer doc block comment")
+                    };
                     self.write_indentation();
                     self.write_block_comment(&comment, "/**");
                     self.write_line();
@@ -209,5 +227,69 @@ global x: Field = 1;
 /// A struct
 struct Foo {}\n";
         assert_format(src, src);
+    }
+
+    #[test]
+    fn reflows_outer_doc_comment_paragraph_without_stranding_a_word() {
+        let src = "/// This is a long comment that's going
+/// to be wrapped.
+fn main() {}
+";
+        let expected = "/// This is a long comment
+/// that's going to be
+/// wrapped.
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn reflows_inner_doc_comment_paragraph_without_stranding_a_word() {
+        let src = "//! This is a long comment that's going
+//! to be wrapped.
+fn main() {}
+";
+        let expected = "//! This is a long comment
+//! that's going to be
+//! wrapped.
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn reflows_outer_doc_block_comment_paragraph() {
+        let src = "/**
+ * This is a long comment that's going
+ * to be wrapped.
+ */
+fn main() {}
+";
+        let expected = "/**
+ * This is a long comment
+ * that's going to be
+ * wrapped.
+ */
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn reflows_inner_doc_block_comment_paragraph() {
+        let src = "/*!
+ * This is a long comment that's going
+ * to be wrapped.
+ */
+fn main() {}
+";
+        let expected = "/*!
+ * This is a long comment
+ * that's going to be
+ * wrapped.
+ */
+fn main() {}
+";
+        assert_format_wrapping_comments(src, expected, 29);
     }
 }
