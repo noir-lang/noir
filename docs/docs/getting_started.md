@@ -29,7 +29,7 @@ curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/insta
 noirup
 ```
 
-This installs `noirup` the installation script, and runs it to install the latest version of Nargo.
+This installs `noirup`, the installation script, and runs it to install the latest version of Nargo.
 
 ### Creating a project
 
