@@ -2,7 +2,6 @@
 title: Profiler
 description: Learn about the Noir Profiler, how to generate execution flamegraphs, identify bottlenecks, and visualize optimizations.
 keywords: [profiling, profiler, flamegraph]
-sidebar_position: 4
 ---
 
 The profiler is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
@@ -68,7 +67,7 @@ With insight into our program's bottleneck, let's optimize it.
 
 #### Visualizing optimizations
 
-We can improve our program's performance using [unconstrained functions](../noir/concepts/unconstrained.md).
+We can improve our program's performance using [unconstrained functions](../language/unconstrained.md).
 
 Let's replace expensive array writes with array gets with the new code below:
 ```rust
