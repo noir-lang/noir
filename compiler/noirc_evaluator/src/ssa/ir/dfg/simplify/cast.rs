@@ -90,13 +90,22 @@ pub(super) fn simplify_cast(
                 // For example, when going from `i8 -1` to `i16`, `i8 -1` is represented as the FieldElement 255,
                 // and it would be incorrect to use `IntegerConstant::from_numeric_constant(constant, dst_typ)` as
                 // that would give `i16 255` instead of the desired `i16 -1`.
+                //
+                // For narrowing casts we also need to truncate to the destination width and
+                // sign-extend, so that e.g. `i16 256 as i8` yields `i8 0` rather than an
+                // out-of-range constant.
                 if let Some(src_constant) =
                     IntegerConstant::from_numeric_constant(constant, src_typ)
                 {
-                    let dst_constant = IntegerConstant::Signed {
-                        value: src_constant.apply(|v| v, |v| v as i128),
-                        bit_size,
+                    let value = src_constant.apply(|v| v, |v| v as i128);
+                    let truncated = match bit_size {
+                        8 => i128::from(value as i8),
+                        16 => i128::from(value as i16),
+                        32 => i128::from(value as i32),
+                        64 => i128::from(value as i64),
+                        _ => unreachable!("ICE - invalid bit size {bit_size} for signed integer"),
                     };
+                    let dst_constant = IntegerConstant::Signed { value: truncated, bit_size };
                     let (dst_constant, dst_typ) = dst_constant.into_numeric_constant();
                     SimplifiedTo(dfg.make_constant(dst_constant, dst_typ))
                 } else {
@@ -266,7 +275,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            return i8 256
+            return i8 0
         }
         ");
     }
@@ -286,7 +295,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            return i8 384
+            return i8 -128
         }
         ");
     }
