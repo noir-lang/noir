@@ -121,7 +121,7 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying proving bottlenecks of Noir programs.
 
-This feature depends on the proving backend you are using and whether it supports the profiler with a gate profiling API. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [Getting Started guide](../getting_started.md#proving-the-execution) to install it if you have not already.
+This feature depends on the proving backend you are using and whether it supports the profiler with a gate profiling API. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here.
 
 #### Flamegraphing
 
