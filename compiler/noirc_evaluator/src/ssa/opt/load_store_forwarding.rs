@@ -96,7 +96,7 @@ fn forward_loads_and_stores_in_block(
                 let address = inserter.resolve(*address);
                 let address = GlobalValueId::new(inserter.function, address);
                 let value = inserter.resolve(*value);
-                let key = analysis.get_trusted_allocation_site(address).unwrap_or(address);
+                let key = analysis.known_site(address).unwrap_or(address);
 
                 // Dead store elimination: a prior store under the same canonical key must-aliases this address
                 // Kill any prior store at an address that must-alias the new one.
@@ -117,7 +117,7 @@ fn forward_loads_and_stores_in_block(
             Instruction::Load { address } => {
                 let address = inserter.resolve(*address);
                 let address = GlobalValueId::new(inserter.function, address);
-                let key = analysis.get_trusted_allocation_site(address).unwrap_or(address);
+                let key = analysis.known_site(address).unwrap_or(address);
                 let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                 let forward = known_values.get(&key).copied();
 
@@ -593,12 +593,15 @@ mod tests {
     }
 
     #[test]
-    fn call_returning_alias_of_local_allocation_prevents_forwarding() {
-        // Bug: When a local allocation is passed to a call, it is removed from
-        // known_values/last_stores but NOT from local_allocations. If the callee
-        // returns an alias to the same memory, stores through the original address
-        // skip the conservative clear (because it's still in local_allocations),
-        // leaving stale entries for the alias.
+    fn call_returning_alias_of_local_allocation_is_forwarded_soundly() {
+        // `f1` returns its reference argument unchanged and is called once, so
+        // must-alias analysis proves the call result `v1` shares `v0`'s
+        // allocation site. Both stores resolve to that single key, so:
+        //   - `store 2 at v1` is dead (overwritten by `store 3 at v0`)
+        //   - `load v1` forwards the live value 3, never the stale 2
+        // The regression guard is that the load must see 3: if the analysis
+        // stopped unifying `v0`/`v1`, `store 3 at v0` would skip clearing the
+        // alias and the load would forward a stale 2.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -615,8 +618,22 @@ mod tests {
             return v0
         }
         ";
-        // v1 aliases v0. After `store 3 at v0`, loading v1 should see 3, not stale 2.
-        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v3 = call f1(v0) -> &mut Field
+            store Field 3 at v0
+            return Field 3
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ");
     }
 
     #[test]
