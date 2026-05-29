@@ -47,6 +47,24 @@ it is already called elsewhere without an error.
 Before switching over to use these newly generated functions, users should run `nargo expand` on any
 untrusted dependencies to ensure their bodies are as expected.
 
+Because a dependency's attribute macro can call `disable` on any function it can name, an untrusted or
+malicious dependency may use `disable` to silently turn off functionality in your program — for example,
+disabling a contract entry point so that it can no longer be invoked. A disabled function does not fail
+at compile time: it fails only when something tries to call it, producing the error message supplied to
+`disable`. This makes it possible to ship a program in which an endpoint or feature has been
+unintentionally taken offline, and gives opportunities for malicious DoS behaviors
+
+Before deploying a program that pulls in third-party comptime code, you should:
+
+- Exercise every entry point of the program (and any externally reachable function) at least once
+  during testing. A `disable`d function errors loudly the first time it is called, so even a minimal
+  smoke test of each endpoint is enough to surface this class of issue.
+- Run `nargo expand` on any untrusted dependencies and review the output for `disable` calls on
+  functions you did not expect to be disabled.
+
+See also the [Security considerations](../../concepts/comptime.md#security-considerations) section of
+the comptime documentation.
+
 ### has_named_attribute
 
 #include_code has_named_attribute noir_stdlib/src/meta/function_def.nr rust
