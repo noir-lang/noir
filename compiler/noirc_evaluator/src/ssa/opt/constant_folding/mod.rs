@@ -3067,8 +3067,15 @@ mod test {
     // (predicated by v0), then when v0=0 the callee's constraints would be skipped, its
     // output witness would become unconstrained, and the `constrain` under the complementary
     // predicate (`not v0`) would reference an unconstrained value — a soundness hole.
+    // The `brillig` case panics on purpose: a brillig callee can never compute as `Pure`
+    // (it defaults to `PureWithPredicate`, see `Function::is_pure`), so a `pure` annotation on
+    // it is not valid SSA. The optimizer input is parsed with validation disabled to set up the
+    // scenario, but `assert_normalized_ssa_equals` re-parses `src` as the expected output under
+    // strict validation and rejects it. The case is kept (rather than deleted) to document that
+    // the deduplication guarantee is meant to hold for brillig too; it should be re-enabled once
+    // a `pure` brillig callee can be expressed as valid SSA.
     #[test_case("acir(fold)"; "acir_fold")]
-    #[test_case("brillig(inline)"; "brillig")]
+    #[test_case("brillig(inline)" => panics "is not valid SSA"; "brillig")]
     fn does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: &str) {
         let src = format!(
             "
@@ -3090,9 +3097,6 @@ mod test {
         }}
         "
         );
-        // Brillig functions can never compute as `Pure` (they default to `PureWithPredicate`,
-        // see `Function::is_pure`). The test still asserts the optimizer's behavior when the
-        // callee is *declared* `pure`, so we bypass the parser's purity check.
         let ssa = Ssa::from_str_no_validation(&src).unwrap();
         let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
         assert_normalized_ssa_equals(ssa, &src);
