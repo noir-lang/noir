@@ -598,6 +598,6 @@ mod tests {
         assert!(i8_abi.decode(&witness_map_with_single_value(255)).is_ok());
 
         let string_abi = abi_with_single_param(AbiType::String { length: 1 });
-        assert!(string_abi.decode(&witness_map_with_single_value(b'a' as u128)).is_ok());
+        assert!(string_abi.decode(&witness_map_with_single_value(u128::from(b'a'))).is_ok());
     }
 }
