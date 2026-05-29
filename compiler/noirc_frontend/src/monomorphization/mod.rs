@@ -646,7 +646,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let parameters = self.parameters(&meta.parameters)?;
 
-        let body = self.expr_with_target_type(body_expr_id, Some(return_target_type))?;
+        let body = self.expr_with_force_unconstrained_target(body_expr_id, return_target_type)?;
         let function = Function {
             id,
             name,
@@ -753,31 +753,6 @@ impl<'interner> Monomorphizer<'interner> {
     /// and a type with unbound named generic on the RHS, and we don't want the unbound
     /// types to be converted to default values.
     fn expr_with_target_type(
-        &mut self,
-        expr: ExprId,
-        target_type: Option<&Type>,
-    ) -> Result<ast::Expression, MonomorphizationError> {
-        // If the target type is `unconstrained fn(...)`, set `force_unconstrained` while
-        // monomorphizing so that any function reference whose ultimate destination is an
-        // `unconstrained fn` slot is built as `(unconstrained, unconstrained)` rather than
-        // `(constrained, unconstrained)`. Without this, a constrained caller reading slot `.0`
-        // would dispatch to the constrained specialization despite the source-level type being
-        // `unconstrained fn`. Same mechanism as the existing per-argument logic in `function_call`.
-        let needs_force_unconstrained = target_type
-            .is_some_and(|t| matches!(t.follow_bindings(), Type::Function(_, _, _, true)));
-        let old_force_unconstrained = needs_force_unconstrained
-            .then(|| std::mem::replace(&mut self.force_unconstrained, true));
-
-        let result = self.expr_with_target_type_inner(expr, target_type);
-
-        if let Some(old) = old_force_unconstrained {
-            self.force_unconstrained = old;
-        }
-
-        result
-    }
-
-    fn expr_with_target_type_inner(
         &mut self,
         expr: ExprId,
         target_type: Option<&Type>,
@@ -1131,10 +1106,33 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         let_statement: HirLetStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let expr =
-            self.expr_with_target_type(let_statement.expression, Some(&let_statement.r#type))?;
+        let expr = self.expr_with_force_unconstrained_target(
+            let_statement.expression,
+            &let_statement.r#type,
+        )?;
         let expected_type = self.interner.id_type(let_statement.expression);
         self.unpack_pattern(let_statement.pattern, expr, &expected_type)
+    }
+
+    /// Monomorphize `expr` with `force_unconstrained = true` whenever `target_type` is an
+    /// `unconstrained fn(...)` type. This ensures that a function reference monomorphized
+    /// into a `(constrained, unconstrained)` tuple is built as `(unconstrained, unconstrained)`,
+    /// so that a constrained caller dispatching via tuple slot `.0` still ends up running
+    /// the unconstrained specialization — matching the source-level type of the destination
+    /// slot. Same mechanism as the existing per-argument logic in `function_call`.
+    fn expr_with_force_unconstrained_target(
+        &mut self,
+        expr: ExprId,
+        target_type: &Type,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        if matches!(target_type.follow_bindings(), Type::Function(_, _, _, true)) {
+            let old = std::mem::replace(&mut self.force_unconstrained, true);
+            let result = self.expr(expr);
+            self.force_unconstrained = old;
+            result
+        } else {
+            self.expr(expr)
+        }
     }
 
     fn constructor(
@@ -1163,7 +1161,8 @@ impl<'interner> Monomorphizer<'interner> {
             if field_vars.insert(field_name.to_string(), (new_id, typ)).is_some() {
                 unreachable!("ICE - Duplicate field {field_name} in constructor");
             }
-            let expression = Box::new(self.expr_with_target_type(expr_id, Some(field_type))?);
+            let expression =
+                Box::new(self.expr_with_force_unconstrained_target(expr_id, field_type)?);
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
@@ -2604,7 +2603,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let target_type = Self::lvalue_target_type(&assign.lvalue);
         let expression =
-            Box::new(self.expr_with_target_type(assign.expression, Some(target_type))?);
+            Box::new(self.expr_with_force_unconstrained_target(assign.expression, target_type)?);
         let lvalue = self.lvalue(assign.lvalue)?;
         Ok(ast::Expression::Assign(ast::Assign { expression, lvalue }))
     }
