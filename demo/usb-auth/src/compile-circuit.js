@@ -1,4 +1,4 @@
-import { compile, createFileManager } from '@noir-lang/noir_wasm';
+import { compile, createFileManager } from 'noir-wasm-published';
 
 export async function compileCircuitFromSource({ nargoToml, mainNr }) {
   const fileManager = createFileManager('/');

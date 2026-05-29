@@ -14,7 +14,7 @@
   "dependencies": {
     "@aztec/bb.js": "5.0.0-nightly.20260522",
     "@noir-lang/noir_js": "workspace:*",
-    "@noir-lang/noir_wasm": "npm:@noir-lang/noir_wasm@1.0.0-beta.21"
+    "noir-wasm-published": "npm:@noir-lang/noir_wasm@1.0.0-beta.21"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",
