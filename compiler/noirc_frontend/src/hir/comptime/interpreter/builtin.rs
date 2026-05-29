@@ -53,6 +53,7 @@ use crate::{
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
+    modules::module_def_id_is_visible,
     node_interner::{NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::Signedness,
@@ -2587,6 +2588,43 @@ fn function_def_as_typed_expr(
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+
+        // A trait method is reachable through `as_typed_expr` only if the type the trait is
+        // implemented for is visible from the caller's module. Otherwise a private type's trait
+        // methods could be called from another crate by recovering the type via metaprogramming.
+        if let Type::DataType(data_type, _) = trait_impl.typ.follow_bindings() {
+            let (type_id, visibility) = {
+                let data_type = data_type.borrow();
+                (data_type.id, data_type.visibility)
+            };
+            let caller_module = interpreter.elaborator.module_id();
+            let dependencies =
+                &interpreter.elaborator.crate_graph[caller_module.krate].dependencies;
+            if !module_def_id_is_visible(
+                ModuleDefId::TypeId(type_id),
+                caller_module,
+                visibility,
+                None,
+                interpreter.elaborator.interner,
+                interpreter.elaborator.def_maps,
+                dependencies,
+            ) {
+                let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+                let defining_module = interpreter.elaborator.interner.function_module(func_id);
+                let defining_module = fully_qualified_module_path(
+                    interpreter.elaborator.def_maps,
+                    interpreter.elaborator.crate_graph,
+                    &caller_module.krate,
+                    defining_module,
+                );
+                return Err(InterpreterError::FunctionNotVisible {
+                    name,
+                    defining_module,
+                    location,
+                });
+            }
+        }
+
         let trait_generics =
             interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =

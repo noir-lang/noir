@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Function `raw_compute` is private
+   ┌─ src/main.nr:21:15
+   │
+21 │     let raw = raw_compute.unwrap().as_typed_expr();
+   │               ------------------------------------ `raw_compute` is declared in `victim_lib::internal`
+   │
+
+error: Could not resolve 'smuggled' in path
+   ┌─ src/main.nr:33:21
+   │
+33 │     assert(smuggle::smuggled(999) == 999000);
+   │                     --------
+   │
+
+Aborting due to 2 previous errors
