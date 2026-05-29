@@ -369,3 +369,46 @@ Registering a derive function could be done as follows:
 #include_code derive_via noir_stdlib/src/meta/mod.nr rust
 
 #include_code big-derive-usage-example noir_stdlib/src/meta/mod.nr rust
+
+---
+
+## Security considerations
+
+Comptime code in a dependency runs as part of your build and can shape the program that ultimately
+gets compiled. Two patterns in particular deserve attention before deploying a program that uses
+third-party comptime code.
+
+### Comptime functions that return `Quoted`
+
+A `Quoted` value is a token stream that becomes program source when it is unquoted or returned from
+an attribute macro. A comptime function in a dependency that returns `Quoted` to your crate — or an
+attribute macro it provides that you apply to one of your own items — can introduce arbitrary items,
+expressions, or trait impls into your crate. The injected code runs as if you had written it
+yourself, even though it does not appear in your source files.
+
+Returning `Quoted` is a deliberate feature of the metaprogramming API and is what makes macros
+useful. The risk is not the feature itself but trusting comptime output from code you have not
+reviewed. When using third-party comptime code:
+
+- Treat any attribute macro a dependency exposes, and any `Quoted` value it returns to you, as code
+  you are vendoring into your crate.
+- Run `nargo expand` on your package after pulling in or upgrading an untrusted dependency, and
+  review the expanded output. The expanded source is the code that actually compiles into your
+  circuit, and is the only authoritative view of what a macro inserted.
+
+### `FunctionDefinition::disable`
+
+The [`disable`](../standard_library/meta/function_def.md#disable) method lets a comptime function
+mark another function as un-callable. A disabled function does not fail at compile time: it fails
+only when something tries to call it, with the error message that was passed to `disable`. A
+malicious or careless dependency that calls `disable` on one of your functions (for example, a
+contract entry point) can therefore take that functionality offline without producing any build-time
+signal.
+
+To catch this before deployment:
+
+- Exercise every externally reachable function — every contract entry point, every public API your
+  callers will hit — at least once in your test suite. A disabled function errors the first time
+  it is invoked, so even a minimal smoke test of each endpoint is enough to detect this case.
+- Run `nargo expand` on your package and inspect the expanded source for `disable` calls on
+  functions that you did not intend to disable.

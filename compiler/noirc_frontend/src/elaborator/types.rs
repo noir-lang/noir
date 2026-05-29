@@ -21,7 +21,7 @@ use crate::{
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
-        comptime::Integer,
+        comptime::{Integer, Value, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
         resolution::{
@@ -1273,7 +1273,17 @@ impl Elaborator<'_> {
         let location = path.trait_path.location;
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
 
-        if !ordered.iter().all(|typ| matches!(typ, Type::NamedGeneric(_)))
+        let trait_generic_ids: Vec<_> =
+            vecmap(&self.interner.get_trait(current_trait).generics, |g| g.type_var.id());
+
+        if ordered.len() != trait_generic_ids.len() {
+            return None;
+        }
+        let ordered_match_trait_generics =
+            ordered.iter().zip_eq(&trait_generic_ids).all(|(typ, trait_gen_id)| {
+                matches!(typ, Type::NamedGeneric(ng) if ng.type_var.id() == *trait_gen_id)
+            });
+        if !ordered_match_trait_generics
             || !named.iter().all(|typ| matches!(typ.typ, Type::TypeVariable(_)))
         {
             return None;
@@ -2135,8 +2145,23 @@ impl Elaborator<'_> {
             }
         };
 
-        // TODO(https://github.com/noir-lang/noir/issues/6247):
-        // handle negative literals
+        // Warn if a user casts to an integer from a negative field literal.
+        // `-1 as i8 == 0`, not `-1` which can be confusing.
+        if let Some(value) = from_value_opt
+            && -value < value
+            && to.is_integer()
+            && (from_follow_bindings.is_field() || from_follow_bindings.is_bindable())
+            && let Ok(Value::Integer(result)) =
+                evaluate_cast_one_step(&to, location, Value::field(value))
+        {
+            self.push_err(TypeCheckError::NegativeLiteralCastToInteger {
+                value,
+                result: result.to_string(),
+                to: to.clone(),
+                location,
+            });
+        }
+
         // when casting a polymorphic value to a specifically sized type,
         // check that it fits or throw a warning
         if let (Some(from_value), Some(to_maximum_size)) =
