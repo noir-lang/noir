@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780055503044,
+  "lastUpdate": 1780060277300,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6f5e658a9eb23296ceecffc5602665b4be109955",
-          "message": "chore: error on duplicate memory block initialization (#12634)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-05-21T13:04:03Z",
-          "tree_id": "a5e19bfd72fbede0af70d4d1a45e18dbe3fdb29d",
-          "url": "https://github.com/noir-lang/noir/commit/6f5e658a9eb23296ceecffc5602665b4be109955"
-        },
-        "date": 1779371477394,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127876,
-            "range": "± 305",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113511,
-            "range": "± 6645",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043184,
-            "range": "± 7148",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2127122,
             "range": "± 3285",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "367a272d56b71c696970c99269597a58830a7be1",
+          "message": "chore(deps): bump EmbarkStudios/cargo-deny-action from 2.0.19 to 2.0.20 (#12836)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-05-29T12:44:09Z",
+          "tree_id": "b69a8c1373d7822322317d95bb15ae5ebb25f585",
+          "url": "https://github.com/noir-lang/noir/commit/367a272d56b71c696970c99269597a58830a7be1"
+        },
+        "date": 1780060212463,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169192,
+            "range": "± 1071",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136929,
+            "range": "± 4590",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642429,
+            "range": "± 25110",
             "unit": "ns/iter"
           }
         ]
