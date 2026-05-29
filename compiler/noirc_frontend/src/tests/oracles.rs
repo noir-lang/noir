@@ -196,6 +196,36 @@ fn errors_if_oracle_has_reference_parameter_in_struct() {
 }
 
 #[test]
+fn errors_if_oracle_has_reference_parameter_behind_generics() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 10;
+        pass_ref(&mut x);
+        ^^^^^^^^ Reference `&mut Field` cannot be passed to an oracle function
+    }
+
+    #[oracle(pass_ref)]
+    unconstrained fn pass_ref<T>(x: T) {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_nested_in_container_behind_generics() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 10;
+        pass_ref((1, &mut x));
+        ^^^^^^^^ Reference `(Field, &mut Field)` cannot be passed to an oracle function
+    }
+
+    #[oracle(pass_ref)]
+    unconstrained fn pass_ref<T>(x: (Field, T)) {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
 fn errors_if_oracle_returns_vector_with_nested_array() {
     let src = r#"
     #[oracle(oracle_call)]

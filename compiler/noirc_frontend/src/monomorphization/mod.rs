@@ -1521,9 +1521,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         if self.function_is_oracle(func_id)
-            && let Type::Function(_args, ret, _env, _unconstrained) = typ
+            && let Type::Function(args, ret, _env, _unconstrained) = typ
         {
-            self.check_return_type_returned_from_oracle(ret.as_ref(), location)?;
+            self.check_oracle_signature(args, ret.as_ref(), location)?;
         }
 
         let typ = Self::convert_type(typ, location)?;
@@ -2433,6 +2433,25 @@ impl<'interner> Monomorphizer<'interner> {
                 typ: return_type.to_string(),
                 location,
             });
+        }
+
+        Ok(())
+    }
+
+    /// Reject oracle signatures whose concrete types contains a reference.
+    fn check_oracle_signature(
+        &self,
+        parameter_types: &[Type],
+        return_type: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        self.check_return_type_returned_from_oracle(return_type, location)?;
+
+        for parameter_type in parameter_types {
+            if parameter_type.contains_reference() {
+                let typ = parameter_type.to_string();
+                return Err(MonomorphizationError::ReferenceParameterToOracle { typ, location });
+            }
         }
 
         Ok(())

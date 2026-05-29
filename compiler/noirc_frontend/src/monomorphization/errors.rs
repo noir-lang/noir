@@ -29,6 +29,7 @@ pub enum MonomorphizationError {
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
+    ReferenceParameterToOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
@@ -64,6 +65,7 @@ impl MonomorphizationError {
                 location, ..
             }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::ReferenceParameterToOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
@@ -177,6 +179,9 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
                 format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
+                format!("Reference `{typ}` cannot be passed to an oracle function")
             }
             MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
                 format!(
