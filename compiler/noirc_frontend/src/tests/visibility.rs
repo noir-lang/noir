@@ -807,6 +807,32 @@ fn main(a: u32) -> pub u32 {
 fn inner(a: call_data(0) u32) -> return_data u32 {
             ~~~~~~~~~~~~ unnecessary call_data(0)
             ^^^^^^^^^^^^ unnecessary call_data(0) attribute for function inner
+                                 ~~~~~~~~~~~ unnecessary return_data
+                                 ^^^^^^^^^^^ unnecessary return_data attribute for function inner
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn return_data_not_allowed_on_parameter() {
+    let src = "
+fn main(a: return_data u32) -> pub u32 {
+           ~~~~~~~~~~~ return_data is only allowed on the return value
+           ^^^^^^^^^^^ return_data attribute is not allowed on a parameter
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn call_data_not_allowed_on_return_value() {
+    let src = "
+fn main(a: u32) -> call_data(0) u32 {
+                   ~~~~~~~~~~~~ call_data(0) is only allowed on a parameter
+                   ^^^^^^^^^^^^ call_data(0) attribute is not allowed on the return value
     a
 }
     ";

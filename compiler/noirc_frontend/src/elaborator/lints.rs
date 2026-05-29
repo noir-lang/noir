@@ -437,28 +437,59 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
-/// call_data and return_data visibility modifiers are only allowed on entry point functions.
-pub(super) fn databus_on_non_entry_point(
+/// `call_data` marks a parameter and `return_data` a return, so only `call_data` is
+/// meaningful on a parameter, and only on an entry point function.
+pub(super) fn databus_visibility_on_parameter(
     func: &NoirFunction,
     visibility: Visibility,
     visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if is_entry_point {
-        return None;
-    }
-
     match visibility {
-        Visibility::CallData(_) | Visibility::ReturnData => {
-            let name = func.name().to_string();
-            let visibility = visibility.to_string();
-            Some(ResolverError::DataBusOnNonEntryPoint {
-                name,
-                location: visibility_location,
-                visibility,
-            })
+        Visibility::ReturnData => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "a parameter",
+            allowed: "the return value",
+            location: visibility_location,
+        }),
+        Visibility::CallData(_) if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
         }
         _ => None,
+    }
+}
+
+/// `return_data` marks a return and `call_data` a parameter, so only `return_data` is
+/// meaningful on a return value, and only on an entry point function.
+pub(super) fn databus_visibility_on_return(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    match visibility {
+        Visibility::CallData(_) => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "the return value",
+            allowed: "a parameter",
+            location: visibility_location,
+        }),
+        Visibility::ReturnData if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
+        }
+        _ => None,
+    }
+}
+
+fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+) -> ResolverError {
+    ResolverError::DataBusOnNonEntryPoint {
+        name: func.name().to_string(),
+        location: visibility_location,
+        visibility: visibility.to_string(),
     }
 }
 
