@@ -253,6 +253,29 @@ pub(super) fn oracle_returns_reference(
     }
 }
 
+/// Oracle functions cannot accept references as parameters.
+///
+/// Oracle are foreign functions running in an unknown execution context which
+/// does not have access to Brillig internal memory
+pub(super) fn oracle_parameter_is_reference(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    let has_reference_parameter =
+        func.parameters.iter().any(|(_, typ, _)| typ.contains_reference());
+    if has_reference_parameter {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleParameterIsReference { location: ident.location() })
+    } else {
+        None
+    }
+}
+
 /// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
 pub(super) fn pure_attribute_only_on_oracle(
     func: &FuncMeta,

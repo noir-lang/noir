@@ -152,6 +152,50 @@ fn errors_if_oracle_returns_reference_in_struct() {
 }
 
 #[test]
+fn errors_if_oracle_has_mutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &mut Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_has_immutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &Field) {}
+                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_in_tuple() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: (Field, &Field)) {}
+                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_in_struct() {
+    let src = r#"
+    pub struct Foo {
+        field: &Field,
+    }
+
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: Foo) {}
+                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
 fn errors_if_oracle_returns_vector_with_nested_array() {
     let src = r#"
     #[oracle(oracle_call)]

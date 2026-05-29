@@ -86,6 +86,8 @@ pub enum ResolverError {
     OracleReturnsMultipleVectors { location: Location },
     #[error("Oracle functions cannot return references")]
     OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot accept references as parameters")]
+    OracleParameterIsReference { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
     #[error(
@@ -309,6 +311,7 @@ impl ResolverError {
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleParameterIsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
             | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
@@ -566,6 +569,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 )
             },
             ResolverError::OracleReturnsReference { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleParameterIsReference { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
