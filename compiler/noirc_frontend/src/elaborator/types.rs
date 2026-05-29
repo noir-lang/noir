@@ -1285,7 +1285,7 @@ impl Elaborator<'_> {
             return None;
         }
         let ordered_match_trait_generics =
-            ordered.iter().zip(&trait_generic_ids).all(|(typ, trait_gen_id)| {
+            ordered.iter().zip_eq(&trait_generic_ids).all(|(typ, trait_gen_id)| {
                 matches!(typ, Type::NamedGeneric(ng) if ng.type_var.id() == *trait_gen_id)
             });
         if !ordered_match_trait_generics
