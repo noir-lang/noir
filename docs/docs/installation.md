@@ -1,5 +1,5 @@
 ---
-title: Standalone Noir Installation
+title: Installation
 description: There are different ways to install Nargo, the one-stop shop and command-line tool for developing Noir programs. This guide explains how to specify which version to install when using noirup, and using WSL for windows.
 keywords: [
     Installation
@@ -10,11 +10,8 @@ keywords: [
     WSL for Windows
     macOS
     Linux
-    Nix
-    Direnv
     Uninstalling Nargo
   ]
-sidebar_position: 2
 ---
 
 Noirup is the endorsed method for installing Nargo, streamlining the process of fetching binaries or compiling from source. It supports a range of options to cater to your specific needs, from nightly builds and specific versions to compiling from various sources.
@@ -93,7 +90,7 @@ Step 2: Follow the [Noirup instructions](#installing-noirup).
 
 ## Setting up shell completions
 
-Once `nargo` is installed, you can [set up shell completions for it](../tooling/shell_completions.md).
+Once `nargo` is installed, you can [set up shell completions for it](./tooling/shell_completions.md).
 
 ## Uninstalling Nargo
 
