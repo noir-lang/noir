@@ -38,9 +38,6 @@ impl Remote {
 }
 ```
 
-This is because the `#[oracle(name)]` attribute already names the single foreign call the function
-lowers to, so binding it to a `Self` type carries no additional meaning. If you need to expose an
-oracle through a trait, declare the oracle as a free function and call it from a regular method
 If you need to expose an oracle through a trait, declare the oracle as a free function and call it from a regular method implementation instead:
 
 ```rust
