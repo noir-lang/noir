@@ -70,3 +70,20 @@ Returns a vector of the individual tokens that form this token stream.
 impl Eq for Quoted
 impl Hash for Quoted
 ```
+
+## Security
+
+A `Quoted` value returned by a comptime function from an untrusted dependency is added, when unquoted,
+to the program's source as if you had written it yourself. It can therefore introduce arbitrary items,
+expressions, or trait impls into the crate that calls it, including code that the caller did not write
+or would not approve.
+
+When pulling in comptime code from a dependency you do not control:
+
+- Treat any `Quoted` it returns to you, and any attribute macro it provides, as code you are about
+  to vendor into your own crate.
+- Use `nargo expand` to view the program after macro expansion, and review the result before
+  deployment. The expanded source is the code that actually compiles into your circuit.
+
+See also the [Security considerations](../../concepts/comptime.md#security-considerations) section
+of the comptime documentation.
