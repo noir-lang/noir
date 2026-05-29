@@ -8,13 +8,12 @@
   },
   "scripts": {
     "build": "vite build",
-    "test": "mocha --timeout 30000 \"test/**/*.test.js\"",
+    "test": "mocha --timeout 30000 test/fields.test.js test/providers.test.js test/secret-file.test.js",
     "test:proof": "mocha --timeout 120000 test/proof.test.js"
   },
   "dependencies": {
     "@aztec/bb.js": "5.0.0-nightly.20260522",
-    "@noir-lang/noir_js": "workspace:*",
-    "noir-wasm-published": "npm:@noir-lang/noir_wasm@1.0.0-beta.21"
+    "@noir-lang/noir_js": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",

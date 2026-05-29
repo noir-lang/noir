@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>USB ZK Auth Demo</title>
+    <script type="module" crossorigin src="/assets/index-BTrrgA5k.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-tzOPPe_8.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="header">
+        <div>
+          <h1>USB ZK Auth</h1>
+          <p>Generate a Noir proof from an encrypted secret file stored on a removable device.</p>
+        </div>
+        <div class="status" id="status">Ready</div>
+      </section>
+
+      <section class="grid">
+        <form class="panel" id="register-form">
+          <h2>Register Secret File</h2>
+          <label>
+            User ID
+            <input id="register-user" value="demo-user" autocomplete="username" />
+          </label>
+          <label>
+            PIN
+            <input id="register-pin" type="password" minlength="6" autocomplete="new-password" />
+          </label>
+          <button type="submit">Generate encrypted USB file</button>
+          <output id="register-output"></output>
+        </form>
+
+        <form class="panel" id="prove-form">
+          <h2>Prove From USB File</h2>
+          <label>
+            User ID
+            <input id="prove-user" value="demo-user" autocomplete="username" />
+          </label>
+          <label>
+            PIN
+            <input id="prove-pin" type="password" minlength="6" autocomplete="current-password" />
+          </label>
+          <label>
+            Encrypted secret JSON
+            <input id="secret-file" type="file" accept="application/json,.json" />
+          </label>
+          <button type="submit">Generate and verify proof</button>
+          <output id="prove-output"></output>
+        </form>
+
+        <section class="panel">
+          <h2>Custom Device Paths</h2>
+          <div class="actions">
+            <button id="webusb-button" type="button">Try WebUSB</button>
+            <button id="fido-button" type="button">Check FIDO/HSM boundary</button>
+          </div>
+          <output id="device-output"></output>
+        </section>
+
+        <section class="panel details">
+          <h2>Flow</h2>
+          <ol>
+            <li>The USB stores an encrypted long-term device secret.</li>
+            <li>The browser decrypts it only after the user selects the file and enters the PIN.</li>
+            <li>Noir generates a fresh proof for the current challenge.</li>
+            <li>The verifier receives proof data and public inputs, not the device secret.</li>
+          </ol>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

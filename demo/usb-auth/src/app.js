@@ -1,7 +1,4 @@
 import './style.css';
-import nargoToml from '../Nargo.toml?raw';
-import mainNr from './main.nr?raw';
-import { compileCircuitFromSource } from './compile-circuit.js';
 import { BrowserFileSecretProvider, FidoHsmSecretProvider, WebUsbSecretProvider } from './secret-providers.js';
 import { createEncryptedSecretFile, serializeEncryptedSecretFile } from './secret-file.js';
 import { randomField, userIdToField, computeCommitment } from './fields.js';
@@ -87,7 +84,12 @@ function setDisabled(disabled) {
 }
 
 function getCircuit() {
-  circuitPromise ??= compileCircuitFromSource({ nargoToml, mainNr });
+  circuitPromise ??= fetch('/target/usb_auth.json').then((response) => {
+    if (!response.ok) {
+      throw new Error('Missing target/usb_auth.json. Run nargo compile in demo/usb-auth before proving.');
+    }
+    return response.json();
+  });
   return circuitPromise;
 }
 

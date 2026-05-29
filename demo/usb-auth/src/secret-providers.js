@@ -15,7 +15,7 @@ export class NodePathSecretProvider {
     if (!path) {
       throw new Error('Missing --secret path.');
     }
-    const { readFile } = await import('node:fs/promises');
+    const { readFile } = await import(/* @vite-ignore */ 'node:fs/promises');
     const encryptedFile = parseEncryptedSecretFile(await readFile(path, 'utf8'));
     return decryptSecretFile(encryptedFile, pin);
   }
@@ -24,7 +24,7 @@ export class NodePathSecretProvider {
     if (!path) {
       throw new Error('Missing --out path.');
     }
-    const { writeFile } = await import('node:fs/promises');
+    const { writeFile } = await import(/* @vite-ignore */ 'node:fs/promises');
     await writeFile(path, contents, 'utf8');
   }
 }

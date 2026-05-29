@@ -1937,7 +1937,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm, noir-wasm-published@npm:@noir-lang/noir_wasm@1.0.0-beta.21":
+"@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
   dependencies:
@@ -12066,7 +12066,6 @@ __metadata:
     "@noir-lang/noir_js": "workspace:*"
     "@types/node": "npm:^22.19.19"
     mocha: "npm:^11.7.5"
-    noir-wasm-published: "npm:@noir-lang/noir_wasm@1.0.0-beta.21"
     vite: "npm:^8.0.10"
     vite-plugin-node-polyfills: "npm:0.28.0"
   bin:
