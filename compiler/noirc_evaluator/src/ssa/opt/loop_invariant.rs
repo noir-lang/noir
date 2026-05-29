@@ -2247,11 +2247,15 @@ mod tests {
     }
 
     /// Test that calls to functions is hoisted into the pre-header based on their purity.
-    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
-    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
+    ///
+    /// The `dummy` callee is brillig, which can only compute as `PureWithPredicate` (see
+    /// `Function::is_pure`). Annotating it `pure` or `impure` is therefore not valid SSA, so
+    /// those cases panic during strict parsing rather than reaching the hoisting assertion.
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "empty loop, pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
-    #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::Impure)), false => panics "declared as `impure`"; "impure function")]
     #[test_case(1, TestCall::Function(None), false; "purity unknown")]
     #[test_case(1, TestCall::ForeignFunction, false; "non-pure foreign functions stay impure")]
     #[test_case(1, TestCall::PureForeignFunction, true; "non-empty loop, pure foreign function hoists")]
@@ -2295,7 +2299,7 @@ mod tests {
         "#,
         );
 
-        let ssa = Ssa::from_str_no_validation(&src).unwrap();
+        let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
         // The pre-header of the loop b1 is b0
