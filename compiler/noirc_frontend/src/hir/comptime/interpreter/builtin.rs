@@ -53,7 +53,6 @@ use crate::{
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    modules::module_def_id_is_visible,
     node_interner::{NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::Signedness,
@@ -2598,16 +2597,12 @@ fn function_def_as_typed_expr(
                 (data_type.id, data_type.visibility)
             };
             let caller_module = interpreter.elaborator.module_id();
-            let dependencies =
-                &interpreter.elaborator.crate_graph[caller_module.krate].dependencies;
-            if !module_def_id_is_visible(
-                ModuleDefId::TypeId(type_id),
-                caller_module,
-                visibility,
-                None,
-                interpreter.elaborator.interner,
+            let type_module = type_id.parent_module_id(interpreter.elaborator.def_maps);
+            if !item_in_module_is_visible(
                 interpreter.elaborator.def_maps,
-                dependencies,
+                caller_module,
+                type_module,
+                visibility,
             ) {
                 let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
                 let defining_module = interpreter.elaborator.interner.function_module(func_id);
