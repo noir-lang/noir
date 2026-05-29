@@ -7,7 +7,7 @@ use std::{
 use acvm::acir::circuit::ErrorSelector;
 use itertools::Itertools;
 use noirc_errors::{
-    Location,
+    Location, Span,
     call_stack::{CallStack, CallStackId},
 };
 
@@ -68,6 +68,10 @@ struct Translator {
 
     error_selector_counter: u64,
     purities: Arc<FunctionPurities>,
+
+    /// Spans of the stated purity annotations, keyed by function, so purity
+    /// validation errors can point at the offending annotation in the source.
+    purity_spans: HashMap<FunctionId, Span>,
 }
 
 impl Translator {
@@ -85,10 +89,11 @@ impl Translator {
         }
 
         let stated_purities = translator.purities.clone();
+        let stated_purity_spans = std::mem::take(&mut translator.purity_spans);
         let ssa = translator.finish();
 
         if validate {
-            validate_stated_purities(&ssa, &stated_purities)?;
+            validate_stated_purities(&ssa, &stated_purities, &stated_purity_spans)?;
             validate_ssa(&ssa);
         }
 
@@ -97,6 +102,7 @@ impl Translator {
 
     fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
+        let mut purity_spans = HashMap::new();
 
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
@@ -108,6 +114,9 @@ impl Translator {
 
         if let Some(purity) = main_function.purity {
             purities.insert(main_id, purity);
+            if let Some(span) = main_function.purity_span {
+                purity_spans.insert(main_id, span);
+            }
         }
 
         // Map function names to their IDs so calls can be resolved
@@ -124,6 +133,9 @@ impl Translator {
 
             if let Some(purity) = function.purity {
                 purities.insert(function_id, purity);
+                if let Some(span) = function.purity_span {
+                    purity_spans.insert(function_id, span);
+                }
             }
         }
 
@@ -144,6 +156,7 @@ impl Translator {
             globals_graph: Arc::new(GlobalsGraph::default()),
             error_selector_counter: 0,
             purities,
+            purity_spans,
         };
 
         translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
@@ -691,7 +704,11 @@ impl Translator {
 /// any subsequent pass that trusts the stated purity will work off a false premise.
 /// Functions whose purity was not explicitly stated in the source are skipped — the
 /// parser must remain a no-op for those.
-fn validate_stated_purities(ssa: &Ssa, stated_purities: &FunctionPurities) -> Result<(), SsaError> {
+fn validate_stated_purities(
+    ssa: &Ssa,
+    stated_purities: &FunctionPurities,
+    stated_purity_spans: &HashMap<FunctionId, Span>,
+) -> Result<(), SsaError> {
     if stated_purities.is_empty() {
         return Ok(());
     }
@@ -702,7 +719,13 @@ fn validate_stated_purities(ssa: &Ssa, stated_purities: &FunctionPurities) -> Re
         let computed = computed_purities[function_id];
         if *stated != computed {
             let function_name = ssa.functions[function_id].name().to_string();
-            return Err(SsaError::PurityMismatch { function_name, stated: *stated, computed });
+            let span = stated_purity_spans.get(function_id).copied().unwrap_or_default();
+            return Err(SsaError::PurityMismatch {
+                function_name,
+                stated: *stated,
+                computed,
+                span,
+            });
         }
     }
 

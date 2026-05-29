@@ -1,9 +1,11 @@
 #![cfg(test)]
 
 use crate::{
-    ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    ssa::{Ssa, opt::assert_normalized_ssa_equals, opt::pure::Purity},
     trim_leading_whitespace_from_lines,
 };
+
+use super::SsaError;
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
@@ -762,10 +764,12 @@ fn parser_rejects_pure_annotation_over_impure_body() {
     let Err(err) = Ssa::from_str(src) else {
         panic!("parser must reject mismatched purity");
     };
-    let message = format!("{err:?}");
     assert!(
-        message.contains("declared as `pure`") && message.contains("compute `impure`"),
-        "unexpected error message: {message}",
+        matches!(
+            &err.error,
+            SsaError::PurityMismatch { stated: Purity::Pure, computed: Purity::Impure, .. }
+        ),
+        "unexpected error: {err:?}",
     );
 }
 
@@ -782,10 +786,12 @@ fn parser_rejects_impure_annotation_over_pure_body() {
     let Err(err) = Ssa::from_str(src) else {
         panic!("parser must reject mismatched purity");
     };
-    let message = format!("{err:?}");
     assert!(
-        message.contains("declared as `impure`") && message.contains("compute `pure`"),
-        "unexpected error message: {message}",
+        matches!(
+            &err.error,
+            SsaError::PurityMismatch { stated: Purity::Impure, computed: Purity::Pure, .. }
+        ),
+        "unexpected error: {err:?}",
     );
 }
 

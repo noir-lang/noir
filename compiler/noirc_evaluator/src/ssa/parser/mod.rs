@@ -141,7 +141,7 @@ pub(crate) enum SsaError {
     #[error(
         "Function '{function_name}' is declared as `{stated}` but its instructions compute `{computed}`"
     )]
-    PurityMismatch { function_name: String, stated: Purity, computed: Purity },
+    PurityMismatch { function_name: String, stated: Purity, computed: Purity, span: Span },
 }
 
 impl SsaError {
@@ -157,7 +157,7 @@ impl SsaError {
             | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
-            SsaError::PurityMismatch { .. } => Span::default(),
+            SsaError::PurityMismatch { span, .. } => *span,
         }
     }
 }
@@ -215,7 +215,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
-        let purity = self.parse_purity()?;
+        let (purity, purity_span) = self.parse_purity()?;
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
@@ -229,7 +229,15 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, data_bus, blocks })
+        Ok(ParsedFunction {
+            runtime_type,
+            purity,
+            purity_span,
+            external_name,
+            internal_name,
+            data_bus,
+            blocks,
+        })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -255,15 +263,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+    fn parse_purity(&mut self) -> ParseResult<(Option<Purity>, Option<Span>)> {
+        let span = self.token.span();
         if self.eat_keyword(Keyword::Pure)? {
-            Ok(Some(Purity::Pure))
+            Ok((Some(Purity::Pure), Some(span)))
         } else if self.eat_keyword(Keyword::PredicatePure)? {
-            Ok(Some(Purity::PureWithPredicate))
+            Ok((Some(Purity::PureWithPredicate), Some(span)))
         } else if self.eat_keyword(Keyword::Impure)? {
-            Ok(Some(Purity::Impure))
+            Ok((Some(Purity::Impure), Some(span)))
         } else {
-            Ok(None)
+            Ok((None, None))
         }
     }
 
