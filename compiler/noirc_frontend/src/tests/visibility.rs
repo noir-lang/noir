@@ -196,6 +196,47 @@ fn errors_if_pub_trait_returns_private_struct() {
 }
 
 #[test]
+fn errors_if_trait_impl_associated_type_leaks_private_type() {
+    let src = r#"
+    struct Priv {}
+
+    pub trait T {
+        type Item;
+    }
+
+    impl T for u32 {
+        type Item = Priv;
+             ^^^^ Type `Priv` is more private than item `T::Item`
+    }
+
+    pub fn no_unused_warnings() {
+        let _ = Priv {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_if_private_trait_impl_associated_type_uses_private_type() {
+    let src = r#"
+    struct Priv {}
+
+    trait T {
+        type Item;
+    }
+
+    impl T for u32 {
+        type Item = Priv;
+    }
+
+    fn main() {
+        let _ = Priv {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn does_not_error_if_trait_with_default_visibility_returns_struct_with_default_visibility() {
     let src = r#"
     struct Foo {}

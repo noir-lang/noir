@@ -1,0 +1,7 @@
+error: multiple `#[tagged(on_unknown)]` variants on the same enum — only one fallback for unknown tags is allowed (previous: "UnknownA")
+  --> tests/compile_fail/duplicate_on_unknown.rs:13:5
+   |
+13 | /     #[tag(9)]
+14 | |     #[tagged(on_unknown)]
+15 | |     UnknownB,
+   | |____________^

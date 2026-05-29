@@ -1,0 +1,7 @@
+error: `#[tagged(on_reserved)]` and `#[tagged(on_unknown)]` mark fallback routing targets — the wrapper discards the wire payload when it routes here, so they're only valid on unit variants
+  --> tests/compile_fail/on_reserved_on_non_unit_variant.rs:12:5
+   |
+12 | /     #[tag(9)]
+13 | |     #[tagged(on_reserved)]
+14 | |     NotUnit(u32),
+   | |________________^

@@ -1361,13 +1361,73 @@ impl Elaborator<'_> {
         let path_resolution = self.use_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
-        let the_trait = self.interner.get_trait(meta.trait_id?);
+        let trait_id = meta.trait_id?;
+        let the_trait = self.interner.get_trait(trait_id);
         let method = the_trait.find_method(path.last_name(), self.interner)?;
-        let constraint = the_trait.as_constraint(path.location);
+        let mut constraint = the_trait.as_constraint(path.location);
+        // If the path went through a concrete type (e.g. `i32::method`, `Struct::trait_method`),
+        // override the constraint's `Self` type variable with that type so the impl gets
+        // selected at the call site rather than leaving `Self` unbound (which would force the
+        // user to add a type annotation). For the literal `Trait::method` form there is no
+        // concrete type available, so `Self` stays as the trait's type variable.
+        if let Some(concrete_self) = self.concrete_self_type_for_path_item(&path_resolution.item) {
+            constraint.typ = concrete_self;
+        }
         let trait_method = TraitItem { definition: method, constraint, assumed: false };
         let method = TraitPathResolutionMethod::TraitItem(trait_method);
         let item = Some(path_resolution.item);
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
+    }
+
+    /// For path resolutions that went through a typed item (e.g. `MyStruct::method`,
+    /// `i32::method`), return that concrete type. This is used so that a `Trait::method`
+    /// constraint built from one of these paths can be anchored on the concrete type rather
+    /// than the trait's unbound `Self` type variable.
+    fn concrete_self_type_for_path_item(&mut self, item: &PathResolutionItem) -> Option<Type> {
+        let mut errors = Vec::new();
+        let result = match item {
+            PathResolutionItem::PrimitiveFunction(primitive_type, _, _) => {
+                Some(primitive_type.to_type())
+            }
+            PathResolutionItem::TypeTraitFunction(self_type, _, _) => Some(self_type.clone()),
+            PathResolutionItem::Method(type_id, turbofish, _) => {
+                let generics = self.resolve_struct_id_turbofish_generics(
+                    *type_id,
+                    turbofish.clone(),
+                    &mut errors,
+                );
+                let datatype = self.get_type(*type_id);
+                Some(Type::DataType(datatype, generics))
+            }
+            PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, _) => {
+                let generics = self.resolve_type_alias_id_turbofish_generics(
+                    *type_alias_id,
+                    turbofish.clone(),
+                    &mut errors,
+                );
+                let type_alias = self.interner.get_type_alias(*type_alias_id);
+                let type_alias = type_alias.borrow();
+                Some(type_alias.get_type(&generics))
+            }
+            // `Self::method` inside an impl. Use the impl's self type so the trait constraint
+            // is anchored on it.
+            PathResolutionItem::SelfMethod(_) => self.self_type.clone(),
+            // `TraitFunction` is the bare `Trait::method` form — Self isn't pinned by the path.
+            // `ModuleFunction` and non-function variants don't carry a concrete self type that
+            // should override the trait constraint.
+            PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::ModuleFunction(_)
+            | PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::PrimitiveType(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::TraitConstant(..) => None,
+        };
+        self.push_errors(errors);
+        result
     }
 
     /// This resolves a static trait method T::trait_method by iterating over the where clause
@@ -1500,7 +1560,7 @@ impl Elaborator<'_> {
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         self.resolve_method_candidate_metas(typ, method_name);
         self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
     }
@@ -1512,7 +1572,7 @@ impl Elaborator<'_> {
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         for func_id in self.interner.generic_method_candidate_ids(method_name) {
             self.define_function_meta_if_undefined(func_id);
         }
@@ -2738,7 +2798,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn return_trait_method_in_scope(
         &mut self,
-        trait_methods: &[(FuncId, TraitId)],
+        trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> Option<HirMethodReference> {
@@ -2752,7 +2812,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn get_trait_method_in_scope(
         &mut self,
-        trait_methods: &[(FuncId, TraitId)],
+        trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> (Option<HirMethodReference>, Option<PathResolutionError>) {
@@ -2762,7 +2822,7 @@ impl Elaborator<'_> {
         // Only keep unique trait IDs: multiple trait methods might come from the same trait
         // but implemented with different generics (like `Convert<Field>` and `Convert<i32>`).
         let traits: HashSet<TraitId> =
-            trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
+            trait_methods.iter().map(|(_, trait_id, _)| *trait_id).collect();
 
         let traits_in_scope: Vec<_> = traits
             .iter()
@@ -2825,14 +2885,24 @@ impl Elaborator<'_> {
     fn trait_hir_method_reference(
         &self,
         trait_id: TraitId,
-        trait_methods: &[(FuncId, TraitId)],
+        trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> HirMethodReference {
-        // If we find a single trait impl method, return it so we don't have to later determine the impl
-        if trait_methods.len() == 1 {
-            let (func_id, _) = trait_methods[0];
-            return HirMethodReference::FuncId(func_id);
+        // If we find a single trait impl method, return it so we don't have to later determine the impl.
+        // Exception: if the single match points at the trait's own method declaration (which happens
+        // when an impl inherits the default body — the impl's slot shares the trait's `FuncId`),
+        // the function meta carries the trait's `Self` type variable, not the impl's concrete type.
+        // Fall through to the `TraitItemId` path so the caller can bind `Self` to the resolved
+        // self type via the trait constraint.
+        if trait_methods.len() == 1
+            && self
+                .interner
+                .try_function_meta(&trait_methods[0].0)
+                .is_none_or(|meta| meta.trait_id.is_none())
+        {
+            let (func_id, _, _) = &trait_methods[0];
+            return HirMethodReference::FuncId(*func_id);
         }
 
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
@@ -3311,6 +3381,22 @@ impl Elaborator<'_> {
             let self_type = the_trait.self_type_typevar.clone();
             let kind = the_trait.self_type_typevar.kind();
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+
+            // When the constraint is `assumed` (e.g. for a call on `self` inside a trait
+            // default method), the trait's generics in the bound point back at the trait's
+            // own type variables, so `bind_generic`'s occurs check skips them as `t = t`.
+            // Without these bindings, instantiating the called method replaces its forall'd
+            // `T` with a fresh type variable, leaving the result rendered as `_` and
+            // unsoundly unifying with any type. Pin each trait generic to its own
+            // `NamedGeneric` here so the method's `T` resolves to the trait's `T`.
+            for (param, arg) in
+                the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
+            {
+                bindings.insert(
+                    param.type_var.id(),
+                    (param.type_var.clone(), param.kind(), arg.clone()),
+                );
+            }
         }
     }
 
