@@ -527,6 +527,16 @@ mod tests {
         let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
     }
 
+    #[test(should_fail_with = "Field failed to decompose into specified 0 limbs")]
+    unconstrained fn non_zero_field_to_le_bytes_zero_limbs() {
+        let _: [u8; 0] = 5.to_le_bytes();
+    }
+
+    #[test(should_fail_with = "Field failed to decompose into specified 0 limbs")]
+    unconstrained fn non_zero_field_to_be_bytes_zero_limbs() {
+        let _: [u8; 0] = 5.to_be_bytes();
+    }
+
     #[test]
     unconstrained fn test_field_less_than() {
         assert(field_less_than(0, 1));

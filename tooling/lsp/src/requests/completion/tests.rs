@@ -2606,6 +2606,29 @@ fn main() {
     }
 
     #[test]
+    async fn suggests_trait_impl_function_when_impl_does_not_have_closing_curly() {
+        let src = r#"
+        trait Trait {
+            fn foo(x: i32) -> i32;
+        }
+
+        struct Foo {}
+
+        impl Trait for Foo {
+            fn f>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![trait_impl_method_completion_item(
+                "fn foo(..)",
+                "foo(x: i32) -> i32 {\n    ${1}\n}",
+            )],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_suggests_when_assignment_follows_in_chain_1() {
         let src = r#"
         struct Foo {

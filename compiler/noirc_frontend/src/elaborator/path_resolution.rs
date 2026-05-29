@@ -11,7 +11,9 @@ use crate::hir::resolution::import::{
 };
 
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::visibility::item_in_module_is_visible;
+use crate::hir::resolution::visibility::{
+    item_in_module_is_visible, trait_visibility_for_method_is_satisfied,
+};
 
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
@@ -825,7 +827,7 @@ impl Elaborator<'_> {
                 source_module,
                 visibility,
             ) {
-                errors.push(PathResolutionError::Private(name));
+                errors.push(PathResolutionError::Private(name.clone()));
             }
         } else if !item_in_module_is_visible(
             self.def_maps,
@@ -833,6 +835,20 @@ impl Elaborator<'_> {
             current_module_id,
             visibility,
         ) {
+            errors.push(PathResolutionError::Private(name.clone()));
+        }
+
+        // A trait method imported via `Type::method` must also be reachable through its trait's
+        // visibility (e.g. a `pub(crate) trait` is not accessible from another crate, even if the
+        // method's own visibility check above passes).
+        if let ModuleDefId::FunctionId(func_id) = module_def_id
+            && !trait_visibility_for_method_is_satisfied(
+                func_id,
+                importing_module,
+                self.interner,
+                self.def_maps,
+            )
+        {
             errors.push(PathResolutionError::Private(name));
         }
 
@@ -1049,7 +1065,7 @@ impl Elaborator<'_> {
         let starting_module = self.get_module(importing_module_id);
 
         let mut results = Vec::new();
-        for (func_id, trait_id) in &trait_methods {
+        for (func_id, trait_id, _) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
             }
@@ -1057,7 +1073,7 @@ impl Elaborator<'_> {
 
         if results.is_empty() {
             if trait_methods.len() == 1 {
-                let (func_id, trait_id) = trait_methods.first().expect("Expected an item");
+                let (func_id, trait_id, _) = trait_methods.first().expect("Expected an item");
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = self.fully_qualified_trait_path(trait_);
                 let ident = method_name_ident.clone();
@@ -1066,7 +1082,7 @@ impl Elaborator<'_> {
             } else if trait_methods.is_empty() {
                 return Err(PathResolutionError::Unresolved(method_name_ident.clone()));
             } else {
-                let traits = vecmap(trait_methods, |(_, trait_id)| {
+                let traits = vecmap(trait_methods, |(_, trait_id, _)| {
                     self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
                 });
                 let ident = method_name_ident.clone();

@@ -81,6 +81,92 @@ fn accesses_associated_constant_inside_trait_impl_using_self() {
     assert_no_errors(src);
 }
 
+/// Regression test for #9020: a default method body whose return value comes from an
+/// associated constant (`Self::N`) must monomorphize correctly when the impl inherits
+/// the default. Without binding the trait's `Self` to the impl's concrete type at
+/// monomorphization time, `Self::N` can't pick the right impl and fails with
+/// "Type annotations needed".
+#[test]
+fn shared_default_method_resolves_self_associated_constant() {
+    use crate::test_utils::get_monomorphized;
+    let src = r#"
+    trait Foo {
+        let N: i32;
+
+        fn n() -> i32 {
+            Self::N
+        }
+    }
+
+    impl Foo for i32 {
+        let N: i32 = 7i32;
+    }
+
+    fn main() {
+        let _ = i32::n();
+    }
+    "#;
+    let result = get_monomorphized(src);
+    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+}
+
+/// Regression test for #9020: when one impl inherits a trait's default method and
+/// another impl overrides the same method, the two paths must not interfere with each
+/// other through the trait's shared `Self` type variable.
+#[test]
+fn shared_and_overridden_default_method_coexist() {
+    use crate::test_utils::get_monomorphized;
+    let src = r#"
+    pub trait H {
+        fn finish(self) -> Field;
+
+        fn finish_ref(&self) -> Field {
+            (*self).finish()
+        }
+    }
+
+    pub trait BH {
+        type Hasher: H;
+        fn build(self) -> Self::Hasher;
+    }
+
+    pub struct A {}
+    pub struct B {}
+    pub struct BA {}
+    pub struct BB {}
+
+    impl H for A {
+        // Override `finish_ref`.
+        fn finish(self) -> Field { let _ = self; self.finish_ref() }
+        fn finish_ref(&self) -> Field { let _ = self; 1 }
+    }
+    impl H for B {
+        // Inherit `finish_ref` default.
+        fn finish(self) -> Field { let _ = self; 2 }
+    }
+    impl BH for BA {
+        type Hasher = A;
+        fn build(self) -> A { let _ = self; A {} }
+    }
+    impl BH for BB {
+        type Hasher = B;
+        fn build(self) -> B { let _ = self; B {} }
+    }
+
+    pub fn use_hasher<X, T>(bh: T) -> Field where T: BH<Hasher = X>, X: H {
+        let h = bh.build();
+        h.finish_ref()
+    }
+
+    fn main() {
+        let _ = use_hasher(BA {});
+        let _ = use_hasher(BB {});
+    }
+    "#;
+    let result = get_monomorphized(src);
+    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+}
+
 #[test]
 fn accesses_associated_constant_inside_trait_using_self() {
     let src = r#"

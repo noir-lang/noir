@@ -1,0 +1,5 @@
+error: duplicate `via(...)` modifier in `#[tagged(...)]`
+  --> tests/compile_fail/duplicate_via.rs:19:22
+   |
+19 | #[tagged(via(WireA), via(WireB))] // duplicate `via(...)`
+   |                      ^^^^^^^^^^

@@ -312,9 +312,13 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::CallData) {
             if self.eat_left_paren() {
                 if let Some((int, None)) = self.eat_int() {
+                    let int_location = self.previous_token_location;
                     self.eat_or_error(Token::RightParen);
                     let location = self.location_since(start_location);
-                    let id = int.to_u128() as u32;
+                    let id = int.try_to_u32().unwrap_or_else(|| {
+                        self.push_error(ParserErrorReason::CallDataIdMustFitInU32, int_location);
+                        0
+                    });
                     return (Visibility::CallData(id), location);
                 } else {
                     self.expected_label(ParsingRuleLabel::Integer);
@@ -460,6 +464,15 @@ mod tests {
 
         let param = noir_function.def.parameters.remove(0);
         assert!(matches!(param.visibility, Visibility::CallData(42)));
+    }
+
+    #[test]
+    fn parse_function_with_argument_call_data_visibility_id_above_u32_max() {
+        let src = "
+        fn foo(x: call_data(4294967296) Field) {}
+                            ^^^^^^^^^^ `call_data` id must fit in a `u32`
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]

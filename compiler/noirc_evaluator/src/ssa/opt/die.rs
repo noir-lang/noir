@@ -1111,6 +1111,72 @@ mod tests {
     }
 
     #[test]
+    fn does_not_collapse_independent_dynamic_composite_gets() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = array_get v2, index v1 -> Field
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = cast v0 as u64
+            v4 = lt v2, u64 4
+            constrain v4 == u1 1, "Index out of bounds"
+            v6 = cast v1 as u64
+            v7 = lt v6, u64 4
+            constrain v7 == u1 1, "Index out of bounds"
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn collapses_composite_group_when_first_read_is_used() {
+        // When the offset-0 read of a composite `array_get` survives (is used) but the
+        // trailing offset reads are unused, the trailing reads still belong to the same
+        // composite access (they share a common base index) and must collapse into a single
+        // out-of-bounds check rather than one check per read.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = add v0, u32 1
+            v5 = array_get v2, index v4 -> Field
+            v6 = add v0, u32 2
+            v7 = array_get v2, index v6 -> Field
+            constrain v3 == Field 1
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v8 = array_get v7, index v0 -> Field
+            v10 = add v0, u32 1
+            v11 = cast v10 as u64
+            v13 = lt v11, u64 6
+            constrain v13 == u1 1, "Index out of bounds"
+            v16 = add v0, u32 2
+            constrain v8 == Field 1
+            return
+        }
+        "#);
+    }
+
+    #[test]
     fn keeps_unused_databus_return_value() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
