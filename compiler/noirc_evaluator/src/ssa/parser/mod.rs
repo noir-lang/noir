@@ -215,7 +215,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
-        let (purity, purity_span) = self.parse_purity()?;
+        let purity = self.parse_purity()?;
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
@@ -231,8 +231,8 @@ impl<'a> Parser<'a> {
 
         Ok(ParsedFunction {
             runtime_type,
-            purity,
-            purity_span,
+            purity: purity.map(|(purity, _)| purity),
+            purity_span: purity.map(|(_, span)| span),
             external_name,
             internal_name,
             data_bus,
@@ -263,16 +263,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_purity(&mut self) -> ParseResult<(Option<Purity>, Option<Span>)> {
+    fn parse_purity(&mut self) -> ParseResult<Option<(Purity, Span)>> {
         let span = self.token.span();
         if self.eat_keyword(Keyword::Pure)? {
-            Ok((Some(Purity::Pure), Some(span)))
+            Ok(Some((Purity::Pure, span)))
         } else if self.eat_keyword(Keyword::PredicatePure)? {
-            Ok((Some(Purity::PureWithPredicate), Some(span)))
+            Ok(Some((Purity::PureWithPredicate, span)))
         } else if self.eat_keyword(Keyword::Impure)? {
-            Ok((Some(Purity::Impure), Some(span)))
+            Ok(Some((Purity::Impure, span)))
         } else {
-            Ok((None, None))
+            Ok(None)
         }
     }
 

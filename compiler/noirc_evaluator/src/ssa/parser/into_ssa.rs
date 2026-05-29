@@ -68,10 +68,6 @@ struct Translator {
 
     error_selector_counter: u64,
     purities: Arc<FunctionPurities>,
-
-    /// Spans of the stated purity annotations, keyed by function, so purity
-    /// validation errors can point at the offending annotation in the source.
-    purity_spans: HashMap<FunctionId, Span>,
 }
 
 impl Translator {
@@ -80,6 +76,18 @@ impl Translator {
         simplify: bool,
         validate: bool,
     ) -> Result<Ssa, SsaError> {
+        // Function IDs are assigned by position (`main` is 0, the rest follow in source
+        // order), so the stated purity spans are collected here, before `Self::new`
+        // consumes the parsed functions, and keyed to match those IDs.
+        let stated_purity_spans: HashMap<FunctionId, Span> = parsed_ssa
+            .functions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, function)| {
+                Some((FunctionId::new(index as u32), function.purity_span?))
+            })
+            .collect();
+
         let mut translator = Self::new(&mut parsed_ssa, simplify)?;
 
         // Note that the `new` call above removed the main function,
@@ -89,7 +97,6 @@ impl Translator {
         }
 
         let stated_purities = translator.purities.clone();
-        let stated_purity_spans = std::mem::take(&mut translator.purity_spans);
         let ssa = translator.finish();
 
         if validate {
@@ -102,7 +109,6 @@ impl Translator {
 
     fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
-        let mut purity_spans = HashMap::new();
 
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
@@ -114,9 +120,6 @@ impl Translator {
 
         if let Some(purity) = main_function.purity {
             purities.insert(main_id, purity);
-            if let Some(span) = main_function.purity_span {
-                purity_spans.insert(main_id, span);
-            }
         }
 
         // Map function names to their IDs so calls can be resolved
@@ -133,9 +136,6 @@ impl Translator {
 
             if let Some(purity) = function.purity {
                 purities.insert(function_id, purity);
-                if let Some(span) = function.purity_span {
-                    purity_spans.insert(function_id, span);
-                }
             }
         }
 
@@ -156,7 +156,6 @@ impl Translator {
             globals_graph: Arc::new(GlobalsGraph::default()),
             error_selector_counter: 0,
             purities,
-            purity_spans,
         };
 
         translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
