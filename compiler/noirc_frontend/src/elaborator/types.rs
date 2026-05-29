@@ -1273,13 +1273,8 @@ impl Elaborator<'_> {
         let location = path.trait_path.location;
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
 
-        let trait_generic_ids: Vec<_> = self
-            .interner
-            .get_trait(current_trait)
-            .generics
-            .iter()
-            .map(|g| g.type_var.id())
-            .collect();
+        let trait_generic_ids: Vec<_> =
+            vecmap(&self.interner.get_trait(current_trait).generics, |g| g.type_var.id());
 
         if ordered.len() != trait_generic_ids.len() {
             return None;
