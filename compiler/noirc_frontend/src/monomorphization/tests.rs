@@ -1108,6 +1108,49 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
+fn direct_unconstrained_closure_call_rejects_captured_mutable_ref() {
+    // A local closure that captures a `&mut` from constrained code, coerced to
+    // `unconstrained fn[Env](..)` and called directly under `unsafe`, must be rejected.
+    // The captured reference lives in the closure's environment, which monomorphization
+    // inserts as a synthetic first argument after the boundary check, so the environment
+    // type must be validated explicitly.
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        let xr = &mut x;
+        let f: unconstrained fn[(&mut u32,)](u32) -> () = |y| {
+            *xr = y;
+        };
+        // safety: test
+        unsafe { f(7); }
+                 ^ Cannot pass mutable reference `(&mut u32,)` from a constrained runtime to an unconstrained runtime
+        assert(x == 0);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn direct_unconstrained_closure_call_rejects_captured_immutable_ref() {
+    // Even a captured immutable reference is rejected: the closure environment is a
+    // container (a tuple), and only a direct immutable reference `&T` is supported across
+    // the boundary, not one embedded in a container.
+    let src = r#"
+    fn main() {
+        let x: u32 = 5;
+        let xr = &x;
+        let f: unconstrained fn[(&u32,)](u32) -> u32 = |y| {
+            *xr + y
+        };
+        // safety: test
+        let _z = unsafe { f(7) };
+                          ^ Cannot pass `(&u32,)` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
 fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {

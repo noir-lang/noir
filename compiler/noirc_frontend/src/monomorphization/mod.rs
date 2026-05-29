@@ -2382,28 +2382,49 @@ impl<'interner> Monomorphizer<'interner> {
         for argument in &call.arguments {
             let typ = self.interner.id_type(argument);
             let location = self.interner.id_location(argument);
+            self.check_type_crossing_runtime_boundaries(&typ, location)?;
+        }
 
-            if typ.contains_mutable_reference() {
-                let typ = typ.to_string();
-                return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
-                    typ,
-                    location,
-                });
-            }
+        // For closure calls, monomorphization inserts the captured environment as a
+        // synthetic first argument *after* this check runs (see `function_call`), so it
+        // never appears in `call.arguments`. Validate the environment here as well;
+        // otherwise a mutable reference captured from constrained code could cross into
+        // an unconstrained closure call undetected, and its mutation would be silently
+        // lost at the ACIR/Brillig boundary.
+        let func_type = self.interner.id_type(call.func).follow_bindings();
+        if let Type::Function(_, _, env, _) = &func_type {
+            let location = self.interner.id_location(call.func);
+            self.check_type_crossing_runtime_boundaries(env, location)?;
+        }
 
-            // Only a direct immutable reference `&T` where T is reference-free is supported.
-            // Reject nested refs (&&T) and containers that embed refs ([&T; N], structs, etc.).
-            let has_unsupported_ref = match typ.follow_bindings_shallow().as_ref() {
-                Type::Reference(inner, false) => inner.contains_reference(),
-                _ => typ.contains_reference(),
-            };
-            if has_unsupported_ref {
-                let typ = typ.to_string();
-                return Err(MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
-                    typ,
-                    location,
-                });
-            }
+        Ok(())
+    }
+
+    fn check_type_crossing_runtime_boundaries(
+        &self,
+        typ: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if typ.contains_mutable_reference() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                typ,
+                location,
+            });
+        }
+
+        // Only a direct immutable reference `&T` where T is reference-free is supported.
+        // Reject nested refs (&&T) and containers that embed refs ([&T; N], structs, etc.).
+        let has_unsupported_ref = match typ.follow_bindings_shallow().as_ref() {
+            Type::Reference(inner, false) => inner.contains_reference(),
+            _ => typ.contains_reference(),
+        };
+        if has_unsupported_ref {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
+                typ,
+                location,
+            });
         }
 
         Ok(())
