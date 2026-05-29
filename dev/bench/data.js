@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780073834346,
+  "lastUpdate": 1780073843894,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23105,48 +23105,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "697f51780cc604ee89996e21af5d107711caed81",
-          "message": "fix(lsp): correct trait impl generics on hover (#12755)",
-          "timestamp": "2026-05-21T19:54:41Z",
-          "tree_id": "c4597858152ee44c283ce2112455d757b07fb4a0",
-          "url": "https://github.com/noir-lang/noir/commit/697f51780cc604ee89996e21af5d107711caed81"
-        },
-        "date": 1779394795459,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127999,
-            "range": "± 816",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113562,
-            "range": "± 4826",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3046235,
-            "range": "± 27626",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "e65591d0474f9f12335eff00efa292c1cc9b21e0",
           "message": "chore: add new failing test to keccak256 (#12759)",
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042049,
             "range": "± 14788",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4d8ac145884458090d0f3be67ac8e382f5493038",
+          "message": "fix: unify inner types for mutable reference mismatches (#12002)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-29T16:29:45Z",
+          "tree_id": "90dec75eb7815001901cdf24866531db11909600",
+          "url": "https://github.com/noir-lang/noir/commit/4d8ac145884458090d0f3be67ac8e382f5493038"
+        },
+        "date": 1780073775693,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126446,
+            "range": "± 641",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112349,
+            "range": "± 2431",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041842,
+            "range": "± 14743",
             "unit": "ns/iter"
           }
         ]
