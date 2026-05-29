@@ -72,3 +72,8 @@ mutants.out.old
 
 # Claude Code worktrees
 .claude/worktrees/
+/.nargo-logs
+/.nargo-logs2
+/.vscode
+options.txt
+.vscode/settings.json
