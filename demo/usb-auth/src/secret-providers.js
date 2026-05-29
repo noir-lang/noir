@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { decryptSecretFile, parseEncryptedSecretFile } from './secret-file.js';
 
 export class BrowserFileSecretProvider {

@@ -1,21 +1,25 @@
 export async function compileCircuitFromSource({ nargoToml, mainNr }) {
   const { compile, createFileManager } = await loadNoirWasmCompiler();
-  const [{ mkdtemp, mkdir, writeFile, rm }, { tmpdir }, { join }] = await Promise.all([
+  const [{ mkdtemp, mkdir, rm }, { tmpdir }, { join }] = await Promise.all([
     import('node:fs/promises'),
     import('node:os'),
     import('node:path'),
   ]);
   const projectPath = await mkdtemp(join(tmpdir(), 'usb-auth-noir-'));
   await mkdir(join(projectPath, 'src'), { recursive: true });
-  await writeFile(join(projectPath, 'Nargo.toml'), nargoToml, 'utf8');
-  await writeFile(join(projectPath, 'src/main.nr'), mainNr, 'utf8');
   const fileManager = createFileManager(projectPath);
+  await fileManager.writeFile('Nargo.toml', stringToStream(nargoToml));
+  await fileManager.writeFile(join('src', 'main.nr'), stringToStream(mainNr));
   const result = await compile(fileManager);
   await rm(projectPath, { recursive: true, force: true });
   if (!('program' in result)) {
     throw new Error('Noir circuit compilation failed.');
   }
   return result.program;
+}
+
+function stringToStream(value) {
+  return new Response(value).body;
 }
 
 
