@@ -82,6 +82,7 @@ use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
+pub(crate) use cast::evaluate_cast_one_step;
 mod foreign;
 mod infix;
 mod tracker;
@@ -1288,7 +1289,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        cast::evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression) -> IResult<Value> {
