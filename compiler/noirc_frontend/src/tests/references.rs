@@ -263,6 +263,24 @@ fn disallows_mutating_non_mutable_ref_array_index() {
 }
 
 #[test]
+fn disallows_writing_through_immutable_reborrow_of_mutable_reference() {
+    // `&*p` is an immutable `&T` view even when `p` is `&mut T`. The re-borrow
+    // simplification must not collapse `&*p` to `p` and keep its `&mut` type, which
+    // would let writes through an explicitly immutable reborrow slip through.
+    let src = r#"
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut f;
+        let q = &*p;
+        *q = 5;
+        ^^ Expected type &mut _, found type &u64
+         ^ `q` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
     let src = r#"
     fn main() {
