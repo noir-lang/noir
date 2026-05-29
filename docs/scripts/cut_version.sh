@@ -5,6 +5,10 @@ cd $(dirname "$0")/..
 
 VERSION=$1
 
+# Pin the tutorial's hardcoded published-package versions to this release before
+# the snapshot is frozen, so the versioned docs are born in sync.
+node scripts/sync_tutorial_versions.js --write --expect "$VERSION"
+
 # We assume that the new release tag has been made on github, so setStable.ts will add this to `versions.json`.
 # We don't have a version of the docs for this release however (that's what we're doing right now!) so we need to remove it.
 jq 'map(select(. != "'"$VERSION"'"))' versions.json > tmp.json && mv tmp.json versions.json

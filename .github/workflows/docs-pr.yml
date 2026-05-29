@@ -67,6 +67,22 @@ jobs:
             exit 1
           fi
 
+  check_tutorial_versions:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0 # need tags so the guard can resolve versions from the last release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22.15.0'
+
+      - name: Check the noirjs_app tutorial pins the released package versions
+        run: node docs/scripts/sync_tutorial_versions.js --check
+
   build_preview:
     runs-on: ubuntu-22.04
     permissions:
