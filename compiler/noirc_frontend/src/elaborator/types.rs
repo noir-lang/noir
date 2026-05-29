@@ -1273,7 +1273,17 @@ impl Elaborator<'_> {
         let location = path.trait_path.location;
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
 
-        if !ordered.iter().all(|typ| matches!(typ, Type::NamedGeneric(_)))
+        let trait_generic_ids: Vec<_> =
+            vecmap(&self.interner.get_trait(current_trait).generics, |g| g.type_var.id());
+
+        if ordered.len() != trait_generic_ids.len() {
+            return None;
+        }
+        let ordered_match_trait_generics =
+            ordered.iter().zip_eq(&trait_generic_ids).all(|(typ, trait_gen_id)| {
+                matches!(typ, Type::NamedGeneric(ng) if ng.type_var.id() == *trait_gen_id)
+            });
+        if !ordered_match_trait_generics
             || !named.iter().all(|typ| matches!(typ.typ, Type::TypeVariable(_)))
         {
             return None;
