@@ -1,0 +1,160 @@
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f8fb;
+  color: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 42px;
+  line-height: 1.05;
+  font-weight: 720;
+}
+
+h2 {
+  font-size: 18px;
+  line-height: 1.2;
+  margin-bottom: 18px;
+}
+
+p,
+li,
+output {
+  color: #4b5563;
+  line-height: 1.55;
+}
+
+.status {
+  min-width: 136px;
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: white;
+  color: #374151;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  border: 1px solid #d7dce5;
+  border-radius: 8px;
+  padding: 22px;
+  background: white;
+  min-height: 260px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 620;
+}
+
+input {
+  width: 100%;
+  border: 1px solid #cfd6e3;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #111827;
+  background: #fbfcfe;
+}
+
+button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 14px;
+  background: #14532d;
+  color: white;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #166534;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+output {
+  display: block;
+  margin-top: 14px;
+  min-height: 24px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.details ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 760px) {
+  .header,
+  .grid {
+    display: block;
+  }
+
+  .status {
+    margin-top: 18px;
+    text-align: left;
+  }
+
+  .panel {
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-size: 34px;
+  }
+}

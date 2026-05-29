@@ -9,7 +9,8 @@
     "tooling/noir_js",
     "tooling/noir_codegen",
     "acvm-repo/acvm_js",
-    "examples/browser"
+    "examples/browser",
+    "demo/usb-auth"
   ],
   "scripts": {
     "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{@noir-lang/root,browser_example}\" run build",

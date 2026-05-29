@@ -1,0 +1,6 @@
+[package]
+name = "usb_auth"
+type = "bin"
+authors = [""]
+
+[dependencies]
