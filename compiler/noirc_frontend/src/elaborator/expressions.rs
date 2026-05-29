@@ -543,16 +543,6 @@ impl Elaborator<'_> {
             return (rhs, typ);
         }
 
-        // Simplify `&*x` and `&mut *x` to just `x`
-        if let UnaryOp::Reference { .. } = prefix.operator
-            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
-            && let UnaryOp::Dereference { .. } = inner.operator
-        {
-            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
-            let (rhs, typ) = self.elaborate_expression(inner.rhs);
-            return (rhs, typ);
-        }
-
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
@@ -566,6 +556,20 @@ impl Elaborator<'_> {
             let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
             (rhs, rhs_type, false)
         };
+
+        // Simplify `&*x` and `&mut *x` to just `x` when the reborrow preserves mutability:
+        // A reborrow that changes mutability (e.g. `&mut *x` where `x: &T`) is left
+        // as the full `&[mut] (*x)`
+        if let UnaryOp::Reference { mutable } = operator
+            && let HirExpression::Prefix(deref) = self.interner.expression(&rhs)
+            && let UnaryOp::Dereference { .. } = deref.operator
+        {
+            let inner_type = self.interner.id_type(deref.rhs);
+            if matches!(inner_type.follow_bindings(), Type::Reference(_, inner_mutable) if inner_mutable == mutable)
+            {
+                return (deref.rhs, inner_type);
+            }
+        }
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
