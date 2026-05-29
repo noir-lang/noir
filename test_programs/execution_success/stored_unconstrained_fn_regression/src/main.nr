@@ -14,7 +14,9 @@ fn choose(x: u32) -> u32 {
 
 fn call_unc(f: unconstrained fn(u32) -> u32, x: u32) -> u32 {
     // Safety: regression test for stored unconstrained fn dispatch
-    unsafe { f(x) }
+    unsafe {
+        f(x)
+    }
 }
 
 fn get_choose() -> unconstrained fn(u32) -> u32 {
