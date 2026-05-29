@@ -2248,10 +2248,9 @@ mod tests {
 
     /// Test that calls to functions is hoisted into the pre-header based on their purity.
     ///
-    /// The `dummy` callee is brillig, which can never compute as `Pure` (it defaults to
-    /// `PureWithPredicate`, see `Function::is_pure`). Annotating it `pure` is therefore not
-    /// valid SSA, so those cases panic during strict parsing rather than reaching the hoisting
-    /// assertion. The `impure` case injects a genuine impure operation so it stays valid.
+    /// A brillig function can never compute as `Pure` (it defaults to `PureWithPredicate`, see
+    /// `Function::is_pure`), so a `pure` annotation on the `dummy` callee is not valid SSA and
+    /// those cases are expected to panic during parsing.
     #[test_case(1, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "non-empty loop, pure function")]
     #[test_case(0, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "empty loop, pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
@@ -2266,10 +2265,8 @@ mod tests {
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
         let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
 
-        // An `impure` callee needs a genuinely impure operation: a brillig function with no side
-        // effects computes as `PureWithPredicate`, so a bare `impure` annotation would be rejected
-        // as invalid SSA. `array_set` mutates the brillig array input `v0`, which is treated as
-        // impure (see `Function::is_pure`).
+        // `array_set` mutates the brillig array input `v0`, making `dummy` compute as `Impure`
+        // (see `Function::is_pure`) so its `impure` annotation is valid SSA.
         let impure_op = if dummy_purity == Some(Purity::Impure) {
             "v1 = array_set v0, index u32 0, value u64 0"
         } else {
