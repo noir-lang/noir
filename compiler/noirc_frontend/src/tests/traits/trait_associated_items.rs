@@ -764,6 +764,23 @@ fn associated_type_behind_self_as_trait_with_different_generics() {
 }
 
 #[test]
+fn associated_type_behind_self_as_trait_with_method_generic() {
+    // Regression test: `<Self as Foo<U>>::Bar` where `U` is a method-level generic
+    // (distinct from the trait's own type parameter `Baz`) must not be silently
+    // rewritten to `Self::Bar` (which would resolve to `<Self as Foo<Baz>>::Bar`).
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar<U>() -> <Self as Foo<U>>::Bar;
+                                ^^^ No matching impl found for `Self: Foo<U, Bar = _>`
+                                ~~~ No impl for `Self: Foo<U, Bar = _>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access() {
     let src = "
     trait MyTrait {
