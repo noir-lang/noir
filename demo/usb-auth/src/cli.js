@@ -1,13 +1,10 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createEncryptedSecretFile, serializeEncryptedSecretFile } from './secret-file.js';
 import { NodePathSecretProvider } from './secret-providers.js';
 import { computeCommitment, randomField, userIdToField } from './fields.js';
 import { createAuthInputs, generateAndVerifyProof, proofToJson } from './proof.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { compileCircuitFromFiles } from './compile-circuit.js';
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -82,8 +79,7 @@ async function verify(args) {
 }
 
 async function loadCircuit() {
-  const circuitPath = resolve(__dirname, '../target/usb_auth.json');
-  return JSON.parse(await readFile(circuitPath, 'utf8'));
+  return compileCircuitFromFiles(new URL('../', import.meta.url));
 }
 
 function parseArgs(tokens) {

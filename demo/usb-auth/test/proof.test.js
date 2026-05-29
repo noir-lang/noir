@@ -1,10 +1,10 @@
 import { strict as assert } from 'node:assert';
-import { readFile } from 'node:fs/promises';
 import { createAuthInputs, generateAndVerifyProof } from '../src/proof.js';
+import { compileCircuitFromFiles } from '../src/compile-circuit.js';
 
 describe('Noir USB auth proof', () => {
   it('generates and verifies a proof for a valid encrypted-device secret flow', async () => {
-    const circuit = JSON.parse(await readFile(new URL('../target/usb_auth.json', import.meta.url), 'utf8'));
+    const circuit = await compileCircuitFromFiles(new URL('../', import.meta.url));
     const authInputs = await createAuthInputs({
       deviceSecret: '11',
       userId: 'demo-user',

@@ -1,5 +1,7 @@
 import './style.css';
-import circuit from '../target/usb_auth.json';
+import nargoToml from '../Nargo.toml?raw';
+import mainNr from './main.nr?raw';
+import { compileCircuitFromSource } from './compile-circuit.js';
 import { BrowserFileSecretProvider, FidoHsmSecretProvider, WebUsbSecretProvider } from './secret-providers.js';
 import { createEncryptedSecretFile, serializeEncryptedSecretFile } from './secret-file.js';
 import { randomField, userIdToField, computeCommitment } from './fields.js';
@@ -11,6 +13,7 @@ const proveForm = document.querySelector('#prove-form');
 const registerOutput = document.querySelector('#register-output');
 const proveOutput = document.querySelector('#prove-output');
 const deviceOutput = document.querySelector('#device-output');
+let circuitPromise;
 
 registerForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -36,6 +39,7 @@ proveForm.addEventListener('submit', async (event) => {
     const provider = new BrowserFileSecretProvider();
     const deviceSecret = await provider.readSecret({ file, pin });
     const authInputs = await createAuthInputs({ deviceSecret, userId });
+    const circuit = await getCircuit();
     const result = await generateAndVerifyProof(circuit, authInputs);
     proveOutput.value = JSON.stringify(proofToJson(result), null, 2);
   });
@@ -80,6 +84,11 @@ function setDisabled(disabled) {
   for (const button of document.querySelectorAll('button')) {
     button.disabled = disabled;
   }
+}
+
+function getCircuit() {
+  circuitPromise ??= compileCircuitFromSource({ nargoToml, mainNr });
+  return circuitPromise;
 }
 
 function downloadSecretFile(encryptedFile, filename) {

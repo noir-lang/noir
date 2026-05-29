@@ -1937,7 +1937,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
+"@noir-lang/noir_wasm@npm:@noir-lang/noir_wasm@1.0.0-beta.21, @noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
   dependencies:
@@ -12064,6 +12064,7 @@ __metadata:
   dependencies:
     "@aztec/bb.js": "npm:5.0.0-nightly.20260522"
     "@noir-lang/noir_js": "workspace:*"
+    "@noir-lang/noir_wasm": "npm:@noir-lang/noir_wasm@1.0.0-beta.21"
     "@types/node": "npm:^22.19.19"
     mocha: "npm:^11.7.5"
     vite: "npm:^8.0.10"
