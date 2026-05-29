@@ -22,6 +22,45 @@ You can declare an Oracle through the `#[oracle(<name>)]` flag. Example:
 unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
 ```
 
+:::note Oracles must be free functions
+
+The `#[oracle(...)]` attribute may only be applied to a **free function** — a function declared at
+the top level of a module. It cannot be applied to a method defined inside an `impl` block or a
+trait `impl`:
+
+```rust
+struct Remote {}
+
+impl Remote {
+    // error: Usage of the `#[oracle]` function attribute is only valid on free functions
+    #[oracle(fetch_value)]
+    unconstrained fn fetch(x: Field) -> Field {}
+}
+```
+
+This is because the `#[oracle(name)]` attribute already names the single foreign call the function
+lowers to, so binding it to a `Self` type carries no additional meaning. If you need to expose an
+oracle through a trait, declare the oracle as a free function and call it from a regular method
+implementation instead:
+
+```rust
+trait Fetcher {
+    unconstrained fn fetch(x: Field) -> Field;
+}
+
+#[oracle(fetch_value)]
+unconstrained fn fetch_value(x: Field) -> Field {}
+
+impl Fetcher for Remote {
+    unconstrained fn fetch(x: Field) -> Field {
+        // Safety: the oracle's return value must be constrained by the caller
+        unsafe { fetch_value(x) }
+    }
+}
+```
+
+:::
+
 The timeout for when using an external RPC oracle resolver can be set with the `NARGO_FOREIGN_CALL_TIMEOUT` environment variable. This timeout is in units of milliseconds.
 
 ## The `#[pure]` attribute
