@@ -884,7 +884,7 @@ fn back_edge_advances_monotonically(
     let Some(step) = dfg.get_integer_constant(step_value) else {
         return false;
     };
-    if step.is_zero() || step.is_negative() {
+    if step.is_negative() {
         return false;
     }
     if *unchecked {
