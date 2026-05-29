@@ -2270,10 +2270,10 @@ mod tests {
         // effects computes as `PureWithPredicate`, so a bare `impure` annotation would be rejected
         // as invalid SSA. `array_set` mutates the brillig array input `v0`, which is treated as
         // impure (see `Function::is_pure`).
-        let dummy_body = if dummy_purity == Some(Purity::Impure) {
-            "v1 = array_set v0, index u32 0, value u64 0\n            return v0"
+        let impure_op = if dummy_purity == Some(Purity::Impure) {
+            "v1 = array_set v0, index u32 0, value u64 0"
         } else {
-            "return v0"
+            ""
         };
 
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
@@ -2306,7 +2306,8 @@ mod tests {
 
         brillig(inline) {dummy_purity} fn dummy f1 {{
           b0(v0: [u64; 25]):
-            {dummy_body}
+            {impure_op}
+            return v0
         }}
         "#,
         );
