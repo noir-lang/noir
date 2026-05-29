@@ -398,7 +398,7 @@ reviewed. When using third-party comptime code:
 
 ### `FunctionDefinition::disable`
 
-The [`disable`](../standard_library/meta/function_def.md#disable) method lets a comptime function
+The [`disable`](../libraries/standard_library/meta/function_def.md#disable) method lets a comptime function
 mark another function as un-callable. A disabled function does not fail at compile time: it fails
 only when something tries to call it, with the error message that was passed to `disable`. A
 malicious or careless dependency that calls `disable` on one of your functions (for example, a

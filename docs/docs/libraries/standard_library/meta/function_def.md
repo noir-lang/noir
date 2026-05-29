@@ -62,7 +62,7 @@ Before deploying a program that pulls in third-party comptime code, you should:
 - Run `nargo expand` on any untrusted dependencies and review the output for `disable` calls on
   functions you did not expect to be disabled.
 
-See also the [Security considerations](../../concepts/comptime.md#security-considerations) section of
+See also the [Security considerations](../../../language/comptime.md#security-considerations) section of
 the comptime documentation.
 
 ### has_named_attribute

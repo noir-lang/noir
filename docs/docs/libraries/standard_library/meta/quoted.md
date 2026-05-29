@@ -85,5 +85,5 @@ When pulling in comptime code from a dependency you do not control:
 - Use `nargo expand` to view the program after macro expansion, and review the result before
   deployment. The expanded source is the code that actually compiles into your circuit.
 
-See also the [Security considerations](../../concepts/comptime.md#security-considerations) section
+See also the [Security considerations](../../../language/comptime.md#security-considerations) section
 of the comptime documentation.
