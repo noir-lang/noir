@@ -4,6 +4,8 @@
 //! Signed checked binary operations should have already been converted to unchecked ones with
 //! an explicit overflow check during [`super::expand_signed_checks`].
 
+use rustc_hash::FxHashMap as HashMap;
+
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -31,6 +33,11 @@ impl Function {
         #[cfg(debug_assertions)]
         checked_to_unchecked_pre_check(self);
 
+        // Compute every value's unsigned bounds once. Converting an operation to unchecked only
+        // happens when it cannot overflow, in which case neither the forward range nor the backward
+        // range of any value changes, so this snapshot stays valid for the whole pass.
+        let bounds = self.dfg.unsigned_value_bounds();
+
         self.simple_optimization(|context| {
             let instruction = context.instruction();
             let Instruction::Binary(binary) = instruction else {
@@ -48,22 +55,22 @@ impl Function {
 
             let unchecked = match binary.operator {
                 BinaryOp::Add { unchecked: false } => {
-                    unsigned_operation_cannot_overflow(dfg, lhs, rhs, |lhs, rhs| {
+                    unsigned_operation_cannot_overflow(dfg, &bounds, lhs, rhs, |lhs, rhs| {
                         lhs.checked_add(rhs)
                     })
                 }
                 BinaryOp::Sub { unchecked: false } => {
-                    let Some((lhs_min, _)) = dfg.get_unsigned_value_bounds(lhs) else {
+                    let Some(&(lhs_min, _)) = bounds.get(&lhs) else {
                         return;
                     };
-                    let Some((_, rhs_max)) = dfg.get_unsigned_value_bounds(rhs) else {
+                    let Some(&(_, rhs_max)) = bounds.get(&rhs) else {
                         return;
                     };
 
                     lhs_min >= rhs_max
                 }
                 BinaryOp::Mul { unchecked: false } => {
-                    unsigned_operation_cannot_overflow(dfg, lhs, rhs, |lhs, rhs| {
+                    unsigned_operation_cannot_overflow(dfg, &bounds, lhs, rhs, |lhs, rhs| {
                         lhs.checked_mul(rhs)
                     })
                 }
@@ -83,6 +90,7 @@ impl Function {
 
 fn unsigned_operation_cannot_overflow(
     dfg: &DataFlowGraph,
+    bounds: &HashMap<ValueId, (u128, u128)>,
     lhs: ValueId,
     rhs: ValueId,
     operation: impl FnOnce(u128, u128) -> Option<u128>,
@@ -93,10 +101,10 @@ fn unsigned_operation_cannot_overflow(
     let Some(type_max) = max_unsigned_value_for_bit_size(bit_size) else {
         return false;
     };
-    let Some((_, lhs_max)) = dfg.get_unsigned_value_bounds(lhs) else {
+    let Some(&(_, lhs_max)) = bounds.get(&lhs) else {
         return false;
     };
-    let Some((_, rhs_max)) = dfg.get_unsigned_value_bounds(rhs) else {
+    let Some(&(_, rhs_max)) = bounds.get(&rhs) else {
         return false;
     };
 

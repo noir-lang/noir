@@ -567,8 +567,12 @@ impl DataFlowGraph {
         range_analysis::Analysis::new(self).constrained_bits(value)
     }
 
-    pub(crate) fn get_unsigned_value_bounds(&self, value: ValueId) -> Option<(u128, u128)> {
-        range_analysis::Analysis::new(self).bounds(value)
+    /// Returns the inferred unsigned bounds for every value in a single fixed-point computation.
+    ///
+    /// A pass querying many values should build this once rather than re-running the analysis per
+    /// value.
+    pub(crate) fn unsigned_value_bounds(&self) -> HashMap<ValueId, (u128, u128)> {
+        range_analysis::Analysis::new(self).unsigned_bounds()
     }
 
     /// True if the type of this value is Type::Reference.
@@ -1095,6 +1099,24 @@ mod tests {
         let main = ssa.main();
         let return_value = main.returns().unwrap()[0];
         main.dfg.get_value_max_num_bits(return_value)
+    }
+
+    #[test]
+    fn unsigned_value_bounds_reports_inferred_range() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            range_check v0 to 8 bits
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let bounds = main.dfg.unsigned_value_bounds();
+        let return_value = main.returns().unwrap()[0];
+
+        // The range check bounds v0 to 8 bits, so the single-pass snapshot reports [0, 255].
+        assert_eq!(bounds.get(&return_value).copied(), Some((0, 255)));
     }
 
     #[test]
