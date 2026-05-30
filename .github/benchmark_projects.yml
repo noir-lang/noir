@@ -176,3 +176,14 @@ projects:
     brillig-execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  live-bit-width-large-constant-div-mod:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/live_bit_width_large_constant_div_mod
+    num_compile_runs: 20
+    num_execute_runs: 20
+    compilation-timeout: 2
+    execution-timeout: 0.6
+    brillig-compilation-timeout: 2
+    brillig-execution-timeout: 0.6
+    compilation-memory-limit: 450
+    execution-memory-limit: 400

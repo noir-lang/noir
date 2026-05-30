@@ -2,7 +2,7 @@ use acvm::{AcirField as _, FieldElement};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
+    dfg::{DataFlowGraph, max_unsigned_value_for_bit_size},
     instruction::{
         Binary, BinaryOp, Instruction,
         binary::{BinaryEvaluationResult, eval_constant_binary_op},
@@ -139,6 +139,17 @@ pub(super) fn simplify_binary(
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
+            if lhs_type.is_unsigned()
+                && let Some(rhs_value) = rhs_value
+                && !rhs_value.is_zero()
+            {
+                let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
+                let lhs_max = max_unsigned_value_for_bit_size(max_lhs_bits);
+                if lhs_max.is_some_and(|lhs_max| lhs_max < rhs_value.to_u128()) {
+                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
             if let Some(rhs_value) = rhs_value
                 && lhs_type == NumericType::NativeField
                 && !rhs_value.is_zero()
@@ -157,6 +168,16 @@ pub(super) fn simplify_binary(
                 return SimplifyResult::SimplifiedTo(zero);
             }
             if lhs_type.is_unsigned() {
+                if let Some(modulus) = rhs_value {
+                    let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
+                    let lhs_max = max_unsigned_value_for_bit_size(max_lhs_bits);
+                    if !modulus.is_zero()
+                        && lhs_max.is_some_and(|lhs_max| lhs_max < modulus.to_u128())
+                    {
+                        return SimplifyResult::SimplifiedTo(lhs);
+                    }
+                }
+
                 // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
                 // We then convert to a truncation for consistency, allowing more optimizations.
                 if let Some(modulus) = rhs_value {
@@ -353,6 +374,88 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_unsigned_div_by_constant_larger_than_lhs_range_with_zero() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = div v1, u128 512
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            return u128 0
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_unsigned_mod_by_constant_larger_than_lhs_range_with_lhs() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = mod v1, u128 512
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_replace_unsigned_div_when_constant_equals_lhs_range_max() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = div v1, u128 255
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v3 = div v1, u128 255
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_replace_unsigned_mod_when_constant_equals_lhs_range_max() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = mod v1, u128 255
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v3 = mod v1, u128 255
+            return v3
         }
         ");
     }
