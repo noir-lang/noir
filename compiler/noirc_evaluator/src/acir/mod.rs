@@ -757,7 +757,10 @@ impl<'a> Context<'a> {
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => match num_type {
                 NumericType::Unsigned { bit_size } => {
-                    self.acir_context.less_than_var(lhs, rhs, bit_size)
+                    let lhs_bits = dfg.get_constrained_value_max_num_bits(binary.lhs);
+                    let rhs_bits = dfg.get_constrained_value_max_num_bits(binary.rhs);
+                    let comparison_bits = lhs_bits.max(rhs_bits).max(1).min(bit_size);
+                    self.acir_context.less_than_var(lhs, rhs, comparison_bits)
                 }
                 _ => {
                     panic!("ICE: unexpected binary type for Lt operation: {num_type:?}")
