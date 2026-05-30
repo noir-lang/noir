@@ -130,15 +130,23 @@ impl<'dfg> Analysis<'dfg> {
             }
         }
 
-        let use_global_constraints =
-            include_global_constraints && self.can_use_global_constraints();
+        // Backward propagation and global constraints both narrow an operand using a fact that only
+        // holds where a specific instruction runs, so both are sound only when every instruction
+        // executes unconditionally.
+        let unconditional = self.instructions_are_unconditional();
+        let use_global_constraints = include_global_constraints && unconditional;
 
         // Safety cap for malformed fixed points; real propagation exits when no range narrows.
         for _ in 0..=self.dfg.instructions.len() {
             let mut changed = false;
             for (instruction, data) in self.dfg.instructions.iter() {
-                changed |=
-                    self.apply_instruction(instruction, data, &mut facts, use_global_constraints);
+                changed |= self.apply_instruction(
+                    instruction,
+                    data,
+                    &mut facts,
+                    unconditional,
+                    use_global_constraints,
+                );
             }
             if !changed {
                 break;
@@ -148,8 +156,13 @@ impl<'dfg> Analysis<'dfg> {
         facts
     }
 
-    fn can_use_global_constraints(&self) -> bool {
-        // Branch-local or predicated constraints cannot be used as global value bounds.
+    /// True when every instruction in the function executes exactly once, unconditionally.
+    ///
+    /// A fact derived from a single instruction — a range check, an equality, or the no-overflow
+    /// precondition of a checked operation recovered by backward propagation — only bounds a value
+    /// on paths where that instruction runs. Treating such a fact as a global bound is sound only
+    /// for a single block with no predication.
+    fn instructions_are_unconditional(&self) -> bool {
         self.dfg.blocks.len() == 1
             && !self.dfg.instructions.iter().any(|(_, instruction)| {
                 matches!(instruction, Instruction::EnableSideEffectsIf { .. })
@@ -161,6 +174,7 @@ impl<'dfg> Analysis<'dfg> {
         instruction: InstructionId,
         instruction_data: &Instruction,
         facts: &mut Facts,
+        allow_backward: bool,
         include_global_constraints: bool,
     ) -> bool {
         let result =
@@ -174,7 +188,9 @@ impl<'dfg> Analysis<'dfg> {
             changed |= self.refine(facts, result, range);
         }
 
-        changed |= self.backward(instruction_data, result, facts);
+        if allow_backward {
+            changed |= self.backward(instruction_data, result, facts);
+        }
 
         if include_global_constraints {
             changed |= self.apply_global_constraint(instruction_data, facts);

@@ -1325,4 +1325,23 @@ mod tests {
 
         assert_eq!(returned_value_max_bits(src), 128);
     }
+
+    #[test]
+    fn checked_arithmetic_precondition_does_not_narrow_value_across_branches() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u16, v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v2 = sub u16 100, v0
+            jmp b2()
+          b2():
+            return v0
+        }
+        ";
+
+        // The checked subtraction's no-underflow precondition (v0 <= 100) only holds on the path
+        // through b1; on the else path v0 can be any u16, so its width must stay 16 bits.
+        assert_eq!(returned_value_max_bits(src), 16);
+    }
 }
