@@ -530,12 +530,15 @@ impl ValueRange {
     fn cast_to_signed(self, source_type: &Type, target_bit_size: u32) -> Option<SignedRange> {
         match self {
             Self::Signed(range) => {
-                let Type::Numeric(NumericType::Signed { bit_size }) = source_type else {
+                let Type::Numeric(NumericType::Signed { .. }) = source_type else {
                     return None;
                 };
-                range
-                    .to_unsigned(*bit_size, *bit_size)
-                    .and_then(|range| SignedRange::from_unsigned(range, target_bit_size))
+                // A signed-to-signed cast preserves the value where it fits the destination type
+                // (sign extension on widening); a narrowing cast whose range does not fit wraps to
+                // an unpredictable value covering the whole destination range.
+                let target_range = SignedRange::for_bit_size(target_bit_size)?;
+                let preserved = range.intersect(target_range).filter(|fitted| *fitted == range);
+                Some(preserved.unwrap_or(target_range))
             }
             Self::Unsigned(range) => {
                 let Type::Numeric(NumericType::Unsigned { .. } | NumericType::NativeField) =
@@ -1403,9 +1406,24 @@ mod tests {
             SignedRange::from_unsigned(Range::new(240, 255), 8),
             Some(SignedRange::new(-16, -1))
         );
+    }
+
+    #[test]
+    fn cast_to_signed_sign_extends_on_widening_and_wraps_on_narrowing() {
+        // Widening preserves the signed value: i8 -16..-1 stays -16..-1 as i16.
         assert_eq!(
-            ValueRange::Signed(negative).cast_to_signed(&Type::signed(8), 16),
-            Some(SignedRange::new(240, 255))
+            ValueRange::Signed(SignedRange::new(-16, -1)).cast_to_signed(&Type::signed(8), 16),
+            Some(SignedRange::new(-16, -1))
+        );
+        // A narrowing cast whose source already fits the destination is preserved.
+        assert_eq!(
+            ValueRange::Signed(SignedRange::new(-4, 4)).cast_to_signed(&Type::signed(16), 8),
+            Some(SignedRange::new(-4, 4))
+        );
+        // A narrowing cast whose source overflows the destination wraps to the full type range.
+        assert_eq!(
+            ValueRange::Signed(SignedRange::new(0, 200)).cast_to_signed(&Type::signed(16), 8),
+            Some(SignedRange::for_bit_size(8).unwrap())
         );
     }
 
