@@ -113,11 +113,23 @@ impl<'dfg> Analysis<'dfg> {
     }
 
     fn value_bits(&self, value: ValueId, facts: &Facts) -> u32 {
+        let value_bit_size = self.dfg.type_of_value(value).bit_size();
         if let Some(range) = facts.range(value) {
-            let value_bit_size = self.dfg.type_of_value(value).bit_size();
-            value_bit_size.min(range.max_bits(value_bit_size))
-        } else {
-            self.dfg.type_of_value(value).bit_size()
+            return value_bit_size.min(range.max_bits(value_bit_size));
+        }
+
+        // Values with no inferred range are field elements. Recover a tighter width from a defining
+        // cast or truncation: a cast carries the operand's smaller width, and a truncation bounds
+        // the result by its target width.
+        match &self.dfg[value] {
+            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
+                Instruction::Cast(original, _) => {
+                    value_bit_size.min(self.value_bits(*original, facts))
+                }
+                Instruction::Truncate { bit_size, .. } => value_bit_size.min(*bit_size),
+                _ => value_bit_size,
+            },
+            _ => value_bit_size,
         }
     }
 

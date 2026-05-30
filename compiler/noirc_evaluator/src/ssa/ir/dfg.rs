@@ -1090,6 +1090,28 @@ mod tests {
         main.dfg.get_constrained_value_max_num_bits(return_value)
     }
 
+    fn returned_value_max_bits_unconstrained(src: &str) -> u32 {
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let return_value = main.returns().unwrap()[0];
+        main.dfg.get_value_max_num_bits(return_value)
+    }
+
+    #[test]
+    fn bits_recovers_operand_width_through_cast_to_field() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as Field
+            return v1
+        }
+        ";
+
+        // A `u8` cast to `Field` carries the operand's 8-bit width even on the unconstrained
+        // `get_value_max_num_bits` path, so a range check to 8 bits on it can still be elided.
+        assert_eq!(returned_value_max_bits_unconstrained(src), 8);
+    }
+
     #[test]
     fn unsigned_range_uses_precise_add_bounds() {
         let src = "
