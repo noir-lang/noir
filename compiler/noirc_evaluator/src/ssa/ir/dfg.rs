@@ -1181,6 +1181,49 @@ mod tests {
     }
 
     #[test]
+    fn signed_range_uses_range_check_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i16):
+            range_check v0 to 8 bits
+            v1 = add v0, i16 7
+            return v1
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 9);
+    }
+
+    #[test]
+    fn signed_range_flows_from_positive_equality_constraint() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i16):
+            constrain v0 == i16 100
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 7);
+    }
+
+    #[test]
+    fn signed_range_flows_backwards_from_equality_constraint_through_add() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i16, v1: i16):
+            range_check v0 to 8 bits
+            range_check v1 to 8 bits
+            v2 = add v0, v1
+            constrain v2 == i16 100
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 7);
+    }
+
+    #[test]
     fn unsigned_range_flows_backwards_from_range_check_through_add() {
         let src = "
         acir(inline) fn main f0 {
