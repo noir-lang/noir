@@ -38,7 +38,9 @@ use serde_with::DisplayFromStr;
 use serde_with::serde_as;
 use simplify::{SimplifyResult, simplify};
 
+mod range_analysis;
 pub(crate) mod simplify;
+pub(crate) use range_analysis::max_unsigned_value_for_bit_size;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -557,23 +559,15 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[value] {
-            Value::Instruction { instruction, .. } => {
-                let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.get_value_max_num_bits(original_value);
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                } else {
-                    value_bit_size
-                }
-            }
+        range_analysis::Analysis::new(self).bits(value)
+    }
 
-            Value::NumericConstant { constant, .. } => constant.num_bits(),
-            _ => self.type_of_value(value).bit_size(),
-        }
+    pub(crate) fn get_constrained_value_max_num_bits(&self, value: ValueId) -> u32 {
+        range_analysis::Analysis::new(self).constrained_bits(value)
+    }
+
+    pub(crate) fn get_unsigned_value_bounds(&self, value: ValueId) -> Option<(u128, u128)> {
+        range_analysis::Analysis::new(self).bounds(value)
     }
 
     /// True if the type of this value is Type::Reference.
@@ -1073,7 +1067,10 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::{instruction::Instruction, types::Type};
+    use crate::ssa::{
+        ir::{instruction::Instruction, types::Type},
+        ssa_gen::Ssa,
+    };
 
     #[test]
     fn make_instruction() {
@@ -1083,5 +1080,205 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
+    }
+
+    fn returned_value_max_bits(src: &str) -> u32 {
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let return_value = main.returns().unwrap()[0];
+        main.dfg.get_constrained_value_max_num_bits(return_value)
+    }
+
+    #[test]
+    fn unsigned_range_uses_precise_add_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, u8 9
+            v3 = mod v1, u8 8
+            v4 = unchecked_add v2, v3
+            return v4
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 4);
+    }
+
+    #[test]
+    fn unsigned_range_uses_precise_mul_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, u8 9
+            v3 = mod v1, u8 8
+            v4 = unchecked_mul v2, v3
+            return v4
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 6);
+    }
+
+    #[test]
+    fn unsigned_range_uses_subtraction_rhs_lower_bound() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = unchecked_add v1, u128 240
+            v3 = unchecked_sub u128 511, v2
+            return v3
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 9);
+    }
+
+    #[test]
+    fn unsigned_range_uses_divisor_lower_bound() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = cast v0 as u128
+            v3 = cast v1 as u128
+            v4 = unchecked_add v3, u128 16
+            v5 = div v2, v4
+            return v5
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 4);
+    }
+
+    #[test]
+    fn unsigned_range_uses_mod_lhs_bound() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = unchecked_add v1, u128 100
+            v3 = mod v2, u128 512
+            return v3
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 9);
+    }
+
+    #[test]
+    fn unsigned_range_uses_shift_amount_bounds() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u128
+            v2 = shr v1, u128 4
+            return v2
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 4);
+    }
+
+    #[test]
+    fn unsigned_range_flows_backwards_from_range_check_through_add() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            range_check v2 to 8 bits
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 8);
+    }
+
+    #[test]
+    fn unsigned_range_flows_from_equality_constraint() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            constrain v0 == u128 100
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 7);
+    }
+
+    #[test]
+    fn unsigned_range_flows_backwards_from_equality_constraint_through_add() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            constrain v2 == u128 100
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 7);
+    }
+
+    #[test]
+    fn unsigned_range_flows_forward_from_field_range_check_through_cast() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 8 bits
+            v1 = cast v0 as u128
+            return v1
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 8);
+    }
+
+    #[test]
+    fn unsigned_range_does_not_flow_backwards_from_truncate() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            v1 = truncate v0 to 8 bits, max_bit_size: 128
+            v2 = cast v1 as u8
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 128);
+    }
+
+    #[test]
+    fn unsigned_range_does_not_use_branch_local_range_check_globally() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            range_check v0 to 8 bits
+            jmp b2()
+          b2():
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 128);
+    }
+
+    #[test]
+    fn unsigned_range_does_not_use_branch_local_equality_globally() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            constrain v0 == u128 100
+            jmp b2()
+          b2():
+            return v0
+        }
+        ";
+
+        assert_eq!(returned_value_max_bits(src), 128);
     }
 }
