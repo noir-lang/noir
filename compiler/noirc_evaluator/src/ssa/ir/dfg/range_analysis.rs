@@ -1003,11 +1003,16 @@ impl SignedBinaryRanges {
             return self.type_range;
         };
 
-        self.lhs.checked_result(
-            SignedRange::new(shift.into(), shift.into()),
-            self.type_range,
-            |lhs, rhs| lhs.checked_shl(u32::try_from(rhs).ok()?),
-        )
+        // `lhs << shift` is monotonic in `lhs`, so it stays representable exactly when neither
+        // extreme overflows the signed type. Any overflow wraps to an unpredictable value, including
+        // at `bit_size == 128` where `i128::checked_shl` silently truncates instead of failing.
+        let overflows = self.lhs.max > (self.type_range.max >> shift)
+            || self.lhs.min < (self.type_range.min >> shift);
+        if overflows {
+            self.type_range
+        } else {
+            SignedRange::new(self.lhs.min << shift, self.lhs.max << shift)
+        }
     }
 
     fn shr(self) -> SignedRange {
@@ -1361,6 +1366,25 @@ mod tests {
             SignedBinaryRanges::new(8, SignedRange::new(-4, 6), SignedRange::new(-3, 5)).unwrap();
 
         assert_eq!(ranges.mul(), SignedRange::new(-20, 30));
+    }
+
+    #[test]
+    fn signed_shl_uses_exact_bounds_when_no_overflow() {
+        let ranges =
+            SignedBinaryRanges::new(8, SignedRange::new(-5, 6), SignedRange::new(2, 2)).unwrap();
+
+        assert_eq!(ranges.shl(), SignedRange::new(-20, 24));
+    }
+
+    #[test]
+    fn signed_shl_falls_back_to_full_range_when_i128_shift_wraps() {
+        // `2i128 << 127` truncates to 0 under `i128::checked_shl`; the result must still cover the
+        // achievable `1i128 << 127 == i128::MIN` rather than reporting a spurious zero range.
+        let ranges =
+            SignedBinaryRanges::new(128, SignedRange::new(0, 2), SignedRange::new(127, 127))
+                .unwrap();
+
+        assert_eq!(ranges.shl(), SignedRange::for_bit_size(128).unwrap());
     }
 
     #[test]
