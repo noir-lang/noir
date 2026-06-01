@@ -1232,7 +1232,7 @@ mod tests {
     #[test]
     fn hoists_casts() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             jmp b1(u32 2)
           b1(v1: u32):
@@ -1249,7 +1249,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v2 = cast v0 as u64
             jmp b1(u32 2)
@@ -2425,7 +2425,7 @@ mod tests {
 
         let src = format!(
             r#"
-        acir(inline) predicate_pure fn main f0 {{
+        acir(inline) fn main f0 {{
           b0(v0: {typ}):
             jmp b1({typ} {lower})
           b1(v1: {typ}):
@@ -2469,8 +2469,12 @@ mod tests {
     }
 
     /// Test that calls to functions is hoisted into the pre-header based on their purity.
-    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
-    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
+    ///
+    /// A brillig function can never compute as `Pure` (it defaults to `PureWithPredicate`, see
+    /// `Function::is_pure`), so a `pure` annotation on the `dummy` callee is not valid SSA and
+    /// those cases are expected to panic during parsing.
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "empty loop, pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
@@ -2482,6 +2486,15 @@ mod tests {
     #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
         let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
+
+        // `array_set` mutates the brillig array input `v0`, making `dummy` compute as `Impure`
+        // (see `Function::is_pure`) so its `impure` annotation is valid SSA.
+        let impure_op = if dummy_purity == Some(Purity::Impure) {
+            "v1 = array_set v0, index u32 0, value u64 0"
+        } else {
+            ""
+        };
+
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
 
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
@@ -2512,6 +2525,7 @@ mod tests {
 
         brillig(inline) {dummy_purity} fn dummy f1 {{
           b0(v0: [u64; 25]):
+            {impure_op}
             return v0
         }}
         "#,
@@ -2614,7 +2628,7 @@ mod tests {
         let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
         let src = format!(
             r#"
-            brillig(inline) impure fn main f0 {{
+            brillig(inline) predicate_pure fn main f0 {{
               b0():
                 jmp b1(u32 {lower})
               b1(v0: u32):
@@ -2752,7 +2766,7 @@ mod tests {
         // This is just a stub to create a function with the expected runtime.
         let src = format!(
             r#"
-        {runtime} predicate_pure fn main f0 {{
+        {runtime} fn main f0 {{
           b0():
             return
         }}
@@ -3975,7 +3989,7 @@ mod control_dependence {
     #[test]
     fn infinite_loop_is_not_fully_executed() {
         let src = r"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
@@ -4045,7 +4059,7 @@ mod control_dependence {
         // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
         let src = format!(
             r#"
-          {runtime} impure fn main f0 {{
+          {runtime} predicate_pure fn main f0 {{
             b0(v0: u32, v1: u1):
               v2 = make_array [u8 0, u8 1] : [u8; 2]
               jmp b1(u32 0)
