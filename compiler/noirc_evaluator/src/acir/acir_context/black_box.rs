@@ -135,12 +135,10 @@ impl<F: AcirField> AcirContext<F> {
             BlackBoxFunc::EmbeddedCurveAdd => {
                 // Coordinates of the points must not mix constant/witness, as per ACIR specification.
                 let mut function_inputs = Vec::new();
-                let [p1_x, p1_y, p1_inf, p2_x, p2_y, p2_inf, predicate] =
-                    <[AcirValue; 7]>::try_from(inputs).expect("EmbeddedCurveAdd expects 7 inputs");
+                let [p1_x, p1_y, p2_x, p2_y, predicate] =
+                    <[AcirValue; 5]>::try_from(inputs).expect("EmbeddedCurveAdd expects 5 inputs");
                 function_inputs.extend(self.all_or_nothing_coordinates(p1_x, p1_y)?);
-                function_inputs.push(self.prepare_input_for_black_box_func_call(p1_inf, true)?);
                 function_inputs.extend(self.all_or_nothing_coordinates(p2_x, p2_y)?);
-                function_inputs.push(self.prepare_input_for_black_box_func_call(p2_inf, true)?);
                 function_inputs.push(self.prepare_input_for_black_box_func_call(predicate, true)?);
                 function_inputs
             }
@@ -182,16 +180,14 @@ impl<F: AcirField> AcirContext<F> {
         scalars: AcirValue,
         predicate: AcirValue,
     ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        // Points: each is (x, y, is_infinite).
+        // Points: each is (x, y).
         let mut points_inputs = Vec::new();
-        for chunk in self.flatten(points)?.chunks(3) {
+        for chunk in self.flatten(points)?.chunks(2) {
             let x = AcirValue::Var(chunk[0].0, chunk[0].1);
             let y = AcirValue::Var(chunk[1].0, chunk[1].1);
-            let inf = AcirValue::Var(chunk[2].0, chunk[2].1);
             for input in self.all_or_nothing_coordinates(x, y)? {
                 points_inputs.extend(input);
             }
-            points_inputs.extend(self.prepare_input_for_black_box_func_call(inf, true)?);
         }
 
         // Scalars: each is (lo, hi).
