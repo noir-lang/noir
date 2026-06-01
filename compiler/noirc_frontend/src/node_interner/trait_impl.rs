@@ -286,13 +286,14 @@ impl NodeInterner {
                     return Ok(Err(existing_impl.ident.location()));
                 }
             }
-            // `Overlapping` lookups skip `Prepared` entries, so only `Normal` impls are matched.
-            Err(_) | Ok((TraitImplKind::Assumed { .. } | TraitImplKind::Prepared(..), ..)) => {
+            Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
                 // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
                 // It should never happen since impls are defined at global scope, but even
                 // if they were, we should never prevent defining a new impl because a 'where'
                 // clause already assumes it exists.
             }
+            // `Overlapping` lookups skip `Prepared` entries, so only `Normal` impls are matched.
+            Ok((TraitImplKind::Prepared(..), ..)) => unreachable!(),
         }
 
         for method in &trait_impl.borrow().methods {
