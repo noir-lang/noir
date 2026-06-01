@@ -1092,6 +1092,14 @@ fn to_le_radix(
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
+
+    // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make
+    // a zero value appear to require one limb. Decomposing zero requires no significant limbs,
+    // matching the runtime black box solvers, so report an empty decomposition instead.
+    if field.is_zero() {
+        return Vec::new();
+    }
+
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.
