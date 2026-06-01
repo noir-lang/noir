@@ -97,23 +97,8 @@ export default {
         },
         {
           type: 'link',
-          label: 'ACVM (ACIR solver & VM)',
-          href: 'https://noir-lang.github.io/noir/docs/acvm/index.html',
-        },
-        {
-          type: 'link',
           label: 'Brillig (unconstrained opcodes)',
           href: 'https://noir-lang.github.io/noir/docs/brillig/index.html',
-        },
-        {
-          type: 'link',
-          label: 'Black box solver',
-          href: 'https://noir-lang.github.io/noir/docs/blackbox_solver/index.html',
-        },
-        {
-          type: 'link',
-          label: 'Noir ABI (noirc_abi)',
-          href: 'https://noir-lang.github.io/noir/docs/noirc_abi/index.html',
         },
       ],
     },
