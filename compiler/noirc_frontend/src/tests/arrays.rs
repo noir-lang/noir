@@ -83,9 +83,22 @@ fn mutable_reference_to_array_element_as_func_arg() {
     fn main() {
         let state: [u32; 4] = [1, 2, 3, 4];
         foo(&mut state[0]);
-                 ^^^^^^^^ Mutable references to array elements are currently unsupported
+                 ^^^^^^^^ References to array elements are currently unsupported
                  ~~~~~~~~ Try storing the element in a fresh variable first
         assert_eq(state[0], 2); // expect:2 got:1
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn shared_reference_to_array_element() {
+    let src = r#"
+    fn main() {
+        let state: [u32; 4] = [1, 2, 3, 4];
+        let _r = &state[0];
+                  ^^^^^^^^ References to array elements are currently unsupported
+                  ~~~~~~~~ Try storing the element in a fresh variable first
     }
     "#;
     check_errors(src);

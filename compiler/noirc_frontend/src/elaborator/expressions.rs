@@ -574,11 +574,12 @@ impl Elaborator<'_> {
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
         if let UnaryOp::Reference { mutable } = operator
-            && mutable
+            && !skip_op
         {
-            // If skip_op is set we already know we have a mutable reference
-            if !skip_op {
+            if mutable {
                 self.check_can_mutate(rhs, rhs_location);
+            } else {
+                self.check_can_reference_array_element(rhs, rhs_location);
             }
         }
 
@@ -631,10 +632,24 @@ impl Elaborator<'_> {
                 }
             }
             HirExpression::Index(_) => {
-                self.push_err(TypeCheckError::MutableReferenceToArrayElement { location });
+                self.push_err(TypeCheckError::ReferenceToArrayElement { location });
             }
             HirExpression::MemberAccess(member_access) => {
                 self.check_can_mutate(member_access.lhs, location);
+            }
+            _ => (),
+        }
+    }
+
+    /// Pushes an error if a (shared) reference is being taken to an array element,
+    /// which is currently unsupported.
+    fn check_can_reference_array_element(&mut self, expr_id: ExprId, location: Location) {
+        match self.interner.expression(&expr_id) {
+            HirExpression::Index(_) => {
+                self.push_err(TypeCheckError::ReferenceToArrayElement { location });
+            }
+            HirExpression::MemberAccess(member_access) => {
+                self.check_can_reference_array_element(member_access.lhs, location);
             }
             _ => (),
         }
