@@ -1,5 +1,5 @@
 use acir::{
-    AcirField,
+    AcirField, BlackBoxFunc,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
 };
@@ -40,7 +40,7 @@ pub(crate) fn execute_multi_scalar_mul<F: AcirField>(
     );
 
     for point in points.chunks(2) {
-        assert_all_or_nothing_coordinates(point[0], point[1]);
+        check_all_or_nothing_coordinates(BlackBoxFunc::MultiScalarMul, point[0], point[1])?;
     }
 
     let points: Result<Vec<_>, _> =
@@ -89,8 +89,8 @@ pub(crate) fn execute_embedded_curve_add<F: AcirField>(
     input2: [FunctionInput<F>; 2],
     predicate: FunctionInput<F>,
 ) -> Result<(F, F), OpcodeResolutionError<F>> {
-    assert_all_or_nothing_coordinates(input1[0], input1[1]);
-    assert_all_or_nothing_coordinates(input2[0], input2[1]);
+    check_all_or_nothing_coordinates(BlackBoxFunc::EmbeddedCurveAdd, input1[0], input1[1])?;
+    check_all_or_nothing_coordinates(BlackBoxFunc::EmbeddedCurveAdd, input2[0], input2[1])?;
 
     let input1_x = input_to_value(initial_witness, input1[0])?;
     let input1_y = input_to_value(initial_witness, input1[1])?;
@@ -102,15 +102,20 @@ pub(crate) fn execute_embedded_curve_add<F: AcirField>(
     Ok((res_x, res_y))
 }
 
-/// Checks that x and y are either both witnesses or both constants. Panics otherwise.
-fn assert_all_or_nothing_coordinates<F: AcirField>(x: FunctionInput<F>, y: FunctionInput<F>) {
+/// Checks that x and y are either both witnesses or both constants, erroring otherwise.
+fn check_all_or_nothing_coordinates<F: AcirField>(
+    func: BlackBoxFunc,
+    x: FunctionInput<F>,
+    y: FunctionInput<F>,
+) -> Result<(), OpcodeResolutionError<F>> {
     match (x, y) {
         (FunctionInput::Witness(_), FunctionInput::Witness(_))
-        | (FunctionInput::Constant(_), FunctionInput::Constant(_)) => {}
-        _ => {
-            panic!(
-                "Coordinates must be either both witnesses or both constants. Found: {x:?}, {y:?}",
-            );
-        }
+        | (FunctionInput::Constant(_), FunctionInput::Constant(_)) => Ok(()),
+        _ => Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            func,
+            format!(
+                "Coordinates must be either both witnesses or both constants. Found: {x:?}, {y:?}"
+            ),
+        )),
     }
 }
