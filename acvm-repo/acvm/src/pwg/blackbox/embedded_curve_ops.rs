@@ -39,7 +39,7 @@ pub(crate) fn execute_multi_scalar_mul<F: AcirField>(
         "Number of scalars must be the same as the number of points"
     );
 
-    for point in points.chunks(3) {
+    for point in points.chunks(2) {
         assert_all_or_nothing_coordinates(point[0], point[1]);
     }
 
