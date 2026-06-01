@@ -183,7 +183,14 @@ impl<'f> Context<'f> {
 
                     // Block mutation when the input array is actually nested as a MakeArray element
                     let is_nested = element_arrays.contains(array);
-                    let can_mutate = !is_array_in_terminator && !is_nested;
+
+                    // A global constant array is shared program-wide. ACIR lowering reuses the
+                    // input array's memory block for a mutable set, which would write into the
+                    // shared global; a later read through another global that embeds it would
+                    // then observe the write. Never mutate in place when the input is a global.
+                    let is_global = self.dfg.is_global(*array);
+
+                    let can_mutate = !is_array_in_terminator && !is_nested && !is_global;
 
                     if can_mutate {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
@@ -511,6 +518,27 @@ mod tests {
             return v2, v5
         }
         ");
+    }
+
+    #[test]
+    fn does_not_mutate_global_array() {
+        // Regression test: an `array_set` on a global constant array must never
+        // be marked mutable. ACIR lowering reuses the input array's memory block
+        // for a mutable set, which would write into the shared global. A later
+        // read through another global that embeds it would then observe the write.
+        let src = "
+            g0 = make_array [Field 0, Field 0] : [Field; 2]
+            g1 = make_array [g0] : [[Field; 2]; 1]
+
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v1 = array_set g0, index u32 0, value v0
+                v2 = array_get g1, index u32 0 -> [Field; 2]
+                v3 = array_get v2, index u32 0 -> Field
+                return v3
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
     }
 
     #[test]
