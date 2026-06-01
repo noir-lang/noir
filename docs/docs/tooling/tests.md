@@ -117,10 +117,15 @@ running in**, so silently moving a test between them could hide real bugs.
   same test compiled to Brillig would only ever exercise the unconstrained branch, so a bug
   living in the constrained branch would go unnoticed.
 
-- A program can be perfectly valid as Brillig yet under-constrained as a circuit: results
-  produced by unconstrained code must be re-constrained when they flow back into ACIR (see
-  [Unconstrained functions](../language/unconstrained.md)). Running a constrained test as
-  Brillig skips exactly the constraints that would catch this class of bug.
+- Values returned from unconstrained code are **not** automatically constrained when they
+  flow back into ACIR — it is up to you to write the checks that verify them, and an ACIR
+  function that forgets to do so is under-constrained even though it executes fine. Crucially,
+  these verification checks are often written to run *only* in a constrained context and
+  skipped in Brillig (commonly by branching on
+  [`std::runtime::is_unconstrained()`](../libraries/standard_library/is_unconstrained.md), see
+  [Unconstrained functions](../language/unconstrained.md)). So if you want to test that an
+  ACIR function actually constrains its results correctly, the test must run in an ACIR
+  context — running it as Brillig skips exactly the checks you are trying to exercise.
 
 The practical rule: test your code in the runtime it will actually be compiled to. If a
 function is constrained in production, keep its test constrained.
