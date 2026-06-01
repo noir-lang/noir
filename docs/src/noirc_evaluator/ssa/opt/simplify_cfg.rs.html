@@ -806,7 +806,7 @@
 <a href=#806 id=806 data-nosnippet>806</a>    <span class="attr">#[test]
 <a href=#807 id=807 data-nosnippet>807</a>    </span><span class="kw">fn </span>do_not_remove_non_converging_jmpif_acir() {
 <a href=#808 id=808 data-nosnippet>808</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#809 id=809 data-nosnippet>809</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#809 id=809 data-nosnippet>809</a>        acir(inline) pure fn main f0 {
 <a href=#810 id=810 data-nosnippet>810</a>          b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
 <a href=#811 id=811 data-nosnippet>811</a>            v23 = array_get v13, index u32 8 -&gt; u1
 <a href=#812 id=812 data-nosnippet>812</a>            jmpif v23 then: b1(), else: b2()
@@ -854,8 +854,8 @@
 <a href=#854 id=854 data-nosnippet>854</a>
 <a href=#855 id=855 data-nosnippet>855</a>        <span class="comment">// Non-converging jmpifs remain because the flattening pass expects to merge them.
 <a href=#856 id=856 data-nosnippet>856</a>        // Converging jmpifs (where both branches reach the same block) are folded.
-<a href=#857 id=857 data-nosnippet>857</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#858 id=858 data-nosnippet>858</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#857 id=857 data-nosnippet>857</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#858 id=858 data-nosnippet>858</a>        acir(inline) pure fn main f0 {
 <a href=#859 id=859 data-nosnippet>859</a>          b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
 <a href=#860 id=860 data-nosnippet>860</a>            v3 = array_get v0, index u32 8 -&gt; u1
 <a href=#861 id=861 data-nosnippet>861</a>            jmpif v3 then: b1(), else: b2()
@@ -974,7 +974,7 @@
 <a href=#974 id=974 data-nosnippet>974</a>        // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
 <a href=#975 id=975 data-nosnippet>975</a>        </span><span class="kw">let </span>src = <span class="macro">format!</span>(
 <a href=#976 id=976 data-nosnippet>976</a>            <span class="string">"
-<a href=#977 id=977 data-nosnippet>977</a>        {runtime}(inline) impure fn main f0 {{
+<a href=#977 id=977 data-nosnippet>977</a>        {runtime}(inline) fn main f0 {{
 <a href=#978 id=978 data-nosnippet>978</a>          b0():
 <a href=#979 id=979 data-nosnippet>979</a>            jmpif u1 1 then: b1(), else: b2()
 <a href=#980 id=980 data-nosnippet>980</a>          b1():
@@ -998,7 +998,7 @@
 <a href=#998 id=998 data-nosnippet>998</a>
 <a href=#999 id=999 data-nosnippet>999</a>        <span class="kw">let </span>expected = <span class="macro">format!</span>(
 <a href=#1000 id=1000 data-nosnippet>1000</a>            <span class="string">"\
-<a href=#1001 id=1001 data-nosnippet>1001</a>{runtime}(inline) impure fn main f0 {{
+<a href=#1001 id=1001 data-nosnippet>1001</a>{runtime}(inline) fn main f0 {{
 <a href=#1002 id=1002 data-nosnippet>1002</a>  b0():
 <a href=#1003 id=1003 data-nosnippet>1003</a>    return
 <a href=#1004 id=1004 data-nosnippet>1004</a>}}"
@@ -1009,7 +1009,7 @@
 <a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="attr">#[test]
 <a href=#1010 id=1010 data-nosnippet>1010</a>    </span><span class="kw">fn </span>fully_simplifies_negated_constant_condition() {
 <a href=#1011 id=1011 data-nosnippet>1011</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1012 id=1012 data-nosnippet>1012</a>        brillig(inline) impure fn main f0 {
+<a href=#1012 id=1012 data-nosnippet>1012</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#1013 id=1013 data-nosnippet>1013</a>          b0():
 <a href=#1014 id=1014 data-nosnippet>1014</a>            jmp b1(u1 1)
 <a href=#1015 id=1015 data-nosnippet>1015</a>          b1(v0: u1):
@@ -1027,8 +1027,8 @@
 <a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#1028 id=1028 data-nosnippet>1028</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#1029 id=1029 data-nosnippet>1029</a>
-<a href=#1030 id=1030 data-nosnippet>1030</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#1031 id=1031 data-nosnippet>1031</a>        brillig(inline) impure fn main f0 {
+<a href=#1030 id=1030 data-nosnippet>1030</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#1031 id=1031 data-nosnippet>1031</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#1032 id=1032 data-nosnippet>1032</a>          b0():
 <a href=#1033 id=1033 data-nosnippet>1033</a>            v1 = not u1 1
 <a href=#1034 id=1034 data-nosnippet>1034</a>            return
@@ -1039,7 +1039,7 @@
 <a href=#1039 id=1039 data-nosnippet>1039</a>    <span class="attr">#[test]
 <a href=#1040 id=1040 data-nosnippet>1040</a>    </span><span class="kw">fn </span>removes_unreachable_block() {
 <a href=#1041 id=1041 data-nosnippet>1041</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1042 id=1042 data-nosnippet>1042</a>        brillig(inline) impure fn main f0 {
+<a href=#1042 id=1042 data-nosnippet>1042</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#1043 id=1043 data-nosnippet>1043</a>          b0():
 <a href=#1044 id=1044 data-nosnippet>1044</a>            jmp b1()
 <a href=#1045 id=1045 data-nosnippet>1045</a>          b1():
@@ -1052,8 +1052,8 @@
 <a href=#1052 id=1052 data-nosnippet>1052</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#1053 id=1053 data-nosnippet>1053</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#1054 id=1054 data-nosnippet>1054</a>
-<a href=#1055 id=1055 data-nosnippet>1055</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#1056 id=1056 data-nosnippet>1056</a>        brillig(inline) impure fn main f0 {
+<a href=#1055 id=1055 data-nosnippet>1055</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#1056 id=1056 data-nosnippet>1056</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#1057 id=1057 data-nosnippet>1057</a>          b0():
 <a href=#1058 id=1058 data-nosnippet>1058</a>            return
 <a href=#1059 id=1059 data-nosnippet>1059</a>        }
@@ -1115,7 +1115,7 @@
 <a href=#1115 id=1115 data-nosnippet>1115</a>        // causes the first jmpif to be folded, the second `jmpif v0` also has a
 <a href=#1116 id=1116 data-nosnippet>1116</a>        // constant condition and must be folded in the same pass invocation.
 <a href=#1117 id=1117 data-nosnippet>1117</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1118 id=1118 data-nosnippet>1118</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1118 id=1118 data-nosnippet>1118</a>        acir(inline) pure fn main f0 {
 <a href=#1119 id=1119 data-nosnippet>1119</a>          b0():
 <a href=#1120 id=1120 data-nosnippet>1120</a>            jmp b1(u1 0)
 <a href=#1121 id=1121 data-nosnippet>1121</a>          b1(v0: u1):
@@ -1133,8 +1133,8 @@
 <a href=#1133 id=1133 data-nosnippet>1133</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#1134 id=1134 data-nosnippet>1134</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#1135 id=1135 data-nosnippet>1135</a>
-<a href=#1136 id=1136 data-nosnippet>1136</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#1137 id=1137 data-nosnippet>1137</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1136 id=1136 data-nosnippet>1136</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#1137 id=1137 data-nosnippet>1137</a>        acir(inline) pure fn main f0 {
 <a href=#1138 id=1138 data-nosnippet>1138</a>          b0():
 <a href=#1139 id=1139 data-nosnippet>1139</a>            v1 = not u1 0
 <a href=#1140 id=1140 data-nosnippet>1140</a>            return
@@ -1150,7 +1150,7 @@
 <a href=#1150 id=1150 data-nosnippet>1150</a>        // other went through extra blocks, causing "Expected two blocks to join
 <a href=#1151 id=1151 data-nosnippet>1151</a>        // to the same block" in flatten_cfg.
 <a href=#1152 id=1152 data-nosnippet>1152</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1153 id=1153 data-nosnippet>1153</a>        acir(inline) impure fn main f0 {
+<a href=#1153 id=1153 data-nosnippet>1153</a>        acir(inline) pure fn main f0 {
 <a href=#1154 id=1154 data-nosnippet>1154</a>          b0(v1: u1, v2: u1, v3: u1, v4: u32):
 <a href=#1155 id=1155 data-nosnippet>1155</a>            v5 = eq v4, u32 1
 <a href=#1156 id=1156 data-nosnippet>1156</a>            jmpif v5 then: b1(), else: b2()

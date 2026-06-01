@@ -329,7 +329,7 @@
 <a href=#329 id=329 data-nosnippet>329</a>        </span><span class="kw">let </span>src = <span class="string">r#"
 <a href=#330 id=330 data-nosnippet>330</a>        g0 = u32 2825334515
 <a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#332 id=332 data-nosnippet>332</a>        brillig(inline) impure fn main f0 {
 <a href=#333 id=333 data-nosnippet>333</a>          b0(v1: [[u1; 4]; 4]):
 <a href=#334 id=334 data-nosnippet>334</a>            v4 = array_get v1, index u32 0 -&gt; [u1; 4]
 <a href=#335 id=335 data-nosnippet>335</a>            inc_rc v4
@@ -374,10 +374,10 @@
 <a href=#374 id=374 data-nosnippet>374</a>
 <a href=#375 id=375 data-nosnippet>375</a>        <span class="comment">// We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
 <a href=#376 id=376 data-nosnippet>376</a>        // should no longer pass any arguments to their terminator (which jumps to b3).
-<a href=#377 id=377 data-nosnippet>377</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+<a href=#377 id=377 data-nosnippet>377</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
 <a href=#378 id=378 data-nosnippet>378</a>        g0 = u32 2825334515
-<a href=#379 id=379 data-nosnippet>379</a>        
-<a href=#380 id=380 data-nosnippet>380</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#379 id=379 data-nosnippet>379</a>
+<a href=#380 id=380 data-nosnippet>380</a>        brillig(inline) impure fn main f0 {
 <a href=#381 id=381 data-nosnippet>381</a>          b0(v1: [[u1; 4]; 4]):
 <a href=#382 id=382 data-nosnippet>382</a>            v3 = array_get v1, index u32 0 -&gt; [u1; 4]
 <a href=#383 id=383 data-nosnippet>383</a>            inc_rc v3
@@ -391,7 +391,7 @@
 <a href=#391 id=391 data-nosnippet>391</a>          b3():
 <a href=#392 id=392 data-nosnippet>392</a>            return u1 0
 <a href=#393 id=393 data-nosnippet>393</a>        }
-<a href=#394 id=394 data-nosnippet>394</a>        "#</span>);
+<a href=#394 id=394 data-nosnippet>394</a>        "</span>);
 <a href=#395 id=395 data-nosnippet>395</a>    }
 <a href=#396 id=396 data-nosnippet>396</a>
 <a href=#397 id=397 data-nosnippet>397</a>    <span class="attr">#[test]

@@ -257,7 +257,7 @@
 <a href=#257 id=257 data-nosnippet>257</a>    </span><span class="kw">fn </span>simplifies_out_noop_bitwise_ands() {
 <a href=#258 id=258 data-nosnippet>258</a>        <span class="comment">// Regression test for https://github.com/noir-lang/noir/issues/7451
 <a href=#259 id=259 data-nosnippet>259</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#260 id=260 data-nosnippet>260</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#260 id=260 data-nosnippet>260</a>        acir(inline) pure fn main f0 {
 <a href=#261 id=261 data-nosnippet>261</a>          b0(v0: u8):
 <a href=#262 id=262 data-nosnippet>262</a>            v1 = and u8 255, v0
 <a href=#263 id=263 data-nosnippet>263</a>            return v1
@@ -266,8 +266,8 @@
 <a href=#266 id=266 data-nosnippet>266</a>
 <a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#268 id=268 data-nosnippet>268</a>
-<a href=#269 id=269 data-nosnippet>269</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#270 id=270 data-nosnippet>270</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#270 id=270 data-nosnippet>270</a>        acir(inline) pure fn main f0 {
 <a href=#271 id=271 data-nosnippet>271</a>          b0(v0: u8):
 <a href=#272 id=272 data-nosnippet>272</a>            return v0
 <a href=#273 id=273 data-nosnippet>273</a>        }

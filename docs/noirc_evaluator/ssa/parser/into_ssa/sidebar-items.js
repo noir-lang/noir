@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Translator"]};
+window.SIDEBAR_ITEMS = {"fn":["validate_stated_purities"],"struct":["Translator"]};

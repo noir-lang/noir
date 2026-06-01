@@ -2292,7 +2292,7 @@
 <a href=#2292 id=2292 data-nosnippet>2292</a>    <span class="attr">#[test]
 <a href=#2293 id=2293 data-nosnippet>2293</a>    </span><span class="kw">fn </span>test_boilerplate_stats_const_zero_jump_condition() {
 <a href=#2294 id=2294 data-nosnippet>2294</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#2295 id=2295 data-nosnippet>2295</a>        brillig(inline) impure fn main f0 {
+<a href=#2295 id=2295 data-nosnippet>2295</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#2296 id=2296 data-nosnippet>2296</a>          b0():
 <a href=#2297 id=2297 data-nosnippet>2297</a>            jmp b1(u32 0)
 <a href=#2298 id=2298 data-nosnippet>2298</a>          b1(v0: u32):
@@ -2991,7 +2991,7 @@
 <a href=#2991 id=2991 data-nosnippet>2991</a>        //     println(i);
 <a href=#2992 id=2992 data-nosnippet>2992</a>        // }
 <a href=#2993 id=2993 data-nosnippet>2993</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#2994 id=2994 data-nosnippet>2994</a>        brillig(inline) impure fn main f0 {
+<a href=#2994 id=2994 data-nosnippet>2994</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#2995 id=2995 data-nosnippet>2995</a>          b0():
 <a href=#2996 id=2996 data-nosnippet>2996</a>            jmp b1(u32 0)
 <a href=#2997 id=2997 data-nosnippet>2997</a>          b1(v0: u32):
@@ -3054,7 +3054,7 @@
 <a href=#3054 id=3054 data-nosnippet>3054</a>        //     while run { }
 <a href=#3055 id=3055 data-nosnippet>3055</a>        // }
 <a href=#3056 id=3056 data-nosnippet>3056</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#3057 id=3057 data-nosnippet>3057</a>        brillig(inline) impure fn main f0 {
+<a href=#3057 id=3057 data-nosnippet>3057</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#3058 id=3058 data-nosnippet>3058</a>          b0():
 <a href=#3059 id=3059 data-nosnippet>3059</a>            v0 = allocate -&gt; &amp;mut u1
 <a href=#3060 id=3060 data-nosnippet>3060</a>            store u1 1 at v0
@@ -3122,12 +3122,12 @@
 <a href=#3122 id=3122 data-nosnippet>3122</a>    #[should_panic(expected = <span class="string">"has a JmpIf with a constant condition"</span>)]
 <a href=#3123 id=3123 data-nosnippet>3123</a>    </span><span class="kw">fn </span>pre_check_rejects_const_condition_jmpif_in_loop_header() {
 <a href=#3124 id=3124 data-nosnippet>3124</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3125 id=3125 data-nosnippet>3125</a>        acir(inline) impure fn main f0 {
+<a href=#3125 id=3125 data-nosnippet>3125</a>        acir(inline) predicate_pure fn main f0 {
 <a href=#3126 id=3126 data-nosnippet>3126</a>          b0():
 <a href=#3127 id=3127 data-nosnippet>3127</a>            call f1(u1 1)
 <a href=#3128 id=3128 data-nosnippet>3128</a>            return
 <a href=#3129 id=3129 data-nosnippet>3129</a>        }
-<a href=#3130 id=3130 data-nosnippet>3130</a>        brillig(inline) impure fn func f1 {
+<a href=#3130 id=3130 data-nosnippet>3130</a>        brillig(inline) predicate_pure fn func f1 {
 <a href=#3131 id=3131 data-nosnippet>3131</a>          b0(v0: u1):
 <a href=#3132 id=3132 data-nosnippet>3132</a>            v2 = not v0
 <a href=#3133 id=3133 data-nosnippet>3133</a>            v3 = allocate -&gt; &amp;mut u1

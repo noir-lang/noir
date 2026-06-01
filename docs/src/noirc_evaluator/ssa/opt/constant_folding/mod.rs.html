@@ -3067,440 +3067,449 @@
 <a href=#3067 id=3067 data-nosnippet>3067</a>    // (predicated by v0), then when v0=0 the callee's constraints would be skipped, its
 <a href=#3068 id=3068 data-nosnippet>3068</a>    // output witness would become unconstrained, and the `constrain` under the complementary
 <a href=#3069 id=3069 data-nosnippet>3069</a>    // predicate (`not v0`) would reference an unconstrained value — a soundness hole.
-<a href=#3070 id=3070 data-nosnippet>3070</a>    </span><span class="attr">#[test_case(<span class="string">"acir(fold)"</span>; <span class="string">"acir_fold"</span>)]
-<a href=#3071 id=3071 data-nosnippet>3071</a>    #[test_case(<span class="string">"brillig(inline)"</span>; <span class="string">"brillig"</span>)]
-<a href=#3072 id=3072 data-nosnippet>3072</a>    </span><span class="kw">fn </span>does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: <span class="kw-2">&amp;</span>str) {
-<a href=#3073 id=3073 data-nosnippet>3073</a>        <span class="kw">let </span>src = <span class="macro">format!</span>(
-<a href=#3074 id=3074 data-nosnippet>3074</a>            <span class="string">"
-<a href=#3075 id=3075 data-nosnippet>3075</a>        acir(inline) predicate_pure fn main f0 {{
-<a href=#3076 id=3076 data-nosnippet>3076</a>          b0(v0: u1, v1: Field):
-<a href=#3077 id=3077 data-nosnippet>3077</a>            enable_side_effects v0
-<a href=#3078 id=3078 data-nosnippet>3078</a>            v2 = call f1(v1) -&gt; Field
-<a href=#3079 id=3079 data-nosnippet>3079</a>            v3 = not v0
-<a href=#3080 id=3080 data-nosnippet>3080</a>            enable_side_effects v3
-<a href=#3081 id=3081 data-nosnippet>3081</a>            v4 = call f1(v1) -&gt; Field
-<a href=#3082 id=3082 data-nosnippet>3082</a>            constrain v4 != Field 123
-<a href=#3083 id=3083 data-nosnippet>3083</a>            enable_side_effects u1 1
-<a href=#3084 id=3084 data-nosnippet>3084</a>            return
-<a href=#3085 id=3085 data-nosnippet>3085</a>        }}
-<a href=#3086 id=3086 data-nosnippet>3086</a>        {callee_runtime} pure fn foo f1 {{
-<a href=#3087 id=3087 data-nosnippet>3087</a>          b0(v0: Field):
-<a href=#3088 id=3088 data-nosnippet>3088</a>            v1 = add v0, Field 1
-<a href=#3089 id=3089 data-nosnippet>3089</a>            return v1
-<a href=#3090 id=3090 data-nosnippet>3090</a>        }}
-<a href=#3091 id=3091 data-nosnippet>3091</a>        "
-<a href=#3092 id=3092 data-nosnippet>3092</a>        </span>);
-<a href=#3093 id=3093 data-nosnippet>3093</a>        assert_ssa_does_not_change(<span class="kw-2">&amp;</span>src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
-<a href=#3094 id=3094 data-nosnippet>3094</a>    }
-<a href=#3095 id=3095 data-nosnippet>3095</a>
-<a href=#3096 id=3096 data-nosnippet>3096</a>    <span class="doccomment">/// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
-<a href=#3097 id=3097 data-nosnippet>3097</a>    /// blocks, otherwise a use-before-def error can occur.
-<a href=#3098 id=3098 data-nosnippet>3098</a>    </span><span class="attr">#[test]
-<a href=#3099 id=3099 data-nosnippet>3099</a>    </span><span class="kw">fn </span>does_not_insert_cache_entry_for_unvisited_blocks() {
-<a href=#3100 id=3100 data-nosnippet>3100</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3101 id=3101 data-nosnippet>3101</a>        brillig(inline) fn main f0 {
-<a href=#3102 id=3102 data-nosnippet>3102</a>          b0():
-<a href=#3103 id=3103 data-nosnippet>3103</a>            v5 = make_array [u8 0] : [u8; 1]
-<a href=#3104 id=3104 data-nosnippet>3104</a>            v6 = allocate -&gt; &amp;mut [u8; 1]
-<a href=#3105 id=3105 data-nosnippet>3105</a>            store v5 at v6
-<a href=#3106 id=3106 data-nosnippet>3106</a>            jmp b1(u32 0)
-<a href=#3107 id=3107 data-nosnippet>3107</a>          b1(v0: u32):
-<a href=#3108 id=3108 data-nosnippet>3108</a>            v8 = eq v0, u32 0
-<a href=#3109 id=3109 data-nosnippet>3109</a>            v9 = make_array [u8 0] : [u8; 1]
-<a href=#3110 id=3110 data-nosnippet>3110</a>            jmpif v8 then: b2(), else: b3()
-<a href=#3111 id=3111 data-nosnippet>3111</a>          b2():
-<a href=#3112 id=3112 data-nosnippet>3112</a>            v19 = make_array [v9] : [[u8; 1]; 1]
-<a href=#3113 id=3113 data-nosnippet>3113</a>            v20 = allocate -&gt; &amp;mut [[u8; 1]; 1]
-<a href=#3114 id=3114 data-nosnippet>3114</a>            store v19 at v20
-<a href=#3115 id=3115 data-nosnippet>3115</a>            v21 = load v6 -&gt; [u8; 1]
-<a href=#3116 id=3116 data-nosnippet>3116</a>            jmp b8(u32 0)
-<a href=#3117 id=3117 data-nosnippet>3117</a>          b3():
-<a href=#3118 id=3118 data-nosnippet>3118</a>            v10 = allocate -&gt; &amp;mut [u8; 1]
-<a href=#3119 id=3119 data-nosnippet>3119</a>            store v9 at v10
-<a href=#3120 id=3120 data-nosnippet>3120</a>            jmp b4(u32 0)
-<a href=#3121 id=3121 data-nosnippet>3121</a>          b4(v1: u32):
-<a href=#3122 id=3122 data-nosnippet>3122</a>            v11 = make_array [u8 0] : [u8; 1]
-<a href=#3123 id=3123 data-nosnippet>3123</a>            v12 = load v10 -&gt; [u8; 1]
-<a href=#3124 id=3124 data-nosnippet>3124</a>            jmp b5(u32 0)
-<a href=#3125 id=3125 data-nosnippet>3125</a>          b5(v2: u32):
-<a href=#3126 id=3126 data-nosnippet>3126</a>            v13 = eq v2, u32 0
-<a href=#3127 id=3127 data-nosnippet>3127</a>            jmpif v13 then: b6(), else: b7()
-<a href=#3128 id=3128 data-nosnippet>3128</a>          b6():
-<a href=#3129 id=3129 data-nosnippet>3129</a>            v17 = array_get v12, index u32 0 -&gt; u8
-<a href=#3130 id=3130 data-nosnippet>3130</a>            v18 = unchecked_add v2, u32 1
-<a href=#3131 id=3131 data-nosnippet>3131</a>            jmp b5(v18)
-<a href=#3132 id=3132 data-nosnippet>3132</a>          b7():
-<a href=#3133 id=3133 data-nosnippet>3133</a>            v14 = array_get v12, index u32 0 -&gt; u8
-<a href=#3134 id=3134 data-nosnippet>3134</a>            v16 = unchecked_add v1, u32 1
-<a href=#3135 id=3135 data-nosnippet>3135</a>            jmp b4(v16)
-<a href=#3136 id=3136 data-nosnippet>3136</a>          b8(v3: u32):
-<a href=#3137 id=3137 data-nosnippet>3137</a>            v22 = eq v3, u32 0
-<a href=#3138 id=3138 data-nosnippet>3138</a>            jmpif v22 then: b9(), else: b10()
-<a href=#3139 id=3139 data-nosnippet>3139</a>          b9():
-<a href=#3140 id=3140 data-nosnippet>3140</a>            v26 = array_get v21, index u32 0 -&gt; u8
-<a href=#3141 id=3141 data-nosnippet>3141</a>            v27 = unchecked_add v3, u32 1
-<a href=#3142 id=3142 data-nosnippet>3142</a>            jmp b8(v27)
-<a href=#3143 id=3143 data-nosnippet>3143</a>          b10():
-<a href=#3144 id=3144 data-nosnippet>3144</a>            v23 = make_array [u8 0] : [u8; 1]
-<a href=#3145 id=3145 data-nosnippet>3145</a>            v24 = array_get v21, index u32 0 -&gt; u8
-<a href=#3146 id=3146 data-nosnippet>3146</a>            v25 = unchecked_add v0, u32 1
-<a href=#3147 id=3147 data-nosnippet>3147</a>            jmp b1(v25)
-<a href=#3148 id=3148 data-nosnippet>3148</a>        }
-<a href=#3149 id=3149 data-nosnippet>3149</a>        "</span>;
-<a href=#3150 id=3150 data-nosnippet>3150</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#3151 id=3151 data-nosnippet>3151</a>
-<a href=#3152 id=3152 data-nosnippet>3152</a>        <span class="comment">// Bug would first appear at max_iter=2: the 1st iteration hoists instructions,
-<a href=#3153 id=3153 data-nosnippet>3153</a>        // and the 2nd iteration creates references to values in unreachable blocks.
-<a href=#3154 id=3154 data-nosnippet>3154</a>        </span><span class="kw">let </span>ssa = ssa.fold_constants(<span class="number">2</span>);
-<a href=#3155 id=3155 data-nosnippet>3155</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#3156 id=3156 data-nosnippet>3156</a>        brillig(inline) fn main f0 {
-<a href=#3157 id=3157 data-nosnippet>3157</a>          b0():
-<a href=#3158 id=3158 data-nosnippet>3158</a>            v5 = make_array [u8 0] : [u8; 1]
-<a href=#3159 id=3159 data-nosnippet>3159</a>            v6 = allocate -&gt; &amp;mut [u8; 1]
-<a href=#3160 id=3160 data-nosnippet>3160</a>            store v5 at v6
-<a href=#3161 id=3161 data-nosnippet>3161</a>            v7 = make_array [u8 0] : [u8; 1]
-<a href=#3162 id=3162 data-nosnippet>3162</a>            jmp b1(u32 0)
-<a href=#3163 id=3163 data-nosnippet>3163</a>          b1(v0: u32):
-<a href=#3164 id=3164 data-nosnippet>3164</a>            v9 = eq v0, u32 0
-<a href=#3165 id=3165 data-nosnippet>3165</a>            inc_rc v7
-<a href=#3166 id=3166 data-nosnippet>3166</a>            jmpif v9 then: b2(), else: b3()
-<a href=#3167 id=3167 data-nosnippet>3167</a>          b2():
-<a href=#3168 id=3168 data-nosnippet>3168</a>            v19 = make_array [v7] : [[u8; 1]; 1]
-<a href=#3169 id=3169 data-nosnippet>3169</a>            v20 = allocate -&gt; &amp;mut [[u8; 1]; 1]
-<a href=#3170 id=3170 data-nosnippet>3170</a>            store v19 at v20
-<a href=#3171 id=3171 data-nosnippet>3171</a>            v21 = load v6 -&gt; [u8; 1]
-<a href=#3172 id=3172 data-nosnippet>3172</a>            v22 = array_get v21, index u32 0 -&gt; u8
-<a href=#3173 id=3173 data-nosnippet>3173</a>            jmp b8(u32 0)
-<a href=#3174 id=3174 data-nosnippet>3174</a>          b3():
-<a href=#3175 id=3175 data-nosnippet>3175</a>            v10 = allocate -&gt; &amp;mut [u8; 1]
-<a href=#3176 id=3176 data-nosnippet>3176</a>            store v7 at v10
-<a href=#3177 id=3177 data-nosnippet>3177</a>            jmp b4(u32 0)
-<a href=#3178 id=3178 data-nosnippet>3178</a>          b4(v1: u32):
-<a href=#3179 id=3179 data-nosnippet>3179</a>            v11 = make_array [u8 0] : [u8; 1]
-<a href=#3180 id=3180 data-nosnippet>3180</a>            v12 = load v10 -&gt; [u8; 1]
-<a href=#3181 id=3181 data-nosnippet>3181</a>            jmp b5(u32 0)
-<a href=#3182 id=3182 data-nosnippet>3182</a>          b5(v2: u32):
-<a href=#3183 id=3183 data-nosnippet>3183</a>            v13 = eq v2, u32 0
-<a href=#3184 id=3184 data-nosnippet>3184</a>            jmpif v13 then: b6(), else: b7()
-<a href=#3185 id=3185 data-nosnippet>3185</a>          b6():
-<a href=#3186 id=3186 data-nosnippet>3186</a>            v17 = array_get v12, index u32 0 -&gt; u8
-<a href=#3187 id=3187 data-nosnippet>3187</a>            v18 = unchecked_add v2, u32 1
-<a href=#3188 id=3188 data-nosnippet>3188</a>            jmp b5(v18)
-<a href=#3189 id=3189 data-nosnippet>3189</a>          b7():
-<a href=#3190 id=3190 data-nosnippet>3190</a>            v14 = array_get v12, index u32 0 -&gt; u8
-<a href=#3191 id=3191 data-nosnippet>3191</a>            v16 = unchecked_add v1, u32 1
-<a href=#3192 id=3192 data-nosnippet>3192</a>            jmp b4(v16)
-<a href=#3193 id=3193 data-nosnippet>3193</a>          b8(v3: u32):
-<a href=#3194 id=3194 data-nosnippet>3194</a>            v23 = eq v3, u32 0
-<a href=#3195 id=3195 data-nosnippet>3195</a>            jmpif v23 then: b9(), else: b10()
-<a href=#3196 id=3196 data-nosnippet>3196</a>          b9():
-<a href=#3197 id=3197 data-nosnippet>3197</a>            v26 = unchecked_add v3, u32 1
-<a href=#3198 id=3198 data-nosnippet>3198</a>            jmp b8(v26)
-<a href=#3199 id=3199 data-nosnippet>3199</a>          b10():
-<a href=#3200 id=3200 data-nosnippet>3200</a>            v24 = make_array [u8 0] : [u8; 1]
-<a href=#3201 id=3201 data-nosnippet>3201</a>            v25 = unchecked_add v0, u32 1
-<a href=#3202 id=3202 data-nosnippet>3202</a>            jmp b1(v25)
-<a href=#3203 id=3203 data-nosnippet>3203</a>        }
-<a href=#3204 id=3204 data-nosnippet>3204</a>        "</span>);
-<a href=#3205 id=3205 data-nosnippet>3205</a>    }
-<a href=#3206 id=3206 data-nosnippet>3206</a>
-<a href=#3207 id=3207 data-nosnippet>3207</a>    <span class="attr">#[test]
-<a href=#3208 id=3208 data-nosnippet>3208</a>    </span><span class="kw">fn </span>does_not_hoist_into_for_loop_header() {
-<a href=#3209 id=3209 data-nosnippet>3209</a>        <span class="comment">// An example of an `..=` inclusive loop, which has its body repeated as a follow up block,
-<a href=#3210 id=3210 data-nosnippet>3210</a>        // which is an opportunity to hoist duplicate instructions into a common dominator.
-<a href=#3211 id=3211 data-nosnippet>3211</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#3212 id=3212 data-nosnippet>3212</a>        brillig(inline) impure fn main f1 {
-<a href=#3213 id=3213 data-nosnippet>3213</a>          b0(v0: u1):
-<a href=#3214 id=3214 data-nosnippet>3214</a>            jmpif v0 then: b1(), else: b2()
-<a href=#3215 id=3215 data-nosnippet>3215</a>          b1():
-<a href=#3216 id=3216 data-nosnippet>3216</a>            jmp b3(u8 1)
-<a href=#3217 id=3217 data-nosnippet>3217</a>          b2():
-<a href=#3218 id=3218 data-nosnippet>3218</a>            jmp b3(u8 1)
-<a href=#3219 id=3219 data-nosnippet>3219</a>          b3(v1: u8):
-<a href=#3220 id=3220 data-nosnippet>3220</a>            v4 = mod u8 1, v1
-<a href=#3221 id=3221 data-nosnippet>3221</a>            v5 = allocate -&gt; &amp;mut u1
-<a href=#3222 id=3222 data-nosnippet>3222</a>            store u1 1 at v5
-<a href=#3223 id=3223 data-nosnippet>3223</a>            jmp b4(u8 0)
-<a href=#3224 id=3224 data-nosnippet>3224</a>          b4(v2: u8):
-<a href=#3225 id=3225 data-nosnippet>3225</a>            v8 = lt v2, v4
-<a href=#3226 id=3226 data-nosnippet>3226</a>            jmpif v8 then: b5(), else: b6()
-<a href=#3227 id=3227 data-nosnippet>3227</a>          b5():
-<a href=#3228 id=3228 data-nosnippet>3228</a>            v31 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
-<a href=#3229 id=3229 data-nosnippet>3229</a>            call print(u1 1, v2, v31, u1 0)
-<a href=#3230 id=3230 data-nosnippet>3230</a>            v32 = unchecked_add v2, u8 1
-<a href=#3231 id=3231 data-nosnippet>3231</a>            jmp b4(v32)
-<a href=#3232 id=3232 data-nosnippet>3232</a>          b6():
-<a href=#3233 id=3233 data-nosnippet>3233</a>            v9 = load v5 -&gt; u1
-<a href=#3234 id=3234 data-nosnippet>3234</a>            jmpif v9 then: b7(), else: b8()
-<a href=#3235 id=3235 data-nosnippet>3235</a>          b7():
-<a href=#3236 id=3236 data-nosnippet>3236</a>            v28 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
-<a href=#3237 id=3237 data-nosnippet>3237</a>            call print(u1 1, v4, v28, u1 0)
-<a href=#3238 id=3238 data-nosnippet>3238</a>            jmp b8()
-<a href=#3239 id=3239 data-nosnippet>3239</a>          b8():
-<a href=#3240 id=3240 data-nosnippet>3240</a>            return
-<a href=#3241 id=3241 data-nosnippet>3241</a>        }
-<a href=#3242 id=3242 data-nosnippet>3242</a>        "#</span>;
-<a href=#3243 id=3243 data-nosnippet>3243</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#3244 id=3244 data-nosnippet>3244</a>        <span class="kw">let </span>ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
-<a href=#3245 id=3245 data-nosnippet>3245</a>        <span class="comment">// The `make_array` should be hoisted into b3, not b4.
-<a href=#3246 id=3246 data-nosnippet>3246</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
-<a href=#3247 id=3247 data-nosnippet>3247</a>        brillig(inline) impure fn main f0 {
-<a href=#3248 id=3248 data-nosnippet>3248</a>          b0(v0: u1):
-<a href=#3249 id=3249 data-nosnippet>3249</a>            jmpif v0 then: b1(), else: b2()
-<a href=#3250 id=3250 data-nosnippet>3250</a>          b1():
-<a href=#3251 id=3251 data-nosnippet>3251</a>            jmp b3(u8 1)
-<a href=#3252 id=3252 data-nosnippet>3252</a>          b2():
-<a href=#3253 id=3253 data-nosnippet>3253</a>            jmp b3(u8 1)
-<a href=#3254 id=3254 data-nosnippet>3254</a>          b3(v1: u8):
-<a href=#3255 id=3255 data-nosnippet>3255</a>            v4 = mod u8 1, v1
-<a href=#3256 id=3256 data-nosnippet>3256</a>            v5 = allocate -&gt; &amp;mut u1
-<a href=#3257 id=3257 data-nosnippet>3257</a>            store u1 1 at v5
-<a href=#3258 id=3258 data-nosnippet>3258</a>            v25 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
-<a href=#3259 id=3259 data-nosnippet>3259</a>            jmp b4(u8 0)
-<a href=#3260 id=3260 data-nosnippet>3260</a>          b4(v2: u8):
-<a href=#3261 id=3261 data-nosnippet>3261</a>            v27 = lt v2, v4
-<a href=#3262 id=3262 data-nosnippet>3262</a>            jmpif v27 then: b5(), else: b6()
-<a href=#3263 id=3263 data-nosnippet>3263</a>          b5():
-<a href=#3264 id=3264 data-nosnippet>3264</a>            inc_rc v25
-<a href=#3265 id=3265 data-nosnippet>3265</a>            call print(u1 1, v2, v25, u1 0)
-<a href=#3266 id=3266 data-nosnippet>3266</a>            v31 = unchecked_add v2, u8 1
-<a href=#3267 id=3267 data-nosnippet>3267</a>            jmp b4(v31)
-<a href=#3268 id=3268 data-nosnippet>3268</a>          b6():
-<a href=#3269 id=3269 data-nosnippet>3269</a>            v28 = load v5 -&gt; u1
-<a href=#3270 id=3270 data-nosnippet>3270</a>            jmpif v28 then: b7(), else: b8()
-<a href=#3271 id=3271 data-nosnippet>3271</a>          b7():
-<a href=#3272 id=3272 data-nosnippet>3272</a>            inc_rc v25
-<a href=#3273 id=3273 data-nosnippet>3273</a>            call print(u1 1, v4, v25, u1 0)
-<a href=#3274 id=3274 data-nosnippet>3274</a>            jmp b8()
-<a href=#3275 id=3275 data-nosnippet>3275</a>          b8():
-<a href=#3276 id=3276 data-nosnippet>3276</a>            return
-<a href=#3277 id=3277 data-nosnippet>3277</a>        }
-<a href=#3278 id=3278 data-nosnippet>3278</a>        "#</span>);
-<a href=#3279 id=3279 data-nosnippet>3279</a>    }
-<a href=#3280 id=3280 data-nosnippet>3280</a>
-<a href=#3281 id=3281 data-nosnippet>3281</a>    <span class="attr">#[test]
-<a href=#3282 id=3282 data-nosnippet>3282</a>    </span><span class="kw">fn </span>does_not_hoist_into_while_loop_header() {
-<a href=#3283 id=3283 data-nosnippet>3283</a>        <span class="comment">// Here b1 is a header of a `while` loop, and its condition
-<a href=#3284 id=3284 data-nosnippet>3284</a>        // v3 is used in both b2 and b3 to define a `not v3` variable.
-<a href=#3285 id=3285 data-nosnippet>3285</a>        // The common dominator is b1 (the loop header), but since `not v3`
-<a href=#3286 id=3286 data-nosnippet>3286</a>        // uses v3 (defined in the header), we can't escape to the pre-header.
-<a href=#3287 id=3287 data-nosnippet>3287</a>        // We must not hoist into the header either — loop unrolling only maps
-<a href=#3288 id=3288 data-nosnippet>3288</a>        // header parameters, not instruction results.
-<a href=#3289 id=3289 data-nosnippet>3289</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#3290 id=3290 data-nosnippet>3290</a>        brillig(inline) impure fn main f0 {
-<a href=#3291 id=3291 data-nosnippet>3291</a>          b0(v1: u1):
-<a href=#3292 id=3292 data-nosnippet>3292</a>            v2 = allocate -&gt; &amp;mut u1
-<a href=#3293 id=3293 data-nosnippet>3293</a>            store v1 at v2
-<a href=#3294 id=3294 data-nosnippet>3294</a>            jmp b1()
-<a href=#3295 id=3295 data-nosnippet>3295</a>          b1():
-<a href=#3296 id=3296 data-nosnippet>3296</a>            v3 = load v2 -&gt; u1
-<a href=#3297 id=3297 data-nosnippet>3297</a>            jmpif v3 then: b2(), else: b3()
-<a href=#3298 id=3298 data-nosnippet>3298</a>          b2():
-<a href=#3299 id=3299 data-nosnippet>3299</a>            v4 = not v3
-<a href=#3300 id=3300 data-nosnippet>3300</a>            jmp b4(v4)
-<a href=#3301 id=3301 data-nosnippet>3301</a>          b3():
-<a href=#3302 id=3302 data-nosnippet>3302</a>            v5 = not v3
-<a href=#3303 id=3303 data-nosnippet>3303</a>            jmp b4(v5)
-<a href=#3304 id=3304 data-nosnippet>3304</a>          b4(v6: u1):
-<a href=#3305 id=3305 data-nosnippet>3305</a>            store v6 at v2
-<a href=#3306 id=3306 data-nosnippet>3306</a>            jmp b1()
-<a href=#3307 id=3307 data-nosnippet>3307</a>        }
-<a href=#3308 id=3308 data-nosnippet>3308</a>        "#</span>;
-<a href=#3309 id=3309 data-nosnippet>3309</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#3310 id=3310 data-nosnippet>3310</a>        <span class="kw">let </span>ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
-<a href=#3311 id=3311 data-nosnippet>3311</a>
-<a href=#3312 id=3312 data-nosnippet>3312</a>        <span class="comment">// `not v3` stays in b2 and b3 — not hoisted into the header.
-<a href=#3313 id=3313 data-nosnippet>3313</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#3314 id=3314 data-nosnippet>3314</a>        brillig(inline) impure fn main f0 {
-<a href=#3315 id=3315 data-nosnippet>3315</a>          b0(v0: u1):
-<a href=#3316 id=3316 data-nosnippet>3316</a>            v2 = allocate -&gt; &amp;mut u1
-<a href=#3317 id=3317 data-nosnippet>3317</a>            store v0 at v2
-<a href=#3318 id=3318 data-nosnippet>3318</a>            jmp b1()
-<a href=#3319 id=3319 data-nosnippet>3319</a>          b1():
-<a href=#3320 id=3320 data-nosnippet>3320</a>            v3 = load v2 -&gt; u1
-<a href=#3321 id=3321 data-nosnippet>3321</a>            jmpif v3 then: b2(), else: b3()
-<a href=#3322 id=3322 data-nosnippet>3322</a>          b2():
-<a href=#3323 id=3323 data-nosnippet>3323</a>            v5 = not v3
-<a href=#3324 id=3324 data-nosnippet>3324</a>            jmp b4(v5)
-<a href=#3325 id=3325 data-nosnippet>3325</a>          b3():
-<a href=#3326 id=3326 data-nosnippet>3326</a>            v4 = not v3
-<a href=#3327 id=3327 data-nosnippet>3327</a>            jmp b4(v4)
-<a href=#3328 id=3328 data-nosnippet>3328</a>          b4(v1: u1):
-<a href=#3329 id=3329 data-nosnippet>3329</a>            store v1 at v2
-<a href=#3330 id=3330 data-nosnippet>3330</a>            jmp b1()
-<a href=#3331 id=3331 data-nosnippet>3331</a>        }
-<a href=#3332 id=3332 data-nosnippet>3332</a>        "</span>);
-<a href=#3333 id=3333 data-nosnippet>3333</a>    }
-<a href=#3334 id=3334 data-nosnippet>3334</a>
-<a href=#3335 id=3335 data-nosnippet>3335</a>    <span class="attr">#[test]
-<a href=#3336 id=3336 data-nosnippet>3336</a>    </span><span class="kw">fn </span>hoisting_instruction_using_param_into_dominator_of_param() {
-<a href=#3337 id=3337 data-nosnippet>3337</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3338 id=3338 data-nosnippet>3338</a>      brillig(inline) impure fn main f0 {
-<a href=#3339 id=3339 data-nosnippet>3339</a>        b0(v0: [Field; 2]):
-<a href=#3340 id=3340 data-nosnippet>3340</a>          inc_rc v0
-<a href=#3341 id=3341 data-nosnippet>3341</a>          v6 = array_get v0, index u32 1 -&gt; Field
-<a href=#3342 id=3342 data-nosnippet>3342</a>          v8 = add Field 3, v6
-<a href=#3343 id=3343 data-nosnippet>3343</a>          v9 = array_set v0, index u32 1, value v8
-<a href=#3344 id=3344 data-nosnippet>3344</a>          jmp b1(v9, u1 1)
-<a href=#3345 id=3345 data-nosnippet>3345</a>        b1(v1: [Field; 2], v2: u1):
-<a href=#3346 id=3346 data-nosnippet>3346</a>          jmpif v2 then: b2(), else: b3()
-<a href=#3347 id=3347 data-nosnippet>3347</a>        b2():
-<a href=#3348 id=3348 data-nosnippet>3348</a>          v18 = array_get v1, index u32 0 -&gt; Field
-<a href=#3349 id=3349 data-nosnippet>3349</a>          v19 = add Field 3, v18
-<a href=#3350 id=3350 data-nosnippet>3350</a>          v20 = array_set v1, index u32 0, value v19
-<a href=#3351 id=3351 data-nosnippet>3351</a>          jmp b1(v20, u1 0)
-<a href=#3352 id=3352 data-nosnippet>3352</a>        b3():
-<a href=#3353 id=3353 data-nosnippet>3353</a>          v11 = array_set v0, index u32 1, value v8
-<a href=#3354 id=3354 data-nosnippet>3354</a>          jmp b4(v11, u1 1)
-<a href=#3355 id=3355 data-nosnippet>3355</a>        b4(v3: [Field; 2], v4: u1):
-<a href=#3356 id=3356 data-nosnippet>3356</a>          jmpif v4 then: b5(), else: b6()
-<a href=#3357 id=3357 data-nosnippet>3357</a>        b5():
-<a href=#3358 id=3358 data-nosnippet>3358</a>          v14 = array_get v3, index u32 0 -&gt; Field
-<a href=#3359 id=3359 data-nosnippet>3359</a>          v15 = add Field 3, v14
-<a href=#3360 id=3360 data-nosnippet>3360</a>          v16 = array_set v3, index u32 0, value v15
-<a href=#3361 id=3361 data-nosnippet>3361</a>          jmp b4(v16, u1 0)
-<a href=#3362 id=3362 data-nosnippet>3362</a>        b6():
-<a href=#3363 id=3363 data-nosnippet>3363</a>          v13 = array_get v3, index u32 0 -&gt; Field
-<a href=#3364 id=3364 data-nosnippet>3364</a>          return v13
-<a href=#3365 id=3365 data-nosnippet>3365</a>      }
-<a href=#3366 id=3366 data-nosnippet>3366</a>      "</span>;
-<a href=#3367 id=3367 data-nosnippet>3367</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#3368 id=3368 data-nosnippet>3368</a>        <span class="kw">let </span>ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
-<a href=#3369 id=3369 data-nosnippet>3369</a>        <span class="kw">let </span>elements = <span class="macro">vec!</span>[Value::field((-<span class="number">2i128</span>).into()), Value::field((-<span class="number">1i128</span>).into())];
-<a href=#3370 id=3370 data-nosnippet>3370</a>        <span class="kw">let </span>inputs = Value::array(elements, <span class="macro">vec!</span>[Type::field()]);
-<a href=#3371 id=3371 data-nosnippet>3371</a>        <span class="kw">let </span>results = ssa.interpret(<span class="macro">vec!</span>[inputs]).unwrap();
-<a href=#3372 id=3372 data-nosnippet>3372</a>        <span class="macro">assert_eq!</span>(results[<span class="number">0</span>], Value::field(<span class="number">1u32</span>.into()));
-<a href=#3373 id=3373 data-nosnippet>3373</a>
-<a href=#3374 id=3374 data-nosnippet>3374</a>        <span class="comment">// `array_get v3, index u32 0` stays in b5 and b6 — not hoisted into
-<a href=#3375 id=3375 data-nosnippet>3375</a>        // loop header b4, because v3 is defined there.
-<a href=#3376 id=3376 data-nosnippet>3376</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#3377 id=3377 data-nosnippet>3377</a>        brillig(inline) impure fn main f0 {
-<a href=#3378 id=3378 data-nosnippet>3378</a>          b0(v0: [Field; 2]):
-<a href=#3379 id=3379 data-nosnippet>3379</a>            inc_rc v0
-<a href=#3380 id=3380 data-nosnippet>3380</a>            v6 = array_get v0, index u32 1 -&gt; Field
-<a href=#3381 id=3381 data-nosnippet>3381</a>            v8 = add Field 3, v6
-<a href=#3382 id=3382 data-nosnippet>3382</a>            v9 = array_set v0, index u32 1, value v8
-<a href=#3383 id=3383 data-nosnippet>3383</a>            jmp b1(v9, u1 1)
-<a href=#3384 id=3384 data-nosnippet>3384</a>          b1(v1: [Field; 2], v2: u1):
-<a href=#3385 id=3385 data-nosnippet>3385</a>            jmpif v2 then: b2(), else: b3()
-<a href=#3386 id=3386 data-nosnippet>3386</a>          b2():
-<a href=#3387 id=3387 data-nosnippet>3387</a>            v18 = array_get v1, index u32 0 -&gt; Field
-<a href=#3388 id=3388 data-nosnippet>3388</a>            v19 = add Field 3, v18
-<a href=#3389 id=3389 data-nosnippet>3389</a>            v20 = array_set v1, index u32 0, value v19
-<a href=#3390 id=3390 data-nosnippet>3390</a>            jmp b1(v20, u1 0)
-<a href=#3391 id=3391 data-nosnippet>3391</a>          b3():
-<a href=#3392 id=3392 data-nosnippet>3392</a>            v11 = array_set v0, index u32 1, value v8
-<a href=#3393 id=3393 data-nosnippet>3393</a>            jmp b4(v11, u1 1)
-<a href=#3394 id=3394 data-nosnippet>3394</a>          b4(v3: [Field; 2], v4: u1):
-<a href=#3395 id=3395 data-nosnippet>3395</a>            jmpif v4 then: b5(), else: b6()
-<a href=#3396 id=3396 data-nosnippet>3396</a>          b5():
-<a href=#3397 id=3397 data-nosnippet>3397</a>            v14 = array_get v3, index u32 0 -&gt; Field
-<a href=#3398 id=3398 data-nosnippet>3398</a>            v15 = add Field 3, v14
-<a href=#3399 id=3399 data-nosnippet>3399</a>            v16 = array_set v3, index u32 0, value v15
-<a href=#3400 id=3400 data-nosnippet>3400</a>            jmp b4(v16, u1 0)
-<a href=#3401 id=3401 data-nosnippet>3401</a>          b6():
-<a href=#3402 id=3402 data-nosnippet>3402</a>            v13 = array_get v3, index u32 0 -&gt; Field
-<a href=#3403 id=3403 data-nosnippet>3403</a>            return v13
-<a href=#3404 id=3404 data-nosnippet>3404</a>        }
-<a href=#3405 id=3405 data-nosnippet>3405</a>        "</span>);
-<a href=#3406 id=3406 data-nosnippet>3406</a>    }
-<a href=#3407 id=3407 data-nosnippet>3407</a>
-<a href=#3408 id=3408 data-nosnippet>3408</a>    <span class="doccomment">/// Regression test: CSE must not hoist an instruction into a loop header when
-<a href=#3409 id=3409 data-nosnippet>3409</a>    /// it can't escape to the pre-header because it uses header-defined values.
-<a href=#3410 id=3410 data-nosnippet>3410</a>    ///
-<a href=#3411 id=3411 data-nosnippet>3411</a>    /// Here `mul v2, v2` appears in both the loop body (b2) and exit block (b3),
-<a href=#3412 id=3412 data-nosnippet>3412</a>    /// and their common dominator is the loop header (b1). The instruction uses `v2`
-<a href=#3413 id=3413 data-nosnippet>3413</a>    /// (a header parameter), so the escape-past-header logic correctly can't move
-<a href=#3414 id=3414 data-nosnippet>3414</a>    /// it to the pre-header. But it must also not leave the target at the header
-<a href=#3415 id=3415 data-nosnippet>3415</a>    /// itself — that would break loop unrolling, which only maps header *parameters*
-<a href=#3416 id=3416 data-nosnippet>3416</a>    /// to final-iteration values, not instruction results.
-<a href=#3417 id=3417 data-nosnippet>3417</a>    </span><span class="attr">#[test]
-<a href=#3418 id=3418 data-nosnippet>3418</a>    </span><span class="kw">fn </span>does_not_hoist_into_loop_header_using_header_param() {
-<a href=#3419 id=3419 data-nosnippet>3419</a>        <span class="comment">// Both `mul v2, v2` should stay in their original blocks.
-<a href=#3420 id=3420 data-nosnippet>3420</a>        // They must NOT be hoisted into the loop header b1.
-<a href=#3421 id=3421 data-nosnippet>3421</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#3422 id=3422 data-nosnippet>3422</a>        acir(inline) fn main f0 {
-<a href=#3423 id=3423 data-nosnippet>3423</a>          b0(v0: Field):
-<a href=#3424 id=3424 data-nosnippet>3424</a>            jmp b1(u8 0, v0)
-<a href=#3425 id=3425 data-nosnippet>3425</a>          b1(v1: u8, v2: Field):
-<a href=#3426 id=3426 data-nosnippet>3426</a>            v3 = lt v1, u8 2
-<a href=#3427 id=3427 data-nosnippet>3427</a>            jmpif v3 then: b2(), else: b3()
-<a href=#3428 id=3428 data-nosnippet>3428</a>          b2():
-<a href=#3429 id=3429 data-nosnippet>3429</a>            v4 = mul v2, v2
-<a href=#3430 id=3430 data-nosnippet>3430</a>            v5 = add v4, Field 1
-<a href=#3431 id=3431 data-nosnippet>3431</a>            v6 = add v1, u8 1
-<a href=#3432 id=3432 data-nosnippet>3432</a>            jmp b1(v6, v5)
-<a href=#3433 id=3433 data-nosnippet>3433</a>          b3():
-<a href=#3434 id=3434 data-nosnippet>3434</a>            v7 = mul v2, v2
-<a href=#3435 id=3435 data-nosnippet>3435</a>            return v7
-<a href=#3436 id=3436 data-nosnippet>3436</a>        }
-<a href=#3437 id=3437 data-nosnippet>3437</a>        "</span>;
-<a href=#3438 id=3438 data-nosnippet>3438</a>        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(DEFAULT_MAX_ITER));
-<a href=#3439 id=3439 data-nosnippet>3439</a>    }
-<a href=#3440 id=3440 data-nosnippet>3440</a>
-<a href=#3441 id=3441 data-nosnippet>3441</a>    <span class="doccomment">/// A constrain with an error message followed by an equivalent constrain
-<a href=#3442 id=3442 data-nosnippet>3442</a>    /// that only becomes visible after simplification. The duplicate should
-<a href=#3443 id=3443 data-nosnippet>3443</a>    /// be removed.
-<a href=#3444 id=3444 data-nosnippet>3444</a>    </span><span class="attr">#[test]
-<a href=#3445 id=3445 data-nosnippet>3445</a>    </span><span class="kw">fn </span>duplicate_constrain_after_simplification() {
-<a href=#3446 id=3446 data-nosnippet>3446</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3447 id=3447 data-nosnippet>3447</a>        acir(inline) fn main f0 {
-<a href=#3448 id=3448 data-nosnippet>3448</a>          b0(v0: Field):
-<a href=#3449 id=3449 data-nosnippet>3449</a>            v2 = eq v0, Field 1
-<a href=#3450 id=3450 data-nosnippet>3450</a>            v3 = not v2
-<a href=#3451 id=3451 data-nosnippet>3451</a>            enable_side_effects v3
-<a href=#3452 id=3452 data-nosnippet>3452</a>            constrain v0 == Field 1, \"Index out of bounds\"
-<a href=#3453 id=3453 data-nosnippet>3453</a>            v5 = eq u32 0, u32 0
-<a href=#3454 id=3454 data-nosnippet>3454</a>            v6 = unchecked_mul v5, v3
-<a href=#3455 id=3455 data-nosnippet>3455</a>            constrain v6 == u1 0
-<a href=#3456 id=3456 data-nosnippet>3456</a>            enable_side_effects u1 1
-<a href=#3457 id=3457 data-nosnippet>3457</a>            return
-<a href=#3458 id=3458 data-nosnippet>3458</a>        }
-<a href=#3459 id=3459 data-nosnippet>3459</a>        "</span>;
-<a href=#3460 id=3460 data-nosnippet>3460</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#3461 id=3461 data-nosnippet>3461</a>        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(<span class="number">3</span>);
-<a href=#3462 id=3462 data-nosnippet>3462</a>
-<a href=#3463 id=3463 data-nosnippet>3463</a>        <span class="comment">// The simplified `constrain v0 == Field 1` should be deduplicated
-<a href=#3464 id=3464 data-nosnippet>3464</a>        // against the existing one with the error message.
-<a href=#3465 id=3465 data-nosnippet>3465</a>        // It simplified, because if `v0` is constrained to be 1,
-<a href=#3466 id=3466 data-nosnippet>3466</a>        // then v2 is 1, v3 is 0, v6 is 0, and the 2nd constrain is true.
-<a href=#3467 id=3467 data-nosnippet>3467</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
-<a href=#3468 id=3468 data-nosnippet>3468</a>        acir(inline) fn main f0 {
-<a href=#3469 id=3469 data-nosnippet>3469</a>          b0(v0: Field):
-<a href=#3470 id=3470 data-nosnippet>3470</a>            v2 = eq v0, Field 1
-<a href=#3471 id=3471 data-nosnippet>3471</a>            v3 = not v2
-<a href=#3472 id=3472 data-nosnippet>3472</a>            enable_side_effects v3
-<a href=#3473 id=3473 data-nosnippet>3473</a>            constrain v0 == Field 1, "Index out of bounds"
-<a href=#3474 id=3474 data-nosnippet>3474</a>            enable_side_effects u1 1
-<a href=#3475 id=3475 data-nosnippet>3475</a>            return
-<a href=#3476 id=3476 data-nosnippet>3476</a>        }
-<a href=#3477 id=3477 data-nosnippet>3477</a>        "#</span>);
-<a href=#3478 id=3478 data-nosnippet>3478</a>    }
-<a href=#3479 id=3479 data-nosnippet>3479</a>
-<a href=#3480 id=3480 data-nosnippet>3480</a>    <span class="attr">#[test]
-<a href=#3481 id=3481 data-nosnippet>3481</a>    </span><span class="kw">fn </span>constant_folding_does_not_deduplicate_call_that_returns_array_that_is_later_mutated() {
-<a href=#3482 id=3482 data-nosnippet>3482</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3483 id=3483 data-nosnippet>3483</a>        brillig(inline) predicate_pure fn main f0 {
-<a href=#3484 id=3484 data-nosnippet>3484</a>          b0():
-<a href=#3485 id=3485 data-nosnippet>3485</a>            v3 = call f1() -&gt; [u1; 1]
-<a href=#3486 id=3486 data-nosnippet>3486</a>            jmp b1(v3, u32 0)
-<a href=#3487 id=3487 data-nosnippet>3487</a>          b1(v0: [u1; 1], v1: u32):
-<a href=#3488 id=3488 data-nosnippet>3488</a>            v6 = eq v1, u32 1
-<a href=#3489 id=3489 data-nosnippet>3489</a>            jmpif v6 then: b2(), else: b3()
-<a href=#3490 id=3490 data-nosnippet>3490</a>          b2():
-<a href=#3491 id=3491 data-nosnippet>3491</a>            v10 = call f1() -&gt; [u1; 1]
-<a href=#3492 id=3492 data-nosnippet>3492</a>            return v10
-<a href=#3493 id=3493 data-nosnippet>3493</a>          b3():
-<a href=#3494 id=3494 data-nosnippet>3494</a>            v7 = add v1, u32 1
-<a href=#3495 id=3495 data-nosnippet>3495</a>            v9 = array_set v0, index u32 0, value u1 0
-<a href=#3496 id=3496 data-nosnippet>3496</a>            jmp b1(v9, v7)
-<a href=#3497 id=3497 data-nosnippet>3497</a>        }
-<a href=#3498 id=3498 data-nosnippet>3498</a>        brillig(inline_never) predicate_pure fn g f1 {
-<a href=#3499 id=3499 data-nosnippet>3499</a>          b0():
-<a href=#3500 id=3500 data-nosnippet>3500</a>            v1 = make_array [u1 1] : [u1; 1]
-<a href=#3501 id=3501 data-nosnippet>3501</a>            return v1
-<a href=#3502 id=3502 data-nosnippet>3502</a>        }
-<a href=#3503 id=3503 data-nosnippet>3503</a>        "</span>;
-<a href=#3504 id=3504 data-nosnippet>3504</a>        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(<span class="number">3</span>));
-<a href=#3505 id=3505 data-nosnippet>3505</a>    }
-<a href=#3506 id=3506 data-nosnippet>3506</a>}</code></pre></div></section></main></body></html>
+<a href=#3070 id=3070 data-nosnippet>3070</a>    // The `brillig` case panics on purpose: a brillig callee can never compute as `Pure`
+<a href=#3071 id=3071 data-nosnippet>3071</a>    // (it defaults to `PureWithPredicate`, see `Function::is_pure`), so a `pure` annotation on
+<a href=#3072 id=3072 data-nosnippet>3072</a>    // it is not valid SSA. The optimizer input is parsed with validation disabled to set up the
+<a href=#3073 id=3073 data-nosnippet>3073</a>    // scenario, but `assert_normalized_ssa_equals` re-parses `src` as the expected output under
+<a href=#3074 id=3074 data-nosnippet>3074</a>    // strict validation and rejects it. The case is kept (rather than deleted) to document that
+<a href=#3075 id=3075 data-nosnippet>3075</a>    // the deduplication guarantee is meant to hold for brillig too; it should be re-enabled once
+<a href=#3076 id=3076 data-nosnippet>3076</a>    // a `pure` brillig callee can be expressed as valid SSA.
+<a href=#3077 id=3077 data-nosnippet>3077</a>    </span><span class="attr">#[test_case(<span class="string">"acir(fold)"</span>; <span class="string">"acir_fold"</span>)]
+<a href=#3078 id=3078 data-nosnippet>3078</a>    #[test_case(<span class="string">"brillig(inline)" </span>=&gt; panics <span class="string">"is not valid SSA"</span>; <span class="string">"brillig"</span>)]
+<a href=#3079 id=3079 data-nosnippet>3079</a>    </span><span class="kw">fn </span>does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: <span class="kw-2">&amp;</span>str) {
+<a href=#3080 id=3080 data-nosnippet>3080</a>        <span class="kw">let </span>src = <span class="macro">format!</span>(
+<a href=#3081 id=3081 data-nosnippet>3081</a>            <span class="string">"
+<a href=#3082 id=3082 data-nosnippet>3082</a>        acir(inline) predicate_pure fn main f0 {{
+<a href=#3083 id=3083 data-nosnippet>3083</a>          b0(v0: u1, v1: Field):
+<a href=#3084 id=3084 data-nosnippet>3084</a>            enable_side_effects v0
+<a href=#3085 id=3085 data-nosnippet>3085</a>            v2 = call f1(v1) -&gt; Field
+<a href=#3086 id=3086 data-nosnippet>3086</a>            v3 = not v0
+<a href=#3087 id=3087 data-nosnippet>3087</a>            enable_side_effects v3
+<a href=#3088 id=3088 data-nosnippet>3088</a>            v4 = call f1(v1) -&gt; Field
+<a href=#3089 id=3089 data-nosnippet>3089</a>            constrain v4 != Field 123
+<a href=#3090 id=3090 data-nosnippet>3090</a>            enable_side_effects u1 1
+<a href=#3091 id=3091 data-nosnippet>3091</a>            return
+<a href=#3092 id=3092 data-nosnippet>3092</a>        }}
+<a href=#3093 id=3093 data-nosnippet>3093</a>        {callee_runtime} pure fn foo f1 {{
+<a href=#3094 id=3094 data-nosnippet>3094</a>          b0(v0: Field):
+<a href=#3095 id=3095 data-nosnippet>3095</a>            v1 = add v0, Field 1
+<a href=#3096 id=3096 data-nosnippet>3096</a>            return v1
+<a href=#3097 id=3097 data-nosnippet>3097</a>        }}
+<a href=#3098 id=3098 data-nosnippet>3098</a>        "
+<a href=#3099 id=3099 data-nosnippet>3099</a>        </span>);
+<a href=#3100 id=3100 data-nosnippet>3100</a>        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#3101 id=3101 data-nosnippet>3101</a>        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+<a href=#3102 id=3102 data-nosnippet>3102</a>        assert_normalized_ssa_equals(ssa, <span class="kw-2">&amp;</span>src);
+<a href=#3103 id=3103 data-nosnippet>3103</a>    }
+<a href=#3104 id=3104 data-nosnippet>3104</a>
+<a href=#3105 id=3105 data-nosnippet>3105</a>    <span class="doccomment">/// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
+<a href=#3106 id=3106 data-nosnippet>3106</a>    /// blocks, otherwise a use-before-def error can occur.
+<a href=#3107 id=3107 data-nosnippet>3107</a>    </span><span class="attr">#[test]
+<a href=#3108 id=3108 data-nosnippet>3108</a>    </span><span class="kw">fn </span>does_not_insert_cache_entry_for_unvisited_blocks() {
+<a href=#3109 id=3109 data-nosnippet>3109</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3110 id=3110 data-nosnippet>3110</a>        brillig(inline) fn main f0 {
+<a href=#3111 id=3111 data-nosnippet>3111</a>          b0():
+<a href=#3112 id=3112 data-nosnippet>3112</a>            v5 = make_array [u8 0] : [u8; 1]
+<a href=#3113 id=3113 data-nosnippet>3113</a>            v6 = allocate -&gt; &amp;mut [u8; 1]
+<a href=#3114 id=3114 data-nosnippet>3114</a>            store v5 at v6
+<a href=#3115 id=3115 data-nosnippet>3115</a>            jmp b1(u32 0)
+<a href=#3116 id=3116 data-nosnippet>3116</a>          b1(v0: u32):
+<a href=#3117 id=3117 data-nosnippet>3117</a>            v8 = eq v0, u32 0
+<a href=#3118 id=3118 data-nosnippet>3118</a>            v9 = make_array [u8 0] : [u8; 1]
+<a href=#3119 id=3119 data-nosnippet>3119</a>            jmpif v8 then: b2(), else: b3()
+<a href=#3120 id=3120 data-nosnippet>3120</a>          b2():
+<a href=#3121 id=3121 data-nosnippet>3121</a>            v19 = make_array [v9] : [[u8; 1]; 1]
+<a href=#3122 id=3122 data-nosnippet>3122</a>            v20 = allocate -&gt; &amp;mut [[u8; 1]; 1]
+<a href=#3123 id=3123 data-nosnippet>3123</a>            store v19 at v20
+<a href=#3124 id=3124 data-nosnippet>3124</a>            v21 = load v6 -&gt; [u8; 1]
+<a href=#3125 id=3125 data-nosnippet>3125</a>            jmp b8(u32 0)
+<a href=#3126 id=3126 data-nosnippet>3126</a>          b3():
+<a href=#3127 id=3127 data-nosnippet>3127</a>            v10 = allocate -&gt; &amp;mut [u8; 1]
+<a href=#3128 id=3128 data-nosnippet>3128</a>            store v9 at v10
+<a href=#3129 id=3129 data-nosnippet>3129</a>            jmp b4(u32 0)
+<a href=#3130 id=3130 data-nosnippet>3130</a>          b4(v1: u32):
+<a href=#3131 id=3131 data-nosnippet>3131</a>            v11 = make_array [u8 0] : [u8; 1]
+<a href=#3132 id=3132 data-nosnippet>3132</a>            v12 = load v10 -&gt; [u8; 1]
+<a href=#3133 id=3133 data-nosnippet>3133</a>            jmp b5(u32 0)
+<a href=#3134 id=3134 data-nosnippet>3134</a>          b5(v2: u32):
+<a href=#3135 id=3135 data-nosnippet>3135</a>            v13 = eq v2, u32 0
+<a href=#3136 id=3136 data-nosnippet>3136</a>            jmpif v13 then: b6(), else: b7()
+<a href=#3137 id=3137 data-nosnippet>3137</a>          b6():
+<a href=#3138 id=3138 data-nosnippet>3138</a>            v17 = array_get v12, index u32 0 -&gt; u8
+<a href=#3139 id=3139 data-nosnippet>3139</a>            v18 = unchecked_add v2, u32 1
+<a href=#3140 id=3140 data-nosnippet>3140</a>            jmp b5(v18)
+<a href=#3141 id=3141 data-nosnippet>3141</a>          b7():
+<a href=#3142 id=3142 data-nosnippet>3142</a>            v14 = array_get v12, index u32 0 -&gt; u8
+<a href=#3143 id=3143 data-nosnippet>3143</a>            v16 = unchecked_add v1, u32 1
+<a href=#3144 id=3144 data-nosnippet>3144</a>            jmp b4(v16)
+<a href=#3145 id=3145 data-nosnippet>3145</a>          b8(v3: u32):
+<a href=#3146 id=3146 data-nosnippet>3146</a>            v22 = eq v3, u32 0
+<a href=#3147 id=3147 data-nosnippet>3147</a>            jmpif v22 then: b9(), else: b10()
+<a href=#3148 id=3148 data-nosnippet>3148</a>          b9():
+<a href=#3149 id=3149 data-nosnippet>3149</a>            v26 = array_get v21, index u32 0 -&gt; u8
+<a href=#3150 id=3150 data-nosnippet>3150</a>            v27 = unchecked_add v3, u32 1
+<a href=#3151 id=3151 data-nosnippet>3151</a>            jmp b8(v27)
+<a href=#3152 id=3152 data-nosnippet>3152</a>          b10():
+<a href=#3153 id=3153 data-nosnippet>3153</a>            v23 = make_array [u8 0] : [u8; 1]
+<a href=#3154 id=3154 data-nosnippet>3154</a>            v24 = array_get v21, index u32 0 -&gt; u8
+<a href=#3155 id=3155 data-nosnippet>3155</a>            v25 = unchecked_add v0, u32 1
+<a href=#3156 id=3156 data-nosnippet>3156</a>            jmp b1(v25)
+<a href=#3157 id=3157 data-nosnippet>3157</a>        }
+<a href=#3158 id=3158 data-nosnippet>3158</a>        "</span>;
+<a href=#3159 id=3159 data-nosnippet>3159</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3160 id=3160 data-nosnippet>3160</a>
+<a href=#3161 id=3161 data-nosnippet>3161</a>        <span class="comment">// Bug would first appear at max_iter=2: the 1st iteration hoists instructions,
+<a href=#3162 id=3162 data-nosnippet>3162</a>        // and the 2nd iteration creates references to values in unreachable blocks.
+<a href=#3163 id=3163 data-nosnippet>3163</a>        </span><span class="kw">let </span>ssa = ssa.fold_constants(<span class="number">2</span>);
+<a href=#3164 id=3164 data-nosnippet>3164</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#3165 id=3165 data-nosnippet>3165</a>        brillig(inline) fn main f0 {
+<a href=#3166 id=3166 data-nosnippet>3166</a>          b0():
+<a href=#3167 id=3167 data-nosnippet>3167</a>            v5 = make_array [u8 0] : [u8; 1]
+<a href=#3168 id=3168 data-nosnippet>3168</a>            v6 = allocate -&gt; &amp;mut [u8; 1]
+<a href=#3169 id=3169 data-nosnippet>3169</a>            store v5 at v6
+<a href=#3170 id=3170 data-nosnippet>3170</a>            v7 = make_array [u8 0] : [u8; 1]
+<a href=#3171 id=3171 data-nosnippet>3171</a>            jmp b1(u32 0)
+<a href=#3172 id=3172 data-nosnippet>3172</a>          b1(v0: u32):
+<a href=#3173 id=3173 data-nosnippet>3173</a>            v9 = eq v0, u32 0
+<a href=#3174 id=3174 data-nosnippet>3174</a>            inc_rc v7
+<a href=#3175 id=3175 data-nosnippet>3175</a>            jmpif v9 then: b2(), else: b3()
+<a href=#3176 id=3176 data-nosnippet>3176</a>          b2():
+<a href=#3177 id=3177 data-nosnippet>3177</a>            v19 = make_array [v7] : [[u8; 1]; 1]
+<a href=#3178 id=3178 data-nosnippet>3178</a>            v20 = allocate -&gt; &amp;mut [[u8; 1]; 1]
+<a href=#3179 id=3179 data-nosnippet>3179</a>            store v19 at v20
+<a href=#3180 id=3180 data-nosnippet>3180</a>            v21 = load v6 -&gt; [u8; 1]
+<a href=#3181 id=3181 data-nosnippet>3181</a>            v22 = array_get v21, index u32 0 -&gt; u8
+<a href=#3182 id=3182 data-nosnippet>3182</a>            jmp b8(u32 0)
+<a href=#3183 id=3183 data-nosnippet>3183</a>          b3():
+<a href=#3184 id=3184 data-nosnippet>3184</a>            v10 = allocate -&gt; &amp;mut [u8; 1]
+<a href=#3185 id=3185 data-nosnippet>3185</a>            store v7 at v10
+<a href=#3186 id=3186 data-nosnippet>3186</a>            jmp b4(u32 0)
+<a href=#3187 id=3187 data-nosnippet>3187</a>          b4(v1: u32):
+<a href=#3188 id=3188 data-nosnippet>3188</a>            v11 = make_array [u8 0] : [u8; 1]
+<a href=#3189 id=3189 data-nosnippet>3189</a>            v12 = load v10 -&gt; [u8; 1]
+<a href=#3190 id=3190 data-nosnippet>3190</a>            jmp b5(u32 0)
+<a href=#3191 id=3191 data-nosnippet>3191</a>          b5(v2: u32):
+<a href=#3192 id=3192 data-nosnippet>3192</a>            v13 = eq v2, u32 0
+<a href=#3193 id=3193 data-nosnippet>3193</a>            jmpif v13 then: b6(), else: b7()
+<a href=#3194 id=3194 data-nosnippet>3194</a>          b6():
+<a href=#3195 id=3195 data-nosnippet>3195</a>            v17 = array_get v12, index u32 0 -&gt; u8
+<a href=#3196 id=3196 data-nosnippet>3196</a>            v18 = unchecked_add v2, u32 1
+<a href=#3197 id=3197 data-nosnippet>3197</a>            jmp b5(v18)
+<a href=#3198 id=3198 data-nosnippet>3198</a>          b7():
+<a href=#3199 id=3199 data-nosnippet>3199</a>            v14 = array_get v12, index u32 0 -&gt; u8
+<a href=#3200 id=3200 data-nosnippet>3200</a>            v16 = unchecked_add v1, u32 1
+<a href=#3201 id=3201 data-nosnippet>3201</a>            jmp b4(v16)
+<a href=#3202 id=3202 data-nosnippet>3202</a>          b8(v3: u32):
+<a href=#3203 id=3203 data-nosnippet>3203</a>            v23 = eq v3, u32 0
+<a href=#3204 id=3204 data-nosnippet>3204</a>            jmpif v23 then: b9(), else: b10()
+<a href=#3205 id=3205 data-nosnippet>3205</a>          b9():
+<a href=#3206 id=3206 data-nosnippet>3206</a>            v26 = unchecked_add v3, u32 1
+<a href=#3207 id=3207 data-nosnippet>3207</a>            jmp b8(v26)
+<a href=#3208 id=3208 data-nosnippet>3208</a>          b10():
+<a href=#3209 id=3209 data-nosnippet>3209</a>            v24 = make_array [u8 0] : [u8; 1]
+<a href=#3210 id=3210 data-nosnippet>3210</a>            v25 = unchecked_add v0, u32 1
+<a href=#3211 id=3211 data-nosnippet>3211</a>            jmp b1(v25)
+<a href=#3212 id=3212 data-nosnippet>3212</a>        }
+<a href=#3213 id=3213 data-nosnippet>3213</a>        "</span>);
+<a href=#3214 id=3214 data-nosnippet>3214</a>    }
+<a href=#3215 id=3215 data-nosnippet>3215</a>
+<a href=#3216 id=3216 data-nosnippet>3216</a>    <span class="attr">#[test]
+<a href=#3217 id=3217 data-nosnippet>3217</a>    </span><span class="kw">fn </span>does_not_hoist_into_for_loop_header() {
+<a href=#3218 id=3218 data-nosnippet>3218</a>        <span class="comment">// An example of an `..=` inclusive loop, which has its body repeated as a follow up block,
+<a href=#3219 id=3219 data-nosnippet>3219</a>        // which is an opportunity to hoist duplicate instructions into a common dominator.
+<a href=#3220 id=3220 data-nosnippet>3220</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#3221 id=3221 data-nosnippet>3221</a>        brillig(inline) impure fn main f1 {
+<a href=#3222 id=3222 data-nosnippet>3222</a>          b0(v0: u1):
+<a href=#3223 id=3223 data-nosnippet>3223</a>            jmpif v0 then: b1(), else: b2()
+<a href=#3224 id=3224 data-nosnippet>3224</a>          b1():
+<a href=#3225 id=3225 data-nosnippet>3225</a>            jmp b3(u8 1)
+<a href=#3226 id=3226 data-nosnippet>3226</a>          b2():
+<a href=#3227 id=3227 data-nosnippet>3227</a>            jmp b3(u8 1)
+<a href=#3228 id=3228 data-nosnippet>3228</a>          b3(v1: u8):
+<a href=#3229 id=3229 data-nosnippet>3229</a>            v4 = mod u8 1, v1
+<a href=#3230 id=3230 data-nosnippet>3230</a>            v5 = allocate -&gt; &amp;mut u1
+<a href=#3231 id=3231 data-nosnippet>3231</a>            store u1 1 at v5
+<a href=#3232 id=3232 data-nosnippet>3232</a>            jmp b4(u8 0)
+<a href=#3233 id=3233 data-nosnippet>3233</a>          b4(v2: u8):
+<a href=#3234 id=3234 data-nosnippet>3234</a>            v8 = lt v2, v4
+<a href=#3235 id=3235 data-nosnippet>3235</a>            jmpif v8 then: b5(), else: b6()
+<a href=#3236 id=3236 data-nosnippet>3236</a>          b5():
+<a href=#3237 id=3237 data-nosnippet>3237</a>            v31 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+<a href=#3238 id=3238 data-nosnippet>3238</a>            call print(u1 1, v2, v31, u1 0)
+<a href=#3239 id=3239 data-nosnippet>3239</a>            v32 = unchecked_add v2, u8 1
+<a href=#3240 id=3240 data-nosnippet>3240</a>            jmp b4(v32)
+<a href=#3241 id=3241 data-nosnippet>3241</a>          b6():
+<a href=#3242 id=3242 data-nosnippet>3242</a>            v9 = load v5 -&gt; u1
+<a href=#3243 id=3243 data-nosnippet>3243</a>            jmpif v9 then: b7(), else: b8()
+<a href=#3244 id=3244 data-nosnippet>3244</a>          b7():
+<a href=#3245 id=3245 data-nosnippet>3245</a>            v28 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+<a href=#3246 id=3246 data-nosnippet>3246</a>            call print(u1 1, v4, v28, u1 0)
+<a href=#3247 id=3247 data-nosnippet>3247</a>            jmp b8()
+<a href=#3248 id=3248 data-nosnippet>3248</a>          b8():
+<a href=#3249 id=3249 data-nosnippet>3249</a>            return
+<a href=#3250 id=3250 data-nosnippet>3250</a>        }
+<a href=#3251 id=3251 data-nosnippet>3251</a>        "#</span>;
+<a href=#3252 id=3252 data-nosnippet>3252</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3253 id=3253 data-nosnippet>3253</a>        <span class="kw">let </span>ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+<a href=#3254 id=3254 data-nosnippet>3254</a>        <span class="comment">// The `make_array` should be hoisted into b3, not b4.
+<a href=#3255 id=3255 data-nosnippet>3255</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+<a href=#3256 id=3256 data-nosnippet>3256</a>        brillig(inline) impure fn main f0 {
+<a href=#3257 id=3257 data-nosnippet>3257</a>          b0(v0: u1):
+<a href=#3258 id=3258 data-nosnippet>3258</a>            jmpif v0 then: b1(), else: b2()
+<a href=#3259 id=3259 data-nosnippet>3259</a>          b1():
+<a href=#3260 id=3260 data-nosnippet>3260</a>            jmp b3(u8 1)
+<a href=#3261 id=3261 data-nosnippet>3261</a>          b2():
+<a href=#3262 id=3262 data-nosnippet>3262</a>            jmp b3(u8 1)
+<a href=#3263 id=3263 data-nosnippet>3263</a>          b3(v1: u8):
+<a href=#3264 id=3264 data-nosnippet>3264</a>            v4 = mod u8 1, v1
+<a href=#3265 id=3265 data-nosnippet>3265</a>            v5 = allocate -&gt; &amp;mut u1
+<a href=#3266 id=3266 data-nosnippet>3266</a>            store u1 1 at v5
+<a href=#3267 id=3267 data-nosnippet>3267</a>            v25 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+<a href=#3268 id=3268 data-nosnippet>3268</a>            jmp b4(u8 0)
+<a href=#3269 id=3269 data-nosnippet>3269</a>          b4(v2: u8):
+<a href=#3270 id=3270 data-nosnippet>3270</a>            v27 = lt v2, v4
+<a href=#3271 id=3271 data-nosnippet>3271</a>            jmpif v27 then: b5(), else: b6()
+<a href=#3272 id=3272 data-nosnippet>3272</a>          b5():
+<a href=#3273 id=3273 data-nosnippet>3273</a>            inc_rc v25
+<a href=#3274 id=3274 data-nosnippet>3274</a>            call print(u1 1, v2, v25, u1 0)
+<a href=#3275 id=3275 data-nosnippet>3275</a>            v31 = unchecked_add v2, u8 1
+<a href=#3276 id=3276 data-nosnippet>3276</a>            jmp b4(v31)
+<a href=#3277 id=3277 data-nosnippet>3277</a>          b6():
+<a href=#3278 id=3278 data-nosnippet>3278</a>            v28 = load v5 -&gt; u1
+<a href=#3279 id=3279 data-nosnippet>3279</a>            jmpif v28 then: b7(), else: b8()
+<a href=#3280 id=3280 data-nosnippet>3280</a>          b7():
+<a href=#3281 id=3281 data-nosnippet>3281</a>            inc_rc v25
+<a href=#3282 id=3282 data-nosnippet>3282</a>            call print(u1 1, v4, v25, u1 0)
+<a href=#3283 id=3283 data-nosnippet>3283</a>            jmp b8()
+<a href=#3284 id=3284 data-nosnippet>3284</a>          b8():
+<a href=#3285 id=3285 data-nosnippet>3285</a>            return
+<a href=#3286 id=3286 data-nosnippet>3286</a>        }
+<a href=#3287 id=3287 data-nosnippet>3287</a>        "#</span>);
+<a href=#3288 id=3288 data-nosnippet>3288</a>    }
+<a href=#3289 id=3289 data-nosnippet>3289</a>
+<a href=#3290 id=3290 data-nosnippet>3290</a>    <span class="attr">#[test]
+<a href=#3291 id=3291 data-nosnippet>3291</a>    </span><span class="kw">fn </span>does_not_hoist_into_while_loop_header() {
+<a href=#3292 id=3292 data-nosnippet>3292</a>        <span class="comment">// Here b1 is a header of a `while` loop, and its condition
+<a href=#3293 id=3293 data-nosnippet>3293</a>        // v3 is used in both b2 and b3 to define a `not v3` variable.
+<a href=#3294 id=3294 data-nosnippet>3294</a>        // The common dominator is b1 (the loop header), but since `not v3`
+<a href=#3295 id=3295 data-nosnippet>3295</a>        // uses v3 (defined in the header), we can't escape to the pre-header.
+<a href=#3296 id=3296 data-nosnippet>3296</a>        // We must not hoist into the header either — loop unrolling only maps
+<a href=#3297 id=3297 data-nosnippet>3297</a>        // header parameters, not instruction results.
+<a href=#3298 id=3298 data-nosnippet>3298</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#3299 id=3299 data-nosnippet>3299</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#3300 id=3300 data-nosnippet>3300</a>          b0(v1: u1):
+<a href=#3301 id=3301 data-nosnippet>3301</a>            v2 = allocate -&gt; &amp;mut u1
+<a href=#3302 id=3302 data-nosnippet>3302</a>            store v1 at v2
+<a href=#3303 id=3303 data-nosnippet>3303</a>            jmp b1()
+<a href=#3304 id=3304 data-nosnippet>3304</a>          b1():
+<a href=#3305 id=3305 data-nosnippet>3305</a>            v3 = load v2 -&gt; u1
+<a href=#3306 id=3306 data-nosnippet>3306</a>            jmpif v3 then: b2(), else: b3()
+<a href=#3307 id=3307 data-nosnippet>3307</a>          b2():
+<a href=#3308 id=3308 data-nosnippet>3308</a>            v4 = not v3
+<a href=#3309 id=3309 data-nosnippet>3309</a>            jmp b4(v4)
+<a href=#3310 id=3310 data-nosnippet>3310</a>          b3():
+<a href=#3311 id=3311 data-nosnippet>3311</a>            v5 = not v3
+<a href=#3312 id=3312 data-nosnippet>3312</a>            jmp b4(v5)
+<a href=#3313 id=3313 data-nosnippet>3313</a>          b4(v6: u1):
+<a href=#3314 id=3314 data-nosnippet>3314</a>            store v6 at v2
+<a href=#3315 id=3315 data-nosnippet>3315</a>            jmp b1()
+<a href=#3316 id=3316 data-nosnippet>3316</a>        }
+<a href=#3317 id=3317 data-nosnippet>3317</a>        "#</span>;
+<a href=#3318 id=3318 data-nosnippet>3318</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3319 id=3319 data-nosnippet>3319</a>        <span class="kw">let </span>ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+<a href=#3320 id=3320 data-nosnippet>3320</a>
+<a href=#3321 id=3321 data-nosnippet>3321</a>        <span class="comment">// `not v3` stays in b2 and b3 — not hoisted into the header.
+<a href=#3322 id=3322 data-nosnippet>3322</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#3323 id=3323 data-nosnippet>3323</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#3324 id=3324 data-nosnippet>3324</a>          b0(v0: u1):
+<a href=#3325 id=3325 data-nosnippet>3325</a>            v2 = allocate -&gt; &amp;mut u1
+<a href=#3326 id=3326 data-nosnippet>3326</a>            store v0 at v2
+<a href=#3327 id=3327 data-nosnippet>3327</a>            jmp b1()
+<a href=#3328 id=3328 data-nosnippet>3328</a>          b1():
+<a href=#3329 id=3329 data-nosnippet>3329</a>            v3 = load v2 -&gt; u1
+<a href=#3330 id=3330 data-nosnippet>3330</a>            jmpif v3 then: b2(), else: b3()
+<a href=#3331 id=3331 data-nosnippet>3331</a>          b2():
+<a href=#3332 id=3332 data-nosnippet>3332</a>            v5 = not v3
+<a href=#3333 id=3333 data-nosnippet>3333</a>            jmp b4(v5)
+<a href=#3334 id=3334 data-nosnippet>3334</a>          b3():
+<a href=#3335 id=3335 data-nosnippet>3335</a>            v4 = not v3
+<a href=#3336 id=3336 data-nosnippet>3336</a>            jmp b4(v4)
+<a href=#3337 id=3337 data-nosnippet>3337</a>          b4(v1: u1):
+<a href=#3338 id=3338 data-nosnippet>3338</a>            store v1 at v2
+<a href=#3339 id=3339 data-nosnippet>3339</a>            jmp b1()
+<a href=#3340 id=3340 data-nosnippet>3340</a>        }
+<a href=#3341 id=3341 data-nosnippet>3341</a>        "</span>);
+<a href=#3342 id=3342 data-nosnippet>3342</a>    }
+<a href=#3343 id=3343 data-nosnippet>3343</a>
+<a href=#3344 id=3344 data-nosnippet>3344</a>    <span class="attr">#[test]
+<a href=#3345 id=3345 data-nosnippet>3345</a>    </span><span class="kw">fn </span>hoisting_instruction_using_param_into_dominator_of_param() {
+<a href=#3346 id=3346 data-nosnippet>3346</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3347 id=3347 data-nosnippet>3347</a>      brillig(inline) impure fn main f0 {
+<a href=#3348 id=3348 data-nosnippet>3348</a>        b0(v0: [Field; 2]):
+<a href=#3349 id=3349 data-nosnippet>3349</a>          inc_rc v0
+<a href=#3350 id=3350 data-nosnippet>3350</a>          v6 = array_get v0, index u32 1 -&gt; Field
+<a href=#3351 id=3351 data-nosnippet>3351</a>          v8 = add Field 3, v6
+<a href=#3352 id=3352 data-nosnippet>3352</a>          v9 = array_set v0, index u32 1, value v8
+<a href=#3353 id=3353 data-nosnippet>3353</a>          jmp b1(v9, u1 1)
+<a href=#3354 id=3354 data-nosnippet>3354</a>        b1(v1: [Field; 2], v2: u1):
+<a href=#3355 id=3355 data-nosnippet>3355</a>          jmpif v2 then: b2(), else: b3()
+<a href=#3356 id=3356 data-nosnippet>3356</a>        b2():
+<a href=#3357 id=3357 data-nosnippet>3357</a>          v18 = array_get v1, index u32 0 -&gt; Field
+<a href=#3358 id=3358 data-nosnippet>3358</a>          v19 = add Field 3, v18
+<a href=#3359 id=3359 data-nosnippet>3359</a>          v20 = array_set v1, index u32 0, value v19
+<a href=#3360 id=3360 data-nosnippet>3360</a>          jmp b1(v20, u1 0)
+<a href=#3361 id=3361 data-nosnippet>3361</a>        b3():
+<a href=#3362 id=3362 data-nosnippet>3362</a>          v11 = array_set v0, index u32 1, value v8
+<a href=#3363 id=3363 data-nosnippet>3363</a>          jmp b4(v11, u1 1)
+<a href=#3364 id=3364 data-nosnippet>3364</a>        b4(v3: [Field; 2], v4: u1):
+<a href=#3365 id=3365 data-nosnippet>3365</a>          jmpif v4 then: b5(), else: b6()
+<a href=#3366 id=3366 data-nosnippet>3366</a>        b5():
+<a href=#3367 id=3367 data-nosnippet>3367</a>          v14 = array_get v3, index u32 0 -&gt; Field
+<a href=#3368 id=3368 data-nosnippet>3368</a>          v15 = add Field 3, v14
+<a href=#3369 id=3369 data-nosnippet>3369</a>          v16 = array_set v3, index u32 0, value v15
+<a href=#3370 id=3370 data-nosnippet>3370</a>          jmp b4(v16, u1 0)
+<a href=#3371 id=3371 data-nosnippet>3371</a>        b6():
+<a href=#3372 id=3372 data-nosnippet>3372</a>          v13 = array_get v3, index u32 0 -&gt; Field
+<a href=#3373 id=3373 data-nosnippet>3373</a>          return v13
+<a href=#3374 id=3374 data-nosnippet>3374</a>      }
+<a href=#3375 id=3375 data-nosnippet>3375</a>      "</span>;
+<a href=#3376 id=3376 data-nosnippet>3376</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3377 id=3377 data-nosnippet>3377</a>        <span class="kw">let </span>ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+<a href=#3378 id=3378 data-nosnippet>3378</a>        <span class="kw">let </span>elements = <span class="macro">vec!</span>[Value::field((-<span class="number">2i128</span>).into()), Value::field((-<span class="number">1i128</span>).into())];
+<a href=#3379 id=3379 data-nosnippet>3379</a>        <span class="kw">let </span>inputs = Value::array(elements, <span class="macro">vec!</span>[Type::field()]);
+<a href=#3380 id=3380 data-nosnippet>3380</a>        <span class="kw">let </span>results = ssa.interpret(<span class="macro">vec!</span>[inputs]).unwrap();
+<a href=#3381 id=3381 data-nosnippet>3381</a>        <span class="macro">assert_eq!</span>(results[<span class="number">0</span>], Value::field(<span class="number">1u32</span>.into()));
+<a href=#3382 id=3382 data-nosnippet>3382</a>
+<a href=#3383 id=3383 data-nosnippet>3383</a>        <span class="comment">// `array_get v3, index u32 0` stays in b5 and b6 — not hoisted into
+<a href=#3384 id=3384 data-nosnippet>3384</a>        // loop header b4, because v3 is defined there.
+<a href=#3385 id=3385 data-nosnippet>3385</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#3386 id=3386 data-nosnippet>3386</a>        brillig(inline) impure fn main f0 {
+<a href=#3387 id=3387 data-nosnippet>3387</a>          b0(v0: [Field; 2]):
+<a href=#3388 id=3388 data-nosnippet>3388</a>            inc_rc v0
+<a href=#3389 id=3389 data-nosnippet>3389</a>            v6 = array_get v0, index u32 1 -&gt; Field
+<a href=#3390 id=3390 data-nosnippet>3390</a>            v8 = add Field 3, v6
+<a href=#3391 id=3391 data-nosnippet>3391</a>            v9 = array_set v0, index u32 1, value v8
+<a href=#3392 id=3392 data-nosnippet>3392</a>            jmp b1(v9, u1 1)
+<a href=#3393 id=3393 data-nosnippet>3393</a>          b1(v1: [Field; 2], v2: u1):
+<a href=#3394 id=3394 data-nosnippet>3394</a>            jmpif v2 then: b2(), else: b3()
+<a href=#3395 id=3395 data-nosnippet>3395</a>          b2():
+<a href=#3396 id=3396 data-nosnippet>3396</a>            v18 = array_get v1, index u32 0 -&gt; Field
+<a href=#3397 id=3397 data-nosnippet>3397</a>            v19 = add Field 3, v18
+<a href=#3398 id=3398 data-nosnippet>3398</a>            v20 = array_set v1, index u32 0, value v19
+<a href=#3399 id=3399 data-nosnippet>3399</a>            jmp b1(v20, u1 0)
+<a href=#3400 id=3400 data-nosnippet>3400</a>          b3():
+<a href=#3401 id=3401 data-nosnippet>3401</a>            v11 = array_set v0, index u32 1, value v8
+<a href=#3402 id=3402 data-nosnippet>3402</a>            jmp b4(v11, u1 1)
+<a href=#3403 id=3403 data-nosnippet>3403</a>          b4(v3: [Field; 2], v4: u1):
+<a href=#3404 id=3404 data-nosnippet>3404</a>            jmpif v4 then: b5(), else: b6()
+<a href=#3405 id=3405 data-nosnippet>3405</a>          b5():
+<a href=#3406 id=3406 data-nosnippet>3406</a>            v14 = array_get v3, index u32 0 -&gt; Field
+<a href=#3407 id=3407 data-nosnippet>3407</a>            v15 = add Field 3, v14
+<a href=#3408 id=3408 data-nosnippet>3408</a>            v16 = array_set v3, index u32 0, value v15
+<a href=#3409 id=3409 data-nosnippet>3409</a>            jmp b4(v16, u1 0)
+<a href=#3410 id=3410 data-nosnippet>3410</a>          b6():
+<a href=#3411 id=3411 data-nosnippet>3411</a>            v13 = array_get v3, index u32 0 -&gt; Field
+<a href=#3412 id=3412 data-nosnippet>3412</a>            return v13
+<a href=#3413 id=3413 data-nosnippet>3413</a>        }
+<a href=#3414 id=3414 data-nosnippet>3414</a>        "</span>);
+<a href=#3415 id=3415 data-nosnippet>3415</a>    }
+<a href=#3416 id=3416 data-nosnippet>3416</a>
+<a href=#3417 id=3417 data-nosnippet>3417</a>    <span class="doccomment">/// Regression test: CSE must not hoist an instruction into a loop header when
+<a href=#3418 id=3418 data-nosnippet>3418</a>    /// it can't escape to the pre-header because it uses header-defined values.
+<a href=#3419 id=3419 data-nosnippet>3419</a>    ///
+<a href=#3420 id=3420 data-nosnippet>3420</a>    /// Here `mul v2, v2` appears in both the loop body (b2) and exit block (b3),
+<a href=#3421 id=3421 data-nosnippet>3421</a>    /// and their common dominator is the loop header (b1). The instruction uses `v2`
+<a href=#3422 id=3422 data-nosnippet>3422</a>    /// (a header parameter), so the escape-past-header logic correctly can't move
+<a href=#3423 id=3423 data-nosnippet>3423</a>    /// it to the pre-header. But it must also not leave the target at the header
+<a href=#3424 id=3424 data-nosnippet>3424</a>    /// itself — that would break loop unrolling, which only maps header *parameters*
+<a href=#3425 id=3425 data-nosnippet>3425</a>    /// to final-iteration values, not instruction results.
+<a href=#3426 id=3426 data-nosnippet>3426</a>    </span><span class="attr">#[test]
+<a href=#3427 id=3427 data-nosnippet>3427</a>    </span><span class="kw">fn </span>does_not_hoist_into_loop_header_using_header_param() {
+<a href=#3428 id=3428 data-nosnippet>3428</a>        <span class="comment">// Both `mul v2, v2` should stay in their original blocks.
+<a href=#3429 id=3429 data-nosnippet>3429</a>        // They must NOT be hoisted into the loop header b1.
+<a href=#3430 id=3430 data-nosnippet>3430</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#3431 id=3431 data-nosnippet>3431</a>        acir(inline) fn main f0 {
+<a href=#3432 id=3432 data-nosnippet>3432</a>          b0(v0: Field):
+<a href=#3433 id=3433 data-nosnippet>3433</a>            jmp b1(u8 0, v0)
+<a href=#3434 id=3434 data-nosnippet>3434</a>          b1(v1: u8, v2: Field):
+<a href=#3435 id=3435 data-nosnippet>3435</a>            v3 = lt v1, u8 2
+<a href=#3436 id=3436 data-nosnippet>3436</a>            jmpif v3 then: b2(), else: b3()
+<a href=#3437 id=3437 data-nosnippet>3437</a>          b2():
+<a href=#3438 id=3438 data-nosnippet>3438</a>            v4 = mul v2, v2
+<a href=#3439 id=3439 data-nosnippet>3439</a>            v5 = add v4, Field 1
+<a href=#3440 id=3440 data-nosnippet>3440</a>            v6 = add v1, u8 1
+<a href=#3441 id=3441 data-nosnippet>3441</a>            jmp b1(v6, v5)
+<a href=#3442 id=3442 data-nosnippet>3442</a>          b3():
+<a href=#3443 id=3443 data-nosnippet>3443</a>            v7 = mul v2, v2
+<a href=#3444 id=3444 data-nosnippet>3444</a>            return v7
+<a href=#3445 id=3445 data-nosnippet>3445</a>        }
+<a href=#3446 id=3446 data-nosnippet>3446</a>        "</span>;
+<a href=#3447 id=3447 data-nosnippet>3447</a>        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(DEFAULT_MAX_ITER));
+<a href=#3448 id=3448 data-nosnippet>3448</a>    }
+<a href=#3449 id=3449 data-nosnippet>3449</a>
+<a href=#3450 id=3450 data-nosnippet>3450</a>    <span class="doccomment">/// A constrain with an error message followed by an equivalent constrain
+<a href=#3451 id=3451 data-nosnippet>3451</a>    /// that only becomes visible after simplification. The duplicate should
+<a href=#3452 id=3452 data-nosnippet>3452</a>    /// be removed.
+<a href=#3453 id=3453 data-nosnippet>3453</a>    </span><span class="attr">#[test]
+<a href=#3454 id=3454 data-nosnippet>3454</a>    </span><span class="kw">fn </span>duplicate_constrain_after_simplification() {
+<a href=#3455 id=3455 data-nosnippet>3455</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3456 id=3456 data-nosnippet>3456</a>        acir(inline) fn main f0 {
+<a href=#3457 id=3457 data-nosnippet>3457</a>          b0(v0: Field):
+<a href=#3458 id=3458 data-nosnippet>3458</a>            v2 = eq v0, Field 1
+<a href=#3459 id=3459 data-nosnippet>3459</a>            v3 = not v2
+<a href=#3460 id=3460 data-nosnippet>3460</a>            enable_side_effects v3
+<a href=#3461 id=3461 data-nosnippet>3461</a>            constrain v0 == Field 1, \"Index out of bounds\"
+<a href=#3462 id=3462 data-nosnippet>3462</a>            v5 = eq u32 0, u32 0
+<a href=#3463 id=3463 data-nosnippet>3463</a>            v6 = unchecked_mul v5, v3
+<a href=#3464 id=3464 data-nosnippet>3464</a>            constrain v6 == u1 0
+<a href=#3465 id=3465 data-nosnippet>3465</a>            enable_side_effects u1 1
+<a href=#3466 id=3466 data-nosnippet>3466</a>            return
+<a href=#3467 id=3467 data-nosnippet>3467</a>        }
+<a href=#3468 id=3468 data-nosnippet>3468</a>        "</span>;
+<a href=#3469 id=3469 data-nosnippet>3469</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3470 id=3470 data-nosnippet>3470</a>        <span class="kw">let </span>ssa = ssa.fold_constants_using_constraints(<span class="number">3</span>);
+<a href=#3471 id=3471 data-nosnippet>3471</a>
+<a href=#3472 id=3472 data-nosnippet>3472</a>        <span class="comment">// The simplified `constrain v0 == Field 1` should be deduplicated
+<a href=#3473 id=3473 data-nosnippet>3473</a>        // against the existing one with the error message.
+<a href=#3474 id=3474 data-nosnippet>3474</a>        // It simplified, because if `v0` is constrained to be 1,
+<a href=#3475 id=3475 data-nosnippet>3475</a>        // then v2 is 1, v3 is 0, v6 is 0, and the 2nd constrain is true.
+<a href=#3476 id=3476 data-nosnippet>3476</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+<a href=#3477 id=3477 data-nosnippet>3477</a>        acir(inline) fn main f0 {
+<a href=#3478 id=3478 data-nosnippet>3478</a>          b0(v0: Field):
+<a href=#3479 id=3479 data-nosnippet>3479</a>            v2 = eq v0, Field 1
+<a href=#3480 id=3480 data-nosnippet>3480</a>            v3 = not v2
+<a href=#3481 id=3481 data-nosnippet>3481</a>            enable_side_effects v3
+<a href=#3482 id=3482 data-nosnippet>3482</a>            constrain v0 == Field 1, "Index out of bounds"
+<a href=#3483 id=3483 data-nosnippet>3483</a>            enable_side_effects u1 1
+<a href=#3484 id=3484 data-nosnippet>3484</a>            return
+<a href=#3485 id=3485 data-nosnippet>3485</a>        }
+<a href=#3486 id=3486 data-nosnippet>3486</a>        "#</span>);
+<a href=#3487 id=3487 data-nosnippet>3487</a>    }
+<a href=#3488 id=3488 data-nosnippet>3488</a>
+<a href=#3489 id=3489 data-nosnippet>3489</a>    <span class="attr">#[test]
+<a href=#3490 id=3490 data-nosnippet>3490</a>    </span><span class="kw">fn </span>constant_folding_does_not_deduplicate_call_that_returns_array_that_is_later_mutated() {
+<a href=#3491 id=3491 data-nosnippet>3491</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3492 id=3492 data-nosnippet>3492</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#3493 id=3493 data-nosnippet>3493</a>          b0():
+<a href=#3494 id=3494 data-nosnippet>3494</a>            v3 = call f1() -&gt; [u1; 1]
+<a href=#3495 id=3495 data-nosnippet>3495</a>            jmp b1(v3, u32 0)
+<a href=#3496 id=3496 data-nosnippet>3496</a>          b1(v0: [u1; 1], v1: u32):
+<a href=#3497 id=3497 data-nosnippet>3497</a>            v6 = eq v1, u32 1
+<a href=#3498 id=3498 data-nosnippet>3498</a>            jmpif v6 then: b2(), else: b3()
+<a href=#3499 id=3499 data-nosnippet>3499</a>          b2():
+<a href=#3500 id=3500 data-nosnippet>3500</a>            v10 = call f1() -&gt; [u1; 1]
+<a href=#3501 id=3501 data-nosnippet>3501</a>            return v10
+<a href=#3502 id=3502 data-nosnippet>3502</a>          b3():
+<a href=#3503 id=3503 data-nosnippet>3503</a>            v7 = add v1, u32 1
+<a href=#3504 id=3504 data-nosnippet>3504</a>            v9 = array_set v0, index u32 0, value u1 0
+<a href=#3505 id=3505 data-nosnippet>3505</a>            jmp b1(v9, v7)
+<a href=#3506 id=3506 data-nosnippet>3506</a>        }
+<a href=#3507 id=3507 data-nosnippet>3507</a>        brillig(inline_never) predicate_pure fn g f1 {
+<a href=#3508 id=3508 data-nosnippet>3508</a>          b0():
+<a href=#3509 id=3509 data-nosnippet>3509</a>            v1 = make_array [u1 1] : [u1; 1]
+<a href=#3510 id=3510 data-nosnippet>3510</a>            return v1
+<a href=#3511 id=3511 data-nosnippet>3511</a>        }
+<a href=#3512 id=3512 data-nosnippet>3512</a>        "</span>;
+<a href=#3513 id=3513 data-nosnippet>3513</a>        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(<span class="number">3</span>));
+<a href=#3514 id=3514 data-nosnippet>3514</a>    }
+<a href=#3515 id=3515 data-nosnippet>3515</a>}</code></pre></div></section></main></body></html>

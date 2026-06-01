@@ -237,7 +237,7 @@
 <a href=#237 id=237 data-nosnippet>237</a>        // as well. However, that was not what was happening before it got fixed.
 <a href=#238 id=238 data-nosnippet>238</a>        </span><span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 <a href=#239 id=239 data-nosnippet>239</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#240 id=240 data-nosnippet>240</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#240 id=240 data-nosnippet>240</a>        acir(inline) pure fn main f0 {
 <a href=#241 id=241 data-nosnippet>241</a>          b0(v0: u1):
 <a href=#242 id=242 data-nosnippet>242</a>            enable_side_effects v0
 <a href=#243 id=243 data-nosnippet>243</a>            v3 = make_array [Field 1, Field 3] : [Field; 2]
@@ -264,7 +264,7 @@
 <a href=#264 id=264 data-nosnippet>264</a>        });
 <a href=#265 id=265 data-nosnippet>265</a>
 <a href=#266 id=266 data-nosnippet>266</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#267 id=267 data-nosnippet>267</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#267 id=267 data-nosnippet>267</a>        acir(inline) pure fn main f0 {
 <a href=#268 id=268 data-nosnippet>268</a>          b0(v0: u1):
 <a href=#269 id=269 data-nosnippet>269</a>            enable_side_effects v0
 <a href=#270 id=270 data-nosnippet>270</a>            v3 = make_array [Field 1, Field 3] : [Field; 2]

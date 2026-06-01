@@ -1179,7 +1179,7 @@
 <a href=#1179 id=1179 data-nosnippet>1179</a>    <span class="attr">#[test]
 <a href=#1180 id=1180 data-nosnippet>1180</a>    </span><span class="kw">fn </span>keeps_unused_databus_return_value() {
 <a href=#1181 id=1181 data-nosnippet>1181</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1182 id=1182 data-nosnippet>1182</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1182 id=1182 data-nosnippet>1182</a>        acir(inline) pure fn main f0 {
 <a href=#1183 id=1183 data-nosnippet>1183</a>          return_data: v0
 <a href=#1184 id=1184 data-nosnippet>1184</a>          b0():
 <a href=#1185 id=1185 data-nosnippet>1185</a>            v0 = make_array [Field 0] : [Field; 1]
@@ -1223,7 +1223,7 @@
 <a href=#1223 id=1223 data-nosnippet>1223</a>    <span class="attr">#[test]
 <a href=#1224 id=1224 data-nosnippet>1224</a>    </span><span class="kw">fn </span>removes_unused_known_small_bit_shifts() {
 <a href=#1225 id=1225 data-nosnippet>1225</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1226 id=1226 data-nosnippet>1226</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1226 id=1226 data-nosnippet>1226</a>        acir(inline) pure fn main f0 {
 <a href=#1227 id=1227 data-nosnippet>1227</a>          b0(v0: u32):
 <a href=#1228 id=1228 data-nosnippet>1228</a>            v1 = shl v0, u32 2
 <a href=#1229 id=1229 data-nosnippet>1229</a>            v2 = shr v0, u32 3
@@ -1234,8 +1234,8 @@
 <a href=#1234 id=1234 data-nosnippet>1234</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#1235 id=1235 data-nosnippet>1235</a>        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
 <a href=#1236 id=1236 data-nosnippet>1236</a>
-<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#1238 id=1238 data-nosnippet>1238</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#1238 id=1238 data-nosnippet>1238</a>        acir(inline) pure fn main f0 {
 <a href=#1239 id=1239 data-nosnippet>1239</a>          b0(v0: u32):
 <a href=#1240 id=1240 data-nosnippet>1240</a>            return
 <a href=#1241 id=1241 data-nosnippet>1241</a>        }
@@ -1304,7 +1304,7 @@
 <a href=#1304 id=1304 data-nosnippet>1304</a>    <span class="attr">#[test]
 <a href=#1305 id=1305 data-nosnippet>1305</a>    </span><span class="kw">fn </span>does_not_remove_used_jmpif_arg() {
 <a href=#1306 id=1306 data-nosnippet>1306</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1307 id=1307 data-nosnippet>1307</a>        acir(inline) impure fn main f0 {
+<a href=#1307 id=1307 data-nosnippet>1307</a>        acir(inline) pure fn main f0 {
 <a href=#1308 id=1308 data-nosnippet>1308</a>          b0(v0: u1):
 <a href=#1309 id=1309 data-nosnippet>1309</a>            v1 = make_array [u8 1, u8 2] : [u8; 2]
 <a href=#1310 id=1310 data-nosnippet>1310</a>            v2 = make_array [u8 3, u8 4] : [u8; 2]

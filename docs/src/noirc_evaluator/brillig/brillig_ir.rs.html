@@ -1049,7 +1049,7 @@
 <a href=#1049 id=1049 data-nosnippet>1049</a>    </span><span class="attr">#[test]
 <a href=#1050 id=1050 data-nosnippet>1050</a>    </span><span class="kw">fn </span>jmp_block_params_parallel_move() {
 <a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1052 id=1052 data-nosnippet>1052</a>            brillig(inline) impure fn main f0 {
+<a href=#1052 id=1052 data-nosnippet>1052</a>            brillig(inline) predicate_pure fn main f0 {
 <a href=#1053 id=1053 data-nosnippet>1053</a>              b0():
 <a href=#1054 id=1054 data-nosnippet>1054</a>                jmp b1(u32 0, u32 0, u32 0)
 <a href=#1055 id=1055 data-nosnippet>1055</a>              b1(v3: u32, v35: u32, v36: u32):
@@ -1089,7 +1089,7 @@
 <a href=#1089 id=1089 data-nosnippet>1089</a>    </span><span class="attr">#[test]
 <a href=#1090 id=1090 data-nosnippet>1090</a>    </span><span class="kw">fn </span>jmp_block_params_parallel_move_swap() {
 <a href=#1091 id=1091 data-nosnippet>1091</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1092 id=1092 data-nosnippet>1092</a>            brillig(inline) impure fn main f0 {
+<a href=#1092 id=1092 data-nosnippet>1092</a>            brillig(inline) predicate_pure fn main f0 {
 <a href=#1093 id=1093 data-nosnippet>1093</a>              b0():
 <a href=#1094 id=1094 data-nosnippet>1094</a>                jmp b1(u32 0, u32 1, u32 0)
 <a href=#1095 id=1095 data-nosnippet>1095</a>              b1(v0: u32, v1: u32, v2: u32):

@@ -214,7 +214,7 @@
 <a href=#214 id=214 data-nosnippet>214</a>    <span class="attr">#[test]
 <a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">fn </span>simplifies_cast_from_i8_minus_1_to_i16() {
 <a href=#216 id=216 data-nosnippet>216</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#217 id=217 data-nosnippet>217</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#217 id=217 data-nosnippet>217</a>        acir(inline) pure fn main f0 {
 <a href=#218 id=218 data-nosnippet>218</a>          b0():
 <a href=#219 id=219 data-nosnippet>219</a>            v0 = cast i8 -1 as i16
 <a href=#220 id=220 data-nosnippet>220</a>            return v0
@@ -223,8 +223,8 @@
 <a href=#223 id=223 data-nosnippet>223</a>
 <a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#225 id=225 data-nosnippet>225</a>
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#227 id=227 data-nosnippet>227</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#227 id=227 data-nosnippet>227</a>        acir(inline) pure fn main f0 {
 <a href=#228 id=228 data-nosnippet>228</a>          b0():
 <a href=#229 id=229 data-nosnippet>229</a>            return i16 -1
 <a href=#230 id=230 data-nosnippet>230</a>        }
@@ -234,7 +234,7 @@
 <a href=#234 id=234 data-nosnippet>234</a>    <span class="attr">#[test]
 <a href=#235 id=235 data-nosnippet>235</a>    </span><span class="kw">fn </span>simplifies_cast_from_i16_minus_1_to_i8() {
 <a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#237 id=237 data-nosnippet>237</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#237 id=237 data-nosnippet>237</a>        acir(inline) pure fn main f0 {
 <a href=#238 id=238 data-nosnippet>238</a>          b0():
 <a href=#239 id=239 data-nosnippet>239</a>            v0 = cast i16 -1 as i8
 <a href=#240 id=240 data-nosnippet>240</a>            return v0
@@ -243,8 +243,8 @@
 <a href=#243 id=243 data-nosnippet>243</a>
 <a href=#244 id=244 data-nosnippet>244</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#247 id=247 data-nosnippet>247</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#247 id=247 data-nosnippet>247</a>        acir(inline) pure fn main f0 {
 <a href=#248 id=248 data-nosnippet>248</a>          b0():
 <a href=#249 id=249 data-nosnippet>249</a>            return i8 -1
 <a href=#250 id=250 data-nosnippet>250</a>        }
@@ -254,7 +254,7 @@
 <a href=#254 id=254 data-nosnippet>254</a>    <span class="attr">#[test]
 <a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">fn </span>simplifies_cast_from_field_4_to_i8() {
 <a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#257 id=257 data-nosnippet>257</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#257 id=257 data-nosnippet>257</a>        acir(inline) pure fn main f0 {
 <a href=#258 id=258 data-nosnippet>258</a>          b0():
 <a href=#259 id=259 data-nosnippet>259</a>            v0 = cast Field 4 as i8
 <a href=#260 id=260 data-nosnippet>260</a>            return v0
@@ -263,8 +263,8 @@
 <a href=#263 id=263 data-nosnippet>263</a>
 <a href=#264 id=264 data-nosnippet>264</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#267 id=267 data-nosnippet>267</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#266 id=266 data-nosnippet>266</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#267 id=267 data-nosnippet>267</a>        acir(inline) pure fn main f0 {
 <a href=#268 id=268 data-nosnippet>268</a>          b0():
 <a href=#269 id=269 data-nosnippet>269</a>            return i8 4
 <a href=#270 id=270 data-nosnippet>270</a>        }
@@ -274,7 +274,7 @@
 <a href=#274 id=274 data-nosnippet>274</a>    <span class="attr">#[test]
 <a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">fn </span>simplifies_cast_from_field_255_to_i8() {
 <a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#277 id=277 data-nosnippet>277</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#277 id=277 data-nosnippet>277</a>        acir(inline) pure fn main f0 {
 <a href=#278 id=278 data-nosnippet>278</a>          b0():
 <a href=#279 id=279 data-nosnippet>279</a>            v0 = cast Field 255 as i8
 <a href=#280 id=280 data-nosnippet>280</a>            return v0
@@ -283,8 +283,8 @@
 <a href=#283 id=283 data-nosnippet>283</a>
 <a href=#284 id=284 data-nosnippet>284</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#287 id=287 data-nosnippet>287</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#287 id=287 data-nosnippet>287</a>        acir(inline) pure fn main f0 {
 <a href=#288 id=288 data-nosnippet>288</a>          b0():
 <a href=#289 id=289 data-nosnippet>289</a>            return i8 -1
 <a href=#290 id=290 data-nosnippet>290</a>        }

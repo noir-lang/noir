@@ -534,7 +534,7 @@
 <a href=#534 id=534 data-nosnippet>534</a>        // regardless of purity. The EnableSideEffectsIf before a pure call must
 <a href=#535 id=535 data-nosnippet>535</a>        // be preserved so that ACIR gen receives the correct predicate.
 <a href=#536 id=536 data-nosnippet>536</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#537 id=537 data-nosnippet>537</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#537 id=537 data-nosnippet>537</a>        acir(inline) pure fn main f0 {
 <a href=#538 id=538 data-nosnippet>538</a>          b0(v0: u1, v1: Field):
 <a href=#539 id=539 data-nosnippet>539</a>            enable_side_effects v0
 <a href=#540 id=540 data-nosnippet>540</a>            v2 = call f1(v1) -&gt; Field

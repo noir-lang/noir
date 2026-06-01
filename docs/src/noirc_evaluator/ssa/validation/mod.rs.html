@@ -1426,7 +1426,7 @@
 <a href=#1426 id=1426 data-nosnippet>1426</a>    #[should_panic(expected = <span class="string">"Cannot use `lt` with field elements"</span>)]
 <a href=#1427 id=1427 data-nosnippet>1427</a>    </span><span class="kw">fn </span>disallows_comparing_fields_with_lt() {
 <a href=#1428 id=1428 data-nosnippet>1428</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1429 id=1429 data-nosnippet>1429</a>        acir(inline) impure fn main f0 {
+<a href=#1429 id=1429 data-nosnippet>1429</a>        acir(inline) pure fn main f0 {
 <a href=#1430 id=1430 data-nosnippet>1430</a>          b0():
 <a href=#1431 id=1431 data-nosnippet>1431</a>            v2 = lt Field 1, Field 2
 <a href=#1432 id=1432 data-nosnippet>1432</a>            return
@@ -1612,7 +1612,7 @@
 <a href=#1612 id=1612 data-nosnippet>1612</a>    <span class="attr">#[test]
 <a href=#1613 id=1613 data-nosnippet>1613</a>    </span><span class="kw">fn </span>cast_from_field_constant_in_range() {
 <a href=#1614 id=1614 data-nosnippet>1614</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1615 id=1615 data-nosnippet>1615</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1615 id=1615 data-nosnippet>1615</a>        acir(inline) pure fn main f0 {
 <a href=#1616 id=1616 data-nosnippet>1616</a>          b0():
 <a href=#1617 id=1617 data-nosnippet>1617</a>            v0 = cast Field 42 as u8
 <a href=#1618 id=1618 data-nosnippet>1618</a>            return v0
@@ -1624,7 +1624,7 @@
 <a href=#1624 id=1624 data-nosnippet>1624</a>    <span class="attr">#[test]
 <a href=#1625 id=1625 data-nosnippet>1625</a>    </span><span class="kw">fn </span>cast_from_field_constant_out_of_range_with_truncate() {
 <a href=#1626 id=1626 data-nosnippet>1626</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1627 id=1627 data-nosnippet>1627</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1627 id=1627 data-nosnippet>1627</a>        acir(inline) pure fn main f0 {
 <a href=#1628 id=1628 data-nosnippet>1628</a>          b0():
 <a href=#1629 id=1629 data-nosnippet>1629</a>            v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
 <a href=#1630 id=1630 data-nosnippet>1630</a>            v1 = cast v0 as u8
@@ -1651,7 +1651,7 @@
 <a href=#1651 id=1651 data-nosnippet>1651</a>    #[should_panic(expected = <span class="string">"Constant too large"</span>)]
 <a href=#1652 id=1652 data-nosnippet>1652</a>    </span><span class="kw">fn </span>cast_from_field_constant_too_large() {
 <a href=#1653 id=1653 data-nosnippet>1653</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1654 id=1654 data-nosnippet>1654</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1654 id=1654 data-nosnippet>1654</a>        acir(inline) pure fn main f0 {
 <a href=#1655 id=1655 data-nosnippet>1655</a>          b0():
 <a href=#1656 id=1656 data-nosnippet>1656</a>            v0 = cast Field 300 as u8
 <a href=#1657 id=1657 data-nosnippet>1657</a>            return v0
@@ -1664,7 +1664,7 @@
 <a href=#1664 id=1664 data-nosnippet>1664</a>    #[should_panic(expected = <span class="string">"Invalid cast from Field"</span>)]
 <a href=#1665 id=1665 data-nosnippet>1665</a>    </span><span class="kw">fn </span>cast_from_raw_field() {
 <a href=#1666 id=1666 data-nosnippet>1666</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1667 id=1667 data-nosnippet>1667</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1667 id=1667 data-nosnippet>1667</a>        acir(inline) pure fn main f0 {
 <a href=#1668 id=1668 data-nosnippet>1668</a>          b0():
 <a href=#1669 id=1669 data-nosnippet>1669</a>            v0 = add Field 255, Field 1
 <a href=#1670 id=1670 data-nosnippet>1670</a>            v1 = cast v0 as u8
@@ -1678,7 +1678,7 @@
 <a href=#1678 id=1678 data-nosnippet>1678</a>    #[should_panic(expected = <span class="string">"assertion"</span>)]
 <a href=#1679 id=1679 data-nosnippet>1679</a>    </span><span class="kw">fn </span>cast_after_unsafe_truncate() {
 <a href=#1680 id=1680 data-nosnippet>1680</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1681 id=1681 data-nosnippet>1681</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1681 id=1681 data-nosnippet>1681</a>        acir(inline) pure fn main f0 {
 <a href=#1682 id=1682 data-nosnippet>1682</a>          b0():
 <a href=#1683 id=1683 data-nosnippet>1683</a>            v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
 <a href=#1684 id=1684 data-nosnippet>1684</a>            v1 = cast v0 as u8

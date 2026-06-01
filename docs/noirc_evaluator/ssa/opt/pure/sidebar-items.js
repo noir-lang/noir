@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Purity"],"fn":["analyze_call_graph","purity_analysis_post_check"],"type":["FunctionPurities"]};
+window.SIDEBAR_ITEMS = {"enum":["Purity"],"fn":["analyze_call_graph","compute_function_purities","purity_analysis_post_check"],"type":["FunctionPurities"]};
