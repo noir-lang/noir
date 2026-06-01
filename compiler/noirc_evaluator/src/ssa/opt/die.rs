@@ -871,7 +871,7 @@ mod tests {
     fn does_not_remove_inc_rc_of_return_value_that_points_to_a_make_array() {
         // Here we would previously incorrectly remove `inc_rc v1`
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             v1 = make_array [u1 1] : [u1; 1]
             v2 = make_array [v1] : [[u1; 1]; 1]
@@ -888,7 +888,7 @@ mod tests {
         let src = r#"
         g0 = make_array [u1 1] : [u1; 1]
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             v0 = make_array [g0] : [[u1; 1]; 1]
             inc_rc v0
@@ -1004,7 +1004,7 @@ mod tests {
         //     constrain v5 == u1 1, "Index out of bounds"
         //     return
         //   }
-        // brillig(inline) predicate_pure fn inject_value f1 {
+        // brillig(inline) pure fn inject_value f1 {
         //   b0():
         //     return u32 0
         // }
@@ -1111,9 +1111,75 @@ mod tests {
     }
 
     #[test]
-    fn keeps_unused_databus_return_value() {
+    fn does_not_collapse_independent_dynamic_composite_gets() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = array_get v2, index v1 -> Field
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = cast v0 as u64
+            v4 = lt v2, u64 4
+            constrain v4 == u1 1, "Index out of bounds"
+            v6 = cast v1 as u64
+            v7 = lt v6, u64 4
+            constrain v7 == u1 1, "Index out of bounds"
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn collapses_composite_group_when_first_read_is_used() {
+        // When the offset-0 read of a composite `array_get` survives (is used) but the
+        // trailing offset reads are unused, the trailing reads still belong to the same
+        // composite access (they share a common base index) and must collapse into a single
+        // out-of-bounds check rather than one check per read.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = add v0, u32 1
+            v5 = array_get v2, index v4 -> Field
+            v6 = add v0, u32 2
+            v7 = array_get v2, index v6 -> Field
+            constrain v3 == Field 1
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v8 = array_get v7, index v0 -> Field
+            v10 = add v0, u32 1
+            v11 = cast v10 as u64
+            v13 = lt v11, u64 6
+            constrain v13 == u1 1, "Index out of bounds"
+            v16 = add v0, u32 2
+            constrain v8 == Field 1
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn keeps_unused_databus_return_value() {
+        let src = r#"
+        acir(inline) pure fn main f0 {
           return_data: v0
           b0():
             v0 = make_array [Field 0] : [Field; 1]
@@ -1157,7 +1223,7 @@ mod tests {
     #[test]
     fn removes_unused_known_small_bit_shifts() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v1 = shl v0, u32 2
             v2 = shr v0, u32 3
@@ -1168,8 +1234,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             return
         }
@@ -1238,7 +1304,7 @@ mod tests {
     #[test]
     fn does_not_remove_used_jmpif_arg() {
         let src = r#"
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [u8 1, u8 2] : [u8; 2]
             v2 = make_array [u8 3, u8 4] : [u8; 2]
@@ -1335,7 +1401,7 @@ mod tests {
                 constrain v8 == u1 1
                 return
             }
-            brillig(inline_never) predicate_pure fn returns_true f1 {
+            brillig(inline_never) pure fn returns_true f1 {
               b0():
                 return u1 1
             }

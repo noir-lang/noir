@@ -591,7 +591,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline) pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -622,7 +622,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline) pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 10)               // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -2292,7 +2292,7 @@ mod tests {
     #[test]
     fn test_boilerplate_stats_const_zero_jump_condition() {
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -2954,7 +2954,7 @@ mod tests {
         // This logic is how we identify a loop with a break expression.
         // We do not support unrolling these types of loops.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -2991,7 +2991,7 @@ mod tests {
         //     println(i);
         // }
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -3054,7 +3054,7 @@ mod tests {
         //     while run { }
         // }
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0
@@ -3122,12 +3122,12 @@ mod tests {
     #[should_panic(expected = "has a JmpIf with a constant condition")]
     fn pre_check_rejects_const_condition_jmpif_in_loop_header() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0():
             call f1(u1 1)
             return
         }
-        brillig(inline) impure fn func f1 {
+        brillig(inline) pure fn func f1 {
           b0(v0: u1):
             v2 = not v0
             v3 = allocate -> &mut u1

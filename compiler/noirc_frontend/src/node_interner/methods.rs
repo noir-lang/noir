@@ -138,7 +138,7 @@ impl Methods {
         typ: &Type,
         has_self_param: bool,
         interner: &NodeInterner,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let mut results = Vec::new();
 
         for trait_impl_method in &self.trait_impl_methods {
@@ -147,7 +147,7 @@ impl Methods {
             let trait_id = trait_impl_method.trait_id;
 
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                results.push((method, trait_id));
+                results.push((method, trait_id, method_type.clone()));
             }
         }
 

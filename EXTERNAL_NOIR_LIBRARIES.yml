@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 188d421b997d57692a731a7423180d80eb012beb
+define: &AZ_COMMIT 8f347013715ffd75afb7c4070fd10f38d1fa85e8
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -67,13 +67,13 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/aztec-nr
-    timeout: 280
+    timeout: 340
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 250
+    timeout: 280
     critical: false
   blob:
     repo: AztecProtocol/aztec-packages

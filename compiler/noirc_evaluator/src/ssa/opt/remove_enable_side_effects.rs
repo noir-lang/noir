@@ -255,7 +255,7 @@ mod tests {
             enable_side_effects u1 1
             return v12
         }
-        brillig(inline) predicate_pure fn func_1 f1 {
+        brillig(inline) pure fn func_1 f1 {
           b0(v0: [u16; 3], v1: u1):
             v3 = make_array [u1 0] : [u1; 1]
             return v3
@@ -534,7 +534,7 @@ mod tests {
         // regardless of purity. The EnableSideEffectsIf before a pure call must
         // be preserved so that ACIR gen receives the correct predicate.
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1, v1: Field):
             enable_side_effects v0
             v2 = call f1(v1) -> Field

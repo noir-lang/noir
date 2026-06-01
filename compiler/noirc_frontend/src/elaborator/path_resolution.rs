@@ -1065,7 +1065,7 @@ impl Elaborator<'_> {
         let starting_module = self.get_module(importing_module_id);
 
         let mut results = Vec::new();
-        for (func_id, trait_id) in &trait_methods {
+        for (func_id, trait_id, _) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
             }
@@ -1073,7 +1073,7 @@ impl Elaborator<'_> {
 
         if results.is_empty() {
             if trait_methods.len() == 1 {
-                let (func_id, trait_id) = trait_methods.first().expect("Expected an item");
+                let (func_id, trait_id, _) = trait_methods.first().expect("Expected an item");
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = self.fully_qualified_trait_path(trait_);
                 let ident = method_name_ident.clone();
@@ -1082,7 +1082,7 @@ impl Elaborator<'_> {
             } else if trait_methods.is_empty() {
                 return Err(PathResolutionError::Unresolved(method_name_ident.clone()));
             } else {
-                let traits = vecmap(trait_methods, |(_, trait_id)| {
+                let traits = vecmap(trait_methods, |(_, trait_id, _)| {
                     self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
                 });
                 let ident = method_name_ident.clone();

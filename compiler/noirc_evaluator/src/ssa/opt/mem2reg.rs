@@ -1342,7 +1342,7 @@ brillig(inline) fn main f0 {
     #[test]
     fn nested_loops() {
         let src = "
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = allocate -> &mut Field
                 store Field 0 at v0
@@ -1375,7 +1375,7 @@ brillig(inline) fn main f0 {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(Field 0)
           b1(v0: Field):

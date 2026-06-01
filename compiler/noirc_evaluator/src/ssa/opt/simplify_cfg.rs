@@ -679,7 +679,7 @@ mod tests {
     #[test]
     fn remove_converging_jmpif() {
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1(), else: b2()
@@ -703,7 +703,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             v4 = lt i16 5, v0
@@ -718,7 +718,7 @@ mod tests {
         // as b1 and b2 jump to b3 and b4 respectively before ultimately jumping to b5.
         // b5 then also continues the jump chain. We expect the b1 and b2 jump chain to settle on b7.
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1(), else: b2()
@@ -750,7 +750,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             v4 = lt i16 2, v0
@@ -762,7 +762,7 @@ mod tests {
     #[test]
     fn do_not_remove_non_converging_jmpif() {
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1(), else: b2()
@@ -791,7 +791,7 @@ mod tests {
         // We expect the jmpif in b0 to remain in place as the jump chains for b1 and b2
         // resolved to b7 and b8 respectively which are not the same block.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             jmpif v2 then: b1(), else: b2()
@@ -806,7 +806,7 @@ mod tests {
     #[test]
     fn do_not_remove_non_converging_jmpif_acir() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v23 = array_get v13, index u32 8 -> u1
             jmpif v23 then: b1(), else: b2()
@@ -854,8 +854,8 @@ mod tests {
 
         // Non-converging jmpifs remain because the flattening pass expects to merge them.
         // Converging jmpifs (where both branches reach the same block) are folded.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v3 = array_get v0, index u32 8 -> u1
             jmpif v3 then: b1(), else: b2()
@@ -892,7 +892,7 @@ mod tests {
     #[test]
     fn do_not_remove_converging_jmpif_with_instructions() {
         let src = r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1(), else: b2()
@@ -913,7 +913,7 @@ mod tests {
         // Check that we handle a cyclic jump chain when checking for a converging jmpif.
         // If we were missing the appropriate checks this code could trigger an infinite loop.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1(), else: b2()
@@ -928,7 +928,7 @@ mod tests {
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             jmpif v2 then: b1(), else: b1()
@@ -974,7 +974,7 @@ mod tests {
         // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
         let src = format!(
             "
-        {runtime}(inline) impure fn main f0 {{
+        {runtime}(inline) fn main f0 {{
           b0():
             jmpif u1 1 then: b1(), else: b2()
           b1():
@@ -998,7 +998,7 @@ mod tests {
 
         let expected = format!(
             "\
-{runtime}(inline) impure fn main f0 {{
+{runtime}(inline) fn main f0 {{
   b0():
     return
 }}"
@@ -1009,7 +1009,7 @@ mod tests {
     #[test]
     fn fully_simplifies_negated_constant_condition() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u1 1)
           b1(v0: u1):
@@ -1027,8 +1027,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) pure fn main f0 {
           b0():
             v1 = not u1 1
             return
@@ -1039,7 +1039,7 @@ mod tests {
     #[test]
     fn removes_unreachable_block() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1()
           b1():
@@ -1052,8 +1052,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) pure fn main f0 {
           b0():
             return
         }
@@ -1115,7 +1115,7 @@ mod tests {
         // causes the first jmpif to be folded, the second `jmpif v0` also has a
         // constant condition and must be folded in the same pass invocation.
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             jmp b1(u1 0)
           b1(v0: u1):
@@ -1133,8 +1133,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0():
             v1 = not u1 0
             return
@@ -1150,7 +1150,7 @@ mod tests {
         // other went through extra blocks, causing "Expected two blocks to join
         // to the same block" in flatten_cfg.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v1: u1, v2: u1, v3: u1, v4: u32):
             v5 = eq v4, u32 1
             jmpif v5 then: b1(), else: b2()

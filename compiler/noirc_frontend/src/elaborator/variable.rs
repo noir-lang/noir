@@ -282,15 +282,7 @@ impl Elaborator<'_> {
             let id = self
                 .intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
 
-            // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-            let push_required_type_variables = self.current_trait.is_none();
-            let typ = self.type_check_variable_with_bindings(
-                hir_ident,
-                &id,
-                generics,
-                bindings,
-                push_required_type_variables,
-            );
+            let typ = self.type_check_variable_with_bindings(hir_ident, &id, generics, bindings);
             let id = self.intern_expr_type(id, typ.clone());
             (id, typ)
         } else {
@@ -685,15 +677,7 @@ impl Elaborator<'_> {
             TypeBindings::default()
         };
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        let typ = self.type_check_variable_with_bindings(
-            ident,
-            &id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        );
+        let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
 
         (id, typ)
@@ -767,22 +751,16 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        self.type_check_variable_with_bindings(
-            ident,
-            expr_id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        )
+        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
     }
 
     /// Perform the type checking of an interned expression and a corresponding identifier,
     /// returning the instantiated [Type].
     ///
-    /// If `push_required_type_variables`, the bindings are added to the function context,
-    /// to be checked before it's finished.
+    /// The instantiation bindings are pushed as required type variables on the current
+    /// function context, to be checked at end-of-function. `push_required_type_variable`
+    /// already skips this in a comptime context, where unbound generics on quoted typed
+    /// expressions are expected.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
@@ -790,7 +768,6 @@ impl Elaborator<'_> {
         expr_id: &PushedExpr<HasLocation>,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
-        push_required_type_variables: bool,
     ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
@@ -917,21 +894,18 @@ impl Elaborator<'_> {
             }
         }
 
-        if push_required_type_variables {
-            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
-            let required_type_variables =
-                btree_map(bindings.values(), |(type_variable, _, typ)| {
-                    (type_variable.id(), typ.clone())
-                });
+        // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+        let required_type_variables = btree_map(bindings.values(), |(type_variable, _, typ)| {
+            (type_variable.id(), typ.clone())
+        });
 
-            for (type_variable_id, typ) in required_type_variables {
-                self.push_required_type_variable(
-                    type_variable_id,
-                    typ,
-                    BindableTypeVariableKind::Ident(ident.id),
-                    ident.location,
-                );
-            }
+        for (type_variable_id, typ) in required_type_variables {
+            self.push_required_type_variable(
+                type_variable_id,
+                typ,
+                BindableTypeVariableKind::Ident(ident.id),
+                ident.location,
+            );
         }
 
         self.interner.store_instantiation_bindings(**expr_id, bindings);

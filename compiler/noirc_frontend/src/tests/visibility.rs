@@ -196,6 +196,47 @@ fn errors_if_pub_trait_returns_private_struct() {
 }
 
 #[test]
+fn errors_if_trait_impl_associated_type_leaks_private_type() {
+    let src = r#"
+    struct Priv {}
+
+    pub trait T {
+        type Item;
+    }
+
+    impl T for u32 {
+        type Item = Priv;
+             ^^^^ Type `Priv` is more private than item `T::Item`
+    }
+
+    pub fn no_unused_warnings() {
+        let _ = Priv {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_if_private_trait_impl_associated_type_uses_private_type() {
+    let src = r#"
+    struct Priv {}
+
+    trait T {
+        type Item;
+    }
+
+    impl T for u32 {
+        type Item = Priv;
+    }
+
+    fn main() {
+        let _ = Priv {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn does_not_error_if_trait_with_default_visibility_returns_struct_with_default_visibility() {
     let src = r#"
     struct Foo {}
@@ -766,6 +807,32 @@ fn main(a: u32) -> pub u32 {
 fn inner(a: call_data(0) u32) -> return_data u32 {
             ~~~~~~~~~~~~ unnecessary call_data(0)
             ^^^^^^^^^^^^ unnecessary call_data(0) attribute for function inner
+                                 ~~~~~~~~~~~ unnecessary return_data
+                                 ^^^^^^^^^^^ unnecessary return_data attribute for function inner
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn return_data_not_allowed_on_parameter() {
+    let src = "
+fn main(a: return_data u32) -> pub u32 {
+           ~~~~~~~~~~~ return_data is only allowed on the return value
+           ^^^^^^^^^^^ return_data attribute is not allowed on a parameter
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn call_data_not_allowed_on_return_value() {
+    let src = "
+fn main(a: u32) -> call_data(0) u32 {
+                   ~~~~~~~~~~~~ call_data(0) is only allowed on a parameter
+                   ^^^^^^^^^^^^ call_data(0) attribute is not allowed on the return value
     a
 }
     ";

@@ -329,7 +329,7 @@ mod tests {
         let src = r#"
         g0 = u32 2825334515
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) impure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v4 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v4
@@ -374,10 +374,10 @@ mod tests {
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @"
         g0 = u32 2825334515
-        
-        brillig(inline) predicate_pure fn main f0 {
+
+        brillig(inline) impure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v3 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v3
@@ -391,7 +391,7 @@ mod tests {
           b3():
             return u1 0
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -584,7 +584,7 @@ mod tests {
         // }
         // ```
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v5 = lt i16 3, v0
             jmpif v5 then: b1(), else: b2()
@@ -650,7 +650,7 @@ mod tests {
         }
 
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1(), else: b2()
@@ -681,7 +681,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1(), else: b2()
