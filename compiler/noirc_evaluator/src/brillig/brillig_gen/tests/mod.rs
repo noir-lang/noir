@@ -46,8 +46,16 @@ pub(crate) fn execute_brillig_from_ssa(
     src: &str,
     calldata: Vec<FieldElement>,
 ) -> Vec<FieldElement> {
+    execute_brillig_from_ssa_with_options(src, calldata, &BrilligOptions::default())
+}
+
+pub(crate) fn execute_brillig_from_ssa_with_options(
+    src: &str,
+    calldata: Vec<FieldElement>,
+    options: &BrilligOptions,
+) -> Vec<FieldElement> {
     let ssa = Ssa::from_str(src).unwrap();
-    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let brillig = ssa.to_brillig(options);
     let func = ssa.main();
     let arguments: Vec<_> = func
         .parameters()
@@ -57,7 +65,7 @@ pub(crate) fn execute_brillig_from_ssa(
             FunctionContext::ssa_type_to_parameter(&typ)
         })
         .collect();
-    let generated = gen_brillig_for(func, arguments, &brillig, &BrilligOptions::default()).unwrap();
+    let generated = gen_brillig_for(func, arguments, &brillig, options).unwrap();
     execute_bytecode(&generated.byte_code, calldata)
 }
 

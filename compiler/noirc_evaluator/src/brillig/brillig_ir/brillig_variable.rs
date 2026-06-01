@@ -166,7 +166,7 @@ where
 /// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(
+        Type::Numeric(_) | Type::Reference(..) | Type::Function => HeapValueType::Simple(
             BitSize::try_from_u32::<FieldElement>(get_bit_size_from_ssa_type(typ)).unwrap(),
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
@@ -181,11 +181,12 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
 
 pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
     match typ {
-        Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        Type::Reference(..) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
         // NB. function references are converted to a constant when
         // translating from SSA to Brillig (to allow for debugger
-        // instrumentation to work properly)
-        Type::Function => 32,
+        // instrumentation to work properly).
+        // They are passed to foreign functions as a Field, carrying their ID.
+        Type::Function => Type::field().bit_size(),
         typ => typ.bit_size(),
     }
 }

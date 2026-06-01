@@ -46,6 +46,7 @@ use crate::{
 use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
+mod suboptimal_cloning_tests;
 mod tests;
 
 impl Program {
@@ -128,23 +129,20 @@ impl Context {
     }
 
     /// Handle the RHS of a `&expr` unary expression.
-    /// Variables and field accesses in these expressions are exempt from clones.
+    /// Variables and field accesses (i.e. place expressions) in these expressions are exempt
+    /// from clones — taking a reference to a place doesn't allocate a fresh value, so we
+    /// don't need a defensive copy at the reference site.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
+    ///
+    /// Value-producing forms like `Block`, `If`, `Match`, `Call`, etc. fall through to
+    /// `handle_expression`. A block in particular materializes a fresh temporary, so its
+    /// contents must be processed in normal cloning context to keep refcounts honest when
+    /// the temporary is retained (e.g. by `&mut { ...; expr }`).
     fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
             Expression::Ident(_) => (),
-            Expression::Block(exprs) => {
-                let len_minus_one = exprs.len().saturating_sub(1);
-                for expr in exprs.iter_mut().take(len_minus_one) {
-                    // In `&{ a; b; ...; z }` we're only taking the reference of `z`.
-                    self.handle_expression(expr);
-                }
-                if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr);
-                }
-            }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
                 self.handle_reference_expression(rhs);
             }
@@ -193,7 +191,7 @@ impl Context {
         match expr {
             Expression::Ident(ident) => {
                 let should_clone = self.should_clone_ident(ident);
-                Some((should_clone, ident.typ.clone()))
+                Some((should_clone, ident.typ.as_ref().clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
             Expression::Unary(Unary {
@@ -209,6 +207,18 @@ impl Context {
                 let (should_clone, typ) = self.handle_extract_expression_rec(tuple)?;
                 let mut elements = unwrap_tuple_type(typ)?;
                 Some((should_clone, elements.swap_remove(*index)))
+            }
+            Expression::Index(index) => {
+                let (base_should_clone, _) =
+                    self.handle_extract_expression_rec(&mut index.collection)?;
+                self.handle_expression(&mut index.index);
+                // A dynamic index can extract an inner element whose reference count
+                // is not bumped by moving the outer collection. If the extracted type
+                // contains an array, the inner array may still alias the collection,
+                // so an outer extract site must clone regardless of last-use status.
+                let should_clone =
+                    base_should_clone || contains_array_or_str_type(&index.element_type);
+                Some((should_clone, index.element_type.clone()))
             }
             _ => None,
         }
@@ -288,11 +298,18 @@ impl Context {
             panic!("handle_index given non-index expression: {index_expr}");
         };
 
-        // Don't clone the collection, cloning only the resulting element is cheaper.
-        self.handle_reference_expression(&mut index.collection);
-        self.handle_expression(&mut index.index);
-
-        // If the index collection is being borrowed we need to clone the result.
+        // A dynamic index can extract an inner array that still shares memory with
+        // the original collection. Even at the base's last use, moving only transfers
+        // the outer array's reference count -- the inner element's RC is not bumped.
+        // Whenever the extracted element contains an array we must clone it.
+        if self.handle_extract_expression_rec(&mut index.collection).is_some() {
+            self.handle_expression(&mut index.index);
+        } else {
+            // Collection is a complex expression (function call, block, etc.);
+            // sub-expressions are handled normally.
+            self.handle_reference_expression(&mut index.collection);
+            self.handle_expression(&mut index.index);
+        }
         if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
@@ -441,7 +458,7 @@ fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
         Type::Tuple(elements) => Some(elements),
         // array accesses will automatically dereference so we do too
-        Type::Reference(element, _) => unwrap_tuple_type(*element),
+        Type::Reference(element, _) => unwrap_tuple_type(element.as_ref().clone()),
         _ => None,
     }
 }

@@ -16,7 +16,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.14</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#trait">Trait Eq</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -36,6 +36,7 @@
 <li><a href="#impl-Eq-for-(A, B, C, D, E, F, G, H, I, J)">(A, B, C, D, E, F, G, H, I, J)</a></li>
 <li><a href="#impl-Eq-for-(A, B, C, D, E, F, G, H, I, J, K)">(A, B, C, D, E, F, G, H, I, J, K)</a></li>
 <li><a href="#impl-Eq-for-(A, B, C, D, E, F, G, H, I, J, K, L)">(A, B, C, D, E, F, G, H, I, J, K, L)</a></li>
+<li><a href="#impl-Eq-for-(A,)">(A,)</a></li>
 <li><a href="#impl-Eq-for-BinaryOp">BinaryOp</a></li>
 <li><a href="#impl-Eq-for-BoundedVec<T, MaxLen>">BoundedVec<T, MaxLen></a></li>
 <li><a href="#impl-Eq-for-CompoundStruct">CompoundStruct</a></li>
@@ -44,7 +45,7 @@
 <li><a href="#impl-Eq-for-EmbeddedCurveScalar">EmbeddedCurveScalar</a></li>
 <li><a href="#impl-Eq-for-Field">Field</a></li>
 <li><a href="#impl-Eq-for-FunctionDefinition">FunctionDefinition</a></li>
-<li><a href="#impl-Eq-for-HashMap<K, V, N, B>">HashMap<K, V, N, B></a></li>
+<li><a href="#impl-Eq-for-Location">Location</a></li>
 <li><a href="#impl-Eq-for-Module">Module</a></li>
 <li><a href="#impl-Eq-for-Option<T>">Option<T></a></li>
 <li><a href="#impl-Eq-for-Ordering">Ordering</a></li>
@@ -63,7 +64,6 @@
 <li><a href="#impl-Eq-for-i64">i64</a></li>
 <li><a href="#impl-Eq-for-i8">i8</a></li>
 <li><a href="#impl-Eq-for-str&lt;N&gt;">str&lt;N&gt;</a></li>
-<li><a href="#impl-Eq-for-u1">u1</a></li>
 <li><a href="#impl-Eq-for-u128">u128</a></li>
 <li><a href="#impl-Eq-for-u16">u16</a></li>
 <li><a href="#impl-Eq-for-u32">u32</a></li>
@@ -91,6 +91,9 @@
     pub fn <a href="#eq"><span class="fn">eq</span></a>(self, other: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a>;
 }</code></pre>
 
+<div class="comments">
+<p>Compare two values for equality</p>
+</div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="eq" class="code-header">pub fn <a href="#eq"><span class="fn">eq</span></a>(self, other: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
@@ -207,6 +210,10 @@
     K: <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     L: <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code></h3>
 
+<h3 id="impl-Eq-for-(A,)"><code class="code-header">impl&lt;A&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for (A,)
+<div class="where-clause">where
+    A: <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code></h3>
+
 <h3 id="impl-Eq-for-BinaryOp"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a></code></h3>
 
 <h3 id="impl-Eq-for-BoundedVec<T, MaxLen>"><code class="code-header">impl&lt;let MaxLen: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;
@@ -225,12 +232,7 @@
 
 <h3 id="impl-Eq-for-FunctionDefinition"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
 
-<h3 id="impl-Eq-for-HashMap<K, V, N, B>"><code class="code-header">impl&lt;B, K, let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, V&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/collections/map/struct.HashMap.html" class="struct">HashMap</a>&lt;K, V, N, B&gt;
-<div class="where-clause">where
-    K: <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
-    K: <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a>,
-    V: <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
-    B: <a href="../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code></h3>
+<h3 id="impl-Eq-for-Location"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.Location.html" class="primitive">Location</a></code></h3>
 
 <h3 id="impl-Eq-for-Module"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 
@@ -278,8 +280,6 @@
 <h3 id="impl-Eq-for-i8"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
 
 <h3 id="impl-Eq-for-str&lt;N&gt;"><code class="code-header">impl&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code></h3>
-
-<h3 id="impl-Eq-for-u1"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.u1.html" class="primitive">u1</a></code></h3>
 
 <h3 id="impl-Eq-for-u128"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
 

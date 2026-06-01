@@ -16,7 +16,7 @@
 //! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -90,7 +90,7 @@ impl ProxyContext {
                 && let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
                 && let Expression::Ident(ident) = func.as_mut()
-                && matches!(ident.definition, Definition::Oracle(_))
+                && matches!(ident.definition, Definition::Oracle { .. })
             {
                 self.redirect_to_proxy(ident, true);
                 for arg in arguments {
@@ -118,7 +118,7 @@ impl ProxyContext {
     fn redirect_to_proxy(&mut self, ident: &mut Ident, mut unconstrained: bool) {
         // If we are calling an oracle, there is no reason to create a constrained proxy,
         // since such a call would be rejected by the SSA validation.
-        unconstrained |= matches!(ident.definition, Definition::Oracle(_));
+        unconstrained |= matches!(ident.definition, Definition::Oracle { .. });
 
         let key = (ident.definition.clone(), unconstrained);
 
@@ -188,7 +188,10 @@ impl<'a> ForeignFunctionValue<'a> {
 
 /// Check if the definition is that of a function defined by a "name" rather than an ID.
 fn is_foreign_func(definition: &Definition) -> bool {
-    matches!(definition, Definition::Builtin(_) | Definition::LowLevel(_) | Definition::Oracle(_))
+    matches!(
+        definition,
+        Definition::Builtin(_) | Definition::LowLevel(_) | Definition::Oracle { .. }
+    )
 }
 
 /// Check that the identifier is of a pair of constrained and unconstrained function types.
@@ -205,7 +208,7 @@ fn is_func_pair(typ: &Type) -> bool {
 ///
 /// The body of the function will be a single forwarding call to the original.
 fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
-    let Type::Tuple(items) = &ident.typ else {
+    let Type::Tuple(items) = ident.typ.as_ref() else {
         unreachable!("ICE: expected pair of functions; got {}", ident.typ);
     };
 
@@ -230,7 +233,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         let mutable = false;
         let name = format!("p{i}");
         let vis = Visibility::Private;
-        (id, mutable, name, typ, vis)
+        (id, mutable, name, Rc::new(typ), vis)
     });
 
     let call = {
@@ -259,7 +262,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         Call {
             func: Box::new(Expression::Ident(func)),
             arguments,
-            return_type: *ret.clone(),
+            return_type: ret.as_ref().clone(),
             location: Location::dummy(),
         }
     };
@@ -269,7 +272,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         name,
         parameters,
         body: Expression::Call(call),
-        return_type: *ret,
+        return_type: ret.as_ref().clone(),
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,

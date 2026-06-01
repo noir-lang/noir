@@ -41,10 +41,9 @@
 //! the [`super::remove_if_else`] pass that comes after this pass will merge `v_set` with `v_arr` make sure
 //! to only use the values from `v_set` when `v_cond` is true.
 //!
-//! Note 1: this optimization only applies to `array_set` instructions operating on arrays, not
-//! vectors, because for arrays we can statically determine the number of elements, while for
-//! vectors we can only do that if the `array_set` value operates on a `make_array`. This could
-//! be done, but it's left as a follow-up optimization: <https://github.com/noir-lang/noir/issues/11810>
+//! Note 1: this optimization applies to both arrays and vectors. For arrays the length is
+//! statically known from the type. For vectors the capacity must be determinable via
+//! [DataFlowGraph::try_get_vector_capacity] (e.g. the vector traces back to a `make_array`).
 //!
 //! Note 2: because the optimization expands to multiple `array_get` and a `make_array` instruction,
 //! for large arrays this might result in too many `array_get` instructions that slow down SSA optimization.
@@ -120,15 +119,14 @@ impl Function {
                 unreachable!("candidate ArraySet index must be a constant u32");
             };
 
-            let Type::Array(ref element_types, len) = context.dfg.type_of_value(array) else {
-                // In theory this optimization could also run on vectors with a known length, but currently
-                // it doesn't. See https://github.com/noir-lang/noir/issues/11810
-                unreachable!("candidate ArraySet array must be of array type");
-            };
+            let typ = context.dfg.type_of_value(array).into_owned();
+            let element_types = typ.element_types();
+            let len = context
+                .dfg
+                .try_get_vector_capacity(array)
+                .expect("candidate ArraySet must have a known capacity");
 
             let array_constant = context.dfg.get_array_constant(array);
-
-            let element_types = element_types.clone();
             let element_count = ElementTypesLength(element_types.len() as u32);
             let total_elements = len * element_count;
 
@@ -157,7 +155,6 @@ impl Function {
                 }
             }
 
-            let typ = Type::Array(element_types, len);
             let make_array = Instruction::MakeArray { elements, typ: typ.clone() };
             let new_result = context.insert_instruction(make_array, Some(vec![typ])).first();
             context.replace_value(old_result, new_result);
@@ -180,12 +177,13 @@ struct ConditionalWindow {
     predicate: ValueId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TrackedValue {
     window: ConditionalWindow,
-    // The set of original array_set candidate results that this value transitively depends on.
-    // If any of these candidates is disqualified, this value must be disqualified too.
-    dependencies: im::HashSet<ValueId>,
+    /// Indices into the `candidate_values` vec — the set of array_set candidates
+    /// this value transitively depends on. Only candidate indices are stored,
+    /// not intermediate ValueIds, keeping the sets small (bounded by candidate count).
+    candidate_deps: HashSet<usize>,
 }
 
 /// Returns the set of `InstructionId`s for `array_set` instructions that are safe
@@ -199,12 +197,14 @@ struct TrackedValue {
 /// from are disqualified: replacing them with unconditional `make_array`s would lead to
 /// incorrect results.
 fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<InstructionId> {
-    // Maps array_set candidate results → instruction id.
-    let mut candidates: HashMap<ValueId, InstructionId> = HashMap::new();
+    // Candidates are numbered as discovered. Maps index → (ValueId, InstructionId).
+    let mut candidate_values: Vec<(ValueId, InstructionId)> = Vec::new();
     // Maps every "tracked" value (a candidate or a value derived from candidates within the same window).
     let mut tracked: HashMap<ValueId, TrackedValue> = HashMap::new();
-    // Candidates that were found in an `IfElse` instruction under their associated predicate.
-    let mut if_else_candidates = HashSet::<ValueId>::new();
+    // Candidate indices confirmed used in an `IfElse` instruction under their associated predicate.
+    let mut if_else_candidate_indices = HashSet::<usize>::new();
+    // Candidate indices disqualified because a derived value escaped its window.
+    let mut disqualified_indices = HashSet::<usize>::new();
 
     let mut current_window: Option<ConditionalWindow> = None;
     let mut window_counter: ConditionalWindowId = ConditionalWindowId(0);
@@ -264,16 +264,14 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                         Instruction::IfElse { then_condition, then_value, .. }
                             if *then_value == value && *then_condition == tracked_value.window.predicate =>
                         {
-                            if_else_candidates.insert(value);
-                            if_else_candidates.extend(tracked_value.dependencies.clone());
+                            if_else_candidate_indices.extend(&tracked_value.candidate_deps);
                             true
                         }
                         // Check the "else-condition/else-value" pair
                         Instruction::IfElse { else_condition, else_value, .. }
                             if *else_value == value && *else_condition == tracked_value.window.predicate =>
                         {
-                            if_else_candidates.insert(value);
-                            if_else_candidates.extend(tracked_value.dependencies.clone());
+                            if_else_candidate_indices.extend(&tracked_value.candidate_deps);
                             true
                         }
                         _ => {
@@ -284,14 +282,9 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     }
                 };
                 if !stays_within_window {
-                    let tracked_value_dependencies = tracked_value.dependencies.clone();
-
-                    candidates.remove(&value);
+                    let candidate_deps = tracked_value.candidate_deps.clone();
                     tracked.remove(&value);
-                    for dependency in tracked_value_dependencies {
-                        candidates.remove(&dependency);
-                        tracked.remove(&dependency);
-                    }
+                    disqualified_indices.extend(&candidate_deps);
                 }
             }
         });
@@ -304,27 +297,46 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                 if let Some(window) = current_window {
                     let [result] = dfg.instruction_result(instruction_id);
 
-                    // array_set with a constant in-bound index on a small array
-                    if let (Type::Array(elements, len), Some(index)) =
-                        (dfg.type_of_value(*array), dfg.get_numeric_constant(*index))
-                    {
-                        let elements_length = ElementTypesLength(assert_u32(elements.len()));
-                        let semi_flattened_length = len * elements_length;
-                        if index.to_u128() < u128::from(semi_flattened_length.0)
-                            && semi_flattened_length.0 <= MAX_ARRAY_SEMI_FLATTENED_LENGTH
-                        {
-                            candidates.insert(result, instruction_id);
+                    // array_set with a constant in-bound index on a small array or vector
+                    let is_candidate = if let Some(index) = dfg.get_numeric_constant(*index) {
+                        let semi_flattened_length = match &*dfg.type_of_value(*array) {
+                            Type::Array(elements, len) => {
+                                let elements_length =
+                                    ElementTypesLength(assert_u32(elements.len()));
+                                Some(*len * elements_length)
+                            }
+                            Type::Vector(elements) => {
+                                dfg.try_get_vector_capacity(*array).map(|capacity| {
+                                    let elements_length =
+                                        ElementTypesLength(assert_u32(elements.len()));
+                                    capacity * elements_length
+                                })
+                            }
+                            _ => None,
+                        };
+                        semi_flattened_length.is_some_and(|len| {
+                            index.to_u128() < u128::from(len.0)
+                                && len.0 <= MAX_ARRAY_SEMI_FLATTENED_LENGTH
+                        })
+                    } else {
+                        false
+                    };
+
+                    // Build deps from tracked inputs.
+                    let mut candidate_deps = HashSet::new();
+                    for input in [array, value] {
+                        if let Some(tracked_input) = tracked.get(input) {
+                            candidate_deps.extend(&tracked_input.candidate_deps);
                         }
                     }
 
-                    let mut dependencies = im::HashSet::new();
-                    for value in [array, value] {
-                        if let Some(tracked_value) = tracked.get(value) {
-                            dependencies.insert(*value);
-                            dependencies = dependencies.union(tracked_value.dependencies.clone());
-                        }
+                    if is_candidate {
+                        let idx = candidate_values.len();
+                        candidate_values.push((result, instruction_id));
+                        candidate_deps.insert(idx);
                     }
-                    tracked.insert(result, TrackedValue { window, dependencies });
+
+                    tracked.insert(result, TrackedValue { window, candidate_deps });
                 }
             }
             Instruction::IfElse { .. } => {
@@ -337,22 +349,19 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                 if let Some(current_window) = current_window {
                     let results = dfg.instruction_results(instruction_id);
                     if !results.is_empty() {
-                        let mut dependencies = im::HashSet::new();
+                        let mut candidate_deps = HashSet::new();
                         instruction.for_each_value(|value| {
                             if let Some(tracked_value) = tracked.get(&value) {
-                                let tracked_value_dependencies = tracked_value.dependencies.clone();
-                                dependencies.insert(value);
-                                dependencies =
-                                    dependencies.clone().union(tracked_value_dependencies);
+                                candidate_deps.extend(&tracked_value.candidate_deps);
                             }
                         });
-                        if !dependencies.is_empty() {
+                        if !candidate_deps.is_empty() {
                             for &result in results {
                                 tracked.insert(
                                     result,
                                     TrackedValue {
                                         window: current_window,
-                                        dependencies: dependencies.clone(),
+                                        candidate_deps: candidate_deps.clone(),
                                     },
                                 );
                             }
@@ -367,22 +376,20 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     if let Some(terminator) = dfg[block_id].terminator() {
         terminator.for_each_value(|value| {
             if let Some(tracked_value) = tracked.get(&value) {
-                let tracked_value_dependencies = tracked_value.dependencies.clone();
-                candidates.remove(&value);
+                disqualified_indices.extend(&tracked_value.candidate_deps);
                 tracked.remove(&value);
-                for dependency in tracked_value_dependencies {
-                    candidates.remove(&dependency);
-                    tracked.remove(&dependency);
-                }
             }
         });
     }
 
-    // Only keep candidates that were eventually used in an `IfElse` instruction
-    candidates
+    // A candidate is valid if it was seen in an IfElse and is not disqualified.
+    candidate_values
         .into_iter()
-        .filter_map(|(value_id, instruction_id)| {
-            if_else_candidates.contains(&value_id).then_some(instruction_id)
+        .enumerate()
+        .filter_map(|(idx, (_value_id, instruction_id))| {
+            let in_if_else = if_else_candidate_indices.contains(&idx);
+            let is_disqualified = disqualified_indices.contains(&idx);
+            (in_if_else && !is_disqualified).then_some(instruction_id)
         })
         .collect()
 }
@@ -805,6 +812,139 @@ mod tests {
             enable_side_effects u1 1
             v12 = if v1 then v9 else (if v3) v0
             return v12
+        }
+        ");
+    }
+
+    /// Vector from `make_array` — capacity is known, optimization applies.
+    #[test]
+    fn replaces_vector_array_set_from_make_array() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v1: u1):
+            v2 = not v1
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field]
+            enable_side_effects v1
+            v5 = array_set v3, index u32 1, value Field 99
+            enable_side_effects u1 1
+            v7 = if v1 then v5 else (if v2) v3
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_window_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v5 = make_array [Field 10, Field 20, Field 30] : [Field]
+            enable_side_effects v0
+            v7 = make_array [Field 10, Field 99, Field 30] : [Field]
+            enable_side_effects u1 1
+            v9 = if v0 then v7 else (if v1) v5
+            return v9
+        }
+        ");
+    }
+
+    /// Vector returned by a call — `try_get_vector_capacity` returns None,
+    /// so the optimization should not apply.
+    #[test]
+    fn does_not_replace_vector_array_set_with_unknown_capacity() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v1: u1):
+            v2 = not v1
+            v3 = call f1() -> [Field]
+            enable_side_effects v1
+            v5 = array_set v3, index u32 1, value Field 99
+            enable_side_effects u1 1
+            v7 = if v1 then v5 else (if v2) v3
+            return v7
+        }
+        acir(inline) fn get_vector f1 {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return v0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
+    }
+
+    /// Vector from `array_set` on a `make_array` — capacity traced through the chain.
+    #[test]
+    fn replaces_vector_array_set_through_array_set_chain() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v1: u1, v10: Field):
+            v2 = not v1
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field]
+            v4 = array_set v3, index u32 0, value v10
+            enable_side_effects v1
+            v6 = array_set v4, index u32 2, value Field 99
+            enable_side_effects u1 1
+            v8 = if v1 then v6 else (if v2) v4
+            return v8
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_window_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            v2 = not v0
+            v6 = make_array [Field 10, Field 20, Field 30] : [Field]
+            v8 = array_set v6, index u32 0, value v1
+            enable_side_effects v0
+            v9 = array_get v8, index u32 0 -> Field
+            v11 = make_array [v9, Field 20, Field 99] : [Field]
+            enable_side_effects u1 1
+            v13 = if v0 then v11 else (if v2) v8
+            return v13
+        }
+        ");
+    }
+
+    /// Two independent candidates A (v4) and B (v5) are connected through a derived
+    /// value v7 = array_set(v5, v6_from_A). Candidate A's chain escapes (v6 used
+    /// outside the window), but B is correctly used in IfElse. B should still be
+    /// optimized because its own uses are all within the window.
+    #[test]
+    fn optimizes_independent_candidate_when_sibling_chain_escapes() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: [Field; 3], v2: u1):
+            v3 = not v2
+            enable_side_effects v2
+            v4 = array_set v0, index u32 0, value Field 1
+            v5 = array_set v1, index u32 0, value Field 2
+            v6 = array_get v4, index u32 0 -> Field
+            v7 = array_set v5, index u32 1, value v6
+            enable_side_effects u1 1
+            v8 = add v6, Field 0
+            v9 = if v2 then v5 else (if v3) v1
+            return v8, v9
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_window_optimization();
+        // v5 (candidate B) should be replaced with make_array — its own uses
+        // stay within the window, even though v4 (candidate A) was disqualified.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: [Field; 3], v2: u1):
+            v3 = not v2
+            enable_side_effects v2
+            v6 = array_set v0, index u32 0, value Field 1
+            v8 = array_get v1, index u32 1 -> Field
+            v10 = array_get v1, index u32 2 -> Field
+            v12 = make_array [Field 2, v8, v10] : [Field; 3]
+            v13 = array_get v6, index u32 0 -> Field
+            v14 = array_set v12, index u32 1, value v13
+            enable_side_effects u1 1
+            v17 = add v13, Field 0
+            v18 = if v2 then v12 else (if v3) v1
+            return v17, v18
         }
         ");
     }

@@ -27,7 +27,7 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LEN
     let mut nibble = [U4::zero(); NIBBLE_LENGTH];
 
     let first_nibble = U4::from_u8(input[0] >> 4);
-    let parity = first_nibble.inner as u1;
+    let parity = first_nibble.inner & 1;
 
     if parity == 1 {
         nibble[0] = U4::from_u8(input[0] & 0x0f);
@@ -48,7 +48,7 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LEN
         }
     }
 
-    let out = (nibble, 2 * length + (parity as Field) - 2);
+    let out = (nibble, 2 * length + parity as Field - 2);
 
     out
 }

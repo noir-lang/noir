@@ -106,6 +106,14 @@ impl BlockVariables {
                 .ssa_value_allocations
                 .get(&param)
                 .expect("ICE: Coalesced parameter not yet allocated");
+            // The param must be available at this point: it must have been declared earlier,
+            // and should not have been removed as dead, nor spilled. Otherwise the register
+            // could have been allocated to something else in the meantime.
+            // Alternatively we could fall back to allocating a new register.
+            assert!(
+                self.available_variables.contains(&param),
+                "ICE: Coalesced parameter not currently available"
+            );
             function_context.ssa_value_allocations.insert(value_id, variable);
             self.available_variables.insert(value_id);
             return variable;
@@ -211,7 +219,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> Allocated<BrilligVariable, Registers> {
-    let typ = dfg.type_of_value(value_id);
+    let typ = dfg.type_of_value(value_id).into_owned();
 
     allocate_value_with_type(brillig_context, typ)
 }
@@ -222,7 +230,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
     typ: Type,
 ) -> Allocated<BrilligVariable, Registers> {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => brillig_context
+        Type::Numeric(_) | Type::Reference(..) | Type::Function => brillig_context
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context

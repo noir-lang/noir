@@ -9,6 +9,7 @@ error: Assertion failed: cannot pop from a vector with length 0
   │                       ---------------
   │
   = Call stack:
-    1. src/main.nr:9:23
+    1: main
+            at src/main.nr:9:23
 
 Failed assertion

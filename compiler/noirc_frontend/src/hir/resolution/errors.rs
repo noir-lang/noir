@@ -3,12 +3,14 @@ use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 use crate::{
-    Kind, Type,
+    Type,
     ast::{Ident, UnsupportedNumericGenericType},
     elaborator::{TypedPath, types::WildcardDisallowedContext},
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{
+        comptime::{Integer, Value},
+        type_check::TypeCheckError,
+    },
     parser::ParserError,
-    signed_field::SignedField,
     usage_tracker::UnusedItem,
 };
 
@@ -36,6 +38,8 @@ pub enum ResolverError {
     UnconditionalRecursion { name: String, location: Location },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, location: Location },
+    #[error("Runtime variable `{name}` cannot be accessed in comptime code")]
+    RuntimeVarReferencedInComptime { name: String, location: Location },
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
@@ -84,6 +88,10 @@ pub enum ResolverError {
     OracleReturnsReference { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
+    #[error(
+        "The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`"
+    )]
+    PureAttributeOnNonOracle { ident: Ident, location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -110,8 +118,8 @@ pub enum ResolverError {
     NegativeGlobalType { location: Location, global_value: Value },
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
-    #[error("Global value `{global_value}` does not fit its kind's range")]
-    GlobalDoesNotFitItsType { location: Location, global_value: SignedField, kind: Kind },
+    #[error("Global value `{global_value}` does not fit its types's range")]
+    GlobalDoesNotFitItsType { location: Location, global_value: Integer, typ: Type },
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -138,9 +146,9 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: SignedField,
+        lhs: Integer,
         op: crate::BinaryTypeOperator,
-        rhs: SignedField,
+        rhs: Integer,
         err: Box<TypeCheckError>,
         location: Location,
     },
@@ -206,6 +214,11 @@ pub enum ResolverError {
     TraitImplOnAssociatedType { location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location, context: WildcardDisallowedContext },
+    #[error("`impl Trait` is not allowed in this position")]
+    ImplTraitTypeDisallowed {
+        location: Location,
+        context: crate::elaborator::types::ImplTraitDisallowedContext,
+    },
     #[error("References are not allowed in globals")]
     ReferencesNotAllowedInGlobals { location: Location },
     #[error("Functions marked with #[oracle] must have no body")]
@@ -216,6 +229,13 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, name: String, location: Location },
+    #[error("{visibility} attribute is not allowed on {position}")]
+    DataBusOnWrongPosition {
+        visibility: String,
+        position: &'static str,
+        allowed: &'static str,
+        location: Location,
+    },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
@@ -226,6 +246,10 @@ pub enum ResolverError {
     VarargsLastParameterIsNotAVector { location: Location },
     #[error("`comptime` global used in non-comptime code")]
     ComptimeGlobalInNonComptimeCode { location: Location, name: String },
+    #[error("The `{typ}` type has been removed")]
+    RemovedType { location: Location, typ: String, replacement: String },
+    #[error("Recursion limit reached during elaboration")]
+    MaximumRecursionDepthExceeded { location: Location },
 }
 
 impl ResolverError {
@@ -235,6 +259,7 @@ impl ResolverError {
             | ResolverError::UnconditionalRecursion { location, .. }
             | ResolverError::Expected { location, .. }
             | ResolverError::VariableNotDeclared { location, .. }
+            | ResolverError::RuntimeVarReferencedInComptime { location, .. }
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
@@ -292,12 +317,14 @@ impl ResolverError {
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
+            | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::TraitImplOnAssociatedType { location }
             | ResolverError::WildcardTypeDisallowed { location, .. }
+            | ResolverError::ImplTraitTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
             | ResolverError::BuiltinWithBody { location }
@@ -307,7 +334,10 @@ impl ResolverError {
             | ResolverError::VarargsLastParameterIsNotAVector { location }
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
-            | ResolverError::DataBusOnNonEntryPoint { location, .. } => *location,
+            | ResolverError::DataBusOnNonEntryPoint { location, .. }
+            | ResolverError::DataBusOnWrongPosition { location, .. }
+            | ResolverError::RemovedType { location, .. }
+            | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
@@ -400,6 +430,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                         *location,
                     )
                 }
+            }
+            ResolverError::RuntimeVarReferencedInComptime { name, location } => {
+                Diagnostic::simple_error(
+                    format!("variable `{name}` is a runtime variable and cannot be used in comptime code"),
+                    "this variable is not available in comptime".to_string(),
+                    *location,
+                )
             }
             ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { location, expected, found: got } => Diagnostic::simple_error(
@@ -550,6 +587,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::PureAttributeOnNonOracle { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("`#[pure]` requires `unconstrained` and `#[oracle(...)]`".into(), ident.location());
+                diagnostic
+            },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
@@ -631,10 +677,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } => {
+            ResolverError::GlobalDoesNotFitItsType { location, global_value, typ } => {
                 Diagnostic::simple_error(
-                    format!("Global value `{global_value}` is larger than its kind's maximum value"),
-                    format!("Global's kind inferred to be `{kind}`"),
+                    format!("Global value `{global_value}` is larger than its type's maximum value"),
+                    format!("Global's type is `{typ}`"),
                     *location,
                 )
             }
@@ -935,6 +981,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
+            ResolverError::ImplTraitTypeDisallowed { location, context } => {
+                let context = match context {
+                    crate::elaborator::types::ImplTraitDisallowedContext::StructField => {
+                        "struct field types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::EnumVariant => {
+                        "enum variant types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::Global => {
+                        "global definitions"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::TypeAlias => {
+                        "type alias definitions"
+                    }
+                };
+                Diagnostic::simple_error(
+                    format!("`impl Trait` is not allowed in {context}"),
+                    "Use a generic type parameter instead".to_string(),
+                    *location,
+                )
+            }
             ResolverError::ReferencesNotAllowedInGlobals { location } => {
                 Diagnostic::simple_error(
                     "References are not allowed in globals".to_string(),
@@ -973,6 +1040,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
             },
+            ResolverError::DataBusOnWrongPosition { visibility, position, allowed, location } => {
+                Diagnostic::simple_error(
+                    format!("{visibility} attribute is not allowed on {position}"),
+                    format!("{visibility} is only allowed on {allowed}"),
+                    *location,
+                )
+            },
             ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
                 Diagnostic::simple_error(
                     "Associated type in impl without body".to_string(),
@@ -1005,6 +1079,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime global `{name}` used in non-comptime code"),
                     "Consider using a comptime function or block".to_string(),
+                    *location,
+                )
+            },
+            ResolverError::RemovedType { location, typ, replacement } => {
+                Diagnostic::simple_error(
+                    format!("`{typ}` has been removed, use `{replacement}` instead"),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::MaximumRecursionDepthExceeded { location } => {
+                Diagnostic::simple_error(
+                    "Reached the recursion limit during elaboration and type checking".into(),
+                    "Try to simplify expressions".into(),
                     *location,
                 )
             },

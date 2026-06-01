@@ -56,7 +56,7 @@ pub(super) fn decompose_constrain(
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
-                        if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
+                        if constant.is_one() && *dfg.type_of_value(lhs) == Type::bool() =>
                     {
                         // Replace an equality assertion on a boolean multiplication
                         //

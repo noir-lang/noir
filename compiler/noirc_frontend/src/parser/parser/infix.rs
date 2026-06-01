@@ -77,7 +77,7 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_xor,
-            // Don't parse `x |= ...`, etc.
+            // Don't parse `x &= ...`, etc.
             if self.next_is(Token::Assign) {
                 break;
             } else if self.eat(Token::Ampersand) {

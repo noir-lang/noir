@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "target": "esnext",
     "declaration": true,
     "module": "esnext",
     "moduleResolution": "node",
+    "rootDir": "./src",
     "outDir": "./lib",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "strict": true,
     "noImplicitAny": false,
     "skipLibCheck": true,
+    "types": ["node"],
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

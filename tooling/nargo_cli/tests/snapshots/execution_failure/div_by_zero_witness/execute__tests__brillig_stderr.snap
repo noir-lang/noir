@@ -9,6 +9,7 @@ error: Assertion failed: 'Attempted to divide by zero'
   │                    -----
   │
   = Call stack:
-    1. src/main.nr:3:20
+    1: main
+            at src/main.nr:3:20
 
 Failed assertion

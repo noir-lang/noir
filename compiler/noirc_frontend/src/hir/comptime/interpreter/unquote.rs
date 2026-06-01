@@ -23,7 +23,11 @@ impl Interpreter<'_, '_> {
             match token.into_token() {
                 Token::UnquoteMarker(id) => {
                     let value = self.evaluate(id)?;
-                    let tokens = value.into_tokens(self.elaborator.interner, location)?;
+                    let tokens = value.into_tokens(
+                        self.elaborator.interner,
+                        self.elaborator.files,
+                        location,
+                    )?;
                     new_tokens.extend(tokens);
                 }
                 Token::Quote(tokens) => {

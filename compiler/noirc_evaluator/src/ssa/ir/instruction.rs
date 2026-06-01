@@ -68,19 +68,27 @@ pub enum Intrinsic {
     /// arguments:  vector length, vector contents, ...elements_to_push
     /// result: a vector containing `..elements_to_push, vector contents`
     VectorPushFront,
-    /// VectorPopBack - Removes the last element of a vector
+    /// VectorPopBack - Removes the last element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the last element of `vector contents`
     VectorPopBack,
-    /// VectorPopFront - Removes the first element of a vector
+    /// VectorPopFront - Removes the first element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the first element of `vector contents`
     VectorPopFront,
-    /// VectorInsert - Insert elements inside a vector.
+    /// VectorInsert - Insert elements inside a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
     /// arguments: vector length, vector contents, insert index, ...elements_to_insert
     /// result: a vector with ...elements_to_insert inserted at the `insert index`
     VectorInsert,
-    /// VectorRemove - Removes an element from a vector
+    /// VectorRemove - Removes an element from a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
     /// arguments: vector length, vector contents, remove index
     /// result: a vector with without the element at `remove index`
     VectorRemove,
@@ -377,8 +385,10 @@ pub enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// to those in the given array.
+    /// In ACIR this will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    /// In Brillig, this might modify the original array if the array's reference count is 1.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
@@ -562,7 +572,7 @@ impl Instruction {
                 | BinaryOp::Sub { unchecked: false }
                 | BinaryOp::Mul { unchecked: false } => {
                     let typ = dfg.type_of_value(binary.lhs);
-                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                    !matches!(*typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
                     // If we don't know rhs at compile time, it might be zero or -1
@@ -625,10 +635,21 @@ impl Instruction {
     }
 
     /// Replaces values present in this instruction with other values according to the given mapping.
-    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
-        if !mapping.is_empty() {
-            self.map_values_mut(|value_id| mapping.get(value_id));
+    ///
+    /// Returns `true` if any value was actually replaced.
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) -> bool {
+        if mapping.is_empty() {
+            return false;
         }
+        let mut changed = false;
+        self.map_values_mut(|value_id| {
+            let new_value = mapping.get(value_id);
+            if new_value != value_id {
+                changed = true;
+            }
+            new_value
+        });
+        changed
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
@@ -1166,5 +1187,58 @@ where
     let mut focus = xs.focus_mut();
     for (i, y) in changes {
         focus.set(i, y);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acvm::acir::brillig::lengths::SemanticLength;
+
+    #[test]
+    fn replace_values_returns_true_only_when_a_value_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let mut instruction_using_v1 = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(instruction_using_v1.replace_values(&mapping));
+        assert!(matches!(instruction_using_v1, Instruction::Cast(v, _) if v == v2));
+
+        let mut instruction_using_v0 = Instruction::Cast(v0, NumericType::NativeField);
+        assert!(!instruction_using_v0.replace_values(&mapping));
+        assert!(matches!(instruction_using_v0, Instruction::Cast(v, _) if v == v0));
+
+        let empty_mapping = ValueMapping::default();
+        let mut instruction = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(!instruction.replace_values(&empty_mapping));
+    }
+
+    #[test]
+    fn replace_values_returns_true_when_a_make_array_element_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
+        let mut instruction =
+            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v1]), typ: typ.clone() };
+        assert!(instruction.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v2);
+
+        let mut unrelated =
+            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v0]), typ };
+        assert!(!unrelated.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v0);
     }
 }

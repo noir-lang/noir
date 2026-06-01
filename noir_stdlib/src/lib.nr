@@ -24,6 +24,7 @@ pub mod panic;
 pub mod hint;
 
 mod primitive_docs;
+mod internal;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
@@ -34,6 +35,7 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
     print_oracle(with_newline, input);
 }
 
+/// Print the given input to stdout followed by a newline
 pub fn println<T>(input: T) {
     // Safety: a print statement cannot be constrained
     unsafe {
@@ -41,6 +43,7 @@ pub fn println<T>(input: T) {
     }
 }
 
+/// Print the given input to stdout
 pub fn print<T>(input: T) {
     // Safety: a print statement cannot be constrained
     unsafe {
@@ -98,15 +101,19 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
     proof_type: u32,
 ) {}
 
-// Asserts that the given value is known at compile-time.
-// Useful for debugging for-loop bounds.
+/// Asserts that the given value is known at compile-time.
+/// Useful for debugging for-loop bounds.
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(x: T) {}
 
-// Asserts that the given value is both true and known at compile-time.
-// The message can be a string, a format string, or any value, as long as it is known at compile-time
+/// Asserts that the given value is both true and known at compile-time.
+/// The message can be a string, a format string, or any value, as long as it is known at compile-time
 #[builtin(static_assert)]
 pub fn static_assert<T>(predicate: bool, message: T) {}
 
+/// Force a field value to be a witness instead of a constant in the compiled output.
+/// This is often only useful for debugging compiler optimizations.
+///
+/// This has no effect in unconstrained or comptime code.
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}

@@ -1,7 +1,7 @@
 use super::expr::HirIdent;
 use crate::Type;
 use crate::ast::Ident;
-use crate::node_interner::{ExprId, StmtId};
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::token::SecondaryAttribute;
 use noirc_errors::{Location, Span};
 
@@ -21,6 +21,12 @@ pub enum HirStatement {
     Expression(ExprId),
     Semi(ExprId),
     Comptime(StmtId),
+    /// Placeholder for a trait-level associated constant declaration like `let N: u32;`
+    /// inside a `trait` body. These declarations have no value (only impls do), so the
+    /// `GlobalInfo::let_statement` field for such globals points at this variant rather
+    /// than at a real `HirStatement::Let`. Distinct from `Error` so consumers walking
+    /// module globals can tell trait associated constants apart from broken globals.
+    TraitAssociatedConstant,
     Error,
 }
 
@@ -126,6 +132,15 @@ impl HirPattern {
             HirPattern::Mutable(_, location)
             | HirPattern::Tuple(_, location)
             | HirPattern::Struct(_, _, location) => *location,
+        }
+    }
+
+    /// Returns `true` if this pattern is or contains a `self` identifier, `false` otherwise
+    pub fn is_self(&self, interner: &NodeInterner) -> bool {
+        match self {
+            HirPattern::Identifier(ident) => interner.definition(ident.id).name == "self",
+            HirPattern::Mutable(pattern, _) => pattern.is_self(interner),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
 }

@@ -95,7 +95,9 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
 
     let main_id = context.get_main_function(&crate_id).expect("get_main_function");
 
-    let program = monomorphize(main_id, &mut context.def_interner, false).expect("monomorphize");
+    let program =
+        monomorphize(main_id, &mut context.def_interner, context.file_manager.as_file_map(), false)
+            .expect("monomorphize");
 
     Ok(program)
 }

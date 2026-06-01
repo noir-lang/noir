@@ -14,10 +14,6 @@ mod primitive_array {}
 #['nargo_doc_primitive bool]
 mod primitive_bool {}
 
-/// The 1-bit unsigned integer type.
-#['nargo_doc_primitive u1]
-mod primitive_u1 {}
-
 /// The 8-bit unsigned integer type.
 #['nargo_doc_primitive u8]
 mod primitive_u8 {}

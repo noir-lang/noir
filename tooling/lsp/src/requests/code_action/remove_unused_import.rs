@@ -120,9 +120,9 @@ fn use_tree_without_unused_import(
 fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: usize) -> String {
     // We are going to use the formatter to format the use tree
     let source = if visibility == ItemVisibility::Private {
-        format!("use {};", &use_tree)
+        format!("use {use_tree};")
     } else {
-        format!("{} use {};", visibility, &use_tree)
+        format!("{visibility} use {use_tree};")
     };
     let parsed_module = ParsedModule {
         items: vec![Item {

@@ -9,6 +9,7 @@ error: Assertion failed
   │            ------
   │
   = Call stack:
-    1. crates/a/src/main.nr:1:4
+    1: ?
+            at crates/a/src/main.nr:1:4
 
 Error interpreting main function

@@ -57,14 +57,8 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
         InterpreterOptions { trace: args.trace, step_limit: args.step_limit, ..Default::default() };
 
     let (input_map, return_value) = read_inputs_and_return(&abi, &args)?;
-    let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);
 
-    let ssa_return =
-        if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
-            Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
-        } else {
-            None
-        };
+    let (ssa_args, ssa_return) = noir_ast_fuzzer::encode_to_ssa(&abi, &input_map, return_value)?;
 
     let result = ssa.interpret_with_options(ssa_args, options, std::io::stdout());
 
@@ -154,7 +148,7 @@ fn abi_type_from_ssa(typ: &Type) -> AbiType {
         Type::Array(items, length) => {
             AbiType::Array { length: length.0, typ: Box::new(abi_type_from_multi_ssa(items)) }
         }
-        Type::Reference(_) => unreachable!("refs do not appear in SSA ABI"),
+        Type::Reference(..) => unreachable!("refs do not appear in SSA ABI"),
         Type::Function => unreachable!("functions do not appear in SSA ABI"),
         Type::Vector(_) => unreachable!("vectors do not appear in SSA ABI"),
     }

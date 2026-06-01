@@ -114,7 +114,22 @@ impl ItemPrinter<'_, '_> {
                 self.show_hir_expression_id_maybe_inside_parens(hir_infix_expression.rhs);
             }
             HirExpression::Index(hir_index_expression) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_index_expression.collection);
+                let collection = self.interner.expression(&hir_index_expression.collection);
+
+                if let HirExpression::Prefix(HirPrefixExpression {
+                    operator: UnaryOp::Dereference { implicitly_added: false },
+                    ..
+                }) = collection
+                {
+                    // In general we don't need parentheses around dereferences, but here we do
+                    self.push('(');
+                    self.show_hir_expression(collection, hir_index_expression.collection);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(
+                        hir_index_expression.collection,
+                    );
+                }
                 self.push('[');
                 self.show_hir_expression_id(hir_index_expression.index);
                 self.push(']');
@@ -174,7 +189,8 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                let lhs_exp = self.interner.expression(&hir_member_access.lhs);
+                let lhs_exp = self.dereference_hir_expression_id(hir_member_access.lhs);
+                let lhs_exp = self.interner.expression(&lhs_exp);
 
                 if let HirExpression::Prefix(HirPrefixExpression {
                     operator: UnaryOp::Dereference { implicitly_added: false },
@@ -467,9 +483,26 @@ impl ItemPrinter<'_, '_> {
         }
 
         let first_argument = self.dereference_hir_expression_id(arguments[0]);
-        self.show_hir_expression_id_maybe_inside_parens(first_argument);
+        let first_arg_exp = self.interner.expression(&first_argument);
+        if let HirExpression::Prefix(HirPrefixExpression {
+            operator: UnaryOp::Dereference { implicitly_added: false },
+            ..
+        }) = first_arg_exp
+        {
+            // In general we don't need parentheses around dereferences, but here we do
+            self.push('(');
+            self.show_hir_expression(first_arg_exp, first_argument);
+            self.push(')');
+        } else {
+            self.show_hir_expression_id_maybe_inside_parens(first_argument);
+        }
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
+
+        if hir_call_expression.is_macro_call {
+            self.push('!');
+        }
+
         if let Some(generics) = generics {
             let use_colons = true;
             self.show_generic_types(&generics, use_colons);
@@ -616,6 +649,9 @@ impl ItemPrinter<'_, '_> {
             }
             HirStatement::Comptime(_) => unreachable!("comptime should not happen"),
             HirStatement::Error => unreachable!("error should not happen"),
+            HirStatement::TraitAssociatedConstant => {
+                unreachable!("trait associated constant placeholder should not appear in printer")
+            }
         }
     }
 
@@ -640,7 +676,8 @@ impl ItemPrinter<'_, '_> {
                 self.push_str("_");
                 self.push_str(&typ.to_string());
             }
-            HirLiteral::Str(string) => {
+            HirLiteral::Str(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
                 self.push_str(&format!("{string:?}"));
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
@@ -705,7 +742,14 @@ impl ItemPrinter<'_, '_> {
             }
             HirLValue::Index { array, index, typ: _, location: _ } => {
                 let array = simplify_hir_lvalue(*array);
+                let array_is_dereference = matches!(array, HirLValue::Dereference { .. });
+                if array_is_dereference {
+                    self.push('(');
+                }
                 self.show_hir_lvalue(array);
+                if array_is_dereference {
+                    self.push(')');
+                }
                 self.push('[');
                 self.show_hir_expression_id(index);
                 self.push(']');
@@ -932,6 +976,7 @@ impl ItemPrinter<'_, '_> {
             HirStatement::Semi(expr_id) => self.expression_id_has_unsafe(*expr_id),
             HirStatement::Comptime(stmt_id) => self.statement_id_has_unsafe(*stmt_id),
             HirStatement::Error => false,
+            HirStatement::TraitAssociatedConstant => false,
         }
     }
 

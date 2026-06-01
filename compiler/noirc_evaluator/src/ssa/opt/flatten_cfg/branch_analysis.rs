@@ -168,11 +168,7 @@ impl<'cfg> Context<'cfg> {
     /// * The parent of `b9` is `b8`, which already has `b15` as a pending end, which checks out, so we can "complete" `b8`.
     /// * Then we follow up the chain: the parent level of `b8` is `b0`; `b15` is followed by `b4`; `b0` already has `b4` as pending end, so we can "complete" that as well.
     fn complete_parents(&mut self, mut branch: BasicBlockId, mut join: BasicBlockId) {
-        loop {
-            // If we reached the starting point, we can stop.
-            let Some(parent) = self.branch_parents.get(&branch).copied() else {
-                break;
-            };
+        while let Some(parent) = self.branch_parents.get(&branch).copied() {
             // We can skip this join point (we know it completes this level, not the parent), and look for the next one.
             match self.find_next_point(join, true) {
                 Point::Join(next) => {
@@ -285,19 +281,13 @@ impl<'cfg> Context<'cfg> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        brillig::BrilligOptions,
-        ssa::{
-            SsaEvaluatorOptions,
-            function_builder::FunctionBuilder,
-            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::{
-                FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding,
-                flatten_cfg::branch_analysis::find_branch_ends, inlining,
-            },
-            primary_passes,
-            ssa_gen::Ssa,
-        },
+    use crate::ssa::{
+        SsaEvaluatorOptions,
+        function_builder::FunctionBuilder,
+        ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
+        opt::flatten_cfg::branch_analysis::find_branch_ends,
+        primary_passes,
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -640,23 +630,7 @@ mod tests {
     }
 
     fn run_pipeline_up_to_pass(mut ssa: Ssa, stop_before_pass: &str) -> Ssa {
-        let options = SsaEvaluatorOptions {
-            ssa_logging: crate::ssa::SsaLogging::None,
-            brillig_options: BrilligOptions::default(),
-            print_codegen_timings: false,
-            emit_ssa: None,
-            skip_underconstrained_check: true,
-            skip_brillig_constraints_check: true,
-            enable_brillig_constraints_check_lookback: false,
-            inliner_aggressiveness: 0,
-            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
-            max_bytecode_increase_percent: None,
-            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
-            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-            skip_passes: Vec::new(),
-            ssa_logging_hide_unchanged: false,
-        };
+        let options = SsaEvaluatorOptions::default();
         let pipeline = primary_passes(&options);
         for pass in pipeline {
             if pass.msg() == stop_before_pass {

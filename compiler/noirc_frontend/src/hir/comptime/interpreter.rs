@@ -35,7 +35,7 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::AcirField;
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
@@ -48,7 +48,6 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{
@@ -57,7 +56,6 @@ use crate::monomorphization::{
 };
 use crate::node_interner::GlobalValue;
 use crate::shared::{ForeignCall, Signedness};
-use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
     Shared, Type, TypeBindings,
@@ -84,8 +82,11 @@ use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
+pub(crate) use cast::evaluate_cast_one_step;
 mod foreign;
 mod infix;
+mod tracker;
+pub use tracker::EvaluationTracker;
 mod unquote;
 
 pub(crate) use builtin::builtin_helpers;
@@ -127,6 +128,11 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Current evaluation depth.
     evaluation_depth: usize,
+
+    /// Whether we are inside an unconstrained context. This is set to true when entering
+    /// an unconstrained function, and it keeps being true in nested calls regardless of
+    /// them being constrained or unconstrained.
+    in_unconstrained: bool,
 }
 
 impl<'local, 'interner> Interpreter<'local, 'interner> {
@@ -134,12 +140,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         current_function: Option<FuncId>,
     ) -> Self {
+        let in_unconstrained = current_function.is_some_and(|function| {
+            elaborator.interner.function_meta(&function).is_unconstrained()
+        });
+
         Self {
             elaborator,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
             evaluation_depth: 0,
+            in_unconstrained,
         }
     }
 
@@ -168,6 +179,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.push_interpreter_call_stack(location)?;
 
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_function_call(function, location);
+        }
+
         let result = self.call_function_inner(function, arguments, location);
 
         self.elaborator.pop_interpreter_call_stack();
@@ -184,7 +199,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let modifiers = self.elaborator.interner.function_modifiers(&function).clone();
+        let meta = self.elaborator.function_meta(function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
@@ -201,13 +217,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // Don't change the current function scope if we're in a #[use_callers_scope] function.
         // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
         let old_function = self.current_function;
-        let modifiers = self.elaborator.interner.function_modifiers(&function);
         if !modifiers.attributes.has_use_callers_scope() {
             self.current_function = Some(function);
         }
 
+        let previous_in_unconstrained = self.in_unconstrained;
+        self.in_unconstrained |= meta.is_unconstrained();
+
         let result = self.call_user_defined_function(function, arguments, location);
+
         self.current_function = old_function;
+        self.in_unconstrained = previous_in_unconstrained;
+
         result
     }
 
@@ -218,7 +239,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let meta = self.elaborator.function_meta(function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
@@ -247,11 +268,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Afterwards, if the function's body is still not known or the function is still
     /// in a Resolving state we issue an error.
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let body_is_unresolved = matches!(
+            self.elaborator.function_meta(function).function_body,
+            FunctionBody::Unresolved(..)
+        );
         match self.elaborator.interner.function(&function).try_as_expr() {
             Some(body) => Ok(body),
             None => {
-                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                if body_is_unresolved {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
@@ -278,20 +302,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // Why do we only unbind generics from the previous function here?
         self.unbind_generics_from_previous_function();
         let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
-        self.rebind_generics_from_previous_function();
-        result
-    }
-
-    /// Run the given function with an elaborator in the context of the given module.
-    /// Temporarily undoes any generics from the previous function.
-    fn elaborate_in_module<T>(
-        &mut self,
-        module: ModuleId,
-        reason: Option<ElaborateReason>,
-        f: impl FnOnce(&mut Elaborator) -> T,
-    ) -> T {
-        self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -512,15 +522,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         argument: Value,
         location: Location,
     ) -> IResult<()> {
+        self.define_pattern_inner(pattern, typ, argument, location, false)
+    }
+
+    /// `mutable` is `true` when this pattern is nested inside a `HirPattern::Mutable`,
+    /// in which case each leaf identifier is wrapped in a mutable `Value::Pointer`.
+    /// The wrapping must happen at each leaf rather than at the composite root: wrapping
+    /// the whole tuple/struct value would cause subsequent destructuring to see a
+    /// `Value::Pointer` instead of the expected `Value::Tuple`/`Value::Struct`.
+    fn define_pattern_inner(
+        &mut self,
+        pattern: &HirPattern,
+        typ: &Type,
+        argument: Value,
+        location: Location,
+        mutable: bool,
+    ) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => {
+                let argument = if mutable {
+                    Value::Pointer(Shared::new(argument), true, true)
+                } else {
+                    argument
+                };
                 self.define(identifier.id, argument);
                 Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
-                // Create a mutable reference to store to
-                let argument = Value::Pointer(Shared::new(argument), true, true);
-                self.define_pattern(pattern, typ, argument, location)
+                self.define_pattern_inner(pattern, typ, argument, location, true)
             }
             HirPattern::Tuple(pattern_fields, _) => {
                 let typ = &typ.follow_bindings();
@@ -533,7 +562,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             pattern_fields.iter().zip_eq(type_fields).zip_eq(fields)
                         {
                             let argument = argument.borrow().clone();
-                            self.define_pattern(pattern, typ, argument, location)?;
+                            self.define_pattern_inner(pattern, typ, argument, location, mutable)?;
                         }
                         Ok(())
                     }
@@ -560,7 +589,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                         let field = field.borrow();
                         let field_type = field.get_type().into_owned();
-                        self.define_pattern(field_pattern, &field_type, field.clone(), location)?;
+                        self.define_pattern_inner(
+                            field_pattern,
+                            &field_type,
+                            field.clone(),
+                            location,
+                            mutable,
+                        )?;
                     }
                     Ok(())
                 }
@@ -648,7 +683,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
         self.evaluation_depth += 1;
-        let result = match self.elaborator.interner.expression(&id) {
+
+        let expr = self.elaborator.interner.expression(&id);
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_expression(&expr, self.elaborator.interner.expr_location(&id));
+        }
+        let result = match expr {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
             HirExpression::Block(block) => self.evaluate_block(block),
@@ -661,7 +701,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_),
-            HirExpression::Match(_) => todo!("Evaluate match in comptime code"),
+            HirExpression::Match(_) => {
+                let location = self.elaborator.interner.expr_location(&id);
+                Err(InterpreterError::Unimplemented {
+                    item: "Match expressions in comptime code".to_string(),
+                    location,
+                })
+            }
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens),
@@ -676,8 +722,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                let location = self.elaborator.interner.expr_location(&id);
-                Err(InterpreterError::ErrorNodeEncountered { location })
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
             }
         };
         self.evaluation_depth -= 1;
@@ -706,7 +752,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
-                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolved(value) => {
+                        // Track the number of times a global was accessed during execution.
+                        // Globals are initialized during compilation; to track their initialization we have to add a tracker
+                        // before we try to interpret a specific call already. During interpretation the body is not revisited.
+                        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+                            tracker.track_location(global_info.location);
+                        }
+
+                        // Enum variant globals with generics are instantiated with a Type::Forall
+                        // We need to resolve the type, but it has already been done by the elaborator
+                        if let Value::Enum(tag, fields, _) = value {
+                            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                            Ok(Value::Enum(*tag, fields.clone(), typ))
+                        } else {
+                            Ok(value.clone())
+                        }
+                    }
                     GlobalValue::Resolving => {
                         // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
                         // but the general dependency cycle detector will give a better error later on during compilation.
@@ -743,11 +805,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .expect("Expected to find associated type");
 
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
-                    Ok(value) => self.evaluate_integer(value, id),
+                    Ok(value) => self.evaluate_field_as_integer(value.as_field(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
                         location,
@@ -762,19 +822,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_integer(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
                 InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
-        self.evaluate_integer(value, id)
+        self.evaluate_field_as_integer(value.as_field(), id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
-        match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
+
+        // `resolve_trait_item` (and the `bind_trait_impl_func_generics_*` helper
+        // it calls) reads `function_meta` directly on both the trait method and
+        // the matching trait impl method. We need to have them resolved first.
+        self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
+
+        // `resolve_trait_item_impl` extends the call expression's stored instantiation
+        // bindings with the resolved impl's bindings (and, for shared default methods,
+        // pins the trait's `Self` to the impl's concrete self type). Snapshot and restore
+        // around the call so the same expression — visited again under a different
+        // monomorphization context — sees the elaboration-time bindings rather than
+        // leftover impl-specific entries from a previous visit. This mirrors the snapshot
+        // logic in `resolve_trait_item_expr` on the monomorphization side.
+        let saved_bindings = self.elaborator.interner.try_get_instantiation_bindings(id).cloned();
+        let resolved = resolve_trait_item(self.elaborator.interner, item.id(), id);
+
+        let result = match resolved? {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
@@ -782,15 +858,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
                 self.evaluate_numeric_generic(value, &expected_type, id)
             }
+        };
+
+        if let Some(saved) = saved_bindings {
+            self.elaborator.interner.store_instantiation_bindings(id, saved);
         }
+        result
     }
 
     fn evaluate_literal(&mut self, literal: HirLiteral, id: ExprId) -> IResult<Value> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value) => self.evaluate_integer(value, id),
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string.bytes().collect()))),
+            HirLiteral::Integer(value) => self.evaluate_field_as_integer(value, id),
+            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
             }
@@ -835,17 +916,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        let typ = self.elaborator.interner.id_type(id);
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
         Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
-    fn evaluate_integer(&self, value: SignedField, id: ExprId) -> IResult<Value> {
+    fn evaluate_field_as_integer(&self, value: FieldElement, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
-
-        evaluate_integer(typ, value, location)
+        Integer::try_from_type(value, &typ).map(Value::Integer).ok_or_else(|| {
+            let typ = typ.clone();
+            InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+        })
     }
 
     pub(crate) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
@@ -1034,9 +1117,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // `<`:  `ordering == Ordering::Less`
             BinaryOpKind::Less => ordering.is_zero(),
             // `<=`: `ordering != Ordering::Greater`
-            BinaryOpKind::LessEqual => ordering != SignedField::positive(2_u128),
+            BinaryOpKind::LessEqual => ordering != 2_u128.into(),
             // `>`:  `ordering == Ordering::Greater`
-            BinaryOpKind::Greater => ordering == SignedField::positive(2_u128),
+            BinaryOpKind::Greater => ordering == 2_u128.into(),
             // `>=`: `ordering != Ordering::Less`
             BinaryOpKind::GreaterEqual => !ordering.is_zero(),
             _ => unreachable!("evaluate_ordering called with non-ordering operator"),
@@ -1194,12 +1277,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Type::apply_type_bindings(bindings);
             }
             Err(UnificationError) => {
-                let error = TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: actual_type.to_string(),
-                    expr_location: location,
-                };
-                self.elaborator.push_err(error);
+                self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
+                    &actual_type,
+                    &expected_type,
+                    location,
+                ));
             }
         }
     }
@@ -1207,7 +1289,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        cast::evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression) -> IResult<Value> {
@@ -1307,6 +1389,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Ok(Value::Unit)
             }
             HirStatement::Error => {
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
+            }
+            HirStatement::TraitAssociatedConstant => {
                 let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
@@ -1326,8 +1412,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
-                let message =
-                    message.map(|value| value.display(self.elaborator.interner).to_string());
+                let message = message.map(|value| {
+                    value.display(self.elaborator.interner, self.elaborator.files).to_string()
+                });
                 let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
@@ -1535,7 +1622,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
-                Value::Integer(Integer::U1(_)) => |i| Value::Integer(Integer::U1(i == 1)),
                 Value::Integer(Integer::U8(_)) => |i| Value::Integer(Integer::U8(i as u8)),
                 Value::Integer(Integer::U16(_)) => |i| Value::Integer(Integer::U16(i as u16)),
                 Value::Integer(Integer::U32(_)) => |i| Value::Integer(Integer::U32(i as u32)),
@@ -1710,7 +1796,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        let contents = arguments[1].0.display(self.elaborator.interner);
+        let contents = arguments[1].0.display(self.elaborator.interner, self.elaborator.files);
         if self.elaborator.interner.is_in_lsp_mode() {
             // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output
@@ -1739,76 +1825,6 @@ fn undo_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
 fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (binding, _kind)) in bindings {
         var.force_bind(binding.clone());
-    }
-}
-
-fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
-    use IntegerBitSize::*;
-    use Signedness::*;
-    use Type::*;
-
-    macro_rules! evaluate_unsigned {
-        ($typ:ident) => {{
-            let value = value
-                .try_to_unsigned()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    macro_rules! evaluate_signed {
-        ($typ:ident) => {{
-            let value = value
-                .try_to_signed()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    match typ {
-        FieldElement => Ok(Value::field(value)),
-        Integer(Unsigned, One) => {
-            let field_value = value.to_field_element();
-            if field_value.is_zero() {
-                Ok(Value::u1(false))
-            } else if field_value.is_one() {
-                Ok(Value::u1(true))
-            } else {
-                Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
-            }
-        }
-        Integer(Unsigned, Eight) => {
-            evaluate_unsigned!(u8)
-        }
-        Integer(Unsigned, Sixteen) => {
-            evaluate_unsigned!(u16)
-        }
-        Integer(Unsigned, ThirtyTwo) => {
-            evaluate_unsigned!(u32)
-        }
-        Integer(Unsigned, SixtyFour) => {
-            evaluate_unsigned!(u64)
-        }
-        Integer(Unsigned, HundredTwentyEight) => {
-            evaluate_unsigned!(u128)
-        }
-        Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
-        Integer(Signed, Eight) => {
-            evaluate_signed!(i8)
-        }
-        Integer(Signed, Sixteen) => {
-            evaluate_signed!(i16)
-        }
-        Integer(Signed, ThirtyTwo) => {
-            evaluate_signed!(i32)
-        }
-        Integer(Signed, SixtyFour) => {
-            evaluate_signed!(i64)
-        }
-        Integer(Signed, HundredTwentyEight) => {
-            Err(InterpreterError::TypeUnsupported { typ, location })
-        }
-        _ => Err(InterpreterError::NonIntegerIntegerLiteral { typ, location }),
     }
 }
 
@@ -1865,9 +1881,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::i64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::Integer(Integer::U1(_)) => {
-                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" })
-            }
             Value::Integer(Integer::U8(_)) => {
                 Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" })
             }
@@ -1895,7 +1908,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::Integer(Integer::I16(value)) => Ok(Value::i16(!value)),
             Value::Integer(Integer::I32(value)) => Ok(Value::i32(!value)),
             Value::Integer(Integer::I64(value)) => Ok(Value::i64(!value)),
-            Value::Integer(Integer::U1(value)) => Ok(Value::u1(!value)),
             Value::Integer(Integer::U8(value)) => Ok(Value::u8(!value)),
             Value::Integer(Integer::U16(value)) => Ok(Value::u16(!value)),
             Value::Integer(Integer::U32(value)) => Ok(Value::u32(!value)),
@@ -1927,7 +1939,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::Integer(Integer::U1(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U8(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U16(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U32(value)) => Some(u128::from(value)),
@@ -1959,7 +1970,8 @@ impl Context<'_, '_> {
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
         let location = func_meta.location;
-        let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let enabled_unstable_features =
+            &self.required_unstable_features.get(&crate_id).cloned().unwrap_or_default();
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
 

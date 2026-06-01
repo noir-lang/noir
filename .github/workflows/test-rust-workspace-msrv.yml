@@ -13,6 +13,8 @@ on:
     branches:
       - master
 
+permissions: {}
+
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -28,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Delete android SDK
         run: sudo rm -rf /usr/local/lib/android/sdk
@@ -45,7 +47,7 @@ jobs:
           cargo update --package acvm --aggressive
           cargo update --package bn254_blackbox_solver --aggressive
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           key: x86_64-unknown-linux-gnu-msrv-check
           cache-on-failure: true
@@ -61,8 +63,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # `compile_fail` runs trybuild, which spawns its own `cargo build` and
+      # needs the cargo registry to resolve transitive proc-macro deps. The
+      # run-tests job runs from the archive without registry access, so the
+      # test detects the nextest run via NEXTEST_TEST_GROUP and skips itself.
+      # We exercise it here via plain `cargo test`, where the registry cache
+      # restored by Swatinem/rust-cache is intact.
+      - name: Run trybuild compile_fail tests
+        run: cargo test -p msgpack_tagged --test compile_fail
+
       - name: Upload archive to workflow
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nextest-archive
           path: nextest-archive.tar.zst
@@ -79,7 +90,7 @@ jobs:
       matrix:
         partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -92,7 +103,7 @@ jobs:
           tool: nextest@0.9.88
 
       - name: Download archive
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: nextest-archive
       - name: Run tests
@@ -101,6 +112,12 @@ jobs:
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/8 \
             --profile ci-master
+        env:
+          # Tests that spawn their own `cargo build` (notably trybuild's
+          # compile_fail in `msgpack_tagged`) detect this and skip — see
+          # acvm-repo/msgpack_tagged/tests/compile_fail.rs. They run instead
+          # in the build-test-artifacts job where the registry cache is intact.
+          NOIR_NEXTEST_ARCHIVED: 1
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -129,11 +146,11 @@ jobs:
 
       - name: Checkout
         if: ${{ failure() }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       # Raise an issue if the tests failed
       - name: Alert on failed publish
-        uses: JasonEtco/create-an-issue@v2
+        uses: JasonEtco/create-an-issue@1b14a70e4d8dc185e5cc76d3bec9eab20257b2c5 # v2
         if: ${{ failure() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

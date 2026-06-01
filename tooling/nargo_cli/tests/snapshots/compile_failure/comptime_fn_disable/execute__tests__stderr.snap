@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Function already resolved
+   ┌─ src/main.nr:22:5
+   │
+22 │     f.disable(f"{name} is disabled");
+   │     -------------------------------- The function was previously called at compile-time or is in another crate
+   │
+
+error: disable_me is disabled
+  ┌─ src/main.nr:3:5
+  │
+3 │     disable_me();
+  │     ---------- `disable_me` has been deprecated
+  │
+
+Aborting due to 2 previous errors

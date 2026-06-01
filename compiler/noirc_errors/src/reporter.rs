@@ -1,6 +1,8 @@
 use std::io::IsTerminal;
 
 use crate::Location;
+use crate::call_stack::CallStack;
+use crate::function_locations::FunctionLocations;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
@@ -19,7 +21,7 @@ pub struct CustomDiagnostic {
 
     /// An optional call stack to display the full runtime call stack
     /// leading up to a runtime error. If this is empty it will not be displayed.
-    pub call_stack: Vec<Location>,
+    pub call_stack: CallStack,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -46,11 +48,11 @@ impl CustomDiagnostic {
             kind: DiagnosticKind::Error,
             deprecated: false,
             unnecessary: false,
-            call_stack: Default::default(),
+            call_stack: CallStack::empty(),
         }
     }
 
-    fn simple_with_kind(
+    pub fn simple_with_kind(
         primary_message: String,
         secondary_message: String,
         secondary_location: Location,
@@ -64,7 +66,7 @@ impl CustomDiagnostic {
             kind,
             deprecated: false,
             unnecessary: false,
-            call_stack: Default::default(),
+            call_stack: CallStack::empty(),
         }
     }
 
@@ -120,11 +122,11 @@ impl CustomDiagnostic {
             kind: DiagnosticKind::Bug,
             deprecated: false,
             unnecessary: false,
-            call_stack: Default::default(),
+            call_stack: CallStack::empty(),
         }
     }
 
-    pub fn with_call_stack(mut self, call_stack: Vec<Location>) -> Self {
+    pub fn with_call_stack(mut self, call_stack: CallStack) -> Self {
         self.call_stack = call_stack;
         self
     }
@@ -193,6 +195,7 @@ impl CustomLabel {
 /// of diagnostics that were errors.
 pub fn report_all<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
+    function_locations: &FunctionLocations,
     diagnostics: &[CustomDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
@@ -207,8 +210,10 @@ pub fn report_all<'files>(
     diagnostics.append(&mut bugs);
     diagnostics.append(&mut errors);
 
-    let error_count =
-        diagnostics.iter().map(|error| u32::from(error.report(files, deny_warnings))).sum();
+    let error_count = diagnostics
+        .iter()
+        .map(|error| u32::from(error.report(files, function_locations, deny_warnings)))
+        .sum();
 
     ReportedErrors { error_count }
 }
@@ -218,15 +223,17 @@ impl CustomDiagnostic {
     pub fn report<'files>(
         &self,
         files: &'files impl Files<'files, FileId = fm::FileId>,
+        function_locations: &FunctionLocations,
         deny_warnings: bool,
     ) -> bool {
-        report(files, self, deny_warnings)
+        report(files, function_locations, self, deny_warnings)
     }
 }
 
 /// Report the given diagnostic, and return true if it was an error
 pub fn report<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
+    function_locations: &FunctionLocations,
     custom_diagnostic: &CustomDiagnostic,
     deny_warnings: bool,
 ) -> bool {
@@ -235,9 +242,9 @@ pub fn report<'files>(
     let writer = StandardStream::stderr(color_choice);
     let config = term::Config::default();
 
-    let stack_trace = stack_trace(files, &custom_diagnostic.call_stack);
+    let stack_trace = stack_trace(files, function_locations, &custom_diagnostic.call_stack);
     let diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
-    term::emit(&mut writer.lock(), &config, files, &diagnostic).unwrap();
+    term::emit_to_write_style(&mut writer.lock(), &config, files, &diagnostic).unwrap();
 
     deny_warnings || custom_diagnostic.is_error()
 }
@@ -257,6 +264,11 @@ fn convert_diagnostic(
     let secondary_labels = cd
         .secondaries
         .iter()
+        .filter(|custom_label|
+            // Some secondary messages come with dummy locations.
+            // Displaying these on whatever the first file ID (id = 0)
+            // would be more confusing than displaying only the primary.
+            !custom_label.location.is_dummy())
         .map(|custom_label| {
             let location = custom_label.location;
             let span = location.span;
@@ -275,31 +287,47 @@ fn convert_diagnostic(
 
 pub fn stack_trace<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
-    call_stack: &[Location],
+    function_locations: &FunctionLocations,
+    call_stack: &CallStack,
 ) -> String {
     if call_stack.is_empty() {
         return String::new();
     }
 
-    let repeating_sequences = find_repeating_sequences(call_stack);
+    let repeating_sequences = find_repeating_sequences(call_stack.as_ref());
+
+    // Compute the length of the longest frame number so we show them like this:
+    //   1: ..
+    //  23: ..
+    // 234: ..
+    let maximum_frame_string_length = compute_maximum_frame_string_length(&repeating_sequences);
 
     let mut result = "Call stack:\n".to_string();
     let mut index = 1;
 
+    // If there are repeated sequences we are going to indent non-repeating sequences so that the entire
+    // call stack is aligned (repeating sequences have some ascii chars to show the grouping)
+    let has_repetitions = repeating_sequences.iter().any(|(_, times)| *times > 1);
+
     for (sequence, times) in repeating_sequences {
         for (i, call_item) in sequence.iter().copied().enumerate() {
+            let name = function_locations.lookup(call_item).unwrap_or("?");
             let path = files.name(call_item.file).expect("should get file path");
             let source = files.source(call_item.file).expect("should get file source");
 
             let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
             let prefix = if times == 1 {
-                ""
+                if has_repetitions { "   " } else { "" }
             } else if i == 0 {
                 "┌─ "
             } else {
                 "│  "
             };
-            result += &format!("{prefix}{index}. {path}:{line}:{column}\n");
+            result += &format!("{prefix}{index:>maximum_frame_string_length$}: {name}\n");
+
+            let prefix =
+                if times == 1 { if has_repetitions { "   " } else { "" } } else { "│  " };
+            result += &format!("{prefix}        at {path}:{line}:{column}\n");
             index += 1;
         }
         if times > 1 {
@@ -309,6 +337,19 @@ pub fn stack_trace<'files>(
     }
 
     result
+}
+
+/// Computes the maximum number of digits to represent all **shown** frames in the callstack.
+fn compute_maximum_frame_string_length(repeating_sequences: &[(Vec<Location>, usize)]) -> usize {
+    let mut index = 1;
+    let mut maximum_index = 0;
+    for (sequence, times) in repeating_sequences {
+        index += sequence.len();
+        // In a group, the maximum shown frame is the last one in the group
+        maximum_index = index;
+        index += sequence.len() * (times - 1);
+    }
+    maximum_index.to_string().len()
 }
 
 pub fn line_and_column_from_span(source: &str, span: &Span) -> (u32, u32) {

@@ -206,6 +206,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use noirc_frontend::monomorphization::ast::{LocalId, Type};
 
     use crate::program::types;
@@ -215,7 +217,7 @@ mod tests {
     #[test]
     fn test_scope_stack() {
         let foo_type =
-            Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Box::new(types::U32))]);
+            Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Rc::new(types::U32))]);
 
         let mut stack = ScopeStack::from_variables(
             [(LocalId(0), false, "foo".to_string(), foo_type)].into_iter(),

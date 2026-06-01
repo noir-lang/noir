@@ -9,7 +9,9 @@ error: Assertion failed: attempt to add with overflow
    │                     -----
    │
    = Call stack:
-     1. src/main.nr:5:16
-     2. src/main.nr:29:21
+     1: main
+             at src/main.nr:5:16
+     2: func_1
+             at src/main.nr:29:21
 
 Failed assertion

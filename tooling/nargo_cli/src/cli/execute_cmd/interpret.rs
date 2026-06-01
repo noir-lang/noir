@@ -21,7 +21,6 @@ use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::NodeInterner;
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::{Shared, Type};
 
 use crate::cli::compile_cmd::parse_workspace;
@@ -53,6 +52,7 @@ fn run_package_comptime(
     match report_errors(
         result,
         &context.file_manager,
+        &context.parsed_files,
         args.compile_options.deny_warnings,
         args.compile_options.silence_warnings,
     ) {
@@ -95,8 +95,9 @@ fn run_package_comptime(
             if let Some(return_value) = return_value
                 && result != return_value
             {
-                let return_value_as_string =
-                    return_value.display(&context.def_interner).to_string();
+                let return_value_as_string = return_value
+                    .display(&context.def_interner, context.file_manager.as_file_map())
+                    .to_string();
                 return Err(CliError::Generic(format!(
                     "Unexpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
                 )));
@@ -110,7 +111,8 @@ fn run_package_comptime(
             let errors = vec![diagnostic];
             report_errors(
                 Ok(((), errors)),
-                file_manager,
+                &context.file_manager,
+                &context.parsed_files,
                 args.compile_options.deny_warnings,
                 args.compile_options.silence_warnings,
             )?;
@@ -168,7 +170,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 .expect("Could not convert field value to integer");
             match numeric_value {
                 NumericValue::Field(_) => panic!("Field should not happen here"),
-                NumericValue::U1(value) => Value::u1(value),
+                NumericValue::U1(value) => Value::Bool(value),
                 NumericValue::U8(fitted) => match fitted {
                     Fitted::Fit(value) => Value::u8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u8"),
@@ -211,9 +213,9 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Field(value) = input else {
                 panic!("expected field input for field element type");
             };
-            Value::field(SignedField::positive(*value))
+            Value::field(*value)
         }
-        Type::Array(length, element_typ) => {
+        Type::Array(element_typ, length) => {
             let length =
                 length.evaluate_to_u32(location).expect("Could not evaluate array length to u32");
             let InputValue::Vec(inputs) = input else {
@@ -373,8 +375,12 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         | Value::TypedExpr(..)
         | Value::UnresolvedType(..)
         | Value::FormatString(..)
-        | Value::CtString(..) => {
-            panic!("Unexpected output value: {}", value.display(&context.def_interner))
+        | Value::CtString(..)
+        | Value::Location(..) => {
+            panic!(
+                "Unexpected output value: {}",
+                value.display(&context.def_interner, context.file_manager.as_file_map())
+            )
         }
     }
 }

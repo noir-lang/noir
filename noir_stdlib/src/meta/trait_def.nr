@@ -6,6 +6,11 @@ impl TraitDefinition {
     // docs:start:as_trait_constraint
     pub comptime fn as_trait_constraint(_self: Self) -> TraitConstraint {}
     // docs:end:as_trait_constraint
+
+    #[builtin(trait_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 }
 
 impl Eq for TraitDefinition {

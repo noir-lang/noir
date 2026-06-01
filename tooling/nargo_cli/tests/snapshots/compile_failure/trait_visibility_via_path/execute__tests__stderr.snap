@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: set_secret is private and not visible from the current module
+  ┌─ src/main.nr:2:20
+  │
+2 │ use victim::Vault::set_secret;
+  │                    ---------- set_secret is private
+  │
+
+error: set_secret is private and not visible from the current module
+  ┌─ src/main.nr:9:26
+  │
+9 │     let hijacked_vault = set_secret(original_vault, 31337);
+  │                          ---------- set_secret is private
+  │
+
+Aborting due to 2 previous errors

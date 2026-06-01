@@ -101,6 +101,7 @@ impl CrateDefMap {
     }
 
     /// Collect all definitions in the crate
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,

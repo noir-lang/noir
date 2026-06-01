@@ -16,7 +16,9 @@ error: Assertion failed: attempt to bit-shift with overflow
   │     -----------------------------------------------------------------
   │
   = Call stack:
-    1. src/main.nr:3:9
-    2. src/main.nr:7:5
+    1: main
+            at src/main.nr:3:9
+    2: func_1
+            at src/main.nr:7:5
 
 Failed assertion

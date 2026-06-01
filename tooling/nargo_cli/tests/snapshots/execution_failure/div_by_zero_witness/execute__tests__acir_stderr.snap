@@ -9,6 +9,7 @@ error: Failed constraint
   │                    -----
   │
   = Call stack:
-    1. src/main.nr:3:20
+    1: main
+            at src/main.nr:3:20
 
 Failed to solve program: 'Cannot satisfy constraint'

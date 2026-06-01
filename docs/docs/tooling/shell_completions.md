@@ -2,7 +2,6 @@
 title: Setting up shell completions
 description: Generate and install shell completion scripts for the nargo CLI in zsh, bash, fish, powershell, and elvish.
 tags: []
-sidebar_position: 3
 ---
 
 The `nargo` binary provides a command to generate shell completions:

@@ -5,7 +5,6 @@ use super::{
 use crate::{Abi, AbiType, MAIN_RETURN_NAME, errors::InputParserError};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -115,7 +114,7 @@ impl JsonTypes {
             }
 
             (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
-                let fields = try_vecmap(vector.iter().zip_eq(fields), |(value, typ)| {
+                let fields = try_vecmap(vector.iter().zip(fields), |(value, typ)| {
                     JsonTypes::try_from_input_value(value, typ)
                 })?;
                 JsonTypes::Array(fields)
@@ -173,8 +172,36 @@ impl InputValue {
 
             (
                 JsonTypes::Integer(integer),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+                AbiType::Integer { sign: crate::Sign::Unsigned, width },
             ) => {
+                let integer = i128::from(integer);
+                if integer < 0 {
+                    return Err(InputParserError::InputUnderflowsMinimum {
+                        arg_name: arg_name.into(),
+                        value: integer.to_string(),
+                        min: "0".into(),
+                    });
+                }
+                if *width <= 64 {
+                    let max: i128 = (1i128 << width) - 1;
+                    if integer > max {
+                        return Err(InputParserError::InputOverflowsMaximum {
+                            arg_name: arg_name.into(),
+                            value: integer.to_string(),
+                            max: max.to_string(),
+                        });
+                    }
+                } else {
+                    let int_bit_size = i128::BITS - integer.leading_zeros();
+                    assert!(
+                        int_bit_size <= 64,
+                        "u{width} values larger than u64 must be provided as strings"
+                    );
+                }
+                InputValue::Field(FieldElement::from(integer))
+            }
+
+            (JsonTypes::Integer(integer), AbiType::Field | AbiType::Boolean) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
@@ -209,7 +236,7 @@ impl InputValue {
 
             (JsonTypes::Array(array), AbiType::Tuple { fields }) => {
                 let mut index = 0;
-                let tuple_fields = try_vecmap(array.into_iter().zip_eq(fields), |(value, typ)| {
+                let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
                     let sub_name = format!("{arg_name}[{index}]");
                     let value = InputValue::try_from_json(value, typ, &sub_name);
                     index += 1;
@@ -236,7 +263,7 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::{
-        AbiType,
+        Abi, AbiParameter, AbiType, AbiVisibility,
         arbitrary::arb_abi_and_input_map,
         input_parser::{InputValue, arbitrary::arb_signed_integer_type_and_value, json::JsonTypes},
     };
@@ -288,5 +315,31 @@ mod tests {
             panic!("Expected field");
         };
         assert_eq!(field, FieldElement::from(255_u128));
+    }
+
+    #[test]
+    fn try_from_json_tuple_array_length_mismatch() {
+        let typ = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let json = r#"{"input": [0]}"#;
+        let input = parse_json(json, &abi).unwrap();
+        let value = &input["input"];
+        assert!(matches!(value, InputValue::Vec(vec) if vec.len() == 1));
+    }
+
+    #[test]
+    fn try_from_input_value_toml_array_length_mismatch() {
+        let value = InputValue::Vec(vec![InputValue::Field(0.into())]);
+        let abi_type = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let result = JsonTypes::try_from_input_value(&value, &abi_type).unwrap();
+        assert!(matches!(result, JsonTypes::Array(array) if array.len() == 1));
     }
 }

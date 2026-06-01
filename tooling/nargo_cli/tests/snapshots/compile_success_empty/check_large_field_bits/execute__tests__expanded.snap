@@ -12,9 +12,9 @@ fn main() {
     assert(C == 8589934594_Field);
     let mut leading_zeroes: Field = 0_Field;
     let mut stop: bool = false;
-    let bits: [u1; 64] = C.to_be_bits();
+    let bits: [bool; 64] = C.to_be_bits();
     for i in 0_u32..64_u32 {
-        if (bits[i] == 0_u1) & !stop {
+        if !bits[i] & !stop {
             leading_zeroes = leading_zeroes + 1_Field;
         } else {
             stop = true;
@@ -26,25 +26,25 @@ fn main() {
     assert(
         C.to_be_bits()
             == [
-                1_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
-                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
-                0_u1, 0_u1, 0_u1, 0_u1, 1_u1, 0_u1,
+                true, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, true, false,
             ],
     );
     assert(
         C.to_be_bits()
             == [
-                0_u1, 1_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
-                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
-                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 1_u1, 0_u1,
+                false, true, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, true, false,
             ],
     );
     assert(
         C.to_be_bits()
             == [
-                0_u1, 0_u1, 1_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
-                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
-                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 1_u1, 0_u1,
+                false, false, true, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, true, false,
             ],
     );
 }

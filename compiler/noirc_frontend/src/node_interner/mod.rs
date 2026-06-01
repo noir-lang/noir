@@ -18,6 +18,7 @@ use crate::ast::{
     UnresolvedTypeExpression,
 };
 use crate::graph::CrateId;
+use crate::hir::LspMode;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
@@ -161,6 +162,9 @@ pub struct NodeInterner {
     // Indexed by TraitImplIds
     pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
 
+    /// For each trait, the list of impls that implement it.
+    pub(crate) trait_implementations_by_trait_id: HashMap<TraitId, Vec<TraitImplId>>,
+
     next_trait_implementation_id: usize,
 
     /// The ordered generics and associated types for each trait impl.
@@ -249,7 +253,7 @@ pub struct NodeInterner {
     interned_patterns: Arena<Pattern>,
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
-    pub(crate) lsp_mode: bool,
+    pub(crate) lsp_mode: Option<LspMode>,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -499,6 +503,7 @@ impl Default for NodeInterner {
             trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
+            trait_implementations_by_trait_id: HashMap::default(),
             next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
@@ -518,7 +523,7 @@ impl Default for NodeInterner {
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
-            lsp_mode: false,
+            lsp_mode: None,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -597,7 +602,6 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -1101,13 +1105,35 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns true if any method (direct or trait impl) is registered under `method_name`
+    /// for the type's method key, regardless of type compatibility.
+    pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
+        let Some(key) = get_type_method_key(typ) else { return false };
+        self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
+    }
+
+    /// Returns the self types of all direct (inherent) impls that define `method_name` for
+    /// the given type's method key, regardless of type compatibility.
+    pub fn get_direct_method_impl_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.typ.clone()).collect()
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
+    ///
+    /// The third tuple element is the impl's self type as it was recorded when the impl was
+    /// registered (see [Self::add_method]). This is the concrete type the impl applies to,
+    /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
+    /// for shared trait-method `FuncId`s (default methods inherited from the trait).
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let key = get_type_method_key(typ);
         if let Some(key) = key {
             self.methods
@@ -1120,13 +1146,49 @@ impl NodeInterner {
         }
     }
 
-    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`
+    /// Returns every `FuncId` registered as either a direct or trait-impl method
+    /// under `method_name` for the given type's method key, without filtering by
+    /// type compatibility. Used by the elaborator to lazily resolve candidate
+    /// metas before delegating to the type-aware `lookup_*` methods.
+    pub fn method_candidate_ids(&self, typ: &Type, method_name: &str) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods
+            .direct
+            .iter()
+            .map(|m| m.method)
+            .chain(methods.trait_impl_methods.iter().map(|m| m.method))
+            .collect()
+    }
+
+    /// Same as [Self::method_candidate_ids] but for `impl<T>`-style generic
+    /// trait impls keyed under `TypeMethodKey::Generic`.
+    pub fn generic_method_candidate_ids(&self, method_name: &str) -> Vec<FuncId> {
+        self.methods
+            .get(&TypeMethodKey::Generic)
+            .and_then(|h| h.get(method_name))
+            .map(|methods| {
+                methods
+                    .direct
+                    .iter()
+                    .map(|m| m.method)
+                    .chain(methods.trait_impl_methods.iter().map(|m| m.method))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`.
+    ///
+    /// See [Self::lookup_trait_methods] for the meaning of the third tuple element.
     pub fn lookup_generic_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         self.methods
             .get(&TypeMethodKey::Generic)
             .and_then(|h| h.get(method_name))
@@ -1279,7 +1341,6 @@ impl NodeInterner {
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
-            trait_bounds: vec![],
             where_clause: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
@@ -1409,7 +1470,7 @@ impl NodeInterner {
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {
-        self.lsp_mode
+        self.lsp_mode.is_some()
     }
 
     /// Sets the ordered generics and associated types for the given trait impl.
@@ -1606,7 +1667,8 @@ impl NodeInterner {
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        for parent_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_bound in &parent_bounds {
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(
@@ -1659,6 +1721,26 @@ impl NodeInterner {
         }
     }
 
+    /// Returns the location of every expression node whose source file is in `files`.
+    /// Used to build the zero-count baseline for lcov coverage reports: all expression
+    /// locations are emitted with a hit count of 0 before per-test data is written.
+    pub fn expr_locations_for_files<'a>(
+        &'a self,
+        files: &'a std::collections::HashSet<FileId>,
+    ) -> impl Iterator<Item = Location> + 'a {
+        self.id_to_location
+            .iter()
+            .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
+            .filter(|(idx, _)| {
+                let Some(Node::Expression(expr)) = self.nodes.get(**idx) else {
+                    return false;
+                };
+                // Ignore blocks otherwise we highlight the opening brace.
+                !matches!(expr, HirExpression::Block(_))
+            })
+            .map(|(_, loc)| *loc)
+    }
+
     pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {
         match &meta.name {
             MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
@@ -1677,7 +1759,7 @@ impl NodeInterner {
     pub fn clear_in_file(&mut self, file: FileId) {
         // Clear in methods
         for methods in self.methods.values_mut() {
-            for (_name, methods) in methods.iter_mut() {
+            for methods in methods.values_mut() {
                 methods.direct.retain(|method| {
                     let func_id = method.method;
                     self.func_meta.get(&func_id).unwrap().location.file != file

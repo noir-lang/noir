@@ -483,7 +483,6 @@ pub struct Reexport {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PrimitiveTypeKind {
     Bool,
-    U1,
     U8,
     U16,
     U32,
@@ -510,13 +509,13 @@ pub enum PrimitiveTypeKind {
     FunctionDefinition,
     Module,
     CtString,
+    Location,
 }
 
 impl std::fmt::Display for PrimitiveTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self {
             PrimitiveTypeKind::Bool => "bool",
-            PrimitiveTypeKind::U1 => "u1",
             PrimitiveTypeKind::U8 => "u8",
             PrimitiveTypeKind::U16 => "u16",
             PrimitiveTypeKind::U32 => "u32",
@@ -543,6 +542,7 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::FunctionDefinition => "FunctionDefinition",
             PrimitiveTypeKind::Module => "Module",
             PrimitiveTypeKind::CtString => "CtString",
+            PrimitiveTypeKind::Location => "Location",
         };
         write!(f, "{name}")
     }

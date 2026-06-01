@@ -165,7 +165,7 @@ pub(super) fn assert_not_signed_mod(instruction: &Instruction, dfg: &DataFlowGra
 pub(super) fn assert_not_if_else_on_numeric(instruction: &Instruction, dfg: &DataFlowGraph) {
     if let Instruction::IfElse { then_value, .. } = instruction {
         assert!(
-            !matches!(dfg.type_of_value(*then_value), Type::Numeric(_)),
+            !matches!(*dfg.type_of_value(*then_value), Type::Numeric(_)),
             "IfElse on numeric values should have been handled during flattening"
         );
     }

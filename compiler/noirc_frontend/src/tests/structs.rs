@@ -28,6 +28,7 @@ fn object_type_must_be_known_in_method_call() {
     pub fn foo<let N: u32>() -> [Field; N] {
         let array = [];
         let bar = array[0];
+                        ^ Index 0 is out of bounds for this array of length 0
         let _ = bar.len();
                 ^^^ Object type is unknown in method call
                 ~~~ Type must be known by this point to know which method to call
@@ -60,7 +61,7 @@ fn uses_self_type_for_struct_function_call() {
             1
         }
 
-        fn two() -> Field {
+        pub fn two() -> Field {
             Self::one() + Self::one()
         }
     }
@@ -80,7 +81,7 @@ fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_funct
         }
 
         impl Foo {
-            fn call(self) -> bool {
+            pub fn call(self) -> bool {
                 self.wrapped(1)
                 ^^^^^^^^^^^^^^^ Cannot invoke function field 'wrapped' on type 'Foo' as a method
                 ~~~~~~~~~~~~~~~ to call the function stored in 'wrapped', surround the field access with parentheses: '(', ')'
@@ -96,11 +97,11 @@ fn check_impl_duplicate_method_without_self() {
     pub struct Foo {}
 
     impl Foo {
-        fn foo() {}
-           ~~~ Previous impl defined here
-        fn foo() {}
-           ^^^ Impl for type `Foo` overlaps with existing impl
-           ~~~ Overlapping impl
+        pub fn foo() {}
+               ~~~ Previous impl defined here
+        pub fn foo() {}
+               ^^^ Impl for type `Foo` overlaps with existing impl
+               ~~~ Overlapping impl
     }
     ";
     check_errors(src);
@@ -380,14 +381,14 @@ fn overlapping_inherent_impls() {
         struct Foo<T> { _x: T }
 
         impl<T> Foo<T> {
-            fn method(_self: Self) {}
-               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-               ~~~~~~ Overlapping impl
+            pub fn method(_self: Self) {}
+                   ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
         }
 
         impl Foo<i32> {
-            fn method(_self: Self) {}
-               ~~~~~~ Previous impl defined here
+            pub fn method(_self: Self) {}
+                   ~~~~~~ Previous impl defined here
         }
 
         fn main() {
@@ -404,11 +405,11 @@ fn non_overlapping_inherent_impls() {
         struct Foo<T> { _x: T }
 
         impl Foo<i32> {
-            fn method(_self: Self) {}
+            pub fn method(_self: Self) {}
         }
 
         impl Foo<u64> {
-            fn method(_self: Self) {}
+            pub fn method(_self: Self) {}
         }
 
         fn main() {
@@ -490,14 +491,14 @@ fn trait_as_type_non_overlapping() {
 
         // These impls should not overlap - one uses i32, the other uses u64
         impl Foo<i32> {
-            fn method(_self: Self) -> impl MyTrait<i32> {
+            pub fn method(_self: Self) -> impl MyTrait<i32> {
                 // This return type is TraitAsType with NamedGeneric inside
                 MyImpl { _x: 0 }
             }
         }
 
         impl Foo<u64> {
-            fn method(_self: Self) -> impl MyTrait<u64> {
+            pub fn method(_self: Self) -> impl MyTrait<u64> {
                 MyImpl { _x: 0 }
             }
         }
@@ -525,17 +526,17 @@ fn trait_as_type_overlapping() {
         struct Foo<T> { _x: T }
 
         impl<T> Foo<T> {
-            fn method(_self: Self) -> impl MyTrait<T> {
-               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-               ~~~~~~ Overlapping impl
+            pub fn method(_self: Self) -> impl MyTrait<T> {
+                   ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
                 // This return type is TraitAsType with NamedGeneric inside
                 MyImpl { _x: _self._x }
             }
         }
 
         impl Foo<i32> {
-            fn method(_self: Self) -> impl MyTrait<i32> {
-               ~~~~~~ Previous impl defined here
+            pub fn method(_self: Self) -> impl MyTrait<i32> {
+                   ~~~~~~ Previous impl defined here
                 MyImpl { _x: _self._x }
             }
         }
@@ -560,13 +561,13 @@ fn returns_trait_as_type() {
 
         // Non-overlapping impls with TraitAsType in return position
         impl Container<i32> {
-            fn get(_self: Self) -> impl MyTrait<i32, Field> {
+            pub fn get(_self: Self) -> impl MyTrait<i32, Field> {
                 MyImpl { _x: _self._x, _y: 0 }
             }
         }
 
         impl Container<u64> {
-            fn get(_self: Self) -> impl MyTrait<u64, bool> {
+            pub fn get(_self: Self) -> impl MyTrait<u64, bool> {
                 MyImpl { _x: _self._x, _y: false }
             }
         }
@@ -605,17 +606,17 @@ fn returns_trait_as_type_overlap() {
 
         impl<T> Foo<T> {
             // Returns impl Trait1<T>
-            fn method(_self: Self) -> impl Trait1<T> {
-               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-               ~~~~~~ Overlapping impl
+            pub fn method(_self: Self) -> impl Trait1<T> {
+                   ~~~~~~ Previous impl defined here
                 Impl1 { _x: _self._x }
             }
         }
 
         impl Foo<i32> {
             // Returns impl Trait2<i32> - different trait, but still overlaps!
-            fn method(_self: Self) -> impl Trait2<i32> {
-               ~~~~~~ Previous impl defined here
+            pub fn method(_self: Self) -> impl Trait2<i32> {
+                   ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
                 Impl2 { _x: _self._x }
             }
         }
@@ -668,4 +669,22 @@ fn non_overlapping_trait_impls_with_generic() {
     impl<let N: u32> Foo for Bar<(), N> { }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn struct_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        struct Foo {}
+
+        impl Foo {
+            fn bar() {}
+        }
+
+        fn main() {
+            Foo::bar();
+        }
+    "#;
+    assert_no_errors(src);
 }

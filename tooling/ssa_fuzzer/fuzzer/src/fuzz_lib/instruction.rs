@@ -34,7 +34,6 @@ pub(crate) struct Point {
     /// If true, the point will be derived from scalar multiplication using [`noir_ssa_fuzzer::builder::FuzzerBuilder::base_scalar_mul`]
     /// Otherwise, the point will be derived from scalar values using [`noir_ssa_fuzzer::builder::FuzzerBuilder::create_point_from_scalar`]
     pub(crate) derive_from_scalar_mul: bool,
-    pub(crate) is_infinite: bool,
 }
 
 pub(crate) type PointAndScalar = (Point, Scalar);
@@ -137,6 +136,12 @@ pub(crate) enum Instruction {
     /// Stores the permuted array in the context
     /// If `load_elements_of_array` is true, loads all elements of the permuted array into defined variables
     Keccakf1600Hash { u64_indices: [usize; 25], load_elements_of_array: bool },
+
+    /// Poseidon2 permutation
+    /// Takes array of field values and permutes it with poseidon2
+    /// Stores the permuted array in the context
+    /// If `load_elements_of_array` is true, loads all elements of the permuted array into defined variables
+    Poseidon2Permutation { field_indices: [usize; 4], load_elements_of_array: bool },
 
     /// AES-128 encrypt
     /// Takes input key and iv as fields, converts them to u8 arrays

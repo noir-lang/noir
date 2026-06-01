@@ -3,10 +3,39 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
+    check_runtime();
+    check_comptime();
+    check_comptime_to_runtime();
+}
+
+fn check_runtime() {
     let bytes: [u8; 3] = [65_u8, 255_u8, 66_u8];
     let s: str<3> = bytes.as_str_unchecked();
     let roundtrip: [u8; 3] = s.as_bytes();
     assert(roundtrip[0_u32] == 65_u8);
     assert(roundtrip[1_u32] == 255_u8);
     assert(roundtrip[2_u32] == 66_u8);
+}
+
+fn check_comptime() {
+    let (raw, roundtripped_bytes): ([u8; 4], [u8; 4]) = {
+        (
+            [102_u8, 111_u8, 128_u8, 111_u8],
+            [102_u8, 111_u8, 128_u8, 111_u8].as_str_unchecked().as_bytes(),
+        )
+    };
+    assert(raw == [102_u8, 111_u8, 128_u8, 111_u8]);
+    assert(roundtripped_bytes == [102_u8, 111_u8, 128_u8, 111_u8]);
+}
+
+comptime fn lossy_roundtrip() -> Quoted {
+    let raw: [u8; 4] = [102_u8, 111_u8, 128_u8, 111_u8];
+    let s: str<4> = raw.as_str_unchecked();
+    quote { ($raw, ($s).as_bytes()) }
+}
+
+fn check_comptime_to_runtime() {
+    let str: str<4> = [102_u8, 111_u8, 128_u8, 111_u8].as_str_unchecked();
+    let bytes: [u8; 4] = str.as_bytes();
+    assert(bytes == [102_u8, 111_u8, 128_u8, 111_u8]);
 }

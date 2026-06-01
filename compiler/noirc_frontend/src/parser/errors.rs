@@ -38,7 +38,9 @@ pub enum ParserErrorReason {
     UnconstrainedNotApplicable,
     #[error("Expected an identifier or `(expression) after `$` for unquoting")]
     ExpectedIdentifierOrLeftParenAfterDollar,
-    #[error("`&mut` can only be used with `self")]
+    #[error(
+        "`&` and `&mut` can only be used with `self` as a name. Try putting it on the parameter's type instead"
+    )]
     RefMutCanOnlyBeUsedWithSelf,
     #[error("Invalid pattern")]
     InvalidPattern,
@@ -49,6 +51,10 @@ pub enum ParserErrorReason {
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
+    #[error("Expected a `:` between the parameter name and its type")]
+    MissingColonInFunctionParameter,
+    #[error("Expected a `:` between the variable name and its type")]
+    MissingColonInLetStatement,
     #[error("Missing type for numeric generic")]
     MissingTypeForNumericGeneric,
     #[error("Expected a function body (`{{ ... }}`), not `;`")]
@@ -97,8 +103,10 @@ pub enum ParserErrorReason {
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
-    #[error("The `deprecated` attribute expects a string argument")]
-    DeprecatedAttributeExpectsAStringArgument,
+    #[error(
+        "The `deprecated` attribute expects two optional arguments: `deny` and/or a string literal message"
+    )]
+    DeprecatedAttributeInvalidArgument,
     #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
@@ -131,6 +139,8 @@ pub enum ParserErrorReason {
     UnexpectedTypeExpressionInTypeAlias,
     #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
     DeprecatedDep(String),
+    #[error("`call_data` id must fit in a `u32`")]
+    CallDataIdMustFitInU32,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -279,7 +289,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             let primary = "`impl Trait` as a type is experimental".to_string();
                             Diagnostic::simple_warning(primary, secondary, error.location())
                         }
-                        _ => Diagnostic::simple_error(
+                        UnstableFeature::Enums => Diagnostic::simple_error(
                             reason.to_string(),
                             secondary,
                             error.location(),

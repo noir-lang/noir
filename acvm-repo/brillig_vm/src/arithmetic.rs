@@ -191,10 +191,19 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
                 Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)?))
             }
-            _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
-                lhs_bit_size: lhs.bit_size().to_u32::<F>(),
-                op_bit_size: bit_size.into(),
-            }),
+            (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
+                Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
+                Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                    rhs_bit_size: rhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            _ => unreachable!("Invalid arguments are covered by the two arms above."),
         },
     }
 }
@@ -540,6 +549,25 @@ mod int_ops {
             ),
             Ok(MemoryValue::<FieldElement>::U8(0u8))
         );
+        // Both LHS and RHS has to match the operation bit size.
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shr,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shr,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
+        );
     }
 
     #[test]
@@ -559,6 +587,25 @@ mod int_ops {
                 IntegerBitSize::U8
             ),
             Ok(MemoryValue::<FieldElement>::U8(0u8))
+        );
+        // Both LHS and RHS has to match the operation bit size.
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shr,
+                MemoryValue::<FieldElement>::U16(1),
+                MemoryValue::<FieldElement>::U8(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedLhsBitSize { lhs_bit_size: 16, op_bit_size: 8 })
+        );
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shr,
+                MemoryValue::<FieldElement>::U8(1),
+                MemoryValue::<FieldElement>::U16(1),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::MismatchedRhsBitSize { rhs_bit_size: 16, op_bit_size: 8 })
         );
     }
 

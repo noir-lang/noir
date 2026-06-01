@@ -1,7 +1,0 @@
-[package]
-name = "hashmap"
-type = "bin"
-authors = [""]
-
-[dependencies]
-poseidon = { git = "https://github.com/noir-lang/poseidon", tag = "v0.2.4" }

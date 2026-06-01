@@ -9,6 +9,7 @@ error: Assertion failed: attempt to multiply with overflow
   │          -----------
   │
   = Call stack:
-    1. src/main.nr:4:10
+    1: main
+            at src/main.nr:4:10
 
 Failed assertion

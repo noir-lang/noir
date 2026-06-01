@@ -9,6 +9,7 @@ error: Assertion failed: attempt to subtract with overflow
   │          ---------------------------
   │
   = Call stack:
-    1. src/main.nr:2:10
+    1: main
+            at src/main.nr:2:10
 
 Failed assertion

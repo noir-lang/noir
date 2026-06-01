@@ -905,7 +905,7 @@ fn unknown_function_global_function_pointer() {
         return
     }
     ";
-    let _ = Ssa::from_str_no_validation(src).unwrap();
+    let _ = Ssa::from_str(src).unwrap();
 }
 
 #[test]
@@ -918,7 +918,7 @@ fn illegal_offset_in_acir_function() {
         return
     }
     ";
-    let _ = Ssa::from_str_no_validation(src).unwrap();
+    let _ = Ssa::from_str(src).unwrap();
 }
 
 #[test]
