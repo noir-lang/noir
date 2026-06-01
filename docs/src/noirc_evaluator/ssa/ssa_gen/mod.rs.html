@@ -1473,213 +1473,208 @@
 <a href=#1473 id=1473 data-nosnippet>1473</a>            <span class="kw">let </span>selector = error_type.selector();
 <a href=#1474 id=1474 data-nosnippet>1474</a>            <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(assert_message_expression)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
 <a href=#1475 id=1475 data-nosnippet>1475</a>            <span class="kw">let </span>is_string_type = <span class="macro">matches!</span>(assert_message_typ, HirType::String(<span class="kw">_</span>));
-<a href=#1476 id=1476 data-nosnippet>1476</a>            <span class="comment">// Record custom types in the builder, outside of SSA instructions
-<a href=#1477 id=1477 data-nosnippet>1477</a>            // This is made to avoid having Hir types in the SSA code.
-<a href=#1478 id=1478 data-nosnippet>1478</a>            </span><span class="kw">if </span>!is_string_type {
-<a href=#1479 id=1479 data-nosnippet>1479</a>                <span class="self">self</span>.builder.record_error_type(selector, assert_message_typ.clone());
-<a href=#1480 id=1480 data-nosnippet>1480</a>            }
-<a href=#1481 id=1481 data-nosnippet>1481</a>
-<a href=#1482 id=1482 data-nosnippet>1482</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(ConstrainError::Dynamic(selector, is_string_type, values)))
-<a href=#1483 id=1483 data-nosnippet>1483</a>        }
-<a href=#1484 id=1484 data-nosnippet>1484</a>    }
-<a href=#1485 id=1485 data-nosnippet>1485</a>
-<a href=#1486 id=1486 data-nosnippet>1486</a>    <span class="kw">fn </span>codegen_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: <span class="kw-2">&amp;</span>ast::Assign) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-<a href=#1487 id=1487 data-nosnippet>1487</a>        <span class="comment">// Evaluate the rhs first - when we load the expression in the lvalue we want that
-<a href=#1488 id=1488 data-nosnippet>1488</a>        // to reflect any mutations from evaluating the rhs.
-<a href=#1489 id=1489 data-nosnippet>1489</a>        </span><span class="kw">let </span>rhs = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>assign.expression)<span class="question-mark">?</span>;
-<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">let </span>lhs = <span class="self">self</span>.extract_current_value(<span class="kw-2">&amp;</span>assign.lvalue)<span class="question-mark">?</span>;
+<a href=#1476 id=1476 data-nosnippet>1476</a>            <span class="self">self</span>.builder.record_error_type(selector, assert_message_typ.clone());
+<a href=#1477 id=1477 data-nosnippet>1477</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(ConstrainError::Dynamic(selector, is_string_type, values)))
+<a href=#1478 id=1478 data-nosnippet>1478</a>        }
+<a href=#1479 id=1479 data-nosnippet>1479</a>    }
+<a href=#1480 id=1480 data-nosnippet>1480</a>
+<a href=#1481 id=1481 data-nosnippet>1481</a>    <span class="kw">fn </span>codegen_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: <span class="kw-2">&amp;</span>ast::Assign) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+<a href=#1482 id=1482 data-nosnippet>1482</a>        <span class="comment">// Evaluate the rhs first - when we load the expression in the lvalue we want that
+<a href=#1483 id=1483 data-nosnippet>1483</a>        // to reflect any mutations from evaluating the rhs.
+<a href=#1484 id=1484 data-nosnippet>1484</a>        </span><span class="kw">let </span>rhs = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>assign.expression)<span class="question-mark">?</span>;
+<a href=#1485 id=1485 data-nosnippet>1485</a>        <span class="kw">let </span>lhs = <span class="self">self</span>.extract_current_value(<span class="kw-2">&amp;</span>assign.lvalue)<span class="question-mark">?</span>;
+<a href=#1486 id=1486 data-nosnippet>1486</a>
+<a href=#1487 id=1487 data-nosnippet>1487</a>        <span class="self">self</span>.assign_new_value(lhs, rhs);
+<a href=#1488 id=1488 data-nosnippet>1488</a>
+<a href=#1489 id=1489 data-nosnippet>1489</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
+<a href=#1490 id=1490 data-nosnippet>1490</a>    }
 <a href=#1491 id=1491 data-nosnippet>1491</a>
-<a href=#1492 id=1492 data-nosnippet>1492</a>        <span class="self">self</span>.assign_new_value(lhs, rhs);
-<a href=#1493 id=1493 data-nosnippet>1493</a>
+<a href=#1492 id=1492 data-nosnippet>1492</a>    <span class="kw">fn </span>codegen_semi(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+<a href=#1493 id=1493 data-nosnippet>1493</a>        <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
 <a href=#1494 id=1494 data-nosnippet>1494</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
 <a href=#1495 id=1495 data-nosnippet>1495</a>    }
 <a href=#1496 id=1496 data-nosnippet>1496</a>
-<a href=#1497 id=1497 data-nosnippet>1497</a>    <span class="kw">fn </span>codegen_semi(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-<a href=#1498 id=1498 data-nosnippet>1498</a>        <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
-<a href=#1499 id=1499 data-nosnippet>1499</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
-<a href=#1500 id=1500 data-nosnippet>1500</a>    }
-<a href=#1501 id=1501 data-nosnippet>1501</a>
-<a href=#1502 id=1502 data-nosnippet>1502</a>    <span class="kw">fn </span>codegen_break(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-<a href=#1503 id=1503 data-nosnippet>1503</a>        <span class="kw">let </span>current_loop = <span class="self">self</span>.current_loop();
-<a href=#1504 id=1504 data-nosnippet>1504</a>
-<a href=#1505 id=1505 data-nosnippet>1505</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(did_not_hit_break_var) = current_loop.did_not_hit_break_var {
-<a href=#1506 id=1506 data-nosnippet>1506</a>            <span class="comment">// `did_not_hit_break_var = false` means we hit a break
-<a href=#1507 id=1507 data-nosnippet>1507</a>            </span><span class="kw">let </span>zero = <span class="self">self</span>.builder.numeric_constant(<span class="bool-val">false</span>, NumericType::bool());
-<a href=#1508 id=1508 data-nosnippet>1508</a>            <span class="self">self</span>.builder.insert_store(did_not_hit_break_var, zero);
-<a href=#1509 id=1509 data-nosnippet>1509</a>        }
-<a href=#1510 id=1510 data-nosnippet>1510</a>
-<a href=#1511 id=1511 data-nosnippet>1511</a>        <span class="kw">let </span>loop_end = current_loop.loop_end;
-<a href=#1512 id=1512 data-nosnippet>1512</a>        <span class="self">self</span>.builder.terminate_with_jmp(loop_end, Vec::new());
-<a href=#1513 id=1513 data-nosnippet>1513</a>
-<a href=#1514 id=1514 data-nosnippet>1514</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
-<a href=#1515 id=1515 data-nosnippet>1515</a>    }
-<a href=#1516 id=1516 data-nosnippet>1516</a>
-<a href=#1517 id=1517 data-nosnippet>1517</a>    <span class="kw">fn </span>codegen_continue(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-<a href=#1518 id=1518 data-nosnippet>1518</a>        <span class="kw">let </span>loop_ = <span class="self">self</span>.current_loop();
-<a href=#1519 id=1519 data-nosnippet>1519</a>
-<a href=#1520 id=1520 data-nosnippet>1520</a>        <span class="comment">// Must remember to increment i before jumping
-<a href=#1521 id=1521 data-nosnippet>1521</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(loop_index) = loop_.loop_index {
-<a href=#1522 id=1522 data-nosnippet>1522</a>            <span class="kw">let </span>new_loop_index = <span class="self">self</span>.make_offset(loop_index, <span class="number">1</span>, <span class="bool-val">true</span>);
-<a href=#1523 id=1523 data-nosnippet>1523</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[new_loop_index]);
-<a href=#1524 id=1524 data-nosnippet>1524</a>        } <span class="kw">else </span>{
-<a href=#1525 id=1525 data-nosnippet>1525</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);
-<a href=#1526 id=1526 data-nosnippet>1526</a>        }
-<a href=#1527 id=1527 data-nosnippet>1527</a>
-<a href=#1528 id=1528 data-nosnippet>1528</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
-<a href=#1529 id=1529 data-nosnippet>1529</a>    }
-<a href=#1530 id=1530 data-nosnippet>1530</a>
-<a href=#1531 id=1531 data-nosnippet>1531</a>    <span class="doccomment">/// Evaluate the given expression, increment the reference count of each array within,
-<a href=#1532 id=1532 data-nosnippet>1532</a>    /// and return the evaluated expression.
-<a href=#1533 id=1533 data-nosnippet>1533</a>    </span><span class="kw">fn </span>codegen_clone(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-<a href=#1534 id=1534 data-nosnippet>1534</a>        <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
-<a href=#1535 id=1535 data-nosnippet>1535</a>        <span class="prelude-val">Ok</span>(values.map(|value| {
-<a href=#1536 id=1536 data-nosnippet>1536</a>            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
-<a href=#1537 id=1537 data-nosnippet>1537</a>            <span class="self">self</span>.builder.increment_array_reference_count(value);
-<a href=#1538 id=1538 data-nosnippet>1538</a>            Values::from(value)
-<a href=#1539 id=1539 data-nosnippet>1539</a>        }))
-<a href=#1540 id=1540 data-nosnippet>1540</a>    }
-<a href=#1541 id=1541 data-nosnippet>1541</a>
-<a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="doccomment">/// Evaluate the given expression, decrement the reference count of each array within,
-<a href=#1543 id=1543 data-nosnippet>1543</a>    /// and return unit.
-<a href=#1544 id=1544 data-nosnippet>1544</a>    </span><span class="kw">fn </span>codegen_drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-<a href=#1545 id=1545 data-nosnippet>1545</a>        <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
-<a href=#1546 id=1546 data-nosnippet>1546</a>        values.for_each(|value| {
-<a href=#1547 id=1547 data-nosnippet>1547</a>            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
-<a href=#1548 id=1548 data-nosnippet>1548</a>            <span class="self">self</span>.builder.decrement_array_reference_count(value);
-<a href=#1549 id=1549 data-nosnippet>1549</a>        });
-<a href=#1550 id=1550 data-nosnippet>1550</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
-<a href=#1551 id=1551 data-nosnippet>1551</a>    }
-<a href=#1552 id=1552 data-nosnippet>1552</a>
-<a href=#1553 id=1553 data-nosnippet>1553</a>    <span class="attr">#[must_use = <span class="string">"do not forget to add `?` at the end of this function call"</span>]
-<a href=#1554 id=1554 data-nosnippet>1554</a>    </span><span class="kw">fn </span>codegen_unless_break_or_continue&lt;T, F&gt;(
-<a href=#1555 id=1555 data-nosnippet>1555</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1556 id=1556 data-nosnippet>1556</a>        result: <span class="prelude-ty">Result</span>&lt;T, RuntimeError&gt;,
-<a href=#1557 id=1557 data-nosnippet>1557</a>        f: F,
-<a href=#1558 id=1558 data-nosnippet>1558</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt;
-<a href=#1559 id=1559 data-nosnippet>1559</a>    <span class="kw">where
-<a href=#1560 id=1560 data-nosnippet>1560</a>        </span>F: FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, T),
-<a href=#1561 id=1561 data-nosnippet>1561</a>    {
-<a href=#1562 id=1562 data-nosnippet>1562</a>        <span class="kw">match </span>result {
-<a href=#1563 id=1563 data-nosnippet>1563</a>            <span class="prelude-val">Ok</span>(value) =&gt; {
-<a href=#1564 id=1564 data-nosnippet>1564</a>                f(<span class="self">self</span>, value);
-<a href=#1565 id=1565 data-nosnippet>1565</a>                <span class="prelude-val">Ok</span>(())
-<a href=#1566 id=1566 data-nosnippet>1566</a>            }
-<a href=#1567 id=1567 data-nosnippet>1567</a>            <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { .. }) =&gt; <span class="prelude-val">Ok</span>(()),
-<a href=#1568 id=1568 data-nosnippet>1568</a>            <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(err),
-<a href=#1569 id=1569 data-nosnippet>1569</a>        }
-<a href=#1570 id=1570 data-nosnippet>1570</a>    }
-<a href=#1571 id=1571 data-nosnippet>1571</a>}
-<a href=#1572 id=1572 data-nosnippet>1572</a>
-<a href=#1573 id=1573 data-nosnippet>1573</a><span class="doccomment">/// Return whether the expression refers to a pure builtin or low level function
-<a href=#1574 id=1574 data-nosnippet>1574</a>/// that does not modify its array inputs.
-<a href=#1575 id=1575 data-nosnippet>1575</a>///
-<a href=#1576 id=1576 data-nosnippet>1576</a>/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-<a href=#1577 id=1577 data-nosnippet>1577</a>/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-<a href=#1578 id=1578 data-nosnippet>1578</a>/// when the reference count is 1. We must NOT skip clones for these operations.
-<a href=#1579 id=1579 data-nosnippet>1579</a></span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#1580 id=1580 data-nosnippet>1580</a>    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
-<a href=#1581 id=1581 data-nosnippet>1581</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1582 id=1582 data-nosnippet>1582</a>    };
-<a href=#1583 id=1583 data-nosnippet>1583</a>    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
-<a href=#1584 id=1584 data-nosnippet>1584</a>    <span class="kw">else </span>{
-<a href=#1585 id=1585 data-nosnippet>1585</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1586 id=1586 data-nosnippet>1586</a>    };
-<a href=#1587 id=1587 data-nosnippet>1587</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
-<a href=#1588 id=1588 data-nosnippet>1588</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1589 id=1589 data-nosnippet>1589</a>    };
-<a href=#1590 id=1590 data-nosnippet>1590</a>
-<a href=#1591 id=1591 data-nosnippet>1591</a>    <span class="comment">// Vector operations can modify their input array in Brillig when RC=1,
-<a href=#1592 id=1592 data-nosnippet>1592</a>    // so we must clone them to ensure that they are "pure".
-<a href=#1593 id=1593 data-nosnippet>1593</a>    </span><span class="kw">if </span>intrinsic.modifies_input_array_in_brillig() {
-<a href=#1594 id=1594 data-nosnippet>1594</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1595 id=1595 data-nosnippet>1595</a>    }
-<a href=#1596 id=1596 data-nosnippet>1596</a>
-<a href=#1597 id=1597 data-nosnippet>1597</a>    <span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+<a href=#1497 id=1497 data-nosnippet>1497</a>    <span class="kw">fn </span>codegen_break(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+<a href=#1498 id=1498 data-nosnippet>1498</a>        <span class="kw">let </span>current_loop = <span class="self">self</span>.current_loop();
+<a href=#1499 id=1499 data-nosnippet>1499</a>
+<a href=#1500 id=1500 data-nosnippet>1500</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(did_not_hit_break_var) = current_loop.did_not_hit_break_var {
+<a href=#1501 id=1501 data-nosnippet>1501</a>            <span class="comment">// `did_not_hit_break_var = false` means we hit a break
+<a href=#1502 id=1502 data-nosnippet>1502</a>            </span><span class="kw">let </span>zero = <span class="self">self</span>.builder.numeric_constant(<span class="bool-val">false</span>, NumericType::bool());
+<a href=#1503 id=1503 data-nosnippet>1503</a>            <span class="self">self</span>.builder.insert_store(did_not_hit_break_var, zero);
+<a href=#1504 id=1504 data-nosnippet>1504</a>        }
+<a href=#1505 id=1505 data-nosnippet>1505</a>
+<a href=#1506 id=1506 data-nosnippet>1506</a>        <span class="kw">let </span>loop_end = current_loop.loop_end;
+<a href=#1507 id=1507 data-nosnippet>1507</a>        <span class="self">self</span>.builder.terminate_with_jmp(loop_end, Vec::new());
+<a href=#1508 id=1508 data-nosnippet>1508</a>
+<a href=#1509 id=1509 data-nosnippet>1509</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
+<a href=#1510 id=1510 data-nosnippet>1510</a>    }
+<a href=#1511 id=1511 data-nosnippet>1511</a>
+<a href=#1512 id=1512 data-nosnippet>1512</a>    <span class="kw">fn </span>codegen_continue(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+<a href=#1513 id=1513 data-nosnippet>1513</a>        <span class="kw">let </span>loop_ = <span class="self">self</span>.current_loop();
+<a href=#1514 id=1514 data-nosnippet>1514</a>
+<a href=#1515 id=1515 data-nosnippet>1515</a>        <span class="comment">// Must remember to increment i before jumping
+<a href=#1516 id=1516 data-nosnippet>1516</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(loop_index) = loop_.loop_index {
+<a href=#1517 id=1517 data-nosnippet>1517</a>            <span class="kw">let </span>new_loop_index = <span class="self">self</span>.make_offset(loop_index, <span class="number">1</span>, <span class="bool-val">true</span>);
+<a href=#1518 id=1518 data-nosnippet>1518</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[new_loop_index]);
+<a href=#1519 id=1519 data-nosnippet>1519</a>        } <span class="kw">else </span>{
+<a href=#1520 id=1520 data-nosnippet>1520</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);
+<a href=#1521 id=1521 data-nosnippet>1521</a>        }
+<a href=#1522 id=1522 data-nosnippet>1522</a>
+<a href=#1523 id=1523 data-nosnippet>1523</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
+<a href=#1524 id=1524 data-nosnippet>1524</a>    }
+<a href=#1525 id=1525 data-nosnippet>1525</a>
+<a href=#1526 id=1526 data-nosnippet>1526</a>    <span class="doccomment">/// Evaluate the given expression, increment the reference count of each array within,
+<a href=#1527 id=1527 data-nosnippet>1527</a>    /// and return the evaluated expression.
+<a href=#1528 id=1528 data-nosnippet>1528</a>    </span><span class="kw">fn </span>codegen_clone(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+<a href=#1529 id=1529 data-nosnippet>1529</a>        <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
+<a href=#1530 id=1530 data-nosnippet>1530</a>        <span class="prelude-val">Ok</span>(values.map(|value| {
+<a href=#1531 id=1531 data-nosnippet>1531</a>            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+<a href=#1532 id=1532 data-nosnippet>1532</a>            <span class="self">self</span>.builder.increment_array_reference_count(value);
+<a href=#1533 id=1533 data-nosnippet>1533</a>            Values::from(value)
+<a href=#1534 id=1534 data-nosnippet>1534</a>        }))
+<a href=#1535 id=1535 data-nosnippet>1535</a>    }
+<a href=#1536 id=1536 data-nosnippet>1536</a>
+<a href=#1537 id=1537 data-nosnippet>1537</a>    <span class="doccomment">/// Evaluate the given expression, decrement the reference count of each array within,
+<a href=#1538 id=1538 data-nosnippet>1538</a>    /// and return unit.
+<a href=#1539 id=1539 data-nosnippet>1539</a>    </span><span class="kw">fn </span>codegen_drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+<a href=#1540 id=1540 data-nosnippet>1540</a>        <span class="kw">let </span>values = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
+<a href=#1541 id=1541 data-nosnippet>1541</a>        values.for_each(|value| {
+<a href=#1542 id=1542 data-nosnippet>1542</a>            <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+<a href=#1543 id=1543 data-nosnippet>1543</a>            <span class="self">self</span>.builder.decrement_array_reference_count(value);
+<a href=#1544 id=1544 data-nosnippet>1544</a>        });
+<a href=#1545 id=1545 data-nosnippet>1545</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
+<a href=#1546 id=1546 data-nosnippet>1546</a>    }
+<a href=#1547 id=1547 data-nosnippet>1547</a>
+<a href=#1548 id=1548 data-nosnippet>1548</a>    <span class="attr">#[must_use = <span class="string">"do not forget to add `?` at the end of this function call"</span>]
+<a href=#1549 id=1549 data-nosnippet>1549</a>    </span><span class="kw">fn </span>codegen_unless_break_or_continue&lt;T, F&gt;(
+<a href=#1550 id=1550 data-nosnippet>1550</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1551 id=1551 data-nosnippet>1551</a>        result: <span class="prelude-ty">Result</span>&lt;T, RuntimeError&gt;,
+<a href=#1552 id=1552 data-nosnippet>1552</a>        f: F,
+<a href=#1553 id=1553 data-nosnippet>1553</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt;
+<a href=#1554 id=1554 data-nosnippet>1554</a>    <span class="kw">where
+<a href=#1555 id=1555 data-nosnippet>1555</a>        </span>F: FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, T),
+<a href=#1556 id=1556 data-nosnippet>1556</a>    {
+<a href=#1557 id=1557 data-nosnippet>1557</a>        <span class="kw">match </span>result {
+<a href=#1558 id=1558 data-nosnippet>1558</a>            <span class="prelude-val">Ok</span>(value) =&gt; {
+<a href=#1559 id=1559 data-nosnippet>1559</a>                f(<span class="self">self</span>, value);
+<a href=#1560 id=1560 data-nosnippet>1560</a>                <span class="prelude-val">Ok</span>(())
+<a href=#1561 id=1561 data-nosnippet>1561</a>            }
+<a href=#1562 id=1562 data-nosnippet>1562</a>            <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { .. }) =&gt; <span class="prelude-val">Ok</span>(()),
+<a href=#1563 id=1563 data-nosnippet>1563</a>            <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(err),
+<a href=#1564 id=1564 data-nosnippet>1564</a>        }
+<a href=#1565 id=1565 data-nosnippet>1565</a>    }
+<a href=#1566 id=1566 data-nosnippet>1566</a>}
+<a href=#1567 id=1567 data-nosnippet>1567</a>
+<a href=#1568 id=1568 data-nosnippet>1568</a><span class="doccomment">/// Return whether the expression refers to a pure builtin or low level function
+<a href=#1569 id=1569 data-nosnippet>1569</a>/// that does not modify its array inputs.
+<a href=#1570 id=1570 data-nosnippet>1570</a>///
+<a href=#1571 id=1571 data-nosnippet>1571</a>/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
+<a href=#1572 id=1572 data-nosnippet>1572</a>/// but they CAN modify their input array in Brillig due to copy-on-write optimization
+<a href=#1573 id=1573 data-nosnippet>1573</a>/// when the reference count is 1. We must NOT skip clones for these operations.
+<a href=#1574 id=1574 data-nosnippet>1574</a></span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1575 id=1575 data-nosnippet>1575</a>    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
+<a href=#1576 id=1576 data-nosnippet>1576</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1577 id=1577 data-nosnippet>1577</a>    };
+<a href=#1578 id=1578 data-nosnippet>1578</a>    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
+<a href=#1579 id=1579 data-nosnippet>1579</a>    <span class="kw">else </span>{
+<a href=#1580 id=1580 data-nosnippet>1580</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1581 id=1581 data-nosnippet>1581</a>    };
+<a href=#1582 id=1582 data-nosnippet>1582</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
+<a href=#1583 id=1583 data-nosnippet>1583</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1584 id=1584 data-nosnippet>1584</a>    };
+<a href=#1585 id=1585 data-nosnippet>1585</a>
+<a href=#1586 id=1586 data-nosnippet>1586</a>    <span class="comment">// Vector operations can modify their input array in Brillig when RC=1,
+<a href=#1587 id=1587 data-nosnippet>1587</a>    // so we must clone them to ensure that they are "pure".
+<a href=#1588 id=1588 data-nosnippet>1588</a>    </span><span class="kw">if </span>intrinsic.modifies_input_array_in_brillig() {
+<a href=#1589 id=1589 data-nosnippet>1589</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1590 id=1590 data-nosnippet>1590</a>    }
+<a href=#1591 id=1591 data-nosnippet>1591</a>
+<a href=#1592 id=1592 data-nosnippet>1592</a>    <span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+<a href=#1593 id=1593 data-nosnippet>1593</a>}
+<a href=#1594 id=1594 data-nosnippet>1594</a>
+<a href=#1595 id=1595 data-nosnippet>1595</a><span class="doccomment">/// Return whether the expression refers to a foreign function.
+<a href=#1596 id=1596 data-nosnippet>1596</a></span><span class="kw">fn </span>is_oracle_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1597 id=1597 data-nosnippet>1597</a>    <span class="macro">matches!</span>(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
 <a href=#1598 id=1598 data-nosnippet>1598</a>}
 <a href=#1599 id=1599 data-nosnippet>1599</a>
-<a href=#1600 id=1600 data-nosnippet>1600</a><span class="doccomment">/// Return whether the expression refers to a foreign function.
-<a href=#1601 id=1601 data-nosnippet>1601</a></span><span class="kw">fn </span>is_oracle_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#1602 id=1602 data-nosnippet>1602</a>    <span class="macro">matches!</span>(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
-<a href=#1603 id=1603 data-nosnippet>1603</a>}
-<a href=#1604 id=1604 data-nosnippet>1604</a>
-<a href=#1605 id=1605 data-nosnippet>1605</a><span class="doccomment">/// Return whether the expression refers to a function whose body, after peeling block/semi
-<a href=#1606 id=1606 data-nosnippet>1606</a>/// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
-<a href=#1607 id=1607 data-nosnippet>1607</a>/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
-<a href=#1608 id=1608 data-nosnippet>1608</a>///
-<a href=#1609 id=1609 data-nosnippet>1609</a>/// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
-<a href=#1610 id=1610 data-nosnippet>1610</a>/// only read their inputs (values are copied across the runtime boundary), so a wrapper
-<a href=#1611 id=1611 data-nosnippet>1611</a>/// that forwards to one cannot modify its array arguments either. This lets us drop the
-<a href=#1612 id=1612 data-nosnippet>1612</a>/// `Clone` that the ownership pass conservatively inserts around array arguments.
-<a href=#1613 id=1613 data-nosnippet>1613</a></span><span class="kw">fn </span>is_oracle_wrapper(expr: <span class="kw-2">&amp;</span>Expression, program: <span class="kw-2">&amp;</span>Program) -&gt; bool {
-<a href=#1614 id=1614 data-nosnippet>1614</a>    <span class="doccomment">/// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
-<a href=#1615 id=1615 data-nosnippet>1615</a>    /// (e.g. `println` -&gt; `print_unconstrained` -&gt; `print` oracle); the bound only exists to
-<a href=#1616 id=1616 data-nosnippet>1616</a>    /// keep pathological inputs from blowing the stack.
-<a href=#1617 id=1617 data-nosnippet>1617</a>    </span><span class="kw">const </span>ORACLE_WRAPPER_MAX_DEPTH: u32 = <span class="number">5</span>;
-<a href=#1618 id=1618 data-nosnippet>1618</a>
-<a href=#1619 id=1619 data-nosnippet>1619</a>    <span class="doccomment">/// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
-<a href=#1620 id=1620 data-nosnippet>1620</a>    </span><span class="kw">fn </span>go(expr: <span class="kw-2">&amp;</span>Expression, program: <span class="kw-2">&amp;</span>Program, depth: u32) -&gt; bool {
-<a href=#1621 id=1621 data-nosnippet>1621</a>        <span class="kw">if </span>depth == <span class="number">0 </span>{
-<a href=#1622 id=1622 data-nosnippet>1622</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1623 id=1623 data-nosnippet>1623</a>        }
-<a href=#1624 id=1624 data-nosnippet>1624</a>        <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
-<a href=#1625 id=1625 data-nosnippet>1625</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1626 id=1626 data-nosnippet>1626</a>        };
-<a href=#1627 id=1627 data-nosnippet>1627</a>        <span class="kw">let </span>ast::Definition::Function(func_id) = <span class="kw-2">&amp;</span>ident.definition <span class="kw">else </span>{
-<a href=#1628 id=1628 data-nosnippet>1628</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1629 id=1629 data-nosnippet>1629</a>        };
-<a href=#1630 id=1630 data-nosnippet>1630</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(inner) = peel_to_single_call(<span class="kw-2">&amp;</span>program[<span class="kw-2">*</span>func_id].body) <span class="kw">else </span>{
-<a href=#1631 id=1631 data-nosnippet>1631</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1632 id=1632 data-nosnippet>1632</a>        };
-<a href=#1633 id=1633 data-nosnippet>1633</a>        <span class="kw">if </span>!inner.arguments.iter().all(is_side_effect_free_arg) {
-<a href=#1634 id=1634 data-nosnippet>1634</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1635 id=1635 data-nosnippet>1635</a>        }
-<a href=#1636 id=1636 data-nosnippet>1636</a>        is_oracle_func(<span class="kw-2">&amp;</span>inner.func) || go(<span class="kw-2">&amp;</span>inner.func, program, depth - <span class="number">1</span>)
-<a href=#1637 id=1637 data-nosnippet>1637</a>    }
-<a href=#1638 id=1638 data-nosnippet>1638</a>
-<a href=#1639 id=1639 data-nosnippet>1639</a>    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
-<a href=#1640 id=1640 data-nosnippet>1640</a>}
-<a href=#1641 id=1641 data-nosnippet>1641</a>
-<a href=#1642 id=1642 data-nosnippet>1642</a><span class="doccomment">/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
-<a href=#1643 id=1643 data-nosnippet>1643</a>/// [`Call`](ast::Call), return that call. Otherwise return `None`.
-<a href=#1644 id=1644 data-nosnippet>1644</a></span><span class="kw">fn </span>peel_to_single_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ast::Call&gt; {
-<a href=#1645 id=1645 data-nosnippet>1645</a>    <span class="kw">match </span>expr {
-<a href=#1646 id=1646 data-nosnippet>1646</a>        Expression::Call(call) =&gt; <span class="prelude-val">Some</span>(call),
-<a href=#1647 id=1647 data-nosnippet>1647</a>        Expression::Semi(inner) =&gt; peel_to_single_call(inner),
-<a href=#1648 id=1648 data-nosnippet>1648</a>        Expression::Block(stmts) <span class="kw">if </span>stmts.len() == <span class="number">1 </span>=&gt; peel_to_single_call(<span class="kw-2">&amp;</span>stmts[<span class="number">0</span>]),
-<a href=#1649 id=1649 data-nosnippet>1649</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#1650 id=1650 data-nosnippet>1650</a>    }
-<a href=#1651 id=1651 data-nosnippet>1651</a>}
-<a href=#1652 id=1652 data-nosnippet>1652</a>
-<a href=#1653 id=1653 data-nosnippet>1653</a><span class="doccomment">/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
-<a href=#1654 id=1654 data-nosnippet>1654</a>///
-<a href=#1655 id=1655 data-nosnippet>1655</a>/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
-<a href=#1656 id=1656 data-nosnippet>1656</a>/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
-<a href=#1657 id=1657 data-nosnippet>1657</a>/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
-<a href=#1658 id=1658 data-nosnippet>1658</a>/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
-<a href=#1659 id=1659 data-nosnippet>1659</a>/// side-effectful and rejects the wrapper classification.
-<a href=#1660 id=1660 data-nosnippet>1660</a></span><span class="kw">fn </span>is_side_effect_free_arg(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#1661 id=1661 data-nosnippet>1661</a>    <span class="kw">match </span>expr {
-<a href=#1662 id=1662 data-nosnippet>1662</a>        Expression::Ident(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#1663 id=1663 data-nosnippet>1663</a>        Expression::Literal(lit) =&gt; <span class="kw">match </span>lit {
-<a href=#1664 id=1664 data-nosnippet>1664</a>            ast::Literal::Array(arr) | ast::Literal::Vector(arr) =&gt; {
-<a href=#1665 id=1665 data-nosnippet>1665</a>                arr.contents.iter().all(is_side_effect_free_arg)
-<a href=#1666 id=1666 data-nosnippet>1666</a>            }
-<a href=#1667 id=1667 data-nosnippet>1667</a>            ast::Literal::Repeated { element, .. } =&gt; is_side_effect_free_arg(element),
-<a href=#1668 id=1668 data-nosnippet>1668</a>            ast::Literal::Integer(..)
-<a href=#1669 id=1669 data-nosnippet>1669</a>            | ast::Literal::Bool(<span class="kw">_</span>)
-<a href=#1670 id=1670 data-nosnippet>1670</a>            | ast::Literal::Unit
-<a href=#1671 id=1671 data-nosnippet>1671</a>            | ast::Literal::Str(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#1672 id=1672 data-nosnippet>1672</a>            ast::Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, inner) =&gt; is_side_effect_free_arg(inner),
-<a href=#1673 id=1673 data-nosnippet>1673</a>        },
-<a href=#1674 id=1674 data-nosnippet>1674</a>        Expression::ExtractTupleField(inner, <span class="kw">_</span>) =&gt; is_side_effect_free_arg(inner),
-<a href=#1675 id=1675 data-nosnippet>1675</a>        Expression::Tuple(items) =&gt; items.iter().all(is_side_effect_free_arg),
-<a href=#1676 id=1676 data-nosnippet>1676</a>        Expression::Index(idx) =&gt; {
-<a href=#1677 id=1677 data-nosnippet>1677</a>            is_side_effect_free_arg(<span class="kw-2">&amp;</span>idx.collection) &amp;&amp; is_side_effect_free_arg(<span class="kw-2">&amp;</span>idx.index)
-<a href=#1678 id=1678 data-nosnippet>1678</a>        }
-<a href=#1679 id=1679 data-nosnippet>1679</a>        Expression::Cast(cast) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>cast.lhs),
-<a href=#1680 id=1680 data-nosnippet>1680</a>        Expression::Unary(u) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>u.rhs),
-<a href=#1681 id=1681 data-nosnippet>1681</a>        Expression::Binary(b) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>b.lhs) &amp;&amp; is_side_effect_free_arg(<span class="kw-2">&amp;</span>b.rhs),
-<a href=#1682 id=1682 data-nosnippet>1682</a>        Expression::Clone(inner) =&gt; is_side_effect_free_arg(inner),
-<a href=#1683 id=1683 data-nosnippet>1683</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#1684 id=1684 data-nosnippet>1684</a>    }
-<a href=#1685 id=1685 data-nosnippet>1685</a>}</code></pre></div></section></main></body></html>
+<a href=#1600 id=1600 data-nosnippet>1600</a><span class="doccomment">/// Return whether the expression refers to a function whose body, after peeling block/semi
+<a href=#1601 id=1601 data-nosnippet>1601</a>/// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
+<a href=#1602 id=1602 data-nosnippet>1602</a>/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
+<a href=#1603 id=1603 data-nosnippet>1603</a>///
+<a href=#1604 id=1604 data-nosnippet>1604</a>/// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
+<a href=#1605 id=1605 data-nosnippet>1605</a>/// only read their inputs (values are copied across the runtime boundary), so a wrapper
+<a href=#1606 id=1606 data-nosnippet>1606</a>/// that forwards to one cannot modify its array arguments either. This lets us drop the
+<a href=#1607 id=1607 data-nosnippet>1607</a>/// `Clone` that the ownership pass conservatively inserts around array arguments.
+<a href=#1608 id=1608 data-nosnippet>1608</a></span><span class="kw">fn </span>is_oracle_wrapper(expr: <span class="kw-2">&amp;</span>Expression, program: <span class="kw-2">&amp;</span>Program) -&gt; bool {
+<a href=#1609 id=1609 data-nosnippet>1609</a>    <span class="doccomment">/// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
+<a href=#1610 id=1610 data-nosnippet>1610</a>    /// (e.g. `println` -&gt; `print_unconstrained` -&gt; `print` oracle); the bound only exists to
+<a href=#1611 id=1611 data-nosnippet>1611</a>    /// keep pathological inputs from blowing the stack.
+<a href=#1612 id=1612 data-nosnippet>1612</a>    </span><span class="kw">const </span>ORACLE_WRAPPER_MAX_DEPTH: u32 = <span class="number">5</span>;
+<a href=#1613 id=1613 data-nosnippet>1613</a>
+<a href=#1614 id=1614 data-nosnippet>1614</a>    <span class="doccomment">/// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
+<a href=#1615 id=1615 data-nosnippet>1615</a>    </span><span class="kw">fn </span>go(expr: <span class="kw-2">&amp;</span>Expression, program: <span class="kw-2">&amp;</span>Program, depth: u32) -&gt; bool {
+<a href=#1616 id=1616 data-nosnippet>1616</a>        <span class="kw">if </span>depth == <span class="number">0 </span>{
+<a href=#1617 id=1617 data-nosnippet>1617</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1618 id=1618 data-nosnippet>1618</a>        }
+<a href=#1619 id=1619 data-nosnippet>1619</a>        <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
+<a href=#1620 id=1620 data-nosnippet>1620</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1621 id=1621 data-nosnippet>1621</a>        };
+<a href=#1622 id=1622 data-nosnippet>1622</a>        <span class="kw">let </span>ast::Definition::Function(func_id) = <span class="kw-2">&amp;</span>ident.definition <span class="kw">else </span>{
+<a href=#1623 id=1623 data-nosnippet>1623</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1624 id=1624 data-nosnippet>1624</a>        };
+<a href=#1625 id=1625 data-nosnippet>1625</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(inner) = peel_to_single_call(<span class="kw-2">&amp;</span>program[<span class="kw-2">*</span>func_id].body) <span class="kw">else </span>{
+<a href=#1626 id=1626 data-nosnippet>1626</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1627 id=1627 data-nosnippet>1627</a>        };
+<a href=#1628 id=1628 data-nosnippet>1628</a>        <span class="kw">if </span>!inner.arguments.iter().all(is_side_effect_free_arg) {
+<a href=#1629 id=1629 data-nosnippet>1629</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1630 id=1630 data-nosnippet>1630</a>        }
+<a href=#1631 id=1631 data-nosnippet>1631</a>        is_oracle_func(<span class="kw-2">&amp;</span>inner.func) || go(<span class="kw-2">&amp;</span>inner.func, program, depth - <span class="number">1</span>)
+<a href=#1632 id=1632 data-nosnippet>1632</a>    }
+<a href=#1633 id=1633 data-nosnippet>1633</a>
+<a href=#1634 id=1634 data-nosnippet>1634</a>    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
+<a href=#1635 id=1635 data-nosnippet>1635</a>}
+<a href=#1636 id=1636 data-nosnippet>1636</a>
+<a href=#1637 id=1637 data-nosnippet>1637</a><span class="doccomment">/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
+<a href=#1638 id=1638 data-nosnippet>1638</a>/// [`Call`](ast::Call), return that call. Otherwise return `None`.
+<a href=#1639 id=1639 data-nosnippet>1639</a></span><span class="kw">fn </span>peel_to_single_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ast::Call&gt; {
+<a href=#1640 id=1640 data-nosnippet>1640</a>    <span class="kw">match </span>expr {
+<a href=#1641 id=1641 data-nosnippet>1641</a>        Expression::Call(call) =&gt; <span class="prelude-val">Some</span>(call),
+<a href=#1642 id=1642 data-nosnippet>1642</a>        Expression::Semi(inner) =&gt; peel_to_single_call(inner),
+<a href=#1643 id=1643 data-nosnippet>1643</a>        Expression::Block(stmts) <span class="kw">if </span>stmts.len() == <span class="number">1 </span>=&gt; peel_to_single_call(<span class="kw-2">&amp;</span>stmts[<span class="number">0</span>]),
+<a href=#1644 id=1644 data-nosnippet>1644</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#1645 id=1645 data-nosnippet>1645</a>    }
+<a href=#1646 id=1646 data-nosnippet>1646</a>}
+<a href=#1647 id=1647 data-nosnippet>1647</a>
+<a href=#1648 id=1648 data-nosnippet>1648</a><span class="doccomment">/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
+<a href=#1649 id=1649 data-nosnippet>1649</a>///
+<a href=#1650 id=1650 data-nosnippet>1650</a>/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
+<a href=#1651 id=1651 data-nosnippet>1651</a>/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
+<a href=#1652 id=1652 data-nosnippet>1652</a>/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
+<a href=#1653 id=1653 data-nosnippet>1653</a>/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
+<a href=#1654 id=1654 data-nosnippet>1654</a>/// side-effectful and rejects the wrapper classification.
+<a href=#1655 id=1655 data-nosnippet>1655</a></span><span class="kw">fn </span>is_side_effect_free_arg(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1656 id=1656 data-nosnippet>1656</a>    <span class="kw">match </span>expr {
+<a href=#1657 id=1657 data-nosnippet>1657</a>        Expression::Ident(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#1658 id=1658 data-nosnippet>1658</a>        Expression::Literal(lit) =&gt; <span class="kw">match </span>lit {
+<a href=#1659 id=1659 data-nosnippet>1659</a>            ast::Literal::Array(arr) | ast::Literal::Vector(arr) =&gt; {
+<a href=#1660 id=1660 data-nosnippet>1660</a>                arr.contents.iter().all(is_side_effect_free_arg)
+<a href=#1661 id=1661 data-nosnippet>1661</a>            }
+<a href=#1662 id=1662 data-nosnippet>1662</a>            ast::Literal::Repeated { element, .. } =&gt; is_side_effect_free_arg(element),
+<a href=#1663 id=1663 data-nosnippet>1663</a>            ast::Literal::Integer(..)
+<a href=#1664 id=1664 data-nosnippet>1664</a>            | ast::Literal::Bool(<span class="kw">_</span>)
+<a href=#1665 id=1665 data-nosnippet>1665</a>            | ast::Literal::Unit
+<a href=#1666 id=1666 data-nosnippet>1666</a>            | ast::Literal::Str(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#1667 id=1667 data-nosnippet>1667</a>            ast::Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, inner) =&gt; is_side_effect_free_arg(inner),
+<a href=#1668 id=1668 data-nosnippet>1668</a>        },
+<a href=#1669 id=1669 data-nosnippet>1669</a>        Expression::ExtractTupleField(inner, <span class="kw">_</span>) =&gt; is_side_effect_free_arg(inner),
+<a href=#1670 id=1670 data-nosnippet>1670</a>        Expression::Tuple(items) =&gt; items.iter().all(is_side_effect_free_arg),
+<a href=#1671 id=1671 data-nosnippet>1671</a>        Expression::Index(idx) =&gt; {
+<a href=#1672 id=1672 data-nosnippet>1672</a>            is_side_effect_free_arg(<span class="kw-2">&amp;</span>idx.collection) &amp;&amp; is_side_effect_free_arg(<span class="kw-2">&amp;</span>idx.index)
+<a href=#1673 id=1673 data-nosnippet>1673</a>        }
+<a href=#1674 id=1674 data-nosnippet>1674</a>        Expression::Cast(cast) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>cast.lhs),
+<a href=#1675 id=1675 data-nosnippet>1675</a>        Expression::Unary(u) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>u.rhs),
+<a href=#1676 id=1676 data-nosnippet>1676</a>        Expression::Binary(b) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>b.lhs) &amp;&amp; is_side_effect_free_arg(<span class="kw-2">&amp;</span>b.rhs),
+<a href=#1677 id=1677 data-nosnippet>1677</a>        Expression::Clone(inner) =&gt; is_side_effect_free_arg(inner),
+<a href=#1678 id=1678 data-nosnippet>1678</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#1679 id=1679 data-nosnippet>1679</a>    }
+<a href=#1680 id=1680 data-nosnippet>1680</a>}</code></pre></div></section></main></body></html>
