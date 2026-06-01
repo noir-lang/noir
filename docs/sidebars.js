@@ -180,7 +180,7 @@ export default {
               },
               {
                 type: 'link',
-                label: 'Brillig (unconstrained opcodes)',
+                label: 'Brillig',
                 href: 'https://noir-lang.github.io/noir/docs/brillig/index.html',
               },
             ],
