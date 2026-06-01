@@ -12,13 +12,23 @@ fn cast_256_to_u8_size_checks() {
     check_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/6247):
-// add negative integer literal checks
 #[test]
-fn cast_negative_one_to_u8_size_checks() {
+fn cast_negative_literal_to_integer_warns() {
     let src = r#"
         fn main() {
-            assert((-1) as u8 != 0);
+            let _ = -1 as i8;
+                    ^^^^^^^^ Negative Field literal `-1` cast to `i8` evaluates to `0`
+                    ~~~~~~~~ If this isn't desired, try `-1i8` instead or bind to a variable first to silence this warning
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cast_suffixed_negative_literal_to_integer_does_not_warn() {
+    let src = r#"
+        fn main() {
+            let _ = -1i8 as i8;
         }
     "#;
     assert_no_errors(src);
@@ -28,8 +38,8 @@ fn cast_negative_one_to_u8_size_checks() {
 fn cast_signed_i8_to_field_must_error() {
     let src = r#"
         fn main() {
-            assert((-1 as i8) as Field != 0);
-                   ^^^^^^^^^^^^^^^^^^^ Only unsigned integer types may be casted to Field
+            assert(-1i8 as Field != 0);
+                   ^^^^^^^^^^^^^ Only unsigned integer types may be casted to Field
         }
     "#;
     check_errors(src);

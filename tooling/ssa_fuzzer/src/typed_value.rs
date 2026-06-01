@@ -7,20 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum_macros::EnumCount;
 
-#[derive(
-    Arbitrary,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Copy,
-    Serialize,
-    Deserialize,
-    EnumCount,
-)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, EnumCount)]
+#[derive(Serialize, Deserialize)]
 pub enum NumericType {
     Field,
     Boolean,
@@ -72,9 +60,8 @@ impl From<NumericType> for SsaNumericType {
     }
 }
 
-#[derive(
-    Arbitrary, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumCount,
-)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount)]
+#[derive(Serialize, Deserialize)]
 pub enum Type {
     Numeric(NumericType),
     Reference(Arc<Type>, /* mutable */ bool),

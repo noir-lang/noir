@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::{Ident, UnresolvedGenerics},
+    ast::{Ident, UnresolvedGenerics, UnresolvedTraitConstraint},
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -657,6 +657,7 @@ impl<'context> Elaborator<'context> {
             &items.traits,
             &items.structs,
             &items.functions,
+            &items.impls,
             &items.module_attributes,
         );
 
@@ -1067,8 +1068,16 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
-        for (_, _, functions) in impls {
+    fn elaborate_impls(
+        &mut self,
+        impls: Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
+    ) {
+        for (_, _, _, functions) in impls {
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
@@ -1085,14 +1094,26 @@ impl<'context> Elaborator<'context> {
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
+        // Inherited defaults are typed once at the trait definition; their bodies match the
+        // declaration by construction and re-elaborating them per impl would duplicate
+        // diagnostics (and waste work).
         for (module, function, noir_function) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(function) {
+                continue;
+            }
             self.local_module = Some(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
             self.push_errors(errors);
         }
 
-        self.elaborate_functions(trait_impl.methods);
+        for (_, id, _) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(id) {
+                continue;
+            }
+            self.elaborate_function(*id);
+        }
+        self.generics.clear();
 
         self.self_type = None;
         self.current_trait_impl = None;
