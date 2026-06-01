@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["embedded_curve_add","execute_embedded_curve_add","execute_multi_scalar_mul","multi_scalar_mul"]};
+window.SIDEBAR_ITEMS = {"fn":["check_all_or_nothing_coordinates","embedded_curve_add","execute_embedded_curve_add","execute_multi_scalar_mul","multi_scalar_mul"]};
