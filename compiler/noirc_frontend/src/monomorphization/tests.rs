@@ -1725,3 +1725,26 @@ fn static_assert_called_directly_still_works() {
     get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
         .expect("direct call to static_assert should still monomorphize");
 }
+
+const ZEROED_STDLIB: &str = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+";
+
+#[test]
+fn zeroed_array_of_references_does_not_alias() {
+    // Each slot of a zeroed `[&mut Field; N]` must get its own `allocate`. Wrapping a single
+    // `&mut 0` sub-expression in a repeated array literal would make every slot share one
+    // allocation, so a write through one slot would be visible through all the others.
+    let src = r#"
+    fn main() {
+        let _arr: [&mut Field; 3] = zeroed();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _arr$l0 = [(&mut 0); 3]
+    }
+    ");
+}
