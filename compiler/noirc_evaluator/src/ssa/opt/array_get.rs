@@ -81,14 +81,15 @@
 //! instead of from `v2`, because `v2` is the same as `v1` except for what's in index 1, but
 //! `v3` is getting from index 0.
 //!
-//! The [pass][Function::array_get_optimization] applies all of the above by scanning each block and
-//! caching the known contents of the array values it writes (an [`ArrayView`]). Resolving an
+//! The [pass][Function::array_get_optimization] applies all of the above by scanning the function
+//! and caching the known contents of the array values it writes (an [`ArrayView`]). Resolving an
 //! `array_get` at a constant index is then a lookup into that view rather than a walk back over
 //! previous instructions, so a long chain of `array_set`s no longer makes each read more expensive.
-//! The cache is scoped to a single block: the side-effects predicate recorded for each written
-//! element is only meaningful relative to the start of its block (it is reset per block), so a view
-//! must not be reused across blocks. Reads of arrays defined in earlier blocks still resolve against
-//! their `make_array` elements or a parameter via [`array_view`].
+//! Each cached element records the side-effects predicate it was written under, and a read only uses
+//! it when that predicate is unconditional or equal to the read's own predicate. Because
+//! [`simple_optimization`][Function::simple_optimization] resets the predicate to `1` at the start of
+//! each block, this comparison is sound whether the write and the read are in the same block or not,
+//! so the cache is kept for the whole function.
 //!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
 //! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
@@ -104,7 +105,6 @@ use im::OrdMap;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, InstructionId},
@@ -128,24 +128,19 @@ impl Ssa {
 
 impl Function {
     fn array_get_optimization(&mut self) {
-        // Caches the known contents of each array value while scanning a block, so resolving an
+        // Caches the known contents of each array value as the function is scanned, so resolving an
         // `array_get` at a constant index is a lookup rather than a walk back through previous
         // instructions.
         //
-        // The cache is reset between blocks. The side-effects predicate recorded for each written
-        // element is only meaningful relative to the start of the block it was written in (it is
-        // reset per block, see [`Function::simple_optimization`]), so carrying a view into another
-        // block could resolve a read against a predicate from a different block and fold it
-        // incorrectly. Arrays defined in earlier blocks are still handled, via [`array_view`].
+        // Each cached element records the side-effects predicate of the `array_set` that wrote it,
+        // and `resolve` only uses it under a matching or unconditional predicate.
+        // [`Function::simple_optimization`] resets the predicate to `1` at each block entry, so a
+        // conditionally-written element only ever resolves a read that re-establishes the same
+        // predicate value (or an unconditional read). The cache is therefore safe to keep across
+        // blocks, which lets a read resolve against an `array_set` chain built in an earlier block.
         let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
-        let mut current_block: Option<BasicBlockId> = None;
 
         self.simple_optimization(|context| {
-            if current_block != Some(context.block_id) {
-                current_block = Some(context.block_id);
-                views.clear();
-            }
-
             let instruction_id = context.instruction_id;
 
             match context.instruction() {
@@ -422,10 +417,11 @@ mod tests {
     use super::Ssa;
 
     #[test]
-    fn does_not_resolve_array_get_across_blocks() {
-        // The cache is scoped to a single block, so an `array_set` in one block is not folded into
-        // an `array_get` in another: the side-effects predicate recorded for each write is only
-        // meaningful relative to the start of its block, so views must not be reused across blocks.
+    fn resolves_array_get_across_blocks() {
+        // `v1` is built in `b0` and read in `b1`. The `array_set` is unconditional, so the read of
+        // the same index is folded to the set value even though it is in a different block: the
+        // cache is kept across blocks and the predicate comparison stays sound (see the module
+        // docs).
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
@@ -436,7 +432,18 @@ mod tests {
             return v2
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index u32 0, value Field 1
+            jmp b1()
+          b1():
+            return Field 1
+        }
+        ");
     }
 
     #[test]
