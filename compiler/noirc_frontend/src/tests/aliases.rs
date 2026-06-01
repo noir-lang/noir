@@ -190,6 +190,27 @@ fn type_alias_to_numeric_generic() {
 }
 
 #[test]
+fn numeric_type_alias_body_resolves_in_defining_module() {
+    let src = r#"
+    pub mod lib {
+        pub global N: u32 = 2;
+
+        // This N must refer to the N above, not the global N one.
+        // There was a bug around this.
+        pub type Size: u32 = N;
+    }
+
+    pub global N: u32 = 5;
+
+    fn main() {
+        comptime { assert_eq(lib::Size, 2); }
+        let _: [u32; lib::Size] = [0; lib::Size];
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn disallows_composing_numeric_type_aliases_as_type_syntax() {
     // Double<Double<N>> uses type syntax (Named with generics), not expression syntax.
     // try_into_expression rejects Named with non-empty generics.
@@ -762,7 +783,6 @@ fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
     pub type X: u8 = 257u8;
-    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
                      ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
@@ -1161,4 +1181,41 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
         fn main(_x: A) where A: Foo {}
     "#;
     assert_no_errors(src);
+}
+
+/// Regression test: a pair of mutually-referencing type aliases used to overflow the stack.
+#[test]
+fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+
+        global G: u32 = f();
+
+        fn f() -> u32 {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+            1
+        }
+
+        fn main() {
+            let _ = G;
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_expression_result_correct_span() {
+    let src = r#"
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        Double::<1>;
+        ^^^^^^^^^^^ Unused expression result of type u32
+    }
+    "#;
+    check_errors(src);
 }

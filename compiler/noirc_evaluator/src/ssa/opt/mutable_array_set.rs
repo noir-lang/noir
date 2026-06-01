@@ -156,6 +156,9 @@ impl<'f> Context<'f> {
             }
         }
 
+        // We must prevent mutating arrays after they're stored in other arrays.
+        let mut element_arrays = HashSet::default();
+
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 // Reading an array constitutes as use, replacing any previous last use.
@@ -170,19 +173,16 @@ impl<'f> Context<'f> {
                         self.set_last_use(*value, *instruction_id);
                     }
 
-                    // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
+                    // If the input array is itself returned, we cannot reuse its memory block.
                     let mut is_array_in_terminator = false;
-                    let mut is_nested = false;
-                    terminator.for_each_value(|value| {
-                        let is_value_array_in_terminator = value == *array;
-                        if !is_value_array_in_terminator && self.dfg.type_of_value(value).is_array()
-                        {
-                            is_nested = true;
-                            self.set_last_use(value, *instruction_id);
+                    terminator.for_each_value(|term_value| {
+                        if term_value == *array {
+                            is_array_in_terminator = true;
                         }
-                        is_array_in_terminator |= is_value_array_in_terminator;
                     });
 
+                    // Block mutation when the input array is actually nested as a MakeArray element
+                    let is_nested = element_arrays.contains(array);
                     let can_mutate = !is_array_in_terminator && !is_nested;
 
                     if can_mutate {
@@ -198,10 +198,12 @@ impl<'f> Context<'f> {
                     }
                 }
 
-                // Arrays nested in other arrays are a use.
+                // Arrays nested in other arrays are a use, and any subsequent `ArraySet`
+                // on the element must not mutate in place.
                 Instruction::MakeArray { elements, .. } => {
                     for element in elements {
                         if self.dfg.type_of_value(*element).is_array() {
+                            element_arrays.insert(*element);
                             self.set_last_use(*element, *instruction_id);
                         }
                     }
@@ -268,8 +270,11 @@ mod tests {
 
     #[test]
     fn does_not_mutate_array_used_in_make_array() {
-        // Regression test for https://github.com/noir-lang/noir/issues/8563
-        // Previously `v2` would be marked as mutable in the first array_set, which results in `v5` being invalid.
+        // Regression test for https://github.com/noir-lang/noir/issues/8563.
+        // The critical invariant: the first `array_set` on `v1` must NOT become mutable,
+        // because `v1` is later nested inside `v5` via `make_array` and used as the value
+        // of the second `array_set`. Mutating `v1` in place would corrupt both.
+        // The second `array_set` on `v5` CAN be mutable: `v5` is only used here.
         let src = "
             acir(inline) fn main f0 {
               b0():
@@ -280,7 +285,18 @@ mod tests {
                 return v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mutable_array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v4 = array_set v1, index u32 0, value Field 2
+            v5 = make_array [v1, v1] : [[Field; 1]; 2]
+            v6 = array_set mut v5, index u32 0, value v1
+            return v6
+        }
+        ");
     }
 
     #[test]
@@ -404,6 +420,8 @@ mod tests {
 
     // Previously, the first array_set instruction, which modifies v2 in the below
     // code snippet, was marked as mut despite v2 being used in the next array_set instruction.
+    // `v5` must NOT be mutable because `v2` is consumed again as the value argument of `v6`.
+    // `v6` CAN be mutable because its input `v1` is a parameter used only here.
     #[test]
     fn regression_10245() {
         let src = "
@@ -414,7 +432,85 @@ mod tests {
                 return v6, v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mutable_array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: [[Field; 1]; 2], v2: [Field; 1]):
+            v5 = array_set v2, index u32 0, value Field 4
+            v6 = array_set mut v1, index u32 0, value v2
+            return v6, v5
+        }
+        ");
+    }
+
+    /// Two independent array chains returned together: every `array_set` should be
+    /// marked mutable. Regression test for https://github.com/noir-lang/noir/issues/12411,
+    /// where the over-broad terminator-based `is_nested` guard blocked all mutations
+    /// because each chain's final value appeared as "another array in the terminator".
+    #[test]
+    fn marks_chain_mutable_with_two_independent_returned_arrays() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32, v2: u32):
+                v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+                v5 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+                v7 = array_set v4, index v0, value Field 1
+                v8 = array_set v5, index v0, value Field 1
+                v10 = array_set v7, index v1, value Field 2
+                v11 = array_set v8, index v1, value Field 2
+                v13 = array_set v10, index v2, value Field 3
+                v14 = array_set v11, index v2, value Field 3
+                return v13, v14
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mutable_array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v5 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v7 = array_set mut v4, index v0, value Field 1
+            v8 = array_set mut v5, index v0, value Field 1
+            v10 = array_set mut v7, index v1, value Field 2
+            v11 = array_set mut v8, index v1, value Field 2
+            v13 = array_set mut v10, index v2, value Field 3
+            v14 = array_set mut v11, index v2, value Field 3
+            return v13, v14
+        }
+        ");
+    }
+
+    // Mutating an element after it has been nested inside another array would also
+    // corrupt the outer array, because the outer `make_array` captured the element's
+    // memory. The later `array_set` on `v1` must therefore stay non-mutable even
+    // though `v1` is not itself part of the terminator.
+    #[test]
+    fn does_not_mutate_array_set_on_element_after_nesting() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 0, Field 0] : [Field; 2]
+                v3 = make_array [v1] : [[Field; 2]; 1]
+                v5 = array_set v1, index u32 0, value Field 7
+                return v3, v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, _value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0, Field 0] : [Field; 2]
+            v2 = make_array [v1] : [[Field; 2]; 1]
+            v5 = array_set v1, index u32 0, value Field 7
+            return v2, v5
+        }
+        ");
     }
 
     #[test]

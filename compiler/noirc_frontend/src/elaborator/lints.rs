@@ -158,7 +158,7 @@ pub(super) fn oracle_returns_multiple_vectors(
 
     fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Array(item, _) => vector_count(item, type_recursion_context.recur()),
             Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
             Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
             Type::Tuple(items) => items
@@ -251,6 +251,24 @@ pub(super) fn oracle_returns_reference(
     } else {
         None
     }
+}
+
+/// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
+pub(super) fn pure_attribute_only_on_oracle(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let pure_attr = modifiers
+        .attributes
+        .secondary
+        .iter()
+        .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Pure))?;
+
+    let is_oracle = modifiers.attributes.function().is_some_and(|attr| attr.kind.is_oracle());
+    (!is_oracle).then(|| ResolverError::PureAttributeOnNonOracle {
+        ident: func_meta_name_ident(func, modifiers),
+        location: pure_attr.location,
+    })
 }
 
 /// Oracles cannot return vectors containing nested arrays because
@@ -396,28 +414,59 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
-/// call_data and return_data visibility modifiers are only allowed on entry point functions.
-pub(super) fn databus_on_non_entry_point(
+/// `call_data` marks a parameter and `return_data` a return, so only `call_data` is
+/// meaningful on a parameter, and only on an entry point function.
+pub(super) fn databus_visibility_on_parameter(
     func: &NoirFunction,
     visibility: Visibility,
     visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if is_entry_point {
-        return None;
-    }
-
     match visibility {
-        Visibility::CallData(_) | Visibility::ReturnData => {
-            let name = func.name().to_string();
-            let visibility = visibility.to_string();
-            Some(ResolverError::DataBusOnNonEntryPoint {
-                name,
-                location: visibility_location,
-                visibility,
-            })
+        Visibility::ReturnData => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "a parameter",
+            allowed: "the return value",
+            location: visibility_location,
+        }),
+        Visibility::CallData(_) if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
         }
         _ => None,
+    }
+}
+
+/// `return_data` marks a return and `call_data` a parameter, so only `return_data` is
+/// meaningful on a return value, and only on an entry point function.
+pub(super) fn databus_visibility_on_return(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    match visibility {
+        Visibility::CallData(_) => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "the return value",
+            allowed: "a parameter",
+            location: visibility_location,
+        }),
+        Visibility::ReturnData if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
+        }
+        _ => None,
+    }
+}
+
+fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+) -> ResolverError {
+    ResolverError::DataBusOnNonEntryPoint {
+        name: func.name().to_string(),
+        location: visibility_location,
+        visibility: visibility.to_string(),
     }
 }
 
@@ -535,6 +584,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
+            | HirStatement::TraitAssociatedConstant
             | HirStatement::Error => true,
         })
     };

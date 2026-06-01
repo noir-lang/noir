@@ -50,8 +50,9 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
-                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                let from_macro_call = false;
+                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
+                self.debug_comptime(location, |interner, _| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
                 (id, typ)
@@ -83,16 +84,19 @@ impl Elaborator<'_> {
                 // but it is not a real variable so it does not resolve to a valid Identifier.
                 // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
                 let type_alias = self.interner.get_type_alias(type_alias_id);
-                if let Some(expr) = &type_alias.borrow().numeric_expr {
+                let alias_module_id = type_alias.borrow().module_id;
+                if let Some(type_alias_expr) = &type_alias.borrow().numeric_expr {
                     // Extract the declared numeric type from the type alias's kind.
                     let declared_type = match type_alias.borrow().typ.kind() {
                         Kind::Numeric(declared_type) => declared_type,
                         _ => Box::new(Type::Error),
                     };
                     let declared_type = *declared_type;
-                    let expr_location = type_alias.borrow().location;
-                    let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                    let expr = Expression::new(expr, expr_location);
+                    let var_expr = UnresolvedTypeExpression::to_expression_kind(type_alias_expr);
+
+                    // The expression we create for this particular instantiation of the numeric type alias
+                    // must have the same location as the path that refers to it.
+                    let var_expr = Expression::new(var_expr, location);
 
                     // Resolve turbofish generics for the type alias.
                     // `resolved_turbofish` contains already-resolved types from
@@ -140,12 +144,26 @@ impl Elaborator<'_> {
                         }
                     }
 
-                    let (id, typ) = self.elaborate_expression(expr);
+                    // The alias's numeric expression has already been kind-checked at
+                    // alias-definition time (see `convert_expression_type`), which is
+                    // where any "value does not fit" diagnostic is emitted. Drop any
+                    // literals queued for the function-context fit check during
+                    // re-elaboration so the same overflow is not reported twice.
+                    let literals_before = self.integer_literal_expr_ids_len();
+                    // Re-elaborate the alias body in the alias's defining module
+                    // so unqualified names resolve against the alias's scope,
+                    // not the caller's. Mirrors `define_type_alias` in mod.rs.
+                    let previous_module = self.replace_module(alias_module_id);
+                    let (id, typ) = self.elaborate_expression(var_expr);
+                    if let Some(previous_module) = previous_module {
+                        self.replace_module(previous_module);
+                    }
+                    self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
                     // Unify the expression's type with the declared type from the type alias
                     // to ensure proper type checking.
-                    self.unify_or_type_mismatch(&typ, &declared_type, expr_location);
+                    self.unify_or_type_mismatch(&typ, &declared_type, type_alias_expr.location());
 
                     return (id, declared_type, false, location);
                 }
@@ -170,9 +188,11 @@ impl Elaborator<'_> {
 
         let mut bindings = TypeBindings::default();
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            self.usage_tracker.mark_impl_function_as_used(func_id);
+
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
-                let func_generics = &self.interner.function_meta(func_id).all_generics;
+                let func_generics = &self.function_meta(*func_id).all_generics;
                 let self_resolved_generic =
                     func_generics.iter().find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
                 if let Some(self_resolved_generic) = self_resolved_generic {
@@ -184,20 +204,21 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` has the enclosing type generics first, followed by `direct_generics`
-                // (the method's own generics). We must only bind the type-level portion here;
-                // method generics are handled separately by the method turbofish.
-                let func_meta = self.interner.function_meta(func_id);
-                let impl_generic_count =
-                    func_meta.all_generics.len() - func_meta.direct_generics.len();
-                let impl_generics = &func_meta.all_generics[..impl_generic_count];
+                // We must only bind the type-level portion here; method generics are handled
+                // separately by the method turbofish.
+                let func_meta = self.function_meta(*func_id);
+                let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
+                let self_type =
+                    func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
 
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
                 // impl generics differs from the number of struct generics. The turbofish
                 // `S::<u32, bool>` provides type_generics aligned with the struct's params
-                // [A, B], not the impl's generics [B]. Use the impl's self_type to find
-                // the correct positional mapping from struct params to impl generics.
-                if let Some(Type::DataType(_, self_type_args)) = &func_meta.self_type {
+                // [A, B], not the impl's generics [B]. Replace each impl generic in
+                // `self_type`'s args with a fresh type variable and unify those with the
+                // turbofish-provided type generics. The fresh type variables get bound by
+                // unification, and we record those bindings for the impl generics.
+                if let Some(Type::DataType(_, self_type_args)) = self_type {
                     assert_eq!(
                         type_generics.len(),
                         self_type_args.len(),
@@ -205,41 +226,29 @@ impl Elaborator<'_> {
                         type_generics.len(),
                         self_type_args.len(),
                     );
-                    let mut concrete_mismatches = Vec::new();
+                    let impl_replacements: TypeBindings = impl_generics
+                        .iter()
+                        .map(|type_var| {
+                            let kind = type_var.kind();
+                            let fresh = self.interner.next_type_variable_with_kind(kind.clone());
+                            (type_var.id(), (type_var.clone(), kind, fresh))
+                        })
+                        .collect();
                     for (type_generic, self_type_arg) in
                         type_generics.into_iter().zip_eq(self_type_args)
                     {
-                        let type_var = match self_type_arg {
-                            Type::NamedGeneric(named) => Some(&named.type_var),
-                            Type::TypeVariable(tv) => Some(tv),
-                            _ => None,
-                        };
-                        if let Some(type_var) = type_var {
-                            if impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
-                                bindings.insert(
-                                    type_var.id(),
-                                    (type_var.clone(), type_var.kind(), type_generic),
-                                );
-                            }
-                        } else {
-                            // Concrete position: collect for verification after releasing borrow
-                            concrete_mismatches.push((type_generic, self_type_arg.clone()));
-                        }
+                        let substituted = self_type_arg.substitute(&impl_replacements);
+                        self.unify_or_type_mismatch(&type_generic, &substituted, location);
                     }
-                    // Verify turbofish types match the impl's concrete types
-                    for (turbofish_type, concrete_type) in concrete_mismatches {
-                        self.unify_or_type_mismatch(&turbofish_type, &concrete_type, location);
-                    }
+                    bindings.extend(impl_replacements);
                 } else if type_generics.len() <= impl_generics.len() {
                     // For trait function paths, impl_generics may include Self and associated
                     // type generics after the trait's declared generics. The turbofish only
                     // provides types for the declared generics, which are always the first
                     // elements. Slice to match.
                     let impl_generics = &impl_generics[..type_generics.len()];
-                    for (type_generic, func_generic) in
-                        type_generics.into_iter().zip_eq(impl_generics)
+                    for (type_generic, type_var) in type_generics.into_iter().zip_eq(impl_generics)
                     {
-                        let type_var = &func_generic.type_var;
                         bindings.insert(
                             type_var.id(),
                             (type_var.clone(), type_var.kind(), type_generic),
@@ -273,15 +282,7 @@ impl Elaborator<'_> {
             let id = self
                 .intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
 
-            // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-            let push_required_type_variables = self.current_trait.is_none();
-            let typ = self.type_check_variable_with_bindings(
-                hir_ident,
-                &id,
-                generics,
-                bindings,
-                push_required_type_variables,
-            );
+            let typ = self.type_check_variable_with_bindings(hir_ident, &id, generics, bindings);
             let id = self.intern_expr_type(id, typ.clone());
             (id, typ)
         } else {
@@ -654,12 +655,13 @@ impl Elaborator<'_> {
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
         // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-        let function_meta = self.interner.function_meta(&func_id);
-        let self_type_generics_count =
-            function_meta.all_generics.len() - function_meta.direct_generics.len();
+        let (self_type_generics_count, function_typ, function_self_type) = self
+            .with_function_meta(func_id, |meta| {
+                (meta.impl_generics_count(), meta.typ.clone(), meta.self_type.clone())
+            });
         let bindings = if self_type_generics_count > 0 {
-            if let Type::Forall(type_vars, _) = &function_meta.typ
-                && let Some(self_type) = &function_meta.self_type
+            if let Type::Forall(type_vars, _) = &function_typ
+                && let Some(self_type) = &function_self_type
             {
                 // Only instantiate type vars corresponding to the `self` type, not to function direct generics
                 let type_vars =
@@ -675,15 +677,7 @@ impl Elaborator<'_> {
             TypeBindings::default()
         };
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        let typ = self.type_check_variable_with_bindings(
-            ident,
-            &id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        );
+        let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
 
         (id, typ)
@@ -757,22 +751,16 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        self.type_check_variable_with_bindings(
-            ident,
-            expr_id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        )
+        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
     }
 
     /// Perform the type checking of an interned expression and a corresponding identifier,
     /// returning the instantiated [Type].
     ///
-    /// If `push_required_type_variables`, the bindings are added to the function context,
-    /// to be checked before it's finished.
+    /// The instantiation bindings are pushed as required type variables on the current
+    /// function context, to be checked at end-of-function. `push_required_type_variable`
+    /// already skips this in a comptime context, where unbound generics on quoted typed
+    /// expressions are expected.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
@@ -780,7 +768,6 @@ impl Elaborator<'_> {
         expr_id: &PushedExpr<HasLocation>,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
-        push_required_type_variables: bool,
     ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
@@ -809,16 +796,36 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
+        // If the variable is a function whose meta hasn't been resolved yet, resolve
+        // it now. This handles forward references — a global's RHS may name a
+        // function whose meta would otherwise only be drained at end-of-elaboration.
+        if let DefinitionKind::Function(func_id) = definition.kind {
+            let item_name = definition.name.clone();
+            self.define_function_meta_if_undefined(func_id);
+
+            // If lazy resolution leaves the meta still unset, the function is currently
+            // mid-resolution and we have a dependency cycle (e.g. `global F = f();`
+            // combined with `fn f(_: [u8; F]) {}`).
+            if self.interner.try_function_meta(&func_id).is_none() {
+                self.push_err(ResolverError::DependencyCycle {
+                    location: ident.location,
+                    item: item_name,
+                    cycle: "the function signature hasn't been resolved yet".to_string(),
+                });
+                return Type::Error;
+            }
+        }
+
         // An identifiers type may be forall-quantified in the case of generic functions.
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
         // variable to handle generic functions.
         let t = self.type_substitute_trait_as_type(&ident);
 
-        let definition = self.interner.definition(ident.id);
-        let direct_generic_ids = match definition.kind {
+        let definition_kind = self.interner.definition(ident.id).kind.clone();
+        let direct_generic_ids = match definition_kind {
             DefinitionKind::Function(function) => {
-                vecmap(&self.interner.function_meta(&function).direct_generics, |generic| {
+                vecmap(&self.function_meta(function).direct_generics, |generic| {
                     generic.type_var.id()
                 })
             }
@@ -876,9 +883,9 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        let definition = self.interner.definition(ident.id);
-        if let DefinitionKind::Function(function) = definition.kind {
-            let function = self.interner.function_meta(&function);
+        let definition_kind = self.interner.definition(ident.id).kind.clone();
+        if let DefinitionKind::Function(function) = definition_kind {
+            let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
                 constraint.apply_bindings(&bindings);
 
@@ -887,21 +894,18 @@ impl Elaborator<'_> {
             }
         }
 
-        if push_required_type_variables {
-            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
-            let required_type_variables =
-                btree_map(bindings.values(), |(type_variable, _, typ)| {
-                    (type_variable.id(), typ.clone())
-                });
+        // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+        let required_type_variables = btree_map(bindings.values(), |(type_variable, _, typ)| {
+            (type_variable.id(), typ.clone())
+        });
 
-            for (type_variable_id, typ) in required_type_variables {
-                self.push_required_type_variable(
-                    type_variable_id,
-                    typ,
-                    BindableTypeVariableKind::Ident(ident.id),
-                    ident.location,
-                );
-            }
+        for (type_variable_id, typ) in required_type_variables {
+            self.push_required_type_variable(
+                type_variable_id,
+                typ,
+                BindableTypeVariableKind::Ident(ident.id),
+                ident.location,
+            );
         }
 
         self.interner.store_instantiation_bindings(**expr_id, bindings);

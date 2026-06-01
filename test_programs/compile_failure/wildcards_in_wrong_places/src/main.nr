@@ -7,7 +7,7 @@ pub struct Foo {
 }
 
 impl Foo {
-    fn foo(_: [_; _]) -> [_; _] {
+    pub fn foo(_: [_; _]) -> [_; _] {
         [1]
     }
 }

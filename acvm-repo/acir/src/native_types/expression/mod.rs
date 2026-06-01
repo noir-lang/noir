@@ -1,5 +1,6 @@
 use crate::{circuit::PublicInputs, native_types::Witness};
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 mod operators;
@@ -20,7 +21,8 @@ mod operators;
 ///
 /// # Multiplication polynomial
 /// - If we were allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Expression<F> {
     /// Collection of multiplication terms.
@@ -29,16 +31,20 @@ pub struct Expression<F> {
     /// We collect all of the multiplication terms in the assert-zero opcode
     /// A multiplication term is of the form q_M * wL * wR
     /// Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
+    #[tag(0)]
     pub mul_terms: Vec<(F, Witness, Witness)>,
 
     /// Collection of linear terms in the expression.
     ///
     /// Each term follows the form: `q_L * w`, where `q_L` is a coefficient
     /// and `w` is a witness.
+    #[tag(1)]
     pub linear_combinations: Vec<(F, Witness)>,
+
     /// A constant term in the expression
     // TODO: rename q_c to `constant` moreover q_X is not clear to those who
     // TODO: are not familiar with PLONK
+    #[tag(2)]
     pub q_c: F,
 }
 
@@ -131,16 +137,23 @@ impl<F> Expression<F> {
         self.is_linear() && self.linear_combinations.len() == 1
     }
 
-    /// Sorts opcode in a deterministic order
+    /// Sorts opcode in a deterministic order.
+    /// Each mul term is canonicalized so that `w_l <= w_r`,
     /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
     pub fn sort(&mut self) {
+        for term in &mut self.mul_terms {
+            if term.1 > term.2 {
+                std::mem::swap(&mut term.1, &mut term.2);
+            }
+        }
         self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
-        self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
+        self.linear_combinations.sort_by_key(|a| a.1);
     }
 
     #[cfg(test)]
     pub(crate) fn is_sorted(&self) -> bool {
-        self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
+        self.mul_terms.iter().all(|term| term.1 <= term.2)
+            && self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
             && self.linear_combinations.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).is_le())
     }
 }
@@ -299,7 +312,15 @@ impl<F: AcirField> Expression<F> {
 
     /// Determine the width of this expression.
     /// The width meaning the number of unique witnesses needed for this expression.
+    ///
+    /// Preconditions (the function returns an over-approximation otherwise):
+    /// - at most one mul term (asserted)
+    /// - linear terms are deduplicated (e.g. by `GeneralOptimizer::simplify_linear_terms`)
     pub fn width(&self) -> usize {
+        if self.mul_terms.len() > 1 {
+            unimplemented!("ICE - width() does not support expressions with multiple mul terms");
+        }
+
         let mut width = 0;
 
         for mul_term in &self.mul_terms {

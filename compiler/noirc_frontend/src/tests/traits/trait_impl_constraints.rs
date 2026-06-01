@@ -41,7 +41,7 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
     }
 
     impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+        pub fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
     }

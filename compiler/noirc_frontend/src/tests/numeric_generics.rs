@@ -544,6 +544,25 @@ fn bool_numeric_generic() {
 }
 
 #[test]
+fn unresolved_numeric_generic_kind_does_not_panic() {
+    // If the annotated type of a numeric generic fails to resolve, the generic's
+    // kind ends up as `Kind::Numeric(Type::Error)`. Using the generic in an
+    // expression previously risked panicking in `check_defaultable_type_variables`
+    // because `Kind::Numeric(Type::Error)::default_type()` returned `None`.
+    let src = r#"
+    pub fn foo<let N: A>() {
+                      ^ Could not resolve 'A' in path
+                      ^ N has a type of error. The only supported numeric generic types are integers and `Field`.
+                      ~ Unsupported numeric generic type
+        bar(N);
+        ^^^ cannot find `bar` in this scope
+        ~~~ not found in this scope
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn numeric_generic_binary_operation_type_mismatch() {
     let src = r#"
     pub fn foo<let N: Field>() -> bool {

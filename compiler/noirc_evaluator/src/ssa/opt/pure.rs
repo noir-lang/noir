@@ -15,6 +15,7 @@ use std::sync::Arc;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::call_graph::CallGraph;
+use crate::ssa::ir::types::Type;
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
@@ -29,21 +30,8 @@ impl Ssa {
     /// This is purely an analysis pass on its own but can help future optimizations.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
-        let call_graph = CallGraph::from_ssa(&self);
+        let purities = Arc::new(compute_function_purities(&self));
 
-        let (sccs, recursive_functions) = call_graph.sccs();
-
-        // First look through each function to get a baseline on its purity and collect
-        // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> =
-            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
-
-        // Then transitively 'infect' any functions which call impure functions as also
-        // impure.
-        let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
-        let purities = Arc::new(purities);
-
-        // We're done, now store purities somewhere every dfg can find it.
         for function in self.functions.values_mut() {
             function.dfg.set_function_purities(purities.clone());
         }
@@ -53,6 +41,21 @@ impl Ssa {
 
         self
     }
+}
+
+/// Compute the purity of every function in the SSA, including call-graph propagation,
+/// without mutating the SSA. Shared by [Ssa::purity_analysis] and by the SSA parser,
+/// which uses it to validate hand-written purity annotations against the actual
+/// instruction-level behavior.
+pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
+    // Purity falls back to `Impure` for any call whose callee cannot be statically
+    // resolved, so an incomplete call graph is fine — use the partial constructor
+    // to allow running on pre-defunctionalize SSA in unit tests.
+    let call_graph = CallGraph::from_ssa_partial(ssa);
+    let (sccs, recursive_functions) = call_graph.sccs();
+    let purities: HashMap<_, _> =
+        ssa.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+    analyze_call_graph(call_graph, purities, &sccs, &recursive_functions)
 }
 
 /// Post-check condition for [Ssa::purity_analysis].
@@ -116,7 +119,7 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self) -> Purity {
+    pub(crate) fn is_pure(&self) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -125,6 +128,30 @@ impl Function {
         if self.parameters().iter().any(&contains_reference) {
             return Purity::Impure;
         }
+
+        // Collect all parameters that are arrays or contain arrays, but only for Brillig.
+        // If we detect an array_set potentially operating on a brillig array input, the entire
+        // function becomes impure.
+        let brillig_array_inputs = if self.runtime().is_brillig() {
+            self.parameters()
+                .iter()
+                .filter(|param| {
+                    let typ = self.dfg.type_of_value(**param);
+                    typ.contains_an_array()
+                })
+                .collect::<HashSet<_>>()
+        } else {
+            HashSet::default()
+        };
+        let has_brillig_array_input = !brillig_array_inputs.is_empty();
+
+        // Records whether there's an `array_set`, `inc_rc` or `dec_rc` in this function.
+        let mut has_array_set_or_rc = false;
+
+        // Records whether a brillig array input was used in an instruction that could have moved
+        // it to another value. Examples include `store`, `array_set`, and even `array_get` for parameters
+        // that have nested arrays.
+        let mut brillig_array_input_was_moved = false;
 
         let mut result = if self.runtime().is_acir() {
             Purity::Pure
@@ -142,7 +169,8 @@ impl Function {
                 // parameters or returned, we can ignore them.
                 // We even ignore Constrain instructions. As long as the external parameters are
                 // identical, we should be constraining the same values anyway.
-                match &self.dfg[*instruction] {
+                let ins = &self.dfg[*instruction];
+                match ins {
                     Instruction::Constrain(..)
                     | Instruction::ConstrainNotEqual(..)
                     | Instruction::RangeCheck { .. } => result = Purity::PureWithPredicate,
@@ -152,18 +180,14 @@ impl Function {
                     // - The array index is out of bounds.
                     // For both cases we can still treat them as pure if the arguments are known
                     // constants.
-                    ins @ (Instruction::Binary(_)
-                    | Instruction::ArrayGet { .. }) => {
+                    Instruction::Binary(_) | Instruction::ArrayGet { .. } => {
                         if ins.requires_acir_gen_predicate(&self.dfg) {
                             result = Purity::PureWithPredicate;
                         }
                     }
-                    ins @ Instruction::ArraySet { array, .. } => {
-                      if self.runtime().is_brillig() && (self.parameters().contains(array) || self.dfg.is_global(*array)) {
-                          return Purity::Impure;
-                      } else if ins.requires_acir_gen_predicate(&self.dfg) {
-                            result = Purity::PureWithPredicate;
-                      }
+                    Instruction::ArraySet { .. } => {
+                      has_array_set_or_rc = true;
+                      result = Purity::PureWithPredicate;
                     }
                     Instruction::Call { func, .. } => {
                         match &self.dfg[*func] {
@@ -180,7 +204,12 @@ impl Function {
                                 Purity::PureWithPredicate => result = Purity::PureWithPredicate,
                                 Purity::Impure => return Purity::Impure,
                             },
-                            Value::ForeignFunction(_) => return Purity::Impure,
+                            Value::ForeignFunction { pure: true, .. } => {
+                                // A `#[pure]` oracle is treated as `PureWithPredicate`, because
+                                // they are unconstrained functions.
+                                result = Purity::PureWithPredicate;
+                            }
+                            Value::ForeignFunction { pure: false, .. } => return Purity::Impure,
                             // The function we're calling is unknown in the remaining cases,
                             // so just assume the worst.
                             Value::Global(_)
@@ -205,22 +234,87 @@ impl Function {
                     | Instruction::MakeArray { .. }
                     | Instruction::Noop => (),
 
-                    Instruction::IncrementRc { value }
-                    | Instruction::DecrementRc { value } => {
-                      if self.parameters().contains(value) || self.dfg.is_global(*value) {
-                        return Purity::Impure
-                      }
+                    Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
+                        has_array_set_or_rc = true;
+                    }
+                }
+
+                // Separately, check if any instruction could be moving a Brillig array input.
+                if has_brillig_array_input {
+                    match ins {
+                        Instruction::Binary(_)
+                        | Instruction::Cast(..)
+                        | Instruction::Not(_)
+                        | Instruction::Truncate { .. }
+                        | Instruction::Constrain(..)
+                        | Instruction::ConstrainNotEqual(..)
+                        | Instruction::RangeCheck { .. }
+                        | Instruction::Call { .. }
+                        | Instruction::Allocate
+                        | Instruction::EnableSideEffectsIf { .. }
+                        | Instruction::Noop => {
+                            // This can't possibly move a Brillig array input.
+                            // A `call` could mutate a Brillig array input, but if that is the case
+                            // the the call itself will be marked as impure, and so then this function will
+                            // be impure... but that is a check that is done later on.
+                        }
+
+                        Instruction::Load { .. }
+                        | Instruction::Store { .. }
+                        | Instruction::ArraySet { .. }
+                        | Instruction::IncrementRc { .. }
+                        | Instruction::DecrementRc { .. }
+                        | Instruction::IfElse { .. }
+                        | Instruction::MakeArray { .. } => {
+                            // Check if any of these instructions is operating on a Brillig array input
+                            brillig_array_input_was_moved |= has_brillig_array_input
+                                && ins.any_value(|value| brillig_array_inputs.contains(&value));
+                        }
+                        Instruction::ArrayGet { array, index: _ } => {
+                            // For ArrayGet we do something slightly different: if it operates on a Brillig array input
+                            // array, an array could be moved if it's nested inside `array` (for example if the type
+                            // is `[[Field; 2]; 3]`. However, if the `array` is an array without nested arrays, no
+                            // array will be moved here. We consider this case specifically because fetching from a
+                            // non-nested Brillig array input is a common pattern.
+                            if brillig_array_inputs.contains(array) {
+                                let typ = self.dfg.type_of_value(*array);
+                                let typ = typ.as_ref();
+                                match typ {
+                                    Type::Array(items, _) | Type::Vector(items) => {
+                                        if items.iter().any(|item| item.contains_an_array()) {
+                                            brillig_array_input_was_moved = true;
+                                        }
+                                    }
+                                    Type::Numeric(_) | Type::Reference(_, _) | Type::Function => (),
+                                }
+                            }
+                        }
                     }
                 }
             }
 
             // If the function returns a reference it is impure
             let terminator = self.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator
-                && return_values.iter().any(&contains_reference)
-            {
-                return Purity::Impure;
+            if let Some(terminator) = terminator {
+                if let TerminatorInstruction::Return { return_values, .. } = terminator
+                    && return_values.iter().any(&contains_reference)
+                {
+                    return Purity::Impure;
+                }
+
+                // Also check if any Brillig array input is moved in a terminator
+                if has_brillig_array_input
+                    && terminator.any_value(|value| brillig_array_inputs.contains(&value))
+                {
+                    brillig_array_input_was_moved = true;
+                }
             }
+        }
+
+        // If a Brillig array input was moved, and we found any instruction that could mutate it
+        // (`array_set`, `inc_rc` or `dec_rc`) then we consider the function impure.
+        if has_array_set_or_rc && brillig_array_input_was_moved {
+            return Purity::Impure;
         }
 
         result
@@ -898,5 +992,256 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+    }
+
+    #[test]
+    fn considers_array_set_to_any_array_as_impure_if_entry_point_has_an_array() {
+        // `v6 = array_set v2, ...` ends up operating on `v0` because it's being passed
+        // in `b1(...)` as `v2`. So even if `array_set v2` doesn't directly operate on a function parameter,
+        // it can end up operating on one, indirectly. This test ensures we catch this case.
+        let src = "
+        brillig(inline_never) fn f f1 {
+          b0(v0: [u1; 1]):
+            jmp b1(u32 0, v0)
+          b1(v1: u32, v2: [u1; 1]):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v6 = array_set v2, index u32 0, value u1 0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8, v6)
+          b3():
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn f f0 {
+          b0(v0: [u1; 1]):
+            jmp b1(u32 0, v0)
+          b1(v1: u32, v2: [u1; 1]):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v6 = array_set v2, index u32 0, value u1 0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8, v6)
+          b3():
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_consider_impure_if_brillig_array_input_is_not_moved_even_though_there_is_an_array_set()
+     {
+        // Even though there's an array_set, which *could* operate on a brillig array input,
+        // we notice that v0 is never moved around so it can't be the target of any array_set.
+        // v0 is used in an `array_get`, but since v0 is an array and doesn't have nested arrays
+        // in it, no array is actually moved.
+        let src = "
+        brillig(inline_never) fn f f0 {
+          b0(v0: [u1; 1]):
+            v4 = make_array [u1 0] : [u1; 1]
+            v6 = array_get v0, index u32 0 -> u1
+            jmp b1(u32 0, v4)
+          b1(v1: u32, v2: [u1; 1]):
+            v7 = eq v1, u32 0
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v8 = array_set v2, index u32 0, value u1 0
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10, v8)
+          b3():
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) predicate_pure fn f f0 {
+          b0(v0: [u1; 1]):
+            v4 = make_array [u1 0] : [u1; 1]
+            v6 = array_get v0, index u32 0 -> u1
+            jmp b1(u32 0, v4)
+          b1(v1: u32, v2: [u1; 1]):
+            v7 = eq v1, u32 0
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v8 = array_set v2, index u32 0, value u1 0
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10, v8)
+          b3():
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn considers_impure_if_brillig_input_array_is_stored_and_there_is_an_array_set() {
+        let src = "
+        brillig(inline_never) fn f f0 {
+          b0(v0: [u1; 1]):
+            v1 = allocate -> &mut [u1; 1]
+            store v0 at v1
+            v2 = load v1 -> [u1; 1]
+            v5 = array_set v2, index u32 0, value u1 0
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn f f0 {
+          b0(v0: [u1; 1]):
+            v1 = allocate -> &mut [u1; 1]
+            store v0 at v1
+            v2 = load v1 -> [u1; 1]
+            v5 = array_set v2, index u32 0, value u1 0
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn considers_impure_if_brillig_input_array_is_stored_and_there_is_an_inc_rc() {
+        let src = "
+        brillig(inline_never) fn f f0 {
+          b0(v0: [u1; 1]):
+            v1 = allocate -> &mut [u1; 1]
+            store v0 at v1
+            v2 = load v1 -> [u1; 1]
+            inc_rc v2
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn f f0 {
+          b0(v0: [u1; 1]):
+            v1 = allocate -> &mut [u1; 1]
+            store v0 at v1
+            v2 = load v1 -> [u1; 1]
+            inc_rc v2
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn considers_impure_if_brillig_input_nested_array_is_moved_and_there_is_a_dec_rc() {
+        let src = "
+        brillig(inline_never) fn f f0 {
+          b0(v0: [[u1; 1]; 1]):
+            v1 = array_get v0, index u32 0 -> [u1; 1]
+            inc_rc v1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn f f0 {
+          b0(v0: [[u1; 1]; 1]):
+            v2 = array_get v0, index u32 0 -> [u1; 1]
+            inc_rc v2
+            return
+        }
+        ");
+    }
+
+    /// A `#[pure]` oracle is recognized as pure by the analysis:
+    /// a caller that does nothing else lifts to `PureWithPredicate`, never Impure.
+    /// Brillig is the only runtime that can call oracles, and brillig functions are
+    /// always at most `PureWithPredicate`.
+    #[test]
+    fn pure_oracle_call_marks_caller_pure_with_predicate() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call pure my_oracle(v0) -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+    }
+
+    /// An oracle without the `#[pure]` marker still poisons the caller as `Impure`.
+    /// Regression guard for the previous unconditional behavior.
+    #[test]
+    fn impure_oracle_call_marks_caller_impure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call my_oracle(v0) -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+    }
+
+    /// A `#[pure]` oracle composes correctly with predicate-pure SSA operations: a caller
+    /// that mixes a pure oracle with a `constrain` is `PureWithPredicate`. The `constrain`
+    /// alone would already force that, so this test confirms the pure-oracle classification
+    /// doesn't accidentally upgrade the result to `Pure`.
+    #[test]
+    fn pure_oracle_unifies_with_predicate_pure_operations() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call pure my_oracle(v0) -> Field
+            constrain v1 == Field 0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+    }
+
+    /// If the caller itself receives a reference parameter, the existing rule at
+    /// [`Function::is_pure`] forces it to `Impure` regardless of whether the oracle it
+    /// calls is `#[pure]`. The pure-oracle marker is an upper bound on what the call
+    /// site contributes, not a way to override the caller's own ref-param check.
+    #[test]
+    fn pure_oracle_does_not_override_callers_reference_param_impurity() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = call pure my_oracle(v0) -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
     }
 }

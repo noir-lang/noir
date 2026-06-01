@@ -88,7 +88,9 @@ impl Ssa {
         loop {
             let num_functions_before = self.functions.len();
 
-            let call_graph = CallGraph::from_ssa_weighted(&self);
+            // The inliner works on direct call sites and is robust to indirect calls
+            // (which it cannot inline anyway).
+            let call_graph = CallGraph::from_ssa_weighted_partial(&self);
 
             let inline_infos = compute_inline_infos(
                 &self,
@@ -342,8 +344,8 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
-            Value::ForeignFunction(function) => {
-                self.context.builder.import_foreign_function(function)
+            Value::ForeignFunction { name, pure } => {
+                self.context.builder.import_foreign_function(name, *pure)
             }
             Value::Global(_) => {
                 panic!("Expected a global to be resolved to its inner value");

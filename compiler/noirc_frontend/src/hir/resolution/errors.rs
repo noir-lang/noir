@@ -88,6 +88,10 @@ pub enum ResolverError {
     OracleReturnsReference { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
+    #[error(
+        "The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`"
+    )]
+    PureAttributeOnNonOracle { ident: Ident, location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -225,6 +229,13 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, name: String, location: Location },
+    #[error("{visibility} attribute is not allowed on {position}")]
+    DataBusOnWrongPosition {
+        visibility: String,
+        position: &'static str,
+        allowed: &'static str,
+        location: Location,
+    },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
@@ -306,6 +317,7 @@ impl ResolverError {
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
+            | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -323,6 +335,7 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. }
+            | ResolverError::DataBusOnWrongPosition { location, .. }
             | ResolverError::RemovedType { location, .. }
             | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
@@ -573,6 +586,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
+            },
+            ResolverError::PureAttributeOnNonOracle { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("`#[pure]` requires `unconstrained` and `#[oracle(...)]`".into(), ident.location());
+                diagnostic
             },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
@@ -1017,6 +1039,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
+            },
+            ResolverError::DataBusOnWrongPosition { visibility, position, allowed, location } => {
+                Diagnostic::simple_error(
+                    format!("{visibility} attribute is not allowed on {position}"),
+                    format!("{visibility} is only allowed on {allowed}"),
+                    *location,
+                )
             },
             ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
                 Diagnostic::simple_error(

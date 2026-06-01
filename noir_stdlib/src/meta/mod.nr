@@ -2,6 +2,7 @@ pub mod ctstring;
 pub mod expr;
 pub mod format_string;
 pub mod function_def;
+pub mod location;
 pub mod module;
 pub mod op;
 pub mod trait_constraint;
@@ -14,6 +15,7 @@ pub mod quoted;
 pub mod unresolved_type;
 
 use crate::default::Default;
+use crate::option::Option;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
@@ -29,6 +31,30 @@ pub comptime fn unquote(code: Quoted) -> Quoted {
 // docs:start:type_of
 pub comptime fn type_of<T>(x: T) -> Type {}
 // docs:end:type_of
+
+/// Issues an error diagnostic at the given location with the given primary
+/// message and an optional secondary message. Unlike a comptime panic, current
+/// execution will continue allowing possibly multiple errors to be issued.
+#[builtin(issue_error)]
+// docs:start:error
+pub comptime fn error<let N: u32, T, let N2: u32, T2>(
+    _msg: fmtstr<N, T>,
+    _secondary: Option<fmtstr<N2, T2>>,
+    _location: Location,
+) {}
+// docs:end:error
+
+/// Issues a warning diagnostic at the given location  with the given primary
+/// message and an optional secondary message. Execution continues after this
+/// function is called.
+#[builtin(issue_warning)]
+// docs:start:warn
+pub comptime fn warn<let N: u32, T, let N2: u32, T2>(
+    _msg: fmtstr<N, T>,
+    _secondary: Option<fmtstr<N2, T2>>,
+    _location: Location,
+) {}
+// docs:end:warn
 
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions
@@ -70,7 +96,7 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 // docs:start:derive_via_signature
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     // docs:end:derive_via_signature
-    HANDLERS.insert(t, f);
+    assert(HANDLERS.insert(t, f), f"A derive_via function has already been registered for {t}");
 }
 // docs:end:derive_via
 
@@ -289,8 +315,8 @@ mod tests {
     #[test]
     fn concatenate_test() {
         comptime {
-            let result = concatenate(quote {foo}, quote {bar});
-            assert_eq(result, quote {foobar});
+            let result = concatenate(quote { foo }, quote { bar });
+            assert_eq(result, quote { foobar });
 
             let result = double_spaced(quote {foo bar 3}).as_quoted_str!();
             assert_eq(result, "foo  bar  3");

@@ -128,6 +128,8 @@ pub(crate) enum SsaError {
     UnknownBlock(Identifier),
     #[error("Unknown function '{0}'")]
     UnknownFunction(Identifier),
+    #[error("`pure` modifier is only allowed on foreign function calls, but '{0}' is not one")]
+    PureModifierOnNonForeignFunction(Identifier),
     #[error("Mismatched return values")]
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
     #[error("Variable '{0}' already defined")]
@@ -136,6 +138,10 @@ pub(crate) enum SsaError {
     GlobalAlreadyDefined(Identifier),
     #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
     IllegalOffset(Identifier, ArrayOffset),
+    #[error(
+        "Function '{function_name}' is declared as `{stated}` but its instructions compute `{computed}`"
+    )]
+    PurityMismatch { function_name: String, stated: Purity, computed: Purity, span: Span },
 }
 
 impl SsaError {
@@ -148,8 +154,10 @@ impl SsaError {
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier)
+            | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
+            SsaError::PurityMismatch { span, .. } => *span,
         }
     }
 }
@@ -221,7 +229,15 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, data_bus, blocks })
+        Ok(ParsedFunction {
+            runtime_type,
+            purity: purity.map(|(purity, _)| purity),
+            purity_span: purity.map(|(_, span)| span),
+            external_name,
+            internal_name,
+            data_bus,
+            blocks,
+        })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -247,13 +263,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+    fn parse_purity(&mut self) -> ParseResult<Option<(Purity, Span)>> {
+        let span = self.token.span();
         if self.eat_keyword(Keyword::Pure)? {
-            Ok(Some(Purity::Pure))
+            Ok(Some((Purity::Pure, span)))
         } else if self.eat_keyword(Keyword::PredicatePure)? {
-            Ok(Some(Purity::PureWithPredicate))
+            Ok(Some((Purity::PureWithPredicate, span)))
         } else if self.eat_keyword(Keyword::Impure)? {
-            Ok(Some(Purity::Impure))
+            Ok(Some((Purity::Impure, span)))
         } else {
             Ok(None)
         }
@@ -470,9 +487,16 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
+        let pure = self.eat_keyword(Keyword::Pure)?;
         let function = self.eat_identifier_or_error()?;
         let arguments = self.parse_arguments()?;
-        Ok(Some(ParsedInstruction::Call { targets: vec![], function, arguments, types: vec![] }))
+        Ok(Some(ParsedInstruction::Call {
+            targets: vec![],
+            function,
+            arguments,
+            types: vec![],
+            pure,
+        }))
     }
 
     fn parse_constrain(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -583,11 +607,12 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Assign)?;
 
         if self.eat_keyword(Keyword::Call)? {
+            let pure = self.eat_keyword(Keyword::Pure)?;
             let function = self.eat_identifier_or_error()?;
             let arguments = self.parse_arguments()?;
             self.eat_or_error(Token::Arrow)?;
             let types = self.parse_types()?;
-            return Ok(ParsedInstruction::Call { targets, function, arguments, types });
+            return Ok(ParsedInstruction::Call { targets, function, arguments, types, pure });
         }
 
         if targets.len() > 1 {

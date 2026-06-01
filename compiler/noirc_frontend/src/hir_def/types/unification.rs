@@ -162,7 +162,7 @@ impl Type {
                 }
             },
 
-            (Array(len_a, elem_a), Array(len_b, elem_b)) => {
+            (Array(elem_a, len_a), Array(elem_b, len_b)) => {
                 len_a.try_unify(len_b, bindings)?;
                 elem_a.try_unify(elem_b, bindings)
             }
@@ -591,7 +591,7 @@ impl Type {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Array(_size, element1), Type::Vector(element2)) = (&this, &target) {
+        if let (Type::Array(element1, _size), Type::Vector(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
             if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
@@ -624,7 +624,8 @@ impl Type {
         match &this {
             Type::String(..) | Type::FmtString(..) => {
                 // as_ctstring is defined as a trait method
-                for (func_id, trait_id) in interner.lookup_trait_methods(&this, "as_ctstring", true)
+                for (func_id, trait_id, _) in
+                    interner.lookup_trait_methods(&this, "as_ctstring", true)
                 {
                     // Look up the one that's in the standard library.
                     let trait_ = interner.get_trait(trait_id);

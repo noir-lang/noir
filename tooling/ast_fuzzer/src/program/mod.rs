@@ -232,15 +232,21 @@ impl Context {
                 && self.functions.get(&Program::main_id()).is_some_and(|func| func.unconstrained))
             || bool::arbitrary(u)?;
 
-        // We could return a function as well.
-        let return_type = self.gen_type(
-            u,
-            self.config.max_depth,
-            false,
-            is_main || is_abi,
-            self.config.comptime_friendly,
-            true,
-        )?;
+        // Non-ABI functions can return `Unit`, so they can be called in statement
+        // position for their side effects (e.g. assertions). `gen_type` never
+        // picks `Unit`, so we choose it explicitly here.
+        let return_type = if !(is_main || is_abi) && u.ratio(1, 5)? {
+            Type::Unit
+        } else {
+            self.gen_type(
+                u,
+                self.config.max_depth,
+                false,
+                is_main || is_abi,
+                self.config.comptime_friendly,
+                true,
+            )?
+        };
 
         // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {

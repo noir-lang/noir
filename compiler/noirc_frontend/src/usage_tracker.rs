@@ -34,6 +34,7 @@ impl UnusedItem {
 #[derive(Debug, Default)]
 pub struct UsageTracker {
     unused_items: HashMap<ModuleId, HashMap<Ident, UnusedItem>>,
+    unused_impl_functions: HashMap<FuncId, Ident>,
 }
 
 impl UsageTracker {
@@ -75,6 +76,28 @@ impl UsageTracker {
         if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
             items.remove(name);
         }
+    }
+
+    /// Register an inherent impl function as unused.
+    pub(crate) fn add_unused_impl_function(
+        &mut self,
+        func_id: FuncId,
+        name: Ident,
+        visibility: ItemVisibility,
+    ) {
+        if visibility != ItemVisibility::Public && name.span().start() < name.span().end() {
+            self.unused_impl_functions.insert(func_id, name);
+        }
+    }
+
+    /// Marks an inherent impl function as used.
+    pub(crate) fn mark_impl_function_as_used(&mut self, func_id: &FuncId) {
+        self.unused_impl_functions.remove(func_id);
+    }
+
+    /// Get all the unused impl functions.
+    pub fn unused_impl_functions(&self) -> &HashMap<FuncId, Ident> {
+        &self.unused_impl_functions
     }
 
     /// Get all the unused items per module.

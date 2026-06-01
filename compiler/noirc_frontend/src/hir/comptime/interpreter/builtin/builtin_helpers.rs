@@ -6,6 +6,7 @@ use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
 use acvm::FieldElement;
+use fm::FileMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
@@ -179,12 +180,12 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
         // Assuming that `values.len()` corresponds to `typ`.
-        let Type::Array(_, ref elem) = typ else {
+        let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
         let len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(Box::new(Type::constant_u32(len)), elem.clone()).to_string();
+        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -290,6 +291,13 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
+pub(crate) fn get_location((value, location): (Value, Location)) -> IResult<Location> {
+    match value {
+        Value::Location(loc) => Ok(loc),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Location), location),
+    }
+}
+
 pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
         Value::TypeDefinition(id) => Ok(id),
@@ -322,7 +330,7 @@ pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<Tr
 
 pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
-        Value::Type(typ) => Ok(typ),
+        Value::Type(typ) => Ok(typ.follow_bindings()),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
     }
 }
@@ -493,7 +501,8 @@ pub(super) fn check_item_crate_matches_current_crate(
             &current_crate,
             item_module,
         );
-        let item = item.display(interpreter.elaborator.interner).to_string();
+        let item =
+            item.display(interpreter.elaborator.interner, interpreter.elaborator.files).to_string();
         Err(InterpreterError::CannotModifyExternalItem { item, module, location })
     } else {
         Ok(())
@@ -501,11 +510,11 @@ pub(super) fn check_item_crate_matches_current_crate(
 }
 
 pub(super) fn check_function_not_yet_resolved(
-    interpreter: &Interpreter,
+    interpreter: &mut Interpreter,
     func_id: FuncId,
     location: Location,
 ) -> IResult<()> {
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
         FunctionBody::Resolving | FunctionBody::Resolved => {
@@ -535,8 +544,15 @@ where
 {
     let tokens = get_quoted((value, location))?;
     let quoted = Tokens(unwrap_rc(tokens.clone()));
-    let (result, warnings) =
-        parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
+    let (result, warnings) = parse_tokens(
+        tokens,
+        quoted,
+        elaborator.interner,
+        elaborator.files,
+        location,
+        parser,
+        rule,
+    )?;
     for warning in warnings {
         let warning: CompilationError = warning.into();
         elaborator.push_err(warning);
@@ -548,6 +564,7 @@ pub(super) fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     quoted: Tokens,
     interner: &NodeInterner,
+    files: &FileMap,
     location: Location,
     parsing_function: F,
     rule: &'static str,
@@ -561,7 +578,7 @@ where
             .find(|error| !error.is_warning())
             .expect("there is at least 1 error");
         let error = Box::new(error);
-        let tokens = tokens_to_string(&tokens, interner);
+        let tokens = tokens_to_string(&tokens, interner, files);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
@@ -590,28 +607,41 @@ pub(super) fn has_named_attribute(
     false
 }
 
+pub(super) fn has_builtin_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
+    attributes.iter().any(|attr| builtin_secondary_attribute_name(attr) == Some(name))
+}
+
 fn secondary_attribute_name(
     attribute: &SecondaryAttribute,
     interner: &NodeInterner,
 ) -> Option<String> {
+    if let Some(name) = builtin_secondary_attribute_name(attribute) {
+        return Some(name.to_string());
+    }
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated".to_string()),
-        SecondaryAttributeKind::ContractLibraryMethod => {
-            Some("contract_library_method".to_string())
-        }
-        SecondaryAttributeKind::Export => Some("export".to_string()),
-        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
         SecondaryAttributeKind::Tag(contents) => {
             let mut lexer = Lexer::new_with_dummy_file(contents);
             let token = lexer.next()?.ok()?;
             if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
         }
         SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
-        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
-        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
-        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
-        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
-        SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
+        _ => None,
+    }
+}
+
+fn builtin_secondary_attribute_name(attribute: &SecondaryAttribute) -> Option<&'static str> {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated"),
+        SecondaryAttributeKind::ContractLibraryMethod => Some("contract_library_method"),
+        SecondaryAttributeKind::Export => Some("export"),
+        SecondaryAttributeKind::Field(_) => Some("field"),
+        SecondaryAttributeKind::Abi(_) => Some("abi"),
+        SecondaryAttributeKind::Varargs => Some("varargs"),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope"),
+        SecondaryAttributeKind::Allow(_) => Some("allow"),
+        SecondaryAttributeKind::MustUse(_) => Some("must_use"),
+        SecondaryAttributeKind::Tag(_) | SecondaryAttributeKind::Meta(_) => None,
+        SecondaryAttributeKind::Pure => Some("pure"),
     }
 }
 
@@ -654,8 +684,8 @@ pub(super) fn eq_item<T: Eq>(
 pub(crate) fn byte_array_type(len: usize) -> Type {
     let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(Type::constant_u32(len)),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        Box::new(Type::constant_u32(len)),
     )
 }
 
@@ -721,6 +751,7 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
 pub(crate) fn fragments_to_string(
     fragments: &[FormatStringFragment],
     interner: &NodeInterner,
+    files: &FileMap,
 ) -> String {
     let mut result = String::new();
     for fragment in fragments {
@@ -737,21 +768,42 @@ pub(crate) fn fragments_to_string(
                             if index > 0 {
                                 result.push(' ');
                             }
-                            result.push_str(&token.token().display(interner).to_string());
+                            result.push_str(&token.token().display(interner, files).to_string());
                         }
                     }
                     Value::FormatString(fragments, _, _) => {
                         // Nested format strings might have quoted values inside them,
                         // so we need to recurse here instead of calling `value.display`.
-                        let inner_string = fragments_to_string(fragments, interner);
+                        let inner_string = fragments_to_string(fragments, interner, files);
                         result.push_str(&inner_string);
                     }
                     _ => {
-                        result.push_str(&value.display(interner).to_string());
+                        result.push_str(&value.display(interner, files).to_string());
                     }
                 }
             }
         }
     }
     result
+}
+
+/// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
+pub(crate) fn get_option((value, value_location): (Value, Location)) -> IResult<Option<Value>> {
+    let Value::Struct(fields, _) = value else {
+        return Err(InterpreterError::TypeMismatch {
+            expected: "Option<_>".to_string(),
+            actual: Type::Error,
+            location: value_location,
+        });
+    };
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
+    let Value::Bool(is_some) = is_some.borrow().clone() else {
+        panic!("Expected `_is_some` field of Option to be a boolean");
+    };
+    if !is_some {
+        return Ok(None);
+    }
+    let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
+    let value = value.borrow().clone();
+    Ok(Some(value))
 }

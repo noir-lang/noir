@@ -216,8 +216,14 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
-    // used as a foreign/externally defined unconstrained function
-    Oracle(String),
+    /// A foreign/externally-defined unconstrained function.
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with
+    /// `#[pure]`.
+    Oracle {
+        name: String,
+        pure: bool,
+    },
 }
 
 /// ID of a local definition, e.g. from a let binding or
@@ -434,20 +440,8 @@ pub type Parameters =
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
-    EnumIter,
-)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+#[derive(Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.

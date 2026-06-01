@@ -97,4 +97,72 @@ mod tests {
         assert_eq!("foo", parsed_submodule.name.to_string());
         assert_eq!(parsed_submodule.contents.items.len(), 0);
     }
+
+    #[test]
+    fn parse_program_with_utf8_in_line_comment() {
+        // cSpell:disable-next-line
+        let src = "// schön — héllo 🙂\nmod foo;";
+        let (module, errors) = parse_program_with_dummy_file(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::ModuleDecl(module) = &module.items[0].kind else {
+            panic!("Expected module declaration");
+        };
+        assert_eq!("foo", module.ident.to_string());
+    }
+
+    #[test]
+    fn parse_program_with_utf8_in_block_comment() {
+        let src = "/* 日本語 in a block comment */\nmod foo;";
+        let (module, errors) = parse_program_with_dummy_file(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::ModuleDecl(module) = &module.items[0].kind else {
+            panic!("Expected module declaration");
+        };
+        assert_eq!("foo", module.ident.to_string());
+    }
+
+    #[test]
+    fn parse_program_with_utf8_in_doc_comment_on_item() {
+        let src = "/// 日本語 doc comment\nmod foo;";
+        let (module, errors) = parse_program_with_dummy_file(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        assert!(!item.doc_comments.is_empty());
+    }
+
+    #[test]
+    fn parse_program_rejects_utf8_in_identifier() {
+        use crate::lexer::errors::LexerErrorKind;
+        use crate::parser::ParserErrorReason;
+
+        // cSpell:disable-next-line
+        let src = "fn schön() {}";
+        let (module, errors) = parse_program_with_dummy_file(src);
+
+        let non_warning_errors: Vec<_> =
+            errors.iter().filter(|error| !error.is_warning()).collect();
+        assert_eq!(
+            non_warning_errors.len(),
+            1,
+            "Expected exactly one error, got: {non_warning_errors:?}",
+        );
+        match non_warning_errors[0].reason() {
+            Some(ParserErrorReason::Lexer(LexerErrorKind::NonAsciiIdentifier {
+                found, ..
+            })) => {
+                assert_eq!(found, "schön");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+
+        // The parser still recognised the function declaration, with the original name.
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(func) = &module.items[0].kind else {
+            panic!("Expected function declaration");
+        };
+        assert_eq!(func.def.name.to_string(), "schön");
+    }
 }

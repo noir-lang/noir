@@ -1081,7 +1081,7 @@ impl<'f> Context<'f> {
             Value::Intrinsic(intrinsic) => {
                 self.handle_intrinsic_side_effects(condition, intrinsic, arguments, call_stack)
             }
-            Value::Function(_) | Value::ForeignFunction(_) => arguments,
+            Value::Function(_) | Value::ForeignFunction { .. } => arguments,
             Value::Instruction { .. }
             | Value::Param { .. }
             | Value::NumericConstant { .. }
@@ -1144,7 +1144,7 @@ impl<'f> Context<'f> {
     ) -> Vec<ValueId> {
         match blackbox {
             BlackBoxFunc::EmbeddedCurveAdd => {
-                arguments[6] = self.mul_by_condition(arguments[6], condition, call_stack);
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
@@ -2009,7 +2009,7 @@ mod tests {
             store v5 at v3
             jmp b2()
           b2():
-            v24 = load v3 -> Field
+            v24 = load v3 -> [Field; 1]
             return v24
         }";
 

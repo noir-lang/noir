@@ -402,7 +402,7 @@ pub fn has_call(expr: &Expression) -> bool {
         };
         let is_builtin_or_oracle = matches!(
             definition,
-            Definition::Builtin(_) | Definition::Oracle(_) | Definition::LowLevel(_)
+            Definition::Builtin(_) | Definition::Oracle { .. } | Definition::LowLevel(_)
         );
         !is_builtin_or_oracle
     })
