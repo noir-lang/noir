@@ -1077,3 +1077,156 @@ fn private_inherent_impl_method_accessible_from_nested_child_of_impl_module() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_when_using_private_type_imported_via_value_name_collision() {
+    // A module has a private type and a public value sharing the same name.
+    // Importing the name is allowed (the public value is visible), but using
+    // the private type must still be rejected.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo {};
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_importing_value_when_colliding_type_is_public() {
+    // The mirror of the collision case: when both the type and the value are
+    // visible, importing and using either must keep working.
+    let src = r#"
+    mod moo {
+        pub struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo {};
+        Foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_calling_value_when_using_private_type_imported_via_collision_still_errors() {
+    // The public value of the collision is still usable; only the private type is rejected.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        Foo();
+        let _ = Foo {};
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_value_imported_via_type_name_collision() {
+    // Mirror of the type/value collision: a private value and a public type share a name.
+    // Importing is allowed (the type is visible), but calling the private value is rejected.
+    let src = r#"
+    mod moo {
+        pub struct Foo {}
+
+        fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo {};
+        Foo();
+        ^^^ Foo is private and not visible from the current module
+        ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_type_imported_via_aliased_collision() {
+    // Aliasing the import must not launder the private type into scope either.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo as Leaked;
+
+    fn main() {
+        let _ = Leaked {};
+                ^^^^^^ Leaked is private and not visible from the current module
+                ~~~~~~ Leaked is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_qualified_access_to_private_type_colliding_with_public_value() {
+    // Direct qualified access to the private type is rejected regardless of the import path.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    fn main() {
+        let _ = moo::Foo {};
+                     ^^^ Foo is private and not visible from the current module
+                     ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_at_import_when_both_colliding_items_are_private() {
+    // When a name resolves to a private item in both namespaces there is no visible item to make
+    // the import legal, so the error is reported at the `use` itself (and only once), rather than
+    // being deferred to the use site.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        fn Foo() {}
+    }
+
+    use moo::Foo;
+             ^^^ Foo is private and not visible from the current module
+             ~~~ Foo is private
+
+    fn main() {
+        let _ = Foo {};
+        Foo();
+    }
+    "#;
+    check_errors(src);
+}
