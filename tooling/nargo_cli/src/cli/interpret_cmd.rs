@@ -680,7 +680,7 @@ mod tests {
                   call f1(u1 0)
                   return
                 }
-                brillig(inline) predicate_pure fn func_2 f1 {
+                brillig(inline) pure fn func_2 f1 {
                   b0(v0: u1):
                     jmp b1()
                   b1():
