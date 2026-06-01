@@ -2595,6 +2595,39 @@ fn function_def_as_typed_expr(
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+
+        // A trait method is reachable through `as_typed_expr` only if the type the trait is
+        // implemented for is visible from the caller's module. Otherwise a private type's trait
+        // methods could be called from another crate by recovering the type via metaprogramming.
+        if let Type::DataType(data_type, _) = trait_impl.typ.follow_bindings() {
+            let (type_id, visibility) = {
+                let data_type = data_type.borrow();
+                (data_type.id, data_type.visibility)
+            };
+            let caller_module = interpreter.elaborator.module_id();
+            let type_module = type_id.parent_module_id(interpreter.elaborator.def_maps);
+            if !item_in_module_is_visible(
+                interpreter.elaborator.def_maps,
+                caller_module,
+                type_module,
+                visibility,
+            ) {
+                let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+                let defining_module = interpreter.elaborator.interner.function_module(func_id);
+                let defining_module = fully_qualified_module_path(
+                    interpreter.elaborator.def_maps,
+                    interpreter.elaborator.crate_graph,
+                    &caller_module.krate,
+                    defining_module,
+                );
+                return Err(InterpreterError::FunctionNotVisible {
+                    name,
+                    defining_module,
+                    location,
+                });
+            }
+        }
+
         let trait_generics =
             interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =
