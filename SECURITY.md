@@ -16,7 +16,7 @@ Noir sets out to be a secure language for developing zero-knowledge proofs. We t
 
 Bugs are unexpected behaviors in a system.
 
-Vulnerabilities are bugs abusable for malicious intents.
+Vulnerabilities are bugs abusable for malicious intents (e.g. under-constrained bugs, miscompilations).
 
 To report a vulnerability, [create a security advisory](https://github.com/noir-lang/noir/security/advisories/new) which privately discloses information to the Noir security team.
 
