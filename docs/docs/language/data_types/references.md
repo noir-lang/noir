@@ -145,7 +145,7 @@ the entire program.
 
 ### References to Array Elements
 
-Mutable references to array elements are not supported:
+References to array elements are not supported:
 
 ```rust
 fn foo(x: &mut u32) {
@@ -161,7 +161,7 @@ fn main() {
 The above will error with:
 
 ```
-error: Mutable references to array elements are currently unsupported
+error: References to array elements are currently unsupported
   ┌─ src/main.nr:6:18
   │
 6 │         foo(&mut state[0]);
