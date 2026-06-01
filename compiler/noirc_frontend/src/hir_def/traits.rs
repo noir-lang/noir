@@ -5,7 +5,9 @@ use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::node_interner::{DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind};
+use crate::node_interner::{
+    DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
+};
 use crate::{
     ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -63,10 +65,12 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
+    /// Named generics of the trait.
     pub associated_types: ResolvedGenerics,
     pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
+    /// Ordered generics of the trait.
     pub generics: ResolvedGenerics,
     pub location: Location,
     pub visibility: ItemVisibility,
@@ -77,9 +81,10 @@ pub struct Trait {
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
 
-    /// The resolved trait bounds (for example in `trait Foo: Bar + Baz`, this would be `Bar + Baz`)
-    pub trait_bounds: Vec<ResolvedTraitBound>,
-
+    /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
+    /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
+    /// bounds and where-clause constraints share a single representation. Use
+    /// [`Trait::parent_bounds`] to extract just the parent-trait bounds.
     pub where_clause: Vec<TraitConstraint>,
 
     pub all_generics: ResolvedGenerics,
@@ -88,20 +93,17 @@ pub struct Trait {
     pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
+/// A completed trait implementation.
+///
+/// Note that ordered generics and named arguments (associated types) are stored separately
+/// in the NodeInterner. This is because they're required to resolve types before the impl
+/// as a whole is finished resolving.
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
     pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
-
-    /// Any ordered type arguments on the trait this impl is for.
-    /// E.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
-    ///
-    /// Note that named arguments (associated types) are stored separately
-    /// in the NodeInterner. This is because they're required to resolve types
-    /// before the impl as a whole is finished resolving.
-    pub trait_generics: Vec<Type>,
 
     pub file: FileId,
     pub crate_id: CrateId,
@@ -137,20 +139,37 @@ impl TraitConstraint {
         )
     }
 
-    /// Looks up a trait implementation which satisifies this constraint and returns it.
+    /// Looks up a trait implementation which satisfies this constraint and returns it.
     ///
     /// Note that if successful, any type bindings from the impl search will be automatically
-    /// applied.
+    /// applied, unless `current_trait_self` is `Some` type variable matching the constraint,
+    /// representing a trait definition, in which case we don't bind it, but also don't reject
+    /// it as a missing type.
     pub fn find_impl(
         &self,
         interner: &NodeInterner,
+        current_trait_self: Option<&Type>,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
-        interner.lookup_trait_implementation(
-            &self.typ,
-            self.trait_bound.trait_id,
-            &self.trait_bound.trait_generics.ordered,
-            &self.trait_bound.trait_generics.named,
-        )
+        match current_trait_self {
+            Some(typ) if *typ == self.typ && typ.is_bindable() => {
+                let (impl_kind, _bindings, instantiation_bindings) = interner
+                    .try_lookup_trait_implementation(
+                        &self.typ,
+                        self.trait_bound.trait_id,
+                        &self.trait_bound.trait_generics.ordered,
+                        &self.trait_bound.trait_generics.named,
+                        TraitLookupMode::SelfAssumedOnly,
+                    )?;
+                // Do not bind it the self type.
+                Ok((impl_kind, instantiation_bindings))
+            }
+            _ => interner.lookup_trait_implementation(
+                &self.typ,
+                self.trait_bound.trait_id,
+                &self.trait_bound.trait_generics.ordered,
+                &self.trait_bound.trait_generics.named,
+            ),
+        }
     }
 }
 
@@ -198,12 +217,20 @@ impl Trait {
         self.methods = methods;
     }
 
-    pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
-        self.trait_bounds = trait_bounds;
-    }
-
     pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
         self.where_clause = where_clause;
+    }
+
+    /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
+    ///
+    /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
+    /// trait's `Self` type variable; this accessor filters them back out.
+    pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
+        let self_id = self.self_type_typevar.id();
+        self.where_clause.iter().filter_map(move |c| match &c.typ {
+            Type::TypeVariable(v) if v.id() == self_id => Some(&c.trait_bound),
+            _ => None,
+        })
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
@@ -222,7 +249,7 @@ impl Trait {
     }
 
     pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
-        for method in self.methods.iter() {
+        for method in &self.methods {
             if &method.name == name {
                 let id = *self.method_ids.get(name).unwrap();
                 return Some(interner.function_definition_id(id));

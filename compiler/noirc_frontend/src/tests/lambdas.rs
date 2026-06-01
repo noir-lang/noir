@@ -2,7 +2,7 @@ use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{NodeInterner, StmtId},
     test_utils::get_program,
-    tests::{assert_no_errors, check_errors},
+    tests::{assert_no_errors, check_errors, check_monomorphization_error},
 };
 
 #[test]
@@ -274,7 +274,7 @@ fn get_program_captures(src: &str) -> Vec<Vec<String>> {
 }
 
 fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut Vec<Vec<String>>) {
-    for stmt_id in stmts.iter() {
+    for stmt_id in stmts {
         let hir_stmt = interner.statement(stmt_id);
         let expr_id = match hir_stmt {
             HirStatement::Expression(expr_id) => expr_id,
@@ -285,6 +285,9 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Loop(block) => block,
             HirStatement::While(_, block) => block,
             HirStatement::Error => panic!("Invalid HirStatement!"),
+            HirStatement::TraitAssociatedConstant => {
+                panic!("Unexpected trait associated constant placeholder")
+            }
             HirStatement::Break => panic!("Unexpected break"),
             HirStatement::Continue => panic!("Unexpected continue"),
             HirStatement::Comptime(_) => panic!("Unexpected comptime"),
@@ -303,7 +306,7 @@ fn get_lambda_captures(
     if let HirExpression::Lambda(lambda_expr) = expr {
         let mut cur_capture = Vec::new();
 
-        for capture in lambda_expr.captures.iter() {
+        for capture in &lambda_expr.captures {
             cur_capture.push(interner.definition(capture.ident.id).name.clone());
         }
         result.push(cur_capture);
@@ -408,10 +411,10 @@ fn mutate_with_reference_in_lambda() {
 }
 
 #[test]
-fn mutate_with_reference_marked_mutable_in_lambda() {
+fn mutate_with_mut_reference_in_lambda() {
     let src = r#"
     fn main() {
-        let mut x = &mut 3;
+        let x = &mut 3;
         let f = || {
             *x += 2;
         };
@@ -464,12 +467,13 @@ fn allow_capturing_mut_variable_only_used_immutably() {
     let src = r#"
     fn main() {
         let mut x = 3;
+                ^ variable does not need to be mutable
         let f = || x;
         let _x2 = f();
         assert(x == 3);
     }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -573,4 +577,35 @@ fn errors_on_duplicate_lambda_parameter_name() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn lambda_refers_to_numeric_generic() {
+    let src = r#"
+    fn main() -> pub bool {
+        foo::<10>()
+    }
+
+    fn foo<let N: u32>() -> bool {
+        (|x| x == N)(10)
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn nested_lambda_does_not_underflow_on_comptime_local_capture() {
+    let src = r#"
+    fn main() {
+        comptime let x = 1;
+
+        let f = || {
+            let g = || x;
+            g()
+        };
+
+        let _ = f();
+    }
+    "#;
+    assert_no_errors(src);
 }

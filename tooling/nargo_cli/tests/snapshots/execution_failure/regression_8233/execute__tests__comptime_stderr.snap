@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to subtract with overflow
+   ┌─ src/main.nr:14:66
+   │
+14 │             if (if (!false) { 1061432097 } else { (b >> 41) } < (506440519 - 3531841762)) {
+   │                                                                  ----------------------
+   │
+
+Error interpreting main function

@@ -161,8 +161,7 @@ impl CompareComptime {
         let program_comptime = program_wrap_expression(comptime_expr);
         let comptime_ssa = CompareArtifact::from(f_comptime(program_comptime)?);
 
-        let (res1, _) =
-            Self::exec_bytecode(&comptime_ssa.artifact.program, initial_witness.clone());
+        let (res1, _) = Self::exec_bytecode(&comptime_ssa.artifact.program, initial_witness);
 
         CompareCompiledResult::new(
             &self.abi,

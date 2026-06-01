@@ -2,9 +2,9 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
     input_parser::{Format, InputValue},
 };
-use std::{collections::BTreeMap, io::Write, path::Path};
+use std::{collections::BTreeMap, path::Path};
 
-use crate::errors::CliError;
+use crate::{errors::CliError, fs::artifact::write_to_file};
 
 /// Returns the circuit's parameters and its return value, if one exists.
 ///
@@ -32,6 +32,53 @@ pub fn read_inputs_from_file(
         return Err(FilesystemError(MissingInputFile(file_path.to_path_buf())));
     }
 
+    let format = format_from_file_path(file_path)?;
+
+    let inputs = std::fs::read_to_string(file_path)
+        .map_err(|e| FilesystemError(InvalidInputFile(file_path.to_path_buf(), e.to_string())))?;
+
+    let mut inputs = format.parse(&inputs, abi)?;
+    let return_value = inputs.remove(MAIN_RETURN_NAME);
+
+    Ok((inputs, return_value))
+}
+
+/// Writes input map to a file with a [Format] based on the file extension.
+///
+/// The inputs are expected to contain the `return` entry, if applicable.
+pub fn write_inputs_to_file(
+    file_path: &Path,
+    abi: &Abi,
+    input_map: &InputMap,
+) -> Result<(), CliError> {
+    let format = format_from_file_path(file_path)?;
+    let input_string = format.serialize(input_map, abi)?;
+    write_to_file(input_string.as_bytes(), file_path)?;
+    Ok(())
+}
+
+/// Writes the input map to a file with a given [Format].
+pub fn write_inputs_to_file_with_format<P: AsRef<Path>>(
+    path: P,
+    file_name: &str,
+    format: Format,
+    abi: &Abi,
+    input_map: &InputMap,
+) -> Result<(), CliError> {
+    if abi.is_empty() {
+        return Ok(());
+    }
+    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
+    let input_string = format.serialize(input_map, abi)?;
+    write_to_file(input_string.as_bytes(), &file_path)?;
+    Ok(())
+}
+
+/// Create a [Format] based on the file extension.
+fn format_from_file_path(file_path: &Path) -> Result<Format, CliError> {
+    use crate::errors::FilesystemError::InvalidInputFile;
+    use CliError::FilesystemError;
+
     let Some(ext) = file_path.extension().and_then(|e| e.to_str()) else {
         return Err(FilesystemError(InvalidInputFile(
             file_path.to_path_buf(),
@@ -46,34 +93,5 @@ pub fn read_inputs_from_file(
         )));
     };
 
-    let inputs = std::fs::read_to_string(file_path)
-        .map_err(|e| FilesystemError(InvalidInputFile(file_path.to_path_buf(), e.to_string())))?;
-
-    let mut inputs = format.parse(&inputs, abi)?;
-    let return_value = inputs.remove(MAIN_RETURN_NAME);
-
-    Ok((inputs, return_value))
-}
-
-/// Writes input map to a file
-pub fn write_inputs_to_file<P: AsRef<Path>>(
-    path: P,
-    file_name: &str,
-    format: Format,
-    abi: &Abi,
-    input_map: &InputMap,
-) -> Result<(), CliError> {
-    use crate::errors::FilesystemError::OutputFileCreationFailed;
-    if abi.is_empty() {
-        return Ok(());
-    }
-    use std::fs::File;
-    let file_path = path.as_ref().join(file_name).with_extension(format.ext());
-    let mut file =
-        File::create(&file_path).map_err(|e| OutputFileCreationFailed(file_path, e.to_string()))?;
-
-    let input_string = format.serialize(input_map, abi)?;
-    file.write_all(input_string.as_bytes()).expect("Failed to write to file");
-
-    Ok(())
+    Ok(format)
 }

@@ -139,30 +139,25 @@ impl Visitor for CodeLensVisitor<'_> {
 
         // Check if it's a test function
         if let Some(ReferenceId::Function(func_id)) = self.interner.reference_at_location(location)
+            && self.interner.function_modifiers(&func_id).attributes.is_test_function()
         {
-            if self.interner.function_modifiers(&func_id).attributes.is_test_function() {
-                let func_meta = self.interner.function_meta(&func_id);
-                let local_module_id = func_meta.source_module;
-                let crate_id = func_meta.source_crate;
-                let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
-                let module_path = fully_qualified_module_path(
-                    self.def_maps,
-                    self.crate_graph,
-                    &crate_id,
-                    module_id,
-                );
-                let func_name = if module_path.is_empty() {
-                    function.name().to_string()
-                } else {
-                    format!("{}::{}", module_path, function.name())
-                };
+            let func_meta = self.interner.function_meta(&func_id);
+            let local_module_id = func_meta.source_module;
+            let crate_id = func_meta.source_crate;
+            let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
+            let module_path =
+                fully_qualified_module_path(self.def_maps, self.crate_graph, &crate_id, module_id);
+            let func_name = if module_path.is_empty() {
+                function.name().to_string()
+            } else {
+                format!("{}::{}", module_path, function.name())
+            };
 
-                let range = byte_span_to_range(self.files, location.file, location.span.into())
-                    .unwrap_or_default();
-                self.lenses.push(test_lens(self.workspace, self.package, &func_name, range));
-                self.lenses.push(debug_test_lens(self.workspace, self.package, func_name, range));
-            }
-        };
+            let range = byte_span_to_range(self.files, location.file, location.span.into())
+                .unwrap_or_default();
+            self.lenses.push(test_lens(self.workspace, self.package, &func_name, range));
+            self.lenses.push(debug_test_lens(self.workspace, self.package, func_name, range));
+        }
 
         false
     }
@@ -292,32 +287,17 @@ fn debug_test_lens(
 mod tests {
 
     use async_lsp::lsp_types::{
-        CodeLensParams, DidOpenTextDocumentParams, PartialResultParams, TextDocumentIdentifier,
-        TextDocumentItem, WorkDoneProgressParams,
+        CodeLensParams, PartialResultParams, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use iter_extended::vecmap;
     use serde_json::Value;
     use tokio::test;
 
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_code_lens_request, test_utils,
-        types::CodeLensResult,
-    };
+    use crate::{requests::on_code_lens_request, test_utils, types::CodeLensResult};
 
     async fn get_code_lens(src: &str, directory: &str) -> CodeLensResult {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source(directory, "src/main.nr", src).await;
 
         on_code_lens_request(
             &mut state,

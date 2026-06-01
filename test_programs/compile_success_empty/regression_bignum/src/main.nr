@@ -17,7 +17,7 @@ unconstrained fn __udiv_mod(remainder_u60: [u64; 6]) {
 }
 
 unconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {
-    let mut addend_u60: [u64; 6] = [0; 6];
+    let addend_u60: [u64; 6] = [0; 6];
     let mut result_u60: [u64; 6] = [0; 6];
 
     for i in 0..6 {

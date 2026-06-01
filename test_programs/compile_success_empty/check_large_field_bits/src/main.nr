@@ -11,9 +11,9 @@ fn main() {
 
     let mut leading_zeroes = 0;
     let mut stop = false;
-    let bits: [u1; 64] = C.to_be_bits();
+    let bits: [bool; 64] = C.to_be_bits();
     for i in 0..64 {
-        if (bits[i] == 0) & !stop {
+        if !bits[i] & !stop {
             leading_zeroes += 1;
         } else {
             stop = true;
@@ -28,24 +28,27 @@ fn main() {
     assert(
         C.to_be_bits()
             == [
-                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 1, 0,
+                true, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, true, false,
             ],
     );
 
-    // leading big-endian bits past 34 are 0's
+    // leading big-endian bits past 34 are false
     assert(
         C.to_be_bits()
             == [
-                0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 1, 0,
+                false, true, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, true, false,
             ],
     );
     assert(
         C.to_be_bits()
             == [
-                0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 1, 0,
+                false, false, true, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, true, false,
             ],
     );
 }

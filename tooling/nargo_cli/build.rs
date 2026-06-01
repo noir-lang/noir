@@ -47,6 +47,11 @@ fn main() -> Result<(), String> {
     generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_comptime_interpret_noir_test_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_noir_test_failure_tests(&mut test_file, &test_dir);
+
+    generate_brillig_small_stack_execution_success_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -72,6 +77,20 @@ fn main() -> Result<(), String> {
 
     Ok(())
 }
+
+/// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
+/// because they need register spilling (not yet implemented).
+/// Remove tests from this list as spilling is implemented.
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
+    // TODO: Enabling this would require an indirect call convention. We are returning more args than allowed in the stack.
+    // To enable this code we would need to pass/return call args through a pointer.
+    "brillig_block_parameter_liveness",
+    // These tests rely on specific inliner settings, while we only run
+    // the small stack tests with the default maximally aggressive inliner.
+    "reference_counts_inliner_0",
+    "reference_counts_inliner_min",
+    "reference_counts_vectors_inliner_0",
+];
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
@@ -112,7 +131,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 6] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -122,6 +141,8 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     "comptime_enums",
     // Testing unreachable instructions
     "brillig_continue_break",
+    // Expected - tests the `std::meta::warn` builtin
+    "comptime_user_warning",
 ];
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
@@ -134,9 +155,11 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     "reference_counts_inliner_max",
 ];
 
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 0] = [];
+
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
@@ -146,7 +169,10 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     "regression_7323",
 ];
 
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+
 /// We usually check that the stdout of `nargo execute --force-comptime` matches
 /// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
 /// this can be solved.
@@ -154,8 +180,13 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
+const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
+    // For some reason at comptime a `comptime` function is considered a constant.
+    "comptime_globals",
+];
+
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -172,6 +203,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     "simple_shield",
     "strings",
     // The minimal SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
     // This relies on maximum inliner setting
@@ -184,7 +216,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -201,6 +233,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     "regression_10466",
     // bug
     "trait_associated_constant",
+    // Globals evaluate to invalid utf-8 which don't display correctly in a source file
+    "regression_12269",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -214,8 +248,6 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
-    // bug
-    "associated_type_bounds",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -231,6 +263,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     "workspace_reexport_bug",
     // bug
     "trait_call_in_global",
+    // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
+    "regression_7648",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
@@ -371,10 +405,17 @@ fn generate_test_cases(
 {test_cases}
 fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
+    #[allow(unused_variables)]
+    let runtime = if force_brillig.0 {{
+        Runtime::Brillig
+    }} else {{
+        Runtime::Acir
+    }};
 
     #[allow(unused_mut)]
-    let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
+    let (mut nargo, target_dir) = setup_nargo_command(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
     {test_content}
+    drop(target_dir);
 }}
 "#
     )
@@ -452,8 +493,7 @@ fn max_inliner(test_name: &str) -> i64 {
         .iter()
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
-        .map(|(_, i)| *i)
-        .unwrap_or(i64::MAX)
+        .map_or(i64::MAX, |(_, i)| *i)
 }
 
 fn min_inliner(test_name: &str) -> i64 {
@@ -461,8 +501,7 @@ fn min_inliner(test_name: &str) -> i64 {
         .iter()
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
-        .map(|(_, i)| *i)
-        .unwrap_or(i64::MIN)
+        .map_or(i64::MIN, |(_, i)| *i)
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -484,8 +523,11 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            "execution_failure(nargo);",
-            &MatrixConfig { vary_brillig: true, ..Default::default() },
+            "execution_failure(nargo, test_program_dir, runtime);",
+            &MatrixConfig {
+                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
+                ..Default::default()
+            },
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -529,8 +571,11 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let should_panic =
-            if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            if PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
                 "#[should_panic]"
             } else {
                 ""
@@ -569,8 +614,11 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let should_panic =
-            if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+            if PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
                 "#[should_panic]"
             } else {
                 ""
@@ -588,6 +636,108 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
                   nargo_execute_comptime_expect_failure(test_program_dir);
               }}
               "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "noir_test_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_NOIR_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+        let test_dir = test_dir.display();
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_test_comptime(test_program_dir);
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "noir_test_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_test_comptime_expect_failure(test_program_dir);
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_brillig_small_stack_execution_success_tests(
+    test_file: &mut File,
+    test_data_dir: &Path,
+) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod brillig_small_stack_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let should_panic = if IGNORED_BRILLIG_SMALL_STACK_TESTS.contains(&test_name.as_str()) {
+            "#[should_panic]"
+        } else {
+            ""
+        };
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+            #[test]
+            {should_panic}
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_execute_brillig_small_stack(test_program_dir);
+            }}
+            "#
         )
         .unwrap();
     }
@@ -696,7 +846,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             &test_dir,
             "info",
             &format!(
-                "compile_success_empty(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
+                "compile_success_empty(nargo, {});",
                 !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str())
             ),
             &MatrixConfig::default(),
@@ -724,7 +874,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_contract(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
+            "compile_success_contract(nargo);",
             &MatrixConfig::default(),
         );
     }
@@ -866,7 +1016,10 @@ fn generate_interpret_execution_failure_tests(test_file: &mut File, test_data_di
             &test_dir,
             "interpret",
             "interpret_execution_failure(nargo);",
-            &MatrixConfig { vary_brillig: true, ..Default::default() },
+            &MatrixConfig {
+                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
+                ..Default::default()
+            },
         );
     }
     writeln!(test_file, "}}").unwrap();

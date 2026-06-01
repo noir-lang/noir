@@ -11,139 +11,12 @@ use crate::{
     },
 };
 
-/// Represents a token in noir's grammar - a word, number,
-/// or symbol that can be used in noir's syntax. This is the
-/// smallest unit of grammar. A parser may (will) decide to parse
-/// items differently depending on the Tokens present but will
-/// never parse the same ordering of identical tokens differently.
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum BorrowedToken<'input> {
-    Ident(&'input str),
-    Int(FieldElement, Option<IntegerTypeSuffix>),
-    Bool(bool),
-    Str(&'input str),
-    /// the u8 is the number of hashes, i.e. r###..
-    RawStr(&'input str, u8),
-    FmtStr(&'input [FmtStrFragment], u32 /* length */),
-    Keyword(Keyword),
-    AttributeStart {
-        is_inner: bool,
-        is_tag: bool,
-    },
-    LineComment(&'input str, Option<DocStyle>),
-    BlockComment(&'input str, Option<DocStyle>),
-    Quote(&'input Tokens),
-    QuotedType(QuotedTypeId),
-    InternedExpression(InternedExpressionKind),
-    InternedStatement(InternedStatementKind),
-    InternedLValue(InternedExpressionKind),
-    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
-    InternedPattern(InternedPattern),
-    InternedCrate(CrateId),
-    /// <
-    Less,
-    /// <=
-    LessEqual,
-    /// >
-    Greater,
-    /// >=
-    GreaterEqual,
-    /// ==
-    Equal,
-    /// !=
-    NotEqual,
-    /// +
-    Plus,
-    /// -
-    Minus,
-    /// *
-    Star,
-    /// /
-    Slash,
-    /// \
-    Backslash,
-    /// %
-    Percent,
-    /// &
-    Ampersand,
-    /// &
-    DeprecatedVectorStart,
-    /// @
-    At,
-    /// ^
-    Caret,
-    /// <<
-    ShiftLeft,
-    /// >>
-    ShiftRight,
-    /// .
-    Dot,
-    /// ..
-    DoubleDot,
-    /// ..=
-    DoubleDotEqual,
-    /// (
-    LeftParen,
-    /// )
-    RightParen,
-    /// {
-    LeftBrace,
-    /// }
-    RightBrace,
-    /// [
-    LeftBracket,
-    /// ]
-    RightBracket,
-    /// ->
-    Arrow,
-    /// =>
-    FatArrow,
-    /// |
-    Pipe,
-    /// #
-    Pound,
-    /// ,
-    Comma,
-    /// :
-    Colon,
-    /// ::
-    DoubleColon,
-    /// ;
-    Semicolon,
-    /// !
-    Bang,
-    /// $
-    DollarSign,
-    /// =
-    Assign,
-    /// &&
-    LogicalAnd,
-    #[allow(clippy::upper_case_acronyms)]
-    EOF,
-
-    Whitespace(&'input str),
-
-    /// This is an implementation detail on how macros are implemented by quoting token streams.
-    /// This token marks where an unquote operation is performed. The ExprId argument is the
-    /// resolved variable which is being unquoted at this position in the token stream.
-    UnquoteMarker(ExprId),
-
-    /// An invalid character is one that is not in noir's language or grammar.
-    ///
-    /// We don't report invalid tokens in the source as errors until parsing to
-    /// avoid reporting the error twice (once while lexing, again when it is encountered
-    /// during parsing). Reporting during lexing then removing these from the token stream
-    /// would not be equivalent as it would change the resulting parse.
-    Invalid(char),
-}
-
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
 pub enum IntegerTypeSuffix {
     I8,
     I16,
     I32,
     I64,
-    U1,
     U8,
     U16,
     U32,
@@ -158,8 +31,7 @@ impl IntegerTypeSuffix {
     ///
     /// An integer value like `3u32` has type `u32` but when used in a type `[Field; 3u32]`,
     /// `3u32` will have the type `Type::Constant(3, Kind::Numeric(u32))`. As a result, using
-    /// this method for any kind checks on integer types will result in a kind error! For those
-    /// cases, use [IntegerTypeSuffix::as_kind] instead.
+    /// this method for any kind checks on integer types will result in a kind error!
     pub(crate) fn as_type(self) -> crate::Type {
         use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
         match self {
@@ -167,7 +39,6 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
             IntegerTypeSuffix::I32 => Integer(Signed, ThirtyTwo),
             IntegerTypeSuffix::I64 => Integer(Signed, SixtyFour),
-            IntegerTypeSuffix::U1 => Integer(Unsigned, One),
             IntegerTypeSuffix::U8 => Integer(Unsigned, Eight),
             IntegerTypeSuffix::U16 => Integer(Unsigned, Sixteen),
             IntegerTypeSuffix::U32 => Integer(Unsigned, ThirtyTwo),
@@ -175,18 +46,6 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
             IntegerTypeSuffix::Field => crate::Type::FieldElement,
         }
-    }
-
-    /// Returns the kind of this integer constant when used in a type position.
-    /// For example, when used as `[Field; 3u32]`, this [IntegerTypeSuffix::U32]
-    /// will return `Kind::Numeric(Type::U32)`.
-    ///
-    /// This method should generally be used whenever an integer is used in a type position.
-    /// [IntegerTypeSuffix::as_type] would return a raw `u32` type which is not the actual
-    /// type of an integer in a type position - that'd be `Type::Constant(3, Kind::Numeric(u32))`
-    /// for `3u32`.
-    pub(crate) fn as_kind(self) -> crate::Kind {
-        crate::Kind::Numeric(Box::new(self.as_type()))
     }
 }
 
@@ -251,8 +110,6 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// &
-    DeprecatedVectorStart,
     /// @
     At,
     /// ^
@@ -320,74 +177,6 @@ pub enum Token {
     /// during parsing). Reporting during lexing then removing these from the token stream
     /// would not be equivalent as it would change the resulting parse.
     Invalid(char),
-}
-
-pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
-    match token {
-        Token::Ident(s) => BorrowedToken::Ident(s),
-        Token::Int(n, suffix) => BorrowedToken::Int(*n, *suffix),
-        Token::Bool(b) => BorrowedToken::Bool(*b),
-        Token::Str(b) => BorrowedToken::Str(b),
-        Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
-        Token::RawStr(b, hashes) => BorrowedToken::RawStr(b, *hashes),
-        Token::Keyword(k) => BorrowedToken::Keyword(*k),
-        Token::AttributeStart { is_inner, is_tag } => {
-            BorrowedToken::AttributeStart { is_inner: *is_inner, is_tag: *is_tag }
-        }
-        Token::LineComment(s, _style) => BorrowedToken::LineComment(s, *_style),
-        Token::BlockComment(s, _style) => BorrowedToken::BlockComment(s, *_style),
-        Token::Quote(stream) => BorrowedToken::Quote(stream),
-        Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
-        Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
-        Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
-        Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
-        Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
-        Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
-        Token::InternedCrate(id) => BorrowedToken::InternedCrate(*id),
-        Token::Less => BorrowedToken::Less,
-        Token::LessEqual => BorrowedToken::LessEqual,
-        Token::Greater => BorrowedToken::Greater,
-        Token::GreaterEqual => BorrowedToken::GreaterEqual,
-        Token::Equal => BorrowedToken::Equal,
-        Token::NotEqual => BorrowedToken::NotEqual,
-        Token::Plus => BorrowedToken::Plus,
-        Token::Minus => BorrowedToken::Minus,
-        Token::Star => BorrowedToken::Star,
-        Token::Slash => BorrowedToken::Slash,
-        Token::Backslash => BorrowedToken::Backslash,
-        Token::Percent => BorrowedToken::Percent,
-        Token::Ampersand => BorrowedToken::Ampersand,
-        Token::DeprecatedVectorStart => BorrowedToken::DeprecatedVectorStart,
-        Token::At => BorrowedToken::At,
-        Token::Caret => BorrowedToken::Caret,
-        Token::ShiftLeft => BorrowedToken::ShiftLeft,
-        Token::ShiftRight => BorrowedToken::ShiftRight,
-        Token::Dot => BorrowedToken::Dot,
-        Token::DoubleDot => BorrowedToken::DoubleDot,
-        Token::DoubleDotEqual => BorrowedToken::DoubleDotEqual,
-        Token::LeftParen => BorrowedToken::LeftParen,
-        Token::RightParen => BorrowedToken::RightParen,
-        Token::LeftBrace => BorrowedToken::LeftBrace,
-        Token::RightBrace => BorrowedToken::RightBrace,
-        Token::LeftBracket => BorrowedToken::LeftBracket,
-        Token::RightBracket => BorrowedToken::RightBracket,
-        Token::Arrow => BorrowedToken::Arrow,
-        Token::FatArrow => BorrowedToken::FatArrow,
-        Token::Pipe => BorrowedToken::Pipe,
-        Token::Pound => BorrowedToken::Pound,
-        Token::Comma => BorrowedToken::Comma,
-        Token::Colon => BorrowedToken::Colon,
-        Token::DoubleColon => BorrowedToken::DoubleColon,
-        Token::Semicolon => BorrowedToken::Semicolon,
-        Token::Assign => BorrowedToken::Assign,
-        Token::Bang => BorrowedToken::Bang,
-        Token::DollarSign => BorrowedToken::DollarSign,
-        Token::LogicalAnd => BorrowedToken::LogicalAnd,
-        Token::EOF => BorrowedToken::EOF,
-        Token::Invalid(c) => BorrowedToken::Invalid(*c),
-        Token::Whitespace(s) => BorrowedToken::Whitespace(s),
-        Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
-    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
@@ -569,7 +358,7 @@ impl Display for Token {
             },
             Token::Quote(ref stream) => {
                 write!(f, "quote {{")?;
-                for token in stream.0.iter() {
+                for token in &stream.0 {
                     write!(f, " {token}")?;
                 }
                 write!(f, "}}")
@@ -597,7 +386,6 @@ impl Display for Token {
             Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::DeprecatedVectorStart => write!(f, "&"),
             Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
@@ -638,7 +426,6 @@ impl Display for IntegerTypeSuffix {
             IntegerTypeSuffix::I16 => write!(f, "i16"),
             IntegerTypeSuffix::I32 => write!(f, "i32"),
             IntegerTypeSuffix::I64 => write!(f, "i64"),
-            IntegerTypeSuffix::U1 => write!(f, "u1"),
             IntegerTypeSuffix::U8 => write!(f, "u8"),
             IntegerTypeSuffix::U16 => write!(f, "u16"),
             IntegerTypeSuffix::U32 => write!(f, "u32"),
@@ -798,9 +585,8 @@ impl IntType {
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
 
-        let str_as_u32 = match word[1..].parse::<u32>() {
-            Ok(str_as_u32) => str_as_u32,
-            Err(_) => return None,
+        let Ok(str_as_u32) = word[1..].parse::<u32>() else {
+            return None;
         };
 
         if is_signed {
@@ -908,13 +694,12 @@ impl Attributes {
     }
 
     pub fn as_test_function(&self) -> Option<(&TestScope, Location)> {
-        self.function().and_then(|attr| {
-            if let FunctionAttributeKind::Test(scope) = &attr.kind {
-                Some((scope, attr.location))
-            } else {
-                None
-            }
-        })
+        let attr = self.function()?;
+        if let FunctionAttributeKind::Test(scope) = &attr.kind {
+            Some((scope, attr.location))
+        } else {
+            None
+        }
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
@@ -922,13 +707,12 @@ impl Attributes {
     }
 
     pub fn as_fuzzing_harness(&self) -> Option<(&FuzzingScope, Location)> {
-        self.function().and_then(|attr| {
-            if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
-                Some((scope, attr.location))
-            } else {
-                None
-            }
-        })
+        let attr = self.function()?;
+        if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
+            Some((scope, attr.location))
+        } else {
+            None
+        }
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
@@ -940,10 +724,12 @@ impl Attributes {
             && !self.is_fuzzing_harness()
     }
 
-    /// Returns note if a deprecated secondary attribute is found
-    pub fn get_deprecated_note(&self) -> Option<Option<String>> {
+    /// If there is a deprecated attribute, return a tuple of (deny, message)
+    /// from the attribute's arguments. If neither argument is specified, deny
+    /// defaults to false while message defaults to None.
+    pub fn get_deprecated(&self) -> Option<(bool, Option<String>)> {
         self.secondary.iter().find_map(|attr| match &attr.kind {
-            SecondaryAttributeKind::Deprecated(note) => Some(note.clone()),
+            SecondaryAttributeKind::Deprecated(deny, note) => Some((*deny, note.clone())),
             _ => None,
         })
     }
@@ -985,6 +771,11 @@ impl Attributes {
     /// Check if secondary attributes contain a specific instance.
     pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
         self.secondary.iter().any(|attr| &attr.kind == kind)
+    }
+
+    /// True if the function is marked with `#[pure]`.
+    pub fn is_pure(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttributeKind::Pure)
     }
 }
 
@@ -1118,7 +909,14 @@ pub struct SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SecondaryAttributeKind {
-    Deprecated(Option<String>),
+    /// Marks whether a function is deprecated or not.
+    ///
+    /// - The first parameter is `true` if this should be a hard error, or `false` for a warning.
+    ///   In source code, not specifying "deny" will default this to a warning.
+    /// - The second parameter is the optional error message. If provided, this becomes the primary
+    ///   error message.
+    Deprecated(bool, Option<String>),
+
     // This is an attribute to specify that a function
     // is a helper method for a contract and should not be seen as
     // the entry point.
@@ -1132,6 +930,14 @@ pub enum SecondaryAttributeKind {
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
+    /// Tags a struct or global inside a `contract` block for inclusion in the
+    /// compiled contract artifact. The string is the tag name used as a key in
+    /// the compiled contract artifact: tagged structs go into a `structs` map and
+    /// tagged globals go into a `globals` map, both keyed by tag.
+    ///
+    /// Only valid inside `contract` blocks (enforced during elaboration).
+    ///
+    /// Example: `#[abi(my_tag)]`
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -1150,6 +956,13 @@ pub enum SecondaryAttributeKind {
     /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
     /// an optional message for the error.
     MustUse(Option<String>),
+
+    /// Asserts that an `#[oracle]` function is pure and that
+    /// the call has no observable side effects on the program.
+    ///
+    /// Only valid on `unconstrained` functions also marked `#[oracle(...)]`.
+    /// For other functions, purity is deduced from their implementation.
+    Pure,
 }
 
 impl SecondaryAttributeKind {
@@ -1166,9 +979,11 @@ impl SecondaryAttributeKind {
 
     pub(crate) fn contents(&self) -> String {
         match self {
-            SecondaryAttributeKind::Deprecated(None) => "deprecated".to_string(),
-            SecondaryAttributeKind::Deprecated(Some(note)) => {
-                format!("deprecated({note:?})")
+            SecondaryAttributeKind::Deprecated(false, None) => "deprecated".to_string(),
+            SecondaryAttributeKind::Deprecated(true, None) => "deprecated(deny)".to_string(),
+            SecondaryAttributeKind::Deprecated(deny, Some(note)) => {
+                let deny = if *deny { "deny, " } else { "" };
+                format!("deprecated({deny}{note:?})")
             }
             SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
@@ -1181,6 +996,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
             SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
             SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::Pure => "pure".to_string(),
         }
     }
 

@@ -10,8 +10,10 @@
 use std::path::Path;
 
 use crate::elaborator::FrontendOptions;
+use crate::error_reporting::report_all;
 
 use iter_extended::vecmap;
+use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
 use crate::hir::Context;
@@ -55,9 +57,14 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
 /// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
 pub fn get_monomorphized_with_stdlib(
     user_src: &str,
-    stdlib_src: &str,
+    stdlib_src: &[&str],
 ) -> Result<Program, MonomorphizationError> {
-    let src = format!("{stdlib_src}\n\n{user_src}");
+    let mut src = String::new();
+    for s in stdlib_src {
+        src.push_str(s);
+        src.push_str("\n\n");
+    }
+    src.push_str(user_src);
     get_monomorphized_with_options(
         &src,
         GetProgramOptions { root_and_stdlib: true, ..Default::default() },
@@ -74,6 +81,8 @@ pub fn get_monomorphized_with_options(
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
     if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
+        let diagnostics = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        report_all(&context.file_manager, &context.parsed_files, &diagnostics, false, false);
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
@@ -83,7 +92,7 @@ pub fn get_monomorphized_with_options(
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, false)
+    monomorphize(main, &mut context.def_interner, context.file_manager.as_file_map(), false)
 }
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
@@ -156,7 +165,7 @@ pub(crate) fn get_program_with_options(
             None,
             location,
             Vec::new(),
-            inner_attributes.clone(),
+            inner_attributes,
             false, // is contract
             false, // is struct
         );
@@ -189,6 +198,45 @@ pub mod stdlib_src {
         }
     ";
 
+    pub const ORD: &str = "
+        mod cmp {
+            use super::Eq;
+
+            // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
+            // that has 3 public functions for constructing the struct.
+            pub struct Ordering {
+                result: Field,
+            }
+
+            impl Ordering {
+                // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
+                // into the compiler, do not change these without also updating
+                // the compiler itself!
+                pub fn less() -> Ordering {
+                    Ordering { result: 0 }
+                }
+
+                pub fn equal() -> Ordering {
+                    Ordering { result: 1 }
+                }
+
+                pub fn greater() -> Ordering {
+                    Ordering { result: 2 }
+                }
+            }
+
+            pub trait Ord {
+                fn cmp(self, other: Self) -> Ordering;
+            }
+
+            impl Eq for Ordering {
+                fn eq(self, other: Ordering) -> bool {
+                    self.result == other.result
+                }
+            }
+        }
+    ";
+
     pub const NEG: &str = "
         pub trait Neg {
             fn neg(self) -> Self;
@@ -216,10 +264,10 @@ pub mod stdlib_src {
         pub fn modulus_num_bits() -> u64 {}
 
         #[builtin(modulus_be_bits)]
-        pub fn modulus_be_bits() -> [u1] {}
+        pub fn modulus_be_bits() -> [bool] {}
 
         #[builtin(modulus_le_bits)]
-        pub fn modulus_le_bits() -> [u1] {}
+        pub fn modulus_le_bits() -> [bool] {}
 
         #[builtin(modulus_be_bytes)]
         pub fn modulus_be_bytes() -> [u8] {}
@@ -228,8 +276,22 @@ pub mod stdlib_src {
         pub fn modulus_le_bytes() -> [u8] {}
     ";
 
+    // This is also a `comptime` function in stdlib.
+    pub const POSEIDON2: &str = "
+        #[foreign(poseidon2_config_state_size)]
+        pub fn poseidon2_config_state_size() -> u32 {}
+    ";
+
     pub const PRINT: &str = "
         #[oracle(print)]
         unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+
+        unconstrained fn println<T>(input: T) {
+            print_unconstrained(true, input);
+        }
+
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+            print_oracle(with_newline, input);
+        }
     ";
 }

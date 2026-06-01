@@ -109,6 +109,7 @@ pub fn compile_bin_package_for_debugging(
     report_errors(
         compilation_result,
         &workspace_file_manager,
+        &parsed_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
@@ -170,7 +171,7 @@ fn instrument_package_files(
     let entry_path_parent = package
         .entry_path
         .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {}", package.entry_path.display()));
 
     let mut debug_instrumenter = DebugInstrumenter::default();
 
@@ -180,7 +181,7 @@ fn instrument_package_files(
         for ancestor in file_path.ancestors() {
             if ancestor == entry_path_parent {
                 // file is in package
-                debug_instrumenter.instrument_module(&mut parsed_file.0, *file_id);
+                debug_instrumenter.instrument_module(&mut parsed_file.0);
             }
         }
     }

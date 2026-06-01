@@ -91,6 +91,28 @@ pub fn trait_member_is_visible(
     type_member_is_visible(trait_id.0, visibility, current_module_id, def_maps)
 }
 
+/// Returns true if the trait that `func_id` belongs to (as a trait declaration or trait impl)
+/// is visible from `current_module`. Returns true if `func_id` is not a trait method, or if
+/// its function meta has not been registered yet (in which case there's nothing to check).
+pub fn trait_visibility_for_method_is_satisfied(
+    func_id: FuncId,
+    current_module: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    let Some(func_meta) = interner.try_function_meta(&func_id) else { return true };
+    let visibility = interner.function_modifiers(&func_id).visibility;
+
+    if let Some(trait_id) = func_meta.trait_id {
+        return trait_member_is_visible(trait_id, visibility, current_module, def_maps);
+    }
+    if let Some(trait_impl_id) = func_meta.trait_impl {
+        let trait_id = interner.get_trait_implementation(trait_impl_id).borrow().trait_id;
+        return trait_member_is_visible(trait_id, visibility, current_module, def_maps);
+    }
+    true
+}
+
 /// Returns whether a struct or trait member with the given visibility is visible from `current_module_id`.
 fn type_member_is_visible(
     type_module_id: ModuleId,
@@ -146,52 +168,62 @@ pub fn method_call_is_visible(
         ItemVisibility::PublicCrate | ItemVisibility::Private => {
             let func_meta = interner.function_meta(&func_id);
 
-            if let Some(trait_id) = func_meta.trait_id {
-                return trait_member_is_visible(
-                    trait_id,
-                    modifiers.visibility,
+            if func_meta.trait_id.is_some() || func_meta.trait_impl.is_some() {
+                return trait_visibility_for_method_is_satisfied(
+                    func_id,
                     current_module,
-                    def_maps,
-                );
-            }
-
-            if let Some(trait_impl_id) = func_meta.trait_impl {
-                let trait_impl = interner.get_trait_implementation(trait_impl_id);
-                return trait_member_is_visible(
-                    trait_impl.borrow().trait_id,
-                    modifiers.visibility,
-                    current_module,
+                    interner,
                     def_maps,
                 );
             }
 
             // A private method defined on `Foo<i32>` should be visible when calling
             // it from an impl on `Foo<i64>`, even though the generics are different.
-            if let Some(self_type) = self_type {
-                if is_same_type_regardless_generics(self_type, object_type) {
-                    if modifiers.visibility.is_private() {
-                        // Only allow accessing private methods of a type if we are under the same
-                        // module where the type was defined. OTOH if we are in an `impl Foo<i32>`
-                        // block in a different module, extending the type with new methods, then
-                        // we should only access public parts defined in other modules, or private
-                        // ones defined in the same extension.
-                        let def_map = &def_maps[&current_module.krate];
-                        // Cannot call `type_member_is_visible` because it goes up to the parent;
-                        // the `func_meta.source_module` already seems to be the parent.
-                        return module_is_descendant_of_target(
-                            def_map,
-                            current_module.local_id,
-                            func_meta.source_module,
-                        );
-                    } else {
-                        // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
-                        // already checked that the types are the same, so we are in the same crate.
-                        return true;
-                    }
+            if let Some(self_type) = self_type
+                && is_same_type_regardless_generics(self_type, object_type)
+            {
+                if modifiers.visibility.is_private() {
+                    // Only allow accessing private methods of a type if we are under the same
+                    // module where the type was defined. OTOH if we are in an `impl Foo<i32>`
+                    // block in a different module, extending the type with new methods, then
+                    // we should only access public parts defined in other modules, or private
+                    // ones defined in the same extension.
+                    let def_map = &def_maps[&current_module.krate];
+                    // Cannot call `type_member_is_visible` because it goes up to the parent;
+                    // the `func_meta.source_module` already seems to be the parent.
+                    return module_is_descendant_of_target(
+                        def_map,
+                        current_module.local_id,
+                        func_meta.source_module,
+                    );
+                } else {
+                    // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
+                    // already checked that the types are the same, so we are in the same crate.
+                    return true;
                 }
             }
 
             if let Some(struct_id) = func_meta.type_id {
+                // For inherent impl methods, check visibility against the impl's
+                // defining module (source_module). This prevents private methods defined
+                // in `impl super::S` inside `mod private` from being callable outside
+                // `mod private` via `s.method()`.
+                if func_meta.trait_impl.is_none() {
+                    let source_module = ModuleId {
+                        krate: func_meta.source_crate,
+                        local_id: func_meta.source_module,
+                    };
+                    let type_module = struct_id.module_id();
+                    if source_module != type_module {
+                        return item_in_module_is_visible(
+                            def_maps,
+                            current_module,
+                            source_module,
+                            modifiers.visibility,
+                        );
+                    }
+                }
+
                 return struct_member_is_visible(
                     struct_id,
                     modifiers.visibility,

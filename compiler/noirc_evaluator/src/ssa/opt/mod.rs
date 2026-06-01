@@ -4,14 +4,20 @@
 //! simpler form until the IR only has a single function remaining with 1 block within it.
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
+mod alias_analysis;
+mod array_get;
 mod array_set;
+mod array_set_window_optimization;
 mod as_vector_length;
 mod basic_conditional;
 mod black_box_bypass;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
+mod brillig_function_specialization;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
+#[cfg(debug_assertions)]
+mod checks;
 mod constant_folding;
 mod defunctionalize;
 mod die;
@@ -22,9 +28,12 @@ pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
 mod inlining;
+mod load_store_forwarding;
 mod loop_invariant;
+mod lower_refs_at_acir_brillig_boundary;
 mod make_constrain_not_equal;
 mod mem2reg;
+mod mutable_array_set;
 mod normalize_value_ids;
 mod preprocess_fns;
 pub(crate) mod pure;
@@ -32,6 +41,7 @@ mod rc;
 mod remove_bit_shifts;
 mod remove_enable_side_effects;
 mod remove_if_else;
+mod remove_redundant_params;
 mod remove_truncate_after_range_check;
 mod remove_unreachable_functions;
 mod remove_unreachable_instructions;
@@ -40,9 +50,17 @@ mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
 
+pub(crate) use array_get::{
+    ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
+    try_optimize_array_get_from_previous_instructions,
+};
+pub use brillig_function_specialization::{
+    DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
+};
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
-pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
-pub(crate) use unrolling::Loops;
+pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;
+pub use unrolling::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
+pub(crate) use unrolling::{LoopOrder, Loops};
 
 #[cfg(test)]
 use crate::ssa::{
@@ -147,11 +165,15 @@ fn assert_pass_does_not_affect_execution(
     inputs: Vec<Value>,
     ssa_pass: impl FnOnce(Ssa) -> Ssa,
 ) -> (Ssa, Result<Vec<Value>, InterpreterError>) {
-    let before = ssa.interpret(inputs.clone());
+    // Each run gets its own deep copy of the inputs. A shallow `Vec::clone` would share the
+    // backing `Shared<Vec<Value>>` of any array argument, so an in-place `array_set` in the
+    // first run would corrupt the inputs of the second — masking exactly the kind of
+    // copy-on-write difference this helper is meant to detect.
+    let before = ssa.interpret(Value::snapshot_args(&inputs));
 
     let new_ssa = ssa_pass(ssa);
 
-    let after = new_ssa.interpret(inputs);
+    let after = new_ssa.interpret(Value::snapshot_args(&inputs));
     assert_eq!(before, after, "SSA pass has resulted in a different execution result");
     (new_ssa, after)
 }

@@ -2,7 +2,7 @@ use std::str::{CharIndices, FromStr};
 
 use acir_field::{AcirField, FieldElement};
 
-use noirc_span::{Position, Span};
+use super::span::{Position, Span};
 use num_bigint::BigInt;
 use num_traits::One;
 use thiserror::Error;
@@ -30,12 +30,9 @@ impl<'a> Lexer<'a> {
     }
 
     pub(super) fn next_token(&mut self) -> SpannedTokenResult {
-        let ch = match self.next_char() {
-            Some(ch) => ch,
-            None => {
-                self.done = true;
-                return Ok(Token::Eof.into_single_span(self.position));
-            }
+        let Some(ch) = self.next_char() else {
+            self.done = true;
+            return Ok(Token::Eof.into_single_span(self.position));
         };
 
         match ch {

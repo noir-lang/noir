@@ -20,7 +20,7 @@ pub(super) fn decompose_constrain(
     let mut instructions = Vec::new();
 
     // Sometimes when decomposing a constraint we may generate further constraints to decompose.
-    // A recursive version can hit stack overflow, so here we use a stack for an interative approach.
+    // A recursive version can hit stack overflow, so here we use a stack for an iterative approach.
     // Each entry in the stack represents `constrain lhs == rhs`.
     let mut constrains = VecDeque::new();
     constrains.push_back((lhs, rhs));
@@ -56,7 +56,7 @@ pub(super) fn decompose_constrain(
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
-                        if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
+                        if constant.is_one() && *dfg.type_of_value(lhs) == Type::bool() =>
                     {
                         // Replace an equality assertion on a boolean multiplication
                         //
@@ -257,7 +257,7 @@ mod tests {
     fn simplifies_out_noop_bitwise_ands() {
         // Regression test for https://github.com/noir-lang/noir/issues/7451
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             v1 = and u8 255, v0
             return v1
@@ -266,8 +266,8 @@ mod tests {
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             return v0
         }

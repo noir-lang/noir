@@ -83,7 +83,7 @@ where
         if vs.is_empty() {
             return Ok(None);
         }
-        u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
+        u.choose_iter(vs.iter()).map(Some).map(|v| v.copied())
     }
 
     /// Choose a random producer of a type matching some criteria.
@@ -109,7 +109,7 @@ where
             return Ok(None);
         }
 
-        u.choose_iter(candidates).map(Some).map(|v| v.cloned())
+        u.choose_iter(candidates).map(Some).map(|v| v.copied())
     }
 
     /// Get a variable in scope.
@@ -198,7 +198,7 @@ where
 
     /// Remove a variable from all scopes.
     pub fn remove(&mut self, id: &K) {
-        for scope in self.0.iter_mut() {
+        for scope in &mut self.0 {
             scope.remove(id);
         }
     }
@@ -206,6 +206,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use noirc_frontend::monomorphization::ast::{LocalId, Type};
 
     use crate::program::types;
@@ -215,7 +217,7 @@ mod tests {
     #[test]
     fn test_scope_stack() {
         let foo_type =
-            Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Box::new(types::U32))]);
+            Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Rc::new(types::U32))]);
 
         let mut stack = ScopeStack::from_variables(
             [(LocalId(0), false, "foo".to_string(), foo_type)].into_iter(),

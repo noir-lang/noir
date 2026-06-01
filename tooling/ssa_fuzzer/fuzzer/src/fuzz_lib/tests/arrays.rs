@@ -121,7 +121,7 @@ fn test_reference_in_array() {
     let create_array_block = InstructionBlock {
         instructions: vec![Instruction::CreateArray {
             elements_indices: vec![0, 1, 2],
-            element_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+            element_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
         }],
     };
     let get_from_array_block = InstructionBlock {
@@ -133,7 +133,7 @@ fn test_reference_in_array() {
     };
     let typed_memory_2 = Argument { index: 2, value_type: Type::Numeric(NumericType::Field) };
     let load_from_memory_block = InstructionBlock {
-        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2.clone() }],
+        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2 }],
     };
     let instructions_blocks = vec![
         add_to_memory_block,

@@ -8,8 +8,9 @@ use flate2::Compression;
 use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
 use noirc_errors::{
-    Location,
+    CustomDiagnostic, Location, Span,
     call_stack::{CallStack, CallStackHelper, CallStackId},
+    function_locations::FunctionLocations,
 };
 use noirc_printable_type::PrintableType;
 use serde::Deserializer;
@@ -17,8 +18,8 @@ use serde::Serializer;
 use serde::{
     Deserialize, Serialize, de::Error as DeserializationError, ser::Error as SerializationError,
 };
-use std::io::Read;
 use std::io::Write;
+use std::{collections::HashSet, io::Read};
 use std::{
     collections::{BTreeMap, BTreeSet},
     mem,
@@ -77,10 +78,15 @@ impl DebugArtifact {
         for file_id in files_with_debug_symbols {
             let file_path = file_manager.path(file_id).expect("file should exist");
             let file_source = file_manager.fetch_file(file_id).expect("file should exist");
+            let function_locations = BTreeSet::default();
 
             file_map.insert(
                 file_id,
-                DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
+                DebugFile {
+                    source: file_source.to_string(),
+                    path: file_path.to_path_buf(),
+                    function_locations,
+                },
             );
         }
 
@@ -156,6 +162,36 @@ impl DebugArtifact {
         let source = self.source(location.file)?;
         self.line_index(location.file, source.len())
     }
+
+    /// Returns the function locations relevant to the given diagnostic's call stack.
+    pub fn function_locations_for_diagnostic(
+        &self,
+        diagnostic: &CustomDiagnostic,
+    ) -> FunctionLocations {
+        let mut file_ids = HashSet::new();
+        for location in &diagnostic.call_stack {
+            file_ids.insert(location.file);
+        }
+
+        let mut function_locations = FunctionLocations::new();
+        for file_id in file_ids {
+            let Some(debug_file) = self.file_map.get(&file_id) else {
+                continue;
+            };
+
+            let locations = debug_file.function_locations.iter().collect::<Vec<_>>();
+            for (index, location) in locations.iter().enumerate() {
+                let start = location.start;
+                let end =
+                    if index < locations.len() - 1 { locations[index + 1].start } else { u32::MAX };
+                let span = Span::from(start..end);
+                let name = location.name.clone();
+                let location = Location { span, file: file_id };
+                function_locations.insert(location, name);
+            }
+        }
+        function_locations
+    }
 }
 
 impl From<CompiledProgram> for DebugArtifact {
@@ -207,11 +243,10 @@ impl<'a> Files<'a> for DebugArtifact {
         let name: Self::Name = name.map(|file| file.path.clone().into())?;
 
         // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-        if let Ok(current_dir) = std::env::current_dir() {
-            if let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
-            {
-                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
-            }
+        if let Ok(current_dir) = std::env::current_dir()
+            && let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
+        {
+            return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
         }
 
         Ok(name)
@@ -222,17 +257,15 @@ impl<'a> Files<'a> for DebugArtifact {
     }
 
     fn line_index(&self, file_id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).and_then(|file| {
-            SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
-                .line_index((), byte_index)
-        })
+        let file = self.file_map.get(&file_id).ok_or(Error::FileMissing)?;
+        SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
+            .line_index((), byte_index)
     }
 
     fn line_range(&self, file_id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).and_then(|file| {
-            SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
-                .line_range((), line_index)
-        })
+        let file = self.file_map.get(&file_id).ok_or(Error::FileMissing)?;
+        SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
+            .line_range((), line_index)
     }
 }
 
@@ -340,13 +373,13 @@ impl DebugInfo {
         }
     }
 
-    pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<Vec<Location>> {
+    pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<CallStack> {
         self.acir_locations
             .get(loc)
             .map(|call_stack_id| self.location_tree.get_call_stack(*call_stack_id))
     }
 
-    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
+    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<CallStack> {
         match loc {
             OpcodeLocation::Brillig { .. } => None, //TODO: need brillig function id in order to look into brillig_locations
             OpcodeLocation::Acir(loc) => self.acir_opcode_location(&AcirOpcodeLocation::new(*loc)),
@@ -360,13 +393,17 @@ pub struct LocationNodeDebugInfo {
     pub value: Location,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
 pub struct LocationTree {
-    pub locations: Vec<LocationNodeDebugInfo>,
+    locations: Vec<LocationNodeDebugInfo>,
 }
 
 impl LocationTree {
-    /// Construct a CallStack from a CallStackId
+    pub fn locations(&self) -> &[LocationNodeDebugInfo] {
+        &self.locations
+    }
+
+    /// Construct a [CallStack] from a [CallStackId]
     pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
         let mut result = Vec::new();
         while let Some(parent) = self.locations[call_stack.index()].parent {
@@ -374,7 +411,7 @@ impl LocationTree {
             call_stack = parent;
         }
         result.reverse();
-        result
+        CallStack::new(result)
     }
 }
 
@@ -383,7 +420,7 @@ impl From<&CallStackHelper> for LocationTree {
         // Clone the locations into a LocationTree
         LocationTree {
             locations: helper
-                .locations
+                .locations()
                 .iter()
                 .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
                 .collect(),
@@ -393,10 +430,24 @@ impl From<&CallStackHelper> for LocationTree {
 
 /// For a given file, we store the source code and the path to the file
 /// so consumers of the debug artifact can reconstruct the original source code structure.
+/// We also track the range each function occupies in the source code, together with its name.
+/// This is used to show a function's name when showing back traces.
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct DebugFile {
     pub source: String,
     pub path: PathBuf,
+    pub function_locations: BTreeSet<FunctionLocation>,
+}
+
+/// A function name and where in the source code it is declared.
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FunctionLocation {
+    /// The byte index where the function starts.
+    /// For call stack purposes, the end of a function can be considered to be the start
+    /// of the next function.
+    pub start: u32,
+    /// The function's name.
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]

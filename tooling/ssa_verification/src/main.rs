@@ -50,7 +50,7 @@ fn save_to_file(data: &[u8], filename: &str) -> Result<(), std::io::Error> {
 /// Saves instruction artifacts to files in the artifacts directory
 /// Prints the formatted SSA for each artifact and saves the decompressed ACIR
 fn save_artifacts(all_artifacts: Vec<InstructionArtifacts>, dir: &str) {
-    for artifacts in all_artifacts.iter() {
+    for artifacts in &all_artifacts {
         println!("{}\n{}", artifacts.instruction_name, artifacts.formatted_ssa);
         let filename = format!("{}{}{}", dir, artifacts.instruction_name, ".acir");
         let acir = &artifacts.serialized_acir;

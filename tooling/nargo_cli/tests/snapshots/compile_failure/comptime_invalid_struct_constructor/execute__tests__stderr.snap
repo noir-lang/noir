@@ -30,11 +30,4 @@ error: Type Foo has no member named c
    │                   -
    │
 
-error: Type annotation needed
-   ┌─ src/main.nr:11:9
-   │
-11 │         println(x.c);
-   │         ------- Could not determine the type of the generic argument `T` declared on the function `println`
-   │
-
-Aborting due to 5 previous errors
+Aborting due to 4 previous errors

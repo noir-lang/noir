@@ -17,7 +17,7 @@ pub(crate) mod registers;
 
 mod codegen_binary;
 mod codegen_calls;
-mod codegen_control_flow;
+pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
@@ -34,7 +34,11 @@ use registers::{RegisterAllocator, ScratchSpace};
 
 use crate::brillig::assert_u32;
 
-pub(crate) use self::registers::LayoutConfig;
+pub use self::registers::LayoutConfig;
+pub use self::registers::{
+    MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
+    NUM_STACK_FRAMES,
+};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -79,6 +83,29 @@ impl ReservedRegisters {
     /// This register stores a 1_usize constant.
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
+    }
+
+    /// Fixed stack slot `sp[1]` holds the per-frame spill base pointer.
+    /// Each function's prologue allocates a heap region and stores the pointer here.
+    /// Stack-relative addressing means it's automatically preserved across calls.
+    pub(crate) fn spill_base_pointer() -> MemoryAddress {
+        MemoryAddress::relative(1)
+    }
+
+    /// Two scratch addresses used transiently during spill/reload computations.
+    /// These are the first two slots of scratch space (`@3` and `@4`).
+    /// Safe to use because block codegen never uses scratch space directly.
+    pub(crate) fn spill_scratch() -> (MemoryAddress, MemoryAddress) {
+        let start = ScratchSpace::start();
+        (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
+    }
+
+    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// to hold a value across the load → cmov → store sequence. Disjoint from
+    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// can be reused by the inner load/store without clobbering the value.
+    pub(crate) fn spill_conditional_value() -> MemoryAddress {
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
     }
 }
 
@@ -180,6 +207,60 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             globals_memory_size: None,
         }
     }
+
+    /// Emit 3 placeholder no-op opcodes (self-moves) in the prologue for the spill region
+    /// allocation. Their positions are recorded so they can be overwritten later if the
+    /// function actually spills any values.
+    pub(crate) fn emit_unresolved_spill_prologue(&mut self) {
+        let no_op_register = ReservedRegisters::usize_one();
+        let positions = [
+            self.obj.index_of_next_opcode(),
+            self.obj.index_of_next_opcode() + 1,
+            self.obj.index_of_next_opcode() + 2,
+        ];
+        // Emit 3 harmless self-moves as placeholders
+        for _ in 0..3 {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: no_op_register,
+                source: no_op_register,
+            });
+        }
+        self.obj.set_unresolved_spill_prologue(positions);
+    }
+
+    /// Overwrite the 3 placeholder no-op opcodes with real spill region allocation instructions.
+    /// Called after all blocks are compiled, only if the function actually spilled values.
+    pub(crate) fn resolve_spill_prologue(&mut self, actual_spill_size: usize) {
+        use acvm::acir::brillig::{BinaryIntOp, BitSize, IntegerBitSize};
+
+        let positions = self
+            .obj
+            .take_unresolved_spill_prologue()
+            .expect("ICE: resolve_spill_prologue called without emit_unresolved_spill_prologue");
+        let (scratch, _) = ReservedRegisters::spill_scratch();
+
+        // Save current FMP as spill base
+        // [0]: Mov sp[1], @1
+        self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
+            destination: ReservedRegisters::spill_base_pointer(),
+            source: ReservedRegisters::free_memory_pointer(),
+        };
+        // [1]: Const @scratch, actual_spill_size
+        self.obj.byte_code[positions[1]] = BrilligOpcode::Const {
+            destination: scratch,
+            value: F::from(actual_spill_size as u128),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        };
+        // Bump FMP by actual amount
+        // [2]: BinaryIntOp Add @1, @1, @scratch
+        self.obj.byte_code[positions[2]] = BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Add,
+            destination: ReservedRegisters::free_memory_pointer(),
+            bit_size: IntegerBitSize::U32,
+            lhs: ReservedRegisters::free_memory_pointer(),
+            rhs: scratch,
+        };
+    }
 }
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -203,13 +284,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.binary_instruction(*zero, num, *twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
-        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
-            if is_negative {
-                ctx.mov_instruction(absolute_value.address, twos_complement.address);
-            } else {
-                ctx.mov_instruction(absolute_value.address, num.address);
-            }
-        });
+        self.conditional_move_instruction(
+            result_is_negative.address,
+            twos_complement.address,
+            num.address,
+            absolute_value.address,
+        );
     }
 
     pub(crate) fn convert_signed_division(
@@ -217,6 +297,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
+        operator: SignedDivisionOperator,
     ) {
         let left_is_negative = self.allocate_single_addr_bool();
         let left_abs_value = self.allocate_single_addr(left.bit_size);
@@ -258,14 +339,25 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 let no_overflow = ctx.allocate_single_addr_bool();
                 ctx.binary_instruction(result, *max, *no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
-                    ctx2.codegen_constrain(
-                        *no_overflow,
-                        Some("Attempt to divide with overflow".to_string()),
-                    );
+                    let message = match operator {
+                        SignedDivisionOperator::Mod => {
+                            "Attempt to calculate the remainder with overflow"
+                        }
+                        SignedDivisionOperator::Div => "Attempt to divide with overflow",
+                        SignedDivisionOperator::Shift => "Attempt to bit-shift with overflow",
+                    };
+                    ctx2.codegen_constrain(*no_overflow, Some(message.to_string()));
                 });
             }
         });
     }
+}
+
+#[derive(Copy, Clone)]
+pub(crate) enum SignedDivisionOperator {
+    Div,
+    Mod,
+    Shift,
 }
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
@@ -276,6 +368,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         options: &BrilligOptions,
     ) -> BrilligContext<F, ScratchSpace> {
         let mut obj = BrilligArtifact::default();
+        obj.name = format!("{procedure_id}");
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,
@@ -314,9 +407,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     }
 
     /// Total size of the global memory space.
+    /// Returns 0 when nothing has been allocated (max_memory_address < start).
     pub(crate) fn global_space_size(&self) -> usize {
-        // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
-        (self.registers().max_memory_address() + 1) - self.registers().start()
+        (self.registers().max_memory_address() + 1).saturating_sub(self.registers().start())
     }
 }
 
@@ -335,6 +428,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 #[cfg(test)]
 pub(crate) mod tests {
     use std::vec;
+    use test_case::test_case;
 
     use acvm::acir::brillig::{
         BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize,
@@ -364,20 +458,18 @@ pub(crate) mod tests {
             _scalars_lo: &[FieldElement],
             _scalars_hi: &[FieldElement],
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into()))
         }
 
         fn ec_add(
             &self,
             _input1_x: &FieldElement,
             _input1_y: &FieldElement,
-            _input1_infinite: &FieldElement,
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
-            _input2_infinite: &FieldElement,
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
 
@@ -641,7 +733,7 @@ pub(crate) mod tests {
     /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
     ///
     /// See the function's `# Safety` documentation for why the underflow is safe.
-    /// This test directly verifies the loop exit condition is immediately `true`.
+    /// This test directly verifies the loop continue condition is immediately `false`.
     #[test]
     fn mem_copy_from_end_zero_elements_condition_is_immediately_true() {
         let options = BrilligOptions {
@@ -690,14 +782,16 @@ pub(crate) mod tests {
 
         let bytecode = context.into_artifact().finish().byte_code;
 
-        // Find the LessThan opcode (the loop exit condition check) and its destination register.
-        // There should be exactly one LessThan in codegen_mem_copy_from_the_end.
-        let (less_than_idx, condition_dest) = bytecode
+        // Find the LessThanEquals opcode (the loop continue condition check) and its destination register.
+        // There should be exactly one LessThanEquals in codegen_mem_copy_from_the_end.
+        let (less_than_eq_idx, condition_dest) = bytecode
             .iter()
             .enumerate()
             .find_map(|(idx, op)| {
                 if let BrilligOpcode::BinaryIntOp {
-                    op: BinaryIntOp::LessThan, destination, ..
+                    op: BinaryIntOp::LessThanEquals,
+                    destination,
+                    ..
                 } = op
                 {
                     Some((idx, *destination))
@@ -705,16 +799,16 @@ pub(crate) mod tests {
                     None
                 }
             })
-            .expect("Should find LessThan opcode in bytecode");
+            .expect("Should find LessThanEquals opcode in bytecode");
 
-        // Step through opcodes until we've executed the LessThan operation
+        // Step through opcodes until we've executed the LessThanEquals operation
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
-        for _ in 0..=less_than_idx {
+        for _ in 0..=less_than_eq_idx {
             vm.process_opcode();
         }
 
         // Read the condition register value from memory.
-        // After the LessThan executes, this should be true (1) if the protection works.
+        // After the LessThanEquals executes, this should be false (0) so the loop doesn't continue.
         let memory = vm.get_memory();
         let condition_addr = match condition_dest {
             MemoryAddress::Relative(offset) => {
@@ -733,30 +827,36 @@ pub(crate) mod tests {
 
         let condition_value = &memory[condition_addr];
 
-        // The condition should be true (U1(true)) because:
+        // The condition should be false (U1(false)) because:
         // source_pointer = source_start + (2^32 - 1) = source_start - 1 (wrapping)
-        // source_start - 1 < source_start = true
+        // source_start <= source_start - 1 = false (for source_start > 0)
         assert_eq!(
             *condition_value,
-            MemoryValue::U1(true),
-            "Loop exit condition should be immediately true when num_elements=0"
+            MemoryValue::U1(false),
+            "Loop continue condition should be immediately false when num_elements=0"
         );
 
-        // We will process a JmpIf based upon the condition which will immediately jump us to a Stop
-        for _ in less_than_idx..(less_than_idx + 2) {
+        // We will process a JmpIf based upon the condition which will NOT jump (condition is false),
+        // falling through to a Stop
+        for _ in less_than_eq_idx..(less_than_eq_idx + 2) {
             let opcode = &bytecode[vm.program_counter()];
             match opcode {
                 BrilligOpcode::Load { .. } | BrilligOpcode::Store { .. } => {
                     panic!("We are performing a mem copy when it should have been skipped");
                 }
                 _ => {}
-            };
+            }
             vm.process_opcode();
         }
 
         let status = vm.get_status();
-        // The VM successfully finished executing
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
+        // The VM successfully finished executing.
+        // The return_data values equal the stack pointer which starts at ReservedRegisters::len() + 3 variables.
+        let expected_sp = assert_u32(ReservedRegisters::len() + 3);
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: expected_sp, return_data_size: expected_sp }
+        );
     }
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
@@ -850,14 +950,13 @@ pub(crate) mod tests {
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 
-    /// Test that `codegen_call` panics when call arguments would exceed stack frame bounds.
+    /// Helper method for the `codegen_call_panics_when_arguments_exceed_frame_bound*` tests.
     ///
-    /// This test demonstrates the defensive check that prevents heap corruption.
-    /// Without this check, call arguments could be written beyond the stack frame boundary
-    /// before CheckMaxStackDepth runs in the called function.
-    #[test]
-    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
-    fn codegen_call_panics_when_arguments_exceed_frame_bounds() {
+    /// Uses a max stack frame size of 10, and pre-allocates 3 registers before the call.
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds_helper(
+        num_args: usize,
+        num_rets: usize,
+    ) {
         use super::brillig_variable::BrilligVariable;
         use super::registers::LayoutConfig;
 
@@ -877,22 +976,147 @@ pub(crate) mod tests {
         context.enter_context(Label::function(FunctionId::test_new(0)));
 
         // Allocate registers to fill up most of the frame.
-        // Stack starts at offset 1, so with max_stack_frame_size=10:
-        // - Allocating 7 registers uses offsets 1-7
-        // - empty_registers_start() will return 8
-        // - stack_size = 8
+        // Stack starts at offset 2, so with max_stack_frame_size=10:
+        // - Allocating 3 registers uses offsets 2-4 (inclusive)
+        // - codegen_call allocates another temporary register 5
+        // - empty_registers_start() will return 6
+        // - stack_size = 6
         // NOTE: We must keep the allocated registers alive to prevent deallocation.
-        let _allocated_registers: Vec<_> = (0..7).map(|_| context.allocate_register()).collect();
+        let _allocated_registers: Vec<_> = (0..3).map(|_| context.allocate_register()).collect();
 
-        // Create 5 dummy arguments.
-        // With stack_size=8 and 5 arguments:
-        // stack_size + arguments.len() + 1 = 8 + 5 = 14 > 10 (max stack frame size)
-        // This should trigger the assertion.
+        // Create N dummy arguments.
+        // With stack_size=6 and N arguments, the first argument will be written into slot 6+2=8, the 2nd into slot 9; nothing should write into slot 10.
+        // stack_size + reserved_len + arguments.len() = 6 + 2 + N must be <= 10 (max stack frame size)
+        // This should trigger the assertion if N > 2
         let dummy_addr = MemoryAddress::relative(1);
         let dummy_var = BrilligVariable::SingleAddr(SingleAddrVariable::new(dummy_addr, 32));
-        let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
+        let arguments: Vec<BrilligVariable> = vec![dummy_var; num_args];
+        let returns: Vec<BrilligVariable> = vec![dummy_var; num_rets];
 
         // This call should panic with "Call arguments would exceed stack frame bounds"
-        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+        context.codegen_call(FunctionId::test_new(1), &arguments, &returns);
+
+        // Unless codegen_call itself panics, this should fail the test if we wrote beyond what is provably safe.
+        for opcode in context.obj.byte_code {
+            if let BrilligOpcode::Mov { destination: MemoryAddress::Relative(offset), .. } = opcode
+            {
+                assert!(
+                    offset < small_layout.max_stack_frame_size() as u32,
+                    "allocated beyond the frame size"
+                );
+            }
+        }
+    }
+
+    /// Test that `codegen_call` panics when call arguments or returns would exceed stack frame bounds.
+    ///
+    /// This test demonstrates the defensive check that prevents heap corruption.
+    /// Without this check, call arguments could be written beyond the stack frame boundary
+    /// before CheckMaxStackDepth runs in the called function.
+    #[test_case(7, 0; "arguments alone exceed bounds")]
+    #[test_case(3, 0; "arguments together with reserved slots exceed bounds")]
+    #[test_case(1, 5; "arguments are okay but returns exceed bounds")]
+    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds(num_args: usize, num_rets: usize) {
+        codegen_call_panics_when_arguments_exceed_frame_bounds_helper(num_args, num_rets);
+    }
+
+    /// Test that `codegen_call` does not panic when there is enough space for the arguments.
+    ///
+    /// This is just to show that there is a number of arguments that still works with the setup.
+    #[test]
+    fn codegen_call_does_not_panic_when_reserved_and_arguments_fit_within_frame_bounds() {
+        // With 2 arguments, the 10 element stack frame should look like this:
+        // 0: current stack frame return pointer
+        // 1: current stack frame spill pointer
+        // 2-4: 3 variables
+        // 5: temp register in codegen
+        // 6: next stack frame return pointer
+        // 7: next stack frame spill pointer
+        // 8-9: 2 arguments
+        codegen_call_panics_when_arguments_exceed_frame_bounds_helper(2, 1);
+    }
+
+    /// Test that jmp block parameter passing handles the parallel-move problem correctly.
+    ///
+    /// When a jmp instruction passes block parameters where a source register is also a
+    /// destination for another parameter, the sequential mov loop can overwrite values.
+    /// For example, `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+    ///   1. mov reg(v2), reg(v1) — overwrites old v3
+    ///   2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+    ///
+    /// This test verifies the fix by running a loop where v3 should get the old v2 value.
+    #[test]
+    fn jmp_block_params_parallel_move() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 0, u32 0)
+              b1(v3: u32, v35: u32, v36: u32):
+                v5 = lt v3, u32 17
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v8 = unchecked_add v3, u32 1
+                jmp b1(v8, v3, u32 10)
+              b3():
+                constrain v35 == u32 16
+                constrain v36 == u32 10
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v35 should be 16 and v36 should be 10"
+        );
+    }
+
+    /// Test that the parallel-move fix preserves temporary registers across all moves.
+    ///
+    /// When two block parameters are swapped (`jmp b1(v1, v0, ...)`  where `b1(v0, v1, ...)`),
+    /// both sources are also destinations, so both need temporaries. If the temporaries are
+    /// freed too early, the register allocator can reuse the same address for the second
+    /// temp, overwriting the first saved value.
+    #[test]
+    fn jmp_block_params_parallel_move_swap() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 1, u32 0)
+              b1(v0: u32, v1: u32, v2: u32):
+                v3 = lt v2, u32 1
+                jmpif v3 then: b2(), else: b3()
+              b2():
+                v4 = unchecked_add v2, u32 1
+                jmp b1(v1, v0, v4)
+              b3():
+                constrain v0 == u32 1
+                constrain v1 == u32 0
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v0 and v1 should be swapped after one iteration"
+        );
     }
 }

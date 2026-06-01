@@ -153,8 +153,10 @@ mod tests {
         let at_filename = std::env::current_dir()
             .ok()
             .and_then(|dir| test_program_path.strip_prefix(&dir).ok())
-            .map(|stripped| format!("At {}", stripped.display()))
-            .unwrap_or_else(|| format!("At {test_program_dir}"));
+            .map_or_else(
+                || format!("At {test_program_dir}"),
+                |stripped| format!("At {}", stripped.display()),
+            );
 
         for mut expected_lines in expected_lines_by_command {
             // While running the debugger, issue a "next" cmd,

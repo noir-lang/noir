@@ -42,16 +42,15 @@ impl Formatter<'_> {
 
         ignore_next |= self.ignore_next;
 
+        if ignore_next {
+            // The item's location includes doc comments, so those will be written here as well (unformatted)
+            self.write_and_skip_span_without_formatting(item.location.span);
+            return;
+        }
+
         if !item.doc_comments.is_empty() {
             self.format_outer_doc_comments();
             self.skip_comments_and_whitespace();
-        }
-
-        ignore_next |= self.ignore_next;
-
-        if ignore_next {
-            self.write_and_skip_span_without_formatting(item.location.span);
-            return;
         }
 
         match item.kind {

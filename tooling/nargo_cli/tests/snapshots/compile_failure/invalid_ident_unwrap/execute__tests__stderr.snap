@@ -16,6 +16,13 @@ error: cannot find `round` in this scope
   │   ----- not found in this scope
   │
 
+error: Visibility `pub` is not followed by an item
+  ┌─ src/main.nr:3:5
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │     ---
+  │
+
 error: Expected an item but found ''
   ┌─ src/main.nr:3:8
   │
@@ -429,4 +436,4 @@ error: Unexpected 'end of input', expected one of 'where', '{', '->'
   │      -
   │
 
-Aborting due to 60 previous errors
+Aborting due to 61 previous errors

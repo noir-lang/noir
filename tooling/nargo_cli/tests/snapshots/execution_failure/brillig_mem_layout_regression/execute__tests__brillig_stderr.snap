@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Stack too deep
+   ┌─ src/main.nr:44:15
+   │
+44 │     } else if func_1(b, ctx_limit) {
+   │               --------------------
+   │
+   = Call stack:
+        1: main
+                at src/main.nr:9:16
+     ┌─ 2: func_1
+     │          at src/main.nr:44:15
+     └─ (repeated 2363 times)
+
+Failed assertion

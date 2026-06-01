@@ -90,7 +90,7 @@ impl<W> DefaultForeignCallBuilder<W> {
         let executor = {
             #[cfg(feature = "rpc")]
             {
-                use rand::Rng;
+                use rand::RngExt;
 
                 base.add_layer(self.resolver_url.map(|resolver_url| {
                     let id = rand::rng().random::<u64>();

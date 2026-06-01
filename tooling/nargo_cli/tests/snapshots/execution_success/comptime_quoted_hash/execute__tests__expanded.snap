@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::hash::{Hash, Hasher};
+
+struct TestHasher {
+    result: Field,
+}
+
+impl Hasher for TestHasher {
+    fn finish(self) -> Field {
+        self.result
+    }
+
+    fn write(&mut self, input: Field) {
+        self.result = self.result + input;
+    }
+}
+
+fn main() {
+    ()
+}

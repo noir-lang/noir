@@ -17,11 +17,7 @@ unconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {
     let as_bytes: [u8; N] = s.as_bytes();
     for i in 0_u32..N {
         if (i % 2_u32) != 0_u32 { continue; };
-        {
-            let i_4468: u32 = i / 2_u32;
-            result[i_4468] =
-                (decode_ascii(as_bytes[i]) * 16_u8) + decode_ascii(as_bytes[i + 1_u32]);
-        }
+        result[i / 2_u32] = (decode_ascii(as_bytes[i]) * 16_u8) + decode_ascii(as_bytes[i + 1_u32]);
     }
     result
 }

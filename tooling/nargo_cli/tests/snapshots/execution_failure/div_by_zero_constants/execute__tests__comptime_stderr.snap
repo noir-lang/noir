@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to divide by zero
+  ┌─ src/main.nr:2:20
+  │
+2 │     let a: Field = 3 / 0;
+  │                    -----
+  │
+
+Error interpreting main function

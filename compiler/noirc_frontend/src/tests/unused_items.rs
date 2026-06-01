@@ -163,8 +163,10 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
 #[test]
 fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     let src = r#"
-    #[abi(dummy)]
-    struct Foo { bar: u8 }
+    contract moo {
+        #[abi(dummy)]
+        struct Foo { bar: u8 }
+    }
     "#;
     assert_no_errors(src);
 }
@@ -200,9 +202,11 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
 #[test]
 fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     let src = r#"
-    #[abi(functions)]
-    struct Foo {
-        a: Field,
+    contract moo {
+        #[abi(functions)]
+        struct Foo {
+            a: Field,
+        }
     }
     "#;
     assert_no_errors(src);
@@ -211,13 +215,15 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
 #[test]
 fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     let src = r#"
-    struct Bar {
-        field: Field,
-    }
-
-    #[abi(functions)]
-    struct Foo {
-        bar: Bar,
+    contract moo {
+        struct Bar {
+            field: Field,
+        }
+    
+        #[abi(functions)]
+        struct Foo {
+            bar: Bar,
+        }
     }
     "#;
     assert_no_errors(src);
@@ -418,6 +424,73 @@ fn allow_dead_code_on_unused_enum() {
 
     fn main() {
     }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_unused_impl_function() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+           ^^^ unused function foo
+           ~~~ unused function
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_on_unused_impl_function() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = Foo::foo();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_on_used_impl_method() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {
+        Foo {}.foo();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        #[allow(dead_code)]
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {}
     ";
     assert_no_errors(src);
 }

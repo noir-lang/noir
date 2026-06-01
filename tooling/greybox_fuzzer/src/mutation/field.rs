@@ -40,7 +40,7 @@ use super::configurations::{
 };
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{Rng, seq::IndexedRandom};
+use rand::{RngExt, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 
 const SMALL_VALUE_MAX: u64 = 0xff;

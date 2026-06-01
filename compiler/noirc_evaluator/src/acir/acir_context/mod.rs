@@ -77,7 +77,10 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
-    pub(crate) fn current_witness_index(&self) -> Witness {
+    /// Returns the current witness index:
+    /// * `None` if we haven't created a witness yet
+    /// * the index of the last created witness otherwise (starting with 0)
+    pub(crate) fn current_witness_index(&self) -> Option<Witness> {
         self.acir_ir.current_witness_index()
     }
 
@@ -109,8 +112,7 @@ impl<F: AcirField> AcirContext<F> {
         self.vars[&var].as_constant().expect("ICE - expected the variable to be a constant value")
     }
 
-    /// Adds a Variable to the context, whose exact value is resolved at
-    /// runtime.
+    /// Adds a Variable to the context, whose exact value is resolved at runtime.
     pub(crate) fn add_variable(&mut self) -> AcirVar {
         let var_index = self.acir_ir.next_witness_index();
 
@@ -128,11 +130,11 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(());
         }
 
-        if let Some(w) = self.var_to_expression(lhs)?.to_witness() {
-            if self.acir_ir.input_witnesses.contains(&w) {
-                //Input witnesses are not replaced
-                return Ok(());
-            }
+        if let Some(w) = self.var_to_expression(lhs)?.to_witness()
+            && self.acir_ir.input_witnesses.contains(&w)
+        {
+            //Input witnesses are not replaced
+            return Ok(());
         }
 
         let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
@@ -237,11 +239,8 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Converts an [`AcirVar`] to an [`Expression`]
     pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression<F>, InternalError> {
-        let var_data = match self.vars.get(&var) {
-            Some(var_data) => var_data,
-            None => {
-                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
-            }
+        let Some(var_data) = self.vars.get(&var) else {
+            return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
         };
         Ok(var_data.to_expression().into_owned())
     }
@@ -497,9 +496,7 @@ impl<F: AcirField> AcirContext<F> {
 
         self.acir_ir.assert_is_zero(diff_expr);
         if let Some(payload) = assert_message {
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         self.mark_variables_equivalent(lhs, rhs)?;
 
@@ -511,15 +508,14 @@ impl<F: AcirField> AcirContext<F> {
         &self,
         assert_message: Option<&AssertionPayload<F>>,
     ) -> Option<String> {
-        assert_message.as_ref().and_then(|assertion_payload| {
-            if let Some(ErrorType::String(message)) =
-                self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
-            {
-                Some(message.to_string())
-            } else {
-                None
-            }
-        })
+        let assertion_payload = assert_message.as_ref()?;
+        if let Some(ErrorType::String(message)) =
+            self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
+        {
+            Some(message.clone())
+        } else {
+            None
+        }
     }
 
     /// Constrains the `lhs` and `rhs` to be non-equal.
@@ -549,9 +545,7 @@ impl<F: AcirField> AcirContext<F> {
             if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
                 return Ok(());
             }
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
 
         Ok(())
@@ -656,7 +650,7 @@ impl<F: AcirField> AcirContext<F> {
                 if expression.is_linear() =>
             {
                 let mut expr = Expression::default();
-                for term in expression.linear_combinations.iter() {
+                for term in &expression.linear_combinations {
                     expr.push_multiplication_term(term.0, term.1, witness);
                 }
                 expr.push_addition_term(expression.q_c, witness);
@@ -673,7 +667,7 @@ impl<F: AcirField> AcirContext<F> {
                 if let Some((lin, univariate)) = degree_one {
                     let mut expr = Expression::default();
                     let rhs_term = univariate.linear_combinations[0];
-                    for term in lin.linear_combinations.iter() {
+                    for term in &lin.linear_combinations {
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
@@ -975,7 +969,7 @@ impl<F: AcirField> AcirContext<F> {
     ///
     /// `lhs<=rhs` is done by constraining `rhs-lhs` to a bit size of `bits`:
     /// - if `lhs<=rhs`, `0 <= rhs-lhs <= b < 2^bits`
-    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) >= bits + 1`)
+    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) > bits + 1`)
     ///
     /// n.b: we do NOT check here that `lhs` and `rhs` are indeed `bits` size
     pub(super) fn bound_constraint_with_offset(
@@ -995,9 +989,18 @@ impl<F: AcirField> AcirContext<F> {
             num_bits::<u128>() as u32 - a.leading_zeros()
         }
 
+        // When offset is 1, we have the inequality `2^(bits) - 1 > rhs - (lhs + 1) >= 0 - 2^(bits)` by passing the
+        // extreme values of `lhs` and `rhs`.
+        //
+        // To distinguish the two cases, we need to ensure that `p - 2^(bits) > 2^(bits) - 1`, so that when `lhs > rhs`,
+        // `rhs - (lhs + offset)` will overflow the field and become a large integer which cannot be represented
+        // in `bits` bits, and thus fail the range constraint.
+        //
+        // Rearranging `2^(bits) - 1 < p - 2^(bits)` gives the condition `bits + 1 < log2(p)` for the constraints
+        // to be valid.
         assert!(
-            bits < F::max_num_bits(),
-            "range check with bit size >= the prime field size is not implemented yet"
+            bits + 1 < F::max_num_bits(),
+            "range check with bit size + 1 >= the prime field bit size is not implemented yet"
         );
 
         // If `rhs` is a constant, we can try to optimize the operation by shifting `lhs + offset` such that if
@@ -1033,10 +1036,12 @@ impl<F: AcirField> AcirContext<F> {
             let r = two_pow_bit_size_minus_one - rhs_offset;
 
             // we need to ensure lhs_offset + r does not overflow
-            if bits + bit_size_u128(r) < F::max_num_bits() {
-                // lhs_offset < rhs_offset
-                // -> lhs_offset + r < rhs_offset + r = 2^bit_size
-                // -> lhs_offset + r < 2^bit_size
+            if u32::max(bits, bit_size_u128(r)) + 1 < F::max_num_bits() {
+                // let max = u32::max(bits, bit_size_u128(r)), then
+                // - lhs_offset < 2^max
+                // - r < 2^max
+                // -> lhs_offset + r < 2^(max+1)
+                // the condition above is: 2^(max +1) < 2^bit_size
 
                 let r_var = self.add_constant(r);
                 let aor = self.add_var(lhs_offset, r_var)?;
@@ -1099,10 +1104,8 @@ impl<F: AcirField> AcirContext<F> {
         let witness = self.var_to_witness(witness_var)?;
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
-            let payload = self.generate_assertion_message_payload(message.clone());
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            let payload = self.generate_assertion_message_payload(message);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         if return_zero {
             let zero = self.add_constant(F::zero());
@@ -1341,7 +1344,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Add the memory read operation to the list of opcodes
-        let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
+        let op = MemOp::read_at_mem_index(index_witness, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
@@ -1363,7 +1366,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Add the memory write operation to the list of opcodes
-        let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
+        let op = MemOp::write_to_mem_index(index_witness, value_write_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())

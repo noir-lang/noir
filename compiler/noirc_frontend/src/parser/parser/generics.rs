@@ -126,7 +126,7 @@ impl Parser<'_> {
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
 
-    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )
+    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )?
     ///
     /// GenericTypeArgsList = GenericTypeArg ( ',' GenericTypeArg )* ','?
     ///
@@ -139,6 +139,13 @@ impl Parser<'_> {
     /// OrderedTypeArg = TypeOrTypeExpression
     pub(super) fn parse_generic_type_args(&mut self) -> GenericTypeArgs {
         let mut generic_type_args = GenericTypeArgs::default();
+
+        // Allow `Type::<Generic>` and `Type<Generic>` as it's common to confuse them.
+        // The formatter will remove the double colon.
+        if self.at(Token::DoubleColon) && self.next_is(Token::Less) {
+            self.bump();
+        }
+
         if !self.eat_less() {
             return generic_type_args;
         }
@@ -193,10 +200,8 @@ mod tests {
     use crate::{
         ast::{GenericTypeArgs, UnresolvedGeneric},
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -310,12 +315,8 @@ mod tests {
     fn parse_generic_trait_bound_not_allowed() {
         let src = "
         N: Trait
-         ^
+         ^ Trait bounds are not allowed here
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_generic(false);
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::TraitBoundsNotAllowedHere));
+        check_errors(src, |parser| parser.parse_generic(false));
     }
 }

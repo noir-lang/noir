@@ -115,46 +115,40 @@ pub(super) fn simplify_binary(
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
                 // b*(b*x) = b*x if b is boolean
-                if let super::Value::Instruction { instruction, .. } = &dfg[rhs] {
-                    if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
+                if let super::Value::Instruction { instruction, .. } = &dfg[rhs]
+                    && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                         dfg[*instruction]
-                    {
-                        if matches!(operator, BinaryOp::Mul { .. })
-                            && (lhs == b_lhs || lhs == b_rhs)
-                        {
-                            return SimplifyResult::SimplifiedTo(rhs);
-                        }
-                    }
+                    && matches!(operator, BinaryOp::Mul { .. })
+                    && (lhs == b_lhs || lhs == b_rhs)
+                {
+                    return SimplifyResult::SimplifiedTo(rhs);
                 }
             }
             // (b*x)*b = b*x if b is boolean
-            if dfg.get_value_max_num_bits(rhs) == 1 {
-                if let super::Value::Instruction { instruction, .. } = &dfg[lhs] {
-                    if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                        dfg[*instruction]
-                    {
-                        if matches!(operator, BinaryOp::Mul { .. })
-                            && (rhs == b_lhs || rhs == b_rhs)
-                        {
-                            return SimplifyResult::SimplifiedTo(lhs);
-                        }
-                    }
-                }
+            if dfg.get_value_max_num_bits(rhs) == 1
+                && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
+                && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
+                    dfg[*instruction]
+                && matches!(operator, BinaryOp::Mul { .. })
+                && (rhs == b_lhs || rhs == b_rhs)
+            {
+                return SimplifyResult::SimplifiedTo(lhs);
             }
         }
         BinaryOp::Div => {
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
-            if let Some(rhs_value) = rhs_value {
-                if lhs_type == NumericType::NativeField && !rhs_value.is_zero() {
-                    let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
-                    return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
-                        lhs,
-                        rhs,
-                        operator: BinaryOp::Mul { unchecked: false },
-                    }));
-                }
+            if let Some(rhs_value) = rhs_value
+                && lhs_type == NumericType::NativeField
+                && !rhs_value.is_zero()
+            {
+                let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                    lhs,
+                    rhs,
+                    operator: BinaryOp::Mul { unchecked: false },
+                }));
             }
         }
         BinaryOp::Mod => {
@@ -240,12 +234,6 @@ pub(super) fn simplify_binary(
             if lhs == rhs {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
-            if lhs_type == NumericType::bool() {
-                // Boolean AND is equivalent to multiplication, which is a cheaper operation.
-                // (mul unchecked because these are bools so it doesn't matter really)
-                let instruction = Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, rhs);
-                return SimplifyResult::SimplifiedToInstruction(instruction);
-            }
             if lhs_type.is_unsigned() {
                 // It's common in other programming languages to truncate values to a certain bit size using
                 // a bitwise AND with a bit mask. However this operation is quite inefficient inside a snark.
@@ -277,6 +265,12 @@ pub(super) fn simplify_binary(
                     _ => (),
                 }
             }
+            if lhs_type == NumericType::bool() {
+                // Boolean AND is equivalent to multiplication, which is a cheaper operation.
+                // (mul unchecked because these are bools so it doesn't matter really)
+                let instruction = Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, rhs);
+                return SimplifyResult::SimplifiedToInstruction(instruction);
+            }
         }
         BinaryOp::Or => {
             if lhs_is_zero {
@@ -293,7 +287,7 @@ pub(super) fn simplify_binary(
                 return SimplifyResult::SimplifiedTo(lhs);
             }
 
-            if lhs_is_max || rhs_is_max {
+            if (lhs_is_max || rhs_is_max) && lhs_type.is_unsigned() {
                 let max = dfg.make_constant(lhs_type.max_value().unwrap(), lhs_type);
                 return SimplifyResult::SimplifiedTo(max);
             }
@@ -316,26 +310,29 @@ pub(super) fn simplify_binary(
             }
             return SimplifyResult::SimplifiedToInstruction(simplified);
         }
-    };
+    }
     SimplifyResult::SimplifiedToInstruction(simplified)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn replaces_shl_identity_with_lhs() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             v1 = shl v0, u8 0
             return v1
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             return v0
         }
@@ -345,15 +342,15 @@ mod tests {
     #[test]
     fn replaces_shr_identity_with_lhs() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             v1 = shr v0, u8 0
             return v1
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u8):
             return v0
         }
@@ -380,5 +377,39 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_unsigned_integer_or_max_with_max() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = or v0, u8 255
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            return u8 255
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_signed_integer_or_max() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = or v0, i8 127
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

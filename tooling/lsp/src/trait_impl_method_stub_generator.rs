@@ -10,13 +10,12 @@ use noirc_frontend::{
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     modules::{get_parent_module, relative_module_id_path},
-    node_interner::{FunctionModifiers, NodeInterner},
+    node_interner::NodeInterner,
 };
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,
     func_meta: &'a FuncMeta,
-    modifiers: &'a FunctionModifiers,
     trait_: &'a Trait,
     noir_trait_impl: &'a NoirTraitImpl,
     interner: &'a NodeInterner,
@@ -32,7 +31,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
     pub(crate) fn new(
         name: &'a str,
         func_meta: &'a FuncMeta,
-        modifiers: &'a FunctionModifiers,
         trait_: &'a Trait,
         noir_trait_impl: &'a NoirTraitImpl,
         interner: &'a NodeInterner,
@@ -43,7 +41,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         Self {
             name,
             func_meta,
-            modifiers,
             trait_,
             noir_trait_impl,
             interner,
@@ -64,7 +61,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         let indent_string = " ".repeat(self.indent);
 
         self.string.push_str(&indent_string);
-        if self.modifiers.is_unconstrained {
+        if self.func_meta.is_unconstrained() {
             self.string.push_str("unconstrained ");
         }
         self.string.push_str("fn ");
@@ -75,7 +72,20 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             if index > 0 {
                 self.string.push_str(", ");
             }
-            if self.append_pattern(pattern) {
+
+            let is_self = pattern.is_self(self.interner);
+            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+            if is_self && let Type::Reference(_, mutable) = typ {
+                if *mutable {
+                    self.string.push_str("&mut ");
+                } else {
+                    self.string.push('&');
+                }
+            }
+
+            self.append_pattern(pattern);
+
+            if !is_self {
                 self.string.push_str(": ");
                 self.append_type(typ);
             }
@@ -116,17 +126,15 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         std::mem::take(&mut self.string)
     }
 
-    /// Appends a pattern and returns true if this was not the self type
-    fn append_pattern(&mut self, pattern: &HirPattern) -> bool {
+    fn append_pattern(&mut self, pattern: &HirPattern) {
         match pattern {
             HirPattern::Identifier(hir_ident) => {
                 let definition = self.interner.definition(hir_ident.id);
                 self.string.push_str(&definition.name);
-                &definition.name != "self"
             }
             HirPattern::Mutable(pattern, _) => {
                 self.string.push_str("mut ");
-                self.append_pattern(pattern)
+                self.append_pattern(pattern);
             }
             HirPattern::Tuple(patterns, _) => {
                 self.string.push('(');
@@ -137,7 +145,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.append_pattern(pattern);
                 }
                 self.string.push(')');
-                true
             }
             HirPattern::Struct(typ, patterns, _) => {
                 self.append_type(typ);
@@ -149,7 +156,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(name.as_str());
                 }
                 self.string.push_str(" }");
-                true
             }
         }
     }
@@ -157,7 +163,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
     fn append_type(&mut self, typ: &Type) {
         match typ {
             Type::FieldElement => self.string.push_str("Field"),
-            Type::Array(n, e) => {
+            Type::Array(e, n) => {
                 self.string.push('[');
                 self.append_type(e);
                 self.string.push_str("; ");
@@ -187,12 +193,12 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the struct type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&struct_type.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TypeId(struct_type.id) {
-                        self.string.push_str(struct_type.name.as_str());
-                        self.append_generics(generics);
-                        return;
-                    }
+                if let Some((module_def_id, _, _)) = per_ns.types
+                    && module_def_id == ModuleDefId::TypeId(struct_type.id)
+                {
+                    self.string.push_str(struct_type.name.as_str());
+                    self.append_generics(generics);
+                    return;
                 }
 
                 let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
@@ -222,12 +228,12 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the alias type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&type_alias.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
-                        self.string.push_str(type_alias.name.as_str());
-                        self.append_generics(generics);
-                        return;
-                    }
+                if let Some((module_def_id, _, _)) = per_ns.types
+                    && module_def_id == ModuleDefId::TypeAliasId(type_alias.id)
+                {
+                    self.string.push_str(type_alias.name.as_str());
+                    self.append_generics(generics);
+                    return;
                 }
 
                 let parent_module_id = get_parent_module(

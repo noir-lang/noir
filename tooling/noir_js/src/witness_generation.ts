@@ -80,6 +80,6 @@ export async function generateWitness(
     if (typeof err === 'object' && err !== null && 'rawAssertionPayload' in err) {
       throw enrichExecutionError(compiledProgram, err as ExecutionError);
     }
-    throw new Error(`Circuit execution failed: ${err}`);
+    throw new Error(`Circuit execution failed: ${err}`, { cause: err });
   }
 }

@@ -111,6 +111,7 @@ pub struct FuncMeta {
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
@@ -193,6 +194,50 @@ impl FuncMeta {
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
         self.kind.can_ignore_return_type()
+    }
+
+    /// Number of generics introduced by the enclosing `impl<...>` (or trait `Self`),
+    /// i.e. the prefix of `all_generics` that is not part of `direct_generics`.
+    pub fn impl_generics_count(&self) -> usize {
+        self.all_generics.len() - self.direct_generics.len()
+    }
+
+    /// The generics introduced by the enclosing `impl<...>` (or trait `Self`).
+    /// These are the leading entries of `all_generics`; the remainder are `direct_generics`.
+    pub fn impl_generics(&self) -> &[ResolvedGeneric] {
+        &self.all_generics[..self.impl_generics_count()]
+    }
+
+    pub fn is_unconstrained(&self) -> bool {
+        match &self.typ {
+            Type::Function(_, _, _, unconstrained) => {
+                return *unconstrained;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained) = typ.as_ref() {
+                    return *unconstrained;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
+    }
+
+    pub fn set_unconstrained(&mut self, unconstrained: bool) {
+        match &mut self.typ {
+            Type::Function(_, _, _, unconstrained_field) => {
+                *unconstrained_field = unconstrained;
+                return;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained_field) = typ.as_mut() {
+                    *unconstrained_field = unconstrained;
+                    return;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
     }
 
     /// Gives the (uninstantiated) return type of this function.

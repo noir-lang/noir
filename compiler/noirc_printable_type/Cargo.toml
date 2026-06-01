@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 iter-extended.workspace = true
+itertools.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

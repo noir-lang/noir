@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Brillig function call isn't properly covered by a manual constraint
+  ┌─ src/main.nr:4:26
+  │
+4 │     let _mock = unsafe { std::test::OracleMock::mock("foo") };
+  │                          ---------------------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:4:26
+
+Attempted to call disabled foreign call `create_mock`

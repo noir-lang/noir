@@ -1,5 +1,8 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
-use std::collections::{BTreeMap, BTreeSet}; // Using BTree for deterministic enumeration, for repeatability.
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+}; // Using BTree for deterministic enumeration, for repeatability.
 
 use func::{FunctionContext, FunctionDeclaration, can_call};
 use strum::IntoEnumIterator;
@@ -43,7 +46,7 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
 /// Generate an arbitrary monomorphized AST to be reversed into a valid comptime
 /// Noir, with a single comptime function called from main with literal arguments.
 pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
-    let mut config = config.clone();
+    let mut config = config;
     // Comptime should use Brillig feature set
     config.force_brillig = true;
 
@@ -66,7 +69,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     let decl_main = FunctionDeclaration {
         name: "main".into(),
         params: vec![],
-        return_type: decl_inner.return_type.clone(),
+        return_type: decl_inner.return_type,
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: false,
@@ -226,22 +229,24 @@ impl Context {
         // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
         let unconstrained = self.config.force_brillig
             || (!is_main
-                && self
-                    .functions
-                    .get(&Program::main_id())
-                    .map(|func| func.unconstrained)
-                    .unwrap_or_default())
+                && self.functions.get(&Program::main_id()).is_some_and(|func| func.unconstrained))
             || bool::arbitrary(u)?;
 
-        // We could return a function as well.
-        let return_type = self.gen_type(
-            u,
-            self.config.max_depth,
-            false,
-            is_main || is_abi,
-            self.config.comptime_friendly,
-            true,
-        )?;
+        // Non-ABI functions can return `Unit`, so they can be called in statement
+        // position for their side effects (e.g. assertions). `gen_type` never
+        // picks `Unit`, so we choose it explicitly here.
+        let return_type = if !(is_main || is_abi) && u.ratio(1, 5)? {
+            Type::Unit
+        } else {
+            self.gen_type(
+                u,
+                self.config.max_depth,
+                false,
+                is_main || is_abi,
+                self.config.comptime_friendly,
+                true,
+            )?
+        };
 
         // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
@@ -284,11 +289,12 @@ impl Context {
                 // Take a function type.
                 let callee_id = u.choose_iter(&func_param_candidates)?;
                 let callee = &self.function_declarations[callee_id];
-                let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                let param_types =
+                    callee.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
                 let typ = Type::Function(
                     param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
+                    Rc::new(callee.return_type.clone()),
+                    Rc::new(Type::Unit),
                     callee.unconstrained,
                 );
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
@@ -304,7 +310,7 @@ impl Context {
                 Visibility::Private
             };
 
-            params.push((id, is_mutable, name, typ, visibility));
+            params.push((id, is_mutable, name, Rc::new(typ), visibility));
         }
 
         let return_visibility = if is_main {
@@ -319,16 +325,24 @@ impl Context {
             Visibility::Private
         };
 
+        let inline_type = if is_main {
+            InlineType::default()
+        } else {
+            // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
+            let choices = InlineType::iter()
+                .filter(|it| {
+                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                })
+                .collect::<Vec<_>>();
+            *u.choose(&choices)?
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             return_type,
             return_visibility,
-            inline_type: if is_main {
-                InlineType::default()
-            } else {
-                *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
-            },
+            inline_type,
             unconstrained,
         };
 
@@ -344,7 +358,7 @@ impl Context {
 
     /// Generate random function bodies.
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        let ids = self.function_declarations.keys().cloned().collect::<Vec<_>>();
+        let ids = self.function_declarations.keys().copied().collect::<Vec<_>>();
         for id in ids {
             self.gen_function(u, id)?;
         }
@@ -385,6 +399,7 @@ impl Context {
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         rewrite::remove_unreachable_functions(self);
         rewrite::add_recursion_limit(self, u)?;
+        rewrite::wrap_oracle_prints_in_functions(self);
         Ok(())
     }
 
@@ -490,13 +505,13 @@ impl Context {
                 }
                 6 if is_vector_allowed && !self.config.avoid_vectors => {
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Vector(Box::new(typ))
+                    Type::Vector(Rc::new(typ))
                 }
                 6 | 7 => {
                     let min_size = 0;
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Array(size as u32, Box::new(typ))
+                    Type::Array(size as u32, Rc::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };

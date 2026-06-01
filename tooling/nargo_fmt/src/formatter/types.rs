@@ -7,6 +7,16 @@ use super::Formatter;
 
 impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
+        let in_expression = false;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    pub(super) fn format_type_in_expression(&mut self, typ: UnresolvedType) {
+        let in_expression = true;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    fn format_type_impl(&mut self, typ: UnresolvedType, in_expression: bool) {
         self.skip_comments_and_whitespace();
 
         match typ.typ {
@@ -40,11 +50,15 @@ impl Formatter<'_> {
                 if !generic_type_args.is_empty() {
                     self.skip_comments_and_whitespace();
 
-                    // Apparently some Named types with generics have `::` before the generics
-                    // while others don't, so we have to account for both cases.
                     if self.is_at(Token::DoubleColon) {
-                        self.write_token(Token::DoubleColon);
+                        // Inside expressions, specifying a type's generics requires a double colon.
+                        if in_expression {
+                            self.write_token(Token::DoubleColon);
+                        } else {
+                            self.bump();
+                        }
                     }
+
                     self.format_generic_type_args(generic_type_args);
                 }
             }
@@ -55,19 +69,7 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersand or VectorStart in the lexer depending
-                // on whether it's right next to a `[` or not.
-                match &self.token {
-                    Token::Ampersand => {
-                        self.write_token(Token::Ampersand);
-                    }
-                    Token::DeprecatedVectorStart => {
-                        self.write_token(Token::DeprecatedVectorStart);
-                    }
-                    _ => {
-                        panic!("Expected Ampersand or VectorStart, found {:?}", self.token);
-                    }
-                }
+                self.write_token(Token::Ampersand);
                 if mutable {
                     self.write_keyword(Keyword::Mut);
                     self.write_space();
@@ -156,6 +158,10 @@ impl Formatter<'_> {
         self.write_token(Token::Greater);
         self.write_token(Token::DoubleColon);
         self.write_identifier(as_trait_path.impl_item);
+        if let Some(turbofish) = as_trait_path.turbofish {
+            self.write_token(Token::DoubleColon);
+            self.format_generic_type_args(turbofish);
+        }
     }
 }
 
@@ -215,8 +221,15 @@ mod tests {
     }
 
     #[test]
-    fn format_named_type_with_generics() {
+    fn format_named_type_with_generics_without_double_colon() {
         let src = " foo :: bar < A,  B  =  Field , C = i32 , D , >";
+        let expected = "foo::bar<A, B = Field, C = i32, D>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_named_type_with_generics_with_double_colon() {
+        let src = " foo :: bar :: < A,  B  =  Field , C = i32 , D , >";
         let expected = "foo::bar<A, B = Field, C = i32, D>";
         assert_format_type(src, expected);
     }

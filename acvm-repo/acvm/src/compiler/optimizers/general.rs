@@ -29,7 +29,7 @@ fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
 
     // Canonicalize the ordering of the multiplication, lets just order by variable name
-    for (scale, w_l, w_r) in gate.mul_terms.into_iter() {
+    for (scale, w_l, w_r) in gate.mul_terms {
         let mut pair = [w_l, w_r];
         // Sort using rust sort algorithm
         pair.sort();
@@ -51,7 +51,7 @@ fn simplify_linear_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F>
     let mut hash_map: IndexMap<Witness, F> = IndexMap::new();
 
     // Canonicalize the ordering of the terms, let's just order by variable name
-    for (scale, witness) in gate.linear_combinations.into_iter() {
+    for (scale, witness) in gate.linear_combinations {
         *hash_map.entry(witness).or_insert_with(F::zero) += scale;
     }
 

@@ -174,7 +174,14 @@ impl Context<'_, '_, '_> {
             max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
             FieldElement::max_num_bits(),
         );
-        if max_bit <= typ.bit_size::<FieldElement>() {
+        // For signed types the high bit is the sign bit, so a value whose unsigned-bit-count
+        // equals `bit_size` does not fit in the positive signed range and would cause the
+        // subsequent `unchecked_mul` to overflow the target type.
+        let happy_path_max_bit = match typ {
+            NumericType::Signed { bit_size } => bit_size - 1,
+            _ => typ.bit_size::<FieldElement>(),
+        };
+        if max_bit <= happy_path_max_bit {
             // If the result is guaranteed to fit in the target type we can simply multiply
             let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
@@ -274,16 +281,26 @@ impl Context<'_, '_, '_> {
                 // Performs the division on the adjusted complement (or the operand if positive)
                 let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
                 // For negative numbers, convert back to 2-complement by subtracting 1.
-                let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
-                // The requirements for this to underflow are all of these:
-                // - lhs < 0
-                // - div_complement(lhs) / (2^rhs) == 0
-                // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-                // to be larger than the lhs bitsize for this to overflow.
-                let sub = BinaryOp::Sub { unchecked: true };
-                let shifted = self.insert_binary(shifted_complement, sub, lhs_sign_as_int);
-                self.insert_truncate(shifted, bit_size, bit_size + 1)
+                // Cast to Field and add 2^bit_size to handle underflow; the subsequent truncate
+                // to bit_size bits corrects the extra 2^bit_size.
+                let shifted_complement_field =
+                    self.insert_cast(shifted_complement, NumericType::NativeField);
+                let modulus = self.field_constant(
+                    FieldElement::from(2u32).pow(&FieldElement::from(u128::from(bit_size))),
+                );
+                let shifted = self.insert_binary(
+                    shifted_complement_field,
+                    BinaryOp::Add { unchecked: true },
+                    modulus,
+                );
+                let shifted = self.insert_binary(
+                    shifted,
+                    BinaryOp::Sub { unchecked: true },
+                    lhs_sign_as_field,
+                );
+                let truncated = self.insert_truncate(shifted, bit_size, bit_size + 1);
+                self.insert_cast(truncated, lhs_typ)
             }
 
             NumericType::NativeField => unreachable!("Bit shifts are disallowed on `Field` type"),
@@ -462,29 +479,15 @@ impl Context<'_, '_, '_> {
 
 /// Post-check condition for [Function::remove_bit_shifts].
 ///
-/// Succeeds if:
-///   - `func` is not an ACIR function, OR
-///   - `func` does not contain any bitshift instructions.
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any ACIR function contains bitshift instructions.
 #[cfg(debug_assertions)]
 fn remove_bit_shifts_post_check(func: &Function) {
-    // Non-ACIR functions should be unaffected.
-    if !func.runtime().is_acir() {
-        return;
-    }
-
-    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if matches!(
-                func.dfg[*instruction_id],
-                Instruction::Binary(Binary { operator: BinaryOp::Shl | BinaryOp::Shr, .. })
-            ) {
-                panic!("Bitshift instruction still remains in ACIR function");
-            }
-        }
+    if func.runtime().is_acir() {
+        // All bit shifts should be removed in ACIR functions
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_bit_shift(instruction);
+        });
     }
 }
 
@@ -819,6 +822,95 @@ mod tests {
 
     mod signed {
         use super::*;
+
+        // Regression test for fuzzer seed 0x17e3645200100000.
+        //
+        // For a positive signed constant whose unsigned bit-width plus the shift amount
+        // equals the type's bit size, the result is in the "negative" half of the unsigned
+        // representation, so it does not fit in the positive signed range. The pass'
+        // happy-path multiplication therefore overflows the target type and the SSA
+        // interpreter later panics with `unfit 'lt': fit types should have been restored
+        // already` when the value reaches `lt`/bitwise operators that require fit operands.
+        #[test]
+        fn removes_shl_with_constant_lhs_overflowing_signed_range() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = shl i8 77, i8 1
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v2 = lt i8 -102, v0
+                constrain v2 == u1 1
+                return
+            }
+            ");
+        }
+
+        // Constant-folded boundary case that does *not* go through the buggy
+        // `unchecked_mul i8 _, i8 _` path even on the unfixed code: when the shift amount
+        // alone is `bit_size - 1` the cast of `2^(bit_size - 1)` to the signed type wraps
+        // to `iN::MIN`, so the subsequent multiplication by a small positive lhs
+        // (`i8 1 << 7 == -128`) evaluates without overflow inside `checked_mul`.
+        #[test]
+        fn removes_shl_with_constant_lhs_one_and_max_shift() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = shl i8 1, i8 7
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v2 = lt i8 -128, v0
+                constrain v2 == u1 1
+                return
+            }
+            ");
+        }
+
+        // Non-constant boundary case: an `i16` value reconstructed by a chain of casts
+        // from a `u1`. `get_value_max_num_bits` walks the casts and reports a max width of
+        // 1, so with a shift of 15 the pass picks the same boundary that triggered the
+        // fuzzer for `i8`. Unlike the constant-only cases above, there is no constant
+        // folding to obscure the structural change in the emitted SSA.
+        #[test]
+        fn removes_shl_with_lhs_cast_from_u1_to_i16_at_signed_boundary() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as i16
+                v2 = shl v1, i16 15
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as i16
+                v2 = cast v0 as Field
+                v4 = mul v2, Field 32768
+                v5 = cast v4 as i16
+                return v5
+            }
+            ");
+        }
+
         #[test]
         fn removes_shl_with_constant_rhs() {
             let src = "
@@ -935,10 +1027,12 @@ mod tests {
                 v7 = truncate v6 to 32 bits, max_bit_size: 33
                 v8 = cast v7 as i32
                 v10 = div v8, i32 4
-                v11 = cast v3 as i32
-                v12 = unchecked_sub v10, v11
-                v13 = truncate v12 to 32 bits, max_bit_size: 33
-                return v13
+                v11 = cast v10 as Field
+                v13 = add v11, Field 4294967296
+                v14 = sub v13, v4
+                v15 = truncate v14 to 32 bits, max_bit_size: 33
+                v16 = cast v15 as i32
+                return v16
             }
             ");
         }
@@ -1014,10 +1108,12 @@ mod tests {
                 v64 = truncate v63 to 32 bits, max_bit_size: 33
                 v65 = cast v64 as i32
                 v66 = div v65, v57
-                v67 = cast v60 as i32
-                v68 = unchecked_sub v66, v67
-                v69 = truncate v68 to 32 bits, max_bit_size: 33
-                return v69
+                v67 = cast v66 as Field
+                v69 = add v67, Field 4294967296
+                v70 = sub v69, v61
+                v71 = truncate v70 to 32 bits, max_bit_size: 33
+                v72 = cast v71 as i32
+                return v72
             }
             "#);
         }
@@ -1030,14 +1126,14 @@ mod tests {
           b0():
             v4 = shr u8 1, u8 98
             v6 = eq v4, u8 0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v11 = eq v9, u8 1
-            jmpif v11 then: b4, else: b5
+            jmpif v11 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -1050,7 +1146,7 @@ mod tests {
             jmp b9()
           b9():
             v7 = eq v4, u8 1
-            jmpif v7 then: b10, else: b11
+            jmpif v7 then: b10(), else: b11()
           b10():
             jmp b12()
           b11():
@@ -1058,7 +1154,7 @@ mod tests {
           b12():
             v9 = shr u8 1, u8 99
             v10 = eq v9, u8 0
-            jmpif v10 then: b1, else: b2
+            jmpif v10 then: b1(), else: b2()
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
@@ -1072,14 +1168,14 @@ mod tests {
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v4 = div u8 1, u8 0
             v5 = eq v4, u8 0
-            jmpif v5 then: b7, else: b8
+            jmpif v5 then: b7(), else: b8()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v9 = eq v7, u8 1
-            jmpif v9 then: b4, else: b5
+            jmpif v9 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -1092,7 +1188,7 @@ mod tests {
             jmp b9()
           b9():
             v6 = eq v4, u8 1
-            jmpif v6 then: b10, else: b11
+            jmpif v6 then: b10(), else: b11()
           b10():
             jmp b12()
           b11():
@@ -1101,7 +1197,7 @@ mod tests {
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v7 = div u8 1, u8 0
             v8 = eq v7, u8 0
-            jmpif v8 then: b1, else: b2
+            jmpif v8 then: b1(), else: b2()
         }
         "#);
     }

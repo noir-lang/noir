@@ -1,12 +1,14 @@
+use acvm::AcirField;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, InstructionId},
         types::{NumericType, Type},
-        value::ValueId,
+        value::{Value, ValueId},
     },
     opt::die::Context,
 };
@@ -42,7 +44,7 @@ impl Context {
                 // We still need to keep the EnableSideEffects instruction
                 function.dfg[block_id].instructions_mut().push(instruction_id);
                 continue;
-            };
+            }
 
             // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
             // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
@@ -70,10 +72,10 @@ impl Context {
             }
 
             // This is an instruction that might be out of bounds: let's add a constrain.
-            let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index, .. }
-                | Instruction::ArraySet { array, index, .. } => (array, index),
-                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
+            let (Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. }) = instruction
+            else {
+                panic!("Expected an ArrayGet or ArraySet instruction here");
             };
 
             let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
@@ -86,10 +88,10 @@ impl Context {
             } else {
                 let array_typ = function.dfg.type_of_value(*array);
                 let element_size = array_typ.element_size();
-                let len = match array_typ {
-                    Type::Array(_, len) => len,
-                    _ => panic!("Expected an array"),
+                let Type::Array(_, len) = &*array_typ else {
+                    panic!("Expected an array");
                 };
+                let len = *len;
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = element_size * len;
 
@@ -198,13 +200,13 @@ fn handle_array_get_group(
     if function.dfg.try_get_array_length(*array).is_none() {
         // Nothing to do for vectors
         return;
-    };
+    }
 
     let element_size = function.dfg.type_of_value(*array).element_size().to_usize();
     if element_size <= 1 {
         // Not a composite type
         return;
-    };
+    }
 
     // It's a composite type.
     // When doing ArrayGet on a composite type, this **always** results in instructions like these
@@ -247,6 +249,21 @@ fn handle_array_get_group(
         return;
     }
 
+    // The flattened reads of a single composite `array_get` all share one common base index
+    // and differ only by a small constant offset (`base`, `base + 1`, ...; see the example
+    // above). A subsequent get only joins the group when it shares that common base. Without
+    // this, two unrelated dynamic gets on the same composite array would collapse into a single
+    // OOB constraint, dropping the OOB side effect of every grouped access after the first.
+    //
+    // We compare against the common base rather than the first surviving read's literal index:
+    // an earlier DIE pass may have removed the offset-0 read, leaving the group's first read at
+    // `base + k`. Its trailing reads are still offset from the original `base`, not from each
+    // other, so a `first_index + k` comparison would wrongly split a legitimate group.
+    let Instruction::ArrayGet { index: first_index, .. } = function.dfg[instructions[index]] else {
+        return;
+    };
+    let (base, base_offset) = index_base_and_offset(&function.dfg, first_index);
+
     // Initially we would expect the last index of the group (5 in the example above)
     // to be `index + 2 * (element_size - 1)`, however, we can't expect this to hold
     // after previous DIE passes have partially removed the group.
@@ -273,6 +290,17 @@ fn handle_array_get_group(
                 // There is a chance that *this* instruction is safe, which means the one before it
                 // needs to be replaced with a constraint, even if this does not.
                 if function.dfg.is_safe_index(*next_index, *next_array) {
+                    break;
+                }
+                // Require that this `array_get` reads another slot of the *same* composite
+                // element: it must share the group's common base index and sit within one
+                // `element_size` window of it. Otherwise it is an independent access on the
+                // same array and must keep its own OOB check.
+                let (next_base, next_offset) = index_base_and_offset(&function.dfg, *next_index);
+                if next_base != base
+                    || next_offset == base_offset
+                    || next_offset.abs_diff(base_offset) >= element_size as u64
+                {
                     break;
                 }
                 // This instruction is also OOB, so it belongs to the same group.
@@ -312,6 +340,28 @@ fn handle_array_get_group(
         // We are in case c): some of the instructions are unused.
         // We don't need to insert any checks, and given that we already popped
         // all of the indexes in the group, there's nothing else to do here.
+    }
+}
+
+/// Decompose an array index into its `(common_base, offset)`. The SSA generator emits each
+/// flattened read of one composite `array_get` as `add(common_base, constant_offset)` (see the
+/// example in [`handle_array_get_group`]); a bare index, or any index that is not such an add,
+/// is treated as the base with offset 0. Two reads belong to the same composite access when they
+/// share a common base and their offsets sit within one `element_size` window of each other.
+fn index_base_and_offset(dfg: &DataFlowGraph, index: ValueId) -> (ValueId, u64) {
+    let Value::Instruction { instruction, .. } = dfg[index] else {
+        return (index, 0);
+    };
+    let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add { .. } }) = dfg[instruction]
+    else {
+        return (index, 0);
+    };
+    if let Some(offset) = dfg.get_numeric_constant(rhs).and_then(|c| c.try_to_u64()) {
+        (lhs, offset)
+    } else if let Some(offset) = dfg.get_numeric_constant(lhs).and_then(|c| c.try_to_u64()) {
+        (rhs, offset)
+    } else {
+        (index, 0)
     }
 }
 

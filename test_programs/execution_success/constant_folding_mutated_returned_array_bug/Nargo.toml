@@ -1,0 +1,6 @@
+[package]
+name = "constant_folding_mutated_returned_array_bug"
+type = "bin"
+authors = [""]
+
+[dependencies]

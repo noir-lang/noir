@@ -43,7 +43,7 @@ pub(crate) fn on_semantic_tokens_full_request(
     params: SemanticTokensParams,
 ) -> impl Future<Output = Result<Option<SemanticTokensResult>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 
@@ -391,7 +391,6 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::Bang
             | Token::DollarSign
             | Token::At
-            | Token::DeprecatedVectorStart
             | Token::EOF
             | Token::Whitespace(_)
             | Token::UnquoteMarker(_)
@@ -456,7 +455,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = module.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         true
     }
@@ -465,7 +464,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = function.name_ident().location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         false
     }
@@ -474,13 +473,13 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_struct.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
-        for field in noir_struct.fields.iter() {
+        for field in &noir_struct.fields {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.process_reference_id(reference);
-            };
+            }
         }
 
         false
@@ -490,14 +489,14 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_enum.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
-        for variant in noir_enum.variants.iter() {
+        for variant in &noir_enum.variants {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
                 self.process_reference_id(reference);
-            };
+            }
         }
 
         false
@@ -507,16 +506,16 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_trait.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
-        for item in noir_trait.items.iter() {
+        for item in &noir_trait.items {
             if let TraitItem::Function { name, .. } = &item.item {
                 let func_name_location = name.location();
                 if let Some(reference) =
                     self.args.interner.reference_at_location(func_name_location)
                 {
                     self.process_reference_id(reference);
-                };
+                }
             }
         }
 
@@ -527,7 +526,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = let_statement.pattern.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
         false
     }
 
@@ -535,7 +534,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = type_alias.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
         false
     }
 }
@@ -543,31 +542,18 @@ impl Visitor for SemanticTokenCollector<'_> {
 #[cfg(test)]
 mod tests {
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, PartialResultParams, SemanticToken, SemanticTokensParams,
-        SemanticTokensResult, TextDocumentIdentifier, TextDocumentItem, WorkDoneProgressParams,
+        PartialResultParams, SemanticToken, SemanticTokensParams, SemanticTokensResult,
+        TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use insta::assert_snapshot;
     use tokio::test;
 
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_semantic_tokens_full_request,
-        test_utils,
-    };
+    use crate::{requests::on_semantic_tokens_full_request, test_utils};
 
     async fn get_semantic_tokens(src: &str) -> Vec<SemanticToken> {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
+                .await;
 
         let response = on_semantic_tokens_full_request(
             &mut state,

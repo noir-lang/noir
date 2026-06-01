@@ -44,9 +44,7 @@ pub struct FileMap {
 }
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
-#[derive(
-    Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord,
-)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct FileId(usize);
 
 impl FileId {
@@ -84,7 +82,7 @@ impl FileMap {
     }
 
     pub fn get_file_id(&self, file_name: &PathString) -> Option<FileId> {
-        self.name_to_id.get(file_name).cloned()
+        self.name_to_id.get(file_name).copied()
     }
 
     pub fn all_file_ids(&self) -> impl Iterator<Item = &FileId> {
@@ -95,10 +93,10 @@ impl FileMap {
         let name = self.get_absolute_name(file_id)?;
 
         // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
-        if let Some(current_dir) = &self.current_dir {
-            if let Ok(name_without_prefix) = name.0.strip_prefix(current_dir) {
-                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
-            }
+        if let Some(current_dir) = &self.current_dir
+            && let Ok(name_without_prefix) = name.0.strip_prefix(current_dir)
+        {
+            return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
         }
 
         Ok(name)

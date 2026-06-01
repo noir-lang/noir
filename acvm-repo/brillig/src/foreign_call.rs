@@ -38,7 +38,7 @@ impl<F: AcirField> ForeignCallParam<F> {
     pub fn fields(&self) -> Vec<F> {
         match self {
             ForeignCallParam::Single(value) => vec![*value],
-            ForeignCallParam::Array(values) => values.to_vec(),
+            ForeignCallParam::Array(values) => values.clone(),
         }
     }
 

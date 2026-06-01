@@ -16,7 +16,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.14</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2>In module embedded_curve_ops</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.EmbeddedCurvePoint.html">EmbeddedCurvePoint</a></div></li>
@@ -37,7 +37,14 @@
 ) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
 <div class="comments">
-<p>This function assumes that the points are on the curve</p>
+<p>Elliptic curve addition
+IMPORTANT: this function is expected to perform a full addition in order to handle all corner cases:</p>
+<ul>
+<li>points on the curve</li>
+<li>point doubling</li>
+<li>point at infinity
+As a result, you may not get optimal performance, depending on the assumptions of your inputs.</li>
+</ul>
 </div>
 </main>
 </span>

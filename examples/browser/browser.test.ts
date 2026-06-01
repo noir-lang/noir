@@ -56,11 +56,19 @@ function createStaticServer(rootDir: string): http.Server {
   });
 }
 
+// Barretenberg fetches CRS data from https://crs.aztec.network/ which doesn't
+// serve CORS headers. Disable web security so these cross-origin fetches work.
+// It should return a `Access-Control-Allow-Origin: *` header to make it work.
+test.use({
+  launchOptions: {
+    args: ['--disable-web-security'],
+  },
+});
+
 test.describe('Noir Web App', () => {
   test.beforeAll(async () => {
     // Serve the pre-built files from the dist directory
     const distDir = resolve(__dirname, 'dist');
-
     // Start static file server for the already built files
     server = createStaticServer(distDir);
     await new Promise<void>((resolve) => {
@@ -82,7 +90,7 @@ test.describe('Noir Web App', () => {
 
   test('should generate and verify proof for valid age', async ({ page }) => {
     // Increase test timeout as proof generation can take time
-    test.setTimeout(30000);
+    test.setTimeout(60000);
 
     await page.goto(`http://localhost:${SERVER_PORT}`);
     await page.waitForLoadState('networkidle');
@@ -94,8 +102,12 @@ test.describe('Noir Web App', () => {
     await page.fill('#age', '25');
     await page.click('#submit');
 
+    // Wait for backend creation (this can take some time)
+    await expect(page.locator('#logs')).toContainText('Creating Barretenberg... ⏳');
+    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 40000});
+
     // Wait for witness generation
-    await expect(page.locator('#logs')).toContainText('Generating witness... ⏳');
+    await expect(page.locator('#logs')).toContainText('Generating witness... ⏳', {timeout: 10000});
     await expect(page.locator('#logs')).toContainText('Generated witness... ✅');
 
     // Wait for proof generation (this can take longer)
@@ -113,7 +125,7 @@ test.describe('Noir Web App', () => {
   });
 
   test('should fail for invalid age', async ({ page }) => {
-    test.setTimeout(30000);
+    test.setTimeout(60000);
 
     await page.goto(`http://localhost:${SERVER_PORT}`);
     await page.waitForLoadState('networkidle');
@@ -126,6 +138,6 @@ test.describe('Noir Web App', () => {
     await page.click('#submit');
 
     // Should show error
-    await expect(page.locator('#logs')).toContainText('Oh 💔');
+    await expect(page.locator('#logs')).toContainText('Oh 💔', { timeout: 30000 });
   });
 });

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::foreign_calls::OracleResolverUrl;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
@@ -27,6 +28,10 @@ pub(crate) struct ExecuteCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
+    /// Optionally overwrite the `return` entry in the prover file.
+    #[clap(long, default_value_t = false)]
+    pub overwrite_return: bool,
+
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
@@ -35,7 +40,7 @@ pub(crate) struct ExecuteCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long, conflicts_with = "oracle_file")]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 
     /// Path to the oracle transcript.
     #[clap(long, conflicts_with = "oracle_resolver")]
@@ -74,6 +79,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         let cmd = noir_artifact_cli::commands::execute_cmd::ExecuteCommand {
             artifact_path: program_artifact_path,
             prover_file,
+            overwrite_return: args.overwrite_return,
             output_dir: Some(workspace.target_directory_path()),
             witness_name: Some(
                 args.witness_name.clone().unwrap_or_else(|| package.name.to_string()),

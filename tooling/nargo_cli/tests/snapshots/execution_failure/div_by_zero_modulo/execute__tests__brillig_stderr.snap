@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: attempt to calculate the remainder with a divisor of zero
+  ┌─ src/main.nr:5:15
+  │
+5 │     let res = (a * b) % c;
+  │               -----------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:5:15
+
+Failed assertion

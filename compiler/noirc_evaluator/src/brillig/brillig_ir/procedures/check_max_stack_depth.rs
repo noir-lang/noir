@@ -38,7 +38,7 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
     brillig_context.codegen_usize_op(
         ReservedRegisters::stack_pointer(),
         in_range.address,
-        BrilligBinaryOp::LessThan,
+        BrilligBinaryOp::LessThanEquals,
         last_possible_stack_start,
     );
     brillig_context.codegen_constrain(*in_range, Some("Stack too deep".to_string()));

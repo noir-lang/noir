@@ -1,12 +1,12 @@
+use std::cmp;
+
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use crate::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
 
 use super::{
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::BrilligVariable,
-    debug_show::DebugToString,
-    registers::{RegisterAllocator, Stack},
+    BrilligBinaryOp, BrilligContext, ReservedRegisters, brillig_variable::BrilligVariable,
+    debug_show::DebugToString, registers::RegisterAllocator,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -28,32 +28,39 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let previous_stack_pointer = self.registers().empty_registers_start();
         let stack_size = previous_stack_pointer.unwrap_relative();
 
-        // Ensure that writing call arguments won't overflow into heap memory.
+        // The first few slots in each stack frame are reserved.
+        let reserved_len = self.registers().start() as u32;
+
+        // Ensure that writing call arguments and return values won't overflow into heap memory.
         //
         // At compile time, we don't know the runtime stack_pointer position. The worst case
         // is when we're in the last viable stack frame (last possible stack start in the `CheckMaxStackDepth` procedure).
         // In that case, writing arguments could still overflow into the heap before the next `CheckMaxStackDepth` runs.
         //
         // Given that `CheckMaxStackDepth` ensures:
-        //   `stack_pointer < stack_start + max_stack_size - max_frame_size`
+        //   `stack_pointer <= stack_start + max_stack_size - max_frame_size`
         //
         // Heap corruption occurs when:
-        //   `stack_pointer + stack_size + arguments_len >= stack_start + max_stack_size`
+        //   `stack_pointer + stack_size + reserved_len + max(arguments_len, returns_len) > stack_start + max_stack_size`
         //
-        // Substituting worst case (`stack_pointer = stack_start + max_stack_size - max_frame_size`):
-        //   `(stack_start + max_stack_size - max_frame_size) + stack_size + arguments_len >= stack_start + max_stack_size`
-        //   `max_stack_size - max_frame_size + stack_size + arguments_len >= max_stack_size`
-        //   `stack_size + arguments_len >= max_frame_size`
+        // (Note that it's okay for the LHS to equal the RHS because initially the stack_pointer equals the stack_start).
         //
-        // Therefore, to prevent heap corruption: `stack_size + arguments_len < max_frame_size`
+        // Substituting worst case (`stack_pointer = stack_start + max_stack_size - max_frame_size`, ie. the last viable frame):
+        //   `(stack_start + max_stack_size - max_frame_size) + stack_size + reserved_len + max(arguments_len, returns_len) > stack_start + max_stack_size`
+        //   `max_stack_size - max_frame_size + stack_size + reserved_len + max(arguments_len, returns_len) > max_stack_size`
+        //   `stack_size + reserved_len + max(arguments_len, returns_len) > max_frame_size`
+        //
+        // Therefore, to prevent heap corruption: `stack_size + reserved_len + max(arguments_len, returns_len) <= max_frame_size`
         //
         // This is conservative (may reject programs that would work in the non-last viable frames),
         // but is the only safe compile-time check without runtime pointers.
         let max_frame_size = self.registers().layout().max_stack_frame_size();
         let arguments_len = arguments.len();
+        let returns_len = returns.len();
         assert!(
-            (stack_size as usize) + arguments_len < max_frame_size,
-            "Call arguments would exceed stack frame bounds: frame_size={stack_size}, arguments={arguments_len}, max={max_frame_size}",
+            ((stack_size + reserved_len) as usize) + cmp::max(arguments_len, returns_len)
+                <= max_frame_size,
+            "Call arguments would exceed stack frame bounds: frame_size={stack_size}, arguments={arguments_len}, returns={returns_len}, max={max_frame_size}",
         );
 
         // Write the current stack size to a register, so we can add it to the stack pointer.
@@ -63,8 +70,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // This is the previous stack pointer to return to after the call.
         self.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
 
-        // Pass the arguments in the 1st, 2nd, ... slots of the stack.
-        let mut current_argument_location = stack_size + 1;
+        // Pass the arguments starting at the callee's start offset.
+        // Offset 0 holds the saved stack pointer;
+        // when spill support is active, offset 1 is reserved for the spill base pointer.
+        let mut current_argument_location = stack_size + reserved_len;
         for item in arguments {
             // Here we are still using addresses relative to the current stack pointer.
             self.mov_instruction(
@@ -90,7 +99,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
 
         // Move the return values back. The return values are expected to overwrite the args.
-        let mut current_return_location = stack_size + 1;
+        let mut current_return_location = stack_size + reserved_len;
         for item in returns {
             self.mov_instruction(
                 item.extract_register(),
@@ -114,7 +123,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         for (destination_index, return_variable) in return_variables.iter().enumerate() {
             // In case we have fewer return registers than indices to write to, ensure we've allocated this register.
             let destination_register =
-                MemoryAddress::relative(assert_u32(Stack::start() + destination_index));
+                MemoryAddress::relative(assert_u32(self.registers().start() + destination_index));
             self.registers_mut().ensure_register_is_allocated(destination_register);
             destinations.push(destination_register);
             sources.push(return_variable.extract_register());

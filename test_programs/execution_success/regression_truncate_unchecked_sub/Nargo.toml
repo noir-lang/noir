@@ -1,0 +1,6 @@
+[package]
+name = "regression_truncate_unchecked_sub"
+type = "bin"
+authors = [""]
+
+[dependencies]

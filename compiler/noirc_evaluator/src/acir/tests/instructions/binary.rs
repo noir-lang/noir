@@ -571,8 +571,6 @@ fn and_u8() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE input: w0, bits: 8
-    BLACKBOX::RANGE input: w1, bits: 8
     BLACKBOX::AND lhs: w0, rhs: w1, output: w3, bits: 8
     ASSERT w2 = w3
     ");
@@ -670,8 +668,6 @@ fn xor_u8() {
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    BLACKBOX::RANGE input: w0, bits: 8
-    BLACKBOX::RANGE input: w1, bits: 8
     BLACKBOX::XOR lhs: w0, rhs: w1, output: w3, bits: 8
     ASSERT w2 = w3
     ");

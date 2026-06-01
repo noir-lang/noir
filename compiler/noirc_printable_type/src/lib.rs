@@ -6,6 +6,7 @@ use std::{collections::BTreeMap, str};
 use acvm::{AcirField, acir::brillig::ForeignCallParam};
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -132,7 +133,8 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
             Self::FmtString(template, values) => {
                 let mut values_iter = values.iter();
                 write_template_replacing_interpolations(template, fmt, || {
-                    values_iter.next().and_then(|(value, typ)| to_string(value, typ))
+                    let (value, typ) = values_iter.next()?;
+                    to_string(value, typ)
                 })
             }
         }
@@ -160,7 +162,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             let mut uint_cast = f.to_u128();
             if *width != 128 {
                 uint_cast &= (1 << width) - 1;
-            };
+            }
 
             output.push_str(&uint_cast.to_string());
         }
@@ -234,8 +236,8 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             let PrintableType::Tuple { types } = typ.as_ref() else {
                 panic!("Expected type to be a Tuple for FmtString");
             };
-            let template = template.to_string();
-            let args = values.iter().cloned().zip(types.iter().cloned()).collect::<Vec<_>>();
+            let template = template.clone();
+            let args = values.iter().cloned().zip_eq(types.iter().cloned()).collect::<Vec<_>>();
             output.push_str(&PrintableValueDisplay::FmtString(template, args).to_string());
         }
         PrintableType::Struct { name, fields, .. } => {
@@ -263,7 +265,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 return None;
             };
             output.push('(');
-            let mut elements = array_elements.iter().zip(types).peekable();
+            let mut elements = array_elements.iter().zip_eq(types).peekable();
             while let Some((value, typ)) = elements.next() {
                 output.push_str(
                     &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
@@ -290,7 +292,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             if has_fields {
                 output.push('(');
             }
-            let mut elements = elements.iter().zip(types).peekable();
+            let mut elements = elements.iter().zip_eq(types).peekable();
             while let Some((value, typ)) = elements.next() {
                 output.push_str(
                     &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
@@ -326,7 +328,7 @@ fn write_template_replacing_interpolations(
             let (_, closing_curly) = char_indices.next().unwrap();
             assert_eq!(closing_curly, '}');
 
-            last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+            last_index = char_indices.peek().map_or(template.len(), |(index, _)| *index);
             continue;
         }
 
@@ -346,7 +348,7 @@ fn write_template_replacing_interpolations(
             // Skip the second '{'
             char_indices.next().unwrap();
 
-            last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+            last_index = char_indices.peek().map_or(template.len(), |(index, _)| *index);
             continue;
         }
 
@@ -360,7 +362,7 @@ fn write_template_replacing_interpolations(
         // Whatever was inside '{...}' doesn't matter, so skip until we find '}'
         while let Some((_, char)) = char_indices.next() {
             if char == '}' {
-                last_index = char_indices.peek().map(|(index, _)| *index).unwrap_or(template.len());
+                last_index = char_indices.peek().map_or(template.len(), |(index, _)| *index);
                 break;
             }
         }
@@ -497,8 +499,7 @@ pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
         char_byte
     });
 
-    let final_string = String::from_utf8_lossy(&string_as_slice).to_string();
-    final_string.to_owned()
+    String::from_utf8_lossy(&string_as_slice).to_string()
 }
 
 pub enum TryFromParamsError {

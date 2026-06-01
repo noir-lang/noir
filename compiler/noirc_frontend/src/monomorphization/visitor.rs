@@ -48,14 +48,17 @@ where
         Expression::Ident(ident) => i(ident),
         Expression::Literal(literal) => match literal {
             Literal::Array(array_literal) => {
-                for expr in array_literal.contents.iter_mut() {
+                for expr in &mut array_literal.contents {
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
             Literal::Vector(array_literal) => {
-                for expr in array_literal.contents.iter_mut() {
+                for expr in &mut array_literal.contents {
                     visit_expr_be_mut(expr, b, e, i);
                 }
+            }
+            Literal::Repeated { element, .. } => {
+                visit_expr_be_mut(element, b, e, i);
             }
             Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
             Literal::FmtStr(_, _, expr) => {
@@ -101,7 +104,7 @@ where
             }
         }
         Expression::Match(match_) => {
-            for case in match_.cases.iter_mut() {
+            for case in &mut match_.cases {
                 visit_expr_be_mut(&mut case.branch, b, e, i);
             }
             if let Some(ref mut case) = match_.default_case {
@@ -118,15 +121,18 @@ where
         }
         Expression::Call(call) => {
             visit_expr_be_mut(&mut call.func, b, e, i);
-            for arg in call.arguments.iter_mut() {
+            for arg in &mut call.arguments {
                 visit_expr_be_mut(arg, b, e, i);
             }
         }
         Expression::Let(let_) => {
             visit_expr_be_mut(&mut let_.expression, b, e, i);
         }
-        Expression::Constrain(expr, _, _) => {
+        Expression::Constrain(expr, _, message) => {
             visit_expr_be_mut(expr, b, e, i);
+            if let Some(message) = message {
+                visit_expr_be_mut(&mut message.as_mut().0, b, e, i);
+            }
         }
         Expression::Assign(assign) => {
             visit_lvalue_mut(&mut assign.lvalue, b, e, i);
@@ -222,6 +228,9 @@ where
                     visit_expr_be(expr, b, e, i);
                 }
             }
+            Literal::Repeated { element, .. } => {
+                visit_expr_be(element, b, e, i);
+            }
             Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
             Literal::FmtStr(_, _, expr) => {
                 visit_expr_be(expr, b, e, i);
@@ -290,8 +299,11 @@ where
         Expression::Let(let_) => {
             visit_expr_be(&let_.expression, b, e, i);
         }
-        Expression::Constrain(expr, _, _) => {
+        Expression::Constrain(expr, _location, message) => {
             visit_expr_be(expr, b, e, i);
+            if let Some(message) = message {
+                visit_expr_be(&message.as_ref().0, b, e, i);
+            }
         }
         Expression::Assign(assign) => {
             visit_lvalue(&assign.lvalue, b, e, i);

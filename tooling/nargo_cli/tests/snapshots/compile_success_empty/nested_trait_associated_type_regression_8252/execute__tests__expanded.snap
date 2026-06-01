@@ -14,20 +14,12 @@ struct Foo {}
 
 impl TraitWithAssociatedConstant for Foo {
     let N: u32 = 42;
-
-    fn foo(_: Self) -> bool {
-        true
-    }
 }
 
 struct Bar {}
 
 impl TraitWithAssociatedConstant for Bar {
     let N: u32 = 43;
-
-    fn foo(_: Self) -> bool {
-        true
-    }
 }
 
 struct Wrapper<T> {
@@ -39,10 +31,6 @@ where
     V: TraitWithAssociatedConstant,
 {
     let N: u32 = <V as TraitWithAssociatedConstant>::N;
-
-    fn foo(_: Self) -> bool {
-        true
-    }
 }
 
 impl<U> Eq for Wrapper<U>

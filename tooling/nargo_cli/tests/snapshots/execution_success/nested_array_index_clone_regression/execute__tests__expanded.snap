@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Entry {
+    arr: [bool; 1],
+}
+
+#[inline_never]
+unconstrained fn mutate_flat(a: [[bool; 1]; 2], mut b: [bool; 1]) {
+    b[0_u32] = !b[0_u32];
+    println(b);
+    println(a);
+    assert(a == [[true], [false]]);
+    assert(b == [true]);
+}
+
+#[inline_never]
+unconstrained fn mutate_field(a: [Entry; 2], mut b: [bool; 1]) {
+    b[0_u32] = !b[0_u32];
+    println(b);
+    println(a);
+    assert(a[0_u32].arr == [true]);
+    assert(a[1_u32].arr == [false]);
+    assert(b == [true]);
+}
+
+unconstrained fn main() {
+    let flat: [[bool; 1]; 2] = [[true], [false]];
+    mutate_flat(flat, flat[1_u32]);
+    let fields: [Entry; 2] = [Entry { arr: [true] }, Entry { arr: [false] }];
+    mutate_field(fields, fields[1_u32].arr);
+}

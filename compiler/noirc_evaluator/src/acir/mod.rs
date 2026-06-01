@@ -17,6 +17,7 @@ use acvm::acir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 mod acir_context;
@@ -25,16 +26,17 @@ mod call;
 mod shared_context;
 pub(crate) mod ssa;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 mod types;
 
 use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::errors::{InternalError, RuntimeError};
+
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, MAX_ELEMENTS},
         function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, TerminatorInstruction,
@@ -48,7 +50,7 @@ use crate::ssa::{
 };
 use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
-use acir_context::{AcirContext, BrilligStdLib, power_of_two};
+use acir_context::{AcirContext, BrilligStdLib};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
@@ -194,8 +196,7 @@ impl<'a> Context<'a> {
         self.acir_context.acir_ir.input_witnesses =
             self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
-        let num_return_witnesses =
-            self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
+        let num_return_witnesses = dfg.get_num_return_witnesses(main_func)?;
 
         // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
         // layout for serializing those types as if they were being passed as inputs.
@@ -243,7 +244,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        self.data_bus = dfg.data_bus.to_owned();
+        self.data_bus = dfg.data_bus.clone();
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
@@ -256,7 +257,7 @@ impl<'a> Context<'a> {
         // But an attempt at searching through the program and relabeling these witnesses so we could remove
         // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
         // but "the opcode count doesn't even change in real circuits."
-        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+        for (witness_var, return_var) in return_witness_vars.iter().zip_eq(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
 
@@ -290,21 +291,40 @@ impl<'a> Context<'a> {
         self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
 
+        // Check the flattened size of return values to avoid OOM during Brillig entry point generation
+        let num_return_values: usize = returns
+            .iter()
+            .map(|result_id| dfg.type_of_value(*result_id).flattened_size().to_usize())
+            .sum();
+        if num_return_values > MAX_ELEMENTS {
+            let entry_block = &dfg[main_func.entry_block()];
+            let call_stack_id = match entry_block.unwrap_terminator() {
+                TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+                _ => unreachable!("ICE: expected return terminator"),
+            };
+            let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
+            return Err(RuntimeError::ReturnLimitExceeded {
+                num_witnesses: num_return_values,
+                max_witnesses: MAX_ELEMENTS,
+                call_stack,
+            });
+        }
+
         let outputs: Vec<AcirType> =
-            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
-        let unsafe_return_values = true;
+        let skip_output_range_checks = true;
         let output_values = self.acir_context.brillig_call(
             self.current_side_effects_enabled_var,
             &code,
             inputs,
             outputs,
-            unsafe_return_values,
+            skip_output_range_checks,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             BrilligFunctionId(0),
             None,
@@ -339,8 +359,11 @@ impl<'a> Context<'a> {
         params: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        // The first witness (if any) is the next one
-        let start_witness = self.acir_context.current_witness_index().0;
+        // The start witness would be the *next* witness, if we created one.
+        let start_witness = match self.acir_context.current_witness_index() {
+            Some(last) => Witness(last.witness_index().checked_add(1).expect("too many witnesses")),
+            None => Witness::default(),
+        };
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
@@ -348,12 +371,12 @@ impl<'a> Context<'a> {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
-                    let len = if matches!(typ, Type::Array(_, _)) {
+                    let len = if matches!(*typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
-                            found: format!("Instead got {typ:?}"),
+                            found: format!("Instead got {:?}", *typ),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
@@ -366,8 +389,12 @@ impl<'a> Context<'a> {
             }
             self.ssa_values.insert(param_id, value);
         }
-        let end_witness = self.acir_context.current_witness_index().0;
-        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
+        // Check if we have generated any witnesses.
+        let Some(end_witness) = self.acir_context.current_witness_index() else {
+            return Ok(Vec::new());
+        };
+        // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
+        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
         Ok(witnesses)
     }
 
@@ -468,9 +495,8 @@ impl<'a> Context<'a> {
                 warnings.extend(self.convert_ssa_call(instruction, dfg, ssa, result_ids)?);
             }
             Instruction::Not(value_id) => {
-                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
-                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
-                    _ => unreachable!("NOT is only applied to numerics"),
+                let AcirValue::Var(acir_var, typ) = self.convert_value(*value_id, dfg) else {
+                    unreachable!("NOT is only applied to numerics");
                 };
                 let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
@@ -489,7 +515,7 @@ impl<'a> Context<'a> {
             }
             Instruction::Allocate => {
                 return Err(RuntimeError::UnknownReference {
-                    call_stack: self.acir_context.get_call_stack().clone(),
+                    call_stack: self.acir_context.get_call_stack(),
                 });
             }
             Instruction::Store { .. } => {
@@ -526,7 +552,7 @@ impl<'a> Context<'a> {
             Instruction::Noop => (),
         }
 
-        self.acir_context.set_call_stack(CallStack::new());
+        self.acir_context.set_call_stack(CallStack::empty());
         Ok(warnings)
     }
 
@@ -588,26 +614,6 @@ impl<'a> Context<'a> {
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
-    fn get_num_return_witnesses(
-        &self,
-        terminator: &TerminatorInstruction,
-        dfg: &DataFlowGraph,
-    ) -> usize {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values, .. } => return_values,
-            TerminatorInstruction::Unreachable { .. } => return 0,
-            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
-        };
-
-        return_values
-            .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
-    }
-
-    /// Converts an SSA terminator's return values into their ACIR representations
     fn convert_ssa_return(
         &mut self,
         terminator: &TerminatorInstruction,
@@ -662,7 +668,7 @@ impl<'a> Context<'a> {
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
         assert!(
-            !matches!(dfg.type_of_value(value_id), Type::Reference(_)),
+            !matches!(*dfg.type_of_value(value_id), Type::Reference(..)),
             "convert_value: did not expect a Reference type"
         );
 
@@ -685,7 +691,7 @@ impl<'a> Context<'a> {
                 let id = self.acir_context.add_constant(function_id.to_u32());
                 AcirValue::Var(id, NumericType::NativeField)
             }
-            Value::ForeignFunction(_) => unimplemented!(
+            Value::ForeignFunction { .. } => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
             Value::Instruction { .. } | Value::Param { .. } => {
@@ -807,13 +813,13 @@ impl<'a> Context<'a> {
         let lhs_type = dfg.type_of_value(binary.lhs);
         let rhs_type = dfg.type_of_value(binary.rhs);
 
-        match (lhs_type, rhs_type) {
+        match (&*lhs_type, &*rhs_type) {
             // Function type should not be possible, since all functions
             // have been inlined.
             (_, Type::Function) | (Type::Function, _) => {
                 unreachable!("all functions should be inlined")
             }
-            (_, Type::Reference(_)) | (Type::Reference(_), _) => {
+            (_, Type::Reference(..)) | (Type::Reference(..), _) => {
                 unreachable!("References are invalid in binary operations")
             }
             (_, Type::Array(..)) | (Type::Array(..), _) => {
@@ -826,7 +832,7 @@ impl<'a> Context<'a> {
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(lhs_type, rhs_type, "lhs and rhs types in {binary:?} are not the same");
-                Type::Numeric(lhs_type)
+                Type::Numeric(*lhs_type)
             }
         }
     }
@@ -836,7 +842,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        mut max_bit_size: u32,
+        max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -845,33 +851,17 @@ impl<'a> Context<'a> {
             "Attempted to generate a truncation into size larger than max input"
         );
 
-        let mut var = self.convert_numeric_value(value_id, dfg)?;
+        let var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
-                if matches!(
-                    &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
-                ) {
-                    // Subtractions must first have the integer modulus added before truncation can be
-                    // applied. This is done in order to prevent underflow.
-                    //
-                    // FieldElements have max bit size equals to max_num_bits so
-                    // we filter out this bit size because there is no underflow
-                    // for FieldElements. Furthermore, adding a power of two
-                    // would be incorrect for a FieldElement (cf. #8519).
-                    if max_bit_size < FieldElement::max_num_bits() {
-                        // When max_bit_size is max_num_bits() - 1, adding
-                        // 2**max_bit_size to an element of max_bit_size bits
-                        // gives an element of max_num_bits() bits which may overflow
-                        assert!(
-                            max_bit_size != FieldElement::max_num_bits() - 1,
-                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
-                        );
-                        let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
-                        let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                        var = self.acir_context.add_var(var, integer_modulus)?;
-                        max_bit_size += 1;
-                    }
+                if let Instruction::Binary(Binary {
+                    lhs,
+                    operator: BinaryOp::Sub { unchecked: true },
+                    ..
+                }) = &dfg[*instruction]
+                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                {
+                    unreachable!("Truncation of unchecked signed subtraction");
                 }
             }
             Value::Param { .. } => {
@@ -881,7 +871,7 @@ impl<'a> Context<'a> {
             _ => unreachable!(
                 "ICE: Truncates are only ever applied to the result of a binary op or a param"
             ),
-        };
+        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
@@ -917,24 +907,34 @@ impl<'a> Context<'a> {
     }
 }
 
-/// Check post ACIR generation properties
+/// Check post ACIR generation properties:
+/// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::opcodes::MemOpKind;
     for opcode in acir.opcodes() {
-        let Opcode::MemoryOp { block_id, op } = opcode else {
-            continue;
-        };
-        if op.operation.is_one() {
-            // Check that we have no writes to the type size arrays
-            let is_type_sizes_array =
-                context.element_type_sizes_blocks.values().any(|id| id == block_id);
-            assert!(
-                !is_type_sizes_array,
-                "ICE: Writes to the internal type sizes array are forbidden"
-            );
+        match opcode {
+            Opcode::AssertZero(expr) => {
+                assert!(
+                    !expr.is_zero(),
+                    "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
+                );
+            }
+            Opcode::MemoryOp { block_id, op } => {
+                if op.operation == MemOpKind::Write {
+                    // Check that we have no writes to the type size arrays
+                    let is_type_sizes_array =
+                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
+                    assert!(
+                        !is_type_sizes_array,
+                        "ICE: Writes to the internal type sizes array are forbidden"
+                    );
+                }
+            }
+            _ => {}
         }
     }
 }

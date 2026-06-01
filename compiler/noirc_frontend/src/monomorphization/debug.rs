@@ -6,8 +6,7 @@ use noirc_printable_type::PrintableType;
 
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
-use crate::node_interner::ExprId;
-use crate::signed_field::SignedField;
+use crate::node_interner::{DefinitionKind, ExprId};
 
 use super::ast::{Expression, Ident};
 use super::{MonomorphizationError, Monomorphizer};
@@ -43,6 +42,19 @@ impl Monomorphizer<'_> {
         function: &Expression,
         arguments: &mut [Expression],
     ) -> Result<(), MonomorphizationError> {
+        // Only patch calls to functions that originate from the debug crate.
+        // This prevents user-defined functions with the same name (e.g. __debug_var_assign)
+        // from being incorrectly patched.
+        let Some(debug_crate_id) = self.debug_crate_id else {
+            return Ok(());
+        };
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&call.func)
+            && let DefinitionKind::Function(func_id) = &self.interner.definition(ident.id).kind
+            && self.interner.function_meta(func_id).source_crate != debug_crate_id
+        {
+            return Ok(());
+        }
+
         if let Expression::Ident(Ident { name, .. }) = function {
             if name == "__debug_var_assign" {
                 self.patch_debug_var_assign(call, arguments)?;
@@ -76,7 +88,7 @@ impl Monomorphizer<'_> {
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.to_u128().into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
@@ -98,7 +110,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_var_drop call");
         };
         // update variable ID for tracked drops (ie. when the var goes out of scope)
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.to_u128().into();
         let var_id = self
             .debug_type_tracker
             .get_var_id(source_var_id)
@@ -126,7 +138,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_member_assign call");
         };
         // update variable member assignments
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.to_u128().into();
 
         let var_type = self
             .debug_type_tracker
@@ -138,7 +150,8 @@ impl Monomorphizer<'_> {
             if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let index = fe_i.absolute_value().to_i128().unsigned_abs();
+                let fe_i = fe_i.to_i128();
+                let index = fe_i.unsigned_abs();
                 if fe_i.is_negative() {
                     // We use negative indices at instrumentation time to indicate
                     // and reference member accesses by name which cannot be
@@ -153,7 +166,7 @@ impl Monomorphizer<'_> {
                         });
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
-                    let integer = HirLiteral::Integer(SignedField::positive(field_index));
+                    let integer = HirLiteral::Integer(field_index.into());
                     let index_id = self.interner.push_expr_full(
                         HirExpression::Literal(integer),
                         call.location,
@@ -180,8 +193,7 @@ impl Monomorphizer<'_> {
     }
 
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let value = SignedField::positive(var_id.0);
-        let var_id_literal = HirLiteral::Integer(value);
+        let var_id_literal = HirLiteral::Integer(var_id.0.into());
         let expression = HirExpression::Literal(var_id_literal);
         let typ = crate::Type::u32();
         self.interner.push_expr_full(expression, *location, typ)

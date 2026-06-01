@@ -34,7 +34,18 @@ impl PostOrder {
 
     /// Allocate and compute a function's block post-order.
     pub(crate) fn with_cfg(cfg: &ControlFlowGraph) -> Self {
-        PostOrder(Self::compute_post_order(cfg))
+        let roots = cfg.compute_entry_blocks();
+        PostOrder(Self::compute_post_order(cfg, roots))
+    }
+
+    /// Allocate and compute a function's block post-order, always rooted at the
+    /// function's entry block.
+    ///
+    /// Unlike [`Self::with_function`], this includes the entry block even when
+    /// it has incoming edges (e.g. malformed SSA with a back-edge to entry).
+    pub(crate) fn with_function_from_entry(func: &Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(func);
+        PostOrder(Self::compute_post_order(&cfg, vec![func.entry_block()]))
     }
 
     /// Return blocks in post-order.
@@ -63,16 +74,16 @@ impl PostOrder {
         blocks
     }
 
-    // Computes the post-order of the CFG by doing a depth-first traversal of the
-    // function's entry block's previously unvisited children. Each block is sequenced according
+    // Computes the post-order of the CFG by doing a depth-first traversal of the given
+    // root blocks' previously unvisited children. Each block is sequenced according
     // to when the traversal exits it.
-    fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+    fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
         let mut stack = vec![];
         let mut visited: HashSet<BasicBlockId> = HashSet::new();
         let mut post_order: Vec<BasicBlockId> = Vec::new();
 
         // Set root blocks
-        stack.extend(cfg.compute_entry_blocks().into_iter().map(|root| (Visit::First, root)));
+        stack.extend(roots.into_iter().map(|root| (Visit::First, root)));
 
         while let Some((visit, block_id)) = stack.pop() {
             match visit {
@@ -161,7 +172,7 @@ mod tests {
         // A → B   •
         // ↓
         // D   •   •
-        builder.terminate_with_jmpif(cond_a, block_b_id, block_d_id);
+        builder.terminate_with_jmpif_no_args(cond_a, block_b_id, block_d_id);
         //  •   B   •
         //  •   ↓   •
         //  •   E   •
@@ -171,7 +182,7 @@ mod tests {
         //
         // D ← E → F
         builder.switch_to_block(block_e_id);
-        builder.terminate_with_jmpif(cond_e, block_d_id, block_f_id);
+        builder.terminate_with_jmpif_no_args(cond_e, block_d_id, block_f_id);
         // •   B   •
         //   ↗
         // D   •   •
@@ -217,7 +228,7 @@ mod tests {
 
         builder.switch_to_block(b1);
         let zero = builder.numeric_constant(0u32, NumericType::bool());
-        builder.terminate_with_jmpif(zero, b2, b3);
+        builder.terminate_with_jmpif_no_args(zero, b2, b3);
 
         builder.switch_to_block(b2);
         builder.terminate_with_jmp(b1, Vec::new());
@@ -239,7 +250,7 @@ mod tests {
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3(u32 1)
           b2():
@@ -281,15 +292,15 @@ mod tests {
               b0(v0: u1):
                 jmp b1(v0)
               b1(v1: u1):
-                jmpif v1 then: b2, else: b3
+                jmpif v1 then: b2(), else: b3()
               b2():
                 jmp b4(v1)
               b3():
                 return
               b4(v2: u1):
-                jmpif v2 then: b5, else: b6
+                jmpif v2 then: b5(), else: b6()
               b5():
-                jmpif v2 then: b7, else: b8
+                jmpif v2 then: b7(), else: b8()
               b6():
                 jmp b1(v1)
               b7():

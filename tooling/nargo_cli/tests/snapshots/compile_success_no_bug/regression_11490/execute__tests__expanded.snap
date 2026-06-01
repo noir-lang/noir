@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn f(input: u32) -> [u8; 2] {
+    [input as u8; 2]
+}
+
+fn main(input: u32, expected_sum: pub u32) {
+    // Safety: comment added by `nargo expand`
+    let data: [u8; 2] = unsafe { f(input) };
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..2_u32 {
+        sum = sum + (data[i] as u32);
+    }
+    assert(sum == expected_sum);
+    assert(sum < 1000000_u32);
+}

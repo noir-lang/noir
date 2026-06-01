@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
@@ -53,7 +54,9 @@ pub enum Value {
     /// This Value refers to an external function in the IR.
     /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
-    ForeignFunction(String),
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with `#[pure]`.
+    ForeignFunction { name: String, pure: bool },
 
     /// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
     Global(Type),
@@ -93,8 +96,7 @@ impl ValueMapping {
     }
 
     pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
-        assert_eq!(from.len(), to.len(), "Lengths of arrays of values being mapped must match");
-        for (from_value, to_value) in from.iter().zip(to) {
+        for (from_value, to_value) in from.iter().zip_eq(to) {
             self.insert(*from_value, *to_value);
         }
     }
@@ -105,6 +107,12 @@ impl ValueMapping {
 
     pub(crate) fn is_empty(&self) -> bool {
         self.map.is_empty()
+    }
+
+    pub(crate) fn extend(&mut self, other: ValueMapping) {
+        for (from, to) in other.map {
+            self.insert(from, to);
+        }
     }
 
     /// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.

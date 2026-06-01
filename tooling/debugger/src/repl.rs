@@ -194,7 +194,7 @@ impl<'a> AsyncReplDebugger<'a> {
                         self.terminate(context);
                         break;
                     }
-                };
+                }
             } else {
                 println!("Upstream channel closed. Terminating debugger");
                 break;
@@ -444,7 +444,7 @@ impl<'a> AsyncReplDebugger<'a> {
     fn show_witness_map(context: &Context<'_>) {
         let witness_map = context.get_witness_map();
         // NOTE: we need to clone() here to get the iterator
-        for (witness, value) in witness_map.clone().into_iter() {
+        for (witness, value) in witness_map.clone() {
             println!("_{} = {value}", witness.witness_index());
         }
     }
@@ -482,10 +482,10 @@ impl<'a> AsyncReplDebugger<'a> {
 
         for (index, value) in memory.iter().enumerate() {
             // Zero field is the default value, we omit it when printing memory
-            if let MemoryValue::Field(field) = value {
-                if field == &FieldElement::zero() {
-                    continue;
-                }
+            if let MemoryValue::Field(field) = value
+                && field == &FieldElement::zero()
+            {
+                continue;
             }
             println!("{index} = {value}");
         }
@@ -513,7 +513,7 @@ impl<'a> AsyncReplDebugger<'a> {
             context.get_variables().iter().map(DebugStackFrame::from).collect();
         for frame in variables {
             println!("{}({})", frame.function_name, frame.function_params.join(", "));
-            for (var_name, value, var_type) in frame.variables.iter() {
+            for (var_name, value, var_type) in &frame.variables {
                 let printable_value =
                     PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
                 println!("  {var_name}:{var_type:?} = {printable_value}");
@@ -568,7 +568,7 @@ impl DebugController {
             let status = self.debugger_status();
             if let DebuggerStatus::Idle = status {
                 break;
-            };
+            }
         }
     }
 

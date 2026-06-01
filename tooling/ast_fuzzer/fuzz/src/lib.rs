@@ -5,12 +5,9 @@ use noir_ast_fuzzer::compare::{
     CompareInterpretedResult, HasPrograms,
 };
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
+
+use noirc_evaluator::ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact};
 use noirc_evaluator::ssa::{SsaPass, primary_passes};
-use noirc_evaluator::{
-    brillig::BrilligOptions,
-    ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
-};
 use noirc_frontend::monomorphization::ast::Program;
 
 pub mod targets;
@@ -27,17 +24,7 @@ fn show_ssa() -> bool {
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
     ssa::SsaEvaluatorOptions {
         ssa_logging: if show_ssa() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
-        brillig_options: BrilligOptions::default(),
-        print_codegen_timings: false,
-        emit_ssa: None,
-        skip_underconstrained_check: true,
-        skip_brillig_constraints_check: true,
-        enable_brillig_constraints_check_lookback: false,
-        inliner_aggressiveness: 0,
-        constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
-        max_bytecode_increase_percent: None,
-        skip_passes: Default::default(),
+        ..Default::default()
     }
 }
 
@@ -161,7 +148,7 @@ pub fn compare_results_comptime(
         eprintln!("{report:#}");
 
         // Showing the AST as Noir so we can easily create integration tests.
-        eprintln!("---\nComptime source:\n{}", &inputs.source);
+        eprintln!("---\nComptime source:\n{}", inputs.source);
         eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
 
         eprintln!("---\nCompile options:\n{:?}", inputs.ssa.options);

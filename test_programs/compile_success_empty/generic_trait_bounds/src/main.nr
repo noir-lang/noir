@@ -9,7 +9,7 @@ pub fn foo<T: Trait>(x: T) {
 pub struct Foo {}
 
 impl Foo {
-    fn foo<T: Trait>(x: T) {
+    pub fn foo<T: Trait>(x: T) {
         x.foo();
     }
 }
@@ -30,7 +30,7 @@ impl Trait2 for Foo {
 pub struct Bar<T> {}
 
 impl<T: Trait> Bar<T> {
-    fn bar(x: T) {
+    pub fn bar(x: T) {
         x.foo();
     }
 

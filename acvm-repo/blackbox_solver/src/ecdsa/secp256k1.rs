@@ -1,12 +1,12 @@
 use acir::BlackBoxFunc;
 
 use k256::{
-    AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
+    AffinePoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
         PrimeField,
         ops::Reduce,
         scalar::IsHigh,
-        sec1::{Coordinates, FromEncodedPoint, ToEncodedPoint},
+        sec1::{Coordinates, FromSec1Point, Sec1Point, ToSec1Point},
     },
 };
 use k256::{Scalar, ecdsa::Signature};
@@ -26,16 +26,13 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 ///
-/// The function returns an error if the following is not true:
-/// - The signature components `r` and `s` must be non-zero
-/// - The public key point must lie on the Secp256r1 curve
-///
-/// The function do not validate a signature if:
+/// The function does not validate a signature if any of the following are true:
 /// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
+/// - The signature components `r` and `s` is zero
+/// - The public key point is not on the Secp256k1 curve
 ///
-/// The function will panic if `hashed_msg >= k256::Secp256k1::ORDER`.
-/// According to ECDSA specification, the message hash leftmost bits should be truncated
-/// up to the curve order length, and then reduced modulo the curve order.
+/// If `hashed_msg >= k256::Secp256k1::ORDER`, the message hash is reduced modulo the curve
+/// order per ECDSA specification (SEC 1, section 4.1.4).
 pub(super) fn verify_signature(
     hashed_msg: &[u8; 32],
     public_key_x_bytes: &[u8; 32],
@@ -45,25 +42,21 @@ pub(super) fn verify_signature(
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
-        return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256k1,
-            "Signature provided for ECDSA verification is zero".to_string(),
-        ));
+        log::warn!("Signature provided for ECDSA verification is zero");
+        return Ok(false);
     };
 
-    let point = EncodedPoint::from_affine_coordinates(
+    let point = Sec1Point::<k256::Secp256k1>::from_affine_coordinates(
         public_key_x_bytes.into(),
         public_key_y_bytes.into(),
         false,
     );
 
-    let pubkey = PublicKey::from_encoded_point(&point);
+    let pubkey = PublicKey::from_sec1_point(&point);
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256k1 curve.
-        return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256k1,
-            "Invalid public key provided for ECDSA verification".to_string(),
-        ));
+        log::warn!("Invalid public key provided for ECDSA verification");
+        return Ok(false);
     }
     let pubkey = pubkey.unwrap();
 
@@ -95,7 +88,7 @@ pub(super) fn verify_signature(
         .to_affine();
 
     // Compare R.x with signature's r component.
-    match R.to_encoded_point(false).coordinates() {
+    match R.to_sec1_point(false).coordinates() {
         Coordinates::Uncompressed { x, y: _ } => {
             // The conversion from R.x to a scalar can fail if R.x >= curve_order (a possible but rare case).
             // In this case, the signature is invalid per ECDSA specification, so we return false.
@@ -157,30 +150,58 @@ mod secp256k1_tests {
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_signature_that_does_not_have_the_full_y_coordinate() {
+    fn signature_does_not_verify_on_signature_that_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
 
-        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_invalid_signature() {
+    fn signature_does_not_verify_on_invalid_signature() {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
 
-        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_invalid_public_key() {
+    fn signature_does_not_verify_on_invalid_public_key() {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
 
-        verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
-            .unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
+                .unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn signature_does_not_verify_when_hashed_msg_exceeds_curve_order() {
+        // All 0xFF bytes is larger than the secp256k1 curve order
+        // (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141).
+        // The function should reduce it modulo the order, not panic.
+        let oversized_hash: [u8; 32] = [0xff; 32];
+
+        // The result will be false (signature doesn't match the reduced hash), but no panic.
+        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn signature_does_not_verify_when_hashed_msg_equals_curve_order() {
+        // The exact secp256k1 curve order.
+        let curve_order: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFE, 0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B, 0xBF, 0xD2, 0x5E, 0x8C,
+            0xD0, 0x36, 0x41, 0x41,
+        ];
+
+        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 }

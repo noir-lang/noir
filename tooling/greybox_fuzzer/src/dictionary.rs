@@ -91,7 +91,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                         constants.insert(F::from(field - 1));
                         constants.insert(*c);
                     }
-                    _ => {
+                    FunctionInput::Witness(_) => {
                         let field = 1u128.wrapping_shl(*num_bits);
                         constants.insert(F::from(field));
                         constants.insert(F::from(field - 1));

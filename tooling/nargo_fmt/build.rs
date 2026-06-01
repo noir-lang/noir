@@ -34,21 +34,21 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
             panic!(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
-        };
+        }
 
         let input_source_path = file.path();
         let input_source = std::fs::read_to_string(input_source_path).unwrap();
 
         let config = input_source
             .lines()
-            .flat_map(|line| line.strip_prefix("//@"))
+            .filter_map(|line| line.strip_prefix("//@"))
             .collect::<Vec<_>>()
             .join("\n");
 
         let output_source_path = outputs_dir.join(file_name).display().to_string();
         let output_source =
             std::fs::read_to_string(output_source_path.clone()).unwrap_or_else(|_| {
-                panic!("expected output source at {:?} was not found", &output_source_path)
+                panic!("expected output source at {output_source_path:?} was not found")
             });
 
         write!(

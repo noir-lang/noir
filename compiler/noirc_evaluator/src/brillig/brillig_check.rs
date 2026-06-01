@@ -22,7 +22,7 @@ use crate::{
     },
     ssa::{
         ir::{basic_block::BasicBlockId, function::Function},
-        opt::Loops,
+        opt::{LoopOrder, Loops},
     },
 };
 
@@ -70,7 +70,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
 
     // Find each loop in the function. If a block is part of a loop and writes to an address,
     // we need to consider all blocks that we can get to from the header as a potential descendant.
-    let blocks_in_loops: HashMap<BasicBlockId, _> = Loops::find_all(function)
+    let blocks_in_loops: HashMap<BasicBlockId, _> = Loops::find_all(function, LoopOrder::OutsideIn)
         .yet_to_unroll
         .into_iter()
         .map(|loop_| (loop_.header, loop_.blocks))
@@ -398,17 +398,17 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
 
         if !ignore_unused {
             if let Some(read_at) = self.reads.get(addr) {
-                if let Some(write_at) = self.writes.get(addr) {
-                    if write_at < read_at {
-                        self.add_advisory(
-                            location,
-                            OpcodeAdvisory::OverwrittenBeforeRead {
-                                addr: *addr,
-                                write_at: *write_at,
-                                read_at: *read_at,
-                            },
-                        );
-                    }
+                if let Some(write_at) = self.writes.get(addr)
+                    && write_at < read_at
+                {
+                    self.add_advisory(
+                        location,
+                        OpcodeAdvisory::OverwrittenBeforeRead {
+                            addr: *addr,
+                            write_at: *write_at,
+                            read_at: *read_at,
+                        },
+                    );
                 }
             } else if !self.reads_in_descendants.contains(addr) {
                 self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });
@@ -494,10 +494,11 @@ trait OpcodeAddressVisitor {
                     self.write_value_or_array(destination, location);
                 }
             }
-            Opcode::ConditionalMov { source_a, source_b, condition, .. } => {
+            Opcode::ConditionalMov { source_a, source_b, condition, destination } => {
                 self.read(condition, location);
                 self.read(source_a, location);
                 self.read(source_b, location);
+                self.write(destination, location);
             }
             Opcode::BlackBox(black_box_op) => self.visit_black_box_op(black_box_op, location),
             Opcode::Trap { revert_data } => self.read_heap_vector(revert_data, location),
@@ -581,21 +582,11 @@ trait OpcodeAddressVisitor {
                 self.read_heap_array(scalars, location);
                 self.write_heap_array(outputs, location);
             }
-            BlackBoxOp::EmbeddedCurveAdd {
-                input1_x,
-                input1_y,
-                input1_infinite,
-                input2_x,
-                input2_y,
-                input2_infinite,
-                result,
-            } => {
+            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
                 self.read(input1_x, location);
                 self.read(input1_y, location);
-                self.read(input1_infinite, location);
                 self.read(input2_x, location);
                 self.read(input2_y, location);
-                self.read(input2_infinite, location);
                 self.write_heap_array(result, location);
             }
             BlackBoxOp::Poseidon2Permutation { message, output } => {

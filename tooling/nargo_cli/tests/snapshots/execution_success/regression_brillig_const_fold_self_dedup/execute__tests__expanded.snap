@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(b: Field) -> pub bool {
+    let mut a: bool = true;
+    let mut running: bool = true;
+    while running {
+        let _: u64 = if a {
+            foo()[if a {
+                if a {
+                    0_u32
+                } else {
+                    0_u32
+                }
+            } else {
+                if a {
+                    0_u32
+                } else {
+                    0_u32
+                }
+            }]
+        } else {
+            0_u64
+        };
+        a = a < ((b as u128) <= (b as u128));
+        running = false;
+    }
+    a
+}
+
+unconstrained fn foo() -> [u64; 1] {
+    [0_u64]
+}

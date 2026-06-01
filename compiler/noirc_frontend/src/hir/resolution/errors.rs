@@ -3,12 +3,14 @@ use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 use crate::{
-    Kind, Type,
+    Type,
     ast::{Ident, UnsupportedNumericGenericType},
     elaborator::{TypedPath, types::WildcardDisallowedContext},
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{
+        comptime::{Integer, Value},
+        type_check::TypeCheckError,
+    },
     parser::ParserError,
-    signed_field::SignedField,
     usage_tracker::UnusedItem,
 };
 
@@ -28,12 +30,16 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_location: Location, second_location: Location },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
+    #[error("Variable does not need to be mutable")]
+    VariableDoesNotNeedToBeMutable { ident: Ident },
     #[error("Unused {}", item.item_type())]
     UnusedItem { ident: Ident, item: UnusedItem },
     #[error("Unconditional recursion")]
     UnconditionalRecursion { name: String, location: Location },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, location: Location },
+    #[error("Runtime variable `{name}` cannot be accessed in comptime code")]
+    RuntimeVarReferencedInComptime { name: String, location: Location },
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
@@ -47,9 +53,9 @@ pub enum ResolverError {
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Location, second_mut: Location },
     #[error("Unneeded 'pub', function is not the main method")]
-    UnnecessaryPub { ident: Ident, position: PubPosition },
+    UnnecessaryPub { name: String, location: Location, position: PubPosition },
     #[error("Required 'pub', main function must return public value")]
-    NecessaryPub { ident: Ident },
+    NecessaryPub { name: String, location: Location },
     #[error("No global or generic type parameter found with the given name")]
     NoSuchNumericTypeVariable { path: TypedPath },
     #[error("Only struct types can be used in constructor expressions")]
@@ -65,7 +71,7 @@ pub enum ResolverError {
     #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
-    AbiAttributeOutsideContract { location: Location, usage_location: Option<Location> },
+    AbiAttributeOutsideContract { location: Location },
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
@@ -82,6 +88,10 @@ pub enum ResolverError {
     OracleReturnsReference { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
+    #[error(
+        "The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`"
+    )]
+    PureAttributeOnNonOracle { ident: Ident, location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -108,8 +118,8 @@ pub enum ResolverError {
     NegativeGlobalType { location: Location, global_value: Value },
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
-    #[error("Global value `{global_value}` does not fit its kind's range")]
-    GlobalDoesNotFitItsType { location: Location, global_value: SignedField, kind: Kind },
+    #[error("Global value `{global_value}` does not fit its types's range")]
+    GlobalDoesNotFitItsType { location: Location, global_value: Integer, typ: Type },
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -136,18 +146,16 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: SignedField,
+        lhs: Integer,
         op: crate::BinaryTypeOperator,
-        rhs: SignedField,
+        rhs: Integer,
         err: Box<TypeCheckError>,
         location: Location,
     },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
-    ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in non-comptime global")]
-    ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
+    #[error("Comptime-only type `{typ}` cannot be used in non-comptime {item}")]
+    ComptimeTypeInNonComptimeItem { typ: String, location: Location, item: &'static str },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
@@ -156,8 +164,6 @@ pub enum ResolverError {
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("Type `{typ}` is more private than item `{item}`")]
     TypeIsMorePrivateThenItem { typ: String, item: String, location: Location },
-    #[error("Attribute function `{function}` is not a path")]
-    AttributeFunctionIsNotAPath { function: String, location: Location },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, location: Location },
     #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}`")]
@@ -186,8 +192,8 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
-    #[error("Cannot use a type alias inside a type alias")]
-    RecursiveTypeAlias { location: Location },
+    #[error("Numeric type alias expression must only reference generic parameters and constants")]
+    InvalidNumericAliasExpression { location: Location },
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
@@ -204,8 +210,15 @@ pub enum ResolverError {
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
     #[error("Ambiguous associated type")]
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
+    #[error("Cannot define a trait impl on associated types")]
+    TraitImplOnAssociatedType { location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location, context: WildcardDisallowedContext },
+    #[error("`impl Trait` is not allowed in this position")]
+    ImplTraitTypeDisallowed {
+        location: Location,
+        context: crate::elaborator::types::ImplTraitDisallowedContext,
+    },
     #[error("References are not allowed in globals")]
     ReferencesNotAllowedInGlobals { location: Location },
     #[error("Functions marked with #[oracle] must have no body")]
@@ -215,7 +228,14 @@ pub enum ResolverError {
     #[error("Identifier `{ident}` is bound more than once in the same pattern")]
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
-    DataBusOnNonEntryPoint { visibility: String, ident: Ident },
+    DataBusOnNonEntryPoint { visibility: String, name: String, location: Location },
+    #[error("{visibility} attribute is not allowed on {position}")]
+    DataBusOnWrongPosition {
+        visibility: String,
+        position: &'static str,
+        allowed: &'static str,
+        location: Location,
+    },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
@@ -224,6 +244,12 @@ pub enum ResolverError {
     VarargsOnFunctionWithNoParameters { location: Location },
     #[error("The last parameter of a #[varargs] function must be a vector")]
     VarargsLastParameterIsNotAVector { location: Location },
+    #[error("`comptime` global used in non-comptime code")]
+    ComptimeGlobalInNonComptimeCode { location: Location, name: String },
+    #[error("The `{typ}` type has been removed")]
+    RemovedType { location: Location, typ: String, replacement: String },
+    #[error("Recursion limit reached during elaboration")]
+    MaximumRecursionDepthExceeded { location: Location },
 }
 
 impl ResolverError {
@@ -233,10 +259,10 @@ impl ResolverError {
             | ResolverError::UnconditionalRecursion { location, .. }
             | ResolverError::Expected { location, .. }
             | ResolverError::VariableNotDeclared { location, .. }
+            | ResolverError::RuntimeVarReferencedInComptime { location, .. }
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
-            | ResolverError::AttributeFunctionIsNotAPath { location, .. }
             | ResolverError::AttributeFunctionNotInScope { location, .. }
             | ResolverError::TraitNotImplemented { location, .. }
             | ResolverError::ExpectedTrait { location, .. }
@@ -268,8 +294,7 @@ impl ResolverError {
             | ResolverError::AssociatedConstantsMustBeNumeric { location }
             | ResolverError::BinaryOpError { location, .. }
             | ResolverError::QuoteInRuntimeCode { location }
-            | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
-            | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
+            | ResolverError::ComptimeTypeInNonComptimeItem { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
@@ -281,7 +306,7 @@ impl ResolverError {
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::ExpectedNumericExpression { location, .. }
-            | ResolverError::RecursiveTypeAlias { location } => *location,
+            | ResolverError::InvalidNumericAliasExpression { location } => *location,
             ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
@@ -292,25 +317,33 @@ impl ResolverError {
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
+            | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
+            | ResolverError::TraitImplOnAssociatedType { location }
             | ResolverError::WildcardTypeDisallowed { location, .. }
+            | ResolverError::ImplTraitTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
             | ResolverError::BuiltinWithBody { location }
             | ResolverError::VarargsOnNonComptimeFunction { location }
             | ResolverError::VarargsOnFunctionWithNoParameters { location }
-            | ResolverError::VarargsLastParameterIsNotAVector { location } => *location,
+            | ResolverError::ComptimeGlobalInNonComptimeCode { location, .. }
+            | ResolverError::VarargsLastParameterIsNotAVector { location }
+            | ResolverError::UnnecessaryPub { location, .. }
+            | ResolverError::NecessaryPub { location, .. }
+            | ResolverError::DataBusOnNonEntryPoint { location, .. }
+            | ResolverError::DataBusOnWrongPosition { location, .. }
+            | ResolverError::RemovedType { location, .. }
+            | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
+            | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
             | ResolverError::NoSuchField { field: ident, .. }
-            | ResolverError::UnnecessaryPub { ident, .. }
-            | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
-            | ResolverError::DataBusOnNonEntryPoint { ident, .. }
             | ResolverError::PatternBoundMoreThanOnce { ident }
             | ResolverError::AssociatedTypeInImplWithoutBody { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
@@ -348,6 +381,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 diagnostic.unnecessary = true;
                 diagnostic
+            }
+            ResolverError::VariableDoesNotNeedToBeMutable { ident } => {
+                Diagnostic::simple_warning(
+                    "variable does not need to be mutable".to_string(),
+                    String::new(),
+                    ident.location(),
+                )
             }
             ResolverError::UnusedItem { ident, item} => {
                 let item_type = item.item_type();
@@ -390,6 +430,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                         *location,
                     )
                 }
+            }
+            ResolverError::RuntimeVarReferencedInComptime { name, location } => {
+                Diagnostic::simple_error(
+                    format!("variable `{name}` is a runtime variable and cannot be used in comptime code"),
+                    "this variable is not available in comptime".to_string(),
+                    *location,
+                )
             }
             ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { location, expected, found: got } => Diagnostic::simple_error(
@@ -443,20 +490,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 error
             }
-            ResolverError::UnnecessaryPub { ident, position } => {
+            ResolverError::UnnecessaryPub { name, location, position } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary pub keyword on {position} for function {ident}"),
+                    format!("unnecessary pub keyword on {position} for function {name}"),
                     format!("unnecessary pub {position}"),
-                    ident.location(),
+                    *location,
                 );
                 diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
-            ResolverError::NecessaryPub { ident } => {
+            ResolverError::NecessaryPub { name, location } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("missing pub keyword on return type of function {ident}"),
+                    format!("missing pub keyword on return type of function {name}"),
                     "missing pub on return type".to_string(),
-                    ident.location(),
+                    *location,
                 );
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
@@ -491,19 +538,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
-            ResolverError::AbiAttributeOutsideContract { location, usage_location } => {
-                let mut diagnostic = Diagnostic::simple_error(
+            ResolverError::AbiAttributeOutsideContract { location } => {
+                Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
                     *location,
-                );
-                if let Some(usage_location) = usage_location {
-                    diagnostic.add_secondary(
-                        "the type is used outside of a contract".to_string(),
-                        *usage_location,
-                    );
-                }
-                diagnostic
+                )
             }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
@@ -546,6 +586,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
+            },
+            ResolverError::PureAttributeOnNonOracle { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("`#[pure]` requires `unconstrained` and `#[oracle(...)]`".into(), ident.location());
+                diagnostic
             },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
@@ -628,10 +677,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } => {
+            ResolverError::GlobalDoesNotFitItsType { location, global_value, typ } => {
                 Diagnostic::simple_error(
-                    format!("Global value `{global_value}` is larger than its kind's maximum value"),
-                    format!("Global's kind inferred to be `{kind}`"),
+                    format!("Global value `{global_value}` is larger than its type's maximum value"),
+                    format!("Global's type is `{typ}`"),
                     *location,
                 )
             }
@@ -745,17 +794,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::ComptimeTypeInRuntimeCode { typ, location } => {
+            ResolverError::ComptimeTypeInNonComptimeItem { typ, location, item } => {
                 Diagnostic::simple_error(
-                    format!("Comptime-only type `{typ}` cannot be used in runtime code"),
-                    "Comptime-only type used here".to_string(),
-                    *location,
-                )
-            },
-            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } => {
-                Diagnostic::simple_error(
-                    format!("Comptime-only type `{typ}` cannot be used in non-comptime global"),
-                    "Comptime-only type used here".to_string(),
+                    format!("Comptime-only type `{typ}` cannot be used in non-comptime {item}"),
+                    String::new(),
                     *location,
                 )
             },
@@ -778,13 +820,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Type `{typ}` is more private than item `{item}`"),
                     String::new(),
-                    *location,
-                )
-            },
-            ResolverError::AttributeFunctionIsNotAPath { function, location } => {
-                Diagnostic::simple_error(
-                    format!("Attribute function `{function}` is not a path"),
-                    "An attribute's function should be a single identifier or a path".into(),
                     *location,
                 )
             },
@@ -864,9 +899,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::RecursiveTypeAlias { location } => {
+            ResolverError::InvalidNumericAliasExpression { location } => {
                 Diagnostic::simple_error(
-                    "Cannot use a type alias inside a type alias".to_string(),
+                    "Numeric type alias expression must only reference generic parameters and constants".to_string(),
                     String::new(),
                     *location,
                 )
@@ -915,6 +950,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
+            ResolverError::TraitImplOnAssociatedType { location } => {
+                Diagnostic::simple_error(
+                    "Cannot define a trait impl on associated types".to_string(),
+                    String::new(),
+                    *location,
+                )
+            }
             ResolverError::WildcardTypeDisallowed { location, context: reason } => {
                 let context = match reason {
                     WildcardDisallowedContext::AssociatedType => "associated type definitions",
@@ -936,6 +978,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("The placeholder `_` is not allowed in {context}"),
                     String::new(),
+                    *location,
+                )
+            }
+            ResolverError::ImplTraitTypeDisallowed { location, context } => {
+                let context = match context {
+                    crate::elaborator::types::ImplTraitDisallowedContext::StructField => {
+                        "struct field types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::EnumVariant => {
+                        "enum variant types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::Global => {
+                        "global definitions"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::TypeAlias => {
+                        "type alias definitions"
+                    }
+                };
+                Diagnostic::simple_error(
+                    format!("`impl Trait` is not allowed in {context}"),
+                    "Use a generic type parameter instead".to_string(),
                     *location,
                 )
             }
@@ -967,15 +1030,22 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     ident.location(),
                 )
             }
-            ResolverError::DataBusOnNonEntryPoint { visibility, ident } => {
+            ResolverError::DataBusOnNonEntryPoint { visibility, name, location } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary {visibility} attribute for function {ident}"),
+                    format!("unnecessary {visibility} attribute for function {name}"),
                     format!("unnecessary {visibility}"),
-                    ident.location(),
+                    *location,
                 );
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
+            },
+            ResolverError::DataBusOnWrongPosition { visibility, position, allowed, location } => {
+                Diagnostic::simple_error(
+                    format!("{visibility} attribute is not allowed on {position}"),
+                    format!("{visibility} is only allowed on {allowed}"),
+                    *location,
+                )
             },
             ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
                 Diagnostic::simple_error(
@@ -1002,6 +1072,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "The last parameter of a #[varargs] function must be a vector".to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::ComptimeGlobalInNonComptimeCode { location, name } => {
+                Diagnostic::simple_error(
+                    format!("Comptime global `{name}` used in non-comptime code"),
+                    "Consider using a comptime function or block".to_string(),
+                    *location,
+                )
+            },
+            ResolverError::RemovedType { location, typ, replacement } => {
+                Diagnostic::simple_error(
+                    format!("`{typ}` has been removed, use `{replacement}` instead"),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::MaximumRecursionDepthExceeded { location } => {
+                Diagnostic::simple_error(
+                    "Reached the recursion limit during elaboration and type checking".into(),
+                    "Try to simplify expressions".into(),
                     *location,
                 )
             },

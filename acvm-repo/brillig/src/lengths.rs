@@ -3,11 +3,13 @@ use std::{
     ops::{Add, AddAssign, Div, Mul},
 };
 
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Represents the length of an array or vector as seen from a user's perspective.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]`, the semantic length is 8.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 pub struct SemanticLength(pub u32);
 
 impl SemanticLength {
@@ -103,7 +105,8 @@ impl std::fmt::Display for ElementTypesLength {
 /// array is different than the semantic length
 ///
 /// Note that this is different from the fully flattened length, which would be 8 * (1 + 1 + 4) = 48.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct SemiFlattenedLength(pub u32);
 
@@ -123,7 +126,7 @@ impl Div<ElementTypesLength> for SemiFlattenedLength {
     type Output = SemanticLength;
 
     fn div(self, rhs: ElementTypesLength) -> Self::Output {
-        if self.0 % rhs.0 != 0 {
+        if !self.0.is_multiple_of(rhs.0) {
             panic!(
                 "Division of SemiFlattenedLength {} by ElementTypesLength {} has remainder",
                 self.0, rhs.0
@@ -211,7 +214,7 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
     type Output = SemanticLength;
 
     fn div(self, rhs: ElementsFlattenedLength) -> Self::Output {
-        if self.0 % rhs.0 != 0 {
+        if !self.0.is_multiple_of(rhs.0) {
             panic!(
                 "Division of FlattenedLength {} by ElementsFlattenedLength {} has remainder",
                 self.0, rhs.0

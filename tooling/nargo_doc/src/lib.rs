@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_errors::call_stack::CallStack;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location, Span};
 use noirc_frontend::ast::{DocComment, IntegerBitSize, ItemVisibility};
@@ -110,7 +111,7 @@ impl From<&BrokenLink> for CustomDiagnostic {
             kind: DiagnosticKind::Warning,
             deprecated: false,
             unnecessary: false,
-            call_stack: vec![],
+            call_stack: CallStack::empty(),
         }
     }
 }
@@ -213,12 +214,14 @@ impl DocItemBuilder<'_> {
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = get_type_id(type_id, self.interner);
+                let comptime = data_type.comptime;
                 self.current_type = None;
                 Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
                     fields,
+                    comptime,
                     has_private_fields,
                     impls,
                     trait_impls,
@@ -251,7 +254,8 @@ impl DocItemBuilder<'_> {
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
-                let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
+                let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+                let parents = vecmap(&parent_bounds, |bound| self.convert_trait_bound(bound));
 
                 let mut associated_types = Vec::new();
                 let mut associated_constants = Vec::new();
@@ -302,8 +306,9 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics =
                     vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
+                let comptime = type_alias.comptime;
                 let id = get_type_alias_id(type_alias_id, self.interner);
-                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
+                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics, comptime })
             }
             expand_items::Item::PrimitiveType(primitive_type) => {
                 let kind = match &primitive_type.typ {
@@ -414,9 +419,21 @@ impl DocItemBuilder<'_> {
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = get_trait_id(trait_.id, self.interner);
-        let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
-        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
+        let ordered_generics =
+            vecmap(self.interner.get_ordered_generics_for_impl(trait_impl_id), |typ| {
+                self.convert_type(typ)
+            });
+
+        TraitImpl {
+            r#type,
+            generics,
+            methods,
+            trait_id,
+            trait_name,
+            trait_generics: ordered_generics,
+            where_clause,
+        }
     }
 
     fn convert_trait_constraint(
@@ -444,7 +461,6 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Bool => Type::Primitive(PrimitiveTypeKind::Bool),
             noirc_frontend::Type::Integer(signedness, bit_size) => match signedness {
                 Signedness::Unsigned => match bit_size {
-                    IntegerBitSize::One => Type::Primitive(PrimitiveTypeKind::U1),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::U8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::U16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::U32),
@@ -452,7 +468,6 @@ impl DocItemBuilder<'_> {
                     IntegerBitSize::HundredTwentyEight => Type::Primitive(PrimitiveTypeKind::U128),
                 },
                 Signedness::Signed => match bit_size {
-                    IntegerBitSize::One => panic!("There is no signed 1-bit integer"),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::I8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::I16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::I32),
@@ -491,8 +506,11 @@ impl DocItemBuilder<'_> {
                 noirc_frontend::QuotedType::CtString => {
                     Type::Primitive(PrimitiveTypeKind::CtString)
                 }
+                noirc_frontend::QuotedType::Location => {
+                    Type::Primitive(PrimitiveTypeKind::Location)
+                }
             },
-            noirc_frontend::Type::Array(length, element) => Type::Array {
+            noirc_frontend::Type::Array(element, length) => Type::Array {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
@@ -558,7 +576,7 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Reference(typ, mutable) => {
                 Type::Reference { r#type: Box::new(self.convert_type(typ)), mutable: *mutable }
             }
-            noirc_frontend::Type::Constant(signed_field, _kind) => {
+            noirc_frontend::Type::Constant(signed_field) => {
                 Type::Constant(signed_field.to_string())
             }
             noirc_frontend::Type::InfixExpr(lhs, operator, rhs, _) => Type::InfixExpr {
@@ -599,13 +617,13 @@ impl DocItemBuilder<'_> {
     fn convert_function(&mut self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
-        let unconstrained = modifiers.is_unconstrained;
+        let unconstrained = func_meta.is_unconstrained();
         let comptime = modifiers.is_comptime;
-        let name = modifiers.name.to_string();
+        let name = modifiers.name.clone();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
         let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
-            let is_self = self.pattern_is_self(pattern);
+            let is_self = pattern.is_self(self.interner);
 
             // `&mut self` is represented as a mutable reference type, not as a mutable pattern
             let mut mut_ref = false;
@@ -633,7 +651,7 @@ impl DocItemBuilder<'_> {
             .collect::<Vec<_>>();
 
         let attributes = self.interner.function_attributes(&func_id);
-        let deprecated = attributes.get_deprecated_note();
+        let deprecated = attributes.get_deprecated().map(|(_, note)| note);
 
         let id = get_function_id(func_id, self.interner);
 
@@ -677,12 +695,12 @@ impl DocItemBuilder<'_> {
         }
 
         let imports = self.module_imports.remove(&module.module_id).unwrap();
+        let non_private_imports = imports
+            .into_iter()
+            .filter(|import| import.visibility != ItemVisibility::Private)
+            .collect::<Vec<_>>();
 
-        for import in imports {
-            if import.visibility == ItemVisibility::Private {
-                continue;
-            }
-
+        for import in non_private_imports {
             let item_id = get_module_def_id(import.id, self.interner);
             if let Some(converted_item) = self.item_id_to_converted_item.get(&item_id) {
                 // Check if this is a re-export of a private item. The private item won't show up in
@@ -714,6 +732,11 @@ impl DocItemBuilder<'_> {
                 }),
             ));
         }
+
+        // The module changed (it got new items). Because it can still be looked up in
+        // `item_id_to_converted_item` we need to update its definition there too.
+        self.item_id_to_converted_item.get_mut(&module.id).unwrap().item =
+            Item::Module(module.clone());
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
@@ -817,21 +840,10 @@ impl DocItemBuilder<'_> {
         match pattern {
             HirPattern::Identifier(ident) => {
                 let definition = self.interner.definition(ident.id);
-                definition.name.to_string()
+                definition.name.clone()
             }
             HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(inner_pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => "_".to_string(),
-        }
-    }
-
-    fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
-        match pattern {
-            HirPattern::Identifier(ident) => {
-                let definition = self.interner.definition(ident.id);
-                definition.name == "self"
-            }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
 
@@ -874,7 +886,6 @@ pub(crate) fn convert_primitive_type(
     match primitive_type {
         noirc_frontend::elaborator::PrimitiveType::Field => PrimitiveTypeKind::Field,
         noirc_frontend::elaborator::PrimitiveType::Bool => PrimitiveTypeKind::Bool,
-        noirc_frontend::elaborator::PrimitiveType::U1 => PrimitiveTypeKind::U1,
         noirc_frontend::elaborator::PrimitiveType::U8 => PrimitiveTypeKind::U8,
         noirc_frontend::elaborator::PrimitiveType::U16 => PrimitiveTypeKind::U16,
         noirc_frontend::elaborator::PrimitiveType::U32 => PrimitiveTypeKind::U32,
@@ -901,9 +912,6 @@ pub(crate) fn convert_primitive_type(
             PrimitiveTypeKind::FunctionDefinition
         }
         noirc_frontend::elaborator::PrimitiveType::Module => PrimitiveTypeKind::Module,
-        noirc_frontend::elaborator::PrimitiveType::StructDefinition => {
-            PrimitiveTypeKind::TypeDefinition
-        }
         noirc_frontend::elaborator::PrimitiveType::TraitDefinition => {
             PrimitiveTypeKind::TraitDefinition
         }
@@ -911,6 +919,7 @@ pub(crate) fn convert_primitive_type(
         noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
             PrimitiveTypeKind::UnresolvedType
         }
+        noirc_frontend::elaborator::PrimitiveType::Location => PrimitiveTypeKind::Location,
     }
 }
 
@@ -975,14 +984,12 @@ fn link_offset(text: &str, line: usize) -> usize {
             let all_stars = block_comment_has_all_leading_stars(text);
 
             // If every line starts with "*" we need to skip past it, and any spaces after it.
-            if all_stars {
-                if let Some(line_text) = line_text.strip_prefix('*') {
-                    offset += 1;
-                    let line_text_length = line_text.len();
-                    let line_text = line_text.trim_start();
-                    // Adjust offset to account for leading spaces after the "*"
-                    offset += line_text_length - line_text.len();
-                }
+            if all_stars && let Some(line_text) = line_text.strip_prefix('*') {
+                offset += 1;
+                let line_text_length = line_text.len();
+                let line_text = line_text.trim_start();
+                // Adjust offset to account for leading spaces after the "*"
+                offset += line_text_length - line_text.len();
             }
 
             break;

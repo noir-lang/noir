@@ -9,6 +9,10 @@ mkdir -p $OUTPUT_DIR
 echo "PROJECT_TAG: ${PROJECT_TAG}"
 echo "PROJECT_DIR: ${PROJECT_DIR}"
 
+# Silence logs from the Elaborator and other frontend stuff,
+# otherwise it can take too long and produce too much data.
+NOIR_LOG=trace,noirc_frontend=off
+
 setup_repo() {
     local repo_slug=$1
     local repo_tag=$2
@@ -24,8 +28,8 @@ setup_repo() {
 
 compile_project() {
     echo "Compiling program (ACIR)"
-    for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
+    for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/compilation.jsonl
@@ -33,8 +37,8 @@ compile_project() {
 
 execute_project() {
     echo "Executing program (ACIR)"
-    for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings >> /dev/null
+    for ((i = 1; i <= NUM_EXECUTE_RUNS; i++)); do
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings >> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/execution.jsonl
@@ -47,8 +51,8 @@ save_artifact() {
 
 compile_brillig_project() {
     echo "Compiling program (Brillig)"
-    for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings 2>> /dev/null
+    for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings 2>> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/brillig_compilation.jsonl
@@ -56,8 +60,8 @@ compile_brillig_project() {
 
 execute_brillig_project() {
     echo "Executing program (Brillig)"
-    for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings >> /dev/null
+    for ((i = 1; i <= NUM_EXECUTE_RUNS; i++)); do
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings >> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/brillig_execution.jsonl

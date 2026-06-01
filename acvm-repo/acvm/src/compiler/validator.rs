@@ -5,18 +5,20 @@ use crate::pwg::{
     blackbox::{self, hash::get_hash_input},
     get_value, input_to_value,
     memory_op::MemoryOpSolver,
+    witness_to_value,
 };
 use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode, OpcodeLocation,
-        opcodes::{BlackBoxFuncCall, BlockId, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, MemOp, MemOpKind},
     },
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{
     BlackBoxFunctionSolver, bit_and, bit_xor, blake2s, blake3, keccakf1600,
 };
+use itertools::Itertools;
 use std::collections::HashMap;
 
 fn unsatisfied_constraint<F>(opcode_index: usize, message: String) -> OpcodeResolutionError<F> {
@@ -31,6 +33,23 @@ fn witness_value<F: AcirField>(
     witness_map: &WitnessMap<F>,
 ) -> Result<F, OpcodeResolutionError<F>> {
     Ok(*witness_map.get(w).ok_or(OpcodeNotSolvable::MissingAssignment(w.witness_index()))?)
+}
+
+fn check_fits_in_bits<F: AcirField>(
+    value: F,
+    num_bits: u32,
+    opcode_index: usize,
+    opcode_name: &str,
+) -> Result<(), OpcodeResolutionError<F>> {
+    if value.num_bits() > num_bits {
+        return Err(unsatisfied_constraint(
+            opcode_index,
+            format!(
+                "{opcode_name} opcode violation: value {value} does not fit in {num_bits} bits"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub fn validate_witness<F: AcirField>(
@@ -60,8 +79,7 @@ pub fn validate_witness<F: AcirField>(
                             iv,
                             key,
                         )?;
-                        assert_eq!(outputs.len(), ciphertext.len());
-                        for (output_witness, value) in outputs.iter().zip(ciphertext.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(ciphertext) {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             let output_value = F::from(u128::from(value));
                             if witness_value != output_value {
@@ -77,6 +95,8 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => {
                         let lhs_value = input_to_value(&witness_map, *lhs)?;
                         let rhs_value = input_to_value(&witness_map, *rhs)?;
+                        check_fits_in_bits(lhs_value, *num_bits, opcode_index, "AND")?;
+                        check_fits_in_bits(rhs_value, *num_bits, opcode_index, "AND")?;
                         let and_result = bit_and(lhs_value, rhs_value, *num_bits);
                         let output_value = witness_map
                             .get(output)
@@ -93,6 +113,8 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
                         let lhs_value = input_to_value(&witness_map, *lhs)?;
                         let rhs_value = input_to_value(&witness_map, *rhs)?;
+                        check_fits_in_bits(lhs_value, *num_bits, opcode_index, "XOR")?;
+                        check_fits_in_bits(rhs_value, *num_bits, opcode_index, "XOR")?;
                         let xor_result = bit_xor(lhs_value, rhs_value, *num_bits);
                         let output_value = witness_map
                             .get(output)
@@ -108,14 +130,7 @@ pub fn validate_witness<F: AcirField>(
                     }
                     BlackBoxFuncCall::RANGE { input, num_bits } => {
                         let value = input_to_value(&witness_map, *input)?;
-                        if value.num_bits() > *num_bits {
-                            return Err(unsatisfied_constraint(
-                                opcode_index,
-                                format!(
-                                    "RANGE opcode violation: value {value} does not fit in {num_bits} bits"
-                                ),
-                            ));
-                        }
+                        check_fits_in_bits(value, *num_bits, opcode_index, "RANGE")?;
                     }
                     BlackBoxFuncCall::Blake2s { inputs, outputs } => {
                         let message_input = get_hash_input(&witness_map, inputs, None, 8)?;
@@ -226,7 +241,7 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
                         let predicate_value = input_to_value(&witness_map, *predicate)?.is_one();
                         if predicate_value {
-                            let (res_x, res_y, res_infinite) = execute_multi_scalar_mul(
+                            let (res_x, res_y) = execute_multi_scalar_mul(
                                 backend,
                                 &witness_map,
                                 points,
@@ -235,16 +250,11 @@ pub fn validate_witness<F: AcirField>(
                             )?;
                             let output_x_value = witness_value(&outputs.0, &witness_map)?;
                             let output_y_value = witness_value(&outputs.1, &witness_map)?;
-                            let output_infinite_value = witness_value(&outputs.2, &witness_map)?;
-                            if res_x != output_x_value
-                                || res_y != output_y_value
-                                || res_infinite != output_infinite_value
-                            {
-                                //TODO: on check pas les x,y si infinite est true
+                            if res_x != output_x_value || res_y != output_y_value {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
                                     format!(
-                                        "MultiScalarMul opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
+                                        "MultiScalarMul opcode violation: expected ({res_x}, {res_y}) but found ({output_x_value}, {output_y_value})"
                                     ),
                                 ));
                             }
@@ -253,7 +263,7 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
                         let predicate_value = input_to_value(&witness_map, *predicate)?.is_one();
                         if predicate_value {
-                            let (res_x, res_y, res_infinite) = execute_embedded_curve_add(
+                            let (res_x, res_y) = execute_embedded_curve_add(
                                 backend,
                                 &witness_map,
                                 **input1,
@@ -262,16 +272,11 @@ pub fn validate_witness<F: AcirField>(
                             )?;
                             let output_x_value = witness_value(&outputs.0, &witness_map)?;
                             let output_y_value = witness_value(&outputs.1, &witness_map)?;
-                            let output_infinite_value = witness_value(&outputs.2, &witness_map)?;
-                            if res_x != output_x_value
-                                || res_y != output_y_value
-                                || res_infinite != output_infinite_value
-                            {
-                                //TODO: on check pas les x,y si infinite est true
+                            if res_x != output_x_value || res_y != output_y_value {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
                                     format!(
-                                        "EmbeddedCurveAdd opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
+                                        "EmbeddedCurveAdd opcode violation: expected ({res_x}, {res_y}) but found ({output_x_value}, {output_y_value})"
                                     ),
                                 ));
                             }
@@ -279,14 +284,13 @@ pub fn validate_witness<F: AcirField>(
                     }
                     BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
                         let mut state = [0; 25];
-                        for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
+                        for (it, input) in state.iter_mut().zip_eq(inputs.as_ref()) {
                             let witness_assignment = input_to_value(&witness_map, *input)?;
                             let lane = witness_assignment.try_to_u64();
                             *it = lane.unwrap();
                         }
                         let output_state = keccakf1600(state)?;
-                        for (output_witness, value) in outputs.iter().zip(output_state.into_iter())
-                        {
+                        for (output_witness, value) in outputs.iter().zip_eq(output_state) {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             if witness_value != F::from(u128::from(value)) {
                                 return Err(unsatisfied_constraint(
@@ -298,16 +302,23 @@ pub fn validate_witness<F: AcirField>(
                             }
                         }
                     }
-                    // Recursive aggregation is checked outside of ACVM
-                    BlackBoxFuncCall::RecursiveAggregation { .. } => (),
+                    // Recursive aggregation is verified by the backend rather than the ACVM, so
+                    // there is no constraint to evaluate here. Its operands must still be present
+                    // in the witness map though, matching the PWG solver which requires every
+                    // `get_inputs_vec()` operand to be assigned before treating the opcode as
+                    // backend-owned.
+                    BlackBoxFuncCall::RecursiveAggregation { .. } => {
+                        for input in black_box_func_call.get_inputs_vec() {
+                            input_to_value(&witness_map, input)?;
+                        }
+                    }
                     BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                         let state = blackbox::hash::execute_poseidon2_permutation_opcode(
                             backend,
                             &witness_map,
                             inputs,
                         )?;
-
-                        for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(state) {
                             let witness_value = witness_map
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
@@ -328,7 +339,7 @@ pub fn validate_witness<F: AcirField>(
                             hash_values,
                         )?;
 
-                        for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(state) {
                             let witness_value = witness_map
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
@@ -354,10 +365,14 @@ pub fn validate_witness<F: AcirField>(
                 solver.check_memory_op(op, &witness_map, opcode_index)?;
             }
             Opcode::MemoryInit { block_id, init, .. } => {
-                MemoryOpSolver::new(init, &witness_map).map(|solver| {
-                    let existing_block_id = block_solvers.insert(*block_id, solver);
-                    assert!(existing_block_id.is_none(), "Memory block already initialized");
-                })?;
+                let solver = MemoryOpSolver::new(init, &witness_map)?;
+                let existing_block_id = block_solvers.insert(*block_id, solver);
+                if existing_block_id.is_some() {
+                    return Err(unsatisfied_constraint(
+                        opcode_index,
+                        format!("Attempted reinitialization of memory block {:?}", block_id.0,),
+                    ));
+                }
             }
             // BrilligCall is unconstrained
             Opcode::BrilligCall { .. } => (),
@@ -391,37 +406,34 @@ pub fn validate_witness<F: AcirField>(
 impl<F: AcirField> MemoryOpSolver<F> {
     pub(crate) fn check_memory_op(
         &mut self,
-        op: &MemOp<F>,
+        op: &MemOp,
         witness_map: &WitnessMap<F>,
         opcode_index: usize,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        let operation = get_value(&op.operation, witness_map)?;
-
         // Find the memory index associated with this memory operation.
-        let index = get_value(&op.index, witness_map)?;
+        let index = *witness_to_value(witness_map, op.index)?;
         let memory_index = self.index_from_field(index)?;
 
-        // Calculate the value associated with this memory operation.
-        let value = get_value(&op.value, witness_map)?;
+        let value = *witness_to_value(witness_map, op.value)?;
 
-        // `operation == 0` for read operation, `operation == 1` for write operation.
-        let is_read_operation = operation.is_zero();
-
-        if is_read_operation {
-            // `value = arr[memory_index]`
-            let value_in_array = self.read_memory_index(memory_index)?;
-            if value != value_in_array {
-                return Err(unsatisfied_constraint(
-                    opcode_index,
-                    format!(
-                        "Memory read opcode violation at index {memory_index}: expected {value_in_array} but found {value}",
-                    ),
-                ));
+        match op.operation {
+            MemOpKind::Read => {
+                // `value = arr[memory_index]`
+                let value_in_array = self.read_memory_index(memory_index)?;
+                if value != value_in_array {
+                    return Err(unsatisfied_constraint(
+                        opcode_index,
+                        format!(
+                            "Memory read opcode violation at index {memory_index}: expected {value_in_array} but found {value}",
+                        ),
+                    ));
+                }
+                Ok(())
             }
-            Ok(())
-        } else {
-            // `arr[memory_index] = value`
-            self.write_memory_index(memory_index, value)
+            MemOpKind::Write => {
+                // `arr[memory_index] = value`
+                self.write_memory_index(memory_index, value)
+            }
         }
     }
 }
@@ -433,19 +445,36 @@ mod tests {
     use acir::{
         AcirField, FieldElement,
         circuit::{
-            Circuit, Opcode, PublicInputs,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
+            Circuit, Opcode, OpcodeLocation, PublicInputs,
+            brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+            opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness, WitnessMap},
     };
     use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
     use super::validate_witness;
+    use crate::pwg::{
+        ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ResolvedAssertionPayload,
+    };
+
+    fn assert_unsatisfied_constraint(
+        result: Result<(), OpcodeResolutionError<FieldElement>>,
+        opcode_index: usize,
+        message: &str,
+    ) {
+        assert_eq!(
+            result.unwrap_err(),
+            OpcodeResolutionError::UnsatisfiedConstrain {
+                opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(opcode_index)),
+                payload: Some(ResolvedAssertionPayload::String(message.to_string())),
+            },
+        );
+    }
 
     /// Helper to create a simple circuit with the given opcodes
     fn make_circuit(opcodes: Vec<Opcode<FieldElement>>) -> Circuit<FieldElement> {
         Circuit {
-            current_witness_index: 10,
             opcodes,
             private_parameters: Default::default(),
             public_parameters: PublicInputs::default(),
@@ -502,7 +531,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "Invalid witness assignment: w1 + w2 - w3",
+        );
     }
 
     #[test]
@@ -555,7 +588,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "RANGE opcode violation: value 256 does not fit in 8 bits",
+        );
     }
 
     #[test]
@@ -595,7 +632,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "AND opcode violation: 10 AND 12 != 15 for 8 bits",
+        );
     }
 
     #[test]
@@ -635,7 +676,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "XOR opcode violation: 10 XOR 12 != 15 for 8 bits",
+        );
     }
 
     #[test]
@@ -652,15 +697,15 @@ mod tests {
         let witness_map = WitnessMap::default();
 
         let backend = Bn254BlackBoxSolver;
-        // The expression evaluates with missing witness, but won't be zero
-        // so this should fail
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "Invalid witness assignment: w1",
+        );
     }
 
     #[test]
     fn test_call_opcode_valid() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
@@ -680,8 +725,6 @@ mod tests {
 
     #[test]
     fn test_call_opcode_missing_input() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
@@ -696,13 +739,14 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_eq!(
+            validate_witness(&backend, witness_map, &circuit).unwrap_err(),
+            OpcodeResolutionError::OpcodeNotSolvable(OpcodeNotSolvable::MissingAssignment(2)),
+        );
     }
 
     #[test]
     fn test_call_opcode_missing_output() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
@@ -717,13 +761,14 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_eq!(
+            validate_witness(&backend, witness_map, &circuit).unwrap_err(),
+            OpcodeResolutionError::OpcodeNotSolvable(OpcodeNotSolvable::MissingAssignment(3)),
+        );
     }
 
     #[test]
     fn test_call_opcode_skipped_with_zero_predicate() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         // Predicate is zero, so call should be skipped even with missing witnesses
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
@@ -747,8 +792,6 @@ mod tests {
 
     #[test]
     fn test_memory_init_and_read() {
-        use acir::circuit::opcodes::{BlockId, MemOp};
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -758,14 +801,12 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            // Read from index 0 into witness 3
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(FieldElement::zero().into(), Witness(3)),
-            },
+            // Read from index 0 (Witness(0)=0) into witness 3
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(3)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::zero()),
             (Witness(1), FieldElement::from(42u128)),
             (Witness(2), FieldElement::from(43u128)),
             (Witness(3), FieldElement::from(42u128)), // Should match value at index 0
@@ -777,8 +818,6 @@ mod tests {
 
     #[test]
     fn test_memory_read_wrong_value() {
-        use acir::circuit::opcodes::{BlockId, MemOp};
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -787,26 +826,26 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(FieldElement::zero().into(), Witness(3)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(3)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::zero()),
             (Witness(1), FieldElement::from(42u128)),
             (Witness(2), FieldElement::from(43u128)),
             (Witness(3), FieldElement::from(99u128)), // Wrong! Should be 42
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            1,
+            "Memory read opcode violation at index 0: expected 42 but found 99",
+        );
     }
 
     #[test]
     fn test_memory_write_then_read() {
-        use acir::circuit::opcodes::{BlockId, MemOp};
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -816,19 +855,14 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            // Write value from witness 3 to index 0
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::write_to_mem_index(FieldElement::zero().into(), Witness(3).into()),
-            },
+            // Write value from witness 3 to index 0 (Witness(0)=0)
+            Opcode::MemoryOp { block_id, op: MemOp::write_to_mem_index(Witness(0), Witness(3)) },
             // Read from index 0 into witness 4
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(FieldElement::zero().into(), Witness(4)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(4)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::zero()),
             (Witness(1), FieldElement::from(42u128)), // Initial value at index 0
             (Witness(2), FieldElement::from(43u128)), // Initial value at index 1
             (Witness(3), FieldElement::from(100u128)), // Value to write
@@ -841,8 +875,6 @@ mod tests {
 
     #[test]
     fn test_brillig_call_with_empty_witness_map() {
-        use acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-
         // Create a BrilligCall opcode with input and output witnesses
         // Brillig calls are unconstrained and should be skipped during validation,
         // so this should pass even with an empty witness map
@@ -858,6 +890,78 @@ mod tests {
 
         // Empty witness map
         let witness_map = WitnessMap::default();
+
+        let backend = Bn254BlackBoxSolver;
+        assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
+
+    #[test]
+    fn error_on_memory_init_duplicate_block_id() {
+        let block_id = BlockId(0);
+
+        let circuit = make_circuit(vec![
+            Opcode::MemoryInit {
+                block_id,
+                init: vec![],
+                block_type: acir::circuit::opcodes::BlockType::Memory,
+            },
+            Opcode::MemoryInit {
+                block_id,
+                init: vec![],
+                block_type: acir::circuit::opcodes::BlockType::Memory,
+            },
+        ]);
+
+        let witness_map = WitnessMap::default();
+        let backend = Bn254BlackBoxSolver;
+
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            1,
+            format!("Attempted reinitialization of memory block {}", block_id.0).as_str(),
+        );
+    }
+
+    fn recursive_aggregation_opcode() -> Opcode<FieldElement> {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation {
+            verification_key: vec![FunctionInput::Witness(Witness(1))],
+            proof: vec![FunctionInput::Witness(Witness(2))],
+            public_inputs: vec![FunctionInput::Witness(Witness(3))],
+            key_hash: FunctionInput::Witness(Witness(4)),
+            proof_type: 0,
+            predicate: FunctionInput::Witness(Witness(5)),
+        })
+    }
+
+    #[test]
+    fn test_recursive_aggregation_missing_inputs() {
+        // Recursive aggregation is verified by the backend, but its operands must still be
+        // assigned. An empty witness map leaves every operand unassigned, so validation must
+        // report the first missing operand rather than silently succeeding.
+        let circuit = make_circuit(vec![recursive_aggregation_opcode()]);
+
+        let witness_map = WitnessMap::default();
+
+        let backend = Bn254BlackBoxSolver;
+        assert_eq!(
+            validate_witness(&backend, witness_map, &circuit).unwrap_err(),
+            OpcodeResolutionError::OpcodeNotSolvable(OpcodeNotSolvable::MissingAssignment(1)),
+        );
+    }
+
+    #[test]
+    fn test_recursive_aggregation_with_assigned_inputs() {
+        // With every operand assigned the opcode is treated as backend-owned and validation
+        // succeeds without evaluating a constraint.
+        let circuit = make_circuit(vec![recursive_aggregation_opcode()]);
+
+        let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::zero()),
+            (Witness(2), FieldElement::zero()),
+            (Witness(3), FieldElement::zero()),
+            (Witness(4), FieldElement::zero()),
+            (Witness(5), FieldElement::one()),
+        ]));
 
         let backend = Bn254BlackBoxSolver;
         assert!(validate_witness(&backend, witness_map, &circuit).is_ok());

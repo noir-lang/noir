@@ -42,7 +42,7 @@ impl CodeActionFinder<'_> {
             for entry in entries {
                 let module_def_id = entry.module_def_id;
                 let visibility = entry.visibility;
-                let mut defining_module = entry.defining_module.as_ref().cloned();
+                let mut defining_module = entry.defining_module.as_ref().copied();
 
                 // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
                 let mut intermediate_name = None;
@@ -285,6 +285,46 @@ mod foo {
 }
 
 fn foo(x: SomeTypeInBar) {}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_code_action_for_struct_does_not_insert_into_existing_use_from_a_different_module()
+     {
+        let title = "Import crate::moo::StructTwo";
+
+        let src = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        fn foo() {
+            StructT>|<wo
+        }
+    }
+}"#;
+
+        let expected = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        use crate::moo::StructTwo;
+
+        fn foo() {
+            StructTwo
+        }
+    }
+}"#;
 
         assert_code_action(title, src, expected).await;
     }

@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 iter-extended.workspace = true
+itertools.workspace = true
 noirc_printable_type.workspace = true
 toml.workspace = true
 serde_json = "1.0"

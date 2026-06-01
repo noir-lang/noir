@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import { network } from 'hardhat';
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'path';
@@ -15,12 +15,14 @@ const test_cases = [
     case: 'test_programs/execution_success/a_1_mul',
     compiled: 'contracts/a_1_mul.sol:HonkVerifier',
     zk_lib: 'contracts/a_1_mul.sol:ZKTranscriptLib',
+    relations_lib: 'contracts/a_1_mul.sol:RelationsLib',
     numPublicInputs: 0,
   },
   {
     case: 'test_programs/execution_success/assert_statement',
     compiled: 'contracts/assert_statement.sol:HonkVerifier',
     zk_lib: 'contracts/assert_statement.sol:ZKTranscriptLib',
+    relations_lib: 'contracts/assert_statement.sol:RelationsLib',
     numPublicInputs: 1,
   },
 ];
@@ -56,13 +58,17 @@ test_cases.forEach((testInfo) => {
 
     // Smart contract verification
 
-    // Link the ZKTranscriptLib
+    // Link the ZKTranscriptLib and RelationsLib
+    const { ethers } = await network.connect();
     const ZKTranscriptLib = await ethers.deployContract(testInfo.zk_lib);
     await ZKTranscriptLib.waitForDeployment();
+    const RelationsLib = await ethers.deployContract(testInfo.relations_lib);
+    await RelationsLib.waitForDeployment();
 
     const contract = await ethers.deployContract(testInfo.compiled, [], {
       libraries: {
         ZKTranscriptLib: await ZKTranscriptLib.getAddress(),
+        RelationsLib: await RelationsLib.getAddress(),
       },
     });
 

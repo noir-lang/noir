@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
+use itertools::Itertools;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
@@ -10,14 +11,17 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::QuotedType;
+use crate::TYPE_RECURSION_LIMIT;
 use crate::ast::DocComment;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
     UnresolvedTypeExpression,
 };
 use crate::graph::CrateId;
+use crate::hir::LspMode;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
@@ -57,6 +61,7 @@ pub use globals::{GlobalId, GlobalValue};
 pub use ids::*;
 pub use methods::{ImplMethod, Methods};
 pub use reexports::Reexport;
+pub(crate) use trait_impl::TraitLookupMode;
 
 #[derive(Debug)]
 pub struct ModuleAttributes {
@@ -157,12 +162,16 @@ pub struct NodeInterner {
     // Indexed by TraitImplIds
     pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
 
+    /// For each trait, the list of impls that implement it.
+    pub(crate) trait_implementations_by_trait_id: HashMap<TraitId, Vec<TraitImplId>>,
+
     next_trait_implementation_id: usize,
 
-    /// The associated types for each trait impl.
-    /// This is stored outside of the TraitImpl object since it is required before that object is
+    /// The ordered generics and associated types for each trait impl.
+    ///
+    /// This is stored outside of the `TraitImpl` object since it is required before that object is
     /// created, when resolving the type signature of each method in the impl.
-    trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
+    trait_impl_generic_types: HashMap<TraitImplId, TraitGenerics>,
 
     trait_impl_associated_constants: HashMap<TraitImplId, HashMap<String, (DefinitionId, Type)>>,
 
@@ -244,7 +253,7 @@ pub struct NodeInterner {
     interned_patterns: Arena<Pattern>,
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
-    pub(crate) lsp_mode: bool,
+    pub(crate) lsp_mode: Option<LspMode>,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -304,12 +313,19 @@ pub struct NodeInterner {
     /// Tracks statements that encountered errors during elaboration.
     /// Used by the interpreter to skip evaluation of errored statements.
     pub(crate) stmts_with_errors: HashSet<StmtId>,
+
+    /// Associates type bindings that resulted from unifying the type of a macro call expression
+    /// with the expected type at the callsite.
+    /// Since a single macro call expression might end up having different types across loop
+    /// iterations, before unifying its type we undo bindings from the last time we unified it.
+    pub(crate) macro_call_expression_bindings: HashMap<ExprId, TypeBindings>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
 /// program via an `impl` block, or it is assumed to exist from a `where` clause or similar.
 #[derive(Debug, Clone)]
 pub enum TraitImplKind {
+    /// A fully resolved trait implementation.
     Normal(TraitImplId),
 
     /// Assumed impls don't have an impl id since they don't link back to any concrete part of the source code.
@@ -329,13 +345,35 @@ pub enum TraitImplKind {
         /// `x.into()` with a `X: Into<Y>` in scope would not.
         trait_generics: TraitGenerics,
     },
+
+    /// Trait impls first get prepared, to support the definition of function metas.
+    /// During this phase we already know what the associated types of the impl are
+    /// for a particular object type (which is stored in the `NodeInterner`), which
+    /// we need to be able to handle `<Foo as Bar>::Qux` types when they appear
+    /// in function signatures.
+    ///
+    /// A `Prepared` is eventually replaced by a `Normal` implementation, at which
+    /// point we can look up the final `TraitImpl` in the node interner.
+    Prepared(TraitImplId, Location),
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
+#[derive(Debug)]
 pub enum ImplSearchErrorKind {
+    /// When the corresponding `object_type` is not bindable, according to
+    /// `Type::is_bindable`
     TypeAnnotationsNeededOnObjectType,
-    Nested(Vec<TraitConstraint>),
+    /// No impl found for the trait, i.e. when the `NodeInterner`
+    /// `trait_implementation_map` was
+    /// not found for the `trait_id`
+    NoImplFound(Vec<TraitConstraint>),
+    /// When more than one matching trait impl was found
     MultipleMatching(Vec<String>),
+    /// When no matching impl's were found
+    NoMatching(Vec<TraitConstraint>),
+    /// When the recursion limit for `NodeInterner::lookup_trait_implementation`
+    /// was reached
+    RecursionLimitReached,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -349,8 +387,6 @@ pub struct FunctionModifiers {
     pub visibility: ItemVisibility,
 
     pub attributes: Attributes,
-
-    pub is_unconstrained: bool,
 
     pub generic_count: usize,
 
@@ -369,7 +405,6 @@ impl FunctionModifiers {
             name: String::new(),
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
-            is_unconstrained: false,
             generic_count: 0,
             is_comptime: false,
             name_location: Location::dummy(),
@@ -468,6 +503,7 @@ impl Default for NodeInterner {
             trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
+            trait_implementations_by_trait_id: HashMap::default(),
             next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
@@ -487,19 +523,20 @@ impl Default for NodeInterner {
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
-            lsp_mode: false,
+            lsp_mode: None,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
-            trait_impl_associated_types: HashMap::default(),
+            trait_impl_generic_types: HashMap::default(),
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
             primitive_docs: HashMap::default(),
             exprs_with_errors: HashSet::default(),
             stmts_with_errors: HashSet::default(),
+            macro_call_expression_bindings: HashMap::default(),
         }
     }
 }
@@ -565,7 +602,6 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -583,14 +619,17 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
+        is_struct: bool,
     ) -> TypeId {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics, visibility);
+        let new_type =
+            DataType::new(type_id, name, location, generics, visibility, comptime, is_struct);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
@@ -610,6 +649,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            typ.type_alias_def.comptime,
             ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
@@ -753,11 +793,16 @@ impl NodeInterner {
 
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
+        self.expression_ref(expr_id).clone()
+    }
+
+    /// Returns the interned expression corresponding to `expr_id`
+    pub fn expression_ref(&self, expr_id: &ExprId) -> &HirExpression {
         let def =
             self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
-            Node::Expression(expr) => expr.clone(),
+            Node::Expression(expr) => expr,
             _ => {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
@@ -821,7 +866,8 @@ impl NodeInterner {
     }
 
     pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
-        get_type_method_key(typ).and_then(|key| self.methods.get(&key))
+        let key = get_type_method_key(typ)?;
+        self.methods.get(&key)
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -876,21 +922,17 @@ impl NodeInterner {
         let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
-            if let Type::TraitAsType(..) = ret.as_ref() {
-                if let DefinitionKind::Function(func_id) = def.kind {
-                    let func = self.function(&func_id);
-                    let Some(func_body) = func.try_as_expr() else {
-                        return Err(func_id);
-                    };
-                    let ret_type = self.id_type(func_body);
-                    let new_type = Type::Function(
-                        args.clone(),
-                        Box::new(ret_type),
-                        env.clone(),
-                        *unconstrained,
-                    );
-                    return Ok(new_type);
-                }
+            if let Type::TraitAsType(..) = ret.as_ref()
+                && let DefinitionKind::Function(func_id) = def.kind
+            {
+                let func = self.function(&func_id);
+                let Some(func_body) = func.try_as_expr() else {
+                    return Err(func_id);
+                };
+                let ret_type = self.id_type(func_body);
+                let new_type =
+                    Type::Function(args.clone(), Box::new(ret_type), env.clone(), *unconstrained);
+                return Ok(new_type);
             }
         }
         Ok(typ)
@@ -990,10 +1032,11 @@ impl NodeInterner {
         }
     }
 
-    /// Adds a non-trait method to a type.
+    /// Adds a method to a type.
     ///
-    /// Returns `Some(duplicate)` if a matching method was already defined.
-    /// Returns `None` otherwise.
+    /// For inherent (non-trait) methods, this checks for overlapping implementations.
+    /// Returns `Ok(())` if the method was added successfully.
+    /// Returns `Err(error)` if there was an error (e.g., overlapping impl or unsupported type).
     pub fn add_method(
         &mut self,
         self_type: &Type,
@@ -1016,25 +1059,26 @@ impl NodeInterner {
                     return Err(error.into());
                 };
 
-                if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    let check_self_param = false;
-                    if let Some(existing) =
-                        self.lookup_direct_method(self_type, &method_name, check_self_param)
-                    {
-                        let first_location = self.function_ident(&existing).location();
-                        let second_location = self.function_ident(&method_id).location();
-                        let error = ResolverError::DuplicateDefinition {
-                            name: method_name,
-                            first_location,
-                            second_location,
-                        };
-                        return Err(error.into());
-                    }
+                let typ = self_type.clone();
+
+                // For inherent (non-trait) methods, check for overlapping implementations.
+                if trait_id.is_none()
+                    && let Some(existing_methods) =
+                        self.methods.get(&key).and_then(|m| m.get(&method_name))
+                    && let Some((existing_method, existing_type)) =
+                        existing_methods.find_overlapping_method(&typ, self)
+                {
+                    let prev_location = self.function_ident(&existing_method).location();
+                    let location = self.function_ident(&method_id).location();
+                    let error = DefCollectorErrorKind::OverlappingImpl {
+                        typ: existing_type,
+                        location,
+                        prev_location,
+                    };
+                    return Err(error.into());
                 }
 
-                // Only remember the actual type if it's FieldOrInt,
-                // so later we can disambiguate on calls like `u32::call`.
-                let typ = self_type.clone();
+                // Add the method to the collection
                 self.methods
                     .entry(key)
                     .or_default()
@@ -1057,19 +1101,39 @@ impl NodeInterner {
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
 
-        self.methods
-            .get(&key)
-            .and_then(|h| h.get(method_name))
-            .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
+        let methods = self.methods.get(&key).and_then(|h| h.get(method_name))?;
+        methods.find_direct_method(typ, check_self_param, self)
+    }
+
+    /// Returns true if any method (direct or trait impl) is registered under `method_name`
+    /// for the type's method key, regardless of type compatibility.
+    pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
+        let Some(key) = get_type_method_key(typ) else { return false };
+        self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
+    }
+
+    /// Returns the self types of all direct (inherent) impls that define `method_name` for
+    /// the given type's method key, regardless of type compatibility.
+    pub fn get_direct_method_impl_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.typ.clone()).collect()
     }
 
     /// Looks up methods that apply to the given type but are defined in traits.
+    ///
+    /// The third tuple element is the impl's self type as it was recorded when the impl was
+    /// registered (see [Self::add_method]). This is the concrete type the impl applies to,
+    /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
+    /// for shared trait-method `FuncId`s (default methods inherited from the trait).
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let key = get_type_method_key(typ);
         if let Some(key) = key {
             self.methods
@@ -1082,13 +1146,49 @@ impl NodeInterner {
         }
     }
 
-    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`
+    /// Returns every `FuncId` registered as either a direct or trait-impl method
+    /// under `method_name` for the given type's method key, without filtering by
+    /// type compatibility. Used by the elaborator to lazily resolve candidate
+    /// metas before delegating to the type-aware `lookup_*` methods.
+    pub fn method_candidate_ids(&self, typ: &Type, method_name: &str) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods
+            .direct
+            .iter()
+            .map(|m| m.method)
+            .chain(methods.trait_impl_methods.iter().map(|m| m.method))
+            .collect()
+    }
+
+    /// Same as [Self::method_candidate_ids] but for `impl<T>`-style generic
+    /// trait impls keyed under `TypeMethodKey::Generic`.
+    pub fn generic_method_candidate_ids(&self, method_name: &str) -> Vec<FuncId> {
+        self.methods
+            .get(&TypeMethodKey::Generic)
+            .and_then(|h| h.get(method_name))
+            .map(|methods| {
+                methods
+                    .direct
+                    .iter()
+                    .map(|m| m.method)
+                    .chain(methods.trait_impl_methods.iter().map(|m| m.method))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`.
+    ///
+    /// See [Self::lookup_trait_methods] for the meaning of the third tuple element.
     pub fn lookup_generic_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         self.methods
             .get(&TypeMethodKey::Generic)
             .and_then(|h| h.get(method_name))
@@ -1236,12 +1336,11 @@ impl NodeInterner {
             method_ids,
             associated_types: vec![],
             associated_type_bounds: Default::default(),
-            name: Ident::new("Dummy".to_string(), Location::dummy()),
+            name: Ident::new("PopulateDummyOperatorTraitsTrait".to_string(), Location::dummy()),
             generics: vec![],
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
-            trait_bounds: vec![],
             where_clause: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
@@ -1371,14 +1470,20 @@ impl NodeInterner {
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {
-        self.lsp_mode
+        self.lsp_mode.is_some()
     }
 
-    /// Sets the associated types for the given trait impl.
+    /// Sets the ordered generics and associated types for the given trait impl.
+    ///
+    /// The ordered generics are resolved generics on the trait itself.
+    /// * e.g. it is the `<C, D>` in `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
+    /// * e.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
+    ///
     /// Each type in [`NamedType`] will be wrapped in a [`Type::TypeVariable`] if it's of kind [`Kind::Numeric`].
-    pub(crate) fn set_associated_types_for_impl(
+    pub(crate) fn set_trait_generics_for_impl(
         &mut self,
         impl_id: TraitImplId,
+        ordered_generics: Vec<Type>,
         associated_types: Vec<NamedType>,
     ) {
         // Wrap the named generics in type variables to be able to refer them as type variables
@@ -1400,14 +1505,26 @@ impl NodeInterner {
                 .or_default()
                 .insert(name, (definition_id, *numeric_type));
         }
+        let trait_generics = TraitGenerics { ordered: ordered_generics, named: associated_types };
+        self.trait_impl_generic_types.insert(impl_id, trait_generics);
+    }
 
-        self.trait_impl_associated_types.insert(impl_id, associated_types);
+    /// Returns the ordered generics and associated types for the given trait impl.
+    ///
+    /// The [Type] of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
+    pub fn get_trait_generics_for_impl(&self, impl_id: TraitImplId) -> &TraitGenerics {
+        &self.trait_impl_generic_types[&impl_id]
+    }
+
+    /// Returns the ordered generics for the given trait impl.
+    pub fn get_ordered_generics_for_impl(&self, impl_id: TraitImplId) -> &[Type] {
+        &self.get_trait_generics_for_impl(impl_id).ordered
     }
 
     /// Returns the associated types for the given trait impl.
     /// The Type of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
     pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[NamedType] {
-        &self.trait_impl_associated_types[&impl_id]
+        &self.get_trait_generics_for_impl(impl_id).named
     }
 
     /// Find an associated type in a trait implementation by the last segment in its name.
@@ -1418,8 +1535,8 @@ impl NodeInterner {
         impl_id: TraitImplId,
         type_name: &str,
     ) -> Option<&Type> {
-        let types = self.trait_impl_associated_types.get(&impl_id)?;
-        types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
+        let types = self.trait_impl_generic_types.get(&impl_id)?;
+        types.named.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
     }
 
     /// Returns the definition id for the associated constant of the given type variable.
@@ -1428,7 +1545,8 @@ impl NodeInterner {
         impl_id: TraitImplId,
         name: &str,
     ) -> Option<&(DefinitionId, Type)> {
-        self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
+        let map = self.trait_impl_associated_constants.get(&impl_id)?;
+        map.get(name)
     }
 
     /// Looks up associated constants for a type by name.
@@ -1452,18 +1570,19 @@ impl NodeInterner {
 
             // Check if typ implements the trait
             // This handles instantiation and unification correctly for generic impls
-            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) =
-                self.try_lookup_trait_implementation(typ, trait_id, &[], &[])
+            if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) = self
+                .try_lookup_trait_implementation(typ, trait_id, &[], &[], TraitLookupMode::Default)
+                && found_impl_id == *impl_id
             {
-                if found_impl_id == *impl_id {
-                    results.push((*def_id, trait_id, *impl_id));
-                }
+                results.push((*def_id, trait_id, *impl_id));
             }
         }
         results
     }
 
-    /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
+    /// Return a set of [TypeBindings] to bind types from the trait definition to those from the trait impl.
+    ///
+    /// Recursively collects associated types from parent implementations.
     pub fn trait_to_impl_bindings(
         &self,
         trait_id: TraitId,
@@ -1472,16 +1591,49 @@ impl NodeInterner {
         impl_self_type: Type,
     ) -> TypeBindings {
         let mut bindings = TypeBindings::default();
+        let mut visited = HashSet::default();
+
+        self.trait_to_impl_bindings_helper(
+            trait_id,
+            impl_id,
+            trait_impl_generics,
+            &impl_self_type,
+            TYPE_RECURSION_LIMIT,
+            &mut visited,
+            &mut bindings,
+        );
+
+        bindings
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn trait_to_impl_bindings_helper(
+        &self,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+        trait_impl_generics: &[Type],
+        impl_self_type: &Type,
+        recursion_limit: u32,
+        visited: &mut HashSet<TraitImplId>,
+        bindings: &mut TypeBindings,
+    ) {
+        // If we have a diamond pattern, we might be visiting the same ancestor multiple times.
+        if !visited.insert(impl_id) || recursion_limit == 0 {
+            return;
+        }
+        let recursion_limit = recursion_limit - 1;
+
         let the_trait = self.get_trait(trait_id);
         let trait_generics = the_trait.generics.clone();
 
         let self_type_var = the_trait.self_type_typevar.clone();
         bindings.insert(
             self_type_var.id(),
-            (self_type_var.clone(), self_type_var.kind(), impl_self_type),
+            (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
         );
 
-        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
+        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
+        {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),
@@ -1513,7 +1665,42 @@ impl NodeInterner {
             );
         }
 
-        bindings
+        // Now collect bindings from the associated types of every parent trait that
+        // is implemented for the object type.
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_bound in &parent_bounds {
+            // Find the implementation, if it exists.
+            let trait_id = parent_bound.trait_id;
+            match self.lookup_trait_implementation(
+                impl_self_type,
+                trait_id,
+                &parent_bound.trait_generics.ordered,
+                &parent_bound.trait_generics.named,
+            ) {
+                Ok(
+                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
+                ) => {
+                    let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
+                    self.trait_to_impl_bindings_helper(
+                        trait_id,
+                        impl_id,
+                        ordered_generics,
+                        impl_self_type,
+                        recursion_limit,
+                        visited,
+                        bindings,
+                    );
+                }
+                Ok((TraitImplKind::Assumed { .. }, _)) => {
+                    // We can ignore Assumed, as it most likely doesn't contribute any bindings,
+                    // and we can expect some kind of error due to the missing parent impl.
+                }
+                Err(_) => {
+                    // If the parent trait isn't implemented, those bindings will be left unbound,
+                    // and some kind of error will be emitted during the type checking of methods.
+                }
+            }
+        }
     }
 
     pub fn set_doc_comments(&mut self, id: ReferenceId, doc_comments: Vec<DocComment>) {
@@ -1534,6 +1721,26 @@ impl NodeInterner {
         }
     }
 
+    /// Returns the location of every expression node whose source file is in `files`.
+    /// Used to build the zero-count baseline for lcov coverage reports: all expression
+    /// locations are emitted with a hit count of 0 before per-test data is written.
+    pub fn expr_locations_for_files<'a>(
+        &'a self,
+        files: &'a std::collections::HashSet<FileId>,
+    ) -> impl Iterator<Item = Location> + 'a {
+        self.id_to_location
+            .iter()
+            .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
+            .filter(|(idx, _)| {
+                let Some(Node::Expression(expr)) = self.nodes.get(**idx) else {
+                    return false;
+                };
+                // Ignore blocks otherwise we highlight the opening brace.
+                !matches!(expr, HirExpression::Block(_))
+            })
+            .map(|(_, loc)| *loc)
+    }
+
     pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {
         match &meta.name {
             MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
@@ -1551,8 +1758,8 @@ impl NodeInterner {
     /// changes, to clear the definitions of the previous version of the file.
     pub fn clear_in_file(&mut self, file: FileId) {
         // Clear in methods
-        for (_key, methods) in self.methods.iter_mut() {
-            for (_name, methods) in methods.iter_mut() {
+        for methods in self.methods.values_mut() {
+            for methods in methods.values_mut() {
                 methods.direct.retain(|method| {
                     let func_id = method.method;
                     self.func_meta.get(&func_id).unwrap().location.file != file
@@ -1566,12 +1773,12 @@ impl NodeInterner {
         }
 
         // Clear in auto import names
-        for (_name, entries) in self.auto_import_names.iter_mut() {
+        for entries in self.auto_import_names.values_mut() {
             entries.retain(|entry| entry.file != file);
         }
 
         // Clear in reexports
-        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+        for reexports in self.reexports.values_mut() {
             reexports.retain(|reexport| reexport.name.location().file != file);
         }
 

@@ -6,6 +6,8 @@ use acir::{
 };
 use indexmap::IndexMap;
 
+use crate::compiler::simulator::unresolved_witnesses;
+
 /// Minimum width accepted by the `CSatTransformer`.
 pub(crate) const MIN_EXPRESSION_WIDTH: usize = 3;
 
@@ -34,29 +36,11 @@ impl CSatTransformer {
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve<F>(&mut self, opcode: &Expression<F>) {
-        let mut unresolved = Vec::new();
-        for (_, w1, w2) in &opcode.mul_terms {
-            if !self.solvable_witness.contains(w1) {
-                unresolved.push(w1);
-                if !self.solvable_witness.contains(w2) {
-                    return;
-                }
-            }
-            if !self.solvable_witness.contains(w2) {
-                unresolved.push(w2);
-                if !self.solvable_witness.contains(w1) {
-                    return;
-                }
-            }
-        }
-        for (_, w) in &opcode.linear_combinations {
-            if !self.solvable_witness.contains(w) {
-                unresolved.push(w);
-            }
-        }
-        if unresolved.len() == 1 {
-            self.mark_solvable(*unresolved[0]);
+    fn try_solve<F: AcirField>(&mut self, opcode: &Expression<F>) {
+        if let Some(unresolved) = unresolved_witnesses(opcode, &self.solvable_witness)
+            && unresolved.len() == 1
+        {
+            self.mark_solvable(*unresolved.iter().next().expect("len == 1"));
         }
     }
 
@@ -194,8 +178,11 @@ impl CSatTransformer {
                         }
                     }
 
-                    // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates how many more we can add
-                    let mut remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
+                    let used_space = intermediate_opcode.linear_combinations.len();
+                    assert!(used_space < self.width);
+
+                    // Now we have used up "used_space" spaces in our assert-zero opcode. The width now dictates how many more we can add
+                    let mut remaining_space = self.width - used_space - 1; // We minus 1 because we need an extra space to contain the intermediate variable
                     // Keep adding terms until we have no more left, or we reach the width
                     let mut remaining_linear_terms =
                         Vec::with_capacity(opcode.linear_combinations.len());
@@ -230,7 +217,7 @@ impl CSatTransformer {
                     self.mark_solvable(intermediate_var.1);
                     new_opcode.linear_combinations.push(intermediate_var);
                 }
-            };
+            }
         }
 
         // Add the rest of the elements back into the new_opcode
@@ -420,7 +407,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     // A Polynomial with more than one mul term cannot fit into one opcode
     if expr.mul_terms.len() > 1 {
         return false;
-    };
+    }
 
     expr.width() <= width
 }
@@ -557,6 +544,75 @@ mod tests {
             expr,
             &mut num_witness,
         );
+    }
+
+    #[test]
+    fn full_opcode_scan_optimization_extracts_full_opcodes() {
+        // Expression: x*x + a*b + x + a + b + c + d + e + f + g
+        //
+        // With width=3 and two mul terms, full_opcode_scan_optimization extracts each
+        // mul term together with 2 linear terms into an intermediate variable:
+        //   t0 = x*x + x + g      (Witness 8)
+        //   t1 = a*b + a + b      (Witness 9)
+        //
+        // The remaining expression becomes: t0 + t1 + c + d + e + f
+        let x = Witness(0);
+        let a = Witness(1);
+        let b = Witness(2);
+        let c = Witness(3);
+        let d = Witness(4);
+        let e = Witness(5);
+        let f = Witness(6);
+        let g = Witness(7);
+
+        let opcode = Expression {
+            mul_terms: vec![(FieldElement::one(), x, x), (FieldElement::one(), a, b)],
+            linear_combinations: vec![
+                (FieldElement::one(), x),
+                (FieldElement::one(), a),
+                (FieldElement::one(), b),
+                (FieldElement::one(), c),
+                (FieldElement::one(), d),
+                (FieldElement::one(), e),
+                (FieldElement::one(), f),
+                (FieldElement::one(), g),
+            ],
+            q_c: FieldElement::zero(),
+        };
+
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
+        let mut num_witness = 8u32;
+
+        let mut optimizer = CSatTransformer::new(3);
+        for w in [x, a, b, c, d, e, f, g] {
+            optimizer.mark_solvable(w);
+        }
+
+        let result = optimizer.full_opcode_scan_optimization(
+            opcode,
+            &mut intermediate_variables,
+            &mut num_witness,
+        );
+
+        // Both mul terms were replaced by intermediate variables; no mul terms remain.
+        assert!(result.mul_terms.is_empty(), "all mul terms should be absorbed");
+
+        // Each intermediate variable is full: it has 2 linear terms.
+        for intermediate in intermediate_variables.keys() {
+            assert!(
+                intermediate.mul_terms.len() == 1,
+                "intermediate variables should be full opcodes"
+            );
+            assert!(
+                intermediate.linear_combinations.len() == 2,
+                "intermediate variables should be full opcodes"
+            );
+        }
+        // Remaining linear terms: c, d, e, f+ t0, t1 (intermediate vars).
+        assert_eq!(result.linear_combinations.len(), 6);
     }
 
     #[test]

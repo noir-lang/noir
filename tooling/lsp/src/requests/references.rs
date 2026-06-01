@@ -28,29 +28,25 @@ pub(crate) fn on_references_request(
 #[cfg(test)]
 mod references_tests {
     use super::*;
+    use crate::notifications;
     use crate::notifications::workspace_from_document_uri;
-    use crate::test_utils::{self, search_in_file};
-    use crate::utils::get_cursor_line_and_column;
-    use crate::{notifications, on_did_open_text_document};
+    use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, PartialResultParams, Position, Range, ReferenceContext,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
-        WorkDoneProgressParams,
+        PartialResultParams, Position, ReferenceContext, TextDocumentIdentifier,
+        TextDocumentPositionParams, Url, WorkDoneProgressParams,
     };
     use tokio::test;
 
     async fn check_references_succeeds(
-        directory: &str,
+        src: &str,
         name: &str,
         declaration_index: usize,
         include_declaration: bool,
     ) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        // First we find out all of the occurrences of `name` in the main.nr file.
-        // Note that this only works if that name doesn't show up in other places where we don't
-        // expect a rename, but we craft our tests to avoid that.
-        let ranges = search_in_file(noir_text_document.path(), name);
+        let ranges = search_in_text(src, name);
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
+                .await;
 
         // Test getting references works on any instance of the symbol.
         for target_range in &ranges {
@@ -85,14 +81,24 @@ mod references_tests {
         }
     }
 
+    const ANOTHER_FUNCTION_SRC: &str = r#"fn another_function() -> Field {
+    1
+}
+
+fn main() {
+    another_function();
+    another_function();
+}
+"#;
+
     #[test]
     async fn test_on_references_request_including_declaration() {
-        check_references_succeeds("rename_function", "another_function", 0, true).await;
+        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, true).await;
     }
 
     #[test]
     async fn test_on_references_request_without_including_declaration() {
-        check_references_succeeds("rename_function", "another_function", 0, false).await;
+        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, false).await;
     }
 
     // Ignored because making this work slows down everything, so for now things will not work
@@ -113,7 +119,7 @@ mod references_tests {
         let two_lib = Url::from_file_path(workspace_dir.join("two/src/lib.nr")).unwrap();
 
         // We call this to open the document, so that the entire workspace is analyzed
-        let workspace = workspace_from_document_uri(one_lib.clone()).unwrap();
+        let workspace = workspace_from_document_uri(&mut state, one_lib.clone()).unwrap().unwrap();
 
         notifications::process_workspace(&mut state, &workspace).unwrap();
 
@@ -139,32 +145,18 @@ mod references_tests {
             (location.uri.to_file_path().unwrap(), location.range.start.line)
         });
 
+        let one_lib_src = std::fs::read_to_string(one_lib.to_file_path().unwrap()).unwrap();
+        let two_lib_src = std::fs::read_to_string(two_lib.to_file_path().unwrap()).unwrap();
+
+        // Each location should cover the identifier `function_one` in its respective file.
         assert_eq!(locations[0].uri, one_lib);
-        assert_eq!(
-            locations[0].range,
-            Range {
-                start: Position { line: 0, character: 7 },
-                end: Position { line: 0, character: 19 },
-            }
-        );
+        assert_eq!(test_utils::text_at(&one_lib_src, locations[0].range), "function_one");
 
         assert_eq!(locations[1].uri, two_lib);
-        assert_eq!(
-            locations[1].range,
-            Range {
-                start: Position { line: 0, character: 9 },
-                end: Position { line: 0, character: 21 },
-            }
-        );
+        assert_eq!(test_utils::text_at(&two_lib_src, locations[1].range), "function_one");
 
         assert_eq!(locations[2].uri, two_lib);
-        assert_eq!(
-            locations[2].range,
-            Range {
-                start: Position { line: 3, character: 4 },
-                end: Position { line: 3, character: 16 },
-            }
-        );
+        assert_eq!(test_utils::text_at(&two_lib_src, locations[2].range), "function_one");
     }
 
     #[test]
@@ -185,28 +177,20 @@ mod references_tests {
         }
         ";
 
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         let result = on_references_request(
             &mut state,
             ReferenceParams {
                 text_document_position: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 partial_result_params: PartialResultParams { partial_result_token: None },

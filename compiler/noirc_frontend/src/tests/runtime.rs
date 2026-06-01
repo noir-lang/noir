@@ -318,15 +318,25 @@ fn deny_no_predicates_attribute_on_entry_point() {
 }
 
 #[test]
-fn deny_abi_attribute_outside_of_contract() {
+fn deny_abi_attribute_on_global_outside_contract() {
     let src = r#"
-
         #[abi(foo)]
         ^^^^^^^^^^^ #[abi(tag)] attributes can only be used in contracts
         ~~~~~~~~~~~ misplaced #[abi(tag)] attribute
         global foo: Field = 1;
     "#;
     check_errors(src);
+}
+
+#[test]
+fn allow_abi_attribute_on_global_inside_contract() {
+    let src = r#"
+    contract moo {
+        #[abi(foo)]
+        global foo: Field = 1;
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -392,8 +402,8 @@ fn disallows_export_attribute_on_impl_method() {
 
         impl Foo {
             #[export]
-            fn foo() { }
-               ^^^ The `#[export]` attribute is disallowed on `impl` methods
+            pub fn foo() { }
+                   ^^^ The `#[export]` attribute is disallowed on `impl` methods
         }
     ";
     check_errors(src);

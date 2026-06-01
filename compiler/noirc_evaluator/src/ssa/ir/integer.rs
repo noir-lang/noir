@@ -64,39 +64,27 @@ impl IntegerConstant {
         }
     }
 
-    /// Increment the value by 1
-    ///
-    /// # Panics
-    ///
-    /// Panics if the increment causes an overflow.
-    pub(crate) fn inc(self) -> Self {
+    /// Increment the value by 1. Returns None if the increment would cause an overflow.
+    pub(crate) fn inc(self) -> Option<Self> {
         match self {
-            Self::Signed { value, bit_size } => Self::Signed {
-                value: value.checked_add(1).expect("ICE: overflow while incrementing constant"),
-                bit_size,
-            },
-            Self::Unsigned { value, bit_size } => Self::Unsigned {
-                value: value.checked_add(1).expect("ICE: overflow while incrementing constant"),
-                bit_size,
-            },
+            Self::Signed { value, bit_size } => {
+                value.checked_add(1).map(|value| Self::Signed { value, bit_size })
+            }
+            Self::Unsigned { value, bit_size } => {
+                value.checked_add(1).map(|value| Self::Unsigned { value, bit_size })
+            }
         }
     }
 
-    /// Decrement the value by 1, saturating at the minimum value.
-    ///
-    /// # panics
-    ///
-    /// Panics if the decrement causes an overflow.
-    pub(crate) fn dec(self) -> Self {
+    /// Decrement the value by 1. Returns None if the decrement would cause an underflow.
+    pub(crate) fn dec(self) -> Option<Self> {
         match self {
-            Self::Signed { value, bit_size } => Self::Signed {
-                value: value.checked_sub(1).expect("ICE: overflow while decrementing constant"),
-                bit_size,
-            },
-            Self::Unsigned { value, bit_size } => Self::Unsigned {
-                value: value.checked_sub(1).expect("ICE: overflow while decrementing constant"),
-                bit_size,
-            },
+            Self::Signed { value, bit_size } => {
+                value.checked_sub(1).map(|value| Self::Signed { value, bit_size })
+            }
+            Self::Unsigned { value, bit_size } => {
+                value.checked_sub(1).map(|value| Self::Unsigned { value, bit_size })
+            }
         }
     }
 
@@ -130,14 +118,16 @@ impl PartialOrd for IntegerConstant {
                 if a.is_negative() {
                     Some(Ordering::Less)
                 } else {
-                    (*a).try_into().ok().and_then(|a: u128| a.partial_cmp(b))
+                    let a: u128 = (*a).try_into().ok()?;
+                    a.partial_cmp(b)
                 }
             }
             (Self::Unsigned { value: a, .. }, Self::Signed { value: b, .. }) => {
                 if b.is_negative() {
                     Some(Ordering::Greater)
                 } else {
-                    (*b).try_into().ok().and_then(|b: u128| a.partial_cmp(&b))
+                    let b: u128 = (*b).try_into().ok()?;
+                    a.partial_cmp(&b)
                 }
             }
             (Self::Unsigned { value: a, .. }, Self::Unsigned { value: b, .. }) => a.partial_cmp(b),

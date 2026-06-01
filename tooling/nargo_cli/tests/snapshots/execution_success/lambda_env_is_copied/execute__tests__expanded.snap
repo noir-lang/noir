@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Pair {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let mut p: Pair = Pair { x: 1_i32, y: 2_i32 };
+    let get_x: fn[(Pair,)]() -> i32 = || -> i32 p.x;
+    p.x = 99_i32;
+    let captured_x: i32 = get_x();
+    assert(captured_x == 1_i32);
+}

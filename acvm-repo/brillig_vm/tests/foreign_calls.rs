@@ -184,7 +184,7 @@ fn foreign_call_opcode_vector_input_and_output() {
         vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
     // Double the string (concatenate it with itself)
     let mut output_string: Vec<_> =
-        input_string.iter().cloned().chain(input_string.clone()).collect();
+        input_string.iter().copied().chain(input_string.clone()).collect();
     // Reverse the concatenated string
     output_string.reverse();
 
@@ -250,13 +250,17 @@ fn foreign_call_opcode_vector_input_and_output() {
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![HeapValueType::field()],
             }],
-            inputs: vec![ValueOrArray::HeapVector(HeapVector {
-                pointer: r_input_pointer,
-                size: r_input_size,
-            })],
-            input_value_types: vec![HeapValueType::Vector {
-                value_types: vec![HeapValueType::field()],
-            }],
+            inputs: vec![
+                ValueOrArray::MemoryAddress(r_input_size),
+                ValueOrArray::HeapVector(HeapVector {
+                    pointer: r_input_pointer,
+                    size: r_input_size,
+                }),
+            ],
+            input_value_types: vec![
+                HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)),
+                HeapValueType::Vector { value_types: vec![HeapValueType::field()] },
+            ],
         },
     ];
 
@@ -265,7 +269,7 @@ fn foreign_call_opcode_vector_input_and_output() {
         &string_double_program,
         VMStatus::ForeignCallWait {
             function: "string_double".into(),
-            inputs: vec![input_string.clone().into()],
+            inputs: vec![ForeignCallParam::Single(input_string.len().into()), input_string.into()],
         },
         vec![ForeignCallParam::Array(output_string.clone())],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
@@ -528,12 +532,12 @@ fn foreign_call_opcode_nested_arrays_input() {
     // Declare a4: [RC, ...items]
     let a4_ptr = memory.len() as u32;
     memory.extend(vec![MemoryValue::from(1_u32)]);
-    memory.extend(a4.clone());
+    memory.extend(a4);
 
     // Declare a9: [RC, ...items]
     let a9_ptr = memory.len() as u32;
     memory.extend(vec![MemoryValue::from(1_u32)]);
-    memory.extend(a9.clone());
+    memory.extend(a9);
 
     // finally we add the contents of the outer array
     // RC of the outer array
@@ -675,12 +679,12 @@ fn foreign_call_opcode_vector_input_nested_composite_array() {
     // Inner array 0: [RC, ...items]
     let inner_array_0_ptr = memory.len() as u32;
     memory.push(MemoryValue::from(1_u32)); // RC
-    memory.extend(inner_array_0.clone());
+    memory.extend(inner_array_0);
 
     // Inner array 1: [RC, ...items]
     let inner_array_1_ptr = memory.len() as u32;
     memory.push(MemoryValue::from(1_u32)); // RC
-    memory.extend(inner_array_1.clone());
+    memory.extend(inner_array_1);
 
     // Garbage after inner array 1 to detect over-reading
     memory.extend(garbage);
@@ -749,13 +753,18 @@ fn foreign_call_opcode_vector_input_nested_composite_array() {
             function: "sum_nested".into(),
             destinations: vec![ValueOrArray::MemoryAddress(r_output)],
             destination_value_types: vec![HeapValueType::field()],
-            inputs: vec![ValueOrArray::HeapVector(HeapVector {
-                pointer: r_input_pointer,
-                size: r_input_size,
-            })],
-            input_value_types: vec![HeapValueType::Vector {
-                value_types: vec![vector_element_type],
-            }],
+            inputs: vec![
+                // The semantic length matches the vector size.
+                ValueOrArray::MemoryAddress(r_input_size),
+                ValueOrArray::HeapVector(HeapVector {
+                    pointer: r_input_pointer,
+                    size: r_input_size,
+                }),
+            ],
+            input_value_types: vec![
+                HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)),
+                HeapValueType::Vector { value_types: vec![vector_element_type] },
+            ],
         },
     ])
     .collect();
@@ -784,7 +793,10 @@ fn foreign_call_opcode_vector_input_nested_composite_array() {
         &program,
         VMStatus::ForeignCallWait {
             function: "sum_nested".into(),
-            inputs: vec![expected_oracle_input.into()],
+            inputs: vec![
+                ForeignCallParam::Single(FieldElement::from(2)), // semantic length of the input vector
+                expected_oracle_input.into(),
+            ],
         },
         // Return a dummy sum value
         vec![FieldElement::from(78u128).into()],

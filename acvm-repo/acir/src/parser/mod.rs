@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, str::FromStr};
 use acir_field::{AcirField, FieldElement};
 
 use lexer::{Lexer, LexerError};
-use noirc_span::Span;
+use span::Span;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod lexer;
+mod span;
 #[cfg(test)]
 mod tests;
 mod token;
@@ -191,7 +192,6 @@ impl<'a> Parser<'a> {
         let opcodes = self.parse_opcodes()?;
 
         Ok(Circuit {
-            current_witness_index: self.max_witness_index,
             opcodes,
             private_parameters,
             public_parameters,
@@ -501,8 +501,8 @@ impl<'a> Parser<'a> {
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
             }
@@ -542,17 +542,17 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let input1 = self.parse_blackbox_inputs_array::<3>(Keyword::Input1)?;
+                let input1 = self.parse_blackbox_inputs_array::<2>(Keyword::Input1)?;
                 self.eat_comma_or_error()?;
 
-                let input2 = self.parse_blackbox_inputs_array::<3>(Keyword::Input2)?;
+                let input2 = self.parse_blackbox_inputs_array::<2>(Keyword::Input2)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
             }
@@ -674,16 +674,14 @@ impl<'a> Parser<'a> {
         self.eat_keyword_or_error(Keyword::MemoryRead)?;
 
         // value = blockId[index]
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
         self.eat_or_error(Token::Equal)?;
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
 
-        let operation = Expression::zero();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(index, value) })
     }
 
     fn parse_memory_write(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -692,14 +690,12 @@ impl<'a> Parser<'a> {
         // blockId[index] = value
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
         self.eat_or_error(Token::Equal)?;
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
 
-        let operation = Expression::one();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp::write_to_mem_index(index, value) })
     }
 
     fn parse_brillig_call(&mut self) -> ParseResult<Opcode<FieldElement>> {

@@ -106,7 +106,7 @@ fn profile_brillig_execution(
     prover_name: &str,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
-    for (package, program_artifact) in binary_packages.iter() {
+    for (package, program_artifact) in &binary_packages {
         // Parse the initial witness values from Prover.toml or Prover.json
         let (inputs_map, _) = read_inputs_from_file(
             &package.root_dir.join(prover_name).with_extension("toml"),

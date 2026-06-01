@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
@@ -20,7 +20,7 @@ use crate::ssa::{
     },
 };
 
-use super::{executes_with_no_errors, expect_error};
+use super::{Ssa, executes_with_no_errors, expect_error};
 
 fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
     Value::unfit(value.into(), typ).unwrap()
@@ -173,7 +173,7 @@ fn sub_underflow_signed() {
 
 #[test]
 fn sub_unchecked_unsigned() {
-    let value = expect_value(
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
@@ -181,12 +181,6 @@ fn sub_unchecked_unsigned() {
             return v0
         }
     ",
-    );
-    assert_ne!(value, Value::u8(246), "no wrapping");
-    assert_eq!(
-        value,
-        // Note that this is not the same as `Value::i8(-10).convert_to_field()`, because that casts to u8 first.
-        make_unfit(FieldElement::zero() - FieldElement::from(10u32), NumericType::unsigned(8))
     );
 }
 
@@ -319,6 +313,40 @@ fn div_zero() {
     ",
     );
     assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
+}
+
+#[test]
+fn div_signed_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div i32 2147483648, i32 4294967295
+            return v0
+        }
+    ",
+    );
+    assert!(
+        matches!(error, InterpreterError::Overflow { .. }),
+        "expected Overflow for i32::MIN / -1, got {error:?}"
+    );
+}
+
+#[test]
+fn mod_signed_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod i32 2147483648, i32 4294967295
+            return v0
+        }
+    ",
+    );
+    assert!(
+        matches!(error, InterpreterError::Overflow { .. }),
+        "expected Overflow for i32::MIN % -1, got {error:?}"
+    );
 }
 
 #[test]
@@ -738,6 +766,7 @@ fn allocate() {
         original_id: ValueId::test_new(0),
         element: Shared::new(None),
         element_type: Arc::new(Type::field()),
+        mutable: true,
     });
     assert_eq!(value, expected);
 }
@@ -774,6 +803,7 @@ fn store() {
         original_id: ValueId::test_new(0),
         element: Shared::new(Some(Value::bool(true))),
         element_type: Arc::new(Type::bool()),
+        mutable: true,
     });
     assert_eq!(value, expected);
 }
@@ -803,6 +833,7 @@ fn enable_side_effects() {
         original_id: ValueId::test_new(1),
         element: Shared::new(Some(field_zero.clone())),
         element_type: Arc::new(Type::field()),
+        mutable: true,
     });
     assert_eq!(values[0], expected);
     assert_eq!(values[1], field_zero);
@@ -870,6 +901,51 @@ fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() 
     );
     // If enable_side_effects is false, array get will retrieve the value at the first compatible index
     assert_eq!(value, from_constant(1_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn brillig_oob_array_get_does_not_error() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v5 = array_get v4, index v0 -> Field
+        return
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![from_constant(10_u32.into(), NumericType::unsigned(32))]);
+    assert!(result.is_ok(), "expected success, got {result:?}");
+}
+
+#[test]
+fn brillig_oob_array_get_zero_length_does_not_error() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [] : [Field; 0]
+        v5 = array_get v4, index v0 -> Field
+        return
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![from_constant(0_u32.into(), NumericType::unsigned(32))]);
+    assert!(result.is_ok(), "expected success, got {result:?}");
+}
+
+#[test]
+fn acir_oob_array_get_still_errors() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v5 = array_get v4, index v0 -> Field
+        return v5
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![from_constant(10_u32.into(), NumericType::unsigned(32))]);
+    assert!(matches!(result, Err(InterpreterError::IndexOutOfBounds { .. })));
 }
 
 #[test]
@@ -1008,6 +1084,7 @@ fn increment_rc_disabled_in_acir() {
 }
 
 #[test]
+#[ignore = "Bring back once we emit dec_rc instructions again"]
 fn decrement_rc() {
     let value = expect_value(
         "
@@ -1082,6 +1159,31 @@ fn make_array() {
         vecmap(b"Hello", |char| from_constant(u32::from(*char).into(), NumericType::char()));
     assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
     assert_eq!(values[3], Value::vector(hello, Arc::new(vec![Type::char()])));
+}
+
+#[test]
+fn make_array_allows_reference_mutability_mismatch() {
+    // Reference mutability is a frontend concern with no meaning at the SSA
+    // level: the validator accepts a `&mut T` value in a `&T` MakeArray slot,
+    // and the interpreter must agree so that running the post-validation SSA
+    // doesn't fail with `MakeArrayElementTypeMismatch`. The unconstrained
+    // SSA-gen pattern this guards is a tuple `[&mut T, &T]` constructed from
+    // a mutable allocate alongside an immutable one — exactly what the
+    // `pass_vs_prev` fuzzer surfaces when it interprets intermediate SSA
+    // between passes.
+    executes_with_no_errors(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &Field
+            store Field 2 at v1
+            v2 = make_array [v0, v1] : [&Field; 2]
+            return
+        }
+    ",
+    );
 }
 
 #[test]

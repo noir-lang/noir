@@ -10,7 +10,7 @@ use noirc_frontend::modules::get_parent_module;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    DataType, EnumVariant, ResolvedGenerics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    DataType, EnumVariant, ResolvedGeneric, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
@@ -34,30 +34,31 @@ pub(super) fn hover_from_reference(
     position: Position,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
-    utils::position_to_byte_index(args.files, file_id, &position)
-        .and_then(|byte_index| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    let (reference, link_lsp_location) =
+        utils::position_to_byte_index(args.files, file_id, &position)
+            .and_then(|byte_index| {
+                let file = args.files.get_file(file_id).unwrap();
+                let source = file.source();
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
-            finder.find(&parsed_module)
-        })
-        .or_else(|| {
-            args.interner.reference_at_location(args.location).map(|reference| (reference, None))
-        })
-        .and_then(|(reference, link_lsp_location)| {
-            let location = args.interner.reference_location(reference);
-            let lsp_location = link_lsp_location
-                .or_else(|| to_lsp_location(args.files, location.file, location.span));
-            format_reference(reference, args).map(|formatted| Hover {
-                range: lsp_location.map(|location| location.range),
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: formatted,
-                }),
+                let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
+                finder.find(&parsed_module)
             })
-        })
+            .or_else(|| {
+                args.interner
+                    .reference_at_location(args.location)
+                    .map(|reference| (reference, None))
+            })?;
+    let location = args.interner.reference_location(reference);
+    let lsp_location =
+        link_lsp_location.or_else(|| to_lsp_location(args.files, location.file, location.span));
+    format_reference(reference, args).map(|formatted| Hover {
+        range: lsp_location.map(|location| location.range),
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: formatted,
+        }),
+    })
 }
 
 pub(super) fn format_reference(
@@ -100,14 +101,14 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
         // this won't be an issue anymore.
         let module_attributes = args.interner.try_module_attributes(id)?;
 
-        if let Some(parent_local_id) = module_attributes.parent {
-            if format_parent_module_from_module_id(
+        if let Some(parent_local_id) = module_attributes.parent
+            && format_parent_module_from_module_id(
                 ModuleId { krate: id.krate, local_id: parent_local_id },
                 args,
                 &mut string,
-            ) {
-                string.push('\n');
-            }
+            )
+        {
+            string.push('\n');
         }
         string.push_str("    ");
         string.push_str("mod ");
@@ -141,12 +142,23 @@ fn format_struct(
         string.push('\n');
     }
     string.push_str("    ");
+    if typ.visibility != ItemVisibility::Private {
+        string.push_str(&typ.visibility.to_string());
+        string.push(' ');
+    }
+    if typ.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("struct ");
     string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in fields {
         string.push_str("        ");
+        if field.visibility != ItemVisibility::Private {
+            string.push_str(&field.visibility.to_string());
+            string.push(' ');
+        }
         string.push_str(field.name.as_str());
         string.push_str(": ");
         string.push_str(&format!("{}", field.typ));
@@ -169,6 +181,13 @@ fn format_enum(
         string.push('\n');
     }
     string.push_str("    ");
+    if typ.visibility != ItemVisibility::Private {
+        string.push_str(&typ.visibility.to_string());
+        string.push(' ');
+    }
+    if typ.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("enum ");
     string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
@@ -209,6 +228,10 @@ fn format_struct_member(
     string.push_str(struct_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
+    if field.visibility != ItemVisibility::Private {
+        string.push_str(&field.visibility.to_string());
+        string.push(' ');
+    }
     string.push_str(field.name.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", field.typ));
@@ -246,7 +269,7 @@ fn format_enum_variant(
 
     append_doc_comments(ReferenceId::EnumVariant(id, field_index), &mut string, args);
 
-    for typ in variant.params.iter() {
+    for typ in &variant.params {
         string.push_str(&go_to_type_links(typ, args.interner, args.files));
     }
 
@@ -317,11 +340,11 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(": ");
     string.push_str(&format!("{typ}"));
 
-    if let GlobalValue::Resolved(value) = &global_info.value {
-        if let Some(value) = value_to_string(value) {
-            string.push_str(" = ");
-            string.push_str(&value);
-        }
+    if let GlobalValue::Resolved(value) = &global_info.value
+        && let Some(value) = value_to_string(value)
+    {
+        string.push_str(" = ");
+        string.push_str(&value);
     }
 
     append_doc_comments(ReferenceId::Global(id), &mut string, args);
@@ -362,36 +385,17 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_impl = trait_impl.borrow();
         let trait_ = args.interner.get_trait(trait_impl.trait_id);
 
-        let generics = trait_impl
-            .trait_generics
-            .iter()
-            .filter_map(|generic| {
-                if let Type::NamedGeneric(generic) = generic {
-                    Some(generic.name.as_str())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+        let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
 
         string.push('\n');
         string.push_str("    impl");
-        if !generics.is_empty() {
-            string.push('<');
-            for (index, generic) in generics.into_iter().enumerate() {
-                if index > 0 {
-                    string.push_str(", ");
-                }
-                string.push_str(generic);
-            }
-            string.push('>');
-        }
+        format_generics(func_meta.impl_generics(), &mut string);
 
         string.push(' ');
         string.push_str(trait_.name.as_str());
-        if !trait_impl.trait_generics.is_empty() {
+        if !ordered_generics.is_empty() {
             string.push('<');
-            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+            for (index, generic) in ordered_generics.iter().enumerate() {
                 if index > 0 {
                     string.push_str(", ");
                 }
@@ -424,17 +428,12 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             string.push_str("    ");
             string.push_str("impl");
 
-            let impl_generics: Vec<_> = func_meta
-                .all_generics
-                .iter()
-                .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
-                .cloned()
-                .collect();
-            format_generics(&impl_generics, &mut string);
+            let impl_generics = func_meta.impl_generics();
+            format_generics(impl_generics, &mut string);
 
             string.push(' ');
             string.push_str(data_type.name.as_str());
-            format_generic_names(&impl_generics, &mut string);
+            format_generic_names(impl_generics, &mut string);
         }
 
         true
@@ -453,7 +452,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(&func_modifiers.visibility.to_string());
         string.push(' ');
     }
-    if func_modifiers.is_unconstrained {
+    if func_meta.is_unconstrained() {
         string.push_str("unconstrained ");
     }
     if func_modifiers.is_comptime {
@@ -470,11 +469,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-        let is_self = pattern_is_self(pattern, args.interner);
+        let is_self = pattern.is_self(args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::Reference(..)) {
-            string.push_str("&mut ");
+        if is_self && let Type::Reference(_, mutable) = typ {
+            if *mutable {
+                string.push_str("&mut ");
+            } else {
+                string.push('&');
+            }
         }
 
         if enum_variant.is_some() {
@@ -570,10 +573,17 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     format_parent_module(ModuleDefId::TypeAliasId(id), args, &mut string);
     string.push('\n');
     string.push_str("    ");
+    if type_alias.visibility != ItemVisibility::Private {
+        string.push_str(&type_alias.visibility.to_string());
+        string.push(' ');
+    }
+    if type_alias.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("type ");
     string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
-    string.push_str(&format!("{}", &type_alias.typ));
+    string.push_str(&format!("{}", type_alias.typ));
 
     append_doc_comments(ReferenceId::Alias(id), &mut string, args);
 
@@ -582,55 +592,66 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
 
 fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let definition_info = args.interner.definition(id);
-    if let DefinitionKind::Global(global_id) = &definition_info.kind {
-        return format_global(*global_id, args);
-    }
 
-    let DefinitionKind::Local(expr_id) = definition_info.kind else {
-        panic!("Expected a local reference to reference a local definition")
-    };
-    let typ = args.interner.definition_type(id);
+    match &definition_info.kind {
+        DefinitionKind::Global(global_id) => format_global(*global_id, args),
+        DefinitionKind::Local(expr_id) => {
+            let typ = args.interner.definition_type(id);
 
-    let mut string = String::new();
-    string.push_str("    ");
-    if definition_info.comptime {
-        string.push_str("comptime ");
-    }
-    if expr_id.is_some() {
-        string.push_str("let ");
-    }
-    if definition_info.mutable {
-        if expr_id.is_none() {
-            string.push_str("let ");
+            let mut string = String::new();
+            string.push_str("    ");
+            if definition_info.comptime {
+                string.push_str("comptime ");
+            }
+            if expr_id.is_some() {
+                string.push_str("let ");
+            }
+            if definition_info.mutable {
+                if expr_id.is_none() {
+                    string.push_str("let ");
+                }
+                string.push_str("mut ");
+            }
+            string.push_str(&definition_info.name);
+            if !matches!(typ, Type::Error) {
+                string.push_str(": ");
+                string.push_str(&format!("{typ}"));
+            }
+
+            string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+            string
         }
-        string.push_str("mut ");
+        DefinitionKind::NumericGeneric(_, typ) => {
+            let mut string = String::new();
+            string.push_str("    ");
+            string.push_str("let ");
+            string.push_str(&definition_info.name);
+            string.push_str(": ");
+            string.push_str(&typ.to_string());
+            string
+        }
+        other => {
+            panic!("Unexpected definition kind: {other:?}")
+        }
     }
-    string.push_str(&definition_info.name);
-    if !matches!(typ, Type::Error) {
-        string.push_str(": ");
-        string.push_str(&format!("{typ}"));
-    }
-
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
-
-    string
 }
 
-fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
+fn format_generics(generics: &[ResolvedGeneric], string: &mut String) {
     format_generics_impl(
         generics, false, // only show names
         string,
     );
 }
 
-fn format_generic_names(generics: &ResolvedGenerics, string: &mut String) {
+fn format_generic_names(generics: &[ResolvedGeneric], string: &mut String) {
     format_generics_impl(
         generics, true, // only show names
         string,
     );
 }
 
-fn format_generics_impl(generics: &ResolvedGenerics, only_show_names: bool, string: &mut String) {
+fn format_generics_impl(generics: &[ResolvedGeneric], only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }
@@ -678,17 +699,6 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
         HirPattern::Tuple(..) | HirPattern::Struct(..) => {
             string.push('_');
         }
-    }
-}
-
-fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            definition.name == "self"
-        }
-        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
 
@@ -755,7 +765,7 @@ struct TypeLinksGatherer<'a> {
 impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
-            Type::Array(typ, _) => self.gather_type_links(typ),
+            Type::Array(_, typ) => self.gather_type_links(typ),
             Type::Vector(typ) => self.gather_type_links(typ),
             Type::Tuple(types) => {
                 for typ in types {
@@ -924,7 +934,7 @@ fn process_doc_comments_links(
         let Some(location) = link_target_location(target, args) else {
             continue;
         };
-        let mut line = lines[link.line].to_string();
+        let mut line = lines[link.line].clone();
         let replacement = format_link(&link.name, location);
         line.replace_range(link.start..link.end, &replacement);
         lines[link.line] = line;
@@ -1004,18 +1014,10 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
     match value {
         Value::Unit => string.push_str("()"),
         Value::Bool(value) => string.push_str(&value.to_string()),
-        Value::Field(field_element) => string.push_str(&field_element.to_string()),
-        Value::I8(value) => string.push_str(&value.to_string()),
-        Value::I16(value) => string.push_str(&value.to_string()),
-        Value::I32(value) => string.push_str(&value.to_string()),
-        Value::I64(value) => string.push_str(&value.to_string()),
-        Value::U1(value) => string.push_str(&value.to_string()),
-        Value::U8(value) => string.push_str(&value.to_string()),
-        Value::U16(value) => string.push_str(&value.to_string()),
-        Value::U32(value) => string.push_str(&value.to_string()),
-        Value::U64(value) => string.push_str(&value.to_string()),
-        Value::U128(value) => string.push_str(&value.to_string()),
-        Value::String(value) | Value::CtString(value) => string.push_str(&value.to_string()),
+        Value::Integer(value) => string.push_str(&value.to_string()),
+        Value::String(bytes) | Value::CtString(bytes) => {
+            string.push_str(&String::from_utf8_lossy(bytes));
+        }
         Value::Tuple(values) => {
             let len = values.iter().len();
             string.push('(');
@@ -1068,7 +1070,8 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
         | Value::Zeroed(..)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) => return None,
+        | Value::UnresolvedType(..)
+        | Value::Location(..) => return None,
     }
 
     Some(())

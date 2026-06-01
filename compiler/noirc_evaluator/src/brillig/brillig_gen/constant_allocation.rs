@@ -14,7 +14,7 @@ use crate::ssa::ir::{
 };
 
 use super::variable_liveness::{is_variable, variables_used_in_instruction};
-use crate::ssa::opt::Loops;
+use crate::ssa::opt::{LoopOrder, Loops};
 
 /// Indicate where a variable was used in a block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -43,7 +43,7 @@ pub(crate) struct ConstantAllocation {
 impl ConstantAllocation {
     /// Run the constant allocation algorithm for a [Function] and return the decisions.
     pub(crate) fn from_function(func: &Function) -> Self {
-        let loops = Loops::find_all(func);
+        let loops = Loops::find_all(func, LoopOrder::OutsideIn);
         let blocks_within_loops =
             loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
 
@@ -61,9 +61,9 @@ impl ConstantAllocation {
 
     /// Collect all constants allocated in a given block.
     pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ValueId> {
-        self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
-            allocations.iter().flat_map(|(_, constants)| constants).copied().collect()
-        })
+        self.allocation_points
+            .get(&block_id)
+            .map_or(Vec::default(), |allocations| allocations.values().flatten().copied().collect())
     }
 
     /// Collect all constants allocated in a given block at a specific location.
@@ -115,7 +115,7 @@ impl ConstantAllocation {
     /// Based on the [Self::constant_usage] collected, find the common dominator of all the block where a constant is used
     /// and mark it as the allocation point for the constant.
     fn decide_allocation_points(&mut self, func: &Function) {
-        for (constant_id, usage_in_blocks) in self.constant_usage.iter() {
+        for (constant_id, usage_in_blocks) in &self.constant_usage {
             let block_ids: Vec<_> = usage_in_blocks.keys().copied().collect();
 
             let allocation_point = self.decide_allocation_point(*constant_id, &block_ids, func);
@@ -153,7 +153,7 @@ impl ConstantAllocation {
             .iter()
             .copied()
             .reduce(|a, b| self.dominator_tree.common_dominator(a, b))
-            .unwrap_or(used_in_blocks[0]);
+            .expect("At least one block must use the constant");
 
         // If the value only contains constants, it's safe to hoist outside of any loop.
         // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.

@@ -13,6 +13,21 @@ updates:
         patterns:
           - "actions/**"
 
+  # Maintain dependencies for Rust crates
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      codespan:
+        patterns:
+          - "codespan"
+          - "codespan-*"
+      arkworks:
+        patterns:
+          - "ark-*"
+
   # Enable version updates for npm
   - package-ecosystem: "npm"
     directory: "/"
@@ -23,7 +38,7 @@ updates:
       # @types/node major version matches Node.js major version
       # Keep compatible with our minimum supported Node version (22.x)
       - dependency-name: "@types/node"
-        versions: [">=23.0.0"]
+        versions: [ ">=23.0.0" ]
       # Ignore updates for @aztec/bb.js as it's managed separately
       - dependency-name: "@aztec/bb.js"
     groups:
@@ -49,6 +64,11 @@ updates:
         patterns:
           - "react"
           - "react-dom"
+      hardhat:
+        patterns:
+          - "hardhat"
+          - "@nomicfoundation/hardhat*"
+          - "ethers"
       testing:
         patterns:
           - "chai"

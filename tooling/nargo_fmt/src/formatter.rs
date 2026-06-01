@@ -1,13 +1,14 @@
 use buffer::Buffer;
 use noirc_frontend::{
     ParsedModule,
-    ast::Ident,
+    ast::{Expression, Ident, Statement},
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
 };
 
 use crate::Config;
+use crate::chunks::ChunkGroup;
 
 mod alias;
 mod attribute;
@@ -123,8 +124,44 @@ impl<'a> Formatter<'a> {
         self.write_line();
     }
 
+    pub(crate) fn format_single_statement(&mut self, statement: Statement) {
+        self.skip_whitespace();
+        self.skip_comments_and_whitespace_impl(
+            true, // write lines
+            true, // at beginning
+        );
+
+        let ignore_next = self.ignore_next;
+        let mut group = ChunkGroup::new();
+        self.chunk_formatter().format_statement(statement, &mut group, ignore_next);
+        self.format_chunk_group(group);
+
+        self.buffer.trim_multiple_newlines();
+    }
+
+    pub(crate) fn format_single_expression(&mut self, expression: Expression) {
+        self.skip_whitespace();
+        self.skip_comments_and_whitespace_impl(
+            true, // write lines
+            true, // at beginning
+        );
+
+        let mut group = ChunkGroup::new();
+        self.chunk_formatter().format_expression(expression, &mut group);
+        self.format_chunk_group(group);
+
+        self.buffer.trim_multiple_newlines();
+    }
+
     pub(crate) fn write_identifier(&mut self, ident: Ident) {
         self.skip_comments_and_whitespace();
+
+        if ident.as_str().starts_with('$') && self.token == Token::DollarSign {
+            // The AST identifier was synthesized from `$` + a real identifier in a
+            // `quote { }` body. Consume both tokens.
+            self.bump();
+            self.skip_comments_and_whitespace();
+        }
 
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
@@ -135,6 +172,11 @@ impl<'a> Formatter<'a> {
 
     pub(crate) fn write_identifier_or_integer(&mut self, ident: Ident) {
         self.skip_comments_and_whitespace();
+
+        if ident.as_str().starts_with('$') && self.token == Token::DollarSign {
+            self.bump();
+            self.skip_comments_and_whitespace();
+        }
 
         if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
             panic!("Expected identifier or integer, got {:?}", self.token);
@@ -297,9 +339,16 @@ impl<'a> Formatter<'a> {
 
     /// Advances to the next token (the current token is not written).
     pub(crate) fn bump(&mut self) -> Token {
-        self.ignore_next = false;
-
         let next_token = self.read_token_internal();
+
+        // Keep the ignore status as long as we keep finding comments or whitespace, otherwise reset it
+        if !matches!(
+            next_token.token(),
+            Token::LineComment(..) | Token::BlockComment(..) | Token::Whitespace(..),
+        ) {
+            self.ignore_next = false;
+        }
+
         self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }

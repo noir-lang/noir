@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to bit-shift with overflow
+  ┌─ src/main.nr:9:17
+  │
+9 │         let _ = -8_i8 >> -8_i8;
+  │                 --------------
+  │
+
+Aborting due to 1 previous error

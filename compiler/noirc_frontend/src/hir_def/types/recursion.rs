@@ -1,0 +1,39 @@
+use crate::{
+    TYPE_RECURSION_LIMIT, Type,
+    node_interner::{TypeAliasId, TypeId},
+};
+
+/// A type to prevent infinite recursion while traversing types recursively.
+///
+/// Designed to be cloned at branching (e.g. when visiting fields of tuples, or recursing),
+/// so that types at the same level are counted separately. The only type recursion we want
+/// to prevent is cycles.
+#[derive(Clone, Default)]
+pub(crate) struct TypeRecursionContext {
+    depth: u32,
+    data_types: im::HashSet<(TypeId, Vec<Type>)>,
+    aliases: im::HashSet<(TypeAliasId, Vec<Type>)>,
+}
+
+impl TypeRecursionContext {
+    /// Increases the recursion depth.
+    ///
+    /// Panics if it would go beyond [TYPE_RECURSION_LIMIT].
+    pub(crate) fn recur(mut self) -> Self {
+        if self.depth >= TYPE_RECURSION_LIMIT {
+            panic!("Type recursion limit reached - types are too large");
+        }
+        self.depth += 1;
+        self
+    }
+
+    /// Tracks a data type and its generics. Returns whether the data type wasn't already being tracked.
+    pub(crate) fn insert_data_type(&mut self, data_type_id: TypeId, generics: Vec<Type>) -> bool {
+        self.data_types.insert((data_type_id, generics)).is_none()
+    }
+
+    /// Tracks an alias and its generics. Returns whether the alias wasn't already being tracked.
+    pub(crate) fn insert_alias(&mut self, alias_id: TypeAliasId, generics: Vec<Type>) -> bool {
+        self.aliases.insert((alias_id, generics)).is_none()
+    }
+}
