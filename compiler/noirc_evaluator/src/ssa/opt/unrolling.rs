@@ -154,8 +154,16 @@ impl Function {
         #[cfg(debug_assertions)]
         unroll_loops_pre_check(self);
 
-        let (mut has_unrolled, mut unroll_errors) =
-            self.try_unroll_loops(max_unroll_iterations, force_unroll_threshold, callee_costs);
+        // Build the CFG once and maintain it incrementally across all
+        // unrolling iterations, avoiding a full O(n) rebuild each time.
+        let mut cfg = ControlFlowGraph::with_function(self);
+
+        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops_with_cfg(
+            max_unroll_iterations,
+            force_unroll_threshold,
+            callee_costs,
+            Some(cfg),
+        );
 
         match self.runtime() {
             RuntimeType::Acir(_) => {
@@ -183,10 +191,20 @@ impl Function {
             }
             RuntimeType::Brillig(_) => loop {
                 simplify_between_unrolls(self);
-                let (unrolled, _) = self.try_unroll_loops(
+                // Fast check: if no back-edges remain in the CFG, there are no loops
+                // to unroll. This avoids the expensive CFG/PostOrder/DominatorTree
+                // rebuild that `try_unroll_loops` → `Loops::find_all` would perform.
+                if !Loops::has_loops(self) {
+                    break;
+                }
+                // Incrementally update the CFG to reflect simplification changes,
+                // rather than building from scratch inside try_unroll_loops.
+                cfg = ControlFlowGraph::with_function(self);
+                let (unrolled, _) = self.try_unroll_loops_with_cfg(
                     max_unroll_iterations,
                     force_unroll_threshold,
                     callee_costs,
+                    Some(cfg),
                 );
                 has_unrolled |= unrolled;
                 if !unrolled {
@@ -217,6 +235,27 @@ impl Function {
         force_unroll_threshold: usize,
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> (bool, Vec<RuntimeError>) {
+        self.try_unroll_loops_with_cfg(
+            max_unroll_iterations,
+            force_unroll_threshold,
+            callee_costs,
+            None,
+        )
+    }
+
+    /// Core implementation of loop unrolling that optionally accepts a pre-built CFG.
+    ///
+    /// When `existing_cfg` is `Some`, reuses it instead of building from scratch.
+    /// The CFG is maintained incrementally across inner-loop iterations: after
+    /// unrolling a batch of loops, the CFG is updated via
+    /// [`ControlFlowGraph::update_from_function`] rather than being fully rebuilt.
+    fn try_unroll_loops_with_cfg(
+        &mut self,
+        max_unroll_iterations: usize,
+        force_unroll_threshold: usize,
+        callee_costs: &HashMap<FunctionId, usize>,
+        existing_cfg: Option<ControlFlowGraph>,
+    ) -> (bool, Vec<RuntimeError>) {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
@@ -228,18 +267,25 @@ impl Function {
         // an un-unrolled loop in ACIR SSA, panicking in a later pass.
         let mut accumulated_errors: Vec<RuntimeError> = Vec::new();
 
+        // Build CFG once (or reuse the provided one). It will be updated
+        // incrementally across iterations instead of being rebuilt from scratch.
+        let mut cfg = existing_cfg.unwrap_or_else(|| ControlFlowGraph::with_function(self));
+
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
-            let mut loops = Loops::find_all(self, LoopOrder::InsideOut);
+            // Reuse the incrementally-maintained CFG instead of rebuilding it.
+            let mut loops = Loops::find_all_with_cfg(self, LoopOrder::InsideOut, cfg);
             loops.callee_costs = callee_costs.clone();
 
-            let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
+            let (unrolled, refresh, errors, recovered_cfg) = self.try_unroll_loops_with_order(
                 loops,
                 LoopOrder::InsideOut,
                 &mut failed_to_unroll,
                 max_unroll_iterations,
                 force_unroll_threshold,
             );
+            // Recover the CFG from the consumed `Loops` so it can be reused.
+            cfg = recovered_cfg;
 
             has_unrolled |= unrolled;
             let had_errors = !errors.is_empty();
@@ -256,13 +302,14 @@ impl Function {
                 loops.callee_costs = callee_costs.clone();
 
                 let mut fallback_failed = HashSet::new();
-                let (fallback_unrolled, _, _fallback_errors) = self.try_unroll_loops_with_order(
-                    loops,
-                    LoopOrder::OutsideIn,
-                    &mut fallback_failed,
-                    max_unroll_iterations,
-                    force_unroll_threshold,
-                );
+                let (fallback_unrolled, _, _fallback_errors, _fallback_cfg) =
+                    self.try_unroll_loops_with_order(
+                        loops,
+                        LoopOrder::OutsideIn,
+                        &mut fallback_failed,
+                        max_unroll_iterations,
+                        force_unroll_threshold,
+                    );
                 has_unrolled |= fallback_unrolled;
                 failed_to_unroll.extend(fallback_failed);
 
@@ -273,6 +320,9 @@ impl Function {
                     // either way they are stale. Clear them so the next InsideOut pass starts
                     // fresh and only reports loops that still genuinely fail.
                     accumulated_errors.clear();
+                    // OutsideIn unrolling changed the function; refresh the reused CFG
+                    // before the next find so it reflects the current structure.
+                    cfg.update_from_function(self);
                     continue;
                 }
                 // OutsideIn also made no progress — leave the InsideOut errors accumulated
@@ -287,6 +337,10 @@ impl Function {
             // For Brillig this is needed for accurate cost estimates; for ACIR this
             // helps resolve bounds that become constant after inner loop unrolling.
             simplify_between_unrolls(self);
+
+            // Incrementally update the CFG to reflect changes from unrolling and
+            // simplification, rather than rebuilding it from scratch on the next find.
+            cfg.update_from_function(self);
         }
 
         (has_unrolled, accumulated_errors)
@@ -294,7 +348,11 @@ impl Function {
 
     /// Run a single pass of loop unrolling with the given ordering.
     ///
-    /// Returns `(has_unrolled, needs_refresh, unroll_errors)`.
+    /// Returns `(has_unrolled, needs_refresh, unroll_errors, cfg)`. The CFG is the one
+    /// carried by `loops`, returned so the caller can keep maintaining it incrementally
+    /// instead of rebuilding it. It reflects the structure at find time, so the caller
+    /// must refresh it (via [`ControlFlowGraph::update_from_function`]) after this pass's
+    /// modifications before reusing it.
     fn try_unroll_loops_with_order(
         &mut self,
         mut loops: Loops,
@@ -302,7 +360,7 @@ impl Function {
         failed_to_unroll: &mut HashSet<BasicBlockId>,
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
-    ) -> (bool, bool, Vec<RuntimeError>) {
+    ) -> (bool, bool, Vec<RuntimeError>, ControlFlowGraph) {
         let mut has_unrolled = false;
         let mut unroll_errors = vec![];
 
@@ -377,7 +435,7 @@ impl Function {
             }
         }
 
-        (has_unrolled, needs_refresh, unroll_errors)
+        (has_unrolled, needs_refresh, unroll_errors, loops.cfg)
     }
 
     /// Try to unroll a single loop.
@@ -481,6 +539,47 @@ pub(crate) struct Loops {
 }
 
 impl Loops {
+    /// Quick check for whether the function contains any loops (back-edges in the CFG).
+    ///
+    /// Uses an iterative DFS coloring approach to detect back-edges without building
+    /// a full CFG, PostOrder, or DominatorTree. This is much cheaper than `find_all`
+    /// on large functions (e.g. 30k+ blocks from loop unrolling) when no loops remain.
+    ///
+    /// Returns `true` if any back-edge is found (i.e. there is at least one loop).
+    pub(crate) fn has_loops(function: &Function) -> bool {
+        // DFS coloring: White = unseen, Gray = on current path, Black = finished.
+        // A back-edge is an edge to a Gray node.
+        let mut on_stack: HashSet<BasicBlockId> = HashSet::new();
+        let mut visited: HashSet<BasicBlockId> = HashSet::new();
+
+        let entry = function.entry_block();
+        let mut stack: Vec<(BasicBlockId, Vec<BasicBlockId>)> = vec![];
+
+        on_stack.insert(entry);
+        visited.insert(entry);
+        let successors: Vec<_> = function.dfg[entry].successors().collect();
+        stack.push((entry, successors));
+
+        while let Some((block, succs)) = stack.last_mut() {
+            if let Some(succ) = succs.pop() {
+                if on_stack.contains(&succ) {
+                    return true;
+                }
+                if visited.insert(succ) {
+                    on_stack.insert(succ);
+                    let next_succs: Vec<_> = function.dfg[succ].successors().collect();
+                    stack.push((succ, next_succs));
+                }
+            } else {
+                let block = *block;
+                on_stack.remove(&block);
+                stack.pop();
+            }
+        }
+
+        false
+    }
+
     /// Find all loops in the program by finding a node that dominates any predecessor node.
     /// The edge where this happens will be the back-edge of the loop.
     ///
@@ -543,6 +642,41 @@ impl Loops {
             LoopOrder::OutsideIn => {
                 // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
                 // Used as a fallback when inner loops depend on outer induction variables.
+                loops.sort_by_key(|loop_| loop_.blocks.len());
+            }
+        }
+
+        Self { yet_to_unroll: loops, cfg, dom: dom_tree, callee_costs: HashMap::default() }
+    }
+
+    /// Like [`find_all`], but takes an existing CFG instead of building a new one.
+    ///
+    /// PostOrder and DominatorTree are still recomputed from the CFG, since they
+    /// must reflect the current graph structure. This is useful when the CFG is
+    /// being maintained incrementally across multiple analysis passes.
+    pub(crate) fn find_all_with_cfg(
+        _function: &Function,
+        order: LoopOrder,
+        cfg: ControlFlowGraph,
+    ) -> Self {
+        let post_order = PostOrder::with_cfg(&cfg);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
+        let mut loops = vec![];
+
+        for block in post_order.into_vec_reverse() {
+            for predecessor in cfg.predecessors(block) {
+                if dom_tree.dominates(block, predecessor) {
+                    loops.push(Loop::find_blocks_in_loop(block, predecessor, &cfg));
+                }
+            }
+        }
+
+        match order {
+            LoopOrder::InsideOut => {
+                loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
+            }
+            LoopOrder::OutsideIn => {
                 loops.sort_by_key(|loop_| loop_.blocks.len());
             }
         }
@@ -3822,6 +3956,43 @@ mod tests {
         // This panics because v4 (a header instruction result) was not mapped
         // to its final-iteration value, leaving a dangling reference.
         let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+    }
+
+    #[test]
+    fn has_loops_detects_simple_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 10
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = add v1, u32 1
+            jmp b1(v3)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(Loops::has_loops(ssa.main()), "should detect a loop");
+    }
+
+    #[test]
+    fn has_loops_no_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = lt v0, u32 10
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            jmp b2()
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(!Loops::has_loops(ssa.main()), "should not detect a loop");
     }
 }
 
