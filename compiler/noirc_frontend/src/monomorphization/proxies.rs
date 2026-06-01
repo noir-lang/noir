@@ -345,6 +345,54 @@ mod tests {
     }
 
     #[test]
+    fn creates_separate_proxies_for_different_foreign_instantiations() {
+        let src = "
+        unconstrained fn main() {
+            call_one(foo);
+            call_two(foo);
+        }
+
+        unconstrained fn call_one(f: unconstrained fn(Field) -> Field) {
+            f(0);
+        }
+
+        unconstrained fn call_two(f: unconstrained fn(bool) -> bool) {
+            f(true);
+        }
+
+        #[builtin(foo)]
+        pub fn foo<T>(x: T) -> T {}
+        ";
+
+        let program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+        )
+        .unwrap();
+
+        insta::assert_snapshot!(program, @r"
+        unconstrained fn main$f0() -> () {
+            call_one$f1((foo$f3, foo$f4));;
+            call_two$f2((foo$f3, foo$f4));
+        }
+        unconstrained fn call_one$f1(f$l0: (fn(Field) -> Field, unconstrained fn(Field) -> Field)) -> () {
+            f$l0.1(0);
+        }
+        unconstrained fn call_two$f2(f$l1: (fn(bool) -> bool, unconstrained fn(bool) -> bool)) -> () {
+            f$l1.1(true);
+        }
+        #[inline_always]
+        fn foo_proxy$f3(p0$l0: Field) -> Field {
+            foo$foo(p0$l0)
+        }
+        #[inline_always]
+        unconstrained fn foo_proxy$f4(p0$l0: Field) -> Field {
+            foo$foo(p0$l0)
+        }
+        ");
+    }
+
+    #[test]
     fn creates_proxies_for_builtin_values() {
         let src = "
         unconstrained fn main() {
