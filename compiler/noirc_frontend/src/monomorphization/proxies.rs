@@ -57,7 +57,7 @@ impl Program {
 struct ProxyContext {
     next_func_id: u32,
     in_unconstrained: bool,
-    replacements: HashMap<(Definition, /*unconstrained*/ bool), FuncId>,
+    replacements: HashMap<(Definition, Type, /*unconstrained*/ bool), FuncId>,
     proxies: Vec<(FuncId, (Ident, /*unconstrained*/ bool))>,
 }
 
@@ -120,7 +120,10 @@ impl ProxyContext {
         // since such a call would be rejected by the SSA validation.
         unconstrained |= matches!(ident.definition, Definition::Oracle { .. });
 
-        let key = (ident.definition.clone(), unconstrained);
+        // The proxy's signature is derived from `ident.typ` (see `make_proxy`), so the same
+        // string-keyed foreign definition used at different monomorphized types needs distinct
+        // proxies. Keying on the type as well as the definition keeps those instantiations apart.
+        let key = (ident.definition.clone(), (*ident.typ).clone(), unconstrained);
 
         let proxy_id = match self.replacements.get(&key) {
             Some(id) => *id,
@@ -373,7 +376,7 @@ mod tests {
         insta::assert_snapshot!(program, @r"
         unconstrained fn main$f0() -> () {
             call_one$f1((foo$f3, foo$f4));;
-            call_two$f2((foo$f3, foo$f4));
+            call_two$f2((foo$f5, foo$f6));
         }
         unconstrained fn call_one$f1(f$l0: (fn(Field) -> Field, unconstrained fn(Field) -> Field)) -> () {
             f$l0.1(0);
@@ -387,6 +390,14 @@ mod tests {
         }
         #[inline_always]
         unconstrained fn foo_proxy$f4(p0$l0: Field) -> Field {
+            foo$foo(p0$l0)
+        }
+        #[inline_always]
+        fn foo_proxy$f5(p0$l0: bool) -> bool {
+            foo$foo(p0$l0)
+        }
+        #[inline_always]
+        unconstrained fn foo_proxy$f6(p0$l0: bool) -> bool {
             foo$foo(p0$l0)
         }
         ");

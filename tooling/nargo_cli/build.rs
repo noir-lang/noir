@@ -186,7 +186,7 @@ const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -206,6 +206,8 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
+    // The constrained foreign-function proxy can't run in the Brillig-only minimal pipeline.
+    "regression_foreign_proxy_generic",
     // This relies on maximum inliner setting
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
