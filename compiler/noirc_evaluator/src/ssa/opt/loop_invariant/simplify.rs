@@ -95,10 +95,23 @@ impl LoopInvariantContext<'_> {
         }
     }
 
-    /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
-    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space.
-    /// This is ensured via control dependence and the check for break patterns, before calling this function.
+    /// Rewrite `assert(invariant != induction)` into a check, hoisted to the pre-header, that
+    /// `invariant` is not one of the values the induction variable visits. The induction
+    /// variable runs over `lower, lower + step, ...` while below `upper`, so the shape of the
+    /// check depends on the step:
+    ///
+    /// - step 0: the variable is constant at `lower`, so the check is `invariant != lower`.
+    /// - step 1: it visits every integer in `[lower, max]`, so the check is
+    ///   `invariant < lower || invariant > max`.
+    /// - step > 1: it visits only `lower + k * step`, so the above is conjoined with the
+    ///   step-residue test `euclid(invariant, step) != euclid(lower, step)`.
+    ///
+    /// The residue test compares modulo residues. `lower mod step` folds at compile time. 
+    /// `invariant mod step` is `invariant % step` when lower is positive (only invariant >= lower matters)
+    ///
+    /// In all cases the assert must execute at each loop iteration and the loop must process
+    /// its whole iteration space. This is ensured via control dependence and the check for
+    /// break patterns, before calling this function.
     fn simplify_not_equal_constraint(
         &mut self,
         loop_context: &LoopContext,
@@ -107,45 +120,147 @@ impl LoopInvariantContext<'_> {
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        let (invariant, min, max) = match self.match_induction_and_invariant(loop_context, lhs, rhs)
-        {
-            Some((true, min, max)) => (rhs, min, max),
-            Some((false, min, max)) => (lhs, min, max),
-            _ => return SimplifyResult::None,
+        let (invariant, min, max, lower, step) =
+            match self.match_induction_and_invariant(loop_context, lhs, rhs) {
+                Some((true, min, max, lower, step)) => (rhs, min, max, lower, step),
+                Some((false, min, max, lower, step)) => (lhs, min, max, lower, step),
+                _ => return SimplifyResult::None,
+            };
+        // We assume that step is positive, which is already ensured, but it's better to explicitly check it,
+        // in case this assumption (step is positive) is changed in the future.
+        if step.is_negative() {
+            return SimplifyResult::None;
+        }
+
+        // Indicates how to simplify the equality check, and creates the needed constants,
+        // before the inserter is borrowed below.
+        enum NotEqualRewrite {
+            // Zero step: reached iff `inv == lower`.
+            EqualsLower,
+            // Unit step: reached iff `lower <= inv <= max`.
+            Bounds,
+            // Non-unit step: reached iff `lower <= inv <= max` and `step | inv - lower`.
+            // The divisibility check is written inv % step = lower % step to avoid dealing with underflow due to subtraction
+            // When lower is negative, it is normalized into (inv % step) + step % step = (lower % step) + step % step
+            // to handle negative lower bounds. This can be re-written using only one modulo operation (per side)
+            // by shifting lower to a positive value: lower + k*step >= 0, but then we would need to avoid overflows.
+            BoundsWithResidue { step: ValueId, lower_mod: ValueId, normalize: bool },
+        }
+
+        let rewrite = if step.is_zero() {
+            NotEqualRewrite::EqualsLower
+        } else if step.is_one() {
+            NotEqualRewrite::Bounds
+        } else {
+            let numeric_type = lower.into_numeric_constant().1;
+            let (step_field, _) = step.into_numeric_constant();
+
+            // Computes lower mod step (which is not the same as lower % step when lower is negative).
+            let lower_residue = match (lower, step) {
+                (
+                    IntegerConstant::Unsigned { value: lower, bit_size },
+                    IntegerConstant::Unsigned { value: step, .. },
+                ) => IntegerConstant::Unsigned { value: lower % step, bit_size },
+                (
+                    IntegerConstant::Signed { value: lower, bit_size },
+                    IntegerConstant::Signed { value: step, .. },
+                ) => IntegerConstant::Signed { value: lower.rem_euclid(step), bit_size },
+                // `lower` and `step` always share the induction variable's type.
+                _ => return SimplifyResult::None,
+            };
+            let (lower_mod_field, residue_type) = lower_residue.into_numeric_constant();
+
+            // For negative `lower` the decisive range reaches below zero, so `inv % step` must be
+            // normalized to its Euclidean residue with `((inv % step) + step) % step`. Bail if
+            // that `+ step` could overflow, i.e. unless `2 * step` fits the type.
+            let normalize = lower.is_negative();
+            if normalize
+                && !matches!(
+                    eval_constant_binary_op(
+                        step_field,
+                        step_field,
+                        BinaryOp::Add { unchecked: false },
+                        numeric_type,
+                    ),
+                    BinaryEvaluationResult::Success(..)
+                )
+            {
+                return SimplifyResult::None;
+            }
+
+            NotEqualRewrite::BoundsWithResidue {
+                step: self.inserter.function.dfg.make_constant(step_field, numeric_type),
+                lower_mod: self.inserter.function.dfg.make_constant(lower_mod_field, residue_type),
+                normalize,
+            }
         };
 
-        let mut insert_binary_to_preheader = |lhs, rhs, operator| {
-            let binary = Instruction::Binary(Binary { lhs, rhs, operator });
+        // Everything below is loop invariant and control independent, so it can be safely
+        // hoisted to the pre-header.
+        let mut insert = |instruction| {
             let results = self
                 .inserter
                 .function
                 .dfg
-                .insert_instruction_and_results(binary, loop_context.pre_header(), None, call_stack)
+                .insert_instruction_and_results(
+                    instruction,
+                    loop_context.pre_header(),
+                    None,
+                    call_stack,
+                )
                 .results();
             assert!(results.len() == 1);
             results[0]
         };
-        // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        let check_min = insert_binary_to_preheader(*invariant, min, BinaryOp::Lt);
-        let check_max = insert_binary_to_preheader(max, *invariant, BinaryOp::Lt);
-        let check_bounds = insert_binary_to_preheader(check_min, check_max, BinaryOp::Or);
+        let binary = |lhs, rhs, operator| Instruction::Binary(Binary { lhs, rhs, operator });
+
+        let check = match rewrite {
+            NotEqualRewrite::EqualsLower => {
+                let equals_lower = insert(binary(*invariant, min, BinaryOp::Eq));
+                insert(Instruction::Not(equals_lower))
+            }
+            NotEqualRewrite::Bounds => {
+                let check_min = insert(binary(*invariant, min, BinaryOp::Lt));
+                let check_max = insert(binary(max, *invariant, BinaryOp::Lt));
+                insert(binary(check_min, check_max, BinaryOp::Or))
+            }
+            NotEqualRewrite::BoundsWithResidue { step, lower_mod, normalize } => {
+                let check_min = insert(binary(*invariant, min, BinaryOp::Lt));
+                let check_max = insert(binary(max, *invariant, BinaryOp::Lt));
+                let check_bounds = insert(binary(check_min, check_max, BinaryOp::Or));
+                let raw_residue = insert(binary(*invariant, step, BinaryOp::Mod));
+                let residue = if normalize {
+                    let shifted =
+                        insert(binary(raw_residue, step, BinaryOp::Add { unchecked: false }));
+                    insert(binary(shifted, step, BinaryOp::Mod))
+                } else {
+                    raw_residue
+                };
+                let on_lattice = insert(binary(residue, lower_mod, BinaryOp::Eq));
+                let off_lattice = insert(Instruction::Not(on_lattice));
+                insert(binary(check_bounds, off_lattice, BinaryOp::Or))
+            }
+        };
 
         SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-            check_bounds,
+            check,
             self.true_value,
             err.clone(),
         ))
     }
 
-    /// If the inputs are an induction and loop invariant variables, it returns
-    /// the maximum and minimum values of the induction variable, based on the loop bounds,
-    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
+    /// If the inputs are an induction and loop invariant variables, it returns:
+    /// - a boolean indicating if the induction variable is on the lhs or rhs (true for lhs),
+    /// - the minimum and maximum values of the induction variable, based on the loop bounds,
+    ///   as freshly-made constant `ValueId`s,
+    /// - the lower bound and per-iteration step of the induction variable, so callers can
+    ///   reason about exactly which values in `[min, max]` are actually visited.
     fn match_induction_and_invariant(
         &mut self,
         loop_context: &LoopContext,
         lhs: &ValueId,
         rhs: &ValueId,
-    ) -> Option<(bool, ValueId, ValueId)> {
+    ) -> Option<(bool, ValueId, ValueId, IntegerConstant, IntegerConstant)> {
         let (is_left, lower, upper) = match (
             loop_context.get_current_induction_variable_bounds(*lhs),
             loop_context.get_current_induction_variable_bounds(*rhs),
@@ -155,6 +270,9 @@ impl LoopInvariantContext<'_> {
             _ => None,
         }?;
 
+        let induction_variable = if is_left { *lhs } else { *rhs };
+        let step = loop_context.get_current_induction_step(induction_variable)?;
+
         let (upper_field, upper_type) = upper.dec()?.into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
 
@@ -163,7 +281,7 @@ impl LoopInvariantContext<'_> {
         if (is_left && loop_context.is_loop_invariant(rhs))
             || (!is_left && loop_context.is_loop_invariant(lhs))
         {
-            return Some((is_left, min_iter, max_iter));
+            return Some((is_left, min_iter, max_iter, lower, step));
         }
         None
     }
