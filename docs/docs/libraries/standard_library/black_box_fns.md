@@ -18,7 +18,7 @@ Here is a list of the current black box functions:
 - [Blake3](./cryptographic_primitives/hashes.mdx#blake3)
 - [Pedersen Hash](./cryptographic_primitives/hashes.mdx#pedersen_hash)
 - [Pedersen Commitment](./cryptographic_primitives/hashes.mdx#pedersen_commitment)
-- [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification.mdx)
+- [ECDSA signature verification](./cryptographic_primitives/signatures.mdx)
 - [Embedded curve operations (MSM, addition, ...)](./cryptographic_primitives/embedded_curve_ops.mdx)
 - AND
 - XOR
