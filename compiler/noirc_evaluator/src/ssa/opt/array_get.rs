@@ -133,11 +133,11 @@ impl Function {
         // instructions.
         //
         // Each cached element records the side-effects predicate of the `array_set` that wrote it,
-        // and `resolve` only uses it under a matching or unconditional predicate.
-        // [`Function::simple_optimization`] resets the predicate to `1` at each block entry, so a
-        // conditionally-written element only ever resolves a read that re-establishes the same
-        // predicate value (or an unconditional read). The cache is therefore safe to keep across
-        // blocks, which lets a read resolve against an `array_set` chain built in an earlier block.
+        // and `resolve` only uses it under a matching or unconditional predicate. A non-trivial
+        // predicate (`enable_side_effects`) only exists in single-block functions, so in a function
+        // with more than one block every recorded predicate is `1` and a read resolved against a
+        // write from an earlier block always folds an unconditional store. The cache is therefore
+        // safe to keep for the whole function rather than reset per block.
         let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
 
         self.simple_optimization(|context| {
@@ -417,6 +417,73 @@ mod tests {
     use super::Ssa;
 
     #[test]
+    fn resolves_array_get_per_branch_against_its_own_array() {
+        // `v0` selects between two branches. `b1` writes index 0 and reads its own result; `b2`
+        // reads the original `make_array` at index 0. Each read resolves against the array value it
+        // actually names — the conditional write in `b1` is a distinct value, so it does not leak
+        // into `b2`'s read. The branch where the write happened folds to `Field 99`; the branch
+        // where it did not folds to the original `Field 10`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 10, Field 20] : [Field; 2]
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 0, value Field 99
+            v3 = array_get v2, index u32 0 -> Field
+            jmp b3(v3)
+          b2():
+            v4 = array_get v1, index u32 0 -> Field
+            jmp b3(v4)
+          b3(v5: Field):
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v4 = make_array [Field 10, Field 20] : [Field; 2]
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v7 = array_set v4, index u32 0, value Field 99
+            jmp b3(Field 99)
+          b2():
+            jmp b3(Field 10)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_resolve_array_get_of_conditional_write_merged_by_block_parameter() {
+        // A write that is conditional through control flow (the `array_set` only happens on the
+        // `b1` path) reaches the read in `b3` through a block parameter `v3` that merges the written
+        // array with the original. `v3` has no cached view, so the read is left in place: it cannot
+        // be folded to either branch's value. This is the control-flow analogue of a conditional
+        // write — the merge point is a block parameter, which the cache never resolves through.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 10, Field 20] : [Field; 2]
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 0, value Field 99
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 2]):
+            v4 = array_get v3, index u32 0 -> Field
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+    }
+
+    #[test]
     fn resolves_array_get_across_blocks() {
         // `v1` is built in `b0` and read in `b1`. The `array_set` is unconditional, so the read of
         // the same index is folded to the set value even though it is in a different block: the
@@ -444,6 +511,122 @@ mod tests {
             return Field 1
         }
         ");
+    }
+
+    #[test]
+    fn resolves_array_get_at_other_index_across_blocks() {
+        // The `array_set` in `b0` writes a different index than the `b1` read, so the read skips
+        // through it to the underlying parameter and reads from `v0` directly.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v1 = array_set v0, index u32 1, value Field 9
+            jmp b1()
+          b1():
+            v2 = array_get v1, index u32 0 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index u32 1, value Field 9
+            jmp b1()
+          b1():
+            v5 = array_get v0, index u32 0 -> Field
+            return v5
+        }
+        ");
+    }
+
+    #[test]
+    fn resolves_array_get_from_make_array_across_blocks() {
+        // A `make_array` in `b0` is read in `b1`; the element resolves to the literal.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 4] : [Field; 2]
+            jmp b1()
+          b1():
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 4] : [Field; 2]
+            jmp b1()
+          b1():
+            return Field 2
+        }
+        ");
+    }
+
+    #[test]
+    fn resolves_array_get_across_blocks_beyond_walk_limit() {
+        // A chain of seven `array_set`s spanning two blocks: the read of index 0 is eight hops back
+        // from the read, beyond the bounded walk's old `max_tries = 5`. The cache resolves it
+        // regardless of depth, so the chain folds fully.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 8]):
+            v1 = array_set v0, index u32 7, value Field 7
+            v2 = array_set v1, index u32 6, value Field 6
+            v3 = array_set v2, index u32 5, value Field 5
+            v4 = array_set v3, index u32 4, value Field 4
+            jmp b1()
+          b1():
+            v5 = array_set v4, index u32 3, value Field 3
+            v6 = array_set v5, index u32 2, value Field 2
+            v7 = array_set v6, index u32 0, value Field 1
+            v8 = array_get v7, index u32 0 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 8]):
+            v3 = array_set v0, index u32 7, value Field 7
+            v6 = array_set v3, index u32 6, value Field 6
+            v9 = array_set v6, index u32 5, value Field 5
+            v12 = array_set v9, index u32 4, value Field 4
+            jmp b1()
+          b1():
+            v15 = array_set v12, index u32 3, value Field 3
+            v18 = array_set v15, index u32 2, value Field 2
+            v21 = array_set v18, index u32 0, value Field 1
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_resolve_array_get_through_block_parameter() {
+        // The array reaches `b1` as a block parameter, not as the `array_set` result, so the read
+        // has no cached view to resolve against and is left untouched. Values that flow across a
+        // block parameter (a phi) get a fresh id, so the cache never resolves a read against a
+        // write from a different control-flow path.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v1 = array_set v0, index u32 0, value Field 1
+            jmp b1(v1)
+          b1(v2: [Field; 3]):
+            v3 = array_get v2, index u32 0 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
     }
 
     #[test]
