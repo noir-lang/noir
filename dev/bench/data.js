@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780339021206,
+  "lastUpdate": 1780339604219,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23086,48 +23086,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7c1fb2cc030243757bf406d3802f29b07c3ad59e",
-          "message": "chore(deps-dev): bump @types/node from 22.19.17 to 22.19.19 (#12719)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-22T14:31:03Z",
-          "tree_id": "8eec4b4ba413eef9310f7e142fb34c5d4913c380",
-          "url": "https://github.com/noir-lang/noir/commit/7c1fb2cc030243757bf406d3802f29b07c3ad59e"
-        },
-        "date": 1779461884281,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126457,
-            "range": "± 234",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112392,
-            "range": "± 880",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3039727,
-            "range": "± 1631",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3044424,
             "range": "± 2300",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9da33717608020cc52e4ffff23041d96dfdfeddd",
+          "message": "fix: agree on zero-limb field decomposition across all contexts (#12849)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T18:18:32Z",
+          "tree_id": "32b8687d15e511ed7155cf52f298e20369e2b52f",
+          "url": "https://github.com/noir-lang/noir/commit/9da33717608020cc52e4ffff23041d96dfdfeddd"
+        },
+        "date": 1780339535866,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128257,
+            "range": "± 1197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 114084,
+            "range": "± 1855",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3048707,
+            "range": "± 31392",
             "unit": "ns/iter"
           }
         ]
