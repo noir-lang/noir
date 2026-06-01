@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::marker::Copy;
 
@@ -292,13 +291,7 @@ pub struct NodeInterner {
     ///
     /// This is stored in the NodeInterner so that the Elaborator from each crate can
     /// share the same global values.
-    ///
-    /// A `BTreeMap` is used so that iterating a scope yields its bindings in ascending
-    /// `DefinitionId` order. `DefinitionId`s are minted monotonically as definitions are
-    /// collected, so this matches source order: when a name is shadowed within a comptime
-    /// block (`let x = ...; let x = ...;`) re-populating the runtime scope from these
-    /// bindings lets the last `let` win, just as it does at runtime.
-    pub(crate) comptime_scopes: Vec<BTreeMap<DefinitionId, comptime::Value>>,
+    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
@@ -535,7 +528,7 @@ impl Default for NodeInterner {
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
-            comptime_scopes: vec![BTreeMap::default()],
+            comptime_scopes: vec![HashMap::default()],
             trait_impl_generic_types: HashMap::default(),
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
