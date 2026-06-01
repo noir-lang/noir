@@ -203,10 +203,10 @@ impl<'context> Elaborator<'context> {
     /// variables available in the runtime scope. We iterate from global to local
     /// scope so that more local definitions naturally shadow outer ones.
     ///
-    /// `comptime_scopes` are `BTreeMap`s keyed by [DefinitionId], so each scope is
-    /// iterated in ascending id order, which matches source order. When a name is
-    /// shadowed within a comptime block (`let x = ...; let x = ...;`) the last
-    /// `let` is registered last and wins, just as it does at runtime.
+    /// `comptime_scopes` are `BTreeMap`s keyed by [crate::node_interner::DefinitionId],
+    /// so each scope is iterated in ascending id order, which matches source order.
+    /// When a name is shadowed within a comptime block (`let x = ...; let x = ...;`) the
+    /// last `let` is registered last and wins, just as it does at runtime.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
         for scope in &self.interner.comptime_scopes {
