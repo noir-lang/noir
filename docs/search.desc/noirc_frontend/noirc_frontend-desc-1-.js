@@ -1,0 +1,1 @@
+searchState.loadedDescShard("noirc_frontend", 1, "Calls <code>U::from(self)</code>.\nMarks an item as being referenced. This doesn’t always …\nMarks an item as being used.\nMarks an inherent impl function as used.\nGet all the unused impl functions.\nGet all the unused items per module.")
