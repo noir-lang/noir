@@ -33,7 +33,10 @@
 //! [InterpreterError::ArgumentCountMismatch] is an example of such an error.
 
 use std::collections::VecDeque;
-use std::{collections::hash_map::Entry, rc::Rc};
+use std::{
+    collections::{BTreeMap, btree_map::Entry},
+    rc::Rc,
+};
 
 use acvm::{AcirField, FieldElement};
 use im::Vector;
@@ -416,7 +419,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
     /// [Self::exit_function] is called.
-    pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
+    pub(super) fn enter_function(&mut self) -> (bool, Vec<BTreeMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let mut scope = Vec::new();
         if self.elaborator.interner.comptime_scopes.len() > 1 {
@@ -427,7 +430,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Resets the per-function state to the value previously returned by [Self::enter_function]
-    pub(super) fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
+    pub(super) fn exit_function(&mut self, mut state: (bool, Vec<BTreeMap<DefinitionId, Value>>)) {
         self.in_loop = state.0;
 
         // Keep only the global scope
@@ -440,7 +443,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Note that the first scope is always expected to be the global scope shared by all
     /// crates, which should never be popped.
     pub(super) fn push_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.push(HashMap::default());
+        self.elaborator.interner.comptime_scopes.push(BTreeMap::default());
     }
 
     /// Pops the topmost scope.
@@ -454,7 +457,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Returns the current scope to define comptime variables in.
     /// The stack of scopes is always non-empty so this should never panic.
-    fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
+    fn current_scope_mut(&mut self) -> &mut BTreeMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
         self.elaborator.interner.comptime_scopes.last_mut().unwrap()
     }
