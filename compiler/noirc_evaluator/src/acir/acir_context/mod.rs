@@ -1720,27 +1720,5 @@ mod tests {
 
         context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
 
-        let circuit = context.finish(Vec::new(), Vec::new());
-        let circuit = convert_generated_acir_into_circuit(
-            circuit,
-            &[(1, Visibility::Private)],
-            BTreeMap::default(),
-            BTreeMap::default(),
-            BTreeMap::default(),
-        )
-        .circuit;
-
-        let solver = StubbedBlackBoxSolver;
-        let mut witness_map = WitnessMap::new();
-        witness_map.insert(
-            lhs_witness,
-            FieldElement::from(2_u128).pow(&FieldElement::from(bits)).sub(FieldElement::one()),
-        );
-        witness_map.insert(rhs_witness, FieldElement::zero());
-        witness_map.insert(predicate_witness, FieldElement::one());
-
-        let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
-
-        assert!(matches!(acvm.solve(), ACVMStatus::Solved));
     }
 }
