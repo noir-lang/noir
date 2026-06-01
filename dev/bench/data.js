@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780326757045,
+  "lastUpdate": 1780326844629,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23095,48 +23095,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "806b578e116c6ceee7418ad5e9e9648dc2733444",
-          "message": "chore: update ToRadix opcode to use direct types for num_limbs/output_bits (#12608)",
-          "timestamp": "2026-05-22T13:36:59Z",
-          "tree_id": "a77fe04eaea3e17e0c80e6738fdc9a0d22650671",
-          "url": "https://github.com/noir-lang/noir/commit/806b578e116c6ceee7418ad5e9e9648dc2733444"
-        },
-        "date": 1779458608507,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168826,
-            "range": "± 414",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136459,
-            "range": "± 349",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652600,
-            "range": "± 6466",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "f64dfde3432da58919f15d88347281789d43ff2e",
           "message": "feat: Add has_builtin_attribute functions (#12555)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041725,
             "range": "± 12300",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e26f412ff007e037be4aab50f8a57943ed822b2c",
+          "message": "feat(ssa): validate stated purity against computed purity in parser (#12812)\n\nCo-authored-by: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T14:44:34Z",
+          "tree_id": "daff8f1303bbf5edf24ced13d218b01f9f2c0a4f",
+          "url": "https://github.com/noir-lang/noir/commit/e26f412ff007e037be4aab50f8a57943ed822b2c"
+        },
+        "date": 1780326779273,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168751,
+            "range": "± 1842",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136664,
+            "range": "± 1012",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645001,
+            "range": "± 2132",
             "unit": "ns/iter"
           }
         ]
