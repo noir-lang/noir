@@ -1366,6 +1366,25 @@ fn zeroed_comptime_type() {
 }
 
 #[test]
+fn zeroed_array_of_references_does_not_alias_in_comptime() {
+    // Each slot of a zeroed `[&mut Field; N]` must own its own allocation in the comptime
+    // interpreter. If the slots aliased, writing through one would be observable through the
+    // others and the comptime asserts below would fail during elaboration.
+    let src = r#"
+    fn main() {
+        comptime {
+            let arr: [&mut Field; 3] = zeroed();
+            *arr[1] = 7;
+            assert_eq(*arr[0], 0);
+            assert_eq(*arr[1], 7);
+            assert_eq(*arr[2], 0);
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED]);
+}
+
+#[test]
 fn recursive_attribute_causes_expansion_limit_error() {
     use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
     use crate::hir::comptime::InterpreterError;

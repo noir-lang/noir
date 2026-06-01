@@ -1744,7 +1744,7 @@ fn zeroed_array_of_references_does_not_alias() {
     let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _arr$l0 = [(&mut 0); 3]
+        let _arr$l0 = [(&mut 0), (&mut 0), (&mut 0)]
     }
     ");
 }
