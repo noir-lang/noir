@@ -51,6 +51,10 @@ pub enum ParserErrorReason {
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
+    #[error("Expected a `:` between the parameter name and its type")]
+    MissingColonInFunctionParameter,
+    #[error("Expected a `:` between the variable name and its type")]
+    MissingColonInLetStatement,
     #[error("Missing type for numeric generic")]
     MissingTypeForNumericGeneric,
     #[error("Expected a function body (`{{ ... }}`), not `;`")]
@@ -135,6 +139,8 @@ pub enum ParserErrorReason {
     UnexpectedTypeExpressionInTypeAlias,
     #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
     DeprecatedDep(String),
+    #[error("`call_data` id must fit in a `u32`")]
+    CallDataIdMustFitInU32,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

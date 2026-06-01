@@ -666,29 +666,18 @@ mod notification_tests {
     use super::*;
     use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
-        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
-        WorkDoneProgressParams,
+        TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
 
     #[test]
     async fn test_caches_open_files() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+        // Open the document with empty text.
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", "").await;
 
-        // Open the document, fake the text to be empty
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: "".to_string(),
-                },
-            },
-        );
-
-        // Fake the text to change to "global a = 1;"
+        // Then change the in-memory text to "global a = true;" and verify subsequent requests
+        // see the new content, not what's on disk.
         let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {

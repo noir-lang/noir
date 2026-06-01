@@ -27,6 +27,7 @@ use crate::{
 
 pub mod items;
 
+use fm::FileMap;
 use items::{Impl, Import, Item, Module, Trait, TraitImpl};
 
 /// Returns the HIR as human-readable code for the given crate.
@@ -36,13 +37,15 @@ pub fn display_crate(
     crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
+    files: &FileMap,
 ) -> String {
     let module = crate_to_module(crate_id, def_maps, interner);
 
     let dependencies = &crate_graph[crate_id].dependencies;
 
     let mut string = String::new();
-    let mut printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, &mut string);
+    let mut printer =
+        ItemPrinter::new(crate_id, interner, def_maps, files, dependencies, &mut string);
     printer.show_module(module);
 
     string
@@ -65,6 +68,7 @@ struct ItemPrinter<'context, 'string> {
     interner: &'context NodeInterner,
     def_maps: &'context DefMaps,
     dependencies: &'context Vec<Dependency>,
+    files: &'context FileMap,
     string: &'string mut String,
     indent: usize,
     module_id: ModuleId,
@@ -84,6 +88,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         crate_id: CrateId,
         interner: &'context NodeInterner,
         def_maps: &'context DefMaps,
+        files: &'context FileMap,
         dependencies: &'context Vec<Dependency>,
         string: &'string mut String,
     ) -> Self {
@@ -93,6 +98,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         Self {
             crate_id,
             interner,
+            files,
             def_maps,
             dependencies,
             string,
@@ -530,7 +536,14 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             printed_item = true;
         }
 
+        // If a slot in the impl's methods list is the trait's own default-method
+        // `FuncId`, the impl inherited the default body — printing that method here
+        // would falsely suggest the user wrote an override.
+        let trait_method_func_ids: HashSet<FuncId> = trait_.method_ids.values().copied().collect();
         for method in &item_trait_impl.methods {
+            if trait_method_func_ids.contains(method) {
+                continue;
+            }
             if printed_item {
                 self.push_str("\n\n");
             }
@@ -1047,7 +1060,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             | Value::Type(_)
             | Value::Expr(_)
             | Value::TypedExpr(_)
-            | Value::UnresolvedType(_) => {
+            | Value::UnresolvedType(_)
+            | Value::Location(_) => {
                 if self.crate_id.is_stdlib() {
                     self.push_str(
                         "crate::panic(f\"comptime value that cannot be represented with code\")",
@@ -1255,6 +1269,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             self.indent + 1,
             preserve_unquote_markers,
             self.interner,
+            self.files,
         );
         if string.contains('\n') {
             self.push('\n');

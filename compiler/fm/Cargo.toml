@@ -14,7 +14,6 @@ workspace = true
 [dependencies]
 codespan-reporting.workspace = true
 iter-extended.workspace = true
-itertools.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

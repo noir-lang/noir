@@ -106,15 +106,8 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let (prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
 
-        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
-        let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
-
-        let ssa_return =
-            if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
-                Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
-            } else {
-                None
-            };
+        let (ssa_args, ssa_return) =
+            noir_ast_fuzzer::encode_to_ssa(&abi, &prover_input, return_value)?;
 
         // Generate the initial SSA.
         let mut ssa = generate_ssa(program)
@@ -272,12 +265,18 @@ fn compile_into_program(
         monomorphize_debug(
             main_id,
             &mut context.def_interner,
+            context.file_manager.as_file_map(),
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )
     } else {
-        monomorphize(main_id, &mut context.def_interner, force_unconstrained)
+        monomorphize(
+            main_id,
+            &mut context.def_interner,
+            context.file_manager.as_file_map(),
+            force_unconstrained,
+        )
     };
 
     let program = monomorphize_result.map_err(|error| vec![CustomDiagnostic::from(error)])?;

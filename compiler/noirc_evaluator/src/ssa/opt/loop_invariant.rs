@@ -94,7 +94,10 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId},
+        instruction::{
+            Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+        },
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
@@ -710,12 +713,15 @@ impl<'f> LoopInvariantContext<'f> {
         let returns_array = if dfg.runtime().is_brillig() {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
-                Instruction::MakeArray { .. } => true,
+                Instruction::MakeArray { .. } | Instruction::ArraySet { .. } => true,
                 Instruction::Call { .. } => {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
-                // RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
+                // RefCount for ArrayGet is managed by the ownership analysis, e.g.
+                // for multi dimensional arrays, `let aij = a[i][j];` would make sure
+                // it only inserts clones at the last get; we shouldn't need more
+                // increments here.
                 _ => false,
             }
         } else {
@@ -808,13 +814,9 @@ fn does_loop_execute(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool
         .unwrap_or(false)
 }
 
-/// Keep track of a loop induction variable and respective upper bound.
-///
-/// In the case of a nested loop, this will be used by later loops to determine
-/// whether they have operations reliant upon the maximum induction variable.
-///
-/// When within the current loop, the known upper bound can be used to simplify instructions,
-/// such as transforming a checked add to an unchecked add.
+/// Keep track of a loop induction variable and respective lower/upper bound,
+/// but only when the loop's back-edge proves the bounds are real iteration
+/// invariants (see [`back_edge_advances_monotonically`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
@@ -823,7 +825,88 @@ fn get_induction_var_bounds(
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
+    if !back_edge_advances_monotonically(
+        &inserter.function.dfg,
+        loop_,
+        induction_variable,
+        bounds.1,
+    ) {
+        return None;
+    }
     Some((induction_variable, bounds))
+}
+
+/// Whether the loop's back-edge preserves the inferred `[lower, upper)` interval.
+/// Two shapes qualify:
+///
+/// 1. The back-edge passes the induction variable through unchanged
+///    (`jmp header(v_induction, ..)`). This is the canonical form a zero-step
+///    loop is reduced to once `x + 0` has been folded; the variable is constant
+///    at `lower`, which is a subset of `[lower, upper)`.
+/// 2. The back-edge passes back `induction_variable + positive_constant`. For
+///    an unchecked Add we additionally verify that the largest reachable
+///    induction value (`upper - 1`) plus the step does not wrap the underlying
+///    numeric type — otherwise wrapping could deposit an out-of-range value
+///    back into the header. A checked Add cannot violate the invariant: any
+///    wrap would trap before the back-edge fires.
+fn back_edge_advances_monotonically(
+    dfg: &DataFlowGraph,
+    loop_: &Loop,
+    induction_variable: ValueId,
+    upper: IntegerConstant,
+) -> bool {
+    let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
+        dfg[loop_.back_edge_start].terminator()
+    else {
+        return false;
+    };
+    if *destination != loop_.header || arguments.is_empty() {
+        return false;
+    }
+    if arguments[0] == induction_variable {
+        return true;
+    }
+    let Some(instruction) = dfg.get_local_or_global_instruction(arguments[0]) else {
+        return false;
+    };
+    let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
+        instruction
+    else {
+        return false;
+    };
+    let step_value = if *lhs == induction_variable {
+        *rhs
+    } else if *rhs == induction_variable {
+        *lhs
+    } else {
+        return false;
+    };
+    let Some(step) = dfg.get_integer_constant(step_value) else {
+        return false;
+    };
+    if step.is_negative() {
+        return false;
+    }
+    if *unchecked {
+        let Some(max_induction_value) = upper.dec() else {
+            return false;
+        };
+        let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
+        let (max_field, _) = max_induction_value.into_numeric_constant();
+        let (step_field, _) = step.into_numeric_constant();
+        match eval_constant_binary_op(
+            max_field,
+            step_field,
+            BinaryOp::Add { unchecked: false },
+            operand_type,
+        ) {
+            BinaryEvaluationResult::Success(..) => {}
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 /// Indicate whether an instruction can be hoisted.
@@ -1004,6 +1087,146 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ =
             assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn decreasing_while_back_edge_keeps_sub_checked() {
+        // Regression for noir-lang/noir-claude#1303: `get_const_bounds` infers `[5, 10)`
+        // from the pre-header and the `lt` in the header, but the back-edge subtracts 1
+        // each iteration so `v0` actually takes the values 5, 4, 3, 2, 1, 0. LICM must
+        // not rewrite `sub v0, u32 2` to `unchecked_sub` here.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v4 = lt v0, u32 10
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v5 = mul v0, v0
+            v7 = eq v5, u32 0
+            v9 = sub v0, u32 2
+            jmpif v7 then: b4(v9), else: b1(v9)
+          b3():
+            jmp b4(v0)
+          b4(v1: u32):
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn decreasing_while_keeps_constrain_not_equal() {
+        // Latent vulnerability tied to noir-lang/noir-claude#1303: with a decreasing
+        // back-edge, `[5, 10)` is not a real loop invariant, so the rewrite of
+        // `constrain v0 != 3` in `simplify_not_equal_constraint` (which would lift the
+        // constrain into the pre-header as `3 < 5 || 3 > 10`, always true) must not
+        // fire. Pre-fix, the constrain was silently elided, hiding a real failure when
+        // `v0` reached 3.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != u32 3
+            v6 = sub v0, u32 1
+            jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn wrapping_unchecked_back_edge_keeps_add_checked() {
+        // With bounds `(0, 251)` but a step of `10` from an unchecked back-edge,
+        // `v0` wraps past `upper - 1 = 250` (250 + 10 = 260, wrap to 4) and
+        // re-enters the body with values not in the inferred interval. LICM must
+        // not record bounds, so the checked `add v0, u8 4` stays checked even
+        // though both `0 + 4` and `251 + 4` evaluate safely at the extremes.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = lt v0, u8 251
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = add v0, u8 4
+            v7 = unchecked_add v0, u8 10
+            jmp b1(v7)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn back_edge_passing_induction_through_unchanged_still_allows_simplification() {
+        // After `x + 0` is folded by an earlier pass the back-edge becomes a
+        // plain `jmp header(v_induction, ..)`. The induction variable is then
+        // constant at the lower bound, which is still inside `[lower, upper)`,
+        // so `sub v0, u32 1` may be rewritten to `unchecked_sub` because the
+        // bound extremes prove it cannot underflow.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 1)
+          b1(v0: u32):
+            v3 = lt v0, u32 4
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = sub v0, u32 1
+            jmp b1(v0)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 1)
+          b1(v0: u32):
+            v3 = lt v0, u32 4
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = unchecked_sub v0, u32 1
+            jmp b1(v0)
+          b3():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn non_additive_back_edge_keeps_sub_checked() {
+        // Sibling regression for the same bug class: the back-edge multiplies the
+        // induction variable, so the inferred `[5, 10)` interval is not a true loop
+        // invariant.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = sub v0, u32 1
+            v7 = unchecked_mul v0, u32 2
+            jmp b1(v7)
+          b3():
+            return v0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1676,8 +1899,8 @@ mod tests {
 
     #[test]
     fn transform_safe_sub_to_unchecked() {
-        // This test is identical to `do_not_transform_unsafe_sub_to_unchecked`, except the loop
-        // in this test starts with a lower bound of `1`.
+        // Like `do_not_transform_unsafe_sub_to_unchecked`, but the loop starts with a
+        // lower bound of `1` so `v2 - 1` cannot underflow at any iteration.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -1689,13 +1912,14 @@ mod tests {
               return
           b3():
               v8 = sub v2, u32 1
-              jmp b1(v8)
+              v9 = unchecked_add v2, u32 1
+              jmp b1(v9)
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
+        // `v8 = sub v2, u32 1` in b3 should now be `unchecked_sub v2, u32 1` in b3
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1708,7 +1932,8 @@ mod tests {
             return
           b3():
             v6 = unchecked_sub v2, u32 1
-            jmp b1(v6)
+            v7 = unchecked_add v2, u32 1
+            jmp b1(v7)
         }
         ");
     }
@@ -2542,6 +2767,127 @@ mod tests {
         };
 
         assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
+    }
+
+    #[test]
+    fn inserts_inc_rc_for_hoisted_array_set() {
+        // The SSA below has been captured during the pre-processing of functions in the following:
+
+        // unconstrained fn main() {
+        //     func_1((0, [10]))
+        // }
+        // unconstrained fn func_1(a: (u8, [u64; 1])) {
+        //     let mut c = a.1;
+        //     for _ in 0..2 {
+        //         c[0_u32] = 20;
+        //         println(c);
+        //         c = {
+        //             {
+        //                 let mut idx_e: u32 = 0_u32;
+        //                 loop {
+        //                     if (idx_e == 1_u32) {
+        //                         break
+        //                     } else {
+        //                         idx_e = (idx_e + 1_u32);
+        //                         c[0_u32] = 30;
+        //                     }
+        //                 }
+        //             };
+        //             a.1
+        //         };
+        //     }
+        // }
+
+        // In the SSA the `inc_rc` that normally comes with the print has
+        // been removed; it would have been removed for any other direct
+        // oracle call as well.
+
+        // If the LICM hoists the `array_set v1, index u32 0, value u64 20` out
+        // out of the loop, and doesn't leave an `inc_rc` for its result,
+        // then the subsequent `array_set v3, index u32 0, value u64 30`
+        // will modify the array and it never gets reset in the next loop.
+
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = make_array [u64 10] : [u64; 1]
+            call f1(u8 0, v1)
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u8, v1: [u64; 1]):
+            inc_rc v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 2
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v9 = array_set v1, index u32 0, value u64 20
+            v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+            call print(u1 1, v9, v34, u1 0)
+            jmp b4(v9, u32 0)
+          b3():
+            return
+          b4(v3: [u64; 1], v4: u32):
+            v39 = eq v4, u32 1
+            jmpif v39 then: b5(), else: b6()
+          b5():
+            jmp b7()
+          b6():
+            v40 = add v4, u32 1
+            v42 = array_set v3, index u32 0, value u64 30
+            jmp b8()
+          b7():
+            inc_rc v1
+            v43 = unchecked_add v2, u32 1
+            jmp b1(v43)
+          b8():
+            jmp b4(v42, v40)
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = make_array [u64 10] : [u64; 1]
+            call f1(u8 0, v1)
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u8, v1: [u64; 1]):
+            inc_rc v1
+            v7 = array_set v1, index u32 0, value u64 20
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 2
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            inc_rc v7
+            v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+            call print(u1 1, v7, v34, u1 0)
+            jmp b4(v7, u32 0)
+          b3():
+            return
+          b4(v3: [u64; 1], v4: u32):
+            v39 = eq v4, u32 1
+            jmpif v39 then: b5(), else: b6()
+          b5():
+            jmp b7()
+          b6():
+            v40 = add v4, u32 1
+            v42 = array_set v3, index u32 0, value u64 30
+            jmp b8()
+          b7():
+            inc_rc v1
+            v43 = unchecked_add v2, u32 1
+            jmp b1(v43)
+          b8():
+            jmp b4(v42, v40)
+        }
+        "#);
     }
 }
 

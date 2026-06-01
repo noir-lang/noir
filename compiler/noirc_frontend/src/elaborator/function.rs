@@ -7,6 +7,8 @@
 //! - Second stage elaboration strategy of function bodies and their return type.
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
+use std::collections::HashSet;
+
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -70,9 +72,7 @@ impl Elaborator<'_> {
     /// impls are also prepared here so that `<Object as Trait>::Type` references
     /// inside any signature can be looked up during meta resolution.
     ///
-    /// The metas are not actually resolved here — they are resolved on demand
-    /// (the first time something reads the meta) or drained at the end of
-    /// elaboration via [Self::drain_unresolved_function_metas].
+    /// The metas are not actually resolved here — they are resolved on demand.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn register_function_metas(
         &mut self,
@@ -134,11 +134,16 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+        function_sets: &mut Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
     ) {
         self.local_module = Some(local_module);
 
-        for (generics, _, function_set) in function_sets {
+        for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
             self.add_generics(generics);
@@ -220,12 +225,40 @@ impl Elaborator<'_> {
         self.resolve_unresolved_function_meta(func_id, info);
     }
 
-    /// Drains every remaining unresolved meta. Called at the end of elaboration so
-    /// that any functions not pulled in by a forward reference still get resolved.
+    /// Lazily resolves a function's [FuncMeta] if needed, then returns it.
+    pub(crate) fn function_meta(&mut self, func_id: FuncId) -> &FuncMeta {
+        self.define_function_meta_if_undefined(func_id);
+        self.interner.function_meta(&func_id)
+    }
+
+    /// Mutable counterpart of [Self::function_meta].
+    pub(crate) fn function_meta_mut(&mut self, func_id: FuncId) -> &mut FuncMeta {
+        self.define_function_meta_if_undefined(func_id);
+        self.interner.function_meta_mut(&func_id)
+    }
+
+    /// Runs `f` with the function's resolved [FuncMeta].
+    pub(crate) fn with_function_meta<R>(
+        &mut self,
+        func_id: FuncId,
+        f: impl FnOnce(&FuncMeta) -> R,
+    ) -> R {
+        f(self.function_meta(func_id))
+    }
+
+    /// Resolves all unresolved function metas except those given in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn drain_unresolved_function_metas(&mut self) {
-        while let Some((func_id, info)) = self.unresolved_function_metas.pop_first() {
-            self.resolve_unresolved_function_meta(func_id, info);
+    pub(super) fn resolve_unresolved_function_metas_skipping(&mut self, skip: &HashSet<FuncId>) {
+        let to_resolve: Vec<FuncId> = self
+            .unresolved_function_metas
+            .keys()
+            .copied()
+            .filter(|id| !skip.contains(id))
+            .collect();
+        for func_id in to_resolve {
+            if let Some(info) = self.unresolved_function_metas.remove(&func_id) {
+                self.resolve_unresolved_function_meta(func_id, info);
+            }
         }
     }
 
@@ -254,8 +287,14 @@ impl Elaborator<'_> {
         self.current_trait = current_trait;
         self.current_trait_impl = current_trait_impl;
 
+        // The `trait_id` argument to `define_function_meta` represents the trait
+        // that *defines* this method (set for trait method declarations,
+        // recorded as `meta.trait_id`). Trait impl methods record their impl on
+        // `meta.trait_impl` and use `current_trait` purely for context — they
+        // must pass `None` here so `meta.trait_id` stays None.
+        let defining_trait = if current_trait_impl.is_some() { None } else { current_trait };
         self.recover_generics(|this| {
-            this.define_function_meta(&mut func, func_id, None, &extra_trait_constraints);
+            this.define_function_meta(&mut func, func_id, defining_trait, &extra_trait_constraints);
         });
 
         self.local_module = prev_local_module;
@@ -282,7 +321,8 @@ impl Elaborator<'_> {
         extra_trait_constraints: &[(TraitConstraint, Location)],
     ) {
         self.scopes.start_function();
-        self.current_item = Some(DependencyId::Function(func_id));
+
+        let previous_current_item = self.current_item.replace(DependencyId::Function(func_id));
         let old_comptime_value =
             std::mem::replace(&mut self.in_comptime_context, func.def.is_comptime);
 
@@ -323,6 +363,17 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
+
+        self.run_lint(|_| {
+            lints::databus_visibility_on_return(
+                func,
+                func.def.return_visibility,
+                func.def.return_visibility_location,
+                is_entry_point,
+            )
+            .map(Into::into)
+        });
+
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             let output = true;
@@ -401,7 +452,7 @@ impl Elaborator<'_> {
 
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
-        self.current_item = None;
+        self.current_item = previous_current_item;
         self.in_comptime_context = old_comptime_value;
     }
 
@@ -506,7 +557,7 @@ impl Elaborator<'_> {
                 .map(Into::into)
             });
             self.run_lint(|_| {
-                lints::databus_on_non_entry_point(
+                lints::databus_visibility_on_parameter(
                     func,
                     visibility,
                     visibility_location,
