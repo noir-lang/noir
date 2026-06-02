@@ -1,0 +1,16 @@
+﻿{
+  "name": "zk-recovery-server",
+  "version": "1.0.0",
+  "description": "Demo server for Noir ZK Recovery",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "5.0.0-nightly.20260522",
+    "@noir-lang/noir_js": "0.33.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
