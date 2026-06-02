@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780414665716,
+  "lastUpdate": 1780419219286,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "165563006+Kuhai9801@users.noreply.github.com",
-            "name": "Cyne Jarvis J. Zarceno",
-            "username": "Kuhai9801"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c1f34cdad6c7cd98bd3f04ba4a6ff790c402543a",
-          "message": "fix: avoid panic on zero-limb field byte decomposition (#12738)",
-          "timestamp": "2026-05-26T12:58:26Z",
-          "tree_id": "1be8547de3beac4a6694f5f0dbedd0682e477149",
-          "url": "https://github.com/noir-lang/noir/commit/c1f34cdad6c7cd98bd3f04ba4a6ff790c402543a"
-        },
-        "date": 1779801786865,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165125,
-            "range": "± 831",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138714,
-            "range": "± 630",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2126461,
-            "range": "± 20069",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649194,
             "range": "± 4196",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "802730cebc38762b8e9f3853b19a0ea672a416fa",
+          "message": "fix(ssa): classify VectorPushBack as PureWithPredicate (#12814)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T16:25:45Z",
+          "tree_id": "6a5f3be1f6ddd18fbf468bcd583eb83e428dca7e",
+          "url": "https://github.com/noir-lang/noir/commit/802730cebc38762b8e9f3853b19a0ea672a416fa"
+        },
+        "date": 1780419142877,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 163851,
+            "range": "± 244",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 142503,
+            "range": "± 2813",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2125925,
+            "range": "± 4419",
             "unit": "ns/iter"
           }
         ]
