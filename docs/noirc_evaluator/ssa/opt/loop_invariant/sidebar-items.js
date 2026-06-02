@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CanBeHoistedResult"],"fn":["back_edge_advances_monotonically","can_be_hoisted","does_loop_execute","get_induction_var_bounds","get_induction_variable"],"mod":["simplify"],"struct":["BlockContext","LoopContext","LoopInvariantContext","PostDominanceFrontiers"]};
+window.SIDEBAR_ITEMS = {"enum":["CanBeHoistedResult"],"fn":["can_be_hoisted","does_loop_execute","get_induction_var_bounds","get_induction_variable","monotonic_back_edge_step"],"mod":["simplify"],"struct":["BlockContext","LoopContext","LoopInvariantContext","PostDominanceFrontiers"]};
