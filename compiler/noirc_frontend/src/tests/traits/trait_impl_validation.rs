@@ -505,6 +505,21 @@ fn overlapping_generic_impls() {
 }
 
 #[test]
+fn overlapping_blanket_impl_with_generic_struct() {
+    let src = r#"
+    pub trait Foo {}
+    pub struct Bar<T> {}
+    impl<T> Foo for Bar<T> {}
+            ~~~ Previous impl defined here
+    impl<T> Foo for T {}
+                    ^ Impl for type `T` overlaps with existing impl
+                    ~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn does_not_crash_when_trait_impl_is_defined_multiple_times() {
     let src = r#"
     pub struct Wrap { }
