@@ -26,8 +26,6 @@ pub enum ProofError {
     Io(#[from] std::io::Error),
     #[error("Invalid proof JSON: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("Proof JSON is missing field '{0}'")]
-    MissingField(&'static str),
 }
 
 impl ProofJson {
@@ -42,10 +40,6 @@ impl ProofJson {
         self.public_inputs.get("usb_serial").map(String::as_str)
     }
 
-    /// Returns the `commitment` public input, if present.
-    pub fn commitment(&self) -> Option<&str> {
-        self.public_inputs.get("commitment").map(String::as_str)
-    }
 }
 
 #[cfg(test)]

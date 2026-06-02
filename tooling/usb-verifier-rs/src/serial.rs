@@ -8,6 +8,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SerialError {
+    #[allow(dead_code)]
     #[error("Cannot detect serial on this platform without specifying --serial")]
     Unsupported,
     #[error("Failed to run '{cmd}': {reason}")]
@@ -110,6 +111,7 @@ pub(crate) fn parse_vol_output(output: &str) -> Result<String, SerialError> {
 
 /// Parse the serial from `diskutil info` output on macOS.
 /// Looks for a line like "Volume UUID: 1234-ABCD" or "Disk / Partition UUID".
+#[allow(dead_code)]
 pub(crate) fn parse_diskutil_output(output: &str) -> Result<String, SerialError> {
     for line in output.lines() {
         let lower = line.to_lowercase();
