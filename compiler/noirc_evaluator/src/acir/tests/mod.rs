@@ -10,7 +10,6 @@ use acvm::{
     pwg::{ACVM, ACVMStatus},
 };
 use noirc_artifacts::debug::DebugInfo;
-use noirc_frontend::shared::Visibility;
 use std::collections::BTreeMap;
 
 use crate::{
