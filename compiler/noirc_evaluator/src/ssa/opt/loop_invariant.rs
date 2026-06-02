@@ -1168,8 +1168,21 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let _ =
-            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = unchecked_add v0, u32 2
+            jmp b1(v5)
+          b3():
+            return
+        }
+        ");
     }
 
     #[test]
