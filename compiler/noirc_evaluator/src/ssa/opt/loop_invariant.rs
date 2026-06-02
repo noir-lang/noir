@@ -317,7 +317,8 @@ impl LoopContext {
             }
         }
         let induction = get_induction_var_bounds(inserter, loop_, pre_header);
-        let (induction_variable, induction_step) = induction.map(|(var, bounds, step)| ((var, bounds), step)).unzip();
+        let (induction_variable, induction_step) =
+            induction.map(|(var, bounds, step)| ((var, bounds), step)).unzip();
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -1173,8 +1174,8 @@ mod tests {
 
     #[test]
     fn hoist_not_equal_with_non_unit_step_match() {
-        // Same as hoist_not_equal_with_non_unit_step_no_match, but now the constrained constant 
-        //`4` *is* visited by the +2 induction variable (0, 2, 4, ...). 
+        // Same as hoist_not_equal_with_non_unit_step_no_match, but now the constrained constant
+        //`4` *is* visited by the +2 induction variable (0, 2, 4, ...).
         // The original program fails when `v0` reaches 4,
         // and the rewrite must preserve that failure.
         let src = r#"

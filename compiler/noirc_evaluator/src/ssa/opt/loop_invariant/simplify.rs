@@ -106,7 +106,7 @@ impl LoopInvariantContext<'_> {
     /// - step > 1: it visits only `lower + k * step`, so the above is conjoined with the
     ///   step-residue test `euclid(invariant, step) != euclid(lower, step)`.
     ///
-    /// The residue test compares modulo residues. `lower mod step` folds at compile time. 
+    /// The residue test compares modulo residues. `lower mod step` folds at compile time.
     /// `invariant mod step` is `invariant % step` when lower is positive (only invariant >= lower matters)
     ///
     /// In all cases the assert must execute at each loop iteration and the loop must process
