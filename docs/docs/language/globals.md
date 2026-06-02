@@ -93,10 +93,12 @@ nargo compile -D N=256
 global N: u32 = 100; // compiled as 256 with the flag above
 ```
 
-The flag can be passed multiple times (`-D A=1 -D B=2`) and is matched against globals by name.
-Only `bool`, `Field`, and integer-typed globals can be overridden; supplying a malformed value,
-a value that does not fit the global's type, or a name with an unsupported type is an error,
-while a name that matches no global is ignored.
+The flag can be passed multiple times (`-D A=1 -D B=2`) and is matched against globals by name;
+if the same name is given more than once, the last value wins. Values may be written in decimal
+or `0x` hex, and the full range of `Field` is supported. Only `bool`, `Field`, and integer-typed
+globals can be overridden; supplying a malformed value, a value that does not fit the global's
+type, or a name with an unsupported type is an error, while a name that matches no global is
+ignored.
 
 This is useful for producing differently-sized circuits from a single codebase — for example
 compiling "small", "medium", and "large" variants by overriding a size global, instead of

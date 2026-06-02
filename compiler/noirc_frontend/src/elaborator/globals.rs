@@ -158,14 +158,16 @@ impl Elaborator<'_> {
         let name = global.ident.to_string();
 
         // A CLI `--define NAME=VALUE` override replaces the global's initializer
-        // with a value parsed from the command line. Look it up by name; cloning
-        // the value releases the borrow on `self.options` before we mutate the
-        // interner below.
+        // with a value parsed from the command line. Look it up by name, taking
+        // the last entry so that a repeated `-D name=...` follows the usual
+        // "last one wins" convention. Cloning the value releases the borrow on
+        // `self.options` before we mutate the interner below.
         let override_value = self
             .options
             .global_overrides
             .iter()
-            .find(|(overridden_name, _)| *overridden_name == name)
+            .rev()
+            .find(|(overridden_name, _)| overridden_name == &name)
             .map(|(_, value)| value.clone());
 
         if let Some(raw) = override_value {
@@ -256,15 +258,18 @@ fn global_override_value(typ: &Type, raw: &str) -> Result<Value, String> {
     }
 }
 
-/// Parses a (possibly negative) decimal integer override into a [`FieldElement`].
-/// Negative values are encoded as negated fields, matching how the comptime
-/// interpreter represents signed integers.
+/// Parses a (possibly negative) integer override into a [`FieldElement`]. The
+/// magnitude may be decimal or `0x`-prefixed hex and may be any value up to the
+/// field modulus, so the full range of `Field` (and every integer type) is
+/// supported. Negative values are encoded as negated fields, matching how the
+/// comptime interpreter represents signed integers.
 fn parse_override_field(raw: &str) -> Result<FieldElement, String> {
     let raw = raw.trim();
-    let parse_magnitude =
-        |s: &str| s.parse::<u128>().map_err(|_| format!("`{raw}` is not a valid integer"));
-    match raw.strip_prefix('-') {
-        Some(magnitude) => Ok(-FieldElement::from(parse_magnitude(magnitude)?)),
-        None => Ok(FieldElement::from(parse_magnitude(raw)?)),
-    }
+    let (negative, magnitude) = match raw.strip_prefix('-') {
+        Some(magnitude) => (true, magnitude.trim_start()),
+        None => (false, raw),
+    };
+    let field = FieldElement::try_from_str(magnitude)
+        .ok_or_else(|| format!("`{raw}` is not a valid integer or `Field` value"))?;
+    Ok(if negative { -field } else { field })
 }

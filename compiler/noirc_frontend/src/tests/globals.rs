@@ -1,6 +1,10 @@
+use acvm::FieldElement;
+
 use crate::elaborator::FrontendOptions;
+use crate::hir::comptime::Value;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
+use crate::node_interner::GlobalValue;
 use crate::test_utils::{GetProgramOptions, get_program_with_options};
 use crate::tests::{
     assert_no_errors, check_errors, check_monomorphization_error, get_program_errors,
@@ -19,6 +23,33 @@ fn compile_with_defines(src: &str, defines: &[(String, String)]) -> Vec<Compilat
         },
     )
     .2
+}
+
+/// Compiles `src` with the given overrides, asserts it compiled without errors,
+/// and returns the resolved comptime value of the global named `name`. This lets
+/// a test verify that the override value was actually applied, even for globals
+/// (like `Field` or `bool`) whose value does not surface through type-checking.
+fn resolved_global(src: &str, defines: &[(String, String)], name: &str) -> Option<Value> {
+    let (_, context, errors) = get_program_with_options(
+        src,
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                global_overrides: defines,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    );
+    assert!(errors.is_empty(), "expected no errors, got: {errors:?}");
+    context
+        .def_interner
+        .get_all_globals()
+        .iter()
+        .find(|global| global.ident.to_string() == name)
+        .and_then(|global| match &global.value {
+            GlobalValue::Resolved(value) => Some(value.clone()),
+            _ => None,
+        })
 }
 
 fn has_invalid_global_override(errors: &[CompilationError]) -> bool {
@@ -490,8 +521,8 @@ fn cli_define_overrides_field_global() {
         }
     ";
     let defines = vec![("X".to_string(), "42".to_string())];
-    let errors = compile_with_defines(src, &defines);
-    assert!(errors.is_empty(), "expected a `Field` override to compile, got: {errors:?}");
+    let value = resolved_global(src, &defines, "X");
+    assert_eq!(value, Some(Value::field(FieldElement::from(42_u128))));
 }
 
 #[test]
@@ -503,8 +534,50 @@ fn cli_define_overrides_bool_global() {
         }
     ";
     let defines = vec![("ENABLED".to_string(), "true".to_string())];
+    let value = resolved_global(src, &defines, "ENABLED");
+    assert_eq!(value, Some(Value::Bool(true)));
+}
+
+#[test]
+fn cli_define_supports_hex_and_wide_field_values() {
+    let src = "
+        global X: Field = 0;
+        fn main() -> pub Field {
+            X
+        }
+    ";
+
+    // `0x` hex is accepted.
+    let defines = vec![("X".to_string(), "0xff".to_string())];
+    assert_eq!(
+        resolved_global(src, &defines, "X"),
+        Some(Value::field(FieldElement::from(255_u128)))
+    );
+
+    // Values larger than `u128` are accepted for `Field` (2^128, which the old
+    // `u128`-based parser could not represent). Reaching this assertion at all
+    // means the value parsed without an `InvalidGlobalOverride` error.
+    let two_pow_128 = "340282366920938463463374607431768211456";
+    let defines = vec![("X".to_string(), two_pow_128.to_string())];
+    let value = resolved_global(src, &defines, "X");
+    assert!(
+        matches!(value, Some(Value::Integer(_))),
+        "expected a wide `Field` value, got: {value:?}"
+    );
+}
+
+#[test]
+fn cli_define_last_value_wins_for_repeated_name() {
+    // Repeating `-D N=...` follows the usual "last one wins" rule.
+    let src = "
+        global N: u32 = 0;
+        fn main() -> pub [Field; 3] {
+            [0; N]
+        }
+    ";
+    let defines = vec![("N".to_string(), "2".to_string()), ("N".to_string(), "3".to_string())];
     let errors = compile_with_defines(src, &defines);
-    assert!(errors.is_empty(), "expected a `bool` override to compile, got: {errors:?}");
+    assert!(errors.is_empty(), "expected the last override (N=3) to win, got: {errors:?}");
 }
 
 #[test]
