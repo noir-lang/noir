@@ -33,6 +33,7 @@ use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
+use super::should_show_invalid_ssa;
 use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
@@ -43,8 +44,6 @@ use super::{
         value::ValueId,
     },
 };
-
-pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
@@ -151,7 +150,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+        if should_show_invalid_ssa() {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         }
 

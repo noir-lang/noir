@@ -26,6 +26,8 @@ use acvm::{
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+#[cfg(debug_assertions)]
+pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
@@ -1233,11 +1235,13 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
 /// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
 /// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
 /// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
-/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// of those passes regresses we want this to fail at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
 #[cfg(debug_assertions)]
-pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<()> {
+    use crate::errors::RuntimeError;
+
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
             continue;
@@ -1245,20 +1249,22 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
         for block_id in func.reachable_blocks() {
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                assert!(
-                    !matches!(
-                        instruction,
-                        Instruction::Load { .. }
-                            | Instruction::Store { .. }
-                            | Instruction::Allocate
-                    ),
-                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
-                     pipeline; mem2reg + flatten_cfg should have removed it",
-                    func.name()
-                );
+                if matches!(
+                    instruction,
+                    Instruction::Load { .. } | Instruction::Store { .. } | Instruction::Allocate
+                ) {
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                         pipeline; mem2reg + flatten_cfg should have removed it",
+                        func.name()
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
     }
+    Ok(())
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
