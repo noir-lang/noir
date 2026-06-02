@@ -128,7 +128,15 @@ function DeviceScanPanel({ busy, onScanResult, onSerialDetected }) {
       const dir = await window.showDirectoryPicker({ mode: 'read' });
       dirHandleRef.current = dir;
       setDirName(dir.name);
-      const found = await scanDirForSecrets(dir);
+
+      // Scan for secret files and detect serial in parallel.
+      const [found, serial] = await Promise.all([
+        scanDirForSecrets(dir),
+        detectUsbSerial(),
+      ]);
+
+      if (serial) onSerialDetected(serial);
+
       setFiles(found);
       setSelectedIdx(0);
       setScanState(found.length > 0 ? 'found' : 'empty');
@@ -137,7 +145,7 @@ function DeviceScanPanel({ busy, onScanResult, onSerialDetected }) {
       setScanState(err.name === 'AbortError' ? 'idle' : 'error');
       onScanResult(null);
     }
-  }, [onScanResult]);
+  }, [onScanResult, onSerialDetected]);
 
   const rescan = useCallback(async () => {
     if (!dirHandleRef.current) { scan(); return; }
@@ -181,7 +189,7 @@ function DeviceScanPanel({ busy, onScanResult, onSerialDetected }) {
     <div className="device-scan">
       {scanState === 'idle' && (
         <button type="button" className="btn-scan" disabled={busy} onClick={scan}>
-          <span className="scan-icon">🔍</span> Scan Device for Secret File
+          <span className="scan-icon">🔌</span> Select Device
         </button>
       )}
 
@@ -473,26 +481,27 @@ export default function App() {
                 autoComplete="username" placeholder="alice" disabled={busy} />
             </FieldGroup>
 
-            <FieldGroup label="USB Serial" hint="(must match registration)">
+            <FieldGroup label="Device" hint="(select your USB drive — serial &amp; secret file auto-detected)">
+              <DeviceScanPanel
+                busy={busy}
+                onScanResult={(entry) => { selectedSecretRef.current = entry; }}
+                onSerialDetected={(s) => { if (prvSerial.current) prvSerial.current.value = s; }}
+              />
+            </FieldGroup>
+
+            <FieldGroup label="USB Serial (Volume ID)" hint="(auto-filled on scan, or enter manually)">
               <div className="input-row">
                 <input ref={prvSerial} type="text" placeholder="e.g. 305441741" disabled={busy} />
                 <button type="button" className="btn-secondary" disabled={busy} onClick={autoDetectPrv}>
-                  Auto-Detect
+                  Detect
                 </button>
               </div>
+              <p className="field-hint">Must match the serial used during registration.</p>
             </FieldGroup>
 
             <FieldGroup label="PIN">
               <input ref={prvPin} type="password" name="current-password"
                 minLength={6} autoComplete="current-password" placeholder="••••••••" disabled={busy} />
-            </FieldGroup>
-
-            <FieldGroup label="Secret File" hint="(auto-detected from device)">
-              <DeviceScanPanel
-                busy={busy}
-                onScanResult={(entry) => { selectedSecretRef.current = entry; }}
-                serialRef={prvSerial}
-              />
             </FieldGroup>
 
             <button type="submit" className="btn-primary" disabled={busy}>
@@ -521,7 +530,7 @@ export default function App() {
             </div>
             <ol className="flow-list">
               <li>The USB holds an <strong>AES-256-GCM encrypted</strong> device secret.</li>
-              <li>Click <em>Scan Device</em> — the browser searches the drive for <code>usb-zk-secret-*.json</code>.</li>
+              <li>Click <em>Select Device</em> — the browser scans the drive for <code>usb-zk-secret-*.json</code> and auto-fills the volume serial.</li>
               <li>Noir generates a fresh ZK proof binding the secret to the <strong>USB serial</strong>.</li>
               <li>The verifier checks the proof &amp; serial — it never sees the device secret.</li>
               <li>Download the <strong>USB Package</strong> to verify offline with the Rust tool.</li>
