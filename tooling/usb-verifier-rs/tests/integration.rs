@@ -8,14 +8,8 @@ fn fixtures_dir() -> PathBuf {
 }
 
 fn verifier_bin() -> PathBuf {
-    // Use the binary built in the same Cargo target directory.
-    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // Walk up to workspace root, then into target.
-    for _ in 0..3 {
-        p.pop();
-    }
-    let profile = if cfg!(debug_assertions) { "debug" } else { "release" };
-    p.join("target").join(profile).join(if cfg!(windows) { "usb-verifier.exe" } else { "usb-verifier" })
+    // CARGO_BIN_EXE_<name> is set by Cargo when running integration tests.
+    PathBuf::from(env!("CARGO_BIN_EXE_usb-verifier"))
 }
 
 /// Run the verifier binary with the given args and return (exit_code, stdout, stderr).
