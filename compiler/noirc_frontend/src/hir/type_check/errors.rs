@@ -93,6 +93,13 @@ pub enum TypeCheckError {
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    #[error("Negative Field literal `{value}` cast to `{to}` evaluates to `{result}`")]
+    NegativeLiteralCastToInteger {
+        value: FieldElement,
+        result: String,
+        to: Type,
+        location: Location,
+    },
     #[error("Cannot cast `{typ}` as `bool`")]
     CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
@@ -323,6 +330,7 @@ impl TypeCheckError {
             | TypeCheckError::ArityMisMatch { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::NegativeLiteralCastToInteger { location, .. }
             | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
@@ -417,7 +425,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
     fn from(error: &'a TypeCheckError) -> Diagnostic {
         match error {
             TypeCheckError::TypeCannotBeUsed { typ, place, location } => Diagnostic::simple_error(
-                format!("The type {} cannot be used in a {}", &typ, place),
+                format!("The type {typ} cannot be used in a {place}"),
                 String::new(),
                 *location,
             ),
@@ -560,6 +568,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::DownsizingCast { location, reason, .. } => {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
+            }
+            TypeCheckError::NegativeLiteralCastToInteger { value, to, location, .. } => {
+                let secondary = format!(
+                    "If this isn't desired, try `{value}{to}` instead or bind to a variable first to silence this warning"
+                );
+                Diagnostic::simple_warning(error.to_string(), secondary, *location)
             }
             TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
                 let secondary = "Compare with zero instead: ` != 0`".to_string();

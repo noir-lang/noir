@@ -1,0 +1,6 @@
+[package]
+name = "regression_foreign_proxy_generic"
+type = "bin"
+authors = [""]
+
+[dependencies]

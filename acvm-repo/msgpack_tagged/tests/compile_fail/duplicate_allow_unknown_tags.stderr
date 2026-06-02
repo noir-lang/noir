@@ -1,0 +1,5 @@
+error: duplicate `allow_unknown_tags` modifier in `#[tagged(...)]`
+ --> tests/compile_fail/duplicate_allow_unknown_tags.rs:8:10
+  |
+8 | #[tagged(allow_unknown_tags)] // duplicate
+  |          ^^^^^^^^^^^^^^^^^^

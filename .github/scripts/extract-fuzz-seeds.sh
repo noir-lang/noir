@@ -27,7 +27,14 @@ mkdir -p "$out_dir"
 seeds_file="$out_dir/seeds.txt"
 by_test_file="$out_dir/seeds-by-test.tsv"
 
-grep -hoE '(Seed:[[:space:]]*0x[0-9a-fA-F]+|NOIR_AST_FUZZER_SEED=0x[0-9a-fA-F]+)' "$log_file" \
+# nextest emits ANSI color escapes even when stdout is a pipe, so any log
+# captured via `tee` contains CSI sequences like \x1b[31;1m wrapping seeds and
+# `FAIL` markers. Strip them up-front so the downstream patterns can match.
+cleaned_log=$(mktemp)
+trap 'rm -f "$cleaned_log"' EXIT
+sed -E $'s/\x1b\\[[0-9;?]*[ -/]*[@-~]//g' "$log_file" > "$cleaned_log"
+
+grep -hoE '(Seed:[[:space:]]*0x[0-9a-fA-F]+|NOIR_AST_FUZZER_SEED=0x[0-9a-fA-F]+)' "$cleaned_log" \
     | grep -oE '0x[0-9a-fA-F]+' \
     | sort -u > "$seeds_file" || true
 
@@ -37,4 +44,4 @@ awk '
         match($0, /0x[0-9a-fA-F]+/); seed = substr($0, RSTART, RLENGTH);
         print current "\t" seed
     }
-' "$log_file" > "$by_test_file" || true
+' "$cleaned_log" > "$by_test_file" || true

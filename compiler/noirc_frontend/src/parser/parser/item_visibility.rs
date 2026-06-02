@@ -36,13 +36,11 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::ItemVisibility,
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -67,42 +65,30 @@ mod tests {
     #[test]
     fn parses_public_visibility_unclosed_parentheses() {
         let src = "
-        pub( 
-            ^
+        pub(
+           ^ Expected a 'crate' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let visibility = parser.parse_item_visibility();
+        let visibility = check_errors(src, |parser| parser.parse_item_visibility());
         assert_eq!(visibility, ItemVisibility::Public);
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a 'crate' but found end of input");
     }
 
     #[test]
     fn parses_public_visibility_no_crate_after_pub() {
         let src = "
         pub(hello
-            ^^^^^
+            ^^^^^ Expected a 'crate' but found 'hello'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let visibility = parser.parse_item_visibility();
+        let visibility = check_errors(src, |parser| parser.parse_item_visibility());
         assert_eq!(visibility, ItemVisibility::Public);
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a 'crate' but found 'hello'");
     }
     #[test]
     fn parses_public_visibility_missing_paren_after_pub_crate() {
         let src = "
-        pub(crate 
-                 ^
+        pub(crate
+                ^ Expected a ')' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let visibility = parser.parse_item_visibility();
+        let visibility = check_errors(src, |parser| parser.parse_item_visibility());
         assert_eq!(visibility, ItemVisibility::PublicCrate);
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ')' but found end of input");
     }
 
     #[test]

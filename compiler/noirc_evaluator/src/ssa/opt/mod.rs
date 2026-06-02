@@ -165,11 +165,15 @@ fn assert_pass_does_not_affect_execution(
     inputs: Vec<Value>,
     ssa_pass: impl FnOnce(Ssa) -> Ssa,
 ) -> (Ssa, Result<Vec<Value>, InterpreterError>) {
-    let before = ssa.interpret(inputs.clone());
+    // Each run gets its own deep copy of the inputs. A shallow `Vec::clone` would share the
+    // backing `Shared<Vec<Value>>` of any array argument, so an in-place `array_set` in the
+    // first run would corrupt the inputs of the second — masking exactly the kind of
+    // copy-on-write difference this helper is meant to detect.
+    let before = ssa.interpret(Value::snapshot_args(&inputs));
 
     let new_ssa = ssa_pass(ssa);
 
-    let after = new_ssa.interpret(inputs);
+    let after = new_ssa.interpret(Value::snapshot_args(&inputs));
     assert_eq!(before, after, "SSA pass has resulted in a different execution result");
     (new_ssa, after)
 }

@@ -257,8 +257,10 @@ impl LoopInvariantContext<'_> {
             return SimplifyResult::None;
         };
 
-        // All simplifications below assume the induction variable counts upward: lower_bound ≤ i < upper_bound.
-        // If the bounds are inverted the variable is not a proper ascending induction variable, so bail out.
+        // A monotone-ascending back-edge is already enforced when bounds are recorded
+        // (see `back_edge_advances_monotonically`), so `i` truly counts upward through
+        // `[lower_bound, upper_bound)`. If the constants are still inverted the loop
+        // body never executes; bail out instead of simplifying dead code.
         if lower_bound > upper_bound {
             return SimplifyResult::None;
         }

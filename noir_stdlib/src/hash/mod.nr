@@ -337,6 +337,18 @@ where
     }
 }
 
+impl<A> Hash for (A,)
+where
+    A: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+    }
+}
+
 impl<A, B> Hash for (A, B)
 where
     A: Hash,
@@ -402,6 +414,202 @@ where
         self.2.hash(state);
         self.3.hash(state);
         self.4.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F> Hash for (A, B, C, D, E, F)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F, G> Hash for (A, B, C, D, E, F, G)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+    G: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+        self.6.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F, G, H_> Hash for (A, B, C, D, E, F, G, H_)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+    G: Hash,
+    H_: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+        self.6.hash(state);
+        self.7.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F, G, H_, I> Hash for (A, B, C, D, E, F, G, H_, I)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+    G: Hash,
+    H_: Hash,
+    I: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+        self.6.hash(state);
+        self.7.hash(state);
+        self.8.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F, G, H_, I, J> Hash for (A, B, C, D, E, F, G, H_, I, J)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+    G: Hash,
+    H_: Hash,
+    I: Hash,
+    J: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+        self.6.hash(state);
+        self.7.hash(state);
+        self.8.hash(state);
+        self.9.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F, G, H_, I, J, K> Hash for (A, B, C, D, E, F, G, H_, I, J, K)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+    G: Hash,
+    H_: Hash,
+    I: Hash,
+    J: Hash,
+    K: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+        self.6.hash(state);
+        self.7.hash(state);
+        self.8.hash(state);
+        self.9.hash(state);
+        self.10.hash(state);
+    }
+}
+
+impl<A, B, C, D, E, F, G, H_, I, J, K, L> Hash for (A, B, C, D, E, F, G, H_, I, J, K, L)
+where
+    A: Hash,
+    B: Hash,
+    C: Hash,
+    D: Hash,
+    E: Hash,
+    F: Hash,
+    G: Hash,
+    H_: Hash,
+    I: Hash,
+    J: Hash,
+    K: Hash,
+    L: Hash,
+{
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
+        self.5.hash(state);
+        self.6.hash(state);
+        self.7.hash(state);
+        self.8.hash(state);
+        self.9.hash(state);
+        self.10.hash(state);
+        self.11.hash(state);
     }
 }
 

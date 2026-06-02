@@ -211,7 +211,7 @@ jobs:
       contents: read
     steps:
       - name: Dispatch to publish workflow
-        uses: benc-uk/workflow-dispatch@7a027648b88c2413826b6ddd6c76114894dc5ec4 # v1
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26 # v1
         with:
           workflow: publish-nargo.yml
           repo: noir-lang/noir
@@ -228,7 +228,7 @@ jobs:
       contents: read
     steps:
       - name: Dispatch to publish-es-packages
-        uses: benc-uk/workflow-dispatch@7a027648b88c2413826b6ddd6c76114894dc5ec4 # v1
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26 # v1
         with:
           workflow: publish-es-packages.yml
           ref: master
@@ -245,7 +245,7 @@ jobs:
 
     steps:
       - name: Dispatch to publish-acvm
-        uses: benc-uk/workflow-dispatch@7a027648b88c2413826b6ddd6c76114894dc5ec4 # v1
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26 # v1
         with:
           workflow: publish-acvm.yml
           ref: master
