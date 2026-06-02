@@ -251,10 +251,13 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
