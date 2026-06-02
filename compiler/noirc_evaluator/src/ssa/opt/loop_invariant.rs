@@ -241,6 +241,10 @@ struct LoopContext {
     /// If the loop doesn't have constant bounds then it's `None`.
     induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
 
+    /// The constant step by which the induction variable advances each iteration.
+    /// None if the step is not a constant.
+    induction_step: Option<IntegerConstant>,
+
     /// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
     does_loop_execute: bool,
 
@@ -312,11 +316,14 @@ impl LoopContext {
                 defined_in_loop.extend(results);
             }
         }
-        let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
+        let induction = get_induction_var_bounds(inserter, loop_, pre_header);
+        let (induction_variable, induction_step) =
+            induction.map(|(var, bounds, step)| ((var, bounds), step)).unzip();
 
         Self {
             // There is only ever one current induction variable for a loop.
             induction_variable,
+            induction_step,
             does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
             pre_header,
             defined_in_loop,
@@ -344,6 +351,11 @@ impl LoopContext {
         id: ValueId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         self.induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
+    }
+
+    /// Get the induction variable's per-iteration step if the current variable matches `id`.
+    fn get_current_induction_step(&self, id: ValueId) -> Option<IntegerConstant> {
+        self.induction_variable.filter(|(val, _)| *val == id).and(self.induction_step)
     }
 
     /// Update any values defined in the loop and loop invariants after
@@ -411,7 +423,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         // Insert all loop bounds up front, so we can inspect both outer and nested loops.
         for loop_ in loops {
-            if let Some((induction_variable, bounds)) =
+            if let Some((induction_variable, bounds, _)) =
                 loop_.get_pre_header(context.inserter.function, &context.cfg).ok().and_then(
                     |pre_header| get_induction_var_bounds(&context.inserter, loop_, pre_header),
                 )
@@ -493,7 +505,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
-        if let Some((induction_variable, bounds)) =
+        if let Some((induction_variable, bounds, _)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
@@ -815,84 +827,77 @@ fn does_loop_execute(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool
         .unwrap_or(false)
 }
 
-/// Keep track of a loop induction variable and respective lower/upper bound,
-/// but only when the loop's back-edge proves the bounds are real iteration
-/// invariants (see [`back_edge_advances_monotonically`]).
+/// Keep track of a loop induction variable, its respective lower/upper bound, and the
+/// constant step by which it advances each iteration, but only when the loop's back-edge
+/// proves the bounds are real iteration invariants (see [`monotonic_back_edge_step`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
     pre_header: BasicBlockId,
-) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
+) -> Option<(ValueId, (IntegerConstant, IntegerConstant), IntegerConstant)> {
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
-    if !back_edge_advances_monotonically(
-        &inserter.function.dfg,
-        loop_,
-        induction_variable,
-        bounds.1,
-    ) {
-        return None;
-    }
-    Some((induction_variable, bounds))
+    let step =
+        monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, bounds.1)?;
+    Some((induction_variable, bounds, step))
 }
 
-/// Whether the loop's back-edge preserves the inferred `[lower, upper)` interval.
-/// Two shapes qualify:
+/// If the loop's back-edge preserves the inferred `[lower, upper)` interval, return the
+/// constant amount by which the induction variable advances each iteration (its *step*);
+/// otherwise return `None`. Two shapes qualify:
 ///
 /// 1. The back-edge passes the induction variable through unchanged
 ///    (`jmp header(v_induction, ..)`). This is the canonical form a zero-step
 ///    loop is reduced to once `x + 0` has been folded; the variable is constant
-///    at `lower`, which is a subset of `[lower, upper)`.
+///    at `lower`, which is a subset of `[lower, upper)`. The step is `0`.
 /// 2. The back-edge passes back `induction_variable + positive_constant`. For
 ///    an unchecked Add we additionally verify that the largest reachable
 ///    induction value (`upper - 1`) plus the step does not wrap the underlying
 ///    numeric type — otherwise wrapping could deposit an out-of-range value
 ///    back into the header. A checked Add cannot violate the invariant: any
-///    wrap would trap before the back-edge fires.
-fn back_edge_advances_monotonically(
+///    wrap would trap before the back-edge fires. The step is the constant added.
+///
+/// The returned step lets callers distinguish a unit-step loop (which visits every
+/// integer in `[lower, upper)`) from one that visits only `lower + k * step`.
+fn monotonic_back_edge_step(
     dfg: &DataFlowGraph,
     loop_: &Loop,
     induction_variable: ValueId,
     upper: IntegerConstant,
-) -> bool {
+) -> Option<IntegerConstant> {
     let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
         dfg[loop_.back_edge_start].terminator()
     else {
-        return false;
+        return None;
     };
     if *destination != loop_.header || arguments.is_empty() {
-        return false;
+        return None;
     }
+    let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
     if arguments[0] == induction_variable {
-        return true;
+        // The induction variable is constant at `lower`: a zero step.
+        return IntegerConstant::from_numeric_constant(FieldElement::zero(), operand_type);
     }
-    let Some(instruction) = dfg.get_local_or_global_instruction(arguments[0]) else {
-        return false;
-    };
+    let instruction = dfg.get_local_or_global_instruction(arguments[0])?;
     let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
         instruction
     else {
-        return false;
+        return None;
     };
     let step_value = if *lhs == induction_variable {
         *rhs
     } else if *rhs == induction_variable {
         *lhs
     } else {
-        return false;
+        return None;
     };
-    let Some(step) = dfg.get_integer_constant(step_value) else {
-        return false;
-    };
+    let step = dfg.get_integer_constant(step_value)?;
     if step.is_negative() {
-        return false;
+        return None;
     }
     if *unchecked {
-        let Some(max_induction_value) = upper.dec() else {
-            return false;
-        };
-        let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
+        let max_induction_value = upper.dec()?;
         let (max_field, _) = max_induction_value.into_numeric_constant();
         let (step_field, _) = step.into_numeric_constant();
         match eval_constant_binary_op(
@@ -903,11 +908,11 @@ fn back_edge_advances_monotonically(
         ) {
             BinaryEvaluationResult::Success(..) => {}
             BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
-                return false;
+                return None;
             }
         }
     }
-    true
+    Some(step)
 }
 
 /// Indicate whether an instruction can be hoisted.
@@ -1136,6 +1141,222 @@ mod tests {
             constrain v0 != u32 3
             v6 = sub v0, u32 1
             jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn non_unit_step_constrain_not_equal_is_not_simplified() {
+        // The induction variable starts at 0 and advances by +2 each iteration, so it takes
+        // the values 0, 2, 4, 6, 8 and exits — it never equals 3. A non-unit step is not
+        // simplified (only steps 0 and 1 are handled), so the `!= 3` constraint is left in the
+        // loop body unchanged rather than hoisted to the pre-header.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != u32 3
+            v6 = unchecked_add v0, u32 2
+            jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn non_unit_step_constrain_not_equal_preserves_failure() {
+        // Same as non_unit_step_constrain_not_equal_is_not_simplified, but now the constrained
+        // constant `4` *is* visited by the +2 induction variable (0, 2, 4, ...), so the program
+        // fails when `v0` reaches 4. Leaving the constraint unsimplified must preserve that
+        // failure exactly.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != u32 4
+            v6 = unchecked_add v0, u32 2
+            jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn non_unit_step_runtime_invariant_constrain_not_equal_is_not_simplified() {
+        // With a runtime invariant `v0` and a +2 step the constraint would, if handled, be lifted
+        // to the pre-header with a divisibility test. Since non-unit steps are not simplified, the
+        // `constrain v0 != v1` is instead left untouched in the loop body.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 10)
+          b1(v1: u32):
+            v2 = lt v1, u32 20
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            constrain v0 != v1
+            v3 = unchecked_add v1, u32 2
+            jmp b1(v3)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn zero_step_constrain_not_equal_simplifies_to_equals_lower() {
+        // The back-edge passes the induction variable through unchanged (`jmp b1(v1)`), so it is
+        // constant at `lower = 5`. `constrain v0 != v1` is therefore exactly `constrain v0 != 5`,
+        // which is loop invariant and hoisted to the pre-header — no range or congruence reasoning
+        // (the reached set is the single point `{5}`, not the interval `[5, 9]`).
+        //
+        // The emitted `constrain (not (v0 == 5)) == 1` is folded to the equivalent
+        // `constrain (v0 == 5) == 0`, leaving the `not` as dead code for a later DCE pass.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 5)
+          b1(v1: u32):
+            v3 = lt v1, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != v1
+            jmp b1(v1)
+          b3():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v3 = eq v0, u32 5
+            v4 = not v3
+            constrain v3 == u1 0
+            jmp b1(u32 5)
+          b1(v1: u32):
+            v7 = lt v1, u32 10
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            jmp b1(v1)
+          b3():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn signed_non_negative_lower_non_unit_step_constrain_not_equal_is_not_simplified() {
+        // A *signed* induction variable that starts at a non-negative `lower` (here 0, step 2) is
+        // treated like any other non-unit step: the `constrain v0 != v1` is left untouched in the
+        // loop body rather than hoisted with a residue test.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i32):
+            jmp b1(i32 0)
+          b1(v1: i32):
+            v3 = lt v1, i32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != v1
+            v5 = unchecked_add v1, i32 2
+            jmp b1(v5)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn negative_lower_off_lattice_constrain_not_equal_preserves_execution() {
+        // A signed induction variable from -10 with a +2 step visits -10, -8, ..., 8 and never
+        // equals -7, so the program executes successfully. A negative-lower non-unit step is not
+        // simplified, so the constraint is left in place and execution is unaffected by the pass.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(i32 4294967286)
+          b1(v0: i32):
+            v3 = lt v0, i32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != i32 4294967289
+            v6 = add v0, i32 2
+            jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn negative_lower_on_lattice_constrain_not_equal_rejects() {
+        // Same loop, but the constrained value `-6` *is* visited (-10, -8, -6, ...). The original
+        // fails when `v0` reaches -6, and leaving the non-unit-step constraint unsimplified must
+        // keep rejecting it. (-6 is i32 4294967290.)
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(i32 4294967286)
+          b1(v0: i32):
+            v3 = lt v0, i32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != i32 4294967290
+            v6 = add v0, i32 2
+            jmp b1(v6)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let before = ssa.interpret(Vec::new());
+        let after = ssa.loop_invariant_code_motion().interpret(Vec::new());
+        assert!(before.is_err(), "the original program should fail when v0 reaches -6");
+        assert!(after.is_err(), "the rewrite must keep rejecting the program when v0 reaches -6");
+    }
+
+    #[test]
+    fn negative_lower_non_unit_step_constrain_not_equal_is_not_simplified() {
+        // For a negative `lower` (-10, step 3) the induction variable visits -10, -7, -4, -1, 2,
+        // 5, 8. A negative-lower non-unit step is not simplified, so the `constrain v0 != v1` is
+        // left untouched in the loop body rather than hoisted with a Euclidean residue test.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i32):
+            jmp b1(i32 4294967286)
+          b1(v1: i32):
+            v3 = lt v1, i32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v0 != v1
+            v5 = unchecked_add v1, i32 3
+            jmp b1(v5)
           b3():
             return
         }
