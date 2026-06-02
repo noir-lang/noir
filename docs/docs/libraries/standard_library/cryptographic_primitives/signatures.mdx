@@ -1,12 +1,16 @@
 ---
-title: ECDSA Signature Verification
-description: Learn about the cryptographic primitives regarding ECDSA over the secp256k1 and secp256r1 curves
-keywords: [cryptographic primitives, Noir project, ecdsa, secp256k1, secp256r1, signatures]
+title: Signatures
+description: Learn about signature verification in Noir, including the standard library's ECDSA verification over the secp256k1 and secp256r1 curves and signature libraries maintained outside of it
+keywords: [cryptographic primitives, Noir project, signatures, ecdsa, secp256k1, secp256r1, eddsa, schnorr, rsa]
 ---
 
 import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
 
-Noir supports ECDSA signatures verification over the secp256k1 and secp256r1 curves.
+:::tip
+
+Many signature schemes are maintained as independent libraries outside of the standard library (e.g. EdDSA, RSA, Schnorr). You can find the complete list in Awesome Noir's [Signatures section](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#signatures).
+
+:::
 
 ## ecdsa_secp256k1::verify_signature
 

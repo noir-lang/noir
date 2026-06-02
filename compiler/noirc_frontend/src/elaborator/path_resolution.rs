@@ -838,6 +838,12 @@ impl Elaborator<'_> {
             errors.push(PathResolutionError::Private(name.clone()));
         }
 
+        // An item brought into scope by an import that is not visible from here (kept in scope only
+        // because a colliding item in the other namespace was visible) is private when referenced.
+        if self.get_module(current_module_id).is_private_import_deferred(module_def_id) {
+            errors.push(PathResolutionError::Private(name.clone()));
+        }
+
         // A trait method imported via `Type::method` must also be reachable through its trait's
         // visibility (e.g. a `pub(crate) trait` is not accessible from another crate, even if the
         // method's own visibility check above passes).
