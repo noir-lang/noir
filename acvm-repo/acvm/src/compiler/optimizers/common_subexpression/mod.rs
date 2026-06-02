@@ -1,32 +1,65 @@
-/// This module applies backend specific transformations to a [`Circuit`].
-///
-/// ## CSAT: transforms AssertZero opcodes into AssertZero opcodes having the required width.
-///
-/// For instance, if the width is 4, the AssertZero opcode x1 + x2 + x3 + x4 + x5 - y = 0 will be transformed using 2 intermediate variables (z1,z2):
-/// x1 + x2 + x3 = z1
-/// x4 + x5 = z2
-/// z1 + z2 - y = 0
-/// If x1,..x5 are inputs to the program, they are tagged as 'solvable', and would be used to compute the value of y.
-/// If we generate the intermediate variable x4 + x5 - y = z3, we get an unsolvable circuit because this AssertZero opcode will have two unknown values: y and z3
-/// So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate solvable intermediate variables.
-///
-/// ## Eliminate intermediate variables
-///
-/// The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
-/// that are used in exactly two AssertZero opcodes.
-/// This results in arithmetic opcodes having linear combinations of potentially large width.
-/// For instance if the intermediate variable is z1 and is only used in y:
-/// z1 = x1 + x2 + x3
-/// y = z1 + x4
-/// We remove it, undoing the work done during the CSAT transformation: y = x1 + x2 + x3 + x4
-///
-/// We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
-/// than the 'CSAT transformation'.
-/// However, it is worthwhile to compute intermediate variables if they are used in more than one other opcode.
-///
-/// ## redundant_range
-///
-/// The 'range optimization' pass, from the optimizers module, will remove any redundant range opcodes.
+//! The `CommonSubexpressionOptimizer`: a meta-transformer which factors common subexpressions out
+//! of a [`Circuit`] into intermediate witnesses, reducing the total number of opcodes.
+//!
+//! The name comes from its net effect. The sub-passes below collectively detect subexpressions that
+//! the circuit computes more than once and bind each of them to a single intermediate witness, so
+//! the value is constrained once and then reused. [`csat::CSatTransformer`] is the pass that *forms*
+//! the candidate subexpressions (by slicing wide expressions into backend-width-sized chunks, caching
+//! identical chunks so the same subexpression maps to the same witness), and
+//! [`merge_expressions::MergeExpressionsOptimizer`] is the pass that *discards* the candidates which
+//! turned out not to be common (those used in only two opcodes are merged back). What survives are the
+//! genuinely shared subexpressions.
+//!
+//! ## On opcode "width"
+//!
+//! Several passes here are parameterized by a `width`. This is **not** a hard upper bound on the size
+//! of an emitted opcode: ACIR places no limit on how many terms an `AssertZero` opcode may contain,
+//! and proving backends are expected to handle linear combinations of unbounded width. The `width` is
+//! a heuristic target that controls the granularity at which the [`csat::CSatTransformer`] slices
+//! expressions, which in turn determines which subexpressions become reuse candidates. Because it is
+//! only a target, an emitted opcode may legitimately exceed it — see [`csat::CSatTransformer`] for the
+//! cases where this happens (e.g. an opcode whose sole unknown sits inside a multiplication term, which
+//! cannot be sliced without making the circuit unsolvable). Solvability, checked by
+//! [`crate::compiler::CircuitSimulator`], is the property these passes actually preserve; width is not.
+//!
+//! ## Sub-passes
+//!
+//! ### CSAT: slices AssertZero opcodes towards the backend's preferred width.
+//!
+//! For instance, with a width of 4, the AssertZero opcode `x1 + x2 + x3 + x4 + x5 - y = 0` is sliced using
+//! 2 intermediate variables (z1, z2):
+//! ```text
+//! x1 + x2 + x3 = z1
+//! x4 + x5 = z2
+//! z1 + z2 - y = 0
+//! ```
+//! If x1,..x5 are inputs to the program, they are tagged as 'solvable', and would be used to compute the value of y.
+//! If we generated the intermediate variable `x4 + x5 - y = z3` instead, we would get an unsolvable circuit because
+//! that AssertZero opcode has two unknown values: y and z3.
+//! So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate
+//! solvable intermediate variables. Identical slices are cached, so a subexpression appearing in several opcodes is
+//! assigned a single shared intermediate witness — this is where the common subexpressions are formed.
+//!
+//! ### Eliminate intermediate variables
+//!
+//! The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
+//! that are used in exactly two AssertZero opcodes.
+//! This results in arithmetic opcodes having linear combinations of potentially large width.
+//! For instance if the intermediate variable is z1 and is only used in y:
+//! ```text
+//! z1 = x1 + x2 + x3
+//! y = z1 + x4
+//! ```
+//! We remove it, undoing the work done during the CSAT transformation: `y = x1 + x2 + x3 + x4`.
+//!
+//! We do this because the backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
+//! than the 'CSAT transformation'.
+//! However, it is worthwhile to keep an intermediate variable if it is used in more than two opcodes: that is precisely a
+//! common subexpression, and materializing it once is cheaper than recomputing it in each opcode.
+//!
+//! ### redundant_range
+//!
+//! The 'range optimization' pass, from the optimizers module, will remove any redundant range opcodes.
 use std::collections::BTreeMap;
 
 use acir::{
@@ -76,8 +109,8 @@ pub(super) fn transform_internal<F: AcirField>(
 
     // Allow multiple passes until we have stable output.
     // We use opcode count rather than a structural hash as the convergence signal,
-    // because intermediate variables are created in step 1. to fits the width and then
-    // sometimes are removed in step 2. to benefit from the 'big-add' gates of the proving system.
+    // because intermediate variables are created in step 1. to slice expressions towards the width
+    // and then sometimes are removed in step 2. to benefit from the 'big-add' gates of the proving system.
     // Opcode count tracks the metric we actually care about.
     let mut prev_opcode_count = acir.opcodes.len();
 
@@ -110,9 +143,8 @@ pub(super) fn transform_internal<F: AcirField>(
 
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
-/// If the width is unbounded, it does nothing.
-/// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
-/// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
+/// It first performs the 'CSAT transformation' in one pass, slicing wide expressions into intermediate variables.
+/// Then it performs `eliminate_intermediate_variable()` which (re-)combines intermediate variables used only twice.
 /// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
 ///
 /// Pre-Conditions:
@@ -128,8 +160,8 @@ fn transform_internal_once<F: AcirField>(
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
     // 1. CSAT transformation
-    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
-    // to the required width by creating intermediate variables.
+    // Process each opcode in the circuit by marking the solvable witnesses and slicing the AssertZero opcodes
+    // towards the backend's preferred width by creating intermediate variables.
     // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
     let mut transformer = CSatTransformer::new(4);
     for value in acir.circuit_arguments() {
@@ -137,7 +169,7 @@ fn transform_internal_once<F: AcirField>(
     }
 
     let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
-    // Optimize the assert-zero gates by reducing them into the correct width and
+    // Optimize the assert-zero gates by slicing them towards the backend's preferred width and
     // creating intermediate variables when necessary
     let mut transformed_opcodes = Vec::new();
 
@@ -486,8 +518,43 @@ where
 mod tests {
     use super::transform_internal;
     use crate::compiler::CircuitSimulator;
-    use acir::circuit::{Circuit, brillig::BrilligFunctionId};
+    use acir::FieldElement;
+    use acir::circuit::{Circuit, Opcode, brillig::BrilligFunctionId};
     use std::collections::BTreeMap;
+
+    #[test]
+    fn assert_zero_solving_for_a_multiplication_unknown_is_kept_intact() {
+        // An AssertZero whose only unknown (`w1`, the return value) sits inside a multiplication term,
+        // alongside `width` solvable linear terms: `w0*w1 = w2 + w3 + w4 + w5`.
+        //
+        // The multiplication term cannot be hoisted into an intermediate variable (the intermediate
+        // would be unsolvable, as it depends on the unknown `w1`), and the opcode as a whole is what
+        // solves `w1`. So the transformer must emit it unchanged, as a single opcode whose `width()`
+        // exceeds the `width` of 4. ACIR places no upper bound on opcode width, so this is valid; the
+        // property that matters is that the circuit stays solvable.
+        let src = r#"private parameters: [w0, w2, w3, w4, w5]
+        public parameters: []
+        return values: [w1]
+        ASSERT w0*w1 = w2 + w3 + w4 + w5
+        "#;
+        let acir = Circuit::<FieldElement>::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&acir).is_none());
+
+        let acir_opcode_positions = (0..acir.opcodes.len()).collect();
+        let (transformed, _, _) =
+            transform_internal(acir, acir_opcode_positions, &BTreeMap::new(), None);
+
+        // The opcode is emitted as-is: a single AssertZero with its multiplication term retained.
+        assert_eq!(transformed.opcodes.len(), 1);
+        let Opcode::AssertZero(expr) = &transformed.opcodes[0] else {
+            panic!("expected a single AssertZero opcode");
+        };
+        assert_eq!(expr.mul_terms.len(), 1, "the multiplication term must be preserved");
+        assert!(expr.width() > 4, "the opcode is wider than the target width, as expected");
+
+        // The transformed circuit remains solvable, which is the contract the transformer upholds.
+        assert!(CircuitSimulator::check_circuit(&transformed).is_none());
+    }
 
     #[test]
     fn test_max_transformer_passes() {
