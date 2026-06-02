@@ -63,6 +63,10 @@ pub enum RuntimeError {
     #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedVectorReturnToConstrained { call_stack: CallStack },
     #[error(
+        "Cannot dispatch to an unconstrained function value from a constrained runtime: its signature passes an unsupported reference (a nested reference, or a reference inside an aggregate) or returns a reference, vector, or function across the boundary"
+    )]
+    InvalidUnconstrainedDispatch { call_stack: CallStack },
+    #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
@@ -141,6 +145,7 @@ impl RuntimeError {
             | RuntimeError::NestedVector { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedVectorReturnToConstrained { call_stack }
+            | RuntimeError::InvalidUnconstrainedDispatch { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }
