@@ -10,7 +10,7 @@ use noirc_frontend::ast::BinaryOpKind;
 use noirc_frontend::monomorphization::ast::{
     self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
 };
-use noirc_frontend::shared::Signedness;
+use noirc_frontend::shared::{Signedness, Visibility};
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -1094,6 +1094,26 @@ impl SharedContext {
         self.functions.write().expect("Failed to write to self.functions").insert(id, next_id);
 
         next_id
+    }
+
+    /// The field count and visibility of each entry point's parameters, keyed by the SSA function
+    /// id the entry point was assigned. This pairs the visibility (only known in the monomorphized
+    /// AST) with the SSA function id so ACIR generation can split a circuit's inputs into public
+    /// and private parameters.
+    pub(super) fn entry_point_signatures(&self) -> BTreeMap<IrFunctionId, Vec<(u32, Visibility)>> {
+        let functions = self.functions.read().expect("Failed to read self.functions");
+        functions
+            .iter()
+            .filter_map(|(func_id, ssa_id)| {
+                let function = &self.program[*func_id];
+                function.is_entry_point.then(|| {
+                    let signature = vecmap(&function.parameters, |(_, _, _, typ, visibility)| {
+                        (typ.entry_point_field_count(), *visibility)
+                    });
+                    (*ssa_id, signature)
+                })
+            })
+            .collect()
     }
 }
 

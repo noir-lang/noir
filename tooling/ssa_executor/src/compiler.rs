@@ -12,7 +12,6 @@ use noirc_evaluator::{
         ssa_gen::{Ssa, validate_ssa},
     },
 };
-use noirc_frontend::shared::Visibility;
 use std::panic::AssertUnwindSafe;
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -69,20 +68,8 @@ pub fn optimize_ssa_into_acir(
 /// Compiles the given FunctionBuilder into a CompiledProgram
 /// its taken from noirc_driver::compile_no_check, but modified to accept ArtifactsAndWarnings
 pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgram {
-    let dummy_arg_info: Vec<Vec<(u32, Visibility)>> = artifacts
-        .0
-        .0
-        .iter()
-        .map(|acir| vec![(acir.input_witnesses.len() as u32, Visibility::Private)])
-        .collect();
-
-    let SsaProgramArtifact { program, debug, warnings, .. } = combine_artifacts(
-        artifacts,
-        &dummy_arg_info,
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-    );
+    let SsaProgramArtifact { program, debug, warnings, .. } =
+        combine_artifacts(artifacts, BTreeMap::new(), BTreeMap::new(), BTreeMap::new());
     let file_map = BTreeMap::new();
     CompiledProgram {
         hash: 1, // const hash, doesn't matter in this case

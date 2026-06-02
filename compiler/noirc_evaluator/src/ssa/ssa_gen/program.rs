@@ -12,6 +12,7 @@ use crate::ssa::ir::{
     value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
+use noirc_frontend::shared::Visibility;
 
 use super::ValueId;
 
@@ -34,6 +35,14 @@ pub struct Ssa {
     // ABI not the actual SSA IR.
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+    /// Field count and visibility of each entry point's parameters, keyed by SSA function id.
+    ///
+    /// The visibility of a parameter is only known in the monomorphized AST, not the SSA, so it
+    /// is captured during SSA generation and carried here keyed by the SSA function id the entry
+    /// point was assigned. ACIR generation looks it up to split a circuit's input witnesses into
+    /// public and private parameters.
+    #[serde(skip)]
+    pub entry_point_signatures: BTreeMap<FunctionId, Vec<(u32, Visibility)>>,
 }
 
 impl Ssa {
@@ -54,7 +63,19 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            entry_point_signatures: BTreeMap::new(),
         }
+    }
+
+    /// The field count and visibility of `function`'s parameters, if it is an entry point that
+    /// recorded its signature during SSA generation. ACIR generation falls back to treating all
+    /// inputs as private when this is absent (e.g. for SSA parsed from text, which has no
+    /// visibility information).
+    pub(crate) fn entry_point_signature(
+        &self,
+        function: FunctionId,
+    ) -> Option<&Vec<(u32, Visibility)>> {
+        self.entry_point_signatures.get(&function)
     }
 
     /// Returns the entry-point function of the program

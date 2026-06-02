@@ -135,7 +135,8 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    let ssa = function_context.builder.finish();
+    let mut ssa = function_context.builder.finish();
+    ssa.entry_point_signatures = context.entry_point_signatures();
 
     validate_ssa_or_err(ssa)
 }

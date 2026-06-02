@@ -33,8 +33,6 @@ use acvm::{
 };
 
 use ir::instruction::ErrorType;
-use iter_extended::vecmap;
-use itertools::Itertools;
 use noirc_artifacts::{
     debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
@@ -42,7 +40,7 @@ use noirc_artifacts::{
 use noirc_errors::call_stack::CallStackId;
 
 use noirc_frontend::monomorphization::ast::Program;
-use noirc_frontend::{monomorphization::ast, shared::Visibility};
+use noirc_frontend::shared::Visibility;
 use ssa_gen::Ssa;
 use tracing::{Level, span};
 
@@ -552,23 +550,13 @@ pub fn create_program_with_passes(
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
 
-    let entry_points = program.functions.iter().filter(|function| function.is_entry_point);
-    let arg_size_and_visibilities = vecmap(entry_points, resolve_function_signature);
-
     let artifacts = optimize_into_acir(program, options, passes, files)?;
 
-    Ok(combine_artifacts(
-        artifacts,
-        &arg_size_and_visibilities,
-        debug_variables,
-        debug_functions,
-        debug_types,
-    ))
+    Ok(combine_artifacts(artifacts, debug_variables, debug_functions, debug_types))
 }
 
 pub fn combine_artifacts(
     artifacts: ArtifactsAndWarnings,
-    arg_size_and_visibilities: &[Vec<(u32, Visibility)>],
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -576,18 +564,11 @@ pub fn combine_artifacts(
     let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
         artifacts;
 
-    assert_eq!(
-        generated_acirs.len(),
-        arg_size_and_visibilities.len(),
-        "The generated ACIRs should match the supplied function signatures"
-    );
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
-        .zip_eq(arg_size_and_visibilities)
-        .map(|(acir, arg_size_and_visibility)| {
+        .map(|acir| {
             convert_generated_acir_into_circuit(
                 acir,
-                arg_size_and_visibility,
                 // TODO: get rid of these clones
                 debug_variables.clone(),
                 debug_functions.clone(),
@@ -604,18 +585,8 @@ pub fn combine_artifacts(
     SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
-/// Given a function, return each parameter's field count and visibility
-fn resolve_function_signature(function: &ast::Function) -> Vec<(u32, Visibility)> {
-    function
-        .parameters
-        .iter()
-        .map(|(_, _, _, typ, visibility)| (typ.entry_point_field_count(), *visibility))
-        .collect()
-}
-
 pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
-    arg_size_and_visibility: &[(u32, Visibility)],
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -631,11 +602,12 @@ pub fn convert_generated_acir_into_circuit(
         warnings,
         name,
         brillig_procedure_locs,
+        arg_size_and_visibility,
         ..
     } = generated_acir;
 
     let (public_parameter_witnesses, private_parameters) =
-        split_public_and_private_inputs(arg_size_and_visibility, &input_witnesses);
+        split_public_and_private_inputs(&arg_size_and_visibility, &input_witnesses);
 
     let public_parameters = PublicInputs(public_parameter_witnesses);
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());

@@ -1611,10 +1611,10 @@ mod tests {
 
             context.bound_constraint_with_offset(lhs, rhs, offset_var, 128, one).unwrap();
 
-            let circuit = context.finish(Vec::new(), Vec::new());
+            let mut circuit = context.finish(Vec::new(), Vec::new());
+            circuit.arg_size_and_visibility = vec![(1, Visibility::Private)];
             let circuit = convert_generated_acir_into_circuit(
                 circuit,
-                &[(1, Visibility::Private)],
                 BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
@@ -1666,10 +1666,10 @@ mod tests {
 
         context.bound_constraint_with_offset(lhs, rhs, one, 128, one).unwrap();
 
-        let circuit = context.finish(Vec::new(), Vec::new());
+        let mut circuit = context.finish(Vec::new(), Vec::new());
+        circuit.arg_size_and_visibility = vec![(1, Visibility::Private)];
         let circuit = convert_generated_acir_into_circuit(
             circuit,
-            &[(1, Visibility::Private)],
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

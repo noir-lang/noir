@@ -45,38 +45,18 @@ pub(crate) fn try_ssa_to_acir(
     src: &str,
 ) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
-    let arg_size_and_visibilities = ssa
-        .functions
-        .iter()
-        .filter(|(id, function)| {
-            function.runtime().is_acir()
-                && (**id == ssa.main_id || function.runtime().is_entry_point())
-        })
-        .map(|(_, function)| {
-            // Make all arguments private for the sake of simplicity.
-            let param_size: u32 = function
-                .parameters()
-                .iter()
-                .map(|param| function.dfg.type_of_value(*param).flattened_size().0)
-                .sum();
-            vec![(param_size, Visibility::Private)]
-        })
-        .collect::<Vec<_>>();
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
+    // SSA parsed from text has no parameter visibility, so ACIR generation treats every input as
+    // private (see `codegen_acir`).
     let (acir_functions, brillig_functions, _) =
         ssa.generate_entry_point_index().into_acir(&brillig, &BrilligOptions::default())?;
 
     let artifacts =
         ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
-    let program_artifact = combine_artifacts(
-        artifacts,
-        &arg_size_and_visibilities,
-        BTreeMap::default(),
-        BTreeMap::default(),
-        BTreeMap::default(),
-    );
+    let program_artifact =
+        combine_artifacts(artifacts, BTreeMap::default(), BTreeMap::default(), BTreeMap::default());
     let program = program_artifact.program;
     let debug = program_artifact.debug;
     Ok((program, debug))

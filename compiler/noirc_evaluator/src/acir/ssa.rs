@@ -5,6 +5,7 @@ use acvm::{
     acir::circuit::{ErrorSelector, brillig::BrilligBytecode},
 };
 use noirc_frontend::Type as HirType;
+use noirc_frontend::shared::Visibility;
 
 use crate::{
     brillig::{Brillig, BrilligOptions},
@@ -75,6 +76,23 @@ pub(super) fn codegen_acir(
             }
 
             generated_acir.name = function.name().to_owned();
+            // Attach the entry point's parameter signature, used to split the input witnesses
+            // into public and private parameters. SSA parsed from text carries no visibility,
+            // so fall back to treating every input as private.
+            generated_acir.arg_size_and_visibility = match ssa.entry_point_signature(function.id())
+            {
+                Some(signature) => signature.clone(),
+                None => {
+                    // When SSA is generated from a program every ACIR entry point is queued and
+                    // recorded under its assigned function id, so a signature is always present.
+                    assert!(
+                        ssa.entry_point_signatures.is_empty(),
+                        "entry point {} has no recorded parameter signature",
+                        function.id()
+                    );
+                    vec![(generated_acir.input_witnesses.len() as u32, Visibility::Private)]
+                }
+            };
             acirs.push(generated_acir);
         }
     }

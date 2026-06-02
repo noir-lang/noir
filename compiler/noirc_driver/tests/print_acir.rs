@@ -114,14 +114,14 @@ fn print_acir_keeps_fold_signatures_with_their_circuits() {
     ASSERT w2 = w3 + w4
 
     func 1
-    private parameters: []
-    public parameters: [w0]
+    private parameters: [w0]
+    public parameters: []
     return values: [w1]
     ASSERT w1 = w0 + 2
 
     func 2
-    private parameters: [w0]
-    public parameters: []
+    private parameters: []
+    public parameters: [w0]
     return values: [w1]
     ASSERT w1 = w0 + 1
     ");

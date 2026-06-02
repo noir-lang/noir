@@ -19,6 +19,7 @@ use acvm::acir::{
     native_types::{Expression, Witness},
 };
 use noirc_artifacts::{debug::ProcedureDebugId, ssa::SsaReport};
+use noirc_frontend::shared::Visibility;
 
 use crate::{
     ErrorType,
@@ -56,6 +57,11 @@ pub struct GeneratedAcir<F: AcirField> {
 
     /// All witness indices which are inputs to the main function
     pub input_witnesses: Vec<Witness>,
+
+    /// Field count and visibility of each entry point parameter, in parameter order.
+    /// Used to split `input_witnesses` into public and private parameters when assembling
+    /// the final circuit.
+    pub arg_size_and_visibility: Vec<(u32, Visibility)>,
 
     /// Brillig function id -> Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
