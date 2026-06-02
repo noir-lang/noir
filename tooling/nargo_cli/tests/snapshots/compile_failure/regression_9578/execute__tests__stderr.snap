@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Reference `(u32, &mut (), ())` cannot be passed to an oracle function
+   ┌─ std/lib.nr:35:5
+   │
+35 │     print_oracle(with_newline, input);
+   │     ------------
+   │
+
+Aborting due to 1 previous error
