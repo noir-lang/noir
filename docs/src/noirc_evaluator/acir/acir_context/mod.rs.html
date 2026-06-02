@@ -1698,4 +1698,26 @@
 <a href=#1698 id=1698 data-nosnippet>1698</a>
 <a href=#1699 id=1699 data-nosnippet>1699</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
 <a href=#1700 id=1700 data-nosnippet>1700</a>    }
-<a href=#1701 id=1701 data-nosnippet>1701</a>}</code></pre></div></section></main></body></html>
+<a href=#1701 id=1701 data-nosnippet>1701</a>
+<a href=#1702 id=1702 data-nosnippet>1702</a>    <span class="doccomment">/// Exercise bound_constraint_with_offset() with the invalid inputs:
+<a href=#1703 id=1703 data-nosnippet>1703</a>    /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
+<a href=#1704 id=1704 data-nosnippet>1704</a>    </span><span class="attr">#[test]
+<a href=#1705 id=1705 data-nosnippet>1705</a>    #[should_panic = <span class="string">"range check with bit size + 1 &gt;= the prime field bit size is not implemented yet"</span>]
+<a href=#1706 id=1706 data-nosnippet>1706</a>    </span><span class="kw">fn </span>bound_constraint_shifted_path_rhs_const() {
+<a href=#1707 id=1707 data-nosnippet>1707</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
+<a href=#1708 id=1708 data-nosnippet>1708</a>
+<a href=#1709 id=1709 data-nosnippet>1709</a>        <span class="kw">let </span>bits = <span class="number">253</span>;
+<a href=#1710 id=1710 data-nosnippet>1710</a>
+<a href=#1711 id=1711 data-nosnippet>1711</a>        <span class="kw">let </span>lhs = context.add_variable();
+<a href=#1712 id=1712 data-nosnippet>1712</a>        <span class="kw">let </span>rhs = context.add_variable();
+<a href=#1713 id=1713 data-nosnippet>1713</a>        <span class="kw">let </span>predicate = context.add_variable();
+<a href=#1714 id=1714 data-nosnippet>1714</a>        <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
+<a href=#1715 id=1715 data-nosnippet>1715</a>
+<a href=#1716 id=1716 data-nosnippet>1716</a>        <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
+<a href=#1717 id=1717 data-nosnippet>1717</a>        <span class="kw">let </span>rhs_witness = context.var_to_witness(rhs).unwrap();
+<a href=#1718 id=1718 data-nosnippet>1718</a>        <span class="kw">let </span>predicate_witness = context.var_to_witness(predicate).unwrap();
+<a href=#1719 id=1719 data-nosnippet>1719</a>        context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness, rhs_witness, predicate_witness];
+<a href=#1720 id=1720 data-nosnippet>1720</a>
+<a href=#1721 id=1721 data-nosnippet>1721</a>        context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
+<a href=#1722 id=1722 data-nosnippet>1722</a>    }
+<a href=#1723 id=1723 data-nosnippet>1723</a>}</code></pre></div></section></main></body></html>
