@@ -52,6 +52,8 @@ members = [
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
     "tooling/ssa_executor",
+    # USB portable verifier
+    "tooling/usb-verifier-rs",
 ]
 default-members = [
     "tooling/nargo_cli",
