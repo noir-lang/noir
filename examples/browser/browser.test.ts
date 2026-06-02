@@ -50,7 +50,15 @@ function createStaticServer(rootDir: string): http.Server {
           '.wasm': 'application/wasm',
         }[ext] || 'application/octet-stream';
 
-      res.writeHead(200, { 'Content-Type': contentType });
+      // Serve every response cross-origin isolated. This makes SharedArrayBuffer
+      // available in the page, which Barretenberg requires to run proving across
+      // multiple Web Worker threads. Any host serving a Noir app should send the
+      // same two headers to get multithreaded proving.
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      });
       res.end(data);
     });
   });
@@ -77,6 +85,16 @@ test.describe('Noir Web App', () => {
         server.close(() => resolve());
       });
     }
+  });
+
+  test('page is cross-origin isolated so proving can use multiple threads', async ({ page }) => {
+    await page.goto(`http://localhost:${SERVER_PORT}`);
+
+    // SharedArrayBuffer is only exposed to cross-origin isolated pages, and
+    // Barretenberg needs it to spawn proving threads. If this regresses, proving
+    // silently falls back to a single thread.
+    expect(await page.evaluate(() => self.crossOriginIsolated)).toBe(true);
+    expect(await page.evaluate(() => typeof SharedArrayBuffer)).toBe('function');
   });
 
   test('should generate and verify proof for valid age', async ({ page }) => {
