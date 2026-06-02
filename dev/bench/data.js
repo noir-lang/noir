@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780421497993,
+  "lastUpdate": 1780421674730,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23061,48 +23061,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f5f13815866097e3613af212bcf06a281bc51104",
-          "message": "fix(acvm): require recursive aggregation operands in validate_witness (#12795)",
-          "timestamp": "2026-05-26T14:47:51Z",
-          "tree_id": "42b702cc89c0b66808c683bbb7f637faef70cc8d",
-          "url": "https://github.com/noir-lang/noir/commit/f5f13815866097e3613af212bcf06a281bc51104"
-        },
-        "date": 1779808376512,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170528,
-            "range": "± 323",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140278,
-            "range": "± 3994",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653330,
-            "range": "± 17399",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25154,6 +25112,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647396,
             "range": "± 37397",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c19a51046078c121a70fe2454256b19767ab69c8",
+          "message": "fix: loop invariant equality check simplification works with non-unit steps (#12861)",
+          "timestamp": "2026-06-02T17:07:11Z",
+          "tree_id": "5c1ee55af587bcf25cc4f64509138ab175e2d20f",
+          "url": "https://github.com/noir-lang/noir/commit/c19a51046078c121a70fe2454256b19767ab69c8"
+        },
+        "date": 1780421608391,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167959,
+            "range": "± 1671",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136680,
+            "range": "± 2434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646523,
+            "range": "± 3059",
             "unit": "ns/iter"
           }
         ]
