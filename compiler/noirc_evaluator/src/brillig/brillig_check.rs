@@ -582,21 +582,11 @@ trait OpcodeAddressVisitor {
                 self.read_heap_array(scalars, location);
                 self.write_heap_array(outputs, location);
             }
-            BlackBoxOp::EmbeddedCurveAdd {
-                input1_x,
-                input1_y,
-                input1_infinite,
-                input2_x,
-                input2_y,
-                input2_infinite,
-                result,
-            } => {
+            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
                 self.read(input1_x, location);
                 self.read(input1_y, location);
-                self.read(input1_infinite, location);
                 self.read(input2_x, location);
                 self.read(input2_y, location);
-                self.read(input2_infinite, location);
                 self.write_heap_array(result, location);
             }
             BlackBoxOp::Poseidon2Permutation { message, output } => {

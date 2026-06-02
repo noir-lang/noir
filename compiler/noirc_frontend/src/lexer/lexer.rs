@@ -111,8 +111,6 @@ impl<'a> Lexer<'a> {
             let start = self.position;
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
-        } else if self.peek_char_is('[') {
-            self.single_char_token(Token::DeprecatedVectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }

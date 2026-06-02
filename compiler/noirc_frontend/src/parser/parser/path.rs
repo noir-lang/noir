@@ -113,15 +113,12 @@ impl Parser<'_> {
         let mut segments = Vec::new();
 
         if self.at_ident_token() {
-            loop {
-                // In `parsing_quote_body` mode we may enter this iteration after
-                // optimistically committing to a `::` whose follow token is `$` (we
-                // only have one token of lookahead). If it turns out to be `$(...)`
-                // instead of `$ident`, `eat_ident` returns None and we bail out
-                // here rather than panicking.
-                let Some(ident) = self.eat_ident() else {
-                    break;
-                };
+            // In `parsing_quote_body` mode we may enter this iteration after
+            // optimistically committing to a `::` whose follow token is `$` (we
+            // only have one token of lookahead). If it turns out to be `$(...)`
+            // instead of `$ident`, `eat_ident` returns None and we bail out
+            // here rather than panicking.
+            while let Some(ident) = self.eat_ident() {
                 let location = ident.location();
 
                 let generics = if allow_turbofish
@@ -260,13 +257,11 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
 
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{Path, PathKind},
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -386,15 +381,10 @@ mod tests {
     #[test]
     fn errors_on_crate_double_colons() {
         let src = "
-        crate:: 
-               ^
+        crate::
+              ^ Expected an identifier but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let path = parser.parse_path();
+        let path = check_errors(src, |parser| parser.parse_path());
         assert!(path.is_none());
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

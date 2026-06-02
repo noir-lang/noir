@@ -85,7 +85,12 @@ impl PathResolutionError {
 pub struct ResolvedImport {
     // The symbol which we have resolved to
     pub namespace: PerNs,
-    // The module which we must add the resolved namespace to
+    // An item in `namespace` that is not visible from the importing module, yet is still brought
+    // into scope because the colliding item in the other namespace made the import legal. Referencing
+    // it reports a privacy error at the use site (see `ModuleData::defer_private_import`). At most one
+    // item can be in this situation, since a name resolves to at most one type and one value.
+    pub deferred_private: Option<ModuleDefId>,
+    // Errors encountered while resolving the import.
     pub errors: Vec<PathResolutionError>,
 }
 
@@ -361,6 +366,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         if path.segments.is_empty() {
             return Ok(ResolvedImport {
                 namespace: PerNs::types(starting_module.into()),
+                deferred_private: None,
                 errors: Vec::new(),
             });
         }
@@ -437,16 +443,39 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             current_ns = found_ns;
         }
 
-        let (module_def_id, visibility, _) =
+        let (module_def_id, _, _) =
             current_ns.values.or(current_ns.types).expect("Found empty namespace");
 
         self.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), false);
 
-        if !self.item_in_module_is_visible(current_module_id, visibility) {
+        // The final segment resolves to at most one item in the type namespace and one in the value
+        // namespace. Evaluate the visibility of each occupied slot independently.
+        let type_item = current_ns
+            .types
+            .map(|(id, vis, _)| (id, self.item_in_module_is_visible(current_module_id, vis)));
+        let value_item = current_ns
+            .values
+            .map(|(id, vis, _)| (id, self.item_in_module_is_visible(current_module_id, vis)));
+
+        let both_namespaces_occupied = type_item.is_some() && value_item.is_some();
+        let any_visible = [type_item, value_item].into_iter().flatten().any(|(_, visible)| visible);
+
+        let mut deferred_private = None;
+        if both_namespaces_occupied && any_visible {
+            // A name collision where at least one item is visible, so the import itself is legal.
+            // The other item, if it is private, is still brought into scope; referencing it is
+            // reported as a privacy error at the use site rather than here. Since at most one of the
+            // two slots can be invisible in this branch, there is at most one such item.
+            deferred_private = [type_item, value_item]
+                .into_iter()
+                .flatten()
+                .find_map(|(id, visible)| (!visible).then_some(id));
+        } else if !any_visible {
+            // A single private item, or a collision where both items are private: report it here.
             errors.push(PathResolutionError::Private(path.last_ident()));
         }
 
-        Ok(ResolvedImport { namespace: current_ns, errors })
+        Ok(ResolvedImport { namespace: current_ns, deferred_private, errors })
     }
 
     fn add_reference(

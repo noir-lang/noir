@@ -110,8 +110,6 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// &
-    DeprecatedVectorStart,
     /// @
     At,
     /// ^
@@ -388,7 +386,6 @@ impl Display for Token {
             Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::DeprecatedVectorStart => write!(f, "&"),
             Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
