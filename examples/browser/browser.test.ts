@@ -56,15 +56,6 @@ function createStaticServer(rootDir: string): http.Server {
   });
 }
 
-// Barretenberg fetches CRS data from https://crs.aztec.network/ which doesn't
-// serve CORS headers. Disable web security so these cross-origin fetches work.
-// It should return a `Access-Control-Allow-Origin: *` header to make it work.
-test.use({
-  launchOptions: {
-    args: ['--disable-web-security'],
-  },
-});
-
 test.describe('Noir Web App', () => {
   test.beforeAll(async () => {
     // Serve the pre-built files from the dist directory
