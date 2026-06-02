@@ -1,0 +1,6 @@
+[package]
+name = "test_nargo"
+type = "bin"
+authors = [""]
+
+[dependencies]
