@@ -1148,10 +1148,11 @@ mod tests {
     }
 
     #[test]
-    fn hoist_not_equal_with_non_unit_step_no_match() {
+    fn non_unit_step_constrain_not_equal_is_not_simplified() {
         // The induction variable starts at 0 and advances by +2 each iteration, so it takes
-        // the values 0, 2, 4, 6, 8 and exits — it never equals 3. `constrain v0 != 3` therefore
-        // always holds and the program executes successfully.
+        // the values 0, 2, 4, 6, 8 and exits — it never equals 3. A non-unit step is not
+        // simplified (only steps 0 and 1 are handled), so the `!= 3` constraint is left in the
+        // loop body unchanged rather than hoisted to the pre-header.
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -1167,30 +1168,15 @@ mod tests {
             return
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
-          b0():
-            jmp b1(u32 0)
-          b1(v0: u32):
-            v3 = lt v0, u32 10
-            jmpif v3 then: b2(), else: b3()
-          b2():
-            v5 = unchecked_add v0, u32 2
-            jmp b1(v5)
-          b3():
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
-    fn hoist_not_equal_with_non_unit_step_match() {
-        // Same as hoist_not_equal_with_non_unit_step_no_match, but now the constrained constant
-        //`4` *is* visited by the +2 induction variable (0, 2, 4, ...).
-        // The original program fails when `v0` reaches 4,
-        // and the rewrite must preserve that failure.
+    fn non_unit_step_constrain_not_equal_preserves_failure() {
+        // Same as non_unit_step_constrain_not_equal_is_not_simplified, but now the constrained
+        // constant `4` *is* visited by the +2 induction variable (0, 2, 4, ...), so the program
+        // fails when `v0` reaches 4. Leaving the constraint unsimplified must preserve that
+        // failure exactly.
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -1206,21 +1192,16 @@ mod tests {
             return
         }
         "#;
-        // `assert_pass_does_not_affect_execution` can't be used here: it compares the exact
-        // error value, but the rewrite naturally turns a `ConstrainNe` failure into a
-        // `ConstrainEq` failure.
         let ssa = Ssa::from_str(src).unwrap();
-        let before = ssa.interpret(Vec::new());
-        let after = ssa.loop_invariant_code_motion().interpret(Vec::new());
-        assert!(before.is_err(), "the original program should fail when v0 reaches 4");
-        assert!(after.is_err(), "the rewrite must keep rejecting the program when v0 reaches 4");
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
     }
 
     #[test]
-    fn hoist_not_equal_with_non_unit_step_uses_divisibility() {
-        // With a runtime invariant `v0` the rewrite is lifted to the pre-header. For the +2 step
-        // (lower 10, upper 20) the induction variable visits only the even values in `[10, 18]`,
-        // so the hoisted check is `v0 < 10 || 19 < v0 || (v0 % 2) != (10 % 2 = 0)`.
+    fn non_unit_step_runtime_invariant_constrain_not_equal_is_not_simplified() {
+        // With a runtime invariant `v0` and a +2 step the constraint would, if handled, be lifted
+        // to the pre-header with a divisibility test. Since non-unit steps are not simplified, the
+        // `constrain v0 != v1` is instead left untouched in the loop body.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
@@ -1236,34 +1217,7 @@ mod tests {
             return
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-
-        // `mod v0, 2` is further simplified to a 1-bit truncation (the low bit of `v0`),
-        // which equals `v0 % 2`; the divisibility test is unchanged in meaning.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32):
-            v3 = lt v0, u32 10
-            v5 = lt u32 19, v0
-            v6 = or v3, v5
-            v7 = truncate v0 to 1 bits, max_bit_size: 32
-            v9 = eq v7, u32 0
-            v10 = not v9
-            v11 = or v6, v10
-            constrain v11 == u1 1
-            jmp b1(u32 10)
-          b1(v1: u32):
-            v14 = lt v1, u32 20
-            jmpif v14 then: b2(), else: b3()
-          b2():
-            v16 = unchecked_add v1, u32 2
-            jmp b1(v16)
-          b3():
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1312,11 +1266,10 @@ mod tests {
     }
 
     #[test]
-    fn signed_non_negative_lower_non_unit_step_uses_residue() {
-        // A *signed* induction variable that starts at a non-negative `lower` (here 0, step 2)
-        // is handled just like the unsigned case: every decisive value lies in `[0, max]`, where
-        // the truncated remainder equals the modulo, so `inv % step == lower % step` is sound.
-        // The residue check is hoisted to the pre-header rather than bailed on.
+    fn signed_non_negative_lower_non_unit_step_constrain_not_equal_is_not_simplified() {
+        // A *signed* induction variable that starts at a non-negative `lower` (here 0, step 2) is
+        // treated like any other non-unit step: the `constrain v0 != v1` is left untouched in the
+        // loop body rather than hoisted with a residue test.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: i32):
@@ -1326,47 +1279,20 @@ mod tests {
             jmpif v3 then: b2(), else: b3()
           b2():
             constrain v0 != v1
-            v5 = add v1, i32 2
+            v5 = unchecked_add v1, i32 2
             jmp b1(v5)
           b3():
             return
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i32):
-            v3 = lt v0, i32 0
-            v5 = lt i32 9, v0
-            v6 = or v3, v5
-            v8 = mod v0, i32 2
-            v9 = eq v8, i32 0
-            v10 = not v9
-            v11 = or v6, v10
-            constrain v11 == u1 1
-            jmp b1(i32 0)
-          b1(v1: i32):
-            v14 = lt v1, i32 10
-            jmpif v14 then: b2(), else: b3()
-          b2():
-            v15 = unchecked_add v1, i32 2
-            jmp b1(v15)
-          b3():
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
     fn negative_lower_off_lattice_constrain_not_equal_preserves_execution() {
         // A signed induction variable from -10 with a +2 step visits -10, -8, ..., 8 and never
-        // equals -7. The plain residue test `inv % step == lower % step` would be unsound here
-        // (truncated `-7 % 2 = -1` vs `-10 % 2 = 0`), but the Euclidean normalization
-        // `((inv % step) + step) % step` makes it correct, so `-7` is recognized as not visited
-        // and the program still executes successfully.
+        // equals -7, so the program executes successfully. A negative-lower non-unit step is not
+        // simplified, so the constraint is left in place and execution is unaffected by the pass.
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -1390,8 +1316,8 @@ mod tests {
     #[test]
     fn negative_lower_on_lattice_constrain_not_equal_rejects() {
         // Same loop, but the constrained value `-6` *is* visited (-10, -8, -6, ...). The original
-        // fails when `v0` reaches -6, and the Euclidean residue rewrite must keep rejecting it
-        // rather than misclassify -6 as off-lattice. (-6 is i32 4294967290.)
+        // fails when `v0` reaches -6, and leaving the non-unit-step constraint unsimplified must
+        // keep rejecting it. (-6 is i32 4294967290.)
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -1415,10 +1341,10 @@ mod tests {
     }
 
     #[test]
-    fn negative_lower_non_unit_step_uses_euclidean_residue() {
-        // For a negative `lower` the residue is normalized to Euclidean form
-        // `((inv % step) + step) % step` before comparing against `lower`'s Euclidean residue
-        // (`-10 mod 3 = 2`). The induction variable visits -10, -7, -4, -1, 2, 5, 8.
+    fn negative_lower_non_unit_step_constrain_not_equal_is_not_simplified() {
+        // For a negative `lower` (-10, step 3) the induction variable visits -10, -7, -4, -1, 2,
+        // 5, 8. A negative-lower non-unit step is not simplified, so the `constrain v0 != v1` is
+        // left untouched in the loop body rather than hoisted with a Euclidean residue test.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: i32):
@@ -1428,40 +1354,13 @@ mod tests {
             jmpif v3 then: b2(), else: b3()
           b2():
             constrain v0 != v1
-            v5 = add v1, i32 3
+            v5 = unchecked_add v1, i32 3
             jmp b1(v5)
           b3():
             return
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i32):
-            v3 = lt v0, i32 -10
-            v5 = lt i32 9, v0
-            v6 = or v3, v5
-            v8 = mod v0, i32 3
-            v9 = add v8, i32 3
-            v10 = mod v9, i32 3
-            v12 = eq v10, i32 2
-            v13 = not v12
-            v14 = or v6, v13
-            constrain v14 == u1 1
-            jmp b1(i32 -10)
-          b1(v1: i32):
-            v17 = lt v1, i32 10
-            jmpif v17 then: b2(), else: b3()
-          b2():
-            v18 = unchecked_add v1, i32 3
-            jmp b1(v18)
-          b3():
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
