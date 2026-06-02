@@ -1,0 +1,13 @@
+{
+  "verified": true,
+  "nullifier": "1234",
+  "publicInputs": {
+    "usb_serial": "305441741",
+    "commitment": "9999",
+    "challenge": "11",
+    "user_id_hash": "22",
+    "expected_nullifier": "1234"
+  },
+  "proof": [1, 2, 3],
+  "proofPublicInputs": ["0x01", "0x02"]
+}
