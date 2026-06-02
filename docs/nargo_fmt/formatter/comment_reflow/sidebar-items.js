@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Block","LineKind"],"fn":["apply_code_formatter","bullet_marker_len","classify","collect_words","contains_url_or_reference","emit_blocks","extract_fence_lang","is_javadoc_tag","is_table_line","ordered_marker_len","parse_blocks","reflow_comment_with_code_formatter","trim_trailing_spaces","wrap_words"]};

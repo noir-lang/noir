@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["NEWLINE"]};
+window.SIDEBAR_ITEMS = {"constant":["NEWLINE"],"fn":["format_noir_snippet","reflow_enabled_for_prefix"]};
