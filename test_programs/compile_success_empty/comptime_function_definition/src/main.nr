@@ -18,6 +18,11 @@ pub fn foo(
     1
 }
 
+#[singleton_tuple_attr]
+pub fn singleton_tuples(((nested,),): ((Field,),)) {
+    let _ = nested;
+}
+
 #[test]
 #[deprecated]
 #[check_named_attribute]
@@ -54,6 +59,15 @@ comptime fn function_attr(f: FunctionDefinition) {
     assert(f.has_named_attribute("function_attr"));
 
     assert_eq(f.visibility(), quote { pub })
+}
+
+comptime fn singleton_tuple_attr(f: FunctionDefinition) {
+    let parameters = f.parameters();
+    assert_eq(parameters.len(), 1);
+
+    // A singleton tuple in a nested position must keep its trailing comma:
+    // `((nested,),)` must not be reflected as `((nested))`.
+    assert_eq(parameters[0].0, quote { ((nested,),) });
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
