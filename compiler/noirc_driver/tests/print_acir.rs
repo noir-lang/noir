@@ -68,6 +68,66 @@ fn print_acir_renders_static_assertion_payload() {
 }
 
 #[test]
+fn print_acir_keeps_fold_signatures_with_their_circuits() {
+    // Two nested `#[fold]` entry points whose parameter visibilities differ.
+    // `first_fold` takes a `pub` parameter and returns private; `second_fold`
+    // takes a private parameter and returns `pub`. The wrappers force the SSA
+    // function ids of the folds to be assigned in the opposite order from the
+    // monomorphized source order, which used to swap the public/private witness
+    // signatures of the emitted fold circuits.
+    let source = r#"
+    fn main(x: Field, y: Field) -> pub Field {
+        let a = first_wrapper(x);
+        let b = second_wrapper(y);
+        a + b
+    }
+
+    fn first_wrapper(x: Field) -> Field {
+        first_fold(x)
+    }
+
+    fn second_wrapper(y: Field) -> Field {
+        second_fold(y)
+    }
+
+    #[fold]
+    fn first_fold(x: pub Field) -> Field {
+        x + 1
+    }
+
+    #[fold]
+    fn second_fold(y: Field) -> pub Field {
+        y + 2
+    }
+    "#;
+
+    let program = compile(source, false);
+    let displayed = display_compiled_program(&program);
+
+    insta::assert_snapshot!(displayed, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    CALL func: 2, predicate: 1, inputs: [w0], outputs: [w3]
+    CALL func: 1, predicate: 1, inputs: [w1], outputs: [w4]
+    ASSERT w2 = w3 + w4
+
+    func 1
+    private parameters: []
+    public parameters: [w0]
+    return values: [w1]
+    ASSERT w1 = w0 + 2
+
+    func 2
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w1 = w0 + 1
+    ");
+}
+
+#[test]
 fn print_acir_renders_brillig_assertion_payload() {
     let source = r#"
     fn main(x: u32) {
