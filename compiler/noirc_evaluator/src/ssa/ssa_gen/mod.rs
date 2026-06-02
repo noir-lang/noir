@@ -1473,12 +1473,7 @@ impl FunctionContext<'_> {
             let selector = error_type.selector();
             let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
-            // Record custom types in the builder, outside of SSA instructions
-            // This is made to avoid having Hir types in the SSA code.
-            if !is_string_type {
-                self.builder.record_error_type(selector, assert_message_typ.clone());
-            }
-
+            self.builder.record_error_type(selector, assert_message_typ.clone());
             Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
         }
     }
