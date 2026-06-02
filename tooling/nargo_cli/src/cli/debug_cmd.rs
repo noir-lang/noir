@@ -6,6 +6,7 @@ use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use clap::Args;
 use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::foreign_calls::OracleResolverUrl;
 use nargo::ops::debug::{
     TestDefinition, compile_bin_package_for_debugging, compile_options_for_debugging,
     compile_test_fn_for_debugging, get_test_function_for_debug, load_workspace_files,
@@ -23,8 +24,9 @@ use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram};
-use noirc_frontend::hir::Context;
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use super::test_cmd::TestResult;
 use super::test_cmd::formatters::Formatter;
@@ -67,7 +69,7 @@ pub(crate) struct DebugCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 }
 
 // TODO: find a better name
@@ -102,9 +104,8 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
         target_dir: &workspace.target_directory_path(),
     };
     let run_params = RunParams {
-        pedantic_solving: args.compile_options.pedantic_solving,
         raw_source_printing: args.raw_source_printing,
-        oracle_resolver_url: args.oracle_resolver,
+        oracle_resolver_url: args.oracle_resolver.as_ref().map(|url| url.to_string()),
     };
     let workspace_clone = workspace.clone();
 
@@ -117,7 +118,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     };
 
     let compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, None, args.compile_options);
+        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
 
     if let Some(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
@@ -126,10 +127,14 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     }
 }
 
-fn print_test_result(test_result: TestResult, file_manager: &FileManager) {
+fn print_test_result(
+    test_result: TestResult,
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+) {
     let formatter: Box<dyn Formatter> = Box::new(PrettyFormatter);
     formatter
-        .test_end_sync(&test_result, 1, 1, file_manager, true, false, false)
+        .test_end_sync(&test_result, 1, 1, file_manager, parsed_files, true, false, false)
         .expect("Could not display test result");
 }
 
@@ -142,7 +147,7 @@ fn debug_test_fn(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, package, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {
@@ -224,7 +229,7 @@ fn debug_test(
         run_params,
         package_params,
     );
-    print_test_result(test_result, &file_manager);
+    print_test_result(test_result, &file_manager, &parsed_files);
 
     Ok(())
 }
@@ -287,10 +292,10 @@ fn decode_and_save_program_witness(
         let mut witness_path = save_witness_to_dir(witness_stack, &witness_name, target_dir)?;
 
         // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-        if let Ok(current_dir) = std::env::current_dir() {
-            if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
-                witness_path = name_without_prefix.to_path_buf();
-            }
+        if let Ok(current_dir) = std::env::current_dir()
+            && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir)
+        {
+            witness_path = name_without_prefix.to_path_buf();
         }
         println!("[{}] Witness saved to {}", package_name, witness_path.display());
     }

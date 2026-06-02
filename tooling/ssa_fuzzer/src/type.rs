@@ -61,9 +61,9 @@ impl From<NumericType> for SsaNumericType {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
 pub enum Type {
     Numeric(NumericType),
-    Reference(Arc<Type>),
+    Reference(Arc<Type>, /* mutable */ bool),
     Array(Arc<Vec<Type>>, u32),
-    Slice(Arc<Vec<Type>>),
+    Vector(Arc<Vec<Type>>),
 }
 
 /// Used as default value for mutations
@@ -78,8 +78,8 @@ impl Type {
         match self {
             Type::Numeric(numeric_type) => numeric_type.bit_length(),
             Type::Array(_, _) => unreachable!("Array type unexpected"),
-            Type::Slice(_) => unreachable!("Slice type unexpected"),
-            Type::Reference(value_type) => value_type.bit_length(),
+            Type::Vector(_) => unreachable!("Vector type unexpected"),
+            Type::Reference(value_type, _) => value_type.bit_length(),
         }
     }
 
@@ -88,15 +88,15 @@ impl Type {
     }
 
     pub fn is_reference(&self) -> bool {
-        matches!(self, Type::Reference(_))
+        matches!(self, Type::Reference(..))
     }
 
     pub fn is_array(&self) -> bool {
         matches!(self, Type::Array(_, _))
     }
 
-    pub fn is_slice(&self) -> bool {
-        matches!(self, Type::Slice(_))
+    pub fn is_vector(&self) -> bool {
+        matches!(self, Type::Vector(_))
     }
 
     pub fn is_field(&self) -> bool {
@@ -117,7 +117,7 @@ impl Type {
 
     pub fn unwrap_reference(&self) -> Type {
         match self {
-            Type::Reference(value_type) => value_type.as_ref().clone(),
+            Type::Reference(value_type, _) => value_type.as_ref().clone(),
             _ => panic!("Expected Reference, found {self:?}"),
         }
     }
@@ -226,11 +226,11 @@ impl From<SsaType> for Type {
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
                 length,
             ),
-            SsaType::Reference(element_type) => {
-                Type::Reference(Arc::new((*element_type).clone().into()))
+            SsaType::Reference(element_type, mutable) => {
+                Type::Reference(Arc::new((*element_type).clone().into()), mutable)
             }
-            SsaType::Slice(element_types) => {
-                Type::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            SsaType::Vector(element_types) => {
+                Type::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
             _ => unreachable!("Not supported type: {:?}", type_),
         }
@@ -245,11 +245,11 @@ impl From<Type> for SsaType {
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
                 length,
             ),
-            Type::Reference(element_type) => {
-                SsaType::Reference(Arc::new((*element_type).clone().into()))
+            Type::Reference(element_type, mutable) => {
+                SsaType::Reference(Arc::new((*element_type).clone().into()), mutable)
             }
-            Type::Slice(element_types) => {
-                SsaType::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
+            Type::Vector(element_types) => {
+                SsaType::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
         }
     }

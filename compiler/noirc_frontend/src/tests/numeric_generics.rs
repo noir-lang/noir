@@ -1,4 +1,6 @@
-use crate::tests::{assert_no_errors, check_errors};
+use test_case::test_case;
+
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn numeric_generic_in_function_signature() {
@@ -64,12 +66,12 @@ fn struct_array_len() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<let N: u32>(_array: [u1; N]) {
+        fn hello<let N: u32>(_array: [bool; N]) {
             for _ in 0..N {}
         }
 
         fn main() {
-            let array: [u1; 2] = [0, 1];
+            let array: [bool; 2] = [false, true];
             hello(array);
         }
     "#;
@@ -448,7 +450,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
-                         ^^^^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
+                         ^^^^^^^^ Indexing arrays and vectors must be done with `u32`, not `u64`
             self.len += 1;
         }
     }
@@ -466,7 +468,7 @@ fn use_non_u32_generic_in_struct() {
         struct S<let N: u8> {}
 
         fn main() {
-            let _: S<3> = S {};
+            let _: S<3u8> = S {};
         }
     "#;
     assert_no_errors(src);
@@ -503,7 +505,7 @@ fn struct_numeric_generic_in_function() {
     }
 
     pub fn bar<let N: Foo>() {
-                      ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                      ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                       ~~~ Unsupported numeric generic type
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
@@ -519,7 +521,7 @@ fn struct_numeric_generic_in_struct() {
     }
 
     pub struct Bar<let N: Foo> { }
-                          ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                          ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                           ~~~ Unsupported numeric generic type
     "#;
     check_errors(src);
@@ -529,13 +531,32 @@ fn struct_numeric_generic_in_struct() {
 fn bool_numeric_generic() {
     let src = r#"
     pub fn read<let N: bool>() -> Field {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         if N {
             0
         } else {
             1
         }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_numeric_generic_kind_does_not_panic() {
+    // If the annotated type of a numeric generic fails to resolve, the generic's
+    // kind ends up as `Kind::Numeric(Type::Error)`. Using the generic in an
+    // expression previously risked panicking in `check_defaultable_type_variables`
+    // because `Kind::Numeric(Type::Error)::default_type()` returned `None`.
+    let src = r#"
+    pub fn foo<let N: A>() {
+                      ^ Could not resolve 'A' in path
+                      ^ N has a type of error. The only supported numeric generic types are integers and `Field`.
+                      ~ Unsupported numeric generic type
+        bar(N);
+        ^^^ cannot find `bar` in this scope
+        ~~~ not found in this scope
     }
     "#;
     check_errors(src);
@@ -558,7 +579,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
 fn bool_generic_as_loop_bound() {
     let src = r#"
     pub fn read<let N: bool>() {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         let mut fields = [0; N];
                              ^ The numeric generic is not of type `u32`
@@ -571,4 +592,562 @@ fn bool_generic_as_loop_bound() {
     }
     "#;
     check_errors(src);
+}
+
+/// Regression for CI issue in https://github.com/noir-lang/noir/pull/10330
+#[test]
+fn integer_with_suffix_used_as_type_in_quote() {
+    let src = "
+        #[make_bar]
+        fn main() {
+            bar([1, 2]);
+        }
+
+        comptime fn make_bar(_f: FunctionDefinition) -> Quoted {
+            let n = 2u32;
+            quote {
+                fn bar(_array: [Field; $n]) {}
+            }
+        }
+    ";
+    assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+#[test]
+fn integer_with_suffix_used_as_tuple_index() {
+    let src = "
+        fn main() {
+            macro!();
+        }
+
+        comptime fn macro() -> Quoted {
+            let n = 0u32;
+            quote {
+                let tuple = (0u8, 1u16, 2i8);
+                assert_eq(tuple.$n, 0);
+            }
+        }
+    ";
+    assert_no_errors(src);
+}
+
+// Regression for https://github.com/noir-lang/noir/issues/10711
+#[test]
+fn no_panic_on_numeric_generic_parse_error() {
+    let src = "
+        fn foo<let N: >() {
+                      ^ Expected a type but found '>'
+            let _ = N;
+        }
+
+        fn main() { foo::<3>(); }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10555() {
+    let src = "
+    trait Trait {
+        fn foo<let X: u32>();
+        fn bar<X>();
+        fn baz<let X: u32>();
+    }
+
+    impl Trait for i32 {
+        fn foo<X>() {}
+               ^ Expected type, found numeric generic
+               ~ not a type
+        fn bar<let X: u32>() {}
+                   ^^^^^^ Type provided when a numeric generic was expected
+                   ~~~~~~ the numeric generic is not of type `u32`
+        fn baz<let X: u8>() {}
+                   ^^^^^ The numeric generic is not of type `u8`
+                   ~~~~~ expected `u8`, found `u32`
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_struct_impl() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_impl() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_struct_function_parameter() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    pub fn foo(_x: Foo<1>) {}
+                       ^ Expected type, found numeric generic
+                       ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_function_parameter() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    pub fn foo(_x: Foo<1>) {}
+                       ^ Expected type, found numeric generic
+                       ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_struct_function_return() {
+    let src = r#"
+    pub struct Foo<T> { }
+
+    pub fn foo() -> Foo<1> {
+                        ^ Expected type, found numeric generic
+                        ~ not a type
+        Foo {}
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_function_return() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    pub fn foo() -> Foo<1> {
+                        ^ Expected type, found numeric generic
+                        ~ not a type
+        Foo::Baz
+             ^^^ Type annotation needed
+             ~~~ Could not determine the type of the generic argument `T` declared on the enum `Foo`
+    }
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_struct_trait_impl() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    trait Bar {}
+    impl Bar for Foo<1> {}
+                     ^ Expected type, found numeric generic
+                     ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_enum_trait_impl() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    trait Bar {}
+    impl Bar for Foo<1> {}
+                     ^ Expected type, found numeric generic
+                     ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431_enum() {
+    let src = r#"
+    pub enum Foo<T> {
+        Bar(T),
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn regression_10431() {
+    let src = r#"
+    pub struct Foo<T> {
+        x: T,
+    }
+
+    impl Foo<1> {}
+             ^ Expected type, found numeric generic
+             ~ not a type
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_function_turbofish() {
+    let src = r#"
+    fn main() {
+        foo::<1>();
+              ^ Expected type, found numeric generic
+              ~ not a type
+    }
+
+    fn foo<T>() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10431_type_alias() {
+    let src = r#"
+    pub type Foo<T> = [T; 0];
+    pub type Bar = Foo<1>;
+                       ^ Expected type, found numeric generic
+                       ~ not a type
+
+    fn main() { }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_generic_trait_method_via_instance() {
+    let src = r#"
+    struct Vector<let N: u32> {
+        data: [Field; N],
+    }
+
+    trait Process {
+        fn process(self) -> Field;
+    }
+
+    impl<let N: u32> Process for Vector<N> {
+        fn process(self) -> Field {
+            self.data[0]
+        }
+    }
+
+    fn do_process<let M: u32>(v: Vector<M>) -> Field {
+        v.process()
+    }
+
+    fn main() {
+        let v = Vector { data: [1, 2, 3] };
+        let _ = do_process(v);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_static_trait_method_turbofish() {
+    let src = r#"
+    struct Matrix<let R: u32, let C: u32> {}
+
+    trait Dimensions {
+        fn rows() -> u32;
+        fn cols() -> u32;
+    }
+
+    impl<let R: u32, let C: u32> Dimensions for Matrix<R, C> {
+        fn rows() -> u32 { R }
+        fn cols() -> u32 { C }
+    }
+
+    fn get_rows<let R: u32, let C: u32>() -> u32 {
+        Matrix::<R, C>::rows()
+    }
+
+    fn main() {
+        let _ = get_rows::<3, 4>();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_fn_trait_method_on_struct_with_numeric_generic() {
+    let src = r#"
+    struct Arr<let N: u32> {
+        inner: [Field; N],
+    }
+
+    trait Len {
+        fn len(self) -> u32;
+    }
+
+    impl<let N: u32> Len for Arr<N> {
+        fn len(self) -> u32 { N }
+    }
+
+    fn get_len<let N: u32>(a: Arr<N>) -> u32 {
+        a.len()
+    }
+
+    fn main() {
+        let a = Arr { inner: [1, 2, 3] };
+        assert(get_len(a) == 3);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_propagation_chain() {
+    let src = r#"
+    fn identity<let N: u32>(arr: [Field; N]) -> [Field; N] {
+        arr
+    }
+
+    fn wrap_identity<let N: u32>(arr: [Field; N]) -> [Field; N] {
+        identity(arr)
+    }
+
+    fn double_wrap<let N: u32>(arr: [Field; N]) -> [Field; N] {
+        wrap_identity(arr)
+    }
+
+    fn main() {
+        let arr = [1, 2, 3];
+        let result = double_wrap(arr);
+        assert(result[0] == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_with_generic_method_on_numeric_generic_struct() {
+    let src = r#"
+    trait Apply {
+        fn apply<U>(self, f: fn(Field) -> U) -> U;
+    }
+
+    struct Single<let N: u32> {
+        data: [Field; N],
+    }
+
+    impl<let N: u32> Apply for Single<N> {
+        fn apply<U>(self, f: fn(Field) -> U) -> U {
+            f(self.data[0])
+        }
+    }
+
+    fn main() {
+        let s = Single { data: [42] };
+        let result = s.apply(|x| x + 1);
+        assert(result == 43);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_with_both_type_and_numeric_generic_in_trait_impl() {
+    let src = r#"
+    trait Flatten {
+        fn flatten(self) -> Field;
+    }
+
+    struct Grid<T, let N: u32> {
+        rows: [T; N],
+    }
+
+    impl<let N: u32> Flatten for Grid<Field, N> {
+        fn flatten(self) -> Field {
+            let mut sum: Field = 0;
+            for i in 0..N {
+                sum += self.rows[i];
+            }
+            sum
+        }
+    }
+
+    fn do_flatten<T>(t: T) -> Field where T: Flatten {
+        t.flatten()
+    }
+
+    fn main() {
+        let g = Grid { rows: [1, 2, 3] };
+        assert(do_flatten(g) == 6);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_for_generic_struct_with_numeric_and_type_generic() {
+    let src = r#"
+    trait Encode {
+        fn encode(self) -> Field;
+    }
+
+    impl Encode for Field {
+        fn encode(self) -> Field { self }
+    }
+
+    impl Encode for bool {
+        fn encode(self) -> Field { if self { 1 } else { 0 } }
+    }
+
+    struct Matrix<T, let R: u32, let C: u32> {
+        data: [T; R],
+    }
+
+    impl<T, let R: u32, let C: u32> Matrix<T, R, C> where T: Encode {
+        fn encode_first(self) -> Field {
+            self.data[0].encode()
+        }
+    }
+
+    fn main() {
+        let m: Matrix<bool, 3, 2> = Matrix { data: [true, false, true] };
+        assert(m.encode_first() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test_case("u8")]
+#[test_case("u16")]
+#[test_case("u32")]
+#[test_case("u64")]
+#[test_case("u128")]
+#[test_case("i8")]
+#[test_case("i16")]
+#[test_case("i32")]
+#[test_case("i64")]
+#[test_case("Field")]
+fn numeric_generic_type(typ: &str) {
+    let src = format!(
+        r#"
+    global TEN: {typ} = 10 as {typ};
+
+    pub struct MyStruct<let N: {typ}> {{
+        inner: {typ},
+    }}
+
+    impl<let N: {typ}> MyStruct<N> {{
+        fn new(inner: {typ}) -> Self {{
+            MyStruct {{ inner: inner + N }}
+        }}
+    }}
+
+    fn generic_function<let N: {typ}>() -> {typ} {{
+        N
+    }}
+
+    fn main() {{
+        let s: MyStruct<TEN> = MyStruct::new(20 as {typ});
+        assert(s.inner == 30 as {typ});
+        let val: {typ} = generic_function::<TEN>();
+        assert(val == 10 as {typ});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+#[test]
+fn signed_numeric_generic_in_trait_and_where_clause() {
+    let src = r#"
+    trait HasValue<let N: i32> {
+        fn value(self) -> i32;
+    }
+
+    struct Wrapper {}
+
+    impl<let N: i32> HasValue<N> for Wrapper {
+        fn value(self) -> i32 { N }
+    }
+
+    fn extract_value<T, let N: i32>(t: T) -> i32 where T: HasValue<N> {
+        t.value()
+    }
+
+    fn main() {
+        let w = Wrapper {};
+        let _ = extract_value::<Wrapper, 10i32>(w);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test_case("i8", "-1i8", "-1")]
+#[test_case("i32", "-5i32", "-5")]
+#[test_case("i64", "-100i64", "-100")]
+fn signed_numeric_generic_negative_turbofish(typ: &str, literal: &str, expected: &str) {
+    let src = format!(
+        r#"
+    pub fn foo<let N: {typ}>() -> {typ} {{ N }}
+
+    fn main() {{
+        assert(foo::<{literal}>() == {expected});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
 }

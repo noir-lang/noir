@@ -1,19 +1,19 @@
+use std::rc::Rc;
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::{
-    Location,
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
-};
+use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
+use noirc_errors::Location;
+use strum_macros::EnumIter;
 
+use crate::token::FmtStrFragment;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
-    signed_field::SignedField,
     token::Attributes,
 };
-use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
@@ -57,8 +57,8 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn is_array_or_slice_literal(&self) -> bool {
-        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    pub fn is_array_or_vector_literal(&self) -> bool {
+        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Vector(_)))
     }
 
     /// The return type of an expression, if it has an obvious one.
@@ -71,16 +71,21 @@ impl Expression {
         match self {
             Expression::Ident(ident) => borrowed(&ident.typ),
             Expression::Literal(literal) => match literal {
-                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Array(literal) | Literal::Vector(literal) => borrowed(&literal.typ),
+                Literal::Repeated { typ, .. } => borrowed(typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
-                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
-                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
-                }),
+                Literal::FmtStr(_, size, expr) => {
+                    let typ = expr.return_type()?;
+                    owned(Type::FmtString(*size as u32, Rc::new(typ.into_owned())))
+                }
             },
-            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Block(xs) => {
+                let x = xs.last()?;
+                x.return_type()
+            }
             Expression::Unary(unary) => borrowed(&unary.result_type),
             Expression::Binary(binary) => {
                 if binary.operator.is_comparator() {
@@ -98,7 +103,13 @@ impl Expression {
                     xs[*idx].return_type()
                 }
                 x => {
-                    let typ = x.return_type()?;
+                    let mut typ = x.return_type()?;
+
+                    // Unwrap reference types to get the underlying tuple type
+                    while let Type::Reference(reference_type, _) = typ.as_ref() {
+                        typ = Cow::Owned(reference_type.as_ref().clone());
+                    }
+
                     let Type::Tuple(types) = typ.as_ref() else {
                         unreachable!("unexpected type for tuple field extraction: {typ}");
                     };
@@ -147,10 +158,9 @@ impl Expression {
         match self {
             Expression::Literal(_) => true,
 
-            Expression::Block(expressions) => expressions
-                .last()
-                .map(|x| x.needs_type_inference_from_literal())
-                .unwrap_or_default(),
+            Expression::Block(expressions) => {
+                expressions.last().is_some_and(|x| x.needs_type_inference_from_literal())
+            }
 
             Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
 
@@ -166,8 +176,7 @@ impl Expression {
                     && if_
                         .alternative
                         .as_ref()
-                        .map(|x| x.needs_type_inference_from_literal())
-                        .unwrap_or_default()
+                        .is_some_and(|x| x.needs_type_inference_from_literal())
             }
             Expression::Match(m) => {
                 m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
@@ -207,8 +216,14 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
-    // used as a foreign/externally defined unconstrained function
-    Oracle(String),
+    /// A foreign/externally-defined unconstrained function.
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with
+    /// `#[pure]`.
+    Oracle {
+        name: String,
+        pure: bool,
+    },
 }
 
 /// ID of a local definition, e.g. from a let binding or
@@ -242,7 +257,7 @@ pub struct Ident {
     pub definition: Definition,
     pub mutable: bool,
     pub name: String,
-    pub typ: Type,
+    pub typ: Rc<Type>,
     pub id: IdentId,
 }
 
@@ -255,6 +270,7 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+    pub inclusive: bool,
 
     pub start_range_location: Location,
     pub end_range_location: Location,
@@ -269,12 +285,24 @@ pub struct While {
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
-    Integer(SignedField, Type, Location),
+    Vector(ArrayLiteral),
+    /// A repeated array like `[expr; N]` where the element is repeated N times.
+    /// This avoids creating N copies of the element expression in memory.
+    Repeated {
+        element: Box<Expression>,
+        length: u32,
+        is_vector: bool,
+        typ: Type,
+    },
+    Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
-    Str(String),
-    FmtStr(Vec<FmtStrFragment>, u64, Box<Expression>),
+    Str(Vec<u8>),
+    FmtStr(
+        Vec<FmtStrFragment>,
+        /* Number of variables in the format string. */ u64,
+        /* Tuple with variables to interpolate. */ Box<Expression>,
+    ),
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -408,13 +436,12 @@ pub enum LValue {
 }
 
 pub type Parameters =
-    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Rc<Type>, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(
-    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
-)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+#[derive(Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -422,6 +449,8 @@ pub enum InlineType {
     Inline,
     /// Functions marked as inline always will always be inlined, even in brillig contexts.
     InlineAlways,
+    /// Functions marked as inline never will never be inlined
+    InlineNever,
     /// Functions marked as foldable will not be inlined and compiled separately into ACIR
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
@@ -448,6 +477,7 @@ impl From<&Attributes> for InlineType {
             FunctionAttributeKind::Fold => InlineType::Fold,
             FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
             FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
+            FunctionAttributeKind::InlineNever => InlineType::InlineNever,
             _ => InlineType::default(),
         })
     }
@@ -458,6 +488,7 @@ impl InlineType {
         match self {
             InlineType::Inline => false,
             InlineType::InlineAlways => false,
+            InlineType::InlineNever => false,
             InlineType::Fold => true,
             InlineType::NoPredicates => false,
         }
@@ -466,7 +497,7 @@ impl InlineType {
     /// Produce an `InlineType` which we can use with an unconstrained version of a function.
     pub fn into_unconstrained(self) -> Self {
         match self {
-            InlineType::Inline | InlineType::InlineAlways => self,
+            InlineType::Inline | InlineType::InlineAlways | InlineType::InlineNever => self,
             InlineType::Fold => {
                 // The #[fold] attribute is about creating separate ACIR circuits for proving,
                 // not relevant in Brillig. Leaving it violates some expectations that each
@@ -491,6 +522,7 @@ impl Display for InlineType {
         match self {
             InlineType::Inline => write!(f, "inline"),
             InlineType::InlineAlways => write!(f, "inline_always"),
+            InlineType::InlineNever => write!(f, "inline_never"),
             InlineType::Fold => write!(f, "fold"),
             InlineType::NoPredicates => write!(f, "no_predicates"),
         }
@@ -509,7 +541,7 @@ pub struct Function {
     pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
-    pub func_sig: FunctionSignature,
+    pub is_entry_point: bool,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:
@@ -520,19 +552,20 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u32, Rc<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u32), // String(4) = str[4]
-    FmtString(/*len:*/ u32, Box<Type>),
+    FmtString(/*len:*/ u32, Rc<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Slice(Box<Type>),
-    Reference(Box<Type>, /*mutable:*/ bool),
+    Vector(Rc<Type>),
+    Reference(Rc<Type>, /*mutable:*/ bool),
+    /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
-        /*ret:*/ Box<Type>,
-        /*env:*/ Box<Type>,
+        /*ret:*/ Rc<Type>,
+        /*env:*/ Rc<Type>,
         /*unconstrained:*/ bool,
     ),
 }
@@ -545,11 +578,36 @@ impl Type {
         }
     }
 
-    /// Returns the element type of this array or slice
+    /// Returns the element type of this array or vector
     pub fn array_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            Type::Array(_, elem) | Type::Vector(elem) => Some(elem),
             _ => None,
+        }
+    }
+
+    /// Returns the number of field elements required to represent the type once encoded
+    /// as a parameter to an entry point function.
+    ///
+    /// Panics if the type is not valid as a parameter to main.
+    pub fn entry_point_field_count(&self) -> u32 {
+        match self {
+            Type::Field | Type::Integer(..) | Type::Bool => 1,
+            Type::Array(length, typ) => {
+                let typ = typ.as_ref();
+                length.checked_mul(typ.entry_point_field_count()).expect("Array length overflow")
+            }
+            Type::String(length) => *length,
+            Type::Tuple(fields) => fields.iter().fold(0, |acc, field_typ| {
+                acc.checked_add(field_typ.entry_point_field_count()).expect("Tuple size overflow")
+            }),
+            Type::Function(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Vector(_)
+            | Type::Reference(_, _) => {
+                unreachable!("This type cannot exist as a parameter to main: {self:?}")
+            }
         }
     }
 }
@@ -557,8 +615,6 @@ impl Type {
 #[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
-    pub function_signatures: Vec<FunctionSignature>,
-    pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
@@ -570,8 +626,6 @@ impl Program {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
-        function_signatures: Vec<FunctionSignature>,
-        main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
@@ -580,8 +634,6 @@ impl Program {
     ) -> Program {
         Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location,
             globals,
             debug_variables,
@@ -619,6 +671,10 @@ impl Program {
 
     pub fn return_visibility(&self) -> Visibility {
         self.main().return_visibility
+    }
+
+    pub fn main_function_parameters(&self) -> &Parameters {
+        &self.main().parameters
     }
 }
 
@@ -693,7 +749,7 @@ impl Display for Type {
                 };
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Slice(element) => write!(f, "[{element}]"),
+            Type::Vector(element) => write!(f, "[{element}]"),
             Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
             Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }

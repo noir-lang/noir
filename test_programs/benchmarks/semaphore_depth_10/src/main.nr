@@ -39,7 +39,7 @@ global L: Field = 27360303589799094027808007181571593860768139721585672592002156
 // Returns: (Merkle tree root, nullifier)
 fn main(
     secret_key: Field,
-    index_bits: [u1; MAX_DEPTH], // these bits indicate the order of inputs for hashing of the merkle proof
+    index_bits: [bool; MAX_DEPTH], // these bits indicate the order of inputs for hashing of the merkle proof
     hash_path: [Field; MAX_DEPTH], // the Merkle Tree inclusion proof
     merkle_proof_length: u32, // the number of non-zero elements in hash_path
     hashed_scope: pub Field,
@@ -53,8 +53,8 @@ fn main(
     // The public key is derived by multiplying the generator point with the secret key,
     // interpreted as a scalar.
     let generator: Curve<BabyJubJubParams> = Curve { x: BASE8[0], y: BASE8[1] };
-    // ScalarField is parameterised by the number of 4-bit slices it contains.
-    // Since secret key is already known to be max 251 bits, there are 63 slices.
+    // ScalarField is parameterised by the number of 4-bit vectors it contains.
+    // Since secret key is already known to be max 251 bits, there are 63 vectors.
     let secret_scalar: ScalarField<63> = ScalarField::from(secret_key);
     let pubkey = generator.mul(secret_scalar);
 
@@ -68,7 +68,7 @@ fn main(
     for i in 0..MAX_DEPTH {
         if i < merkle_proof_length {
             let sibling = hash_path[i];
-            let (left, right) = if index_bits[i] == 0 {
+            let (left, right) = if !index_bits[i] {
                 (node, sibling)
             } else {
                 (sibling, node)

@@ -31,6 +31,12 @@ where
     U: Serialize<M>,
 {}
 
+type FieldAlias = Field;
+
+type BoolAlias = bool;
+
+type UnitAlias = ();
+
 fn main() {
     ()
 }

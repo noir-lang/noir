@@ -42,16 +42,15 @@ impl Formatter<'_> {
 
         ignore_next |= self.ignore_next;
 
+        if ignore_next {
+            // The item's location includes doc comments, so those will be written here as well (unformatted)
+            self.write_and_skip_span_without_formatting(item.location.span);
+            return;
+        }
+
         if !item.doc_comments.is_empty() {
             self.format_outer_doc_comments();
             self.skip_comments_and_whitespace();
-        }
-
-        ignore_next |= self.ignore_next;
-
-        if ignore_next {
-            self.write_and_skip_span_without_formatting(item.location.span);
-            return;
         }
 
         match item.kind {
@@ -156,20 +155,20 @@ impl Formatter<'_> {
     }
 
     fn span_has_comments(&self, span: Span) -> bool {
-        let slice = &self.source[span.start() as usize..span.end() as usize];
-        slice.contains("/*") || slice.contains("//")
+        let vector = &self.source[span.start() as usize..span.end() as usize];
+        vector.contains("/*") || vector.contains("//")
     }
 
     fn span_starts_with_trailing_comment(&self, span: Span) -> bool {
-        let slice = &self.source[span.start() as usize..span.end() as usize];
-        slice.trim_start_matches(' ').starts_with("//")
+        let vector = &self.source[span.start() as usize..span.end() as usize];
+        vector.trim_start_matches(' ').starts_with("//")
     }
 
     /// Returns true if there at most one newline in the given span and it contains no comments.
     fn span_is_import_group_separator(&self, span: Span) -> bool {
-        let slice = &self.source[span.start() as usize..span.end() as usize];
-        let number_of_newlines = slice.chars().filter(|char| *char == '\n').count();
-        number_of_newlines > 1 || slice.contains("//") || slice.contains("/*")
+        let vector = &self.source[span.start() as usize..span.end() as usize];
+        let number_of_newlines = vector.chars().filter(|char| *char == '\n').count();
+        number_of_newlines > 1 || vector.contains("//") || vector.contains("/*")
     }
 }
 

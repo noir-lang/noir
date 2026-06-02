@@ -4,12 +4,12 @@
 
 mod black_box;
 mod foreign_call;
+pub mod lengths;
 mod opcodes;
 
 pub use black_box::BlackBoxOp;
 pub use foreign_call::{ForeignCallParam, ForeignCallResult};
 pub use opcodes::{
-    ArrayAddress, BinaryFieldOp, BinaryIntOp, HeapArray, HeapValueType, HeapVector, MemoryAddress,
-    ValueOrArray, VectorAddress,
+    BinaryFieldOp, BinaryIntOp, HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray,
 };
 pub use opcodes::{BitSize, BrilligOpcode as Opcode, IntegerBitSize, Label};

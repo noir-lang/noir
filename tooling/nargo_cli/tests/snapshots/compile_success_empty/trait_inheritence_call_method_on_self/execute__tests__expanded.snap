@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Empty: Eq {
+    fn empty() -> Self;
+
+    fn is_empty(self) -> bool {
+        self.eq(Empty::empty())
+    }
+}
+
+fn main() {}

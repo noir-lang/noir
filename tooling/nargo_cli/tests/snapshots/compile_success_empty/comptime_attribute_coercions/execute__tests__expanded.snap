@@ -2,16 +2,16 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-comptime fn foo(_: FunctionDefinition, slice: [u8], _str1: CtString, _str2: CtString) -> Quoted {
+comptime fn foo(_: FunctionDefinition, vector: [u8], _str1: CtString, _str2: CtString) -> Quoted {
     quote {
         fn bar() -> [u8] {
-            $slice
+            $vector
         }
     }
 }
 
 fn bar() -> [u8] {
-    &[1_u8, 2_u8, 3_u8]
+    @[1_u8, 2_u8, 3_u8]
 }
 
 #[varargs]
@@ -20,5 +20,5 @@ comptime fn baz(_f: FunctionDefinition, args: [CtString]) {
 }
 
 fn main() {
-    assert(bar() == &[1_u8, 2_u8, 3_u8])
+    assert(bar() == [1_u8, 2_u8, 3_u8].as_vector())
 }

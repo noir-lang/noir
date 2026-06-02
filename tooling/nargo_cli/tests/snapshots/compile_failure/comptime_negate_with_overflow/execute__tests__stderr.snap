@@ -30,11 +30,4 @@ error: Cannot apply unary operator `-` to type `u8`
   │                 --
   │
 
-error: Cannot apply unary operator `-` to type `u8`
-  ┌─ src/main.nr:8:17
-  │
-8 │         let _ = -i;
-  │                 --
-  │
-
-Aborting due to 3 previous errors
+Aborting due to 2 previous errors

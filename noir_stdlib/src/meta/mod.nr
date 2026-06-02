@@ -2,6 +2,7 @@ pub mod ctstring;
 pub mod expr;
 pub mod format_string;
 pub mod function_def;
+pub mod location;
 pub mod module;
 pub mod op;
 pub mod trait_constraint;
@@ -14,6 +15,7 @@ pub mod quoted;
 pub mod unresolved_type;
 
 use crate::default::Default;
+use crate::option::Option;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
@@ -30,6 +32,30 @@ pub comptime fn unquote(code: Quoted) -> Quoted {
 pub comptime fn type_of<T>(x: T) -> Type {}
 // docs:end:type_of
 
+/// Issues an error diagnostic at the given location with the given primary
+/// message and an optional secondary message. Unlike a comptime panic, current
+/// execution will continue allowing possibly multiple errors to be issued.
+#[builtin(issue_error)]
+// docs:start:error
+pub comptime fn error<let N: u32, T, let N2: u32, T2>(
+    _msg: fmtstr<N, T>,
+    _secondary: Option<fmtstr<N2, T2>>,
+    _location: Location,
+) {}
+// docs:end:error
+
+/// Issues a warning diagnostic at the given location  with the given primary
+/// message and an optional secondary message. Execution continues after this
+/// function is called.
+#[builtin(issue_warning)]
+// docs:start:warn
+pub comptime fn warn<let N: u32, T, let N2: u32, T2>(
+    _msg: fmtstr<N, T>,
+    _secondary: Option<fmtstr<N2, T2>>,
+    _location: Location,
+) {}
+// docs:end:warn
+
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions
 use crate::collections::umap::UHashMap;
@@ -38,14 +64,14 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a type definition can
 // create us a quoted trait impl from it.
-pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
+pub comptime type DeriveFunction = fn(TypeDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
     UHashMap::default();
 
-// Given a type definition and a slice of traits to derive, create trait impls for each.
-// This function is as simple as iterating over the slice, checking if we have a trait
+// Given a type definition and a vector of traits to derive, create trait impls for each.
+// This function is as simple as iterating over the vector, checking if we have a trait
 // handler registered for the given trait, calling it, and appending the result.
 // docs:start:derive
 #[varargs]
@@ -70,7 +96,7 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 // docs:start:derive_via_signature
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     // docs:end:derive_via_signature
-    HANDLERS.insert(t, f);
+    assert(HANDLERS.insert(t, f), f"A derive_via function has already been registered for {t}");
 }
 // docs:end:derive_via
 
@@ -98,8 +124,8 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     // docs:end:make_trait_impl
     let typ = s.as_type();
 
-    let mut impl_generics = &[];
-    let mut where_clause = &[];
+    let mut impl_generics = [].as_vector();
+    let mut where_clause = [].as_vector();
     for g in s.generics() {
         let (typ, numeric_type) = g;
         impl_generics = impl_generics.push_back(quote { $typ });
@@ -289,8 +315,8 @@ mod tests {
     #[test]
     fn concatenate_test() {
         comptime {
-            let result = concatenate(quote {foo}, quote {bar});
-            assert_eq(result, quote {foobar});
+            let result = concatenate(quote { foo }, quote { bar });
+            assert_eq(result, quote { foobar });
 
             let result = double_spaced(quote {foo bar 3}).as_quoted_str!();
             assert_eq(result, "foo  bar  3");
@@ -303,8 +329,8 @@ mod tests {
         let _: Bar = Bar { x: 1, y: [2, 3] };
         let _: MyStruct = MyStruct { my_field: 1 };
         let _: MyOtherStruct = MyOtherStruct { my_other_field: 2 };
-        let _ = derive_do_nothing(crate::panic::panic(f""));
-        let _ = derive_do_nothing_alt(crate::panic::panic(f""));
+        let _ = derive_do_nothing(crate::panic::panic(""));
+        let _ = derive_do_nothing_alt(crate::panic::panic(""));
         if false {
             remove_unused_warnings();
         }

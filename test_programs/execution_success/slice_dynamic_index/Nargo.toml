@@ -1,6 +1,0 @@
-[package]
-name = "slice_dynamic_index"
-type = "bin"
-authors = [""]
-
-[dependencies]

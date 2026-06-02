@@ -116,8 +116,8 @@ fn does_not_error_if_pub_function_is_on_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        impl Bar { 
-            pub fn bar() -> Bar { 
+        impl Bar {
+            pub fn bar() -> Bar {
                 Bar {}
             }
         }
@@ -137,15 +137,15 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
         struct Bar {}
         pub struct Foo {}
 
-        impl Foo { 
-            pub fn bar() -> Bar { 
+        impl Foo {
+            pub fn bar() -> Bar {
                    ^^^ Type `Bar` is more private than item `bar`
                 Bar {}
             }
         }
 
         pub fn no_unused_warnings() {
-            let _ = Foo {};            
+            let _ = Foo {};
         }
     }
     "#;
@@ -158,12 +158,12 @@ fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        pub trait Foo { 
+        pub trait Foo {
             fn foo() -> Self;
         }
 
         impl Foo for Bar {
-            fn foo() -> Self { 
+            fn foo() -> Self {
                 Bar {}
             }
         }
@@ -182,7 +182,7 @@ fn errors_if_pub_trait_returns_private_struct() {
     pub mod moo {
         struct Bar {}
 
-        pub trait Foo { 
+        pub trait Foo {
             fn foo() -> Bar;
                ^^^ Type `Bar` is more private than item `foo`
         }
@@ -193,6 +193,47 @@ fn errors_if_pub_trait_returns_private_struct() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn errors_if_trait_impl_associated_type_leaks_private_type() {
+    let src = r#"
+    struct Priv {}
+
+    pub trait T {
+        type Item;
+    }
+
+    impl T for u32 {
+        type Item = Priv;
+             ^^^^ Type `Priv` is more private than item `T::Item`
+    }
+
+    pub fn no_unused_warnings() {
+        let _ = Priv {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_if_private_trait_impl_associated_type_uses_private_type() {
+    let src = r#"
+    struct Priv {}
+
+    trait T {
+        type Item;
+    }
+
+    impl T for u32 {
+        type Item = Priv;
+    }
+
+    fn main() {
+        let _ = Priv {};
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -285,7 +326,7 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     }
 
     impl Foo {
-        fn foo() {
+        pub fn foo() {
             Foo::bar()
         }
 
@@ -294,6 +335,111 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
 
     fn main() {
         let _ = Foo {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_if_calling_private_struct_function_from_extension() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {
+            z: u32
+        }
+
+        impl Foo {
+            pub fn new() -> Foo {
+                Foo { z: 0 }
+            }
+            fn x() -> u32 {
+                0
+            }
+            fn y(_self: Self) -> u32 {
+                0
+            }
+            pub fn e(self: Self) {
+                self.private_extension();
+                     ^^^^^^^^^^^^^^^^^ private_extension is private and not visible from the current module
+                     ~~~~~~~~~~~~~~~~~ private_extension is private
+                Self::extension();
+            }
+        }
+    }
+
+    mod ext {
+        use super::foo::Foo;
+        impl Foo {
+            pub fn extension() {
+                let f = Foo::new();
+
+                let _x = Foo::x();
+                              ^ x is private and not visible from the current module
+                              ~ x is private
+
+                let _y = f.y();
+                           ^ y is private and not visible from the current module
+                           ~ y is private
+
+                let _z = f.z;
+                           ^ z is private and not visible from the current module
+                           ~ z is private
+
+                f.private_extension();
+            }
+
+            fn private_extension(_self: Self) {}
+        }
+    }
+
+    fn main() {
+        let _f = foo::Foo::new();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_when_accessing_private_module_through_super() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+        pub struct Qux {}
+    }
+
+    mod bar {
+        use super::foo::Qux;
+        pub fn bar() {
+            let _f = super::foo::Foo {};
+            let _q = Qux {};
+        }
+    }
+
+    fn main() {
+        bar::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_when_accessing_private_module_through_crate() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+        pub struct Qux {}
+    }
+
+    mod bar {
+        use crate::foo::Qux;
+        pub fn bar() {
+            let _f = crate::foo::Foo {};
+            let _q = Qux {};
+        }
+    }
+
+    fn main() {
+        bar::bar();
     }
     "#;
     assert_no_errors(src);
@@ -439,16 +585,16 @@ fn visibility_bug_inside_comptime() {
         pub struct Foo {
             inner: Field,
         }
-    
+
         impl Foo {
             pub fn new(inner: Field) -> Self {
                 Self { inner }
             }
         }
     }
-    
+
     use foo::Foo;
-    
+
     fn main() {
         let _ = Foo::new(5);
         let _ = comptime { Foo::new(5) };
@@ -464,18 +610,18 @@ fn errors_if_accessing_private_struct_member_inside_comptime_context() {
         pub struct Foo {
             inner: Field,
         }
-    
+
         impl Foo {
             pub fn new(inner: Field) -> Self {
                 Self { inner }
             }
         }
     }
-    
+
     use foo::Foo;
-    
+
     fn main() {
-        comptime { 
+        comptime {
             let foo = Foo::new(5);
             let _ = foo.inner;
                         ^^^^^ inner is private and not visible from the current module
@@ -556,7 +702,7 @@ fn private_impl_method_on_another_module_1() {
             let _ = self;
         }
 
-        fn bar(self) {
+        pub fn bar(self) {
             self.foo();
         }
     }
@@ -578,7 +724,7 @@ fn private_impl_method_on_another_module_2() {
     }
 
     impl bar::Foo<i64> {
-        fn bar(self) {
+        pub fn bar(self) {
             let _ = self;
             let foo = bar::Foo::<i32> {};
             foo.foo();
@@ -646,5 +792,441 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
         ~ not found in this scope
     }
     ";
+    check_errors(src);
+}
+
+#[test]
+fn databus_only_allowed_in_main() {
+    let src = "
+fn main(a: u32) -> pub u32 {
+    let a = inner(a);
+    let c = a << 2;
+    c
+}
+
+fn inner(a: call_data(0) u32) -> return_data u32 {
+            ~~~~~~~~~~~~ unnecessary call_data(0)
+            ^^^^^^^^^^^^ unnecessary call_data(0) attribute for function inner
+                                 ~~~~~~~~~~~ unnecessary return_data
+                                 ^^^^^^^^^^^ unnecessary return_data attribute for function inner
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn return_data_not_allowed_on_parameter() {
+    let src = "
+fn main(a: return_data u32) -> pub u32 {
+           ~~~~~~~~~~~ return_data is only allowed on the return value
+           ^^^^^^^^^^^ return_data attribute is not allowed on a parameter
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn call_data_not_allowed_on_return_value() {
+    let src = "
+fn main(a: u32) -> call_data(0) u32 {
+                   ~~~~~~~~~~~~ call_data(0) is only allowed on a parameter
+                   ^^^^^^^^^^^^ call_data(0) attribute is not allowed on the return value
+    a
+}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_return_type() {
+    let src = "
+    pub fn foo() -> pub u32 {
+                    ^^^ unnecessary pub keyword on return type for function foo
+                    ~~~ unnecessary pub return type
+        0
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_argument() {
+    let src = "
+    pub fn foo(_: pub u32) {
+                  ^^^ unnecessary pub keyword on parameter for function foo
+                  ~~~ unnecessary pub parameter
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_calling_private_inherent_impl_method_from_outside_impl_module() {
+    // Regression test: inherent impl methods defined in a submodule on a type from the parent
+    // module should not be callable from outside the impl's defining module.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        struct R { pub x: u32 }
+
+        impl super::S {
+            fn get_r() -> R {
+                R { x: 1 }
+            }
+        }
+    }
+
+    fn main() {
+        let _ = S::get_r();
+                   ^^^^^ get_r is private and not visible from the current module
+                   ~~~~~ get_r is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_calling_private_inherent_impl_method_via_dot_notation_from_outside_impl_module() {
+    let src = r#"
+    struct S { x: u32 }
+
+    mod private {
+        impl super::S {
+            fn secret(self) -> u32 {
+                self.x
+            }
+        }
+    }
+
+    fn main() {
+        let s = S { x: 1 };
+        let _ = s.secret();
+                  ^^^^^^ secret is private and not visible from the current module
+                  ~~~~~~ secret is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_pub_inherent_impl_method_from_outside_impl_module() {
+    // Public methods on inherent impls in submodules should remain callable.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        impl super::S {
+            pub fn public_method() -> u32 {
+                42
+            }
+        }
+    }
+
+    fn main() {
+        let _ = S::public_method();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_private_inherent_impl_method_via_dot_from_within_impl_block() {
+    // Private methods should still be callable via dot notation from within the same impl block.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        impl super::S {
+            fn secret(self) -> u32 {
+                let _ = self;
+                42
+            }
+
+            pub fn public_wrapper(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let s = S {};
+        let _ = s.public_wrapper();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_once_not_twice_for_private_inherent_impl_method_in_separate_modules() {
+    // Regression test: when the struct and impl are in different modules (neither is the
+    // caller's module), we should only get ONE "private" error, not two.
+    let src = r#"
+    mod types {
+        pub struct S {}
+    }
+
+    mod impls {
+        impl super::types::S {
+            fn secret() -> u32 {
+                42
+            }
+        }
+    }
+
+    fn main() {
+        let _ = types::S::secret();
+                          ^^^^^^ secret is private and not visible from the current module
+                          ~~~~~~ secret is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn private_inherent_impl_method_accessible_via_dot_notation_from_impl_module() {
+    let src = r#"
+    mod types {
+        pub struct S {
+            pub x: u32,
+        }
+    }
+
+    mod impls {
+        impl super::types::S {
+            fn secret(self) -> u32 {
+                self.x
+            }
+        }
+
+        pub fn caller() -> u32 {
+            let s = super::types::S { x: 1 };
+            s.secret()
+        }
+    }
+
+    fn main() {
+        let _ = impls::caller();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn private_inherent_impl_method_accessible_via_qualified_path_from_impl_module() {
+    let src = r#"
+    mod types {
+        pub struct S {}
+    }
+
+    mod impls {
+        impl super::types::S {
+            fn secret() -> u32 {
+                42
+            }
+        }
+
+        pub fn caller() -> u32 {
+            super::types::S::secret()
+        }
+    }
+
+    fn main() {
+        let _ = impls::caller();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn private_inherent_impl_method_accessible_from_nested_child_of_impl_module() {
+    let src = r#"
+    mod moo {
+        pub struct S {
+            pub x: u32,
+        }
+    }
+
+    mod private {
+        impl crate::moo::S {
+            fn one() -> u32 {
+                1
+            }
+            fn two(self) -> u32 {
+                self.x
+            }
+        }
+
+        mod nested {
+            pub fn foo() -> u32 {
+                let s = crate::moo::S { x: 1 };
+                crate::moo::S::one() + s.two()
+            }
+        }
+
+        pub fn caller() -> u32 {
+            nested::foo()
+        }
+    }
+
+    fn main() {
+        let _ = private::caller();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_type_imported_via_value_name_collision() {
+    // A module has a private type and a public value sharing the same name.
+    // Importing the name is allowed (the public value is visible), but using
+    // the private type must still be rejected.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo {};
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_importing_value_when_colliding_type_is_public() {
+    // The mirror of the collision case: when both the type and the value are
+    // visible, importing and using either must keep working.
+    let src = r#"
+    mod moo {
+        pub struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo {};
+        Foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_calling_value_when_using_private_type_imported_via_collision_still_errors() {
+    // The public value of the collision is still usable; only the private type is rejected.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        Foo();
+        let _ = Foo {};
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_value_imported_via_type_name_collision() {
+    // Mirror of the type/value collision: a private value and a public type share a name.
+    // Importing is allowed (the type is visible), but calling the private value is rejected.
+    let src = r#"
+    mod moo {
+        pub struct Foo {}
+
+        fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo {};
+        Foo();
+        ^^^ Foo is private and not visible from the current module
+        ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_type_imported_via_aliased_collision() {
+    // Aliasing the import must not launder the private type into scope either.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo as Leaked;
+
+    fn main() {
+        let _ = Leaked {};
+                ^^^^^^ Leaked is private and not visible from the current module
+                ~~~~~~ Leaked is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_qualified_access_to_private_type_colliding_with_public_value() {
+    // Direct qualified access to the private type is rejected regardless of the import path.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        pub fn Foo() {}
+    }
+
+    fn main() {
+        let _ = moo::Foo {};
+                     ^^^ Foo is private and not visible from the current module
+                     ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_at_import_when_both_colliding_items_are_private() {
+    // When a name resolves to a private item in both namespaces there is no visible item to make
+    // the import legal, so the error is reported at the `use` itself (and only once), rather than
+    // being deferred to the use site.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        fn Foo() {}
+    }
+
+    use moo::Foo;
+             ^^^ Foo is private and not visible from the current module
+             ~~~ Foo is private
+
+    fn main() {
+        let _ = Foo {};
+        Foo();
+    }
+    "#;
     check_errors(src);
 }

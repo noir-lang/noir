@@ -1,22 +1,18 @@
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{Circuit, ExpressionWidth, Program as AcirProgram},
+        circuit::{Circuit, Program as AcirProgram},
         native_types::Witness,
     },
 };
 use std::collections::BTreeSet;
 
+use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
-use noirc_evaluator::ssa::{
-    opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
-    ssa_gen::Ssa,
-};
 
-use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::{
     SsaBuilder,
     function_builder::FunctionBuilder,
@@ -86,7 +82,7 @@ impl InstructionArtifacts {
         let first_variable_type = Self::get_type(first_variable);
         let second_variable_type = Self::get_type(second_variable);
         let ssa = binary_function(op, first_variable_type, second_variable_type);
-        let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
+        let serialized_ssa = serde_json::to_string(&ssa).unwrap();
         let formatted_ssa = format!("{}", ssa.print_without_locations());
 
         let program = ssa_to_acir_program(ssa);
@@ -101,7 +97,7 @@ impl InstructionArtifacts {
         Self {
             instruction_name: name,
             formatted_ssa,
-            serialized_ssa: serialized_ssa.to_string(),
+            serialized_ssa,
             serialized_acir: serialized_program,
         }
     }
@@ -118,7 +114,7 @@ impl InstructionArtifacts {
     }
 
     fn new_by_ssa(ssa: Ssa, instruction_name: String, variable: &Variable) -> Self {
-        let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
+        let serialized_ssa = serde_json::to_string(&ssa).unwrap();
         let formatted_ssa = format!("{}", ssa.print_without_locations());
 
         let program = ssa_to_acir_program(ssa);
@@ -128,7 +124,7 @@ impl InstructionArtifacts {
         Self {
             instruction_name: name,
             formatted_ssa,
-            serialized_ssa: serialized_ssa.to_string(),
+            serialized_ssa,
             serialized_acir: serialized_program,
         }
     }
@@ -234,22 +230,17 @@ impl InstructionArtifacts {
 /// Converts SSA to ACIR program
 fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     // third brillig names, fourth errors
-    let builder = SsaBuilder::from_ssa(ssa, SsaLogging::None, false, None);
-    let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: SsaLogging::None,
-        print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: { None },
-        skip_underconstrained_check: true,
-        skip_brillig_constraints_check: true,
-        inliner_aggressiveness: 0,
-        constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
-        max_bytecode_increase_percent: None,
-        brillig_options: BrilligOptions::default(),
-        enable_brillig_constraints_check_lookback: false,
-        skip_passes: vec![],
-    };
+    let ssa_logging_hide_unchanged = false;
+    let print_codegen_timings = false;
+    let files = None;
+    let builder = SsaBuilder::from_ssa(
+        ssa,
+        SsaLogging::None,
+        ssa_logging_hide_unchanged,
+        print_codegen_timings,
+        files,
+    );
+    let ssa_evaluator_options = SsaEvaluatorOptions::default();
     let (acir_functions, brillig, _) = match optimize_ssa_builder_into_acir(
         builder,
         &ssa_evaluator_options,
@@ -261,15 +252,14 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
 
     let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
 
-    for acir_func in acir_functions.iter() {
+    for acir_func in &acir_functions {
         let mut private_params: BTreeSet<Witness> =
             acir_func.input_witnesses.clone().into_iter().collect();
         let ret_values: BTreeSet<Witness> =
             acir_func.return_witnesses.clone().into_iter().collect();
 
-        private_params.extend(ret_values.iter().cloned());
+        private_params.extend(ret_values.iter().copied());
         let circuit: Circuit<FieldElement> = Circuit {
-            current_witness_index: acir_func.current_witness_index().witness_index(),
             opcodes: acir_func.opcodes.clone(),
             private_parameters: private_params.clone(),
             ..Circuit::<FieldElement>::default()

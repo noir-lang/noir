@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AssignStatement, Expression, LValue, Statement, StatementKind},
+    ast::{AssignStatement, Expression, ExpressionKind, LValue, Statement, StatementKind},
     token::{Token, TokenKind},
 };
 
@@ -26,20 +26,35 @@ impl Parser<'_> {
         // First check if it's an interned LValue
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
-                Token::InternedLValue(lvalue) => {
-                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
+                Token::InternedLValue(interned) => {
+                    let location = self.location_since(start_location);
+                    let interned_lvalue = || LValue::Interned(interned, location);
 
                     // If it is, it could be something like `lvalue = expr`: check that.
                     if self.eat(Token::Assign) {
                         let expression = self.parse_expression_or_error();
-                        let kind = StatementKind::Assign(AssignStatement { lvalue, expression });
+                        let kind = StatementKind::Assign(AssignStatement {
+                            lvalue: interned_lvalue(),
+                            expression,
+                        });
                         return StatementOrExpressionOrLValue::Statement(Statement {
                             kind,
                             location: self.location_since(start_location),
                         });
-                    } else {
-                        return StatementOrExpressionOrLValue::LValue(lvalue);
+                    } else if self.current_is(Token::Dot) {
+                        let object = Expression {
+                            kind: ExpressionKind::Interned(interned),
+                            location: self.location_since(start_location),
+                        };
+                        let access = self.parse_member_accesses_or_method_calls_after_expression(
+                            object,
+                            start_location,
+                        );
+                        if let Some(lvalue) = LValue::from_expression(access) {
+                            return StatementOrExpressionOrLValue::LValue(lvalue);
+                        }
                     }
+                    return StatementOrExpressionOrLValue::LValue(interned_lvalue());
                 }
                 _ => unreachable!(),
             }

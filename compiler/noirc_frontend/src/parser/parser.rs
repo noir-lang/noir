@@ -1,11 +1,11 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use modifiers::Modifiers;
 use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    lexer::{Lexer, lexer::LocatedTokenResult},
+    lexer::{Lexer, errors::LexerErrorKind, lexer::LocatedTokenResult},
     node_interner::ExprId,
     token::{FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
@@ -41,6 +41,7 @@ mod types;
 mod use_tree;
 mod where_clause;
 
+pub use doc_comments::block_comment_has_all_leading_stars;
 pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -61,6 +62,73 @@ pub fn parse_program_with_dummy_file(source_program: &str) -> (ParsedModule, Vec
     parse_program(source_program, FileId::dummy())
 }
 
+/// Like `parse_program_with_dummy_file`, but enables a relaxed mode that accepts
+/// macro placeholders (e.g. `$name`, `$T`) in identifier-accepting positions.
+/// Intended for tooling that needs to inspect or reformat the body of a
+/// `quote { ... }` expression, where placeholders are legal. Returns `Err` if the
+/// input doesn't parse cleanly.
+pub fn parse_program_in_quote_body(source: &str) -> Result<ParsedModule, Vec<ParserError>> {
+    let mut parser = Parser::for_str_with_dummy_file(source);
+    parser.parsing_quote_body = true;
+    parser.parse_result(|parser| parser.parse_program()).map(|(program, _warnings)| program)
+}
+
+/// Parses the input as a single statement using the quote-body relaxation. Returns
+/// `Err` if the input doesn't parse cleanly or there is leftover input.
+///
+/// A trailing `;` is folded into the parsed statement (turning a plain expression
+/// statement into `StatementKind::Semi`) so callers like the formatter can preserve
+/// the semicolon when round-tripping.
+///
+/// We also reject the parse when the body starts with `#[...]` but the resulting
+/// statement kind doesn't carry attributes (only `Let` and `Comptime` do). Otherwise
+/// the parser would silently drop the attribute tokens and the formatter would lose
+/// sync with the source.
+pub fn parse_statement_in_quote_body(
+    source: &str,
+) -> Result<crate::ast::Statement, Vec<ParserError>> {
+    use crate::ast::{Statement, StatementKind};
+    use crate::parser::labels::ParsingRuleLabel;
+    use crate::token::Token;
+    let mut parser = Parser::for_str_with_dummy_file(source);
+    parser.parsing_quote_body = true;
+    parser
+        .parse_result(|parser| {
+            let started_with_attribute =
+                matches!(parser.token.token(), Token::AttributeStart { .. });
+            let Some((statement, (semicolon, location))) = parser.parse_statement() else {
+                parser.expected_label(ParsingRuleLabel::Statement);
+                return Statement {
+                    kind: StatementKind::Error,
+                    location: parser.location_at_previous_token_end(),
+                };
+            };
+            if started_with_attribute
+                && !matches!(statement.kind, StatementKind::Let(_) | StatementKind::Comptime(_))
+            {
+                parser.expected_label(ParsingRuleLabel::Statement);
+                return Statement { kind: StatementKind::Error, location };
+            }
+            statement.add_semicolon(
+                semicolon,
+                location,
+                true, // last_statement_in_block — permits a missing trailing `;`
+                &mut |error| parser.errors.push(error),
+            )
+        })
+        .map(|(stmt, _warnings)| stmt)
+}
+
+/// Parses the input as a single expression using the quote-body relaxation. Returns
+/// `Err` if the input doesn't parse cleanly or there is leftover input.
+pub fn parse_expression_in_quote_body(
+    source: &str,
+) -> Result<crate::ast::Expression, Vec<ParserError>> {
+    let mut parser = Parser::for_str_with_dummy_file(source);
+    parser.parsing_quote_body = true;
+    parser.parse_result(|parser| parser.parse_expression_or_error()).map(|(expr, _warnings)| expr)
+}
+
 enum TokenStream<'a> {
     Lexer(Lexer<'a>),
     Tokens(Tokens),
@@ -78,6 +146,10 @@ impl TokenStream<'_> {
         }
     }
 }
+
+/// Maximum recursion depth for parsing nested expressions and types.
+/// This limit prevents stack overflow when parsing deeply nested expressions.
+const MAX_PARSER_RECURSION_DEPTH: u32 = 100;
 
 pub struct Parser<'a> {
     pub(crate) errors: Vec<ParserError>,
@@ -105,6 +177,20 @@ pub struct Parser<'a> {
     /// let x = unsafe { call() };
     /// ```
     statement_comments: Option<String>,
+
+    /// Current recursion depth for parsing nested expressions.
+    /// Used to prevent stack overflow from deeply nested expressions.
+    recursion_depth: u32,
+
+    /// Set to true when recovering from a recursion depth overflow.
+    /// Used to suppress cascading errors during stack unwinding.
+    recovering_from_depth_overflow: bool,
+
+    /// When set, the parser permits `$ident` (and chained `$ident::...` paths) in
+    /// identifier-accepting positions, treating the two tokens as a single synthetic
+    /// identifier whose name literally begins with `$`. This lets the formatter parse
+    /// the body of a `quote { ... }` block even when it contains macro placeholders.
+    pub(crate) parsing_quote_body: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -136,6 +222,9 @@ impl<'a> Parser<'a> {
             current_token_comments: String::new(),
             next_token_comments: String::new(),
             statement_comments: None,
+            recursion_depth: 0,
+            recovering_from_depth_overflow: false,
+            parsing_quote_body: false,
         };
         parser.read_two_first_tokens();
         parser
@@ -219,6 +308,26 @@ impl<'a> Parser<'a> {
                         return (token, last_comments);
                     }
                 },
+                // These two errors always arise from integer tokens being invalid. Issuing a fake
+                // integer token in their place greatly improves parse recovery in these cases since
+                // otherwise an array of too-large integers would be seen by the parser as e.g. `[,,,,]`.
+                Some(Err(
+                    error @ (LexerErrorKind::IntegerLiteralTooLarge { .. }
+                    | LexerErrorKind::InvalidIntegerLiteral { .. }),
+                )) => {
+                    let location = error.location();
+                    self.errors.push(error.into());
+                    let token = LocatedToken::new(Token::Int(FieldElement::zero(), None), location);
+                    return (token, last_comments);
+                }
+                // A non-ASCII identifier is lexed as a single error so the parser can see the
+                // whole word at once. Push the error and substitute the original identifier back
+                // into the token stream so name resolution see a consistent program.
+                Some(Err(LexerErrorKind::NonAsciiIdentifier { found, location })) => {
+                    let ident_token = Token::Ident(found.clone());
+                    self.errors.push(LexerErrorKind::NonAsciiIdentifier { found, location }.into());
+                    return (LocatedToken::new(ident_token, location), last_comments);
+                }
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
                 None => {
                     let end_span = Span::single_char(self.current_token_location.span.end());
@@ -247,23 +356,64 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Eats an identifier. If it's `_`, pushes an error but still returns it as an identifier.
+    fn eat_non_underscore_ident(&mut self) -> Option<Ident> {
+        let ident = self.eat_ident()?;
+        if ident.as_str() == "_" {
+            self.push_error(ParserErrorReason::ExpectedIdentifierGotUnderscore, ident.location());
+        }
+        Some(ident)
+    }
+
     fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
-            match token.into_token() {
+            return match token.into_token() {
                 Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location)),
                 _ => unreachable!(),
-            }
-        } else {
-            None
+            };
         }
+        if self.at_quote_placeholder() {
+            let start_location = self.current_token_location;
+            self.bump(); // consume `$`
+            let Token::Ident(ident) = self.bump().into_token() else {
+                unreachable!("at_quote_placeholder guarantees the next token is Ident");
+            };
+            let location = start_location.merge(self.previous_token_location);
+            return Some(Ident::new(format!("${ident}"), location));
+        }
+        None
+    }
+
+    /// Returns true when looking at something `eat_ident` would consume — either a
+    /// regular identifier, or a `$ident` placeholder while parsing a quote body.
+    fn at_ident_token(&self) -> bool {
+        self.token.kind() == TokenKind::Ident || self.at_quote_placeholder()
+    }
+
+    /// Used in path parsing to decide whether to commit to consuming a `::`: if the
+    /// token after the `::` is plausibly the start of the next path segment.
+    /// We only have one token of lookahead, so in `parsing_quote_body` mode we accept
+    /// a `$` as the start of a placeholder identifier even though we can't verify the
+    /// following token here.
+    fn next_starts_path_segment(&self) -> bool {
+        matches!(self.next_token.token(), Token::Ident(..))
+            || (self.parsing_quote_body && self.next_token.token() == &Token::DollarSign)
+    }
+
+    /// True only when `parsing_quote_body` and the next two tokens are `$` followed
+    /// by an identifier — a synthetic identifier that we accept inside quote bodies.
+    fn at_quote_placeholder(&self) -> bool {
+        self.parsing_quote_body
+            && self.token.token() == &Token::DollarSign
+            && matches!(self.next_token.token(), Token::Ident(_))
     }
 
     fn eat_self(&mut self) -> bool {
-        if let Token::Ident(ident) = self.token.token() {
-            if ident == "self" {
-                self.bump();
-                return true;
-            }
+        if let Token::Ident(ident) = self.token.token()
+            && ident == "self"
+        {
+            self.bump();
+            return true;
         }
 
         false
@@ -465,7 +615,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat(&mut self, token: Token) -> bool {
-        if self.token.token() == &token {
+        if self.current_is(token) {
             self.bump();
             true
         } else {
@@ -500,7 +650,11 @@ impl<'a> Parser<'a> {
     fn set_lexer_skip_whitespaces_flag(&mut self, flag: bool) {
         if let TokenStream::Lexer(lexer) = &mut self.tokens {
             lexer.set_skip_whitespaces_flag(flag);
-        };
+        }
+    }
+
+    fn current_is(&self, token: Token) -> bool {
+        self.token.token() == &token
     }
 
     fn next_is(&self, token: Token) -> bool {
@@ -508,7 +662,93 @@ impl<'a> Parser<'a> {
     }
 
     fn at_eof(&self) -> bool {
-        self.token.token() == &Token::EOF
+        self.current_is(Token::EOF)
+    }
+
+    /// Check if we reached the maximum recursion depth.
+    ///
+    /// If so, emit an error with the current token location,
+    /// skip to a recovery point, set `recovering_from_depth_overflow`
+    /// and return `true`; otherwise return `false`.
+    fn reached_max_recursion_depth(&mut self) -> bool {
+        // Check recursion depth to prevent stack overflow
+        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
+            self.push_error(
+                ParserErrorReason::MaximumRecursionDepthExceeded,
+                self.current_token_location,
+            );
+            // Skip to a recovery point to avoid cascading errors
+            self.skip_to_recovery_point();
+            // Set flag to suppress cascading errors during stack unwinding
+            self.recovering_from_depth_overflow = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check that we haven't reached the recursion limit before running a
+    /// lambda to perform the recursion.
+    fn with_max_recursion_depth_guard<T, F>(&mut self, mut f: F) -> Option<T>
+    where
+        F: FnMut(&mut Parser<'a>) -> Option<T>,
+    {
+        // Check recursion depth to prevent stack overflow
+        if self.reached_max_recursion_depth() {
+            return None;
+        }
+
+        self.recursion_depth += 1;
+        let result = f(self);
+        self.recursion_depth -= 1;
+
+        // Clear recovery flag when we've fully unwound (back at top level).
+        // This assumes that `skip_to_recovery_point` skipped over tokens
+        // and we can resume parsing with meaningful errors from here.
+        if self.recursion_depth == 0 {
+            self.recovering_from_depth_overflow = false;
+        }
+
+        result
+    }
+
+    /// Skips tokens until we reach a recovery point (`;`, `}`, or EOF).
+    /// This is used to recover from fatal parsing errors like exceeding
+    /// the maximum recursion depth.
+    ///
+    /// The method tracks brace nesting to properly skip nested blocks,
+    /// ensuring we don't stop at a `}` that belongs to an inner block.
+    pub(super) fn skip_to_recovery_point(&mut self) {
+        let mut brace_depth = 0;
+
+        loop {
+            match self.token.token() {
+                Token::EOF => break,
+                Token::Semicolon if matches!(self.next_token.token(), Token::Int(_, _)) => {
+                    // Skip the semicolon if looks like array syntax.
+                    self.bump();
+                }
+                Token::Semicolon if brace_depth == 0 => {
+                    // Don't consume the semicolon - let the caller handle it
+                    break;
+                }
+                Token::LeftBrace => {
+                    brace_depth += 1;
+                    self.bump();
+                }
+                Token::RightBrace => {
+                    if brace_depth == 0 {
+                        // Don't consume - this closes a block we didn't open
+                        break;
+                    }
+                    brace_depth -= 1;
+                    self.bump();
+                }
+                _ => {
+                    self.bump();
+                }
+            }
+        }
     }
 
     fn location_since(&self, start_location: Location) -> Location {
@@ -541,8 +781,8 @@ impl<'a> Parser<'a> {
         Location::new(span_at_previous_token_end, self.previous_token_location.file)
     }
 
-    fn unknown_ident_at_previous_token_end(&self) -> Ident {
-        Ident::new("(unknown)".to_string(), self.location_at_previous_token_end())
+    fn empty_ident_at_previous_token_end(&self) -> Ident {
+        Ident::new("".to_string(), self.location_at_previous_token_end())
     }
 
     fn expected_identifier(&mut self) {
@@ -554,6 +794,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_token(&mut self, token: Token) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_token(
             token,
             self.token.token().clone(),
@@ -562,6 +805,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_one_of_tokens(&mut self, tokens: &[Token]) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_one_of_tokens(
             tokens,
             self.token.token().clone(),
@@ -570,6 +816,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_label(&mut self, label: ParsingRuleLabel) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_label(
             label,
             self.token.token().clone(),
@@ -601,6 +850,7 @@ impl<'a> Parser<'a> {
         self.visibility_not_followed_by_an_item(modifiers);
         self.unconstrained_not_followed_by_an_item(modifiers);
         self.comptime_not_followed_by_an_item(modifiers);
+        self.mutable_not_followed_by_an_item(modifiers);
     }
 
     fn visibility_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
@@ -626,9 +876,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn mutable_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
+        if let Some(location) = modifiers.mutable {
+            self.push_error(ParserErrorReason::MutableNotFollowedByAnItem, location);
+        }
+    }
+
     fn comptime_mutable_and_unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
         self.mutable_not_applicable(modifiers);
         self.comptime_not_applicable(modifiers);
+        self.unconstrained_not_applicable(modifiers);
+    }
+
+    fn mutable_and_unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
+        self.mutable_not_applicable(modifiers);
         self.unconstrained_not_applicable(modifiers);
     }
 
@@ -651,6 +912,9 @@ impl<'a> Parser<'a> {
     }
 
     fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::with_reason(reason, location));
     }
 }

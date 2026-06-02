@@ -1,12 +1,19 @@
 use acvm::AcirField;
+use acvm::acir::brillig::lengths::{
+    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+    SemiFlattenedLength,
+};
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
+use itertools::Itertools;
+use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
-use crate::errors::{RuntimeError, SsaReport};
+use crate::errors::RuntimeError;
 use crate::ssa::ir::value::Value;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
@@ -67,7 +74,7 @@ impl Context<'_> {
                         assert_eq!(result_ids.len(), outputs.len());
                         self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
                     }
-                    Value::ForeignFunction(_) => unreachable!(
+                    Value::ForeignFunction { .. } => unreachable!(
                         "Frontend should remove any oracle calls from constrained functions"
                     ),
 
@@ -87,21 +94,19 @@ impl Context<'_> {
         ssa: &Ssa,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        // Check that we are not attempting to return a slice from
+        // Check that we are not attempting to return a vector from
         // an unconstrained runtime to a constrained runtime
         for result_id in result_ids {
-            if dfg.type_of_value(*result_id).contains_slice_element() {
-                return Err(RuntimeError::UnconstrainedSliceReturnToConstrained {
+            if dfg.type_of_value(*result_id).contains_vector_element() {
+                return Err(RuntimeError::UnconstrainedVectorReturnToConstrained {
                     call_stack: self.acir_context.get_call_stack(),
                 });
             }
         }
 
         let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-        let output_count: usize = result_ids
-            .iter()
-            .map(|result_id| dfg.type_of_value(*result_id).flattened_size() as usize)
-            .sum();
+        let output_count: FlattenedLength =
+            result_ids.iter().map(|result_id| dfg.type_of_value(*result_id).flattened_size()).sum();
 
         let Some(acir_function_id) = ssa.get_entry_point_index(func_id) else {
             unreachable!(
@@ -131,20 +136,20 @@ impl Context<'_> {
         let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
-            vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
         // Reuse or generate Brillig code
         let output_values = if let Some(generated_pointer) =
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
-            let safe_return_values = false;
+            let skip_output_range_checks = false;
             self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 code,
                 inputs,
                 outputs,
-                safe_return_values,
+                skip_output_range_checks,
                 *generated_pointer,
                 None,
             )?
@@ -152,13 +157,13 @@ impl Context<'_> {
             let code =
                 gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
-            let safe_return_values = false;
+            let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 &code,
                 inputs,
                 outputs,
-                safe_return_values,
+                skip_output_range_checks,
                 generated_pointer,
                 None,
             )?;
@@ -184,29 +189,38 @@ impl Context<'_> {
             .iter()
             .map(|&value_id| {
                 let typ = dfg.type_of_value(value_id);
-                if let Type::Slice(item_types) = typ {
+                if let Type::Vector(item_types) = &*typ {
                     let len = match self
                         .ssa_values
                         .get(&value_id)
-                        .expect("ICE: Unknown slice input to brillig")
+                        .expect("ICE: Unknown vector input to brillig")
                     {
                         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
-                            // len holds the flattened length of all elements in the slice,
+                            // len holds the flattened length of all elements in the vector,
                             // so to get the no-flattened length we need to divide by the flattened
-                            // length of a single slice entry
-                            let sum: u32 = item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            if sum == 0 { 0 } else { *len / sum as usize }
+                            // length of a single vector entry
+                            let sum: FlattenedLength =
+                                item_types.iter().map(|typ| typ.flattened_size()).sum();
+                            if sum.0 == 0 {
+                                SemanticLength(0)
+                            } else {
+                                *len / ElementsFlattenedLength::from(sum)
+                            }
                         }
                         AcirValue::Array(array) => {
-                            // len holds the non-flattened length of all elements in the slice,
-                            // so here we need to divide by the non-flattened length of a single
-                            // slice entry
-                            if item_types.len() == 0 { 0 } else { array.len() / item_types.len() }
+                            if item_types.is_empty() {
+                                SemanticLength(0)
+                            } else {
+                                // len holds the semi-flattened length of all elements in the vector,
+                                // so here we need to divide by elements length of the item types
+                                let len = SemiFlattenedLength(assert_u32(array.len()));
+                                len / ElementTypesLength(assert_u32(item_types.len()))
+                            }
                         }
-                        _ => unreachable!("ICE: Slice value is not an array"),
+                        AcirValue::Var(..) => unreachable!("ICE: Vector value is not an array"),
                     };
 
-                    BrilligParameter::Slice(
+                    BrilligParameter::Vector(
                         item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
                         len,
                     )
@@ -223,13 +237,13 @@ impl Context<'_> {
         output_values: Vec<AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        for (result_id, output) in result_ids.iter().zip(output_values) {
+        for (result_id, output) in result_ids.iter().zip_eq(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
                 let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
-                let len = if matches!(array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size() as usize
+                let len = if matches!(*array_typ, Type::Array(_, _)) {
+                    array_typ.flattened_size()
                 } else {
                     arrays::flattened_value_size(&output)
                 };
@@ -246,7 +260,7 @@ impl Context<'_> {
     /// Convert a `Vec<[AcirVar]>` into a `Vec<[AcirValue]>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single [AcirValue::Array] of the same length.
-    /// If the type of a result id is a slice, the slice length must precede it and we can
+    /// If the type of a result id is a vector, the vector length must precede it and we can
     /// convert to an [AcirValue::Array] when the length is known (constant).
     fn convert_vars_to_values(
         &self,
@@ -258,8 +272,8 @@ impl Context<'_> {
         let mut values: Vec<AcirValue> = Vec::new();
         for result in result_ids {
             let result_type = dfg.type_of_value(*result);
-            if let Type::Slice(elements_type) = result_type {
-                let error = "ICE - cannot get slice length when converting slice to AcirValue";
+            if let Type::Vector(elements_type) = &*result_type {
+                let error = "ICE - cannot get vector length when converting vector to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
                 let len = self.acir_context.constant(len).to_u128();
                 let mut element_values = im::Vector::new();
@@ -288,7 +302,7 @@ impl Context<'_> {
         match result_type {
             Type::Array(elements, size) => {
                 let mut element_values = im::Vector::new();
-                for _ in 0..*size {
+                for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);
                         element_values.push_back(element);

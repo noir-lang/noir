@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let msg: [Field; 3] = std::mem::zeroed();
+    assert(msg.len() == 3_u32, msg);
+    let _: Field = msg[0_u32] + 1_Field;
+}

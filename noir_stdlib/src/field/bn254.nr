@@ -2,8 +2,8 @@ use crate::field::field_less_than;
 use crate::runtime::is_unconstrained;
 
 // The low and high decomposition of the field modulus
-global PLO: Field = 53438638232309528389504892708671455233;
-global PHI: Field = 64323764613183177041862057485226039389;
+pub(crate) global PLO: Field = 53438638232309528389504892708671455233;
+pub(crate) global PHI: Field = 64323764613183177041862057485226039389;
 
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 
@@ -120,6 +120,8 @@ pub fn lt(a: Field, b: Field) -> bool {
 mod tests {
     // TODO: Allow imports from "super"
     use crate::field::bn254::{assert_gt, decompose, gt, lt, lte_hint, PHI, PLO, TWO_POW_128};
+    use crate::internal::test_unconstrained;
+    use super::assert_lt;
 
     #[test]
     fn check_decompose() {
@@ -141,6 +143,7 @@ mod tests {
     }
 
     #[test]
+    #[test_unconstrained]
     fn check_gt() {
         assert(gt(1, 0));
         assert(gt(0x100, 0));
@@ -193,6 +196,7 @@ mod tests {
     #[test]
     fn check_lt_comprehensive() {
         assert(lt(0, 1));
+        assert_lt(0, 1);
         assert(!lt(1, 0));
         assert(!lt(0, 0));
         assert(!lt(42, 42));

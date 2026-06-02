@@ -20,25 +20,20 @@ pub enum CrateId {
     /// In that case there's only one crate, and it's both the root
     /// crate and the stdlib crate.
     RootAndStdlib(usize),
-    Dummy,
 }
 
 impl CrateId {
-    pub fn dummy_id() -> CrateId {
-        CrateId::Dummy
-    }
-
     pub fn is_stdlib(&self) -> bool {
         match self {
             CrateId::Stdlib(_) | CrateId::RootAndStdlib(_) => true,
-            CrateId::Root(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+            CrateId::Root(_) | CrateId::Crate(_) => false,
         }
     }
 
     pub fn is_root(&self) -> bool {
         match self {
             CrateId::Root(_) | CrateId::RootAndStdlib(_) => true,
-            CrateId::Stdlib(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+            CrateId::Stdlib(_) | CrateId::Crate(_) => false,
         }
     }
 }
@@ -214,7 +209,7 @@ impl CrateGraph {
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
@@ -251,9 +246,6 @@ impl CrateGraph {
             Some((CrateId::Stdlib(_), _)) | Some((CrateId::RootAndStdlib(_), _)) => {
                 panic!("ICE: Tried to re-add the stdlib crate as a regular crate")
             }
-            Some((CrateId::Dummy, _)) => {
-                panic!("ICE: A dummy CrateId should not exist in the CrateGraph")
-            }
             None => {
                 let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
                 let crate_id = CrateId::Crate(self.arena.len());
@@ -265,7 +257,7 @@ impl CrateGraph {
     }
 
     pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_stdlib() {
                 panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
             }
@@ -283,7 +275,7 @@ impl CrateGraph {
     }
 
     pub fn add_crate_root_and_stdlib(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
@@ -327,7 +319,7 @@ impl CrateGraph {
             if !visited.insert(source) {
                 return;
             }
-            for dep in graph[source].dependencies.iter() {
+            for dep in &graph[source].dependencies {
                 go(graph, visited, res, dep.crate_id);
             }
             res.push(source);

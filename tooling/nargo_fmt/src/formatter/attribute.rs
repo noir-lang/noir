@@ -66,7 +66,8 @@ impl Formatter<'_> {
             }
             FunctionAttributeKind::Fold
             | FunctionAttributeKind::NoPredicates
-            | FunctionAttributeKind::InlineAlways => {
+            | FunctionAttributeKind::InlineAlways
+            | FunctionAttributeKind::InlineNever => {
                 self.format_no_args_attribute();
             }
         }
@@ -83,13 +84,14 @@ impl Formatter<'_> {
         }
 
         match attribute.kind {
-            SecondaryAttributeKind::Deprecated(message) => {
-                self.format_deprecated_attribute(message);
+            SecondaryAttributeKind::Deprecated(deny, message) => {
+                self.format_deprecated_attribute(deny, message);
             }
             SecondaryAttributeKind::ContractLibraryMethod
             | SecondaryAttributeKind::Export
             | SecondaryAttributeKind::Varargs
-            | SecondaryAttributeKind::UseCallersScope => {
+            | SecondaryAttributeKind::UseCallersScope
+            | SecondaryAttributeKind::Pure => {
                 self.format_no_args_attribute();
             }
             SecondaryAttributeKind::Field(_)
@@ -103,20 +105,33 @@ impl Formatter<'_> {
             SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
+            SecondaryAttributeKind::MustUse(message) => {
+                self.format_must_use_attribute(message);
+            }
         }
 
         self.write_line();
     }
 
-    fn format_deprecated_attribute(&mut self, message: Option<String>) {
+    fn format_deprecated_attribute(&mut self, deny: bool, message: Option<String>) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        if message.is_some() {
+        if deny || message.is_some() {
             self.write_current_token_and_bump(); // deprecated
             self.write_left_paren(); // (
-            self.skip_comments_and_whitespace(); // message
-            self.write_current_token_and_bump(); // )
-            self.write_right_paren();
+            self.skip_comments_and_whitespace();
+
+            if deny {
+                self.write_current_token_and_bump(); // deny
+            }
+            if deny && message.is_some() {
+                self.write_comma(); // ,
+            }
+            if message.is_some() {
+                self.write_current_token_and_bump(); // message
+            }
+
+            self.write_right_paren(); // )
         } else {
             self.write_current_token_and_bump();
         }
@@ -224,6 +239,22 @@ impl Formatter<'_> {
             }
         }
         self.write_right_bracket();
+    }
+
+    fn format_must_use_attribute(&mut self, message: Option<String>) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // name
+
+        if message.is_some() {
+            self.write_space();
+            self.write_token(Token::Assign);
+            self.write_space();
+            self.write_current_token_and_bump(); // message
+            self.skip_comments_and_whitespace();
+        }
+
+        self.write_right_bracket(); // ]
     }
 
     fn format_no_args_attribute(&mut self) {
@@ -449,6 +480,17 @@ mod tests {
     fn format_multiple_function_attributes() {
         let src = " #[foo] #[test] #[bar]  ";
         let expected = "#[foo]\n#[test]\n#[bar]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_must_use_attribute() {
+        let src = " #[  must_use  ] ";
+        let expected = "#[must_use]";
+        assert_format_attribute(src, expected);
+
+        let src = " #[   must_use   =   \"hey you should really use this thing\"  ]  ";
+        let expected = "#[must_use = \"hey you should really use this thing\"]";
         assert_format_attribute(src, expected);
     }
 }

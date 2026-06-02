@@ -4,10 +4,8 @@ use iter_extended::vecmap;
 
 use crate::{
     DataType, Kind, ResolvedGeneric, Type,
-    ast::IntegerBitSize,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
-    shared::Signedness,
 };
 
 /// Represents something that can be generic over type variables
@@ -138,8 +136,7 @@ impl Generic for StrPrimitiveType {
     }
 
     fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
-        let length =
-            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        let length = Kind::u32();
         vec![length]
     }
 
@@ -164,8 +161,7 @@ impl Generic for FmtstrPrimitiveType {
     }
 
     fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
-        let length =
-            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        let length = Kind::u32();
         let element = Kind::Normal;
         vec![length, element]
     }
@@ -181,7 +177,7 @@ impl Generic for FmtstrPrimitiveType {
 
 /// TraitGenerics are different from regular generics in that they can
 /// also contain associated type arguments.
-#[derive(Default, PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
+#[derive(Default, Clone, Ord, PartialOrd, Eq)]
 pub struct TraitGenerics {
     pub ordered: Vec<Type>,
     pub named: Vec<NamedType>,
@@ -198,6 +194,13 @@ impl TraitGenerics {
     pub fn is_empty(&self) -> bool {
         self.ordered.is_empty() && self.named.is_empty()
     }
+
+    /// Return references to the named types sorted by name.
+    fn named_sorted(&self) -> Vec<&NamedType> {
+        let mut named = self.named.iter().collect::<Vec<_>>();
+        named.sort_by_key(|x| &x.name);
+        named
+    }
 }
 
 impl std::fmt::Display for TraitGenerics {
@@ -209,6 +212,19 @@ impl std::fmt::Display for TraitGenerics {
 impl std::fmt::Debug for TraitGenerics {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fmt_trait_generics(self, f, true)
+    }
+}
+
+impl PartialEq for TraitGenerics {
+    fn eq(&self, other: &Self) -> bool {
+        self.ordered == other.ordered && self.named_sorted() == other.named_sorted()
+    }
+}
+
+impl std::hash::Hash for TraitGenerics {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ordered.hash(state);
+        self.named_sorted().hash(state);
     }
 }
 

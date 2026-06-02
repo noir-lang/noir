@@ -44,73 +44,55 @@ fn multiple_brillig_calls_one_bytecode() {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w2]
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w3]
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w4]
-    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w5]
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w6]
-    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w7]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w2]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w4]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w5]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w6]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w7]
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @68
-     7: sp[2] = @69
-     8: call 14
-     9: call 15
-    10: @70 = sp[1]
-    11: sp[2] = const u32 70
-    12: sp[3] = const u32 1
-    13: stop &[sp[2]; sp[3]]
-    14: return
-    15: call 23
-    16: sp[3] = field eq sp[1], sp[2]
-    17: sp[2] = const bool 0
-    18: sp[4] = bool eq sp[3], sp[2]
-    19: jump if sp[4] to 22
-    20: sp[5] = const u32 0
-    21: trap &[@1; sp[5]]
-    22: return
-    23: @4 = const u32 30791
-    24: @3 = u32 lt @0, @4
-    25: jump if @3 to 28
-    26: @1 = indirect const u64 15764276373176857197
-    27: trap &[@1; @2]
-    28: return
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = @67
+     7: sp[3] = @68
+     8: call 13
+     9: @69 = sp[2]
+    10: sp[3] = const u32 69
+    11: sp[4] = const u32 1
+    12: stop @[sp[3]; sp[4]]
+    13: sp[4] = field eq sp[2], sp[3]
+    14: sp[3] = const bool 0
+    15: sp[5] = bool eq sp[4], sp[3]
+    16: jump if sp[5] to 19
+    17: sp[6] = const u32 0
+    18: trap @[@1; sp[6]]
+    19: return
     unconstrained func 1: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: sp[1] = @68
-     7: sp[2] = @69
-     8: call 14
-     9: call 15
-    10: @70 = sp[1]
-    11: sp[2] = const u32 70
-    12: sp[3] = const u32 1
-    13: stop &[sp[2]; sp[3]]
-    14: return
-    15: call 23
-    16: sp[3] = field eq sp[1], sp[2]
-    17: sp[2] = const bool 0
-    18: sp[4] = bool eq sp[3], sp[2]
-    19: jump if sp[4] to 22
-    20: sp[5] = const u32 0
-    21: trap &[@1; sp[5]]
-    22: return
-    23: @4 = const u32 30791
-    24: @3 = u32 lt @0, @4
-    25: jump if @3 to 28
-    26: @1 = indirect const u64 15764276373176857197
-    27: trap &[@1; @2]
-    28: return
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = @67
+     7: sp[3] = @68
+     8: call 13
+     9: @69 = sp[2]
+    10: sp[3] = const u32 69
+    11: sp[4] = const u32 1
+    12: stop @[sp[3]; sp[4]]
+    13: sp[4] = field eq sp[2], sp[3]
+    14: sp[3] = const bool 0
+    15: sp[5] = bool eq sp[4], sp[3]
+    16: jump if sp[5] to 19
+    17: sp[6] = const u32 0
+    18: trap @[@1; sp[6]]
+    19: return
     ");
 }
 
@@ -151,18 +133,18 @@ fn multiple_brillig_stdlib_calls() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
-    BRILLIG CALL func: 0, inputs: [w1], outputs: [w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w1], outputs: [w3]
     ASSERT 0 = w1*w3 - 1
-    BRILLIG CALL func: 1, inputs: [w0, w1], outputs: [w4, w5]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w4, w5]
     BLACKBOX::RANGE input: w4, bits: 32
     BLACKBOX::RANGE input: w5, bits: 32
     ASSERT w6 = w1 - w5 - 1
     BLACKBOX::RANGE input: w6, bits: 32
     ASSERT w5 = -w1*w4 + w0
     ASSERT w4 = w2
-    BRILLIG CALL func: 0, inputs: [w2], outputs: [w7]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w2], outputs: [w7]
     ASSERT 0 = w2*w7 - 1
-    BRILLIG CALL func: 1, inputs: [w1, w2], outputs: [w8, w9]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w1, w2], outputs: [w8, w9]
     BLACKBOX::RANGE input: w9, bits: 32
     ASSERT w10 = w2 - w9 - 1
     BLACKBOX::RANGE input: w10, bits: 32
@@ -178,7 +160,7 @@ fn multiple_brillig_stdlib_calls() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 1: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -187,7 +169,7 @@ fn multiple_brillig_stdlib_calls() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -238,22 +220,22 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
-    BRILLIG CALL func: 1, inputs: [w1], outputs: [w3]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w1], outputs: [w3]
     ASSERT 0 = w1*w3 - 1
-    BRILLIG CALL func: 2, inputs: [w0, w1], outputs: [w4, w5]
+    BRILLIG CALL func: 2, predicate: 1, inputs: [w0, w1], outputs: [w4, w5]
     BLACKBOX::RANGE input: w4, bits: 32
     BLACKBOX::RANGE input: w5, bits: 32
     ASSERT w6 = w1 - w5 - 1
     BLACKBOX::RANGE input: w6, bits: 32
     ASSERT w5 = -w1*w4 + w0
     ASSERT w4 = w2
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w7]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w7]
     BLACKBOX::RANGE input: w7, bits: 32
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w8]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w8]
     BLACKBOX::RANGE input: w8, bits: 32
-    BRILLIG CALL func: 1, inputs: [w2], outputs: [w9]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w2], outputs: [w9]
     ASSERT 0 = w2*w9 - 1
-    BRILLIG CALL func: 2, inputs: [w1, w2], outputs: [w10, w11]
+    BRILLIG CALL func: 2, predicate: 1, inputs: [w1, w2], outputs: [w10, w11]
     BLACKBOX::RANGE input: w11, bits: 32
     ASSERT w12 = w2 - w11 - 1
     BLACKBOX::RANGE input: w12, bits: 32
@@ -262,36 +244,27 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: @68 = cast @68 to u32
-     7: @69 = cast @69 to u32
-     8: sp[1] = @68
-     9: sp[2] = @69
-    10: call 16
-    11: call 17
-    12: @70 = sp[1]
-    13: sp[2] = const u32 70
-    14: sp[3] = const u32 1
-    15: stop &[sp[2]; sp[3]]
-    16: return
-    17: call 25
-    18: sp[3] = u32 eq sp[1], sp[2]
-    19: sp[2] = const bool 0
-    20: sp[4] = bool eq sp[3], sp[2]
-    21: jump if sp[4] to 24
-    22: sp[5] = const u32 0
-    23: trap &[@1; sp[5]]
-    24: return
-    25: @4 = const u32 30791
-    26: @3 = u32 lt @0, @4
-    27: jump if @3 to 30
-    28: @1 = indirect const u64 15764276373176857197
-    29: trap &[@1; @2]
-    30: return
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: @67 = cast @67 to u32
+     7: @68 = cast @68 to u32
+     8: sp[2] = @67
+     9: sp[3] = @68
+    10: call 15
+    11: @69 = sp[2]
+    12: sp[3] = const u32 69
+    13: sp[4] = const u32 1
+    14: stop @[sp[3]; sp[4]]
+    15: sp[4] = u32 eq sp[2], sp[3]
+    16: sp[3] = const bool 0
+    17: sp[5] = bool eq sp[4], sp[3]
+    18: jump if sp[5] to 21
+    19: sp[6] = const u32 0
+    20: trap @[@1; sp[6]]
+    21: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -301,7 +274,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -310,7 +283,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }
 
@@ -371,23 +344,23 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
-    BRILLIG CALL func: 1, inputs: [w1], outputs: [w3]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w1], outputs: [w3]
     ASSERT 0 = w1*w3 - 1
-    BRILLIG CALL func: 2, inputs: [w0, w1], outputs: [w4, w5]
+    BRILLIG CALL func: 2, predicate: 1, inputs: [w0, w1], outputs: [w4, w5]
     BLACKBOX::RANGE input: w4, bits: 32
     BLACKBOX::RANGE input: w5, bits: 32
     ASSERT w6 = w1 - w5 - 1
     BLACKBOX::RANGE input: w6, bits: 32
     ASSERT w5 = -w1*w4 + w0
     ASSERT w4 = w2
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w7]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w7]
     BLACKBOX::RANGE input: w7, bits: 32
-    BRILLIG CALL func: 0, inputs: [w0, w1], outputs: [w8]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, w1], outputs: [w8]
     BLACKBOX::RANGE input: w8, bits: 32
     CALL func: 1, predicate: 1, inputs: [w0, w1], outputs: [w9]
-    BRILLIG CALL func: 1, inputs: [w2], outputs: [w10]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w2], outputs: [w10]
     ASSERT 0 = w2*w10 - 1
-    BRILLIG CALL func: 2, inputs: [w1, w2], outputs: [w11, w12]
+    BRILLIG CALL func: 2, predicate: 1, inputs: [w1, w2], outputs: [w11, w12]
     BLACKBOX::RANGE input: w12, bits: 32
     ASSERT w13 = w2 - w12 - 1
     BLACKBOX::RANGE input: w13, bits: 32
@@ -401,7 +374,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     ASSERT w3 = w0 - w1
-    BRILLIG CALL func: 1, inputs: [w3], outputs: [w4]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [w3], outputs: [w4]
     ASSERT w5 = -w3*w4 + 1
     ASSERT 0 = w3*w5
     ASSERT w5 = 0
@@ -409,36 +382,27 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: sp[3] = const u32 2
-     4: sp[4] = const u32 0
-     5: @68 = calldata copy [sp[4]; sp[3]]
-     6: @68 = cast @68 to u32
-     7: @69 = cast @69 to u32
-     8: sp[1] = @68
-     9: sp[2] = @69
-    10: call 16
-    11: call 17
-    12: @70 = sp[1]
-    13: sp[2] = const u32 70
-    14: sp[3] = const u32 1
-    15: stop &[sp[2]; sp[3]]
-    16: return
-    17: call 25
-    18: sp[3] = u32 eq sp[1], sp[2]
-    19: sp[2] = const bool 0
-    20: sp[4] = bool eq sp[3], sp[2]
-    21: jump if sp[4] to 24
-    22: sp[5] = const u32 0
-    23: trap &[@1; sp[5]]
-    24: return
-    25: @4 = const u32 30791
-    26: @3 = u32 lt @0, @4
-    27: jump if @3 to 30
-    28: @1 = indirect const u64 15764276373176857197
-    29: trap &[@1; @2]
-    30: return
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: @67 = cast @67 to u32
+     7: @68 = cast @68 to u32
+     8: sp[2] = @67
+     9: sp[3] = @68
+    10: call 15
+    11: @69 = sp[2]
+    12: sp[3] = const u32 69
+    13: sp[4] = const u32 1
+    14: stop @[sp[3]; sp[4]]
+    15: sp[4] = u32 eq sp[2], sp[3]
+    16: sp[3] = const bool 0
+    17: sp[5] = bool eq sp[4], sp[3]
+    18: jump if sp[5] to 21
+    19: sp[6] = const u32 0
+    20: trap @[@1; sp[6]]
+    21: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -448,7 +412,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     unconstrained func 2: directive_integer_quotient
     0: @10 = const u32 2
     1: @11 = const u32 0
@@ -457,6 +421,6 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     ");
 }

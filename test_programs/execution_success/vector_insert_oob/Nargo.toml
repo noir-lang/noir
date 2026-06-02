@@ -1,0 +1,6 @@
+[package]
+name = "vector_insert_oob"
+type = "bin"
+authors = [""]
+
+[dependencies]

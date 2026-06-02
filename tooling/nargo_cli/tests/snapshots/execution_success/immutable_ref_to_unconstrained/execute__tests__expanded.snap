@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn read_ref(r: &Field) -> Field {
+    *r
+}
+
+unconstrained fn read_ref_struct(r: &Foo) -> u32 {
+    ((r.x + r.y[0_u32]) + r.y[1_u32]) + r.y[2_u32]
+}
+
+struct Foo {
+    x: u32,
+    y: [u32; 3],
+}
+
+fn main(x: pub Field, y: pub u32) {
+    // Safety: comment added by `nargo expand`
+    let result: Field = unsafe { read_ref(&x) };
+    assert(result == x);
+    let foo: Foo = Foo { x: 1_u32, y: [2_u32, 3_u32, 4_u32] };
+    // Safety: comment added by `nargo expand`
+    let result: u32 = unsafe { read_ref_struct(&foo) };
+    assert(result == y);
+}

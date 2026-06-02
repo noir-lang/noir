@@ -1,20 +1,25 @@
 use crate::option::Option;
 
 impl Module {
-    #[builtin(module_add_item)]
-    // docs:start:add_item
-    pub comptime fn add_item(self, item: Quoted) {}
-    // docs:end:add_item
-
     #[builtin(module_has_named_attribute)]
     // docs:start:has_named_attribute
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(module_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     #[builtin(module_is_contract)]
     // docs:start:is_contract
     pub comptime fn is_contract(self) -> bool {}
     // docs:end:is_contract
+
+    #[builtin(module_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 
     #[builtin(module_functions)]
     // docs:start:functions

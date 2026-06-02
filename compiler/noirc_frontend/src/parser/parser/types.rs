@@ -58,10 +58,12 @@ impl Parser<'_> {
         &mut self,
         allow_generics: bool,
     ) -> Option<UnresolvedType> {
-        let start_location = self.current_token_location;
-        let typ = self.parse_unresolved_type_data(allow_generics)?;
-        let location = self.location_since(start_location);
-        Some(UnresolvedType { typ, location })
+        self.with_max_recursion_depth_guard(|this| {
+            let start_location = this.current_token_location;
+            let typ = this.parse_unresolved_type_data(allow_generics)?;
+            let location = this.location_since(start_location);
+            Some(UnresolvedType { typ, location })
+        })
     }
 
     fn parse_unresolved_type_data(&mut self, allow_generics: bool) -> Option<UnresolvedTypeData> {
@@ -73,7 +75,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_array_or_slice_type() {
+        if let Some(typ) = self.parse_array_or_vector_type() {
             return Some(typ);
         }
 
@@ -93,7 +95,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(path) = self.parse_path_no_turbofish() {
+        if let Some(path) = self.parse_path_for_named_type() {
             let generics = if allow_generics {
                 self.parse_generic_type_args()
             } else {
@@ -125,8 +127,8 @@ impl Parser<'_> {
                 self.expected_token(Token::Keyword(Keyword::Fn));
                 return Some(UnresolvedTypeData::Function(
                     Vec::new(),
-                    Box::new(self.unspecified_type_at_previous_token_end()),
-                    Box::new(self.unspecified_type_at_previous_token_end()),
+                    Box::new(self.error_type_at_previous_token_end()),
+                    Box::new(self.error_type_at_previous_token_end()),
                     unconstrained,
                 ));
             }
@@ -147,8 +149,8 @@ impl Parser<'_> {
 
             return Some(UnresolvedTypeData::Function(
                 Vec::new(),
-                Box::new(self.unspecified_type_at_previous_token_end()),
-                Box::new(self.unspecified_type_at_previous_token_end()),
+                Box::new(self.error_type_at_previous_token_end()),
+                Box::new(self.error_type_at_previous_token_end()),
                 unconstrained,
             ));
         }
@@ -233,8 +235,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a slice start if this is an array or slice type
-        if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
+        if self.eat(Token::Ampersand) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -246,7 +247,7 @@ impl Parser<'_> {
         None
     }
 
-    fn parse_array_or_slice_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_array_or_vector_type(&mut self) -> Option<UnresolvedTypeData> {
         if !self.eat_left_bracket() {
             return None;
         }
@@ -262,12 +263,12 @@ impl Parser<'_> {
                 Err(error) => {
                     self.errors.push(error);
                     self.eat_or_error(Token::RightBracket);
-                    Some(UnresolvedTypeData::Slice(Box::new(typ)))
+                    Some(UnresolvedTypeData::Vector(Box::new(typ)))
                 }
             }
         } else {
             self.eat_or_error(Token::RightBracket);
-            Some(UnresolvedTypeData::Slice(Box::new(typ)))
+            Some(UnresolvedTypeData::Vector(Box::new(typ)))
         }
     }
 
@@ -303,28 +304,22 @@ impl Parser<'_> {
     }
 
     /// OptionalTypeAnnotation = ( ':' Type )?
-    pub(super) fn parse_optional_type_annotation(&mut self) -> UnresolvedType {
-        if self.eat_colon() {
-            self.parse_type_or_error()
-        } else {
-            self.unspecified_type_at_previous_token_end()
-        }
+    pub(super) fn parse_optional_type_annotation(&mut self) -> Option<UnresolvedType> {
+        if self.eat_colon() { Some(self.parse_type_or_error()) } else { None }
     }
 
-    pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_location(self.location_at_previous_token_end())
+    fn error_type_at_previous_token_end(&self) -> UnresolvedType {
+        UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -455,24 +450,44 @@ mod tests {
     }
 
     #[test]
-    fn parses_slice_type() {
+    fn parses_named_type_with_generics_without_double_colon() {
+        let src = "foo::Bar<i32>";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
+            panic!("Expected a named type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].typ.to_string(), "i32");
+    }
+
+    #[test]
+    fn parses_named_type_with_generics_with_double_colon() {
+        let src = "foo::Bar::<i32>";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
+            panic!("Expected a named type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].typ.to_string(), "i32");
+    }
+
+    #[test]
+    fn parses_vector_type() {
         let src = "[Field]";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
+        let UnresolvedTypeData::Vector(typ) = typ.typ else { panic!("Expected a vector type") };
         assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
-    fn errors_if_missing_right_bracket_after_slice_type() {
+    fn errors_if_missing_right_bracket_after_vector_type() {
         let src = "
-        [Field 
-              ^
+        [Field
+             ^ Expected a ']' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_type();
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ']' but found end of input");
+        check_errors(src, |parser| parser.parse_type());
     }
 
     #[test]

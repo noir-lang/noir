@@ -3,10 +3,12 @@
 
 use std::sync::{Arc, OnceLock};
 
+use acir::brillig::lengths::SemanticLength;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+use itertools::Itertools;
+use noirc_abi::{Abi, AbiType, InputMap, Sign, errors::AbiError, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
@@ -146,7 +148,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) => {
                 // The value should be a `NumericValue` display format, which is `<type> <value>`.
-                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                let value = value.split_once(' ').map_or(value.as_str(), |(_, value)| value);
                 value == constant.to_string()
             }
             (Internal(_), _) | (_, Internal(_)) => {
@@ -162,7 +164,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     (start < end).then(|| &s[start..=end])
                 }
                 fn details_or_sanitize(s: &str) -> String {
-                    details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
+                    details(s).map_or_else(|| sanitize_ssa(s), |s| s.to_string())
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
@@ -214,8 +216,8 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
                 true
             }
-            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
-                // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+            (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
+                // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
                 msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
@@ -235,11 +237,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
 impl Comparable for Value {
     fn equivalent(a: &Self, b: &Self) -> bool {
         match (a, b) {
-            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
+            (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_slice == b.is_slice
+                    && a.length == b.length
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -250,8 +252,24 @@ impl Comparable for Value {
     }
 }
 
+pub fn encode_to_ssa(
+    abi: &Abi,
+    input_map: &InputMap,
+    return_value: Option<InputValue>,
+) -> Result<(Vec<Value>, Option<Vec<Value>>), AbiError> {
+    abi.encode(input_map, return_value.clone())?;
+    let ssa_args = input_values_to_ssa(abi, input_map);
+    let ssa_return =
+        if let (Some(return_value), Some(return_type)) = (return_value, abi.return_type.as_ref()) {
+            Some(input_value_to_ssa(&return_type.abi_type, &return_value))
+        } else {
+            None
+        };
+    Ok((ssa_args, ssa_return))
+}
+
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
-pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
+fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
@@ -266,7 +284,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types and structs are flattened.
-pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     let mut values = Vec::new();
     append_input_value_to_ssa(typ, input, &mut values);
     values
@@ -275,12 +293,12 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
 fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements: Vec<Value>, types: Vec<Type>| {
-        Value::ArrayOrSlice(ArrayValue {
+    let array_value = |elements: Vec<Value>, types: Vec<Type>, length: SemanticLength| {
+        Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_slice: false,
+            length: Some(length),
         })
     };
     match input {
@@ -299,8 +317,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values
-            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
+        InputValue::String(s) => {
+            let bytes = s.bytes();
+            let length = SemanticLength(bytes.len() as u32);
+            values.push(array_value(vecmap(bytes, Value::u8), vec![Type::unsigned(8)], length));
+        }
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
@@ -308,13 +329,13 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
                 for input in input_values {
                     append_input_value_to_ssa(typ, input, &mut elements);
                 }
-                values.push(array_value(elements, input_type_to_ssa(typ)));
+                values.push(array_value(elements, input_type_to_ssa(typ), SemanticLength(*length)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
                 // Tuples are flattened
-                for (typ, input) in fields.iter().zip(input_values) {
+                for (typ, input) in fields.iter().zip_eq(input_values) {
                     append_input_value_to_ssa(typ, input, values);
                 }
             }
@@ -351,7 +372,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
     match typ {
         AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), *length));
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), SemanticLength(*length)));
         }
         AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
         AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
@@ -369,7 +390,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
             }
         }
         AbiType::String { length } => {
-            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), *length));
+            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), SemanticLength(*length)));
         }
     }
 }
@@ -402,7 +423,7 @@ mod tests {
             v30 = cast v23 as i64
             v31 = lt v30, v19
             v32 = not v31
-            jmpif v32 then: b1, else: b2
+            jmpif v32 then: b1(), else: b2()
         "#;
 
         let ssa = sanitize_ssa(src);
@@ -421,7 +442,7 @@ mod tests {
             v_ = cast v_ as i64
             v_ = lt v_, v_
             v_ = not v_
-            jmpif v_ then: b_, else: b_
+            jmpif v_ then: b_(), else: b_()
         "#
         );
     }

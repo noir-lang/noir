@@ -1,80 +1,88 @@
 //! This module analyzes the liveness of variables (non-constant values) throughout a function.
 //! It uses the approach detailed in the section 4.2 of this paper <https://inria.hal.science/inria-00558509v2/document>
 
-use crate::ssa::ir::{
-    basic_block::{BasicBlock, BasicBlockId},
-    cfg::ControlFlowGraph,
-    dfg::DataFlowGraph,
-    dom::DominatorTree,
-    function::Function,
-    instruction::{Instruction, InstructionId},
-    post_order::PostOrder,
-    value::{Value, ValueId},
+use std::collections::BTreeSet;
+
+use crate::ssa::{
+    ir::{
+        basic_block::{BasicBlock, BasicBlockId},
+        cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
+        dom::DominatorTree,
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        post_order::PostOrder,
+        value::{Value, ValueId},
+    },
+    opt::{LoopOrder, Loops},
 };
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::constant_allocation::ConstantAllocation;
+use super::constant_allocation::{ConstantAllocation, InstructionLocation};
+
+/// A set of [ValueId]s referring to SSA variables (not functions).
+type Variables = HashSet<ValueId>;
+/// The set variables which are dead after a given instruction (in a given block).
+type LastUses = HashMap<InstructionId, Variables>;
+/// Maps a loop (identified by its header and back-edge) to the blocks in the loop body.
+type LoopMap = HashMap<BackEdge, BTreeSet<BasicBlockId>>;
 
 /// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct BackEdge {
+    /// The header of the loop.
     header: BasicBlockId,
+    /// The back-edge of the loop.
     start: BasicBlockId,
 }
 
-fn find_back_edges(
-    func: &Function,
-    cfg: &ControlFlowGraph,
-    post_order: &PostOrder,
-) -> HashSet<BackEdge> {
-    let mut tree = DominatorTree::with_cfg_and_post_order(cfg, post_order);
-    let mut back_edges = HashSet::default();
-
-    for block_id in func.reachable_blocks() {
-        let block = &func.dfg[block_id];
-        let successors = block.successors();
-        for successor_id in successors {
-            if tree.dominates(successor_id, block_id) {
-                back_edges.insert(BackEdge { start: block_id, header: successor_id });
-            }
-        }
-    }
-
-    back_edges
-}
-
-/// Collects the underlying variables inside a value id. It might be more than one, for example in constant arrays that are constructed with multiple vars.
-pub(crate) fn collect_variables_of_value(
-    value_id: ValueId,
-    dfg: &DataFlowGraph,
-) -> Option<ValueId> {
+/// Check if the [Value] behind the [ValueId] requires register allocation (like a function parameter),
+/// rather than a global value like a user-defined function, intrinsic, or foreign function.
+pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     let value = &dfg[value_id];
 
     match value {
         Value::Instruction { .. }
         | Value::Param { .. }
         | Value::NumericConstant { .. }
-        | Value::Global(_) => Some(value_id),
+        | Value::Global(_) => true,
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
-        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => None,
+        Value::ForeignFunction { .. } | Value::Function(_) | Value::Intrinsic(..) => false,
     }
 }
 
-pub(crate) fn variables_used_in_instruction(
+/// Collect all [ValueId]s used in an [Instruction] which refer to variables (not functions).
+pub(super) fn variables_used_in_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
 ) -> Variables {
     let mut used = HashSet::default();
 
     instruction.for_each_value(|value_id| {
-        let underlying_ids = collect_variables_of_value(value_id, dfg);
-        used.extend(underlying_ids);
+        if is_variable(value_id, dfg) {
+            used.insert(value_id);
+        }
     });
 
     used
 }
 
+/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+fn variables_returned_by_instruction(
+    instruction_id: InstructionId,
+    dfg: &DataFlowGraph,
+) -> Variables {
+    dfg.instruction_results(instruction_id)
+        .iter()
+        .copied()
+        .filter(|result_id| is_variable(*result_id, dfg))
+        .collect()
+}
+
+/// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
+///
+/// Includes all the variables in the parameters, instructions and the terminator.
 fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
     let mut used: Variables = block
         .instructions()
@@ -86,260 +94,374 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters());
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
-            used.extend(collect_variables_of_value(value_id, dfg));
+            if is_variable(value_id, dfg) {
+                used.insert(value_id);
+            }
         });
     }
 
     used
 }
 
-type Variables = HashSet<ValueId>;
-
-fn compute_used_before_def(
-    block: &BasicBlock,
-    dfg: &DataFlowGraph,
-    defined_in_block: &Variables,
-) -> Variables {
-    variables_used_in_block(block, dfg)
-        .into_iter()
-        .filter(|id| !defined_in_block.contains(id))
-        .collect()
-}
-
-type LastUses = HashMap<InstructionId, Variables>;
-
 /// A struct representing the liveness of variables throughout a function.
 #[derive(Default)]
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
-    post_order: PostOrder,
-    dominator_tree: DominatorTree,
-    /// The variables that are alive before the block starts executing
+    /// The variables that are alive before the block starts executing.
     live_in: HashMap<BasicBlockId, Variables>,
-    /// The variables that stop being alive after each specific instruction
+    /// The variables that stop being alive after each specific instruction.
     last_uses: HashMap<BasicBlockId, LastUses>,
-    /// The list of block params the given block is defining. The order matters for the entry block, so it's a vec.
+    /// The list of block params the given block is defining.
+    /// The order matters for the entry block, so it's a vec.
+    ///
+    /// By _defining_  we mean the allocation of variables that appear in the parameter
+    /// list of some other block which this one immediately dominates, with values to be
+    /// assigned in the terminators of the predecessors of that block.
     param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
+    /// The maximum number of variables simultaneously live at any point in the function.
+    /// Computed after `last_uses` by walking each block instruction-by-instruction.
+    pub(crate) max_live_count: usize,
 }
 
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
     pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
-        let cfg = ControlFlowGraph::with_function(func);
-        let post_order = PostOrder::with_function(func);
-        let dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
-        let mut instance = Self {
-            cfg,
-            post_order,
-            dominator_tree,
-            live_in: HashMap::default(),
-            last_uses: HashMap::default(),
-            param_definitions: HashMap::default(),
-        };
+        let back_edges: LoopMap = loops
+            .yet_to_unroll
+            .into_iter()
+            .map(|loop_| {
+                let back_edge = BackEdge { header: loop_.header, start: loop_.back_edge_start };
+                (back_edge, loop_.blocks)
+            })
+            .collect();
 
-        instance.compute_block_param_definitions(func);
-
-        instance.compute_live_in_of_blocks(func, constants);
-
-        instance.compute_last_uses(func);
-
-        instance
+        Self { cfg: loops.cfg, ..Default::default() }
+            .compute_block_param_definitions(func, &loops.dom)
+            .compute_live_in_of_blocks(func, constants, back_edges)
+            .compute_last_uses(func)
+            .compute_max_live_count(func, constants)
     }
 
-    /// The set of values that are alive before the block starts executing
+    /// The set of values that are alive before the block starts executing.
     pub(crate) fn get_live_in(&self, block_id: &BasicBlockId) -> &Variables {
-        self.live_in.get(block_id).expect("Live ins should have been calculated")
+        self.live_in.get(block_id).expect("live_in should have been calculated")
     }
 
-    /// The set of values that are alive after the block has finished executed
+    /// The set of values that are alive after the block has finished executed.
+    ///
+    /// By definition this is the union of variables alive in the successors of the block.
     pub(crate) fn get_live_out(&self, block_id: &BasicBlockId) -> Variables {
         let mut live_out = HashSet::default();
         for successor_id in self.cfg.successors(*block_id) {
-            live_out.extend(self.get_live_in(&successor_id));
+            live_out.extend(self.get_live_in(&successor_id).iter().copied());
         }
         live_out
     }
 
-    /// A map of instruction id to the set of values that die after the instruction has executed
+    /// For a given block, get the map of instruction ID to the set of values
+    /// that die after the instruction has executed.
     pub(crate) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
-        self.last_uses.get(block_id).expect("Last uses should have been calculated")
+        self.last_uses.get(block_id).expect("last_uses should have been calculated")
     }
 
-    /// Retrieves the list of block params the given block is defining.
-    /// Block params are defined before the block that owns them (since they are used by the predecessor blocks). They must be defined in the immediate dominator.
-    /// This is the last point where the block param can be allocated without it being allocated in different places in different branches.
+    /// Retrieves the list of block parameters the given block is defining.
+    ///
+    /// Block parameters are defined before the block that owns them
+    /// (since they are used by the predecessor blocks to pass values).
+    /// They must be defined in the immediate dominator, which is the
+    /// last point where the block parameter can be allocated
+    /// without it being allocated in different places in different branches.
     pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 
-    fn compute_block_param_definitions(&mut self, func: &Function) {
-        // Going in reverse post order to process the entry block first
-        let reverse_post_order = self.post_order.clone().into_vec_reverse();
+    /// Compute [VariableLiveness::param_definitions].
+    ///
+    /// Append the parameters of each block to the parameter definition list of
+    /// its immediate dominator.
+    fn compute_block_param_definitions(mut self, func: &Function, dom: &DominatorTree) -> Self {
+        assert!(self.param_definitions.is_empty(), "only define parameters once");
+
+        // Going in reverse post order to process the entry block first.
+        let reverse_post_order = PostOrder::with_function(func).into_vec_reverse();
         for block in reverse_post_order {
             let params = func.dfg[block].parameters();
             // If it has no dominator, it's the entry block
-            let dominator_block =
-                self.dominator_tree.immediate_dominator(block).unwrap_or(func.entry_block());
+            let dominator_block = dom.immediate_dominator(block).unwrap_or(func.entry_block());
             let definitions_for_the_dominator =
                 self.param_definitions.entry(dominator_block).or_default();
             definitions_for_the_dominator.extend(params.iter());
         }
+
+        self
     }
 
-    fn compute_live_in_of_blocks(&mut self, func: &Function, constants: &ConstantAllocation) {
-        let back_edges = find_back_edges(func, &self.cfg, &self.post_order);
+    /// Compute [VariableLiveness::live_in].
+    ///
+    /// Collect the variables which are alive before each block.
+    fn compute_live_in_of_blocks(
+        mut self,
+        func: &Function,
+        constants: &ConstantAllocation,
+        back_edges: LoopMap,
+    ) -> Self {
+        // First pass, propagate up the live_ins skipping back edges.
+        self.compute_live_in(func, constants, &back_edges);
 
-        // First pass, propagate up the live_ins skipping back edges
-        self.compute_live_in_recursive(func, func.entry_block(), &back_edges, constants);
-
-        // Second pass, propagate header live_ins to the loop bodies
-        for back_edge in back_edges {
-            self.update_live_ins_within_loop(back_edge);
+        // Second pass, propagate header live_ins to the loop bodies.
+        for (back_edge, loop_body) in back_edges {
+            self.update_live_ins_within_loop(back_edge, loop_body);
         }
+
+        self
     }
 
-    fn compute_live_in_recursive(
+    /// Compute `live_in` for every block in one post-order pass.
+    ///
+    /// In a post-order traversal, a block is visited after all of its non-back-edge
+    /// successors have been visited, so each block's `live_out` is just the union of
+    /// its already-computed successors' `live_in`s (skipping back-edges — those are
+    /// handled in the second pass, [`Self::update_live_ins_within_loop`]).
+    ///
+    /// From the paper cited in the module docs:
+    ///   `live_in[B] = used[B] ∪ (live_out[B] - defined[B])`
+    fn compute_live_in(
         &mut self,
         func: &Function,
-        block_id: BasicBlockId,
-        back_edges: &HashSet<BackEdge>,
         constants: &ConstantAllocation,
+        back_edges: &LoopMap,
     ) {
-        let mut defined = self.compute_defined_variables(block_id, &func.dfg);
+        for block_id in PostOrder::with_function(func).as_slice().iter().copied() {
+            let block = &func.dfg[block_id];
+            let mut live_out = HashSet::default();
 
-        defined.extend(constants.allocated_in_block(block_id));
-
-        let block: &BasicBlock = &func.dfg[block_id];
-
-        let used_before_def = compute_used_before_def(block, &func.dfg, &defined);
-
-        let mut live_out = HashSet::default();
-
-        for successor_id in block.successors() {
-            if !back_edges.contains(&BackEdge { start: block_id, header: successor_id }) {
-                if !self.live_in.contains_key(&successor_id) {
-                    self.compute_live_in_recursive(func, successor_id, back_edges, constants);
+            for successor_id in block.successors() {
+                // Skip back edges: the header's live_in is computed in the same pass,
+                // but the loop-body contributions are added later.
+                if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id }) {
+                    continue;
                 }
                 live_out.extend(
                     self.live_in
                         .get(&successor_id)
-                        .expect("Live ins for successor should have been calculated"),
+                        .expect("live_in for successor should have been calculated")
+                        .iter()
+                        .copied(),
                 );
             }
-        }
 
-        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-        let passthrough_vars = live_out.difference(&defined).cloned().collect();
-        self.live_in.insert(block_id, used_before_def.union(&passthrough_vars).cloned().collect());
+            let used = variables_used_in_block(block, &func.dfg);
+            let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
+            let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
+
+            self.live_in.insert(block_id, live_in);
+        }
     }
 
-    fn compute_defined_variables(&self, block_id: BasicBlockId, dfg: &DataFlowGraph) -> Variables {
-        let block: &BasicBlock = &dfg[block_id];
+    /// Collects all the variables defined in a block, which includes:
+    /// * parameters of descendants this block immediately dominates
+    /// * the results of the instructions in the block
+    /// * constants which were allocated to this block
+    fn variables_defined_in_block(
+        &self,
+        block_id: BasicBlockId,
+        dfg: &DataFlowGraph,
+        constants: &ConstantAllocation,
+    ) -> Variables {
+        let block = &dfg[block_id];
         let mut defined_vars = HashSet::default();
 
-        for parameter in self.defined_block_params(&block_id) {
-            defined_vars.insert(parameter);
-        }
+        defined_vars.extend(self.defined_block_params(&block_id));
 
         for instruction_id in block.instructions() {
             let result_values = dfg.instruction_results(*instruction_id);
-            for result_value in result_values {
-                defined_vars.insert(*result_value);
-            }
+            defined_vars.extend(result_values.iter().copied());
         }
+
+        defined_vars.extend(constants.allocated_in_block(block_id));
 
         defined_vars
     }
 
-    fn update_live_ins_within_loop(&mut self, back_edge: BackEdge) {
-        let header_live_ins = self
-            .live_in
-            .get(&back_edge.header)
-            .expect("Live ins should have been calculated")
-            .clone();
+    /// Once we know which variables are alive before the loop header,
+    /// we can append those variables to all of the loop's blocks.
+    /// Since we know that we have to come back
+    /// to the beginning of the loop, none of those blocks are allowed
+    /// anything but to keep these variables alive, so that the header
+    /// can use them again.
+    fn update_live_ins_within_loop(
+        &mut self,
+        back_edge: BackEdge,
+        loop_body: BTreeSet<BasicBlockId>,
+    ) {
+        let header_live_in = self.get_live_in(&back_edge.header).clone();
 
-        let body = self.compute_loop_body(back_edge);
-        for body_block_id in body {
+        for body_block_id in loop_body {
             self.live_in
                 .get_mut(&body_block_id)
                 .expect("Live ins should have been calculated")
-                .extend(&header_live_ins);
+                .extend(header_live_in.iter().copied());
         }
     }
 
-    fn compute_loop_body(&self, edge: BackEdge) -> HashSet<BasicBlockId> {
-        let mut loop_blocks = HashSet::default();
-        if edge.header == edge.start {
-            loop_blocks.insert(edge.header);
-            return loop_blocks;
-        }
-        loop_blocks.insert(edge.header);
-        loop_blocks.insert(edge.start);
-
-        let mut stack = vec![edge.start];
-
-        while let Some(block) = stack.pop() {
-            for predecessor in self.cfg.predecessors(block) {
-                if !loop_blocks.contains(&predecessor) {
-                    loop_blocks.insert(predecessor);
-                    stack.push(predecessor);
-                }
-            }
-        }
-
-        loop_blocks
-    }
-
-    fn compute_last_uses(&mut self, func: &Function) {
+    /// Compute [VariableLiveness::last_uses].
+    ///
+    /// For each block, starting from the terminator than going backwards through the instructions,
+    /// take note of the first (technically last) instruction the value is used in.
+    fn compute_last_uses(mut self, func: &Function) -> Self {
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
             let live_out = self.get_live_out(&block_id);
 
-            let mut used_after: Variables = Default::default();
-            let mut block_last_uses: LastUses = Default::default();
+            // Variables we have already visited, ie. they are used in "later" instructions or the terminator.
+            let mut used_after = Variables::default();
+            // Variables becoming dead after each instruction.
+            let mut block_last_uses = LastUses::default();
 
-            // First, handle the terminator
+            // First, handle the terminator; none of the instructions should cause these to go dead.
             if let Some(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    let underlying_vars = collect_variables_of_value(value_id, &func.dfg);
-                    used_after.extend(underlying_vars);
+                    if is_variable(value_id, &func.dfg) {
+                        used_after.insert(value_id);
+                    }
                 });
             }
 
-            // Then, handle the instructions in reverse order to find the last use
+            // Then, handle the instructions in reverse order to find the last use.
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
-                let instruction_last_uses = variables_used_in_instruction(instruction, &func.dfg)
-                    .into_iter()
-                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
-                    .collect();
+                // Collect the variables which will be dead after this instruction.
+                let mut instruction_last_uses: HashSet<ValueId> =
+                    variables_used_in_instruction(instruction, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                        .collect();
 
+                // Remember that we are using these variables.
                 used_after.extend(&instruction_last_uses);
-                block_last_uses.insert(*instruction_id, instruction_last_uses);
+
+                // Check results as well: if they are not used by anything after,
+                // they can be deallocated. DIE should remove these, but in isolated
+                // unit tests they can be expected to be removed.
+                let unused_instruction_results =
+                    variables_returned_by_instruction(*instruction_id, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id));
+
+                // We can immediately free unused results.
+                // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
+                instruction_last_uses.extend(unused_instruction_results);
+
+                // Remember that we can deallocate these after this instruction. Skip
+                // instructions with no last uses to keep the map small; consumers default to
+                // an empty set for missing keys.
+                if !instruction_last_uses.is_empty() {
+                    block_last_uses.insert(*instruction_id, instruction_last_uses);
+                }
             }
 
             self.last_uses.insert(block_id, block_last_uses);
         }
+
+        self
+    }
+
+    /// Compute [VariableLiveness::max_live_count].
+    ///
+    /// Walk each block instruction-by-instruction, tracking the set of variables
+    /// simultaneously alive: start with `live_in` plus block param definitions,
+    /// materialize constants at their allocation points, add instruction results,
+    /// and remove dead variables from `last_uses`. Record the highest count.
+    ///
+    /// # Safety
+    /// This is a rough estimate. Until we have solidified an exact live count we expect consumers
+    /// of the max live count to have some extra margin to account for potentially temporary allocated registers.
+    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
+    fn compute_max_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
+        let mut max_count: usize = 0;
+
+        for block_id in func.reachable_blocks() {
+            let block = &func.dfg[block_id];
+            let last_uses = self.get_last_uses(&block_id);
+
+            let mut live_set: HashSet<ValueId> =
+                self.get_live_in(&block_id).iter().copied().collect();
+            live_set.extend(self.defined_block_params(&block_id));
+            max_count = max_count.max(live_set.len());
+
+            for instruction_id in block.instructions() {
+                // Materialize constants allocated at this instruction location.
+                if let Some(new_consts) = constants.allocated_at_location(
+                    block_id,
+                    InstructionLocation::Instruction(*instruction_id),
+                ) {
+                    live_set.extend(new_consts.iter().copied());
+                    max_count = max_count.max(live_set.len());
+                }
+
+                // MakeArray materializes each unique element as a register during
+                // Brillig codegen. Include them in the live set so the peak accounts
+                // for non-constant element values as well.
+                let instruction = &func.dfg[*instruction_id];
+                if let Instruction::MakeArray { elements, .. } = instruction {
+                    live_set.extend(elements.iter().copied());
+                    max_count = max_count.max(live_set.len());
+                }
+
+                // Add results defined by this instruction.
+                let results = func.dfg.instruction_results(*instruction_id);
+                live_set.extend(results.iter().copied());
+                max_count = max_count.max(live_set.len());
+
+                // Subtract variables that die after this instruction.
+                if let Some(dead) = last_uses.get(instruction_id) {
+                    for d in dead {
+                        live_set.remove(d);
+                    }
+                }
+            }
+
+            // Handle constants allocated at the terminator.
+            if let Some(new_consts) =
+                constants.allocated_at_location(block_id, InstructionLocation::Terminator)
+            {
+                live_set.extend(new_consts.iter().copied());
+                max_count = max_count.max(live_set.len());
+            }
+        }
+
+        self.max_live_count = max_count;
+        self
+    }
+
+    pub(super) fn cfg(&self) -> &ControlFlowGraph {
+        &self.cfg
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use noirc_frontend::monomorphization::ast::InlineType;
     use rustc_hash::FxHashSet;
 
+    use crate::assert_artifact_snapshot;
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
+    use crate::brillig::brillig_gen::tests::ssa_to_brillig_artifacts;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::function_builder::FunctionBuilder;
+    use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::instruction::BinaryOp;
     use crate::ssa::ir::map::Id;
     use crate::ssa::ir::types::{NumericType, Type};
+    use crate::ssa::ir::value::ValueId;
+    use crate::ssa::ssa_gen::Ssa;
 
     #[test]
     fn simple_back_propagation() {
@@ -380,7 +502,7 @@ mod test {
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
 
-        builder.terminate_with_jmpif(v4, b1, b2);
+        builder.terminate_with_jmpif_no_args(v4, b1, b2);
 
         builder.switch_to_block(b2);
 
@@ -500,7 +622,7 @@ mod test {
 
         let v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
 
-        builder.terminate_with_jmpif(v5, b2, b3);
+        builder.terminate_with_jmpif_no_args(v5, b2, b3);
 
         builder.switch_to_block(b2);
 
@@ -514,7 +636,7 @@ mod test {
 
         let v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
 
-        builder.terminate_with_jmpif(v8, b5, b6);
+        builder.terminate_with_jmpif_no_args(v8, b5, b6);
 
         builder.switch_to_block(b5);
 
@@ -523,7 +645,7 @@ mod test {
 
         let v11 = builder.insert_not(v10);
 
-        builder.terminate_with_jmpif(v11, b7, b8);
+        builder.terminate_with_jmpif_no_args(v11, b7, b8);
 
         builder.switch_to_block(b7);
 
@@ -621,7 +743,7 @@ mod test {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        builder.terminate_with_jmpif(v0, b1, b2);
+        builder.terminate_with_jmpif_no_args(v0, b1, b2);
 
         builder.switch_to_block(b1);
         let twenty_seven = builder.field_constant(27_u128);
@@ -652,5 +774,462 @@ mod test {
 
         assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1, v2].into_iter()));
         assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v1, v2].into_iter()));
+    }
+
+    /// A block parameter should be considered used, even if it's not actually used in the SSA.
+    #[test]
+    fn unused_block_parameter() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v7 = add v0, u32 10
+            jmp b3(v0, v7)
+          b2():
+            jmp b3(u32 1, u32 2)
+          b3(v2: u32, v3: u32):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        let [b0, b1, b2, b3] = block_ids();
+        let [_v0, _v1, v2, v3] = value_ids();
+
+        // v2 and v3 are parameters of b3, but only v3 is used.
+        for p in [v2, v3] {
+            // Both should be allocated in b0, which is the immediate dominator of b3.
+            assert!(liveness.param_definitions[&b0].contains(&p), "{p} should be allocated in b0");
+            for b in [b1, b2, b3] {
+                // Since they are defined in b0, they should be considered live all the way.
+                assert!(liveness.live_in[&b].contains(&p), "{p} should be live in {b}");
+            }
+        }
+    }
+
+    fn value_ids<const N: usize>() -> [ValueId; N] {
+        std::array::from_fn(|i| ValueId::new(i as u32))
+    }
+
+    fn block_ids<const N: usize>() -> [BasicBlockId; N] {
+        std::array::from_fn(|i| BasicBlockId::new(i as u32))
+    }
+
+    #[test]
+    fn test_entry_block_parameters() {
+        // Entry block parameters are allocated in the entry block itself
+        // but are not in the live-in set (no predecessor to pass them).
+        // The entry block defines its own parameters via defined_block_params().
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (result of add) → Brillig sp[3] (line 2: result of add stored in sp[3])
+        // Line 3: sp[1] = sp[3] moves v1 to return position
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 10
+            return v1
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 10
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = sp[4]
+        3: return
+        ");
+    }
+
+    #[test]
+    fn test_last_use_deallocation() {
+        // When a variable reaches its last use, its register is deallocated
+        // and can be reused for subsequent variables. This is tracked per-instruction
+        // via get_last_uses().
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
+        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
+        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
+        // Line 7: sp[1] = sp[3] moves v3 to return position
+        // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = const field 2
+        3: sp[3] = field add sp[4], sp[2]
+        4: sp[2] = const field 3
+        5: sp[4] = field add sp[3], sp[2]
+        6: sp[2] = sp[4]
+        7: return
+        ");
+    }
+
+    #[test]
+    fn test_never_use_deallocation() {
+        // When an instruction result is never used, its register can be reused ASAP.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v0, Field 2
+            v3 = add v0, Field 3
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 2
+        3: sp[4] = field add sp[2], sp[3]
+        4: sp[3] = const field 3
+        5: sp[4] = field add sp[2], sp[3]
+        6: sp[2] = sp[4]
+        7: return
+        ");
+    }
+
+    #[test]
+    fn test_loop_liveness() {
+        // Variables live in the loop header must remain alive throughout the loop body
+        // because the back edge jumps back to the header.
+        //
+        // SSA v0 (loop bound) → Brillig sp[1]
+        // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
+        // Line 3: sp[2] = sp[3] initializes v1 to 0
+        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 < v0
+        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
+        // Line 14: sp[2] = sp[3] updates v1 for next iteration
+        // Line 15: jump back to b1
+        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
+        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: u32):
+            jmp b1(u32 0)
+        b1(v1: u32):
+            v2 = lt v1, v0
+            jmpif v2 then: b2(), else: b3()
+        b2():
+            v3 = add v1, u32 1
+            jmp b1(v3)
+        b3():
+            return v1
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: sp[4] = const u32 0
+         1: sp[5] = const u32 1
+         2: sp[3] = sp[4]
+         3: jump to 0 // -> 4: f0/b1
+         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         5: jump if sp[4] to 0 // -> 9: f0/b2
+         6: jump to 0 // -> 7: f0/b3
+         7: sp[2] = sp[3] // f0/b3
+         8: return
+         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
+        10: sp[6] = u32 lt_eq sp[3], sp[4]
+        11: jump if sp[6] to 0 // -> 13: f0/b2/1
+        12: call 0 // -> ErrorWithString
+        13: sp[3] = sp[4] // f0/b2/1
+        14: jump to 0 // -> 4: f0/b1
+        ");
+    }
+
+    #[test]
+    fn test_block_parameters() {
+        // Multiple predecessors pass different values (42 and v2) to the same parameter.
+        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
+        // and each predecessor generates a mov to that register.
+        //
+        // SSA v0 (condition) → Brillig sp[1]
+        // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
+        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
+        // Field 42 constant → sp[3] (line 1)
+        // Line 2: jmpif sp[1] branches to b1 or b2
+        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
+        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
+        // Line 9 (b3): sp[1] = sp[2] prepares return
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+        b1():
+            v2 = add Field 27, Field 42
+            jmp b3(v2)
+        b2():
+            jmp b3(Field 42)
+        b3(v1: Field):
+            return v1
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: sp[4] = const field 42
+         1: jump if sp[2] to 0 // -> 5: f0/b1
+         2: jump to 0 // -> 3: f0/b2
+         3: sp[3] = sp[4] // f0/b2
+         4: jump to 0 // -> 8: f0/b3
+         5: sp[2] = const field 27 // f0/b1
+         6: sp[3] = field add sp[2], sp[4]
+         7: jump to 0 // -> 8: f0/b3
+         8: sp[2] = sp[3] // f0/b3
+         9: return
+        ");
+    }
+
+    #[test]
+    fn test_constants_liveness() {
+        // Constant SSA values are also included in liveness analysis
+        // Only hoisted global constants are filtered out.
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
+        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
+        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
+        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
+        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
+        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
+        //
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 100
+            v2 = mul v0, Field 200
+            v3 = add v1, v2
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 100
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 200
+        3: sp[5] = field mul sp[2], sp[3]
+        4: sp[2] = field add sp[4], sp[5]
+        5: return
+        ");
+    }
+
+    #[test]
+    fn max_live_count_includes_constants_outside_make_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // The constant `Field 1` should be allocated in b0.
+        let allocated_in_entry = constants.allocated_in_block(func.entry_block());
+        assert!(
+            !allocated_in_entry.is_empty(),
+            "expected Field 1 to be allocated in the entry block, but nothing was"
+        );
+
+        // The true peak is 3 registers: v0 + Field 1 + v1 must coexist during the add.
+        // If we did not account for constants, we would incorrectly report 2.
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected max_live_count >= 3 (v0 + Field 1 + v1 live during the add), got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn test_terminator_arguments_stay_alive() {
+        // Arguments to terminator instructions must remain alive until the terminator executes.
+        // They cannot be deallocated in the last instruction of the block.
+        //
+        // SSA v0 (entry parameter) → Brillig sp[1]
+        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
+        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
+        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
+        // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
+        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
+        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
+        // Line 8 (b1): sp[1] = sp[2] prepares return
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = mul v2, Field 3
+            jmp b1(v3)
+        b1(v4: Field):
+            return v4
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[4] = const field 1
+        1: sp[5] = field add sp[2], sp[4]
+        2: sp[2] = const field 2
+        3: sp[4] = field add sp[5], sp[2]
+        4: sp[2] = const field 3
+        5: sp[3] = field mul sp[4], sp[2]
+        6: jump to 0 // -> 7: f0/b1
+        7: sp[2] = sp[3] // f0/b1
+        8: return
+        ");
+    }
+
+    #[test]
+    fn max_live_count_counts_terminator_constants() {
+        // A constant used in multiple branches whose common dominator is a block that
+        // doesn't itself use the constant is allocated at the dominator's terminator.
+        // The `InstructionLocation::Terminator` branch of compute_max_live_count was
+        // previously untested.
+        //
+        // b0 has four block params live through the jmpif. If the terminator branch
+        // contributes, `Field 100` is added to the live set at b0's terminator, pushing
+        // the peak from 5 (v0-v3 + b3's v6 allocated via dominator) to 6. Removing
+        // lines 481-486 would drop the result to 5.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field, v3: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v4 = add Field 100, v1
+            jmp b3(v4)
+          b2():
+            v5 = mul Field 100, v2
+            jmp b3(v5)
+          b3(v6: Field):
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 6,
+            "expected peak at b0 terminator (v0-v3 + v6 + Field 100), got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_drops_dead_variables() {
+        // A value must leave the live set once it's been consumed. Otherwise the count
+        // keeps growing across a chain of additions. With correct dead-variable removal
+        // the peak is bounded by {previous, constant, new_result} = 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "peak should be {{prev, const, new}} = 3; got {} (did dead values carry over?)",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_takes_max_across_blocks() {
+        // The per-block peak is computed independently but the final value must be the
+        // max across blocks — not the last block's value, not an average.
+        //
+        // b0 and b2 are small (≤ 2 live values each); b1 is the hot block. If the
+        // implementation collapsed `max_count` per block instead of folding, b2's
+        // peak of 1 would win and this assertion would fire.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(v0)
+          b1(v1: u32):
+            v2 = unchecked_add v1, u32 1
+            v3 = unchecked_add v2, u32 2
+            v4 = unchecked_add v3, u32 3
+            v5 = unchecked_add v4, v1
+            jmp b2(v5)
+          b2(v6: u32):
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak in b1 at `v3 = unchecked_add v2, u32 2`: v1 (carried for the later add),
+        // v6 (b2's param pre-allocated via dominator b1), v2 (previous result), u32 2
+        // (allocated at this instruction), and v3 (just produced) = 5.
+        // b0 peak = 2, b2 peak = 1.
+        assert_eq!(liveness.max_live_count, 5, "got {}", liveness.max_live_count);
+    }
+
+    #[test]
+    fn make_array_peak_includes_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = make_array [v0, v1, v2] : [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
+        // The elements are already in the live set as block params, but
+        // the result register is allocated simultaneously during codegen.
+        assert_eq!(
+            liveness.max_live_count, 4,
+            "MakeArray peak must include the result register: \
+             3 element params + 1 result = 4, got {}",
+            liveness.max_live_count
+        );
     }
 }

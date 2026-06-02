@@ -1,5 +1,6 @@
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
+    function::FunctionId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
     value::ValueId,
@@ -60,8 +61,8 @@ pub enum InterpreterError {
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]
     DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
-    #[error("Tried to pop from empty slice `{slice}` in `{instruction}`")]
-    PoppedFromEmptySlice { slice: ValueId, instruction: &'static str },
+    #[error("Tried to pop from empty vector `{vector}` in `{instruction}`")]
+    PoppedFromEmptyVector { vector: ValueId, instruction: &'static str },
     #[error("Unable to convert `{field_id} = {field}` to radix {radix}")]
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
@@ -70,6 +71,10 @@ pub enum InterpreterError {
     ReachedTheUnreachable,
     #[error("Array index {index} is out of bounds for array of length {length}")]
     IndexOutOfBounds { index: FieldElement, length: u32 },
+    #[error("Ran out of budget after executing {steps} steps")]
+    OutOfBudget { steps: usize },
+    #[error("Stack overflow in 'fn {} {}'", .call_stack.last().unwrap().1, .call_stack.last().unwrap().0)]
+    StackOverflow { call_stack: Vec<(FunctionId, String)> },
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -91,10 +96,6 @@ pub enum InternalError {
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
     CalledNonFunction { value: String, value_id: ValueId },
-    // Note that we don't need to display the value_id because displaying a reference
-    // value shows the original value id anyway
-    #[error("Reference value `{value}` passed from a constrained to an unconstrained function")]
-    ReferenceValueCrossedUnconstrainedBoundary { value: String },
     #[error("Reference value `{value}` loaded before it was first stored to")]
     UninitializedReferenceValueLoaded { value: String },
     #[error(
@@ -143,10 +144,10 @@ pub enum InternalError {
     RangeCheckToZeroBits { value_id: ValueId },
     #[error("`field_less_than` can only be called in unconstrained contexts")]
     FieldLessThanCalledInConstrainedContext,
-    #[error("Slice `{slice_id} = {slice}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}", element_types.join(", "), element_types.len())]
-    NotEnoughElementsToPopSliceOfStructs {
-        slice_id: ValueId,
-        slice: String,
+    #[error("Vector `{vector_id} = {vector}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}", element_types.join(", "), element_types.len())]
+    NotEnoughElementsToPopVectorOfStructs {
+        vector_id: ValueId,
+        vector: String,
         actual_length: usize,
         element_types: Vec<String>,
     },

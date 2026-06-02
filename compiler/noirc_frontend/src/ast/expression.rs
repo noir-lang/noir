@@ -10,7 +10,6 @@ use crate::ast::{
 use crate::elaborator::PrimitiveType;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
-use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;
@@ -100,7 +99,7 @@ impl IdentOrQuotedType {
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error(
-    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers, fields, and booleans"
+    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers and fields"
 )]
 pub struct UnsupportedNumericGenericType {
     pub name: Option<String>,
@@ -138,16 +137,13 @@ impl UnresolvedGeneric {
         // See https://github.com/noir-lang/noir/issues/8504
         use crate::ast::UnresolvedTypeData::Named;
 
-        if let Named(path, _generics, _) = &typ.typ {
-            if path.segments.len() == 1 {
-                if let Some(primitive_type) =
-                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-                {
-                    if let Some(typ) = primitive_type.to_integer_or_field() {
-                        return Ok(typ);
-                    }
-                }
-            }
+        if let Named(path, _generics, _) = &typ.typ
+            && path.segments.len() == 1
+            && let Some(primitive_type) =
+                PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+            && let Some(typ) = primitive_type.to_integer_or_field()
+        {
+            return Ok(typ);
         }
 
         // Only fields and integers are supported for numeric kinds
@@ -209,7 +205,7 @@ impl ExpressionKind {
                 Expression {
                     kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
                 },
-            ) if !field.is_negative() => {
+            ) if field.fits_in_u128() => {
                 ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
             }
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
@@ -217,7 +213,7 @@ impl ExpressionKind {
     }
 
     pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents), suffix))
+        ExpressionKind::Literal(Literal::Integer(contents, suffix))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -298,6 +294,7 @@ impl Expression {
 
 pub type BinaryOp = Located<BinaryOpKind>;
 
+// `builtin_helpers::new_binary_op` depends on the ordering here
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, strum_macros::EnumIter)]
 pub enum BinaryOpKind {
     Add,
@@ -370,6 +367,27 @@ impl BinaryOpKind {
                 | BinaryOpKind::NotEqual
         )
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinaryOpKind::Add => "+",
+            BinaryOpKind::Subtract => "-",
+            BinaryOpKind::Multiply => "*",
+            BinaryOpKind::Divide => "/",
+            BinaryOpKind::Equal => "==",
+            BinaryOpKind::NotEqual => "!=",
+            BinaryOpKind::Less => "<",
+            BinaryOpKind::LessEqual => "<=",
+            BinaryOpKind::Greater => ">",
+            BinaryOpKind::GreaterEqual => ">=",
+            BinaryOpKind::And => "&",
+            BinaryOpKind::Or => "|",
+            BinaryOpKind::Xor => "^",
+            BinaryOpKind::ShiftRight => ">>",
+            BinaryOpKind::ShiftLeft => "<<",
+            BinaryOpKind::Modulo => "%",
+        }
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -380,10 +398,10 @@ pub enum UnaryOp {
         mutable: bool,
     },
 
-    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// If `implicitly_added` is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
     /// the reference later turns out to be needed (e.g. passing a field by reference to a function
-    /// requiring an &mut parameter).
+    /// requiring an `&mut` parameter).
     Dereference {
         implicitly_added: bool,
     },
@@ -403,9 +421,9 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
-    Slice(ArrayLiteral),
+    Vector(ArrayLiteral),
     Bool(bool),
-    Integer(SignedField, Option<IntegerTypeSuffix>),
+    Integer(FieldElement, Option<IntegerTypeSuffix>),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
@@ -447,9 +465,10 @@ pub struct MatchExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Lambda {
-    pub parameters: Vec<(Pattern, UnresolvedType)>,
-    pub return_type: UnresolvedType,
+    pub parameters: Vec<(Pattern, Option<UnresolvedType>)>,
+    pub return_type: Option<UnresolvedType>,
     pub body: Expression,
+    pub unconstrained: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -476,11 +495,13 @@ pub struct FunctionDefinition {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Param {
     pub visibility: Visibility,
+    pub visibility_location: Location,
     pub pattern: Pattern,
     pub typ: UnresolvedType,
     pub location: Location,
@@ -535,7 +556,7 @@ pub struct IndexExpression {
     pub index: Expression, // XXX: We accept two types of indices, either a normal integer or a constant
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct BlockExpression {
     pub statements: Vec<Statement>,
 }
@@ -563,7 +584,7 @@ impl Display for ConstrainExpression {
                 vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
             ),
             ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
+                write!(f, "constrain {}", self.arguments[0])
             }
         }
     }
@@ -577,6 +598,8 @@ pub enum ConstrainKind {
 }
 
 impl ConstrainKind {
+    /// The number of arguments expected by the constraint,
+    /// not counting the optional assertion message.
     pub fn required_arguments_count(&self) -> usize {
         match self {
             ConstrainKind::Assert | ConstrainKind::Constrain => 1,
@@ -656,12 +679,12 @@ impl Display for Literal {
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
             }
-            Literal::Slice(ArrayLiteral::Standard(elements)) => {
+            Literal::Vector(ArrayLiteral::Standard(elements)) => {
                 let contents = vecmap(elements, ToString::to_string);
-                write!(f, "&[{}]", contents.join(", "))
+                write!(f, "@[{}]", contents.join(", "))
             }
-            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
-                write!(f, "&[{repeated_element}; {length}]")
+            Literal::Vector(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "@[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(signed_field, Some(suffix)) => write!(f, "{signed_field}_{suffix}"),
@@ -763,24 +786,7 @@ impl Display for InfixExpression {
 
 impl Display for BinaryOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOpKind::Add => write!(f, "+"),
-            BinaryOpKind::Subtract => write!(f, "-"),
-            BinaryOpKind::Multiply => write!(f, "*"),
-            BinaryOpKind::Divide => write!(f, "/"),
-            BinaryOpKind::Equal => write!(f, "=="),
-            BinaryOpKind::NotEqual => write!(f, "!="),
-            BinaryOpKind::Less => write!(f, "<"),
-            BinaryOpKind::LessEqual => write!(f, "<="),
-            BinaryOpKind::Greater => write!(f, ">"),
-            BinaryOpKind::GreaterEqual => write!(f, ">="),
-            BinaryOpKind::And => write!(f, "&"),
-            BinaryOpKind::Or => write!(f, "|"),
-            BinaryOpKind::Xor => write!(f, "^"),
-            BinaryOpKind::ShiftLeft => write!(f, "<<"),
-            BinaryOpKind::ShiftRight => write!(f, ">>"),
-            BinaryOpKind::Modulo => write!(f, "%"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -806,15 +812,27 @@ impl Display for MatchExpression {
 
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
+        let unconstrained = if self.unconstrained { "unconstrained " } else { "" };
+        let parameters = vecmap(&self.parameters, |(name, r#type)| {
+            if let Some(typ) = r#type { format!("{name}: {typ}") } else { format!("{name}") }
+        });
 
-        write!(f, "|{}| -> {} {{ {} }}", parameters.join(", "), self.return_type, self.body)
+        let parameters = parameters.join(", ");
+        if let Some(return_type) = &self.return_type {
+            write!(f, "{unconstrained}|{}| -> {} {{ {} }}", parameters, return_type, self.body)
+        } else {
+            write!(f, "{unconstrained}|{}| {{ {} }}", parameters, self.body)
+        }
     }
 }
 
 impl Display for AsTraitPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)
+        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)?;
+        if let Some(turbofish) = &self.turbofish {
+            write!(f, "::{turbofish}")?;
+        }
+        Ok(())
     }
 }
 
@@ -842,6 +860,7 @@ impl FunctionDefinition {
             .iter()
             .map(|(ident, unresolved_type)| Param {
                 visibility: Visibility::Private,
+                visibility_location: Location::dummy(),
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
                 location: ident.location().merge(unresolved_type.location),
@@ -861,18 +880,21 @@ impl FunctionDefinition {
             where_clause,
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
+            return_visibility_location: Location::dummy(),
         }
     }
 
     pub fn signature(&self) -> String {
-        let parameters =
-            vecmap(&self.parameters, |Param { visibility, pattern, typ, location: _ }| {
-                if *visibility == Visibility::Public {
+        let parameters = vecmap(
+            &self.parameters,
+            |Param { visibility, visibility_location: _, pattern, typ, location: _ }| {
+                if matches!(visibility, Visibility::Public) {
                     format!("{pattern}: {visibility} {typ}")
                 } else {
                     format!("{pattern}: {typ}")
                 }
-            });
+            },
+        );
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         let where_clause_str = if !where_clause.is_empty() {

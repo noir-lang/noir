@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    test();
+    ()
+}
+
+fn test() {
+    let x: &mut Field = &mut 0_Field;
+    let inc: fn[(&mut Field,)]() -> Field = || -> Field {
+        *x = *x + 1_Field;
+        *x
+    };
+    let _: [Field; 0] = [inc(); 0];
+    assert(*x == 1_Field);
+    let _: [Field; 100] = [inc(); 100];
+    assert(*x == 2_Field);
+}

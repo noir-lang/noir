@@ -1,37 +1,25 @@
+//! Contains tests related to the `hint` intrinsic.
+
 #[cfg(test)]
 mod tests {
-    use acvm::acir::circuit::ExpressionWidth;
 
     use crate::{
         assert_ssa_snapshot,
-        brillig::BrilligOptions,
         errors::RuntimeError,
-        ssa::{
-            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
-            opt::{constant_folding, inlining},
-            primary_passes,
-        },
+        ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, primary_passes},
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        let options = &SsaEvaluatorOptions {
-            ssa_logging: SsaLogging::None,
-            brillig_options: BrilligOptions::default(),
-            print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
-            emit_ssa: None,
-            skip_underconstrained_check: true,
-            enable_brillig_constraints_check_lookback: false,
-            skip_brillig_constraints_check: true,
-            inliner_aggressiveness: 0,
-            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: None,
-            skip_passes: Default::default(),
-        };
+        let options = SsaEvaluatorOptions::default();
 
-        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false, None);
-        Ok(builder.run_passes(&primary_passes(options))?.finish())
+        let builder = SsaBuilder::from_ssa(
+            ssa,
+            options.ssa_logging.clone(),
+            options.ssa_logging_hide_unchanged,
+            false,
+            None,
+        );
+        Ok(builder.run_passes(&primary_passes(&options))?.finish())
     }
 
     /// Test that the `std::hint::black_box` function prevents some of the optimizations.
@@ -71,7 +59,7 @@ mod tests {
               jmp b1(u32 0)
             b1(v2: u32):
               v5 = lt v2, v0
-              jmpif v5 then: b3, else: b2
+              jmpif v5 then: b3(), else: b2()
             b3():
               v7 = load v3 -> u32
               v8 = add v7, v1

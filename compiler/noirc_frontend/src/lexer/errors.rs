@@ -40,12 +40,20 @@ pub enum LexerErrorKind {
     InvalidEscape { escaped: char, location: Location },
     #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
     InvalidQuoteDelimiter { delimiter: LocatedToken },
-    #[error("Non-ASCII characters are invalid in comments")]
-    NonAsciiComment { location: Location },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
     #[error("Unicode character '{}' looks like space, but is it not", char)]
     UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
+    #[error("Unicode bidirectional control character '\\u{{{:x}}}' is not allowed", *char as u32)]
+    BidiControlCharacter { char: char, location: Location },
+    #[error("Unicode tag character '\\u{{{:x}}}' is not allowed", *char as u32)]
+    TagCharacter { char: char, location: Location },
+    #[error("Identifier '{found}' contains non-ASCII characters")]
+    NonAsciiIdentifier { found: String, location: Location },
+    #[error(
+        "Invalid form of the `must_use` attribute. Valid forms are `#[must_use]` and `#[must_use = \"message\"]`"
+    )]
+    MalformedMustUseAttribute { location: Location },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -65,23 +73,24 @@ impl LexerErrorKind {
     pub fn location(&self) -> Location {
         match self {
             LexerErrorKind::UnexpectedCharacter { location, .. } => *location,
-            LexerErrorKind::NotADoubleChar { location, .. } => *location,
-            LexerErrorKind::InvalidIntegerLiteral { location, .. } => *location,
-            LexerErrorKind::IntegerLiteralTooLarge { location, .. } => *location,
-            LexerErrorKind::MalformedFuncAttribute { location, .. } => *location,
-            LexerErrorKind::MalformedTestAttribute { location, .. } => *location,
-            LexerErrorKind::MalformedFuzzAttribute { location, .. } => *location,
-            LexerErrorKind::InvalidInnerAttribute { location, .. } => *location,
-            LexerErrorKind::UnterminatedBlockComment { location } => *location,
-            LexerErrorKind::UnterminatedStringLiteral { location } => *location,
-            LexerErrorKind::InvalidFormatString { location, .. } => *location,
-            LexerErrorKind::EmptyFormatStringInterpolation { location, .. } => *location,
-            LexerErrorKind::InvalidEscape { location, .. } => *location,
+            LexerErrorKind::NotADoubleChar { location, .. }
+            | LexerErrorKind::InvalidIntegerLiteral { location, .. }
+            | LexerErrorKind::IntegerLiteralTooLarge { location, .. }
+            | LexerErrorKind::MalformedFuncAttribute { location, .. }
+            | LexerErrorKind::MalformedTestAttribute { location, .. }
+            | LexerErrorKind::MalformedFuzzAttribute { location, .. }
+            | LexerErrorKind::InvalidInnerAttribute { location, .. }
+            | LexerErrorKind::UnterminatedBlockComment { location }
+            | LexerErrorKind::UnterminatedStringLiteral { location }
+            | LexerErrorKind::InvalidFormatString { location, .. }
+            | LexerErrorKind::EmptyFormatStringInterpolation { location, .. }
+            | LexerErrorKind::InvalidEscape { location, .. }
+            | LexerErrorKind::MalformedMustUseAttribute { location }
+            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. }
+            | LexerErrorKind::BidiControlCharacter { location, .. }
+            | LexerErrorKind::TagCharacter { location, .. }
+            | LexerErrorKind::NonAsciiIdentifier { location, .. } => *location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
-            LexerErrorKind::NonAsciiComment { location, .. }
-            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
-                *location
-            }
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
     }
@@ -93,7 +102,7 @@ impl LexerErrorKind {
                 expected,
                 found,
             } => {
-                let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
+                let found: String = found.map_or_else(|| "<eof>".into(), Into::into);
 
                 (
                     "An unexpected character was found".to_string(),
@@ -172,9 +181,6 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
                 (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.location())
             },
-            LexerErrorKind::NonAsciiComment { location } => {
-                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *location)
-            }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
             }
@@ -216,6 +222,47 @@ impl LexerErrorKind {
                         format!("Unicode character '{char}' looks like ' ' (Space), but is it not")
                     }
                 };
+                (primary, secondary, *location)
+            }
+            LexerErrorKind::MalformedMustUseAttribute { location } => {
+                ("Invalid syntax for `must_use` attribute".to_string(), "Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`".to_string(), *location)
+            },
+            LexerErrorKind::NonAsciiIdentifier { found, location } => {
+                let primary = format!("Identifier '{found}' contains non-ASCII characters");
+                let secondary =
+                    "Identifiers are restricted to ASCII letters, digits, and underscore"
+                        .to_string();
+                (primary, secondary, *location)
+            }
+            LexerErrorKind::TagCharacter { char, location } => {
+                let primary = format!(
+                    "Unicode tag character not allowed: \\u{{{:x}}}",
+                    (*char as u32)
+                );
+                let secondary = "Unicode tag characters (U+E0000\u{2013}U+E007F) are invisible in source but real bytes to text processors, and have been used to smuggle hidden instructions into LLM-assisted reviews"
+                    .to_string();
+                (primary, secondary, *location)
+            }
+            LexerErrorKind::BidiControlCharacter { char, location } => {
+                let char_name = match char {
+                    '\u{202A}' => "Left-to-Right Embedding",
+                    '\u{202B}' => "Right-to-Left Embedding",
+                    '\u{202C}' => "Pop Directional Formatting",
+                    '\u{202D}' => "Left-to-Right Override",
+                    '\u{202E}' => "Right-to-Left Override",
+                    '\u{2066}' => "Left-to-Right Isolate",
+                    '\u{2067}' => "Right-to-Left Isolate",
+                    '\u{2068}' => "First Strong Isolate",
+                    '\u{2069}' => "Pop Directional Isolate",
+                    _ => "Unicode bidirectional control character",
+                };
+                let primary = format!(
+                    "Unicode bidirectional control character not allowed: \\u{{{:x}}}",
+                    (*char as u32)
+                );
+                let secondary = format!(
+                    "{char_name} can visually reorder source text and is rejected to prevent \"Trojan Source\" attacks"
+                );
                 (primary, secondary, *location)
             }
         }

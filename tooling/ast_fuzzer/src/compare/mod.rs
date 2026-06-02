@@ -5,6 +5,7 @@ use std::{
 
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre::{self, bail};
+use itertools::Itertools;
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 
@@ -16,10 +17,7 @@ pub use compiled::{
     CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
 };
 pub use comptime::CompareComptime;
-pub use interpreted::{
-    CompareInterpreted, CompareInterpretedResult, ComparePass, input_value_to_ssa,
-    input_values_to_ssa,
-};
+pub use interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass, encode_to_ssa};
 
 /// Help iterate over the program(s) in the comparable artifact.
 pub trait HasPrograms {
@@ -55,7 +53,7 @@ pub trait Comparable {
 
 impl<T: Comparable> Comparable for Vec<T> {
     fn equivalent(a: &Self, b: &Self) -> bool {
-        a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+        a.len() == b.len() && a.iter().zip_eq(b).all(|(a, b)| Comparable::equivalent(a, b))
     }
 }
 

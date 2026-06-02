@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+(<<fn() -> Field>>, <<unconstrained fn() -> Field>>)
+(<<fn() -> Field>>, <<unconstrained fn() -> Field>>)
+(<<fn(Field) -> ()>>, <<unconstrained fn(Field) -> ()>>)
+(<<fn([u8; 10]) -> [u8; 32]>>, <<unconstrained fn([u8; 10]) -> [u8; 32]>>)
+[regression_10156] Circuit output: 0x00

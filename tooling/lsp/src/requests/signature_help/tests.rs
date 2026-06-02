@@ -1,33 +1,21 @@
 #[cfg(test)]
 mod signature_help_tests {
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_signature_help_request, test_utils,
-        utils::get_cursor_line_and_column,
-    };
+    use crate::{requests::on_signature_help_request, test_utils};
 
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, ParameterLabel, Position, SignatureHelp, SignatureHelpParams,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
-        WorkDoneProgressParams,
+        ParameterLabel, SignatureHelp, SignatureHelpParams, TextDocumentIdentifier,
+        TextDocumentPositionParams, WorkDoneProgressParams,
     };
     use tokio::test;
 
     async fn get_signature_help(src: &str) -> SignatureHelp {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         on_signature_help_request(
             &mut state,
@@ -35,7 +23,7 @@ mod signature_help_tests {
                 context: None,
                 text_document_position_params: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             },
@@ -309,6 +297,22 @@ mod signature_help_tests {
         check_label(&signature.label, &params[0].label, "x: i32");
         check_label(&signature.label, &params[1].label, "y: [Field]");
 
+        assert_eq!(signature.active_parameter, Some(0));
+    }
+
+    #[test]
+    async fn test_signature_help_for_incomplete_call_after_open_paren() {
+        let src = r#"
+        fn foo(x: i32, y: Field) -> u32 { 0 }
+
+        fn bar() {
+            foo(>|<
+        }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "fn foo(x: i32, y: Field) -> u32");
         assert_eq!(signature.active_parameter, Some(0));
     }
 }

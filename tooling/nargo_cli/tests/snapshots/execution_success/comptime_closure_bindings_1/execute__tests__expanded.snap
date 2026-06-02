@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn make<let N: u32>() -> (fn() -> fn() -> u32, fn(fn() -> u32) -> u32) {
+    (|| -> fn() -> u32 { || -> u32 N }, |f: fn() -> u32| -> u32 f())
+}
+
+fn main() {
+    let pair_3: (fn() -> fn() -> u32, fn(fn() -> u32) -> u32) = make::<3>();
+    let maker_3: fn() -> fn() -> u32 = pair_3.0;
+    let inner_3: fn() -> u32 = maker_3();
+    let pair_5: (fn() -> fn() -> u32, fn(fn() -> u32) -> u32) = make::<5>();
+    let caller_5: fn(fn() -> u32) -> u32 = pair_5.1;
+    let result: u32 = caller_5(inner_3);
+    assert(result == 3_u32);
+}

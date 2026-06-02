@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Unsafe block must have a safety comment above it
+  ┌─ src/main.nr:3:13
+  │
+3 │     let b = unsafe {
+  │             ------ The comment must start with the "Safety: " word
+  │
+
+error: Assertion failed: attempt to divide with overflow
+   ┌─ src/main.nr:11:6
+   │
+11 │     (a / -1)
+   │      ------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:4:13
+     2: func_1
+             at src/main.nr:11:6
+
+Failed assertion

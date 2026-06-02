@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::hash::{Hash, Hasher};
+
+trait TwoOrdered<A, B> {}
+
+impl TwoOrdered<Field, u8> for Field {}
+
+impl TwoOrdered<u8, Field> for Field {}
+
+trait TwoNamed {
+    type A;
+
+    type B;
+}
+
+impl TwoNamed for Field {
+    type A = Self;
+
+    type B = u8;
+}
+
+struct TestHasher {
+    result: Field,
+}
+
+impl Hasher for TestHasher {
+    fn finish(self) -> Field {
+        self.result
+    }
+
+    fn write(&mut self, input: Field) {
+        self.result = self.result + input;
+    }
+}
+
+comptime fn hash_constraint(t: TraitConstraint) -> Field {
+    let mut h: TestHasher = TestHasher { result: 0_Field };
+    t.hash(&mut h);
+    h.finish()
+}
+
+fn main() {
+    ()
+}

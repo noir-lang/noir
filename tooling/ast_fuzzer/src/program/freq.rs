@@ -12,7 +12,7 @@ pub struct Freqs {
 impl Freqs {
     pub fn new(items: &[(&'static str, usize)]) -> Self {
         let total = items.iter().map(|i| i.1).sum();
-        Self { items: items.iter().cloned().collect(), total }
+        Self { items: items.iter().copied().collect(), total }
     }
     pub fn total(&self) -> usize {
         self.total

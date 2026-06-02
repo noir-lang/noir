@@ -12,8 +12,7 @@ use noirc_frontend::{
     self, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
-        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
-        UnresolvedTypeData, Visitor,
+        MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl, Visitor,
     },
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
@@ -79,41 +78,41 @@ impl<'a> InlayHintCollector<'a> {
 
         let span = ident.span();
         let location = Location::new(ident.span(), self.file_id);
-        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
-            if let Some(referenced) = self.interner.find_referenced(location) {
-                let include_colon = true;
-                match referenced {
-                    ReferenceId::Global(global_id) => {
-                        let global_info = self.interner.get_global(global_id);
-                        let definition_id = global_info.definition_id;
-                        let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ, editable, include_colon);
-                    }
-                    ReferenceId::Local(definition_id) => {
-                        let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ, editable, include_colon);
-                    }
-                    ReferenceId::StructMember(struct_id, field_index) => {
-                        let struct_type = self.interner.get_type(struct_id);
-                        let struct_type = struct_type.borrow();
-                        let field = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, &field.typ, false, include_colon);
-                    }
-                    ReferenceId::EnumVariant(type_id, variant_index) => {
-                        let typ = self.interner.get_type(type_id);
-                        let shared_type = typ.clone();
-                        let typ = typ.borrow();
-                        let variant_type = typ.variant_function_type(variant_index, shared_type);
-                        self.push_type_hint(lsp_location, &variant_type, false, include_colon);
-                    }
-                    ReferenceId::Module(_)
-                    | ReferenceId::Type(_)
-                    | ReferenceId::Trait(_)
-                    | ReferenceId::TraitAssociatedType(_)
-                    | ReferenceId::Function(_)
-                    | ReferenceId::Alias(_)
-                    | ReferenceId::Reference(..) => (),
+        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span)
+            && let Some(referenced) = self.interner.find_referenced(location)
+        {
+            let include_colon = true;
+            match referenced {
+                ReferenceId::Global(global_id) => {
+                    let global_info = self.interner.get_global(global_id);
+                    let definition_id = global_info.definition_id;
+                    let typ = self.interner.definition_type(definition_id);
+                    self.push_type_hint(lsp_location, &typ, editable, include_colon);
                 }
+                ReferenceId::Local(definition_id) => {
+                    let typ = self.interner.definition_type(definition_id);
+                    self.push_type_hint(lsp_location, &typ, editable, include_colon);
+                }
+                ReferenceId::StructMember(struct_id, field_index) => {
+                    let struct_type = self.interner.get_type(struct_id);
+                    let struct_type = struct_type.borrow();
+                    let field = struct_type.field_at(field_index);
+                    self.push_type_hint(lsp_location, &field.typ, false, include_colon);
+                }
+                ReferenceId::EnumVariant(type_id, variant_index) => {
+                    let typ = self.interner.get_type(type_id);
+                    let shared_type = typ.clone();
+                    let typ = typ.borrow();
+                    let variant_type = typ.variant_function_type(variant_index, shared_type);
+                    self.push_type_hint(lsp_location, &variant_type, false, include_colon);
+                }
+                ReferenceId::Module(_)
+                | ReferenceId::Type(_)
+                | ReferenceId::Trait(_)
+                | ReferenceId::TraitAssociatedType(_)
+                | ReferenceId::Function(_)
+                | ReferenceId::Alias(_)
+                | ReferenceId::Reference(..) => (),
             }
         }
     }
@@ -181,13 +180,15 @@ impl<'a> InlayHintCollector<'a> {
             let mut parameters_count = func_meta.parameters.len();
 
             // Skip `self` parameter
-            if let Some((pattern, _, _)) = parameters.peek() {
-                if self.is_self_parameter(pattern) {
-                    parameters.next();
-                    parameters_count -= 1;
-                }
+            if let Some((pattern, _, _)) = parameters.peek()
+                && self.is_self_parameter(pattern)
+            {
+                parameters.next();
+                parameters_count -= 1;
             }
 
+            // Note: we use `zip` and not `zip_eq` because the user might have passed a different number of arguments
+            // than parameters expected.
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
                     to_lsp_location(self.files, self.file_id, call_argument.location.span)
@@ -211,19 +212,18 @@ impl<'a> InlayHintCollector<'a> {
                         continue;
                     }
 
-                    if let Some(function_name) = &function_name {
-                        if function_name.ends_with(&parameter_name) {
-                            continue;
-                        }
-                    }
-                }
-
-                if let Some(call_argument_name) = get_expression_name(call_argument) {
-                    if parameter_name == call_argument_name
-                        || call_argument_name.ends_with(&parameter_name)
+                    if let Some(function_name) = &function_name
+                        && function_name.ends_with(&parameter_name)
                     {
                         continue;
                     }
+                }
+
+                if let Some(call_argument_name) = get_expression_name(call_argument)
+                    && (parameter_name == call_argument_name
+                        || call_argument_name.ends_with(&parameter_name))
+                {
+                    continue;
                 }
 
                 self.push_parameter_hint(lsp_location.range.start, &parameter_name);
@@ -308,12 +308,12 @@ impl<'a> InlayHintCollector<'a> {
     where
         F: FnOnce() -> String,
     {
-        if self.options.closing_brace_hints.enabled {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
-                let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
-                if lines >= self.options.closing_brace_hints.min_lines {
-                    self.push_text_hint(lsp_location.range.end, f());
-                }
+        if self.options.closing_brace_hints.enabled
+            && let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span)
+        {
+            let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+            if lines >= self.options.closing_brace_hints.min_lines {
+                self.push_text_hint(lsp_location.range.end, f());
             }
         }
     }
@@ -362,9 +362,9 @@ impl Visitor for InlayHintCollector<'_> {
 
     fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
         // Only show inlay hints for let variables that don't have an explicit type annotation
-        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+        if let_statement.r#type.is_none() {
             let_statement.pattern.accept(self);
-        };
+        }
 
         let_statement.expression.accept(self);
 
@@ -410,7 +410,8 @@ impl Visitor for InlayHintCollector<'_> {
 
     fn visit_lambda(&mut self, lambda: &Lambda, _: Span) -> bool {
         for (pattern, typ) in &lambda.parameters {
-            if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+            // Only show inlay hints for parameters that don't have an explicit type annotation
+            if typ.is_none() {
                 pattern.accept(self);
             }
         }
@@ -444,14 +445,14 @@ fn text_part_with_location(str: String, location: Location, files: &FileMap) -> 
 
 fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &FileMap) {
     match typ {
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("; "));
             push_type_parts(size, parts, files);
             parts.push(string_part("]"));
         }
-        Type::Slice(typ) => {
+        Type::Vector(typ) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("]"));
@@ -499,20 +500,32 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 parts.push(string_part(">"));
             }
         }
-        Type::Function(args, return_type, _env, unconstrained) => {
+        Type::Function(args, return_type, env, unconstrained) => {
             if *unconstrained {
                 parts.push(string_part("unconstrained "));
             }
 
-            parts.push(string_part("fn("));
+            if matches!(**env, Type::Unit) {
+                parts.push(string_part("fn("));
+            } else {
+                parts.push(string_part("fn["));
+                push_type_parts(env, parts, files);
+                parts.push(string_part("]("));
+            }
+
             for (index, arg) in args.iter().enumerate() {
                 push_type_parts(arg, parts, files);
                 if index != args.len() - 1 {
                     parts.push(string_part(", "));
                 }
             }
-            parts.push(string_part(") -> "));
-            push_type_parts(return_type, parts, files);
+
+            if matches!(**return_type, Type::Unit) {
+                parts.push(string_part(")"));
+            } else {
+                parts.push(string_part(") -> "));
+                push_type_parts(return_type, parts, files);
+            }
         }
         Type::Reference(typ, false) => {
             parts.push(string_part("&"));
@@ -530,7 +543,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
                 Kind::IntegerOrField => parts.push(string_part("Field")),
             },
-            _ => {
+            TypeBinding::Bound(_) => {
                 push_type_variable_parts(binding, parts, files);
             }
         },
@@ -615,12 +628,19 @@ mod inlay_hints_tests {
     use async_lsp::lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
     use tokio::test;
 
-    async fn get_inlay_hints(
+    async fn get_inlay_hints(src: &str, options: InlayHintsOptions) -> Vec<InlayHint> {
+        let line_count = src.lines().count() as u32;
+        get_inlay_hints_in_range(src, 0, line_count + 1, options).await
+    }
+
+    async fn get_inlay_hints_in_range(
+        src: &str,
         start_line: u32,
         end_line: u32,
         options: InlayHintsOptions,
     ) -> Vec<InlayHint> {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", src).await;
         state.options.inlay_hints = options;
 
         on_inlay_hint_request(
@@ -637,6 +657,78 @@ mod inlay_hints_tests {
         .await
         .expect("Could not execute on_inlay_hint_request")
         .unwrap()
+    }
+
+    /// Parses a source string with `[[…]]` inlay-hint markers. Returns the cleaned source
+    /// (markers stripped, *including* their contents — inlay-hint labels are virtual text
+    /// that doesn't exist in the real source) and a list of expected (position, label)
+    /// pairs ordered by the position in the cleaned source.
+    ///
+    /// Note: this differs from `parse_cursor_and_target_marker` in `test_utils`, which uses
+    /// the same `[[…]]` syntax but preserves the bracketed content because in goto tests
+    /// the bracketed text *is* part of the real source.
+    fn parse_inlay_hint_markers(src: &str) -> (String, Vec<(Position, String)>) {
+        let mut clean = String::new();
+        let mut expected = Vec::new();
+        let mut line = 0u32;
+        let mut character = 0u32;
+        let mut chars = src.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            match ch {
+                '[' if chars.peek() == Some(&'[') => {
+                    chars.next();
+                    let pos = Position { line, character };
+                    let mut label = String::new();
+                    while let Some(inner) = chars.next() {
+                        if inner == ']' && chars.peek() == Some(&']') {
+                            chars.next();
+                            break;
+                        }
+                        label.push(inner);
+                    }
+                    expected.push((pos, label));
+                }
+                '\n' => {
+                    clean.push('\n');
+                    line += 1;
+                    character = 0;
+                }
+                ch => {
+                    clean.push(ch);
+                    character += ch.len_utf16() as u32;
+                }
+            }
+        }
+        (clean, expected)
+    }
+
+    fn render_label(label: &InlayHintLabel) -> String {
+        match label {
+            InlayHintLabel::String(s) => s.clone(),
+            InlayHintLabel::LabelParts(parts) => parts.iter().map(|p| p.value.as_str()).collect(),
+        }
+    }
+
+    /// Assert that the LSP produces exactly the inlay hints denoted by `[[…]]` markers in
+    /// `src`.
+    ///
+    /// Each `[[label]]` in the source means "expect an inlay hint at this position whose
+    /// rendered label is `label`". The markers (brackets and content) are stripped from the
+    /// source before it's sent to the LSP — the label text is virtual, not real source.
+    /// Use this for tests that care about position + label; for tests that also assert on
+    /// text_edits or label_part locations, drop down to `get_inlay_hints` instead.
+    async fn assert_inlay_hints(src: &str, options: InlayHintsOptions) {
+        let (clean_src, expected) = parse_inlay_hint_markers(src);
+        let mut actual: Vec<(Position, String)> = get_inlay_hints(&clean_src, options)
+            .await
+            .iter()
+            .map(|h| (h.position, render_label(&h.label)))
+            .collect();
+        actual.sort_by_key(|(pos, _)| (pos.line, pos.character));
+        let mut expected = expected;
+        expected.sort_by_key(|(pos, _)| (pos.line, pos.character));
+        assert_eq!(actual, expected);
     }
 
     fn no_hints() -> InlayHintsOptions {
@@ -686,86 +778,74 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_do_not_collect_type_hints_if_disabled() {
-        let inlay_hints = get_inlay_hints(0, 3, no_hints()).await;
-        assert!(inlay_hints.is_empty());
+        // No `[[…]]` markers ⇒ the LSP must not emit any inlay hints with these options.
+        assert_inlay_hints(
+            r#"fn main() {
+    let var = 0;
+}
+"#,
+            no_hints(),
+        )
+        .await;
     }
 
     #[test]
     async fn test_type_inlay_hints_without_location() {
-        let inlay_hints = get_inlay_hints(0, 3, type_hints()).await;
-        assert_eq!(inlay_hints.len(), 1);
-
-        let position = Position { line: 1, character: 11 };
-
-        let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, position);
-
-        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
-            assert_eq!(labels.len(), 2);
-            assert_eq!(labels[0].value, ": ");
-            assert_eq!(labels[0].location, None);
-            assert_eq!(labels[1].value, "Field");
-
-            // Field can't be reached (there's no source code for it)
-            assert_eq!(labels[1].location, None);
-        } else {
-            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
-        }
-
-        assert_eq!(
-            inlay_hint.text_edits,
-            Some(vec![TextEdit {
-                range: Range { start: position, end: position },
-                new_text: ": Field".to_string(),
-            }])
-        );
+        // The `[[: Field]]` marker says: expect a type hint with label `: Field` right
+        // after `var`. Markers are stripped before the source is sent to the LSP.
+        assert_inlay_hints(
+            r#"fn main() {
+    let var[[: Field]] = 0;
+}
+"#,
+            type_hints(),
+        )
+        .await;
     }
 
     #[test]
     async fn test_type_inlay_hints_with_location() {
-        let inlay_hints = get_inlay_hints(12, 15, type_hints()).await;
-        assert_eq!(inlay_hints.len(), 1);
+        // Position + label are covered by the marker. The label-part `Foo` should also
+        // carry a location pointing back at `struct Foo`; we check that separately.
+        let src = r#"struct Foo {
 
-        let position = Position { line: 13, character: 11 };
+}
 
-        let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, position);
+fn make_foo() -> Foo {
+    Foo {}
+}
 
-        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
-            assert_eq!(labels.len(), 2);
-            assert_eq!(labels[0].value, ": ");
-            assert_eq!(labels[0].location, None);
-            assert_eq!(labels[1].value, "Foo");
+fn foo() {
+    let foo[[: Foo]] = make_foo();
+}
+"#;
+        assert_inlay_hints(src, type_hints()).await;
 
-            // Check that it points to "Foo" in `struct Foo`
-            let location = labels[1].location.clone().expect("Expected a location");
-            assert_eq!(
-                location.range,
-                Range {
-                    start: Position { line: 4, character: 7 },
-                    end: Position { line: 4, character: 10 }
-                }
-            );
-        } else {
-            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
-        }
-
-        assert_eq!(
-            inlay_hint.text_edits,
-            Some(vec![TextEdit {
-                range: Range { start: position, end: position },
-                new_text: ": Foo".to_string(),
-            }])
-        );
+        let (clean_src, _) = parse_inlay_hint_markers(src);
+        let hints = get_inlay_hints(&clean_src, type_hints()).await;
+        let InlayHintLabel::LabelParts(parts) = &hints[0].label else {
+            panic!("Expected LabelParts");
+        };
+        let foo_location = parts[1].location.clone().expect("Expected a location on `Foo`");
+        // Points at `Foo` in `struct Foo`.
+        assert_eq!(test_utils::text_at(&clean_src, foo_location.range), "Foo");
     }
 
     #[test]
     async fn test_type_inlay_hints_in_struct_member_pattern() {
-        let inlay_hints = get_inlay_hints(94, 96, type_hints()).await;
+        let src = r#"struct SomeStruct {
+    one: i32,
+}
+
+fn struct_member_hint() {
+    let SomeStruct { one } = SomeStruct { one: 1 };
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 95, character: 24 });
+        assert_eq!(inlay_hint.position, Position { line: 5, character: 24 });
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -781,11 +861,15 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_type_inlay_hints_in_for() {
-        let inlay_hints = get_inlay_hints(16, 18, type_hints()).await;
+        let src = r#"fn test_for() {
+    for i in 0..10 {}
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 17, character: 9 });
+        assert_eq!(inlay_hint.position, Position { line: 1, character: 9 });
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -801,10 +885,12 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_type_inlay_hints_in_global() {
-        let inlay_hints = get_inlay_hints(19, 21, type_hints()).await;
+        let src = r#"global var = 0;
+"#;
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
-        let position = Position { line: 20, character: 10 };
+        let position = Position { line: 0, character: 10 };
 
         let inlay_hint = &inlay_hints[0];
         assert_eq!(inlay_hint.position, position);
@@ -829,10 +915,19 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_type_inlay_hints_in_lambda() {
-        let inlay_hints = get_inlay_hints(102, 105, type_hints()).await;
+        let src = r#"fn some_map<T, U>(x: T, f: fn(T) -> U) -> U {
+    f(x)
+}
+
+fn hint_on_lambda_parameter() {
+    let value: i32 = 1;
+    let _: i32 = some_map(value, |x| x + 1);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
-        let position = Position { line: 104, character: 35 };
+        let position = Position { line: 6, character: 35 };
 
         let inlay_hint = &inlay_hints[0];
         assert_eq!(inlay_hint.position, position);
@@ -856,48 +951,107 @@ mod inlay_hints_tests {
     }
 
     #[test]
+    async fn test_fn_no_env_no_return_type_hint() {
+        let src = r#"fn fn_no_env_no_return() {
+    let _ = || {};
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 1, character: 9 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            let label = labels.iter().map(|label| label.value.clone()).collect::<String>();
+            assert_eq!(label, ": fn()");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_fn_env_return_type_hint() {
+        let src = r#"fn fn_env_and_return() {
+    let x: i32 = 1;
+    let _ = || { x };
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 2, character: 9 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            let label = labels.iter().map(|label| label.value.clone()).collect::<String>();
+            assert_eq!(label, ": fn[(i32,)]() -> i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
     async fn test_do_not_panic_when_given_line_is_too_big() {
-        let inlay_hints = get_inlay_hints(0, 100000, type_hints()).await;
+        let src = r#"fn main() {
+    let var = 0;
+}
+"#;
+        let inlay_hints = get_inlay_hints_in_range(src, 0, 100000, type_hints()).await;
         assert!(!inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_collect_parameter_inlay_hints_if_disabled() {
-        let inlay_hints = get_inlay_hints(24, 26, no_hints()).await;
+        let src = r#"fn test_fn(one: i32, two: i32) {}
+
+fn call_test_fn() {
+    test_fn(1, 2);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, no_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_collect_parameter_inlay_hints_in_function_call() {
-        let inlay_hints = get_inlay_hints(24, 26, parameter_hints()).await;
-        assert_eq!(inlay_hints.len(), 2);
+        // Parameter hints appear directly before each positional argument.
+        assert_inlay_hints(
+            r#"fn test_fn(one: i32, two: i32) {}
 
-        let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 25, character: 12 });
-        assert_eq!(inlay_hint.text_edits, None);
-        if let InlayHintLabel::String(label) = &inlay_hint.label {
-            assert_eq!(label, "one: ");
-        } else {
-            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
-        }
-
-        let inlay_hint = &inlay_hints[1];
-        assert_eq!(inlay_hint.position, Position { line: 25, character: 15 });
-        assert_eq!(inlay_hint.text_edits, None);
-        if let InlayHintLabel::String(label) = &inlay_hint.label {
-            assert_eq!(label, "two: ");
-        } else {
-            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
-        }
+fn call_test_fn() {
+    test_fn([[one: ]]1, [[two: ]]2);
+}
+"#,
+            parameter_hints(),
+        )
+        .await;
     }
 
     #[test]
     async fn test_collect_parameter_inlay_hints_in_method_call() {
-        let inlay_hints = get_inlay_hints(36, 39, parameter_hints()).await;
+        let src = r#"struct SomeStruct {
+    one: i32,
+}
+
+impl SomeStruct {
+    fn some_method(self, one: i32) {}
+}
+
+fn call_method() {
+    let s = SomeStruct { one: 1 };
+    s.some_method(1);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 38, character: 18 });
+        assert_eq!(inlay_hint.position, Position { line: 10, character: 18 });
         assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "one: ");
@@ -907,82 +1061,176 @@ mod inlay_hints_tests {
     }
 
     #[test]
+    async fn test_collect_parameter_inlay_hints_in_function_call_with_missing_arguments() {
+        let src = r#"fn yet_another_function(name: i32) {}
+
+fn test_missing_args() {
+    // This is here to prove that inlay hints don't break when arguments are missing
+    yet_another_function()
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
+        assert_eq!(inlay_hints.len(), 0);
+    }
+
+    #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_name_matches_var_name() {
-        let inlay_hints = get_inlay_hints(41, 45, parameter_hints()).await;
+        let src = r#"fn test_fn(one: i32, two: i32) {}
+
+fn call_where_name_matches() {
+    let one = 1;
+    let two = 2;
+    test_fn(one, two);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_name_matches_member_name() {
-        let inlay_hints = get_inlay_hints(48, 52, parameter_hints()).await;
+        let src = r#"struct SomeStruct {
+    one: i32,
+}
+
+fn test_fn(one: i32, two: i32) {}
+
+fn call_where_member_name_matches() {
+    let s = SomeStruct { one: 1 };
+    let two = 2;
+    test_fn(s.one, two);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_name_matches_call_name() {
-        let inlay_hints = get_inlay_hints(57, 60, parameter_hints()).await;
+        let src = r#"fn test_fn(one: i32, two: i32) {}
+
+fn one() -> i32 {
+    1
+}
+
+fn call_where_call_matches_name() {
+    let two = 2;
+    test_fn(one(), two);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name()
      {
-        let inlay_hints = get_inlay_hints(64, 67, parameter_hints()).await;
+        let src = r#"fn with_arg(arg: i32) {}
+
+fn call_with_arg() {
+    let x = 1;
+    with_arg(x);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_param_name_starts_with_underscore() {
-        let inlay_hints = get_inlay_hints(71, 73, parameter_hints()).await;
+        let src = r#"fn with_underscore(_x: i32) {}
+
+fn call_with_underscore() {
+    with_underscore(1);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_single_argument_with_single_letter() {
-        let inlay_hints = get_inlay_hints(77, 79, parameter_hints()).await;
+        let src = r#"fn one_arg_with_one_char(x: i32) {}
+
+fn call_one_arg_with_one_char() {
+    one_arg_with_one_char(1);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_do_not_show_parameter_inlay_hints_if_param_name_is_suffix_of_arg_name() {
-        let inlay_hints = get_inlay_hints(89, 92, parameter_hints()).await;
+        let src = r#"fn yet_another_function(name: i32) {}
+
+fn call_yet_another_function() {
+    let some_name = 1;
+    yet_another_function(some_name)
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_does_not_show_closing_brace_inlay_hints_if_disabled() {
-        let inlay_hints = get_inlay_hints(41, 46, no_hints()).await;
+        let src = r#"fn test_fn(one: i32, two: i32) {}
+
+fn call_where_name_matches() {
+    let one = 1;
+    let two = 2;
+    test_fn(one, two);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, no_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_does_not_show_closing_brace_inlay_hints_if_enabled_but_not_lines() {
-        let inlay_hints = get_inlay_hints(41, 46, closing_braces_hints(6)).await;
+        let src = r#"fn test_fn(one: i32, two: i32) {}
+
+fn call_where_name_matches() {
+    let one = 1;
+    let two = 2;
+    test_fn(one, two);
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, closing_braces_hints(6)).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
     async fn test_shows_closing_brace_inlay_hints_for_a_function() {
-        let inlay_hints = get_inlay_hints(41, 46, closing_braces_hints(5)).await;
-        assert_eq!(inlay_hints.len(), 1);
+        // The closing-brace hint appears immediately after the `}` that closes the function body.
+        assert_inlay_hints(
+            r#"fn test_fn(one: i32, two: i32) {}
 
-        let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 45, character: 1 });
-        assert_eq!(inlay_hint.text_edits, None);
-        if let InlayHintLabel::String(label) = &inlay_hint.label {
-            assert_eq!(label, " fn call_where_name_matches");
-        } else {
-            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
-        }
+fn call_where_name_matches() {
+    let one = 1;
+    let two = 2;
+    test_fn(one, two);
+}[[ fn call_where_name_matches]]
+"#,
+            closing_braces_hints(5),
+        )
+        .await;
     }
 
     #[test]
     async fn test_shows_closing_brace_inlay_hints_for_impl() {
-        let inlay_hints = get_inlay_hints(32, 34, closing_braces_hints(2)).await;
+        let src = r#"struct SomeStruct { one: i32 }
+
+impl SomeStruct {
+    fn some_method(self, one: i32) {}
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, closing_braces_hints(2)).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 34, character: 1 });
+        assert_eq!(inlay_hint.position, Position { line: 4, character: 1 });
         assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, " impl SomeStruct");
@@ -993,11 +1241,19 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_shows_closing_brace_inlay_hints_for_trait_impl() {
-        let inlay_hints = get_inlay_hints(111, 113, closing_braces_hints(2)).await;
+        let src = r#"struct SomeStruct { one: i32 }
+
+trait SomeTrait {}
+
+impl SomeTrait for SomeStruct {
+
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, closing_braces_hints(2)).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 113, character: 1 });
+        assert_eq!(inlay_hint.position, Position { line: 6, character: 1 });
         assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, " impl SomeTrait for SomeStruct");
@@ -1008,11 +1264,15 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_shows_closing_brace_inlay_hints_for_module() {
-        let inlay_hints = get_inlay_hints(115, 117, closing_braces_hints(2)).await;
+        let src = r#"mod some_module {
+
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, closing_braces_hints(2)).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 117, character: 1 });
+        assert_eq!(inlay_hint.position, Position { line: 2, character: 1 });
         assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, " mod some_module");
@@ -1023,11 +1283,15 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_shows_closing_brace_inlay_hints_for_contract() {
-        let inlay_hints = get_inlay_hints(119, 121, closing_braces_hints(2)).await;
+        let src = r#"contract some_contract {
+
+}
+"#;
+        let inlay_hints = get_inlay_hints(src, closing_braces_hints(2)).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 121, character: 1 });
+        assert_eq!(inlay_hint.position, Position { line: 2, character: 1 });
         assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, " contract some_contract");
@@ -1038,13 +1302,21 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_shows_receiver_type_in_multiline_method_call() {
-        let mut inlay_hints = get_inlay_hints(125, 130, chaining_hints()).await;
+        let src = r#"use std::ops::Not;
+pub fn chain() {
+    let _ = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        .map(|x| x + 123456789012345)
+        .any(|x| x > 5)
+        .not();
+}
+"#;
+        let mut inlay_hints = get_inlay_hints(src, chaining_hints()).await;
         assert_eq!(inlay_hints.len(), 3);
 
         inlay_hints.sort_by_key(|hint| hint.position.line);
 
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position.line, 125);
+        assert_eq!(inlay_hint.position.line, 2);
         assert_eq!(inlay_hint.position.character, 59);
         let InlayHintLabel::LabelParts(parts) = &inlay_hint.label else {
             panic!("Expected label parts");
@@ -1053,7 +1325,7 @@ mod inlay_hints_tests {
         assert_eq!(label, " [u32; 14]");
 
         let inlay_hint = &inlay_hints[1];
-        assert_eq!(inlay_hint.position.line, 126);
+        assert_eq!(inlay_hint.position.line, 3);
         assert_eq!(inlay_hint.position.character, 37);
         let InlayHintLabel::LabelParts(parts) = &inlay_hint.label else {
             panic!("Expected label parts");
@@ -1062,12 +1334,37 @@ mod inlay_hints_tests {
         assert_eq!(label, " [u32; 14]");
 
         let inlay_hint = &inlay_hints[2];
-        assert_eq!(inlay_hint.position.line, 127);
+        assert_eq!(inlay_hint.position.line, 4);
         assert_eq!(inlay_hint.position.character, 23);
         let InlayHintLabel::LabelParts(parts) = &inlay_hint.label else {
             panic!("Expected label parts");
         };
         let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
         assert_eq!(label, " bool");
+    }
+
+    #[test]
+    async fn test_type_inlay_hint_for_identifier_ending_in_multi_byte_char() {
+        // Regression: when the identifier's last char was multi-byte the lexer's
+        // span end used to land in the middle of the UTF-8 sequence, breaking the
+        // byte→UTF-16 conversion and silently dropping the inlay hint.
+        // `xé` ends at UTF-16 character 10.
+        let src = "fn test_unicode_identifier() {
+    let xé = 1;
+}
+";
+        let inlay_hints = get_inlay_hints(src, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 1, character: 10 });
+
+        if let InlayHintLabel::LabelParts(parts) = &inlay_hint.label {
+            assert_eq!(parts.len(), 2);
+            assert_eq!(parts[0].value, ": ");
+            assert_eq!(parts[1].value, "Field");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
     }
 }

@@ -11,8 +11,11 @@
 use std::{collections::BTreeMap, ops::RangeInclusive};
 
 use arbtest::arbtest;
-use noir_ast_fuzzer::{Config, arb_program, visitor::visit_expr};
-use noirc_frontend::monomorphization::ast::{Expression, Type};
+use noir_ast_fuzzer::{Config, arb_program};
+use noirc_frontend::monomorphization::{
+    ast::{Expression, Type},
+    visitor::visit_expr,
+};
 
 #[test]
 fn arb_program_freqs_in_expected_range() {
@@ -101,9 +104,7 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
             return None;
         }
         Expression::Literal(_) => ("expr", "literal"),
-        Expression::Block(xs) => {
-            (xs.last().and_then(classify).map(|(c, _)| c).unwrap_or("stmt"), "block")
-        }
+        Expression::Block(xs) => (xs.last().and_then(classify).map_or("stmt", |(c, _)| c), "block"),
         Expression::Unary(_) => ("expr", "unary"),
         Expression::Binary(_) => ("expr", "binary"),
         Expression::For(_) => ("stmt", "for"),

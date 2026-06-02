@@ -7,14 +7,12 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use iter_extended::vecmap;
+use acvm::FieldElement;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
-use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::types::NumericType;
-use serde::{Deserialize, Serialize};
+use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
 
 pub type RtResult<T> = Result<T, RuntimeError>;
 
@@ -26,7 +24,7 @@ pub enum RuntimeError {
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("The value `{value}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
-        value: SignedField,
+        value: FieldElement,
         typ: NumericType,
         range: String,
         call_stack: CallStack,
@@ -58,12 +56,12 @@ pub enum RuntimeError {
     StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
-    #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
-    NestedSlice { call_stack: CallStack },
+    #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
+    NestedVector { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
+    #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedVectorReturnToConstrained { call_stack: CallStack },
     #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
@@ -93,70 +91,12 @@ pub enum RuntimeError {
         constrained: String,
         unconstrained: String,
     },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
-pub enum SsaReport {
-    Warning(InternalWarning),
-    Bug(InternalBug),
-}
-
-impl From<SsaReport> for CustomDiagnostic {
-    fn from(error: SsaReport) -> CustomDiagnostic {
-        match error {
-            SsaReport::Warning(warning) => {
-                let message = warning.to_string();
-                let (secondary_message, call_stack) = match warning {
-                    InternalWarning::ReturnConstant { call_stack } => {
-                        ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
-                    },
-                };
-                let call_stack = vecmap(call_stack, |location| location);
-                let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic =
-                    CustomDiagnostic::simple_warning(message, secondary_message, *location);
-                diagnostic.with_call_stack(call_stack)
-            }
-            SsaReport::Bug(bug) => {
-                let mut message = bug.to_string();
-                let (secondary_message, call_stack) = match bug {
-                    InternalBug::IndependentSubgraph { call_stack } => {
-                        ("There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
-                    }
-                    InternalBug::UncheckedBrilligCall { call_stack } => {
-                        ("This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
-                    }
-                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } => {
-                        if let Some(assertion_failure_message) = assertion_failure_message {
-                            message.push_str(&format!(": {assertion_failure_message}"));
-                        }
-                        ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
-                    }
-                };
-                let call_stack = vecmap(call_stack, |location| location);
-                let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic =
-                    CustomDiagnostic::simple_bug(message, secondary_message, *location);
-                diagnostic.with_call_stack(call_stack)
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
-pub enum InternalWarning {
-    #[error("Return variable contains a constant value")]
-    ReturnConstant { call_stack: CallStack },
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
-pub enum InternalBug {
-    #[error("Input to Brillig function is in a separate subgraph to output")]
-    IndependentSubgraph { call_stack: CallStack },
-    #[error("Brillig function call isn't properly covered by a manual constraint")]
-    UncheckedBrilligCall { call_stack: CallStack },
-    #[error("Assertion is always false")]
-    AssertFailed { call_stack: CallStack, message: Option<String> },
+    #[error("SSA validation failed: {message}")]
+    SsaValidationError { message: String, call_stack: CallStack },
+    #[error(
+        "The return value has {num_witnesses} elements which exceeds the limit of {max_witnesses}"
+    )]
+    ReturnLimitExceeded { num_witnesses: usize, max_witnesses: usize, call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -198,23 +138,25 @@ impl RuntimeError {
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
-            | RuntimeError::NestedSlice { call_stack, .. }
+            | RuntimeError::NestedVector { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedVectorReturnToConstrained { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }
             | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack }
             | RuntimeError::RecursionLimit { call_stack, .. }
-            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. } => call_stack,
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
+            | RuntimeError::SsaValidationError { call_stack, .. }
+            | RuntimeError::ReturnLimitExceeded { call_stack, .. } => call_stack,
         }
     }
 }
 
 impl From<RuntimeError> for CustomDiagnostic {
     fn from(error: RuntimeError) -> CustomDiagnostic {
-        let call_stack = vecmap(error.call_stack(), |location| *location);
+        let call_stack = error.call_stack().clone();
         let diagnostic = error.into_diagnostic();
         diagnostic.with_call_stack(call_stack)
     }
@@ -231,23 +173,38 @@ impl RuntimeError {
                     Location::dummy(),
                 )
             }
+            RuntimeError::SsaValidationError { message, call_stack} => {
+                let location =
+                    call_stack.last_or_dummy();
+
+                let mut diagnostic = CustomDiagnostic::from_message(
+                    &format!("SSA validation error: {message}"),
+                    location.file
+                );
+
+                if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
+                    diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                }
+
+                diagnostic
+            }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();
+                // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().expect("Expected RuntimeError to have a location");
+                    self.call_stack().last_or_dummy();
 
                 CustomDiagnostic::simple_error(
                     primary_message,
-                    "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    *location,
+                    "If attempting to fetch the length of a vector, try converting to an array. Vectors only use dynamic lengths.".to_string(),
+                    location,
                 )
             }
             _ => {
                 let message = self.to_string();
-                let location =
-                    self.call_stack().last().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
+                let location = self.call_stack().last_or_dummy();
 
-                CustomDiagnostic::simple_error(message, String::new(), *location)
+                CustomDiagnostic::simple_error(message, String::new(), location)
             }
         }
     }

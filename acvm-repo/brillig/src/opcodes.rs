@@ -1,39 +1,49 @@
-use crate::black_box::BlackBoxOp;
+use crate::{
+    black_box::BlackBoxOp,
+    lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
+};
 use acir_field::AcirField;
+use itertools::Itertools;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
+/// Represents a program location (instruction index) used as a jump target.
 pub type Label = usize;
 
 /// Represents an address in the VM's memory.
 /// Supports both direct and relative addressing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum MemoryAddress {
     /// Specifies an exact index in the VM's memory.
-    Direct(usize),
+    #[tag(0)]
+    Direct(u32),
     /// Specifies an index relative to the stack pointer.
     ///
     /// It is resolved as the current stack pointer plus the offset stored here.
     ///
-    /// The current stack pointer is wherever slot 0 of the `Memory` points at.
-    Relative(usize),
+    /// The stack pointer is stored in memory slot 0, so this address is resolved
+    /// by reading that slot and adding the offset to get the final memory address.
+    #[tag(1)]
+    Relative(u32),
 }
 
 impl MemoryAddress {
     /// Create a `Direct` address.
-    pub fn direct(address: usize) -> Self {
+    pub fn direct(address: u32) -> Self {
         MemoryAddress::Direct(address)
     }
 
     /// Create a `Relative` address.
-    pub fn relative(offset: usize) -> Self {
+    pub fn relative(offset: u32) -> Self {
         MemoryAddress::Relative(offset)
     }
 
     /// Return the index in a `Direct` address.
     ///
     /// Panics if it's `Relative`.
-    pub fn unwrap_direct(self) -> usize {
+    pub fn unwrap_direct(self) -> u32 {
         match self {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
@@ -43,7 +53,7 @@ impl MemoryAddress {
     /// Return the index in a `Relative` address.
     ///
     /// Panics if it's `Direct`.
-    pub fn unwrap_relative(self) -> usize {
+    pub fn unwrap_relative(self) -> u32 {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
             MemoryAddress::Relative(offset) => offset,
@@ -51,7 +61,7 @@ impl MemoryAddress {
     }
 
     /// Return the index in the address.
-    pub fn to_usize(self) -> usize {
+    pub fn to_u32(self) -> u32 {
         match self {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(offset) => offset,
@@ -69,12 +79,13 @@ impl MemoryAddress {
         !self.is_relative()
     }
 
-    /// Offset the address by `amount`, while preserving its type.
-    pub fn offset(&self, amount: usize) -> Self {
-        match self {
-            MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
-            MemoryAddress::Relative(offset) => MemoryAddress::Relative(offset + amount),
-        }
+    /// Offset a `Direct` address by `amount`.
+    ///
+    /// Panics if called on a `Relative` address.
+    pub fn offset(&self, amount: u32) -> Self {
+        // We disallow offsetting relatively addresses as this is not expected to be meaningful.
+        let address = self.unwrap_direct();
+        MemoryAddress::direct(address.checked_add(amount).expect("memory offset overflow"))
     }
 }
 
@@ -87,61 +98,31 @@ impl std::fmt::Display for MemoryAddress {
     }
 }
 
-/// Wrapper for array addresses, with convenience methods for various offsets.
-///
-/// The array consists of a ref-count followed by a number of items according
-/// the size indicated by the type.
-pub struct ArrayAddress(MemoryAddress);
-
-impl ArrayAddress {
-    pub fn items_start(&self) -> MemoryAddress {
-        self.0.offset(1)
-    }
-}
-
-impl From<MemoryAddress> for ArrayAddress {
-    fn from(value: MemoryAddress) -> Self {
-        Self(value)
-    }
-}
-
-/// Wrapper for vector addresses, with convenience methods for various offsets.
-///
-/// The vector consists of a ref-count, followed by the capacity, and then a
-/// number of items indicated by the capacity.
-///
-/// The semantic length of the vector is maintained at a separate address.
-pub struct VectorAddress(MemoryAddress);
-
-impl VectorAddress {
-    /// Capacity of the vector.
-    pub fn size_addr(&self) -> MemoryAddress {
-        self.0.offset(1)
-    }
-    pub fn items_start(&self) -> MemoryAddress {
-        self.0.offset(2)
-    }
-}
-
-impl From<MemoryAddress> for VectorAddress {
-    fn from(value: MemoryAddress) -> Self {
-        Self(value)
-    }
-}
-
 /// Describes the memory layout for an array/vector element
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 pub enum HeapValueType {
     /// A single field element is enough to represent the value with a given bit size.
+    #[tag(0)]
     Simple(BitSize),
     /// The value read should be interpreted as a pointer to a [HeapArray], which
     /// consists of a pointer to a slice of memory of size elements, and a
-    /// reference count.
-    Array { value_types: Vec<HeapValueType>, size: usize },
+    /// reference count, to avoid cloning arrays that are not shared.
+    #[tag(1)]
+    Array {
+        #[tag(0)]
+        value_types: Vec<HeapValueType>,
+        #[tag(1)]
+        size: SemanticLength,
+    },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
-    /// slice, and a reference count.
-    Vector { value_types: Vec<HeapValueType> },
+    /// vector, and a reference count.
+    #[tag(2)]
+    Vector {
+        #[tag(0)]
+        value_types: Vec<HeapValueType>,
+    },
 }
 
 impl HeapValueType {
@@ -158,15 +139,17 @@ impl HeapValueType {
     /// Returns the total number of field elements required to represent this type in memory.
     ///
     /// Returns `None` for `Vector`, as their size is not statically known.
-    pub fn flattened_size(&self) -> Option<usize> {
+    pub fn flattened_size(&self) -> Option<FlattenedLength> {
         match self {
-            HeapValueType::Simple(_) => Some(1),
+            HeapValueType::Simple(_) => Some(FlattenedLength(1)),
             HeapValueType::Array { value_types, size } => {
-                let element_size =
-                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<usize>>();
-
-                // Multiply element size by number of elements.
-                element_size.map(|element_size| element_size * size)
+                // This is the flattened length of a single entry in the array (all of `value_types`)
+                let elements_flattened_size =
+                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
+                // Next we multiply it by the size of the array
+                elements_flattened_size.map(|elements_flattened_size| {
+                    ElementsFlattenedLength::from(elements_flattened_size) * *size
+                })
             }
             HeapValueType::Vector { .. } => {
                 // Vectors are dynamic, so we cannot determine their size statically.
@@ -206,7 +189,7 @@ impl std::fmt::Display for HeapValueType {
                 write!(f, "]")
             }
             HeapValueType::Vector { value_types } => {
-                write!(f, "&[")?;
+                write!(f, "@[")?;
                 write_types(f, value_types)?;
                 write!(f, "]")
             }
@@ -215,20 +198,23 @@ impl std::fmt::Display for HeapValueType {
 }
 
 /// A fixed-sized array starting from a Brillig memory location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapArray {
     /// Pointer to a memory address which hold the address to the start of the items in the array.
     ///
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
+    #[tag(0)]
     pub pointer: MemoryAddress,
     /// Statically known size of the array.
-    pub size: usize,
+    #[tag(1)]
+    pub size: SemiFlattenedLength,
 }
 
 impl Default for HeapArray {
     fn default() -> Self {
-        Self { pointer: MemoryAddress::direct(0), size: 0 }
+        Self { pointer: MemoryAddress::direct(0), size: SemiFlattenedLength(0) }
     }
 }
 
@@ -239,31 +225,44 @@ impl std::fmt::Display for HeapArray {
 }
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapVector {
     /// Pointer to a memory address which hold the address to the start of the items in the vector.
     ///
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
+    #[tag(0)]
     pub pointer: MemoryAddress,
     /// Address to a memory slot holding the semantic length of the vector.
+    #[tag(1)]
     pub size: MemoryAddress,
 }
 
 impl std::fmt::Display for HeapVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "&[{}; {}]", self.pointer, self.size)
+        write!(f, "@[{}; {}]", self.pointer, self.size)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
+/// Represents the bit size of unsigned integer types in Brillig.
+///
+/// These correspond to the standard unsigned integer types, with U1 representing a boolean.
+#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum IntegerBitSize {
+    #[tag(0)]
     U1,
+    #[tag(1)]
     U8,
+    #[tag(2)]
     U16,
+    #[tag(3)]
     U32,
+    #[tag(4)]
     U64,
+    #[tag(5)]
     U128,
 }
 
@@ -309,14 +308,25 @@ impl std::fmt::Display for IntegerBitSize {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
+/// Represents the bit size of values in Brillig.
+///
+/// Values can either be field elements (whose size depends on the field being used)
+/// or fixed-size unsigned integers.
+#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BitSize {
+    #[tag(0)]
     Field,
+    #[tag(1)]
     Integer(IntegerBitSize),
 }
 
 impl BitSize {
+    /// Convert the bit size to a u32 value.
+    ///
+    /// For field elements, returns the maximum number of bits in the field.
+    /// For integers, returns the bit size of the integer type.
     pub fn to_u32<F: AcirField>(self) -> u32 {
         match self {
             BitSize::Field => F::max_num_bits(),
@@ -324,6 +334,10 @@ impl BitSize {
         }
     }
 
+    /// Try to create a BitSize from a u32 value.
+    ///
+    /// If the value matches the field's maximum bit count, returns `BitSize::Field`.
+    /// Otherwise, attempts to interpret it as an integer bit size.
     pub fn try_from_u32<F: AcirField>(value: u32) -> Result<Self, &'static str> {
         if value == F::max_num_bits() {
             Ok(BitSize::Field)
@@ -348,21 +362,25 @@ impl std::fmt::Display for BitSize {
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the `ForeignCall` instructions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ValueOrArray {
     /// A single value to be passed to or from an external call.
     /// It is an 'immediate' value - used without dereferencing.
     /// For a foreign call input, the value is read directly from memory.
     /// For a foreign call output, the value is written directly to memory.
+    #[tag(0)]
     MemoryAddress(MemoryAddress),
     /// An array to be passed to or from an external call.
     /// In the case of a foreign call input, the array is read from this Brillig memory location + `size` more cells.
     /// In the case of a foreign call output, the array is written to this Brillig memory location with the `size` being here just as a sanity check for the write size.
+    #[tag(1)]
     HeapArray(HeapArray),
     /// A vector to be passed to or from an external call.
     /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the second address indicates.
     /// In the case of a foreign call output, the vector is written to this Brillig memory location as 'size' cells, with size being stored in the second address.
+    #[tag(2)]
     HeapVector(HeapVector),
 }
 
@@ -382,45 +400,87 @@ impl std::fmt::Display for ValueOrArray {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`,
     /// performs the specified binary operation,
     /// and stores the value in the `destination` address.
+    #[tag(0)]
     BinaryFieldOp {
+        #[tag(0)]
         destination: MemoryAddress,
+        #[tag(1)]
         op: BinaryFieldOp,
+        #[tag(2)]
         lhs: MemoryAddress,
+        #[tag(3)]
         rhs: MemoryAddress,
     },
     /// Takes the `bit_size` size integers in addresses `lhs` and `rhs`,
     /// performs the specified binary operation,
     /// and stores the value in the `destination` address.
+    #[tag(1)]
     BinaryIntOp {
+        #[tag(0)]
         destination: MemoryAddress,
+        #[tag(1)]
         op: BinaryIntOp,
+        #[tag(2)]
         bit_size: IntegerBitSize,
+        #[tag(3)]
         lhs: MemoryAddress,
+        #[tag(4)]
         rhs: MemoryAddress,
     },
     /// Takes the value from the `source` address, inverts it,
     /// and stores the value in the `destination` address.
-    Not { destination: MemoryAddress, source: MemoryAddress, bit_size: IntegerBitSize },
+    #[tag(2)]
+    Not {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+        #[tag(2)]
+        bit_size: IntegerBitSize,
+    },
     /// Takes the value from the `source` address,
     /// casts it into the type indicated by `bit_size`,
     /// and stores the value in the `destination` address.
-    Cast { destination: MemoryAddress, source: MemoryAddress, bit_size: BitSize },
+    #[tag(3)]
+    Cast {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+        #[tag(2)]
+        bit_size: BitSize,
+    },
     /// Sets the program counter to the value of `location`
     /// if the value at `condition` is non-zero.
-    JumpIf { condition: MemoryAddress, location: Label },
+    #[tag(4)]
+    JumpIf {
+        #[tag(0)]
+        condition: MemoryAddress,
+        #[tag(1)]
+        location: Label,
+    },
     /// Sets the program counter to the value of `location`.
-    Jump { location: Label },
-    /// Copies calldata after the `offset_address` with length indicated by `size_address`
-    /// to the specified `destination_address`.
+    #[tag(5)]
+    Jump {
+        #[tag(0)]
+        location: Label,
+    },
+    /// Copies the data from `calldata` from the `offset_address` with length indicated by `size_address`
+    /// to the specified `destination_address` in the memory.
+    #[tag(6)]
     CalldataCopy {
+        #[tag(0)]
         destination_address: MemoryAddress,
+        #[tag(1)]
         size_address: MemoryAddress,
+        #[tag(2)]
         offset_address: MemoryAddress,
     },
     /// Pushes the current program counter to the call stack as to set a return location.
@@ -428,59 +488,122 @@ pub enum BrilligOpcode<F> {
     ///
     /// We don't support dynamic jumps or calls;
     /// see <https://github.com/ethereum/aleth/issues/3404> for reasoning.
-    Call { location: Label },
+    #[tag(7)]
+    Call {
+        #[tag(0)]
+        location: Label,
+    },
     /// Stores a constant `value` with a `bit_size` in the `destination` address.
-    Const { destination: MemoryAddress, bit_size: BitSize, value: F },
+    #[tag(8)]
+    Const {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        bit_size: BitSize,
+        #[tag(2)]
+        value: F,
+    },
     /// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
-    IndirectConst { destination_pointer: MemoryAddress, bit_size: BitSize, value: F },
+    #[tag(9)]
+    IndirectConst {
+        #[tag(0)]
+        destination_pointer: MemoryAddress,
+        #[tag(1)]
+        bit_size: BitSize,
+        #[tag(2)]
+        value: F,
+    },
     /// Pops the top element from the call stack, which represents the return location,
     /// and sets the program counter to that value. This operation is used to return
     /// from a function call.
+    #[tag(10)]
     Return,
     /// Used to get data from an outside source.
     ///
     /// Also referred to as an Oracle, intended for things like state tree reads;
     /// it shouldn't be confused with e.g. blockchain price oracles.
+    #[tag(11)]
     ForeignCall {
         /// Interpreted by caller context, ie. this will have different meanings depending on
         /// who the caller is.
+        #[tag(0)]
         function: String,
         /// Destination addresses (may be single values or memory pointers).
+        ///
+        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
+        /// the current free memory pointer, and store the heap address into the destination.
+        #[tag(1)]
         destinations: Vec<ValueOrArray>,
         /// Destination value types.
+        #[tag(2)]
         destination_value_types: Vec<HeapValueType>,
         /// Input addresses (may be single values or memory pointers).
+        #[tag(3)]
         inputs: Vec<ValueOrArray>,
         /// Input value types (for heap allocated structures indicates how to
         /// retrieve the elements).
+        #[tag(4)]
         input_value_types: Vec<HeapValueType>,
     },
     /// Moves the content in the `source` address to the `destination` address.
-    Mov { destination: MemoryAddress, source: MemoryAddress },
+    #[tag(12)]
+    Mov {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+    },
     /// If the value at `condition` is non-zero, moves the content in the `source_a`
     /// address to the `destination` address, otherwise moves the content from the
     /// `source_b` address instead.
     ///
     /// `destination = condition > 0 ? source_a : source_b`
+    #[tag(13)]
     ConditionalMov {
+        #[tag(0)]
         destination: MemoryAddress,
+        #[tag(1)]
         source_a: MemoryAddress,
+        #[tag(2)]
         source_b: MemoryAddress,
+        #[tag(3)]
         condition: MemoryAddress,
     },
     /// Reads the `source_pointer` to obtain a memory address, then retrieves the data
     /// stored at that address and writes it to the `destination` address.
-    Load { destination: MemoryAddress, source_pointer: MemoryAddress },
+    #[tag(14)]
+    Load {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source_pointer: MemoryAddress,
+    },
     /// Reads the `destination_pointer` to obtain a memory address, then stores the value
     /// from the `source` address at that location.
-    Store { destination_pointer: MemoryAddress, source: MemoryAddress },
+    #[tag(15)]
+    Store {
+        #[tag(0)]
+        destination_pointer: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+    },
     /// Native functions in the VM.
     /// These are equivalent to the black box functions in ACIR.
+    #[tag(16)]
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
-    Trap { revert_data: HeapVector },
+    #[tag(17)]
+    Trap {
+        #[tag(0)]
+        revert_data: HeapVector,
+    },
     /// Halts execution and returns data specified by a dynamically-sized vector.
-    Stop { return_data: HeapVector },
+    #[tag(18)]
+    Stop {
+        #[tag(0)]
+        return_data: HeapVector,
+    },
 }
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
@@ -529,11 +652,9 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
                 inputs,
                 input_value_types,
             } => {
-                assert_eq!(destinations.len(), destination_value_types.len());
-
                 if !destinations.is_empty() {
                     for (index, (destination, destination_value_type)) in
-                        destinations.iter().zip(destination_value_types).enumerate()
+                        destinations.iter().zip_eq(destination_value_types).enumerate()
                     {
                         if index > 0 {
                             write!(f, ", ")?;
@@ -545,9 +666,8 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
 
                 write!(f, "foreign call {function}(")?;
 
-                assert_eq!(inputs.len(), input_value_types.len());
                 for (index, (input, input_value_type)) in
-                    inputs.iter().zip(input_value_types).enumerate()
+                    inputs.iter().zip_eq(input_value_types).enumerate()
                 {
                     if index > 0 {
                         write!(f, ", ")?;
@@ -583,22 +703,35 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
     }
 }
 
-/// Binary fixed-length field expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+/// Binary operations on field elements.
+///
+/// Most operations work with field arithmetic, but some operations like
+/// `IntegerDiv` interpret the field elements as unsigned integers for the purpose
+/// of the operation (useful when field elements are used to represent integer values).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryFieldOp {
+    #[tag(0)]
     Add,
+    #[tag(1)]
     Sub,
+    #[tag(2)]
     Mul,
-    /// Field division
+    /// Field division (inverse multiplication in the field)
+    #[tag(3)]
     Div,
-    /// Unsigned integer division
+    /// Unsigned integer division (treating field elements as unsigned integers)
+    #[tag(4)]
     IntegerDiv,
     /// (==) Equal
+    #[tag(5)]
     Equals,
     /// (<) Field less than
+    #[tag(6)]
     LessThan,
     /// (<=) Field less or equal
+    #[tag(7)]
     LessThanEquals,
 }
 
@@ -618,28 +751,41 @@ impl std::fmt::Display for BinaryFieldOp {
 }
 
 /// Binary fixed-length integer expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryIntOp {
+    #[tag(0)]
     Add,
+    #[tag(1)]
     Sub,
+    #[tag(2)]
     Mul,
+    #[tag(3)]
     Div,
     /// (==) Equal
+    #[tag(4)]
     Equals,
     /// (<) Integer less than
+    #[tag(5)]
     LessThan,
     /// (<=) Integer less or equal
+    #[tag(6)]
     LessThanEquals,
     /// (&) Bitwise AND
+    #[tag(7)]
     And,
     /// (|) Bitwise OR
+    #[tag(8)]
     Or,
     /// (^) Bitwise XOR
+    #[tag(9)]
     Xor,
     /// (<<) Shift left
+    #[tag(10)]
     Shl,
     /// (>>) Shift right
+    #[tag(11)]
     Shr,
 }
 
@@ -662,10 +808,146 @@ impl std::fmt::Display for BinaryIntOp {
     }
 }
 
-#[cfg(feature = "arb")]
+#[cfg(test)]
 mod tests {
+    use crate::MemoryAddress;
+
+    use super::{BitSize, IntegerBitSize};
+    use acir_field::FieldElement;
+
+    /// Test that IntegerBitSize round trips correctly through From/TryFrom u32
+    #[test]
+    fn test_integer_bitsize_roundtrip() {
+        let integer_sizes = [
+            IntegerBitSize::U1,
+            IntegerBitSize::U8,
+            IntegerBitSize::U16,
+            IntegerBitSize::U32,
+            IntegerBitSize::U64,
+            IntegerBitSize::U128,
+        ];
+
+        for int_size in integer_sizes {
+            // Convert to u32 using From trait
+            let as_u32: u32 = int_size.into();
+            // Convert back using TryFrom trait
+            let roundtrip = IntegerBitSize::try_from(as_u32)
+                .expect("Should successfully convert back from u32");
+            assert_eq!(
+                int_size, roundtrip,
+                "IntegerBitSize::{int_size} should roundtrip through From<IntegerBitSize> for u32 and TryFrom<u32>"
+            );
+        }
+    }
+
+    #[test]
+    fn test_integer_bitsize_values() {
+        // Verify the actual u32 values returned by From trait
+        assert_eq!(u32::from(IntegerBitSize::U1), 1);
+        assert_eq!(u32::from(IntegerBitSize::U8), 8);
+        assert_eq!(u32::from(IntegerBitSize::U16), 16);
+        assert_eq!(u32::from(IntegerBitSize::U32), 32);
+        assert_eq!(u32::from(IntegerBitSize::U64), 64);
+        assert_eq!(u32::from(IntegerBitSize::U128), 128);
+    }
+
+    #[test]
+    fn test_integer_bitsize_try_from_invalid() {
+        // Test that invalid bit sizes return an error
+        assert!(IntegerBitSize::try_from(0).is_err());
+        assert!(IntegerBitSize::try_from(2).is_err());
+        assert!(IntegerBitSize::try_from(7).is_err());
+        assert!(IntegerBitSize::try_from(15).is_err());
+        assert!(IntegerBitSize::try_from(31).is_err());
+        assert!(IntegerBitSize::try_from(63).is_err());
+        assert!(IntegerBitSize::try_from(127).is_err());
+        assert!(IntegerBitSize::try_from(129).is_err());
+        assert!(IntegerBitSize::try_from(256).is_err());
+    }
+
+    /// Test that BitSize round-trips correctly through to_u32/try_from_u32
+    #[test]
+    fn test_bitsize_roundtrip() {
+        // Test all integer bit sizes
+        let integer_sizes = [
+            IntegerBitSize::U1,
+            IntegerBitSize::U8,
+            IntegerBitSize::U16,
+            IntegerBitSize::U32,
+            IntegerBitSize::U64,
+            IntegerBitSize::U128,
+        ];
+
+        for int_size in integer_sizes {
+            let bit_size = BitSize::Integer(int_size);
+            let as_u32 = bit_size.to_u32::<FieldElement>();
+            let roundtrip = BitSize::try_from_u32::<FieldElement>(as_u32)
+                .expect("Should successfully convert back from u32");
+            assert_eq!(
+                bit_size, roundtrip,
+                "BitSize::Integer({int_size}) should roundtrip through to_u32/try_from_u32"
+            );
+        }
+
+        // Test Field type
+        let field_bit_size = BitSize::Field;
+        let as_u32 = field_bit_size.to_u32::<FieldElement>();
+        let roundtrip = BitSize::try_from_u32::<FieldElement>(as_u32)
+            .expect("Should successfully convert Field back from u32");
+        assert_eq!(
+            field_bit_size, roundtrip,
+            "BitSize::Field should roundtrip through to_u32/try_from_u32"
+        );
+    }
+
+    #[test]
+    fn test_bitsize_to_u32_values_integers() {
+        // Verify the actual u32 values returned for integer types
+        assert_eq!(BitSize::Integer(IntegerBitSize::U1).to_u32::<FieldElement>(), 1);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U8).to_u32::<FieldElement>(), 8);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U16).to_u32::<FieldElement>(), 16);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U32).to_u32::<FieldElement>(), 32);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U64).to_u32::<FieldElement>(), 64);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U128).to_u32::<FieldElement>(), 128);
+    }
+
+    #[test]
+    #[cfg(feature = "bn254")]
+    fn test_bitsize_to_u32_field_bn254() {
+        // Field type returns 254 bits for bn254
+        assert_eq!(BitSize::Field.to_u32::<FieldElement>(), 254);
+    }
+
+    #[test]
+    #[cfg(feature = "bls12_381")]
+    fn test_bitsize_to_u32_field_bls12_381() {
+        // Field type returns 255 bits for bls12_381
+        assert_eq!(BitSize::Field.to_u32::<FieldElement>(), 255);
+    }
+
+    #[test]
+    fn test_bitsize_try_from_u32_invalid() {
+        // Test that invalid bit sizes return an error
+        assert!(BitSize::try_from_u32::<FieldElement>(2).is_err());
+        assert!(BitSize::try_from_u32::<FieldElement>(7).is_err());
+        assert!(BitSize::try_from_u32::<FieldElement>(0).is_err());
+        assert!(BitSize::try_from_u32::<FieldElement>(256).is_err());
+    }
+
+    #[test]
+    #[should_panic = "memory offset overflow"]
+    fn memory_offset_overflow() {
+        let addr = MemoryAddress::direct(u32::MAX);
+        let _ = addr.offset(1);
+    }
+}
+
+#[cfg(feature = "arb")]
+mod prop_tests {
     use proptest::arbitrary::Arbitrary;
     use proptest::prelude::*;
+
+    use crate::lengths::SemanticLength;
 
     use super::{BitSize, HeapValueType};
 
@@ -678,10 +960,12 @@ mod tests {
             let leaf = any::<BitSize>().prop_map(HeapValueType::Simple);
             leaf.prop_recursive(2, 3, 2, |inner| {
                 prop_oneof![
-                    (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
-                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                    (prop::collection::vec(inner.clone(), 1..3), any::<u32>()).prop_map(
+                        |(value_types, size)| {
+                            HeapValueType::Array { value_types, size: SemanticLength(size) }
+                        }
                     ),
-                    (prop::collection::vec(inner.clone(), 1..3))
+                    (prop::collection::vec(inner, 1..3))
                         .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
                 ]
             })

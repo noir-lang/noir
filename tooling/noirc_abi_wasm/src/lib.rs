@@ -2,6 +2,8 @@
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandom_v2 as _;
+use getrandom_v4 as _; // cSpell:disable-line
 
 use acvm::{
     AcirField, FieldElement,
@@ -154,7 +156,7 @@ pub fn abi_decode_error(
             Ok(JsValue::from_str(&string))
         }
         AbiErrorType::Custom(typ) => {
-            let input_value = decode_value(&mut error_data.into_iter(), &typ)?;
+            let input_value = decode_value(&mut error_data.into_iter(), &typ, "error")?;
             let json_types = JsonTypes::try_from_input_value(&input_value, &typ)?;
             <JsValue as JsValueSerdeExt>::from_serde(&json_types)
                 .map_err(|err| err.to_string().into())

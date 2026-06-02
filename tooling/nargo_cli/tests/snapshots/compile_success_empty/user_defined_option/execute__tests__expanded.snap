@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use my_option::Option;
+
+fn main() {
+    let _: Option = Option { custom_value: 42_Field };
+}
+
+mod my_option {
+    pub struct Option {
+        pub custom_value: Field,
+    }
+}

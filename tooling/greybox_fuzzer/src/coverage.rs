@@ -63,7 +63,7 @@ impl From<&WitnessStack<FieldElement>> for NonBoolWitnessList {
         let first_func_witnesses = witness_stack.peek().unwrap();
 
         // Look for witnesses that are neither 0 nor 1
-        for (witness_index, value) in first_func_witnesses.witness.clone().into_iter() {
+        for (witness_index, value) in first_func_witnesses.witness.clone() {
             if !(value.is_one() || value.is_zero()) {
                 witness_set.insert(witness_index);
             }
@@ -83,7 +83,7 @@ impl NonBoolWitnessList {
         let first_func_witnesses = witness_stack.peek().unwrap();
 
         // Go through the list of perceived boolean witnesses
-        for (witness_index, value) in first_func_witnesses.witness.clone().into_iter() {
+        for (witness_index, value) in first_func_witnesses.witness.clone() {
             if !(value.is_one() || value.is_zero()) {
                 self.witness.insert(witness_index);
             }
@@ -154,7 +154,7 @@ impl SingleTestCaseCoverage {
             let witness_map = &acir_witnesses.peek().unwrap().witness;
 
             // For each witness, if it is a boolean and not in the non-bool witness list, add it to the acir bool coverage
-            for (witness, value) in witness_map.clone().into_iter() {
+            for (witness, value) in witness_map.clone() {
                 if (value.is_zero() || value.is_one())
                     && !non_bool_witness_list.witness.contains(&witness)
                 {
@@ -228,7 +228,7 @@ impl AccumulatedFuzzerCoverage {
         let mut cmp_coverage = Vec::new();
 
         // Process each coverage item
-        for coverage_item in coverage_items.iter() {
+        for coverage_item in coverage_items {
             match coverage_item {
                 // Handle branch coverage
                 BrilligCoverageItemRange::Branch(branch_coverage_range) => {
@@ -293,11 +293,11 @@ impl AccumulatedFuzzerCoverage {
         };
 
         // Go through branch coverage and remove testcase id from the set of unused if we encounter it
-        for branch in self.brillig_branch_coverage.iter() {
+        for branch in &self.brillig_branch_coverage {
             if branch.encountered_loop_log2s.is_zero() {
                 continue;
             }
-            for element in branch.testcases_involved.iter() {
+            for element in &branch.testcases_involved {
                 if remove_if_used(element) {
                     return unused_testcases;
                 }
@@ -308,7 +308,7 @@ impl AccumulatedFuzzerCoverage {
         }
 
         // Go through comparison coverage and remove testcase id from the set of unused if we encounter it
-        for cmp_approach in self.brillig_cmp_approach_coverage.iter() {
+        for cmp_approach in &self.brillig_cmp_approach_coverage {
             if !cmp_approach.enabled {
                 continue;
             }
@@ -317,7 +317,7 @@ impl AccumulatedFuzzerCoverage {
             {
                 return unused_testcases;
             }
-            for element in cmp_approach.testcases_involved.iter() {
+            for element in &cmp_approach.testcases_involved {
                 if remove_if_used(element) {
                     return unused_testcases;
                 }
@@ -356,7 +356,7 @@ impl AccumulatedFuzzerCoverage {
         let mut add_to_leavers = |x| {
             if let Some(leaver_id) = x {
                 potential_leavers.insert(leaver_id);
-            };
+            }
         };
 
         self.merge_branch_coverage(new_coverage, &mut add_to_leavers);
@@ -375,7 +375,7 @@ impl AccumulatedFuzzerCoverage {
         add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
     ) {
         // Go through all single branch coverage ranges and merge branch coverage in
-        for branch in self.brillig_branch_coverage.iter_mut() {
+        for branch in &mut self.brillig_branch_coverage {
             let prev_value = *branch;
             let testcase_value = new_coverage.brillig_coverage[branch.raw_index];
             // If the branch was taken at least once
@@ -405,7 +405,7 @@ impl AccumulatedFuzzerCoverage {
         add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
     ) {
         // Go through comparison coverage
-        for cmp_approach in self.brillig_cmp_approach_coverage.iter_mut() {
+        for cmp_approach in &mut self.brillig_cmp_approach_coverage {
             if !cmp_approach.enabled {
                 // No need to detect closeness any more if we've hit the equality case
                 continue;
@@ -515,7 +515,7 @@ impl AccumulatedFuzzerCoverage {
         add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
     ) {
         // Insert all ACIR states and replace testcase association
-        for acir_bool_state in new_coverage.acir_bool_coverage.iter() {
+        for acir_bool_state in &new_coverage.acir_bool_coverage {
             let witness = Witness::new(acir_bool_state.witness_id);
             // If the witness is non-boolean according the merged non-bool witness list, skip it
             if self.non_bool_witness_list.witness.contains(&witness) {
@@ -537,7 +537,7 @@ impl AccumulatedFuzzerCoverage {
         let mut states_to_remove = Vec::new();
 
         // Check that all boolean state witnesses observed in accumulated coverage are not in the non-bool witness list
-        for state in self.acir_bool_coverage.iter() {
+        for state in &self.acir_bool_coverage {
             if self.non_bool_witness_list.witness.contains(&Witness::new(state.witness_id)) {
                 states_to_remove.push(*state);
             }
@@ -556,7 +556,7 @@ impl AccumulatedFuzzerCoverage {
         // 1. A new branch is taken
         // 2. A branch is taken more times than ever encountered before in a single execution
         // 3. A branch is taken pow2 times that hasn't been previously observed
-        for branch in self.brillig_branch_coverage.iter() {
+        for branch in &self.brillig_branch_coverage {
             let testcase_value = new_coverage.brillig_coverage[branch.raw_index];
             if !testcase_value.is_zero() {
                 if (branch.encountered_loop_log2s
@@ -576,7 +576,7 @@ impl AccumulatedFuzzerCoverage {
         // 1. If a particular comparison has achieved a difference between arguments whose log2 is smaller than previously observed
         // 2. If the smallest log2 previously observed has been detected more times in the same execution
         // 3. If the number of executions of the log2 is a new log2 that hasn't been observed
-        for cmp_approach in self.brillig_cmp_approach_coverage.iter() {
+        for cmp_approach in &self.brillig_cmp_approach_coverage {
             if !cmp_approach.enabled {
                 // No need to detect closeness any more if we've hit the equality case
                 continue;
@@ -601,7 +601,7 @@ impl AccumulatedFuzzerCoverage {
             }
         }
         // Check if a boolean state has been observed before
-        for acir_bool_state in new_coverage.acir_bool_coverage.iter() {
+        for acir_bool_state in &new_coverage.acir_bool_coverage {
             if !self.acir_bool_coverage.contains(acir_bool_state) {
                 return true;
             }
@@ -623,11 +623,10 @@ pub fn analyze_brillig_program_before_fuzzing(
     let main_function = &program_bytecode.functions[0];
     let starting_opcode = &main_function.opcodes[0];
 
-    let fuzzed_brillig_function_id = match starting_opcode {
-        Opcode::BrilligCall { id, .. } => id,
-        _ => panic!(
+    let Opcode::BrilligCall { id: fuzzed_brillig_function_id, .. } = starting_opcode else {
+        panic!(
             "If a method is compiled to brillig, the first opcode in ACIR has to be brillig call"
-        ),
+        );
     };
     // Get the brillig code
     let fuzzed_brillig_function =

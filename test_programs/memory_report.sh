@@ -24,7 +24,7 @@ FIRST="1"
 FLAGS=${FLAGS:- ""}
 echo "[" > memory_report.json
 
-for test_path in ${tests_to_profile[@]}; do    
+for test_path in ${tests_to_profile[@]}; do
         cd $base_path/$test_path
 
         if [ $FIRST = "1" ]
@@ -50,12 +50,12 @@ for test_path in ${tests_to_profile[@]}; do
             COMMAND="execute --silence-warnings"
         fi
 
-        heaptrack --output $current_dir/$test_name"_heap" $NARGO $COMMAND 
-        if test -f $current_dir/$test_name"_heap.gz"; 
-        then 
+        heaptrack --output $current_dir/$test_name"_heap" $NARGO $COMMAND
+        if test -f $current_dir/$test_name"_heap.gz";
+        then
             heaptrack --analyze $current_dir/$test_name"_heap.gz" > $current_dir/$test_name"_heap_analysis.txt"
             rm $current_dir/$test_name"_heap.gz"
-        else 
+        else
             heaptrack --analyze $current_dir/$test_name"_heap.zst" > $current_dir/$test_name"_heap_analysis.txt"
             rm $current_dir/$test_name"_heap.zst"
         fi

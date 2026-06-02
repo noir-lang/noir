@@ -15,7 +15,7 @@ fn nested_dereferences() {
     let mut var = Foo { inner: 0 };
     let ref = &mut &mut var;
 
-    let mut array = [ref, ref];
+    let array = [ref, ref];
     assert((**array[0]).inner == 0);
 
     (*(*array[0])).inner = 1;
@@ -32,7 +32,7 @@ fn nested_struct_aliases_in_array() {
 
     let ref = &mut &mut &mut var;
 
-    let mut array = [ref, ref];
+    let array = [ref, ref];
 
     (**array[0]).inner.inner += 5;
     (**array[1]).inner.inner += 2;

@@ -88,10 +88,12 @@ impl Formatter<'_> {
                 self.write_keyword(Keyword::Type);
                 self.write_space();
                 self.write_identifier(name);
-                self.write_space();
-                self.write_token(Token::Assign);
-                self.write_space();
-                self.format_type(alias);
+                if let Some(alias) = alias {
+                    self.write_space();
+                    self.write_token(Token::Assign);
+                    self.write_space();
+                    self.format_type(alias);
+                }
                 self.write_semicolon();
             }
         }

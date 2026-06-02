@@ -31,7 +31,7 @@ impl Formatter<'_> {
                 self.write_keyword(Keyword::Pub);
                 self.write_space();
             }
-            Visibility::CallData(..) => {
+            Visibility::CallData(_) => {
                 self.write_keyword(Keyword::CallData);
                 self.write_left_paren();
                 self.skip_comments_and_whitespace();

@@ -171,12 +171,12 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  {} = {} {} {}", result, lhs, operation, rhs);
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the `result` register.
     pub(crate) fn const_instruction<F: DebugToString>(&self, result: MemoryAddress, constant: F) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the register pointed at by `result_pointer`.
     pub(crate) fn indirect_const_instruction<F: DebugToString>(
         &self,
         result_pointer: MemoryAddress,

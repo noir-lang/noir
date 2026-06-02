@@ -6,7 +6,6 @@
 use crate::fuzz_lib::instruction::Instruction;
 use crate::mutations::configuration::{
     ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
-    BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE,
 };
 use crate::mutations::{
     basic_types::{
@@ -35,7 +34,7 @@ use crate::mutations::{
     instructions::argument_mutator::numeric_argument_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 /// Return new random instruction
 struct RandomMutation;
@@ -175,7 +174,7 @@ impl InstructionArgumentsMutation {
                             |index, rng| {
                                 mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                             },
-                            |rng| rng.gen_range(usize::MIN..usize::MAX),
+                            |rng| rng.random_range(usize::MIN..usize::MAX),
                             BASIC_VEC_MUTATION_CONFIGURATION,
                         );
                     }
@@ -225,7 +224,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     BlakeHashMutationOptions::LimbsCount => {
-                        *limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                        *limbs_count = rng.random_range(u8::MIN..u8::MAX);
                     }
                 }
             }
@@ -235,13 +234,18 @@ impl InstructionArgumentsMutation {
                         mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     BlakeHashMutationOptions::LimbsCount => {
-                        *limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                        *limbs_count = rng.random_range(u8::MIN..u8::MAX);
                     }
                 }
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
-                let idx = rng.gen_range(0..u64_indices.len());
+                let idx = rng.random_range(0..u64_indices.len());
                 mutate_usize(&mut u64_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+            }
+            Instruction::Poseidon2Permutation { field_indices, load_elements_of_array } => {
+                let idx = rng.random_range(0..field_indices.len());
+                mutate_usize(&mut field_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
             }
             Instruction::Sha256Compression {
@@ -250,11 +254,11 @@ impl InstructionArgumentsMutation {
                 load_elements_of_array,
             } => match BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION.select(rng) {
                 Sha256CompressionMutationOptions::InputIndices => {
-                    let idx = rng.gen_range(0..input_indices.len());
+                    let idx = rng.random_range(0..input_indices.len());
                     mutate_usize(&mut input_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 Sha256CompressionMutationOptions::StateIndices => {
-                    let idx = rng.gen_range(0..state_indices.len());
+                    let idx = rng.random_range(0..state_indices.len());
                     mutate_usize(&mut state_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 Sha256CompressionMutationOptions::LoadElementsOfArray => {
@@ -267,7 +271,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(input_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     Aes128EncryptMutationOptions::InputLimbsCount => {
-                        *input_limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                        *input_limbs_count = rng.random_range(u8::MIN..u8::MAX);
                     }
                     Aes128EncryptMutationOptions::KeyIdx => {
                         mutate_usize(key_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
@@ -302,33 +306,33 @@ impl InstructionArgumentsMutation {
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
-                corrupt_hash,
-                corrupt_pubkey_x,
-                corrupt_pubkey_y,
-                corrupt_signature,
-                ..
+                corrupt_hash: _,
+                corrupt_pubkey_x: _,
+                corrupt_pubkey_y: _,
+                corrupt_signature: _,
+                predicate,
             }
             | Instruction::EcdsaSecp256r1 {
                 msg,
-                corrupt_hash,
-                corrupt_pubkey_x,
-                corrupt_pubkey_y,
-                corrupt_signature,
-                ..
+                corrupt_hash: _,
+                corrupt_pubkey_x: _,
+                corrupt_pubkey_y: _,
+                corrupt_signature: _,
+                predicate,
             } => {
                 mutate_vec(
                     msg,
                     rng,
                     |byte, rng| {
-                        *byte = rng.gen_range(0..=255);
+                        *byte = rng.random_range(0..=255);
                     },
-                    |rng| rng.gen_range(0..=255),
+                    |rng| rng.random_range(0..=255),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
-                mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
-                mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
-                mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
-                mutate_bool(corrupt_signature, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                // TODO(defkit): We are not mutating `corrupt*` fields,
+                // because they are causing strange compilation bugs, which won't be fixed
+
+                mutate_bool(predicate, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
             }
         }
     }

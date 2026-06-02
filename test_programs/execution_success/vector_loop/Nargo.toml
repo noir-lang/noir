@@ -1,0 +1,6 @@
+[package]
+name = "vector_loop"
+type = "bin"
+authors = [""]
+
+[dependencies]

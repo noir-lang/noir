@@ -1,0 +1,7 @@
+[package]
+name = "cmp_wrong_return_type"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

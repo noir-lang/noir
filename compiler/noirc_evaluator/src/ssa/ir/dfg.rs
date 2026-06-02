@@ -1,9 +1,14 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{
-    function_builder::data_bus::DataBus,
-    ir::instruction::ArrayOffset,
-    opt::pure::{FunctionPurities, Purity},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        RuntimeError,
+        function_builder::data_bus::DataBus,
+        ir::function::Function,
+        ir::instruction::ArrayOffset,
+        opt::pure::{FunctionPurities, Purity},
+    },
 };
 
 use super::{
@@ -18,7 +23,13 @@ use super::{
     value::{Value, ValueId, ValueMapping},
 };
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
@@ -156,6 +167,13 @@ impl From<GlobalsGraph> for DataFlowGraph {
         }
     }
 }
+
+/// Maximum number of elements allowed for return values, or for some arrays.
+/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
+/// 2^24 = 16,777,216 witnesses.
+/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
+/// So this limit should not interfere with real use cases.
+pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -330,15 +348,14 @@ impl DataFlowGraph {
                     SimplifyResult::None => false,
                     _ => unreachable!("matched specific SimplifyResult types"),
                 };
-                if !is_simplified {
-                    if let Some(id) = existing_id {
-                        if self[id] == instruction {
-                            // Just (re)insert into the block, no need to redefine.
-                            self.blocks[block].insert_instruction(id);
-                            let results = self.instruction_results(id);
-                            return InsertInstructionResult::Results(id, results);
-                        }
-                    }
+                if !is_simplified
+                    && let Some(id) = existing_id
+                    && self[id] == instruction
+                {
+                    // Just (re)insert into the block, no need to redefine.
+                    self.blocks[block].insert_instruction(id);
+                    let results = self.instruction_results(id);
+                    return InsertInstructionResult::Results(id, results);
                 }
                 let mut instructions = result.instructions().unwrap_or(vec![instruction]);
                 assert!(
@@ -376,11 +393,6 @@ impl DataFlowGraph {
                 )
             }
         }
-    }
-
-    /// Replace an existing instruction with a new one.
-    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
-        self.instructions[id] = instruction;
     }
 
     /// Replaces values in the given block according to the given mapping.
@@ -459,11 +471,11 @@ impl DataFlowGraph {
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+    pub(crate) fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        let result = self.values.insert(Value::ForeignFunction { name: function.to_owned(), pure });
         self.foreign_functions.insert(function.to_owned(), result);
         result
     }
@@ -521,7 +533,9 @@ impl DataFlowGraph {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
             InstructionResultType::Known(typ) => f(self, typ),
-            InstructionResultType::Operand(value) => f(self, self.type_of_value(value)),
+            InstructionResultType::Operand(value) => {
+                f(self, self.type_of_value(value).into_owned());
+            }
             InstructionResultType::None => (),
             InstructionResultType::Unknown => {
                 for typ in ctrl_typevars.expect("Control typevars required but not given") {
@@ -531,9 +545,11 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the type of a given value
-    pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type().into_owned()
+    /// Returns the type of a given value.
+    /// Returns `Cow::Borrowed` for `Instruction`, `Param`, and `Global` values
+    /// (avoiding a clone), and `Cow::Owned` for small constructed types.
+    pub(crate) fn type_of_value(&self, value: ValueId) -> Cow<Type> {
+        self.values[value].get_type()
     }
 
     /// Returns the maximum possible number of bits that `value` can potentially be.
@@ -563,7 +579,7 @@ impl DataFlowGraph {
     /// True if the type of this value is Type::Reference.
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
-        matches!(self.values[value].get_type().as_ref(), Type::Reference(_))
+        matches!(self.values[value].get_type().as_ref(), Type::Reference(..))
     }
 
     /// Returns all of result values which are attached to this instruction.
@@ -621,8 +637,8 @@ impl DataFlowGraph {
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
-        self.get_numeric_constant_with_type(value)
-            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+        let (f, t) = self.get_numeric_constant_with_type(value)?;
+        IntegerConstant::from_numeric_constant(f, t)
     }
 
     /// Returns the field element and type represented by this value if it is a numeric constant.
@@ -648,9 +664,80 @@ impl DataFlowGraph {
 
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
-    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<u32> {
-        match self.type_of_value(value) {
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<SemanticLength> {
+        match *self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
+            _ => None,
+        }
+    }
+
+    /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
+    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
+        // For arrays we know the size statically
+        if let Some(length) = self.try_get_array_length(value) {
+            return Some(length);
+        }
+
+        match self.get_local_or_global_instruction(value)? {
+            Instruction::MakeArray { .. } => {
+                let (array, typ) = self.get_array_constant(value)?;
+                let elements_size = typ.element_size();
+
+                let length = if elements_size.0 == 0 {
+                    SemanticLength(assert_u32(array.len()))
+                } else {
+                    SemiFlattenedLength(assert_u32(array.len())) / elements_size
+                };
+                Some(length)
+            }
+            Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
+                self.try_get_vector_capacity(*array)
+            }
+            Instruction::Call { func, arguments } => {
+                // Handle vector intrinsics that return vectors with known capacities
+                if !matches!(*self.type_of_value(value), Type::Vector(_)) {
+                    return None;
+                }
+
+                if let Value::Intrinsic(intrinsic) = &self[*func] {
+                    use crate::ssa::ir::instruction::Intrinsic;
+                    // Try to get the semantic length, if it's a known constant.
+                    // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
+                    let length = self
+                        .get_numeric_constant(arguments[0])
+                        .map(|length| length.to_u128() as u32)
+                        .map(SemanticLength);
+                    // Otherwise fall back to the physical capacity.
+                    let length = length.or_else(|| self.try_get_vector_capacity(arguments[1]));
+                    // Then adjust it. Note that this handling of PushBack assumes that even if
+                    // the dynamic semantic length was less than the capacity, we will grow the vector.
+                    if let Some(base) = length {
+                        match intrinsic {
+                            Intrinsic::VectorPopFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorRemove => {
+                                Some(SemanticLength(base.0.saturating_sub(1)))
+                            }
+                            Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorInsert => {
+                                Some(SemanticLength(base.0.saturating_add(1)))
+                            }
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            Instruction::IfElse { then_value, else_value, .. } => {
+                // The capacity is the longer of the two after merging.
+                let then_capacity = self.try_get_vector_capacity(*then_value)?;
+                let else_capacity = self.try_get_vector_capacity(*else_value)?;
+                Some(SemanticLength(std::cmp::max(then_capacity.0, else_capacity.0)))
+            }
             _ => None,
         }
     }
@@ -666,7 +753,7 @@ impl DataFlowGraph {
             let u64_value = field_value.try_to_u64()?;
             if u64_value > 255 {
                 return None;
-            };
+            }
             let byte = u64_value as u8;
             bytes.push(byte);
         }
@@ -676,11 +763,11 @@ impl DataFlowGraph {
     /// A constant index less than the array length is safe
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
-        match (self.type_of_value(array), self.get_numeric_constant(index)) {
-            (Type::Array(elements, len), Some(index))
-                if index.to_u128() < (u128::from(len) * elements.len() as u128) =>
-            {
-                true
+        match (&*self.type_of_value(array), self.get_numeric_constant(index)) {
+            (Type::Array(elements, len), Some(index)) => {
+                let elements_length = ElementTypesLength(assert_u32(elements.len()));
+                let semi_flattened_length = *len * elements_length;
+                index.to_u128() < u128::from(semi_flattened_length.0)
             }
             _ => false,
         }
@@ -711,11 +798,11 @@ impl DataFlowGraph {
 
     pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
         let call_stack = self.get_instruction_call_stack_id(instruction);
-        self.call_stack_data.get_call_stack(call_stack)
+        self.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
-        self.locations.get(&instruction).cloned().unwrap_or_default()
+        self.locations.get(&instruction).copied().unwrap_or_default()
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
@@ -725,7 +812,7 @@ impl DataFlowGraph {
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[value] {
             Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
-            _ => CallStack::new(),
+            _ => CallStack::empty(),
         }
     }
 
@@ -738,7 +825,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a (recursively) constant value
+    /// True if the given [ValueId] refers to a constant value.
+    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[argument] {
             Value::Param { .. } => false,
@@ -776,17 +864,26 @@ impl DataFlowGraph {
     /// Uses value information to determine whether an instruction is from
     /// this function's DFG or the global space's DFG.
     pub(crate) fn get_local_or_global_instruction(&self, value: ValueId) -> Option<&Instruction> {
+        self.get_local_or_global_instruction_with_id(value).map(|(instruction, _id)| instruction)
+    }
+
+    /// Uses value information to determine whether an instruction is from
+    /// this function's DFG or the global space's DFG, including the instruction ID.
+    pub(crate) fn get_local_or_global_instruction_with_id(
+        &self,
+        value: ValueId,
+    ) -> Option<(&Instruction, InstructionId)> {
         match &self[value] {
-            Value::Instruction { instruction, .. } => {
+            Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = if self.is_global(value) {
-                    let instruction = &self.globals[*instruction];
+                    let instruction = &self.globals[*instruction_id];
                     // We expect to only have MakeArray instructions in the global space
                     assert!(matches!(instruction, Instruction::MakeArray { .. }));
                     instruction
                 } else {
-                    &self[*instruction]
+                    &self[*instruction_id]
                 };
-                Some(instruction)
+                Some((instruction, *instruction_id))
             }
             _ => None,
         }
@@ -800,7 +897,7 @@ impl DataFlowGraph {
         self.function_purities.get(&function).copied()
     }
 
-    /// Determine the appropriate [ArrayOffset] to use for indexing an array or slice.
+    /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
     pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
         if !self.runtime.is_brillig()
             || !self.brillig_arrays_offset
@@ -808,9 +905,9 @@ impl DataFlowGraph {
         {
             return ArrayOffset::None;
         }
-        match self.type_of_value(array) {
+        match *self.type_of_value(array) {
             Type::Array(_, _) => ArrayOffset::Array,
-            Type::Slice(_) => ArrayOffset::Slice,
+            Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,
         }
     }
@@ -824,6 +921,32 @@ impl DataFlowGraph {
         };
         let results = self.instruction_results(instruction_id);
         results.contains(&return_data)
+    }
+
+    /// Computes the number of flattened values returned by the SSA terminator.
+    ///
+    /// Returns [RuntimeError::ReturnLimitExceeded] if it exceeds [MAX_ELEMENTS].
+    pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
+        if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
+            func.return_instruction()
+        {
+            let num_return_values: usize = return_values
+                .iter()
+                .map(|result_id| self.type_of_value(*result_id).flattened_size().to_usize())
+                .sum();
+
+            if num_return_values > MAX_ELEMENTS {
+                let call_stack = func.dfg.call_stack_data.get_call_stack(*call_stack);
+                return Err(RuntimeError::ReturnLimitExceeded {
+                    num_witnesses: num_return_values,
+                    max_witnesses: MAX_ELEMENTS,
+                    call_stack,
+                });
+            }
+            return Ok(num_return_values);
+        }
+
+        Ok(0)
     }
 }
 

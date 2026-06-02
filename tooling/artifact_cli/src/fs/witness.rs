@@ -28,3 +28,11 @@ pub fn save_witness_to_dir(
 
     Ok(witness_path)
 }
+
+pub fn load_witness_from_file(witness_path: &Path) -> Result<WitnessStack<FieldElement>, CliError> {
+    let witness_data = std::fs::read(witness_path)?;
+
+    Ok(WitnessStack::deserialize(&witness_data).map_err(|e| {
+        FilesystemError::InvalidInputFile(witness_path.to_path_buf(), e.to_string())
+    })?)
+}

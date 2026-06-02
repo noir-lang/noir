@@ -52,7 +52,7 @@ impl CodeActionFinder<'_> {
                     associated_types.remove(name.as_string());
                 }
                 TraitImplItemKind::Type { name, alias } => {
-                    if let UnresolvedTypeData::Unspecified = alias.typ {
+                    if alias.is_none() {
                         continue;
                     }
                     associated_types.remove(name.as_string());
@@ -112,12 +112,10 @@ impl CodeActionFinder<'_> {
 
         for (name, func_id) in method_ids {
             let func_meta = self.interner.function_meta(func_id);
-            let modifiers = self.interner.function_modifiers(func_id);
 
             let mut generator = TraitImplMethodStubGenerator::new(
                 name,
                 func_meta,
-                modifiers,
                 trait_,
                 noir_trait_impl,
                 self.interner,
@@ -188,6 +186,8 @@ impl Trait for Foo {
         let src = r#"
 trait Trait {
     fn bar(self) -> Self;
+    fn baz(&self) -> Self;
+    fn qux(&mut self) -> Self;
     fn foo(x: i32) -> i32;
 }
 
@@ -199,6 +199,8 @@ impl Tra>|<it for Foo {
         let expected = r#"
 trait Trait {
     fn bar(self) -> Self;
+    fn baz(&self) -> Self;
+    fn qux(&mut self) -> Self;
     fn foo(x: i32) -> i32;
 }
 
@@ -209,8 +211,16 @@ impl Trait for Foo {
         panic(f"Implement bar")
     }
 
+    fn baz(&self) -> Self {
+        panic(f"Implement baz")
+    }
+
     fn foo(x: i32) -> i32 {
         panic(f"Implement foo")
+    }
+
+    fn qux(&mut self) -> Self {
+        panic(f"Implement qux")
     }
 }"#;
 

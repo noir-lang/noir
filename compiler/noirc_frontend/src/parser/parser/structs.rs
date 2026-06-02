@@ -16,16 +16,18 @@ impl Parser<'_> {
         &mut self,
         attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
+        comptime: bool,
         start_location: Location,
     ) -> NoirStruct {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                self.unknown_ident_at_previous_token_end(),
+                self.empty_ident_at_previous_token_end(),
                 attributes,
                 visibility,
+                comptime,
                 Vec::new(),
                 start_location,
             );
@@ -34,12 +36,26 @@ impl Parser<'_> {
         let generics = self.parse_generics_disallowing_trait_bounds();
 
         if self.eat_semicolons() {
-            return self.empty_struct(name, attributes, visibility, generics, start_location);
+            return self.empty_struct(
+                name,
+                attributes,
+                visibility,
+                comptime,
+                generics,
+                start_location,
+            );
         }
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_struct(name, attributes, visibility, generics, start_location);
+            return self.empty_struct(
+                name,
+                attributes,
+                visibility,
+                comptime,
+                generics,
+                start_location,
+            );
         }
 
         let fields = self.parse_many(
@@ -52,6 +68,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             fields,
             location: self.location_since(start_location),
@@ -70,7 +87,7 @@ impl Parser<'_> {
 
             visibility = self.parse_item_visibility();
 
-            if let Some(ident) = self.eat_ident() {
+            if let Some(ident) = self.eat_non_underscore_ident() {
                 name = ident;
                 break;
             }
@@ -112,6 +129,7 @@ impl Parser<'_> {
         name: Ident,
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
+        comptime: bool,
         generics: UnresolvedGenerics,
         start_location: Location,
     ) -> NoirStruct {
@@ -119,6 +137,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             fields: Vec::new(),
             location: self.location_since(start_location),
@@ -128,17 +147,12 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{NoirStruct, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            ItemKind,
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -160,6 +174,14 @@ mod tests {
         assert_eq!("Foo", noir_struct.name.to_string());
         assert!(noir_struct.fields.is_empty());
         assert!(noir_struct.generics.is_empty());
+        assert!(!noir_struct.comptime);
+    }
+
+    #[test]
+    fn parse_empty_comptime_struct() {
+        let src = "comptime struct Foo {}";
+        let noir_struct = parse_struct_no_errors(src);
+        assert!(noir_struct.comptime);
     }
 
     #[test]
@@ -241,22 +263,18 @@ mod tests {
     fn parse_error_no_function_attributes_allowed_on_struct() {
         let src = "
         #[test] struct Foo {}
-        ^^^^^^^
+        ^^^^^^^ A function attribute cannot be placed on a struct or enum
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn recovers_on_non_field() {
         let src = "
         struct Foo { 42 x: i32 }
-                     ^^
+                     ^^ Expected an identifier but found '42'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -265,8 +283,5 @@ mod tests {
         };
         assert_eq!("Foo", noir_struct.name.to_string());
         assert_eq!(noir_struct.fields.len(), 1);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

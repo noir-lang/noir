@@ -50,6 +50,7 @@ impl Parser<'_> {
     ///     | 'fold'
     ///     | 'foreign' '(' AttributeValue ')'
     ///     | 'inline_always'
+    ///     | 'inline_never'
     ///     | 'no_predicates'
     ///     | 'oracle' '(' AttributeValue ')'
     ///     | 'recursive'
@@ -143,15 +144,7 @@ impl Parser<'_> {
     }
 
     fn parse_non_tag_attribute(&mut self, start_location: Location) -> Attribute {
-        if matches!(&self.token.token(), Token::Keyword(..))
-            && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
-        {
-            // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            let path = Path::from_single(self.token.to_string(), self.current_token_location);
-            let name = MetaAttributeName::Path(path);
-            self.bump();
-            self.parse_meta_attribute(name, start_location)
-        } else if let Some(path) = self.parse_path_no_turbofish() {
+        if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.as_str() == "test" {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
@@ -161,6 +154,9 @@ impl Parser<'_> {
                     // The fuzz attribute is a secondary attribute that has `a = b` in its syntax
                     // (`only_fail_with = "..."``) or (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_fuzz_attribute(start_location)
+                } else if ident.as_str() == "must_use" {
+                    // The muse_use attribute is a secondary attribute that has the syntax `must_use = string` in its syntax (to match rust)
+                    self.parse_must_use_attribute(start_location)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
                     self.parse_ident_attribute_other_than_test_and_fuzz(ident, start_location)
@@ -186,7 +182,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
         let location = self.location_since(start_location);
         let kind = SecondaryAttributeKind::Meta(MetaAttribute { name, arguments });
         let attr = SecondaryAttribute { kind, location };
@@ -199,7 +195,7 @@ impl Parser<'_> {
         start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
         let location = self.location_since(start_location);
         match ident.as_str() {
             "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
@@ -260,6 +256,12 @@ impl Parser<'_> {
                 let attr = Attribute::Function(attr);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
+            "inline_never" => {
+                let kind = FunctionAttributeKind::InlineNever;
+                let attr = FunctionAttribute { kind, location };
+                let attr = Attribute::Function(attr);
+                self.parse_no_args_attribute(ident, arguments, attr)
+            }
             "no_predicates" => {
                 let kind = FunctionAttributeKind::NoPredicates;
                 let attr = FunctionAttribute { kind, location };
@@ -272,6 +274,12 @@ impl Parser<'_> {
                     let attr = FunctionAttribute { kind, location };
                     Attribute::Function(attr)
                 })
+            }
+            "pure" => {
+                let kind = SecondaryAttributeKind::Pure;
+                let attr = SecondaryAttribute { kind, location };
+                let attr = Attribute::Secondary(attr);
+                self.parse_no_args_attribute(ident, arguments, attr)
             }
             "use_callers_scope" => {
                 let kind = SecondaryAttributeKind::UseCallersScope;
@@ -302,32 +310,53 @@ impl Parser<'_> {
         mut arguments: Vec<Expression>,
     ) -> SecondaryAttributeKind {
         if arguments.is_empty() {
-            return SecondaryAttributeKind::Deprecated(None);
+            return SecondaryAttributeKind::Deprecated(false, None);
         }
 
-        if arguments.len() > 1 {
-            self.push_error(
-                ParserErrorReason::WrongNumberOfAttributeArguments {
-                    name: ident.to_string(),
-                    min: 0,
-                    max: 1,
-                    found: arguments.len(),
-                },
-                ident.location(),
-            );
-            return SecondaryAttributeKind::Deprecated(None);
+        if arguments.len() > 2 {
+            let name = ident.to_string();
+            let found = arguments.len();
+            let reason =
+                ParserErrorReason::WrongNumberOfAttributeArguments { name, min: 0, max: 2, found };
+            self.push_error(reason, ident.location());
+            return SecondaryAttributeKind::Deprecated(false, None);
         }
+
+        let mut message = None;
+        let mut deny = false;
 
         let argument = arguments.remove(0);
-        let ExpressionKind::Literal(Literal::Str(message)) = argument.kind else {
-            self.push_error(
-                ParserErrorReason::DeprecatedAttributeExpectsAStringArgument,
-                argument.location,
-            );
-            return SecondaryAttributeKind::Deprecated(None);
-        };
+        match argument.kind {
+            ExpressionKind::Literal(Literal::Str(s)) if message.is_none() => {
+                message = Some(s);
+            }
+            ExpressionKind::Variable(variable)
+                if !deny && variable.as_ident().is_some_and(|ident| ident == "deny") =>
+            {
+                deny = true;
+            }
+            _ => {
+                let reason = ParserErrorReason::DeprecatedAttributeInvalidArgument;
+                self.push_error(reason, argument.location);
+                return SecondaryAttributeKind::Deprecated(deny, message);
+            }
+        }
 
-        SecondaryAttributeKind::Deprecated(Some(message))
+        // Should have exactly 0 or 1 remaining arguments
+        if let Some(argument) = arguments.pop() {
+            match argument.kind {
+                ExpressionKind::Literal(Literal::Str(s)) if message.is_none() => {
+                    message = Some(s);
+                }
+                _ => {
+                    let reason = ParserErrorReason::DeprecatedAttributeInvalidArgument;
+                    self.push_error(reason, argument.location);
+                    return SecondaryAttributeKind::Deprecated(deny, message);
+                }
+            }
+        }
+
+        SecondaryAttributeKind::Deprecated(deny, message)
     }
 
     fn parse_test_attribute(&mut self, start_location: Location) -> Attribute {
@@ -363,7 +392,7 @@ impl Parser<'_> {
             Some(TestScope::None)
         };
 
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
 
         let scope = if let Some(scope) = scope {
             scope
@@ -411,7 +440,7 @@ impl Parser<'_> {
             Some(FuzzingScope::None)
         };
 
-        self.skip_until_right_bracket();
+        self.skip_until_right_bracket(true);
 
         let scope = if let Some(scope) = scope {
             scope
@@ -429,6 +458,34 @@ impl Parser<'_> {
         let kind = FunctionAttributeKind::FuzzingHarness(scope);
         let attr = FunctionAttribute { kind, location };
         Attribute::Function(attr)
+    }
+
+    fn parse_must_use_attribute(&mut self, start_location: Location) -> Attribute {
+        let location_after_name = self.current_token_location;
+
+        let message = if self.eat_assign() {
+            let message = self.eat_str();
+            if message.is_none() {
+                let location = self.location_since(start_location);
+                let error = LexerErrorKind::MalformedMustUseAttribute { location };
+                self.errors.push(error.into());
+            }
+            self.skip_until_right_bracket(false);
+            message
+        } else {
+            if self.at(Token::RightBracket) {
+                self.skip_until_right_bracket(false);
+            } else {
+                let location = self.location_since(location_after_name);
+                let error = LexerErrorKind::MalformedMustUseAttribute { location };
+                self.errors.push(error.into());
+            }
+            None
+        };
+
+        let location = self.location_since(start_location);
+        let kind = SecondaryAttributeKind::MustUse(message);
+        Attribute::Secondary(SecondaryAttribute { kind, location })
     }
 
     fn parse_single_name_attribute<F>(
@@ -494,7 +551,7 @@ impl Parser<'_> {
         attribute
     }
 
-    fn skip_until_right_bracket(&mut self) {
+    fn skip_until_right_bracket(&mut self, mut issue_error: bool) {
         let mut brackets_count = 1; // 1 because of the starting `#[`
 
         while !self.at_eof() {
@@ -508,7 +565,10 @@ impl Parser<'_> {
                 }
             }
 
-            self.expected_token(Token::RightBracket);
+            if issue_error {
+                issue_error = false;
+                self.expected_token(Token::RightBracket);
+            }
             self.bump();
         }
     }
@@ -575,14 +635,30 @@ mod tests {
     #[test]
     fn parses_inner_attribute_deprecated() {
         let src = "#![deprecated]";
-        let expected = SecondaryAttributeKind::Deprecated(None);
+        let expected = SecondaryAttributeKind::Deprecated(false, None);
+        parse_inner_secondary_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_inner_attribute_deprecated_with_deny() {
+        let src = "#![deprecated(deny)]";
+        let expected = SecondaryAttributeKind::Deprecated(true, None);
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     #[test]
     fn parses_inner_attribute_deprecated_with_message() {
         let src = "#![deprecated(\"use something else\")]";
-        let expected = SecondaryAttributeKind::Deprecated(Some("use something else".to_string()));
+        let expected =
+            SecondaryAttributeKind::Deprecated(false, Some("use something else".to_string()));
+        parse_inner_secondary_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_inner_attribute_deprecated_with_message_and_deny() {
+        let src = "#![deprecated(deny, \"use something else\")]";
+        let expected =
+            SecondaryAttributeKind::Deprecated(true, Some("use something else".to_string()));
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
@@ -643,6 +719,13 @@ mod tests {
     }
 
     #[test]
+    fn parses_attribute_pure() {
+        let src = "#[pure]";
+        let expected = SecondaryAttributeKind::Pure;
+        parse_secondary_attribute_no_errors(src, expected);
+    }
+
+    #[test]
     fn parses_attribute_fold() {
         let src = "#[fold]";
         let expected = FunctionAttributeKind::Fold;
@@ -660,6 +743,13 @@ mod tests {
     fn parses_attribute_inline_always() {
         let src = "#[inline_always]";
         let expected = FunctionAttributeKind::InlineAlways;
+        parse_function_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_attribute_inline_never() {
+        let src = "#[inline_never]";
+        let expected = FunctionAttributeKind::InlineNever;
         parse_function_attribute_no_errors(src, expected);
     }
 
@@ -731,22 +821,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_meta_attribute_single_identifier_as_keyword() {
-        let src = "#[dep]";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
-        expect_no_errors(&parser.errors);
-        let Attribute::Secondary(attribute) = attribute else {
-            panic!("Expected secondary attribute");
-        };
-        let SecondaryAttributeKind::Meta(meta) = attribute.kind else {
-            panic!("Expected meta attribute");
-        };
-        assert_eq!(meta.name.to_string(), "dep");
-        assert!(meta.arguments.is_empty());
-    }
-
-    #[test]
     fn parses_meta_attribute_single_identifier_with_arguments() {
         let src = "#[foo(1, 2, 3)]";
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -798,7 +872,7 @@ mod tests {
         let Attribute::Secondary(attr) = attr else {
             panic!("Expected secondary attribute");
         };
-        assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(None)));
+        assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(false, None)));
     }
 
     #[test]

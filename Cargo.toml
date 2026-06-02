@@ -18,6 +18,7 @@ members = [
     "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
     "tooling/nargo",
+    "tooling/nargo_doc",
     "tooling/nargo_expand",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -31,6 +32,7 @@ members = [
     "tooling/artifact_cli",
     "tooling/profiler",
     "tooling/inspector",
+    "tooling/workspace_layering",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -40,6 +42,8 @@ members = [
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
+    "acvm-repo/msgpack_tagged",
+    "acvm-repo/msgpack_tagged_derive",
     # Utility crates
     "utils/iter-extended",
 
@@ -48,7 +52,6 @@ members = [
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
     "tooling/ssa_executor",
-    "utils/protobuf",
 ]
 default-members = [
     "tooling/nargo_cli",
@@ -62,11 +65,11 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.14"
+version = "1.0.0-beta.22"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.89.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
@@ -83,19 +86,46 @@ mismatched_lifetime_syntaxes = "allow"
 [workspace.lints.clippy]
 cast_lossless = "warn"
 semicolon_if_nothing_returned = "warn"
+unnecessary_semicolon = "warn"
 result_large_err = "allow"
 uninlined_format_args = "warn"
+needless_pass_by_ref_mut = "warn"
+non_std_lazy_statics = "warn"
+return_and_then = "warn"
+unnecessary_unwrap = "warn"
+unnecessary_debug_formatting = "warn"
+redundant_clone = "warn"
+clone_on_copy = "warn"
+unnecessary_to_owned = "warn"
+cloned_instead_of_copied = "warn"
+explicit_iter_loop = "warn"
+explicit_into_iter_loop = "warn"
+flat_map_option = "warn"
+manual_is_variant_and = "warn"
+match_wildcard_for_single_variants = "warn"
+manual_let_else = "warn"
+implicit_clone = "warn"
+map_unwrap_or = "warn"
+needless_borrows_for_generic_args = "warn"
+redundant_field_names = "warn"
+while_let_loop = "warn"
+for_kv_map = "warn"
+iter_kv_map = "warn"
+unnecessary_sort_by = "warn"
+useless_conversion = "warn"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.14", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.14", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.14", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.14", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.14", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.14", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.14", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.22", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.22", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.22", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.22", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.22", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.22", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.22", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+msgpack_tagged = { version = "1.0.0-beta.20", path = "acvm-repo/msgpack_tagged", default-features = false }
+msgpack_tagged_derive = { version = "1.0.0-beta.20", path = "acvm-repo/msgpack_tagged_derive" }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -111,6 +141,7 @@ noirc_span = { path = "compiler/noirc_span" }
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
+nargo_doc = { path = "tooling/nargo_doc" }
 nargo_expand = { path = "tooling/nargo_expand" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
@@ -120,115 +151,114 @@ noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
-noir_protobuf = { path = "utils/protobuf" }
 noir_ssa_executor = { path = "tooling/ssa_executor" }
 noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
 # Arkworks
-ark-bn254 = { version = "^0.5.0", default-features = false, features = [
+ark-bn254 = { version = "^0.6.0", default-features = false, features = [
     "curve",
 ] }
-ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
+ark-bls12-381 = { version = "^0.6.0", default-features = false, features = [
     "curve",
 ] }
-ark-grumpkin = { version = "^0.5.0", default-features = false }
-ark-ec = { version = "^0.5.0", default-features = false }
-ark-ff = { version = "^0.5.0", default-features = false, features = ["asm"] }
-ark-std = { version = "^0.5.0", default-features = false }
+ark-grumpkin = { version = "^0.6.0", default-features = false }
+ark-ec = { version = "^0.6.0", default-features = false }
+ark-ff = { version = "^0.6.0", default-features = false, features = ["asm"] }
 
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
 
 # LSP
-async-lsp = { version = "0.2.2", default-features = false }
+async-lsp = { version = "0.2.4", default-features = false }
 tower = "0.5"
 
 # Wasm
-wasm-bindgen = { version = "=0.2.100", features = ["serde-serialize"] }
-wasm-bindgen-test = "0.3.50"
-wasm-bindgen-futures = "0.4.50"
+# NOTE: when bumping wasm-bindgen, also update wasm-bindgen-cli in justfile and .github/workflows/release.yml
+wasm-bindgen = { version = "=0.2.113", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.63"
+wasm-bindgen-futures = "0.4.63"
 console_error_panic_hook = "0.1.7"
-gloo-utils = { version = "0.1", features = ["serde"] }
-js-sys = "0.3.62"
-getrandom = "0.2"
+gloo-utils = { version = "0.2", features = ["serde"] }
+js-sys = "0.3.90"
+getrandom = "^0.3.3"
 
 # Debugger
 dap = "0.4.1-alpha1"
-clap = { version = "4.3.19", features = ["derive", "env"] }
-codespan = { version = "0.11.1", features = ["serialization"] }
-codespan-lsp = "0.11.1"
-codespan-reporting = "0.11.1"
+clap = { version = "4.6.0", features = ["derive", "env"] }
+codespan = { version = "0.13.1", features = ["serialization"] }
+codespan-lsp = "0.13.1"
+codespan-reporting = "0.13.1"
 
 # Benchmarking
 criterion = "^0.5.0"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
 pprof = { version = "^0.15.0", features = ["flamegraph", "criterion"] }
-
-# Protobuf
-prost = "0.13"
-prost-build = "0.13"
-protoc-bin-vendored = "3.1.0"
-
-
-# MessagePack
 rmp = "0.8.14"
 rmp-serde = "1.3.0"
 rmpv = "1.3.0"
+smallvec = "1.15.1"
 
 arbitrary = "1.4.1"
 arbtest = "0.3.2"
+bit-vec = "0.9"
 cfg-if = "1.0.0"
-dirs = "4"
+dirs = "^6.0.0"
 env_logger = "0.11.6"
 log = "0.4"
-serde = { version = "1.0.136", features = ["derive"] }
+serde = { version = "1.0.136", features = ["derive", "rc"] }
+serde_bytes = "0.11"
 serde_json = "1.0"
 smol_str = { version = "0.3.2", features = ["serde"] }
-thiserror = "1.0.21"
-toml = "0.7.2"
+thiserror = "2.0.18"
+toml = "0.8"
 url = "2.5.4"
 base64 = "^0.22.1"
-rustc-hash = "2.1.1"
+rustc-hash = "2.1.2"
 build-data = "^0.3.3"
-bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
-const_format = "0.2.30"
-indexmap = "^2.10.0"
-lazy_static = "1.4"
+const_format = "0.2.36"
+indexmap = "^2.14.0"
+itertools = "0.14"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
 num-traits = "0.2"
 num_enum = "0.7.3"
 num-integer = "0.1"
 regex = "1.11"
-similar = "2.7.0"
-similar-asserts = "1.5.0"
+similar = "3.1.1"
+similar-asserts = "2.0.0"
 tempfile = "3.6.0"
 test-case = "3.3.1"
-jsonrpsee = { version = "0.25.1", features = ["client-core"] }
+jsonrpsee = { version = "0.26", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
-rand = "0.8.5"
+rand = "^0.10.1"
+rangemap = "1.7.1"
 # The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
-proptest = { version = "1.6.0", default-features = false, features = [
+proptest = { version = "1.11.0", default-features = false, features = [
     "std",
     "bit-set",
 ] }
-proptest-derive = "^0.6.0"
+proptest-derive = "^0.8.0"
 rayon = "1.8.0"
-sha2 = { version = "0.10.6", features = ["compress"] }
-sha3 = "0.10.6"
-strum = "0.24"
-strum_macros = "0.24"
-tokio = "1.42"
+sha2 = "0.11.0"
+k256 = "0.14.0-rc.9"
+p256 = "0.14.0-rc.9"
+strum = "0.28"
+strum_macros = "0.28"
+tokio = "1.52"
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 rust-embed = "^8.7.2"
 petgraph = "^0.8.2"
-insta = "1.42.2"
+insta = "1.47.2"
+trybuild = "1.0.116"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

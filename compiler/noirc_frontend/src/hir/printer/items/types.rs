@@ -24,7 +24,7 @@ impl ItemPrinter<'_, '_> {
         }
 
         match typ {
-            Type::Array(length, typ) => {
+            Type::Array(typ, length) => {
                 if as_expression {
                     self.push('<');
                 }
@@ -39,7 +39,7 @@ impl ItemPrinter<'_, '_> {
                     self.push('>');
                 }
             }
-            Type::Slice(typ) => {
+            Type::Vector(typ) => {
                 if as_expression {
                     self.push('<');
                 }
@@ -184,8 +184,8 @@ impl ItemPrinter<'_, '_> {
             Type::Forall(..) => {
                 panic!("Should not need to print Type::Forall")
             }
-            Type::Constant(field_element, _) => {
-                self.push_str(&field_element.to_string());
+            Type::Constant(constant) => {
+                self.push_str(&constant.to_string());
             }
             Type::InfixExpr(lhs, op, rhs, _) => {
                 self.show_type_maybe_in_parentheses(lhs);
@@ -230,7 +230,7 @@ fn type_needs_parentheses(typ: &Type) -> bool {
         Type::CheckedCast { from: _, to } => type_needs_parentheses(to),
         Type::FieldElement
         | Type::Array(..)
-        | Type::Slice(..)
+        | Type::Vector(..)
         | Type::Integer(..)
         | Type::Bool
         | Type::String(..)

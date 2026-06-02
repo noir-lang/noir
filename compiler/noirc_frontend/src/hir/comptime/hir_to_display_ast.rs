@@ -6,9 +6,9 @@ use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
-    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, LoopStatement,
+    MatchExpression, MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -30,7 +30,7 @@ impl HirStatement {
         let kind = match self {
             HirStatement::Let(let_stmt) => {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
-                let r#type = interner.id_type(let_stmt.expression).to_display_ast();
+                let r#type = Some(interner.id_type(let_stmt.expression).to_display_ast());
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
@@ -43,13 +43,15 @@ impl HirStatement {
                 range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
+                    for_stmt.inclusive,
                 ),
                 block: for_stmt.block.to_display_ast(interner),
                 location,
             }),
-            HirStatement::Loop(block) => {
-                StatementKind::Loop(block.to_display_ast(interner), location)
-            }
+            HirStatement::Loop(block) => StatementKind::Loop(LoopStatement {
+                body: block.to_display_ast(interner),
+                loop_keyword_location: location,
+            }),
             HirStatement::While(condition, block) => StatementKind::While(WhileStatement {
                 condition: condition.to_display_ast(interner),
                 body: block.to_display_ast(interner),
@@ -62,6 +64,7 @@ impl HirStatement {
             }
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_display_ast(interner)),
             HirStatement::Error => StatementKind::Error,
+            HirStatement::TraitAssociatedConstant => StatementKind::Error,
             HirStatement::Comptime(statement) => {
                 StatementKind::Comptime(Box::new(statement.to_display_ast(interner)))
             }
@@ -92,9 +95,9 @@ impl HirExpression {
                 let array = array.to_display_ast(interner, location);
                 ExpressionKind::Literal(Literal::Array(array))
             }
-            HirExpression::Literal(HirLiteral::Slice(array)) => {
+            HirExpression::Literal(HirLiteral::Vector(array)) => {
                 let array = array.to_display_ast(interner, location);
-                ExpressionKind::Literal(Literal::Slice(array))
+                ExpressionKind::Literal(Literal::Vector(array))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => {
                 ExpressionKind::Literal(Literal::Bool(*value))
@@ -104,8 +107,9 @@ impl HirExpression {
                 // displaying these values anyway
                 ExpressionKind::Literal(Literal::Integer(*value, None))
             }
-            HirExpression::Literal(HirLiteral::Str(string)) => {
-                ExpressionKind::Literal(Literal::Str(string.clone()))
+            HirExpression::Literal(HirLiteral::Str(bytes)) => {
+                // [String::from_utf8_lossy] here should be okay since this is only for display purposes
+                ExpressionKind::Literal(Literal::Str(String::from_utf8_lossy(bytes).into_owned()))
             }
             HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
                 // TODO: Is throwing away the exprs here valid?
@@ -180,11 +184,17 @@ impl HirExpression {
             }
             HirExpression::Lambda(lambda) => {
                 let parameters = vecmap(lambda.parameters.clone(), |(pattern, typ)| {
-                    (pattern.to_display_ast(interner), typ.to_display_ast())
+                    (pattern.to_display_ast(interner), Some(typ.to_display_ast()))
                 });
-                let return_type = lambda.return_type.to_display_ast();
+                let return_type = Some(lambda.return_type.to_display_ast());
                 let body = lambda.body.to_display_ast(interner);
-                ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
+                let unconstrained = lambda.unconstrained;
+                ExpressionKind::Lambda(Box::new(Lambda {
+                    parameters,
+                    return_type,
+                    body,
+                    unconstrained,
+                }))
             }
             HirExpression::Error => ExpressionKind::Error,
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
@@ -378,14 +388,14 @@ impl Type {
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
             Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::Slice(element)
+                UnresolvedTypeData::Vector(element)
             }
             Type::Integer(sign, bit_size) => {
                 UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())
@@ -462,10 +472,10 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(value, kind) => {
+            Type::Constant(value) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
-                    *value,
-                    kind.as_integer_type_suffix(),
+                    value.as_field(),
+                    Some(value.integer_type_suffix()),
                     Location::dummy(),
                 ))
             }
@@ -490,9 +500,11 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, kind) => {
-                UnresolvedTypeExpression::Constant(length, kind.as_integer_type_suffix(), location)
-            }
+            Type::Constant(length) => UnresolvedTypeExpression::Constant(
+                length.as_field(),
+                Some(length.integer_type_suffix()),
+                location,
+            ),
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
@@ -505,7 +517,7 @@ impl Type {
 
 impl HirLValue {
     /// Convert to AST for display (some details lost)
-    fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
+    pub(crate) fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
             HirLValue::Ident(path, _) => {
                 LValue::Path(Path::from_ident(path.to_display_ast(interner)))
@@ -519,9 +531,17 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
-                let lvalue = Box::new(lvalue.to_display_ast(interner));
-                LValue::Dereference(lvalue, *location)
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added } => {
+                let lvalue = lvalue.to_display_ast(interner);
+                if *implicitly_added {
+                    lvalue
+                } else {
+                    let lvalue = Box::new(lvalue);
+                    LValue::Dereference(lvalue, *location)
+                }
+            }
+            HirLValue::Error { location } => {
+                LValue::Path(Path::from_single("(unknown-variable)".to_string(), *location))
             }
         }
     }
@@ -537,9 +557,9 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
-                    Type::Constant(length, kind) => {
-                        let suffix = kind.as_integer_type_suffix();
-                        let literal = Literal::Integer(*length, suffix);
+                    Type::Constant(length) => {
+                        let suffix = Some(length.integer_type_suffix());
+                        let literal = Literal::Integer(length.as_field(), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

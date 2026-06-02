@@ -188,21 +188,13 @@ We aim to have every documentation version matching the versions of Noir. Howeve
 
 Please contact any member of the DevRel[^1] team if you believe a new docs version should be cut.
 
-### Cutting a new version of the docs
+### Documentation structure
 
-The Noir documentation is versioned according to the [Docusaurus documentation](https://docusaurus.io/docs/versioning). In the `versioned_docs` and `versioned_sidebar` folders you will find the docs and configs for the previous versions. If any change needs to be made to older versions, please do them in this folder.
+The Noir documentation is versioned according to the [Docusaurus documentation](https://docusaurus.io/docs/versioning). In the `versioned_docs` and `versioned_sidebars` folders you will find the docs and configs for the previous versions. If any change needs to be made to older versions, please do them in those folders.
 
 In the docs folder, you'll find the current, unreleased version, which we call `dev`. Any change in this folder will be reflected in the next release of the documentation.
 
-While the versioning is intended to be managed by the core maintainers, we feel it's important for external contributors to understand why and how is it maintained. To bump to a new version, run the following command, replacing with the intended version:
-
-```bash
-yarn docusaurus docs:version <new_version_tag>
-```
-
-This should create a new version by copying the docs folder and the sidebars.js file to the relevant folders, as well as adding this version to versions.json.
-
-You can then open a Pull Request according to the [PR section](#pull-requests)
+New versions are cut automatically by the release workflow. See [`docs/README.md`](docs/README.md#cutting-a-new-version) for details.
 
 ## Changelog
 

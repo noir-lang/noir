@@ -1,15 +1,16 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_frontend::ast::BinaryOpKind;
 use noirc_frontend::monomorphization::ast::{
     self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
 };
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -38,9 +39,10 @@ use rustc_hash::FxHashMap as HashMap;
 /// is the only part of the context that needs to be shared between threads.
 pub(super) struct FunctionContext<'a> {
     definitions: HashMap<LocalId, Values>,
+    pub(super) redefinitions_allowed: bool,
 
     pub(super) builder: FunctionBuilder,
-    shared_context: &'a SharedContext,
+    pub(super) shared_context: &'a SharedContext,
 
     /// Contains any loops we're currently in the middle of translating.
     /// These are ordered such that an inner loop is at the end of the vector and
@@ -93,6 +95,18 @@ pub(super) struct Loop {
     /// The loop index will be `Some` for a `for` and `None` for a `loop`
     pub(super) loop_index: Option<ValueId>,
     pub(super) loop_end: BasicBlockId,
+    /// A variable that tracks whether a `break` was hit or not:
+    /// `false` if a `break` was hit, `true` if not.
+    /// This is only `Some` in the case of an inclusive for loop which is
+    /// generated as an exclusive for loop with an extra iteration for the
+    /// end of the loop. This extra iteration is only done if no `break` was hit
+    /// in the exclusive iterations (and if `start <= end`).
+    /// We track the negated value because we execute the last iteration
+    /// if we did not hit a break, in the end being `did_not_hit_break && (start <= end)`.
+    /// If we tracked whether we hit a break or not, the condition to execute
+    /// the last iteration would be `(not hit_break) && (start <= end)`, which is larger
+    /// by one instruction.
+    pub(super) did_not_hit_break_var: Option<ValueId>,
 }
 
 /// The queue of functions remaining to compile
@@ -125,7 +139,13 @@ impl<'a> FunctionContext<'a> {
         builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
-        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
+        let mut this = Self {
+            definitions,
+            builder,
+            shared_context,
+            loops: Vec::new(),
+            redefinitions_allowed: false,
+        };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -184,7 +204,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let element_type =
+            self.builder.current_function.dfg.type_of_value(value_to_store).into_owned();
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -208,25 +229,28 @@ impl<'a> FunctionContext<'a> {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
-            // A mutable reference wraps each element into a reference.
+            // A reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::Reference(element, _) => {
-                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
+            ast::Type::Reference(element, mutable) => {
+                let mutable = *mutable;
+                Self::map_type_helper(element, &mut |typ| {
+                    f(Type::Reference(Arc::new(typ), mutable))
+                })
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
                 // The message string, the number of fields to be formatted, and
                 // then the encapsulated fields themselves
                 let final_fmt_str_fields =
-                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                    vec![ast::Type::String(*len), ast::Type::Field, fields.as_ref().clone()];
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
-            ast::Type::Slice(elements) => {
+            ast::Type::Vector(elements) => {
                 let element_types = Self::convert_type(elements).flatten();
                 Tree::Branch(vec![
                     Tree::Leaf(f(Type::length_type())),
-                    Tree::Leaf(f(Type::Slice(Arc::new(element_types)))),
+                    Tree::Leaf(f(Type::Vector(Arc::new(element_types)))),
                 ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
@@ -250,7 +274,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element).flatten();
-                Type::Array(Arc::new(element_types), *len)
+                Type::Array(Arc::new(element_types), SemanticLength(*len))
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
@@ -262,11 +286,11 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
-            ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
-            ast::Type::Reference(element, _) => {
+            ast::Type::Vector(_) => panic!("convert_non_tuple_type called on a vector: {typ}"),
+            ast::Type::Reference(element, mutable) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
-                Type::Reference(Arc::new(element))
+                Type::Reference(Arc::new(element), *mutable)
             }
         }
     }
@@ -281,9 +305,12 @@ impl<'a> FunctionContext<'a> {
     /// Unlike FunctionBuilder::numeric_constant, this version checks the given constant
     /// is within the range of the given type. This is needed for user provided values where
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
+    ///
+    /// Expects a [FieldElement] in normal form (-6 is `-FieldElement::from(6)`) and converts
+    /// into two's complement form as necessary for negative signed types.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: SignedField,
+        mut value: FieldElement,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         if let Some(range) = numeric_type.value_is_outside_limits(value) {
@@ -296,18 +323,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative() {
-            match numeric_type {
-                NumericType::NativeField => -value.absolute_value(),
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    assert!(bit_size < 128);
-                    let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.absolute_value()
-                }
-            }
-        } else {
-            value.absolute_value()
-        };
+        // If `value` is greater than `max` despite passing the `value_is_outside_limits`
+        // check, it means this is a negative number, which is encoded as a large field value.
+        // Convert it to two's complement instead.
+        if let Ok(max) = numeric_type.max_value()
+            && value > max
+        {
+            assert!(numeric_type.is_signed());
+            let bit_size = numeric_type.bit_size::<FieldElement>();
+            assert!(bit_size < 128);
+            value = FieldElement::from(1u128 << bit_size) + value;
+        }
 
         Ok(self.builder.numeric_constant(value, numeric_type))
     }
@@ -323,12 +349,18 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
-        let op = convert_operator(operator);
+        let mut op = convert_operator(operator);
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
         self.builder.set_location(location);
+
+        // Field operations are inherently unchecked (finite field arithmetic wraps naturally)
+        let lhs_type = self.builder.type_of_value(lhs);
+        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
+            op = op.into_unchecked();
+        }
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
@@ -554,7 +586,9 @@ impl<'a> FunctionContext<'a> {
     /// by calling self.lookup(id)
     pub(super) fn define(&mut self, id: LocalId, value: Values) {
         let existing = self.definitions.insert(id, value);
-        assert!(existing.is_none(), "Variable {id:?} was defined twice in ssa-gen pass");
+        if !self.redefinitions_allowed && existing.is_some() {
+            panic!("Variable {id:?} was defined twice in ssa-gen pass");
+        }
     }
 
     /// Looks up the value of a given local variable. Expects the variable to have
@@ -637,9 +671,11 @@ impl<'a> FunctionContext<'a> {
     ///                  construct the larger value as needed until we can `store` to the nearest
     ///                  allocation.
     ///
+    /// ```text
     /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
     /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
     /// store v5 in v0                   ; and store the result in the only mutable reference
+    /// ```
     ///
     /// The returned `LValueRef` tracks the current value at each step of the lvalue.
     /// This is later used by `assign_new_value` to construct a new updated value that
@@ -661,6 +697,25 @@ impl<'a> FunctionContext<'a> {
                 self.index_lvalue(array, index, location)?.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
+                // Optimization: for MemberAccess { Ident(mutable), N }, extract only the
+                // Nth allocation and store directly to it.
+                if let ast::LValue::Ident(ident) = object.as_ref()
+                    && let (variable, true) = self.ident_lvalue(ident)
+                    && let Tree::Branch(_) = &variable
+                {
+                    let field_ref = Self::get_field(variable, *field_index);
+                    return Ok(LValue::Dereference { reference: field_ref });
+                }
+                // Optimization: for MemberAccess { Dereference { ref, element_type }, N }
+                // where element_type is a tuple, extract only the field's reference and
+                // store directly to it instead of loading/storing all fields.
+                if let ast::LValue::Dereference { reference, element_type } = object.as_ref()
+                    && let ast::Type::Tuple(_) = element_type
+                {
+                    let (ref_values, _) = self.extract_current_value_recursive(reference)?;
+                    let field_ref = Self::get_field(ref_values, *field_index);
+                    return Ok(LValue::Dereference { reference: field_ref });
+                }
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
@@ -693,8 +748,8 @@ impl<'a> FunctionContext<'a> {
     /// Compile the given `array[index]` expression as a reference.
     /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing slices rather than arrays since slices
-    /// are represented as a tuple in the form: (length, slice contents).
+    /// The optional length is for indexing vectors rather than arrays since vectors
+    /// are represented as a tuple in the form: (length, vector contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
@@ -707,16 +762,16 @@ impl<'a> FunctionContext<'a> {
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
-        // A slice is represented as a tuple (length, slice contents).
+        // A vector is represented as a tuple (length, vector contents).
         // We need to fetch the second value.
         Ok(if array_values.len() > 1 {
-            let slice_lvalue = LValue::SliceIndex {
-                old_slice: old_array,
+            let vector_lvalue = LValue::VectorIndex {
+                old_vector: old_array,
                 index,
-                slice_lvalue: array_lvalue,
+                vector_lvalue: array_lvalue,
                 location,
             };
-            (array_values[1], index, slice_lvalue, Some(array_values[0]))
+            (array_values[1], index, vector_lvalue, Some(array_values[0]))
         } else {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
@@ -751,6 +806,30 @@ impl<'a> FunctionContext<'a> {
                 Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
+                // Optimization: for MemberAccess { Ident(mutable), N }, extract only the
+                // Nth allocation and dereference just that field.
+                if let ast::LValue::Ident(ident) = object.as_ref()
+                    && let (variable, true) = self.ident_lvalue(ident)
+                    && let Tree::Branch(_) = &variable
+                    && let ast::Type::Tuple(field_types) = &*ident.typ
+                {
+                    let field_ref = Self::get_field(variable, *index);
+                    let field_type = &field_types[*index];
+                    let dereferenced = self.dereference_lvalue(&field_ref, field_type);
+                    return Ok((dereferenced, LValue::Dereference { reference: field_ref }));
+                }
+                // Optimization: for MemberAccess { Dereference { ref, element_type }, N }
+                // where element_type is a tuple, extract only the field's reference and
+                // dereference just that field instead of all fields.
+                if let ast::LValue::Dereference { reference, element_type } = object.as_ref()
+                    && let ast::Type::Tuple(field_types) = element_type
+                {
+                    let (ref_values, _) = self.extract_current_value_recursive(reference)?;
+                    let field_ref = Self::get_field(ref_values, *index);
+                    let field_type = &field_types[*index];
+                    let dereferenced = self.dereference_lvalue(&field_ref, field_type);
+                    return Ok((dereferenced, LValue::Dereference { reference: field_ref }));
+                }
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
@@ -791,35 +870,36 @@ impl<'a> FunctionContext<'a> {
                         if self.builder.current_function.runtime().is_brillig() {
                             let len = self
                                 .builder
-                                .numeric_constant(u128::from(*len), NumericType::length_type());
+                                .numeric_constant(u128::from(len.0), NumericType::length_type());
                             self.codegen_access_check(index, len);
                         }
                     }
-                    _ => unreachable!("must have array or slice but got {array_type}"),
+                    _ => unreachable!("must have array or vector but got {array_type}"),
                 }
 
                 array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
-            LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
-                let mut slice_values = slice.into_value_list(self);
+            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } => {
+                let mut vector_values = vector.into_value_list(self);
 
-                let array_type = &self.builder.type_of_value(slice_values[1]);
+                let array_type = &self.builder.type_of_value(vector_values[1]);
 
                 // Checks for index Out-of-bounds
                 match array_type {
-                    Type::Slice(_) => {
-                        self.codegen_access_check(index, slice_values[0]);
+                    Type::Vector(_) => {
+                        self.codegen_access_check(index, vector_values[0]);
                     }
-                    _ => unreachable!("must have array or slice but got {array_type}"),
+                    _ => unreachable!("must have array or vector but got {array_type}"),
                 }
 
-                slice_values[1] =
-                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
+                vector_values[1] =
+                    self.assign_lvalue_index(new_value, vector_values[1], index, location);
 
-                // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-                let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
-                self.assign_new_value(*slice_lvalue, new_slice);
+                // The size of the vector does not change in a vector index assignment so we can reuse the same length value
+                let new_vector =
+                    Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
+                self.assign_new_value(*vector_lvalue, new_vector);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
@@ -864,7 +944,7 @@ impl<'a> FunctionContext<'a> {
 
     fn element_size(&self, array: ValueId) -> FieldElement {
         let size = self.builder.type_of_value(array).element_size();
-        FieldElement::from(size as u128)
+        FieldElement::from(size.0)
     }
 
     /// Given an lhs containing only references, create a store instruction to store each value of
@@ -872,9 +952,7 @@ impl<'a> FunctionContext<'a> {
     fn assign(&mut self, lhs: Values, rhs: Values) {
         match (lhs, rhs) {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
-                assert_eq!(lhs_branches.len(), rhs_branches.len());
-
-                for (lhs, rhs) in lhs_branches.into_iter().zip(rhs_branches) {
+                for (lhs, rhs) in lhs_branches.into_iter().zip_eq(rhs_branches) {
                     self.assign(lhs, rhs);
                 }
             }
@@ -962,7 +1040,7 @@ impl SharedContext {
             GlobalsGraph::default(),
         );
         let mut globals = BTreeMap::default();
-        for (id, (_, _, global)) in program.globals.iter() {
+        for (id, (_, _, global)) in &program.globals {
             let values = context.codegen_expression(global).unwrap();
             globals.insert(*id, values);
         }
@@ -1023,8 +1101,24 @@ impl SharedContext {
 #[derive(Debug)]
 pub(super) enum LValue {
     Ident,
-    Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue>, location: Location },
-    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue>, location: Location },
-    MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
-    Dereference { reference: Values },
+    Index {
+        old_array: ValueId,
+        index: ValueId,
+        array_lvalue: Box<LValue>,
+        location: Location,
+    },
+    VectorIndex {
+        old_vector: Values,
+        index: ValueId,
+        vector_lvalue: Box<LValue>,
+        location: Location,
+    },
+    MemberAccess {
+        old_object: Values,
+        index: usize,
+        object_lvalue: Box<LValue>,
+    },
+    Dereference {
+        reference: Values,
+    },
 }

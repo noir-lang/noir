@@ -3,11 +3,13 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, FunctionInput},
+        opcodes::{BlockId, FunctionInput, MemOpKind},
     },
     native_types::{Expression, Witness},
 };
 use std::collections::HashSet;
+
+use crate::pwg::arithmetic::ExpressionSolver;
 
 /// Simulate solving a circuit symbolically
 /// Instead of evaluating witness values from the inputs, like the PWG module is doing,
@@ -26,6 +28,12 @@ pub struct CircuitSimulator {
 }
 
 impl CircuitSimulator {
+    /// Check whether the circuit is solvable in theory.
+    ///
+    /// # Returns
+    ///
+    /// Returns `None` if the circuit is deemed to be solvable
+    /// Otherwise returns `Some(index)` where `index` is the opcode index of the first unsolvable opcode.
     pub fn check_circuit<F: AcirField>(circuit: &Circuit<F>) -> Option<usize> {
         Self::default().run_check_circuit(circuit)
     }
@@ -48,25 +56,11 @@ impl CircuitSimulator {
     fn try_solve<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
         match opcode {
             Opcode::AssertZero(expr) => {
-                let mut unresolved = HashSet::new();
-                for (_, w1, w2) in &expr.mul_terms {
-                    if !self.solvable_witnesses.contains(w1) {
-                        if !self.solvable_witnesses.contains(w2) {
-                            return false;
-                        }
-                        unresolved.insert(*w1);
-                    }
-                    if !self.solvable_witnesses.contains(w2) && w1 != w2 {
-                        unresolved.insert(*w2);
-                    }
-                }
-                for (_, w) in &expr.linear_combinations {
-                    if !self.solvable_witnesses.contains(w) {
-                        unresolved.insert(*w);
-                    }
-                }
+                let Some(unresolved) = unresolved_witnesses(expr, &self.solvable_witnesses) else {
+                    return false;
+                };
                 if unresolved.len() == 1 {
-                    self.mark_solvable(*unresolved.iter().next().unwrap());
+                    self.mark_solvable(*unresolved.iter().next().expect("len == 1"));
                     return true;
                 }
                 unresolved.is_empty()
@@ -89,17 +83,15 @@ impl CircuitSimulator {
                     // Memory must be initialized before it can be used.
                     return false;
                 }
-                if !self.can_solve_expression(&op.index) {
+                if !self.solvable_witnesses.contains(&op.index) {
                     return false;
                 }
-                if op.operation.is_zero() {
-                    let Some(w) = op.value.to_witness() else {
-                        return false;
-                    };
-                    self.mark_solvable(w);
-                    true
-                } else {
-                    self.try_solve(&Opcode::AssertZero(op.value.clone()))
+                match op.operation {
+                    MemOpKind::Read => {
+                        self.mark_solvable(op.value);
+                        true
+                    }
+                    MemOpKind::Write => self.solvable_witnesses.contains(&op.value),
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } => {
@@ -116,10 +108,8 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
+                if !self.can_solve_expression(predicate) {
+                    return false;
                 }
                 for output in outputs {
                     match output {
@@ -139,10 +129,8 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
+                if !self.can_solve_expression(predicate) {
+                    return false;
                 }
                 for w in outputs {
                     self.mark_solvable(*w);
@@ -173,7 +161,7 @@ impl CircuitSimulator {
         true
     }
 
-    fn can_solve_brillig_input<F>(&mut self, input: &BrilligInputs<F>) -> bool {
+    fn can_solve_brillig_input<F>(&self, input: &BrilligInputs<F>) -> bool {
         match input {
             BrilligInputs::Single(expr) => self.can_solve_expression(expr),
             BrilligInputs::Array(exprs) => {
@@ -195,6 +183,42 @@ impl CircuitSimulator {
             .flat_map(|i| [i.1, i.2])
             .chain(expr.linear_combinations.iter().map(|i| i.1))
     }
+}
+
+/// Returns the deduplicated set of unresolved witnesses in an arithmetic expression,
+/// given a set of already-solvable witnesses.
+///
+/// Returns `None` when the expression has a squaring `w*w` that cannot be solved by the linear PWG.
+///
+/// Otherwise returns `Some(set)`. An expression with `set.len() <= 1` is solvable:
+/// zero unresolved means it is already fully solvable; one unresolved means we
+/// can solve for the remaining witness.
+pub(crate) fn unresolved_witnesses<F: AcirField>(
+    expr: &Expression<F>,
+    solvable: &HashSet<Witness>,
+) -> Option<HashSet<Witness>> {
+    let combined_mul_terms = ExpressionSolver::combine_mul_terms(&expr.mul_terms);
+    let combined_linear_terms = ExpressionSolver::combine_linear_terms(&expr.linear_combinations);
+    let mut unresolved = HashSet::new();
+    for (_, w1, w2) in &combined_mul_terms {
+        if !solvable.contains(w1) {
+            unresolved.insert(*w1);
+        }
+        if !solvable.contains(w2) {
+            if w2 == w1 {
+                // This is a squaring term `w2*w2`, leading to a quadratic equation that cannot be
+                // solved by the linear PWG.
+                return None;
+            }
+            unresolved.insert(*w2);
+        }
+    }
+    for (_, w) in &combined_linear_terms {
+        if !solvable.contains(w) {
+            unresolved.insert(*w);
+        }
+    }
+    Some(unresolved)
 }
 
 #[cfg(test)]
@@ -273,7 +297,7 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0]
-        READ w1 = b0[0]
+        READ w1 = b0[w0]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -286,7 +310,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        CALL func: 0, inputs: [w0], outputs: [w1]
+        CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -299,7 +323,7 @@ mod tests {
         private parameters: [w0]
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [w0], outputs: [w1]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -357,5 +381,44 @@ mod tests {
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(0));
+    }
+
+    #[test]
+    fn reports_some_when_write_has_a_single_unknown_witness_in_its_value() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
+    }
+
+    #[test]
+    fn reports_none_when_write_has_known_witnesses_in_its_value() {
+        let src = "
+        private parameters: [w0, w1, w2]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0]
+        WRITE b0[w0] = w1 + w2
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&circuit), None);
+    }
+
+    #[test]
+    fn reports_some_when_expression_can_simplify() {
+        let src = "
+        private parameters: []
+        public parameters: []
+        return values: []
+        ASSERT w1 = w1
+        ASSERT w2 = w1
+        ";
+        let empty_circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&empty_circuit), Some(1));
     }
 }

@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Foo<let Y: u32, A> {}
+
+impl<let X: u32> Bar for Foo<X, u8> {
+    fn bar() -> Field {
+        1_Field
+    }
+}
+
+impl<let X: u32> Bar for Foo<X, u16> {
+    fn bar() -> Field {
+        2_Field
+    }
+}
+
+pub trait Bar {
+    fn bar() -> Field;
+}
+
+fn g<let X_: u32>() -> Field {
+    Foo::<X_, u8>::bar()
+}
+
+fn h<let X_: u32>() -> Field {
+    Foo::<X_, u16>::bar()
+}
+
+fn main() {
+    assert(g::<0>() == 1_Field);
+    assert(h::<0>() == 2_Field);
+}

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected type Foo, found type Bar
+   ┌─ src/main.nr:14:19
+   │
+14 │         print_foo(Bar { msg: "Hello", value: 123 })
+   │                   --------------------------------
+   │
+
+Aborting due to 1 previous error

@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 global G_A: [[u128; 0]; 2] = [[], []];
 
-global G_S: [[u128; 0]] = &[[], []];
+global G_S: [[u128; 0]] = @[[], []];
 
 fn main(i: u32) -> pub u32 {
     // Safety: comment added by `nargo expand`

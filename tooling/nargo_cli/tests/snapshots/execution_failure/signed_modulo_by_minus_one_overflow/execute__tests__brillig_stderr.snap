@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: attempt to calculate the remainder with overflow
+  ┌─ src/main.nr:2:5
+  │
+2 │     -128_i8 % -1
+  │     ------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:2:5
+
+Failed assertion

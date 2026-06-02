@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let one: Field = unsafe { foo([-2_Field, -1_Field]) };
+    println(one);
+    assert(1_Field == one);
+}
+
+unconstrained fn foo(a: [Field; 2]) -> Field {
+    let _: Field = bar(a);
+    bar(a)
+}
+
+unconstrained fn bar(mut b: [Field; 2]) -> Field {
+    b[1_u32] = 3_Field + b[1_u32];
+    let mut running: bool = true;
+    while running {
+        b[0_u32] = 3_Field + b[0_u32];
+        running = false;
+    }
+    b[0_u32]
+}

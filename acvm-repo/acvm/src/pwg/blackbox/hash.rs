@@ -4,6 +4,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError, sha256_compression};
+use itertools::Itertools;
 
 use crate::OpcodeResolutionError;
 use crate::pwg::{input_to_value, insert_value};
@@ -24,7 +25,7 @@ pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
 }
 
 /// Reads the hash function input from a [`WitnessMap`].
-fn get_hash_input<F: AcirField>(
+pub(crate) fn get_hash_input<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     inputs: &[FunctionInput<F>],
     message_size: Option<&FunctionInput<F>>,
@@ -32,7 +33,7 @@ fn get_hash_input<F: AcirField>(
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
     let mut message_input = Vec::new();
-    for input in inputs.iter() {
+    for input in inputs {
         let witness_assignment = input_to_value(initial_witness, *input)?;
         let bytes = witness_assignment.fetch_nearest_bytes(num_bits);
         message_input.extend(bytes);
@@ -71,7 +72,7 @@ fn write_digest_to_outputs<F: AcirField>(
     outputs: &[Witness; 32],
     digest: [u8; 32],
 ) -> Result<(), OpcodeResolutionError<F>> {
-    for (output_witness, value) in outputs.iter().zip(digest.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(digest) {
         insert_value(output_witness, F::from_be_bytes_reduce(&[value]), initial_witness)?;
     }
 
@@ -83,11 +84,13 @@ fn to_u32_array<const N: usize, F: AcirField>(
     inputs: &[FunctionInput<F>; N],
 ) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
-    for (it, input) in result.iter_mut().zip(inputs) {
+    for (it, input) in result.iter_mut().zip_eq(inputs) {
         let witness_value = input_to_value(initial_witness, *input)?;
         *it = witness_value
             .try_into_u128()
-            .expect("expected the 'witness_value' to fit into a u128") as u32;
+            .expect("expected the 'witness_value' to fit into a u128")
+            .try_into()
+            .expect("expected the 'witness_value' to fit into a u32");
     }
     Ok(result)
 }
@@ -98,16 +101,26 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
     hash_values: &[FunctionInput<F>; 8],
     outputs: &[Witness; 8],
 ) -> Result<(), OpcodeResolutionError<F>> {
+    let state = execute_sha_256_permutation_opcode(initial_witness, inputs, hash_values)?;
+
+    for (output_witness, value) in outputs.iter().zip_eq(state) {
+        insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn execute_sha_256_permutation_opcode<F: AcirField>(
+    initial_witness: &WitnessMap<F>,
+    inputs: &[FunctionInput<F>; 16],
+    hash_values: &[FunctionInput<F>; 8],
+) -> Result<[u32; 8], OpcodeResolutionError<F>> {
     let message = to_u32_array(initial_witness, inputs)?;
     let mut state = to_u32_array(initial_witness, hash_values)?;
 
     sha256_compression(&mut state, &message);
 
-    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
-        insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
-    }
-
-    Ok(())
+    Ok(state)
 }
 
 pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
@@ -127,6 +140,20 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
         ));
     }
 
+    let state = execute_poseidon2_permutation_opcode(backend, initial_witness, inputs)?;
+
+    // Write witness assignments
+    for (output_witness, value) in outputs.iter().zip_eq(state) {
+        insert_value(output_witness, value, initial_witness)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn execute_poseidon2_permutation_opcode<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &WitnessMap<F>,
+    inputs: &[FunctionInput<F>],
+) -> Result<Vec<F>, OpcodeResolutionError<F>> {
     // Read witness assignments
     let state: Vec<F> = inputs
         .iter()
@@ -134,12 +161,7 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
         .collect::<Result<_, _>>()?;
 
     let state = backend.poseidon2_permutation(&state)?;
-
-    // Write witness assignments
-    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
-        insert_value(output_witness, value, initial_witness)?;
-    }
-    Ok(())
+    Ok(state)
 }
 
 #[cfg(test)]

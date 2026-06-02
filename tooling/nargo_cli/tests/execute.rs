@@ -13,6 +13,7 @@ mod tests {
     use noirc_artifacts::program::ProgramArtifact;
     use predicates::prelude::*;
     use serde::Deserialize;
+    use tempfile::TempDir;
 
     use std::collections::BTreeMap;
     use std::fs;
@@ -27,29 +28,23 @@ mod tests {
     struct ForceBrillig(pub bool);
     #[derive(Debug, Clone, Copy)]
     struct Inliner(pub i64);
+    #[derive(Debug, Clone, Copy)]
+    enum Runtime {
+        Acir,
+        Brillig,
+        Comptime,
+    }
 
     // These tests fail with stack too deep errors when debug assertions are active
     const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
 
-    const IGNORED_PEDANTIC_SOLVING_TESTS: [&str; 3] = [
-        // TODO(https://github.com/noir-lang/noir/issues/8098): all of these are failing with:
-        // ```
-        // Failed to solve program:
-        // \'Failed to solve blackbox function: embedded_curve_add, reason: Infinite input: embedded_curve_add(infinity, infinity)\'
-        // ```
-        "execution_success/multi_scalar_mul",
-        "execution_success/regression_5045",
-        "execution_success/regression_7744",
-    ];
-
-    fn setup_nargo(
+    fn setup_nargo_command(
         test_program_dir: &Path,
         test_command: &str,
         force_brillig: ForceBrillig,
         inliner_aggressiveness: Inliner,
-    ) -> Command {
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir);
+    ) -> (Command, TempDir) {
+        let (mut nargo, target_dir) = setup_nargo(test_program_dir);
         nargo.arg(test_command).arg("--force");
         nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
         let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
@@ -59,17 +54,6 @@ mod tests {
             // Allow more bytecode in exchange to catch illegal states.
             nargo.arg("--enable-brillig-debug-assertions");
         }
-
-        // Enable pedantic solving
-        let skip_pedantic_solving = IGNORED_PEDANTIC_SOLVING_TESTS
-            .into_iter()
-            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
-        if !skip_pedantic_solving {
-            nargo.arg("--pedantic-solving");
-        }
-
-        // Enable enums and ownership as unstable features
-        nargo.arg("-Zenums");
 
         if force_brillig.0 {
             {
@@ -81,7 +65,17 @@ mod tests {
             }
         }
 
-        nargo
+        (nargo, target_dir)
+    }
+
+    fn setup_nargo(test_program_dir: &Path) -> (Command, TempDir) {
+        let target_dir = tempfile::tempdir().unwrap();
+
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir);
+        nargo.arg(format!("--target-dir={}", target_dir.path().to_string_lossy()));
+        (nargo, target_dir)
     }
 
     fn remove_noise_lines(string: String) -> String {
@@ -141,30 +135,12 @@ mod tests {
     }
 
     fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
-        let target_dir = tempfile::tempdir().unwrap().keep();
-
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
-
         nargo.assert().success();
 
         let mut has_circuit_output = false;
 
         if check_stdout {
-            let output = nargo.output().unwrap();
-            let stdout = String::from_utf8(output.stdout).unwrap();
-            has_circuit_output = stdout.contains("Circuit output:");
-
-            let stdout = remove_noise_lines(stdout);
-
-            let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-            let snapshot_name = "stdout";
-            insta::with_settings!(
-                {
-                    snapshot_path => format!("./snapshots/execution_success/{test_name}")
-                },
-                {
-                insta::assert_snapshot!(snapshot_name, stdout);
-            });
+            has_circuit_output = check_execution_success_stdout(&mut nargo, &test_program_dir);
         }
 
         if has_circuit_output {
@@ -186,11 +162,80 @@ mod tests {
         }
     }
 
-    fn execution_failure(mut nargo: Command) {
+    fn check_execution_success_stdout(nargo: &mut Command, test_program_dir: &Path) -> bool {
+        let output = nargo.output().unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let has_circuit_output = stdout.contains("Circuit output:");
+
+        let stdout = remove_noise_lines(stdout);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stdout";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/execution_success/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stdout);
+        });
+        has_circuit_output
+    }
+
+    fn execution_failure(mut nargo: Command, test_program_dir: PathBuf, runtime: Runtime) {
+        // First make sure `nargo check` doesn't error. If it does, it means the test is incorrect
+        // as it fails before reaching the execution phase.
+        execution_failure_check_compiles(test_program_dir.clone(), runtime);
+
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+        check_execution_failure_stderr(&mut nargo, &test_program_dir, runtime);
+    }
+
+    fn execution_failure_check_compiles(test_program_dir: PathBuf, runtime: Runtime) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("check");
+
+        match runtime {
+            Runtime::Acir | Runtime::Comptime => (),
+            Runtime::Brillig => {
+                nargo.arg("--force-brillig");
+            }
+        }
+
+        nargo
+            .assert()
+            .success()
+            .stderr(predicate::str::contains("The application panicked (crashed).").not());
+
+        drop(target_dir);
+    }
+
+    fn check_execution_failure_stderr(
+        nargo: &mut Command,
+        test_program_dir: &Path,
+        runtime: Runtime,
+    ) {
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let runtime = match runtime {
+            Runtime::Acir => "acir",
+            Runtime::Brillig => "brillig",
+            Runtime::Comptime => "comptime",
+        };
+        let snapshot_name = format!("{runtime}_stderr");
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/execution_failure/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn execution_panic(mut nargo: Command) {
@@ -211,18 +256,7 @@ mod tests {
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
     }
 
-    fn compile_success_empty(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        no_warnings: bool,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
-
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
-
+    fn compile_success_empty(mut nargo: Command, no_warnings: bool) {
         nargo.arg("--json");
 
         let output = nargo.output().expect("Failed to execute command");
@@ -258,16 +292,7 @@ mod tests {
         );
     }
 
-    fn compile_success_contract(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
-
+    fn compile_success_contract(mut nargo: Command) {
         nargo.assert().success().stderr(predicate::str::contains("warning:").not());
     }
 
@@ -326,35 +351,25 @@ mod tests {
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {
         // First run `nargo execute` on the original code to get the output
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
         let original_output = nargo.output().unwrap();
         let original_output: String = String::from_utf8(original_output.stdout).unwrap();
 
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        drop(target_dir);
+
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        drop(target_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
         let snapshot_name = "expanded";
@@ -367,33 +382,28 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().keep();
+        let temp_dir = tempfile::tempdir().unwrap();
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+        copy_dir_all(&test_program_dir, temp_dir.path()).unwrap();
 
         // Create a main file for the expanded code
-        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+        fs::write(temp_dir.path().join("src").join("main.nr"), expanded_code).unwrap();
 
         // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
-        run_nargo_fmt(temp_dir.clone());
+        run_nargo_fmt(temp_dir.path());
 
         // Now we can run `nargo execute` on the expanded code
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(temp_dir);
+        let (mut nargo, target_dir) = setup_nargo(temp_dir.path());
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
         let expanded_output = nargo.output().unwrap();
         let expanded_output: String = String::from_utf8(expanded_output.stdout).unwrap();
+
+        drop(target_dir);
 
         let original_output = remove_noise_lines(original_output);
         let expanded_output = remove_noise_lines(expanded_output);
@@ -402,20 +412,15 @@ mod tests {
     }
 
     fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        drop(target_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
         let snapshot_name = "expanded";
@@ -428,37 +433,86 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().keep();
+        let temp_dir = tempfile::tempdir().unwrap();
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+        copy_dir_all(test_program_dir, temp_dir.path()).unwrap();
 
         // Create a main file for the expanded code
-        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+        fs::write(temp_dir.path().join("src").join("main.nr"), expanded_code).unwrap();
 
         // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
-        run_nargo_fmt(temp_dir.clone());
+        run_nargo_fmt(temp_dir.path());
 
         // Now we can run `nargo compile` on the expanded code
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(temp_dir);
+        let (mut nargo, target_dir) = setup_nargo(temp_dir.path());
         nargo.arg("compile").arg("--force");
 
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
-        // Enable pedantic solving
-        nargo.arg("--pedantic-solving");
-
         nargo.assert().success();
+
+        drop(target_dir);
     }
 
-    fn run_nargo_fmt(target_dir: PathBuf) {
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(target_dir);
+    fn nargo_execute_comptime(test_program_dir: PathBuf, check_stdout: bool) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("execute").arg("--force-comptime");
+
+        nargo.assert().success();
+
+        if check_stdout {
+            check_execution_success_stdout(&mut nargo, &test_program_dir);
+        }
+
+        drop(target_dir);
+    }
+
+    fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("execute").arg("--force-comptime");
+
+        execution_failure(nargo, test_program_dir, Runtime::Comptime);
+
+        drop(target_dir);
+    }
+
+    fn nargo_test_comptime(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("test").arg("--force-comptime");
+        noir_test_success(nargo);
+        drop(target_dir);
+    }
+
+    fn nargo_test_comptime_expect_failure(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("test").arg("--force-comptime");
+        noir_test_failure(nargo);
+        drop(target_dir);
+    }
+
+    fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("execute").arg("--force").arg("--force-brillig");
+        nargo.arg("--max-stack-frame-size").arg("64");
+
+        let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
+            .into_iter()
+            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
+        if !skip_brillig_debug_assertions {
+            nargo.arg("--enable-brillig-debug-assertions");
+        }
+
+        nargo.assert().success();
+
+        drop(target_dir);
+    }
+
+    fn run_nargo_fmt(target_dir: &Path) {
+        let (mut nargo, target_dir) = setup_nargo(target_dir);
         nargo.arg("fmt");
         nargo.assert().success();
+
+        drop(target_dir);
     }
 
     fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
@@ -473,15 +527,15 @@ mod tests {
 
             let path = entry.path();
 
-            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
-                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
-                    return Some(prover_toml);
-                }
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir())
+                && let Some(prover_toml) = find_prover_toml_in_dir(&path)
+            {
+                return Some(prover_toml);
             }
 
             if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
-            };
+            }
 
             return Some(path);
         }

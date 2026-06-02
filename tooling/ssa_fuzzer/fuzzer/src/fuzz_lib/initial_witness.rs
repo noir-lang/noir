@@ -116,7 +116,7 @@ impl WitnessValue {
 fn initialize_witness_map_internal(witness: &[WitnessValue]) -> (Vec<FieldElement>, Vec<Type>) {
     let mut types = vec![];
     let mut witness_vec = vec![];
-    for witness_value in witness.iter() {
+    for witness_value in witness {
         match witness_value {
             WitnessValue::Numeric(numeric) => {
                 witness_vec.push(FieldElement::from(*numeric));
@@ -132,7 +132,7 @@ fn initialize_witness_map_internal(witness: &[WitnessValue]) -> (Vec<FieldElemen
                     witness_vec.extend(values);
                 }
             }
-        };
+        }
     }
     (witness_vec, types)
 }

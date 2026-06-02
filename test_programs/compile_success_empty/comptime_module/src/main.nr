@@ -49,24 +49,10 @@ comptime fn outer_attribute_separate_module(m: Module) {
 
 pub struct Foo {}
 
-#[add_function]
-mod add_to_me {
-    fn add_to_me_function() {}
-}
-
-comptime fn add_function(m: Module) {
-    m.add_item(
-        quote { pub fn added_function() -> super::Foo {
-            add_to_me_function();
-            super::Foo {}
-    } },
-    );
-}
-
 fn main() {
     let _ = foo::Struct1 {};
 
-    comptime {
+    let final_counter_value = comptime {
         // Check Module::is_contract
         let foo = quote { foo }.as_module().unwrap();
         assert(!foo.is_contract());
@@ -102,14 +88,13 @@ fn main() {
         assert(foo.has_named_attribute("outer_attribute"));
         assert(!bar.has_named_attribute("some_attribute"));
         assert(another_module.has_named_attribute("some_attribute"));
-    }
+        counter
+    };
 
-    assert_eq(counter, 4);
+    assert_eq(final_counter_value, 4);
 
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
-
-    let _ = add_to_me::added_function();
 }
 
 // docs:start:as_module_example
@@ -134,11 +119,11 @@ mod module1 {
 #[test]
 fn parent_test() {
     comptime {
-        let my_module2 = quote [module1::module2].as_module().unwrap();
-        assert_eq(my_module2.name(), quote [module2]);
+        let my_module2 = quote [ module1::module2 ].as_module().unwrap();
+        assert_eq(my_module2.name(), quote [ module2 ]);
 
         let my_module1 = my_module2.parent().unwrap();
-        assert_eq(my_module1.name(), quote [module1]);
+        assert_eq(my_module1.name(), quote [ module1 ]);
 
         // The top-level module in each crate has no name
         let top_level_module = my_module1.parent().unwrap();
@@ -159,11 +144,11 @@ mod my_module {
 #[test]
 fn child_modules_test() {
     comptime {
-        let my_module = quote [my_module].as_module().unwrap();
+        let my_module = quote [ my_module ].as_module().unwrap();
         let children = my_module.child_modules().map(Module::name);
 
         // The order children are returned in is left unspecified.
-        assert_eq(children, &[quote [child1], quote [child2], quote [child3]]);
+        assert_eq(children, [quote [ child1 ], quote [ child2 ], quote [ child3 ]].as_vector());
     }
 }
 // docs:end:child_modules_example
@@ -175,20 +160,20 @@ fn child_modules_test() {
 #[test]
 fn child_modules_test2() {
     comptime {
-        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        let top = quote [ my_module ].as_module().unwrap().parent().unwrap();
         let children = top.child_modules().map(Module::name);
 
-        let expected = &[
-            quote [separate_module],
-            quote [foo],
-            quote [bar],
-            quote [another_module],
-            quote [yet_another_module],
-            quote [add_to_me],
-            quote [baz],
-            quote [module1],
-            quote [my_module],
-        ];
+        let expected = [
+            quote [ separate_module ],
+            quote [ foo ],
+            quote [ bar ],
+            quote [ another_module ],
+            quote [ yet_another_module ],
+            quote [ baz ],
+            quote [ module1 ],
+            quote [ my_module ],
+        ]
+            .as_vector();
         assert_eq(children, expected);
     }
 }
@@ -197,7 +182,7 @@ fn child_modules_test2() {
 #[test]
 fn top_level_module_name_is_empty() {
     comptime {
-        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        let top = quote [ my_module ].as_module().unwrap().parent().unwrap();
         assert_eq(top.name(), quote []);
     }
 }

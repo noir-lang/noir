@@ -15,8 +15,8 @@ use std::{
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
-    InlayHintRequest, PrepareRenameRequest, References, Rename, SignatureHelpRequest,
-    WorkspaceSymbolRequest,
+    InlayHintRequest, PrepareRenameRequest, References, Rename, SemanticTokensFullRequest,
+    SignatureHelpRequest, WorkspaceSymbolRequest,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -28,14 +28,15 @@ use nargo::{
     parse_all,
     workspace::Workspace,
 };
-use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
+use nargo_toml::{
+    ManifestError, PackageSelection, find_file_manifest, resolve_workspace_from_toml,
+};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
     hir::{
-        Context, FunctionNameMatch, ParsedFiles,
+        Context, FunctionNameMatch, LspMode, ParsedFiles,
         def_map::{CrateDefMap, parse_file},
     },
     node_interner::NodeInterner,
@@ -46,8 +47,9 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
 use notifications::{
-    on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
-    on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
+    on_did_change_configuration, on_did_change_text_document, on_did_change_watched_files,
+    on_did_close_text_document, on_did_open_text_document, on_did_save_text_document, on_exit,
+    on_initialized,
 };
 use requests::{
     LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
@@ -61,7 +63,7 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
-mod attribute_reference_finder;
+mod doc_comments;
 mod notifications;
 mod requests;
 mod solver;
@@ -70,6 +72,7 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
+mod visitor_reference_finder;
 mod with_file;
 
 #[cfg(test)]
@@ -80,7 +83,10 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
-    requests::{on_expand_request, on_folding_range_request, on_std_source_code_request},
+    requests::{
+        on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
+        on_std_source_code_request,
+    },
     types::request::{NargoExpand, NargoStdSourceCode},
 };
 
@@ -89,6 +95,9 @@ pub enum LspError {
     /// Error while Resolving Workspace.
     #[error("Failed to Resolve Workspace - {0}")]
     WorkspaceResolutionError(String),
+    /// Error while parsing Nargo.toml.
+    #[error("{1}")]
+    ManifestError(PathBuf, ManifestError),
 }
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
@@ -102,13 +111,13 @@ pub struct LspState {
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
-    /// Whenever a file in a workspace is changed we'll add it to this set.
-    workspaces_to_process: HashSet<PathBuf>,
-
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+
+    // Tracks Nargo.toml files that currently have diagnostics published to them.
+    toml_files_with_errors: HashSet<Url>,
 }
 
 struct WorkspaceCacheData {
@@ -121,8 +130,6 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
-    diagnostics: Vec<CustomDiagnostic>,
-    diagnostics_just_published: bool,
 }
 
 impl LspState {
@@ -139,9 +146,9 @@ impl LspState {
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
+            toml_files_with_errors: HashSet::new(),
         }
     }
 }
@@ -167,6 +174,7 @@ impl NargoLspService {
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<SemanticTokensFullRequest, _>(on_semantic_tokens_full_request)
             .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
             .request::<References, _>(on_references_request)
             .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
@@ -186,6 +194,7 @@ impl NargoLspService {
             .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
             .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
             .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
+            .notification::<notification::DidChangeWatchedFiles>(on_did_change_watched_files)
             .notification::<notification::Exit>(on_exit);
         Self { router }
     }
@@ -288,7 +297,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
-                eprintln!("Error while processing {toml_path:?}: {error}");
+                return Err(LspError::ManifestError(toml_path, error));
             }
         }
     }
@@ -299,7 +308,8 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         .and_then(|file_name_os_str| file_name_os_str.to_str())
     else {
         return Err(LspError::WorkspaceResolutionError(format!(
-            "Could not resolve parent folder for file: {file_path:?}"
+            "Could not resolve parent folder for file: {}",
+            file_path.display()
         )));
     };
 
@@ -320,7 +330,6 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         entry_path: PathBuf::from(file_path),
         name: crate_name,
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     let workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),
@@ -349,7 +358,7 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.activate_lsp_mode();
+    context.activate_lsp_mode(LspMode::Full);
     (context, crate_id)
 }
 
@@ -381,14 +390,13 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             .par_iter()
             .filter_map(|(file_id, file_path, current_hash)| {
                 let cached_version = state.cached_parsed_files.get(file_path);
-                if let Some((hash, (parsed_module, errors))) = cached_version {
-                    if hash == current_hash {
-                        // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
-                        // so we must replace all of those FileIDs with the one here.
-                        let parsed_module =
-                            parsed_module_with_file(parsed_module.clone(), *file_id);
-                        return Some((*file_id, (parsed_module, errors.clone())));
-                    }
+                if let Some((hash, (parsed_module, errors))) = cached_version
+                    && hash == current_hash
+                {
+                    // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
+                    // so we must replace all of those FileIDs with the one here.
+                    let parsed_module = parsed_module_with_file(parsed_module.clone(), *file_id);
+                    return Some((*file_id, (parsed_module, errors.clone())));
                 }
                 None
             })

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global ONE: Field = 0x32;
+
+global TWO: Field = 0x64;
+
+global GLOBAL: fmtstr<18, (Field, Field)> = {
+    let ONE = 0x32;
+    let TWO = 0x64;
+    f"i: {ONE}, j: {TWO}"
+};
+
+fn main() {
+    let string: str<14> = "i: {i}, j: {j}";
+    println(string);
+    println(GLOBAL);
+}

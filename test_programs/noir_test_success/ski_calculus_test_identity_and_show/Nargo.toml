@@ -1,0 +1,8 @@
+[package]
+name = "ski_calculus_test_identity_and_show"
+type = "bin"
+authors = [""]
+compiler_unstable_features = ["enums"]
+
+[dependencies]
+ski_calculus_lib = { path = "../../test_libraries/ski_calculus_lib" }

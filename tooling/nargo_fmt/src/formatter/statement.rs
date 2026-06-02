@@ -1,7 +1,8 @@
 use noirc_frontend::{
     ast::{
-        AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
+        AssignOpStatement, AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange,
+        LetStatement, LoopStatement, Pattern, Statement, StatementKind, UnresolvedType,
+        WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -20,7 +21,6 @@ impl ChunkFormatter<'_, '_> {
             formatter.skip_whitespace();
         }));
 
-        // Now write any leading comment respecting multiple newlines after them
         group.leading_comment(self.chunk(|formatter| {
             // Doc comments for a let statement could come before a potential non-doc comment
             if formatter.token.kind() == TokenKind::OuterDocComment {
@@ -34,6 +34,13 @@ impl ChunkFormatter<'_, '_> {
                 formatter.format_outer_doc_comments_checking_safety();
             }
         }));
+
+        // Or doc comments could come after a potential non-doc comment
+        if self.token.kind() == TokenKind::OuterDocComment {
+            group.leading_comment(self.chunk(|formatter| {
+                formatter.format_outer_doc_comments();
+            }));
+        }
 
         ignore_next |= self.ignore_next;
 
@@ -69,11 +76,14 @@ impl ChunkFormatter<'_, '_> {
             StatementKind::Assign(assign_statement) => {
                 group.group(self.format_assign(assign_statement));
             }
+            StatementKind::AssignOp(assign_op_statement) => {
+                group.group(self.format_assign_op(assign_op_statement));
+            }
             StatementKind::For(for_loop_statement) => {
                 group.group(self.format_for_loop(for_loop_statement));
             }
-            StatementKind::Loop(block, _) => {
-                group.group(self.format_loop(block));
+            StatementKind::Loop(loop_) => {
+                group.group(self.format_loop(loop_));
             }
             StatementKind::While(while_) => {
                 group.group(self.format_while(while_));
@@ -122,7 +132,7 @@ impl ChunkFormatter<'_, '_> {
         &mut self,
         keyword: Keyword,
         pattern: Pattern,
-        typ: UnresolvedType,
+        typ: Option<UnresolvedType>,
         value: Option<Expression>,
         attributes: Vec<SecondaryAttribute>,
     ) -> ChunkGroup {
@@ -136,7 +146,7 @@ impl ChunkFormatter<'_, '_> {
 
         let mut pattern_and_type_group = self.format_pattern(pattern);
 
-        if typ.typ != UnresolvedTypeData::Unspecified {
+        if let Some(typ) = typ {
             pattern_and_type_group.text(self.chunk(|formatter| {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
@@ -188,39 +198,53 @@ impl ChunkFormatter<'_, '_> {
 
     fn format_assign(&mut self, assign_statement: AssignStatement) -> ChunkGroup {
         let mut group = ChunkGroup::new();
-        let mut is_op_assign = false;
+
+        self.format_lvalue(assign_statement.lvalue, &mut group);
 
         group.text(self.chunk(|formatter| {
-            formatter.format_lvalue(assign_statement.lvalue);
             formatter.write_space();
-            if formatter.is_at(Token::Assign) {
-                formatter.write_token(Token::Assign);
-            } else {
-                // This is something like `x += 1`, which is parsed as an
-                // Assign with an InfixExpression as its right-hand side: `x = x + 1`.
-                // There will always be two tokens here, like `+ =` or `> >=`.
-                formatter.write_current_token();
-                formatter.bump();
-                formatter.skip_comments_and_whitespace();
-                formatter.write_current_token();
-                formatter.bump();
-
-                is_op_assign = true;
-            }
+            formatter.write_token(Token::Assign);
             formatter.write_space();
         }));
 
         let mut value_group = ChunkGroup::new();
         value_group.kind = GroupKind::AssignValue;
 
-        if is_op_assign {
-            let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
-                panic!("Expected an infix expression for op assign");
-            };
-            self.format_expression(infix.rhs, &mut value_group);
-        } else {
-            self.format_expression(assign_statement.expression, &mut value_group);
+        self.format_expression(assign_statement.expression, &mut value_group);
+
+        value_group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        }));
+        if self.is_at(Token::Semicolon) {
+            value_group.semicolon(self);
         }
+        group.group(value_group);
+
+        group
+    }
+
+    fn format_assign_op(&mut self, assign_op_statement: AssignOpStatement) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        self.format_lvalue(assign_op_statement.lvalue, &mut group);
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_space();
+
+            // The operator and the assign token are always two tokens, like `+ =` or `> >=`.
+            formatter.write_current_token();
+            formatter.bump();
+            formatter.skip_comments_and_whitespace();
+            formatter.write_current_token();
+            formatter.bump();
+
+            formatter.write_space();
+        }));
+
+        let mut value_group = ChunkGroup::new();
+        value_group.kind = GroupKind::AssignValue;
+
+        self.format_expression(assign_op_statement.expression, &mut value_group);
 
         value_group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
@@ -281,7 +305,7 @@ impl ChunkFormatter<'_, '_> {
         group
     }
 
-    fn format_loop(&mut self, block: Expression) -> ChunkGroup {
+    fn format_loop(&mut self, loop_: LoopStatement) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 
         group.text(self.chunk(|formatter| {
@@ -289,6 +313,8 @@ impl ChunkFormatter<'_, '_> {
         }));
 
         group.space(self);
+
+        let block = loop_.body;
 
         let ExpressionKind::Block(block) = block.kind else {
             panic!("Expected a block expression for loop body");
@@ -448,7 +474,7 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_unsafe_comment() {
-        let src = " fn foo() { 
+        let src = " fn foo() {
         // Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
@@ -461,7 +487,7 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_unsafe_doc_comment() {
-        let src = " fn foo() { 
+        let src = " fn foo() {
         /// Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
@@ -474,8 +500,8 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_unsafe_comment_right_before_unsafe() {
-        let src = " fn foo() { 
-        
+        let src = " fn foo() {
+
         let  x  =  // Safety: some comment
         unsafe { 1 } ; } ";
         let expected = "fn foo() {
@@ -489,7 +515,7 @@ mod tests {
 
     #[test]
     fn format_let_statement_with_long_type() {
-        let src = " fn foo() { 
+        let src = " fn foo() {
         let  some_variable: ThisIsAReallyLongType  = 123;
         foo();
 }
@@ -538,6 +564,25 @@ mod tests {
         let src = " fn foo() { x [ y ]  =  2 ; } ";
         let expected = "fn foo() {
     x[y] = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assign_to_index_with_block() {
+        let src = "fn main(mut array: [Field; 3]) {
+    array[{
+    1;
+    2
+    }] = 3;
+}
+";
+        let expected = "fn main(mut array: [Field; 3]) {
+    array[{
+        1;
+        2
+    }] = 3;
 }
 ";
         assert_format(src, expected);

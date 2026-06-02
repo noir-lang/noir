@@ -1,0 +1,6 @@
+[package]
+name = "division_by_max"
+type = "bin"
+authors = [""]
+
+[dependencies]

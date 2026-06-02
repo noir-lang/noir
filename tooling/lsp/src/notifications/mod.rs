@@ -4,19 +4,29 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
+use crate::requests::{file_path_to_file_id, uri_to_file_path};
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 use async_lsp::lsp_types;
-use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
+use async_lsp::lsp_types::{
+    DiagnosticRelatedInformation, DiagnosticTag, DidChangeWatchedFilesParams,
+    DidChangeWatchedFilesRegistrationOptions, FileChangeType, FileSystemWatcher, GlobPattern,
+    Position, Range, Registration, RegistrationParams, Url, WatchKind,
+};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileManager, FileMap};
+use fm::{FileId, FileManager, FileMap, PathString};
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
+use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
+use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
+use noirc_frontend::hir::{Context, LspMode};
+use noirc_frontend::parse_program;
 
 use crate::types::{
     Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
@@ -25,14 +35,78 @@ use crate::types::{
 };
 
 use crate::{
-    LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    LspError, LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
     resolve_workspace_for_source_path,
 };
 
 pub(super) fn on_initialized(
-    _state: &mut LspState,
+    state: &mut LspState,
     _params: InitializedParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    // Register a file watcher for Nargo.toml so we get notified when it changes.
+    let registration = Registration {
+        id: "nargo-toml-watcher".to_string(),
+        method: "workspace/didChangeWatchedFiles".to_string(),
+        register_options: Some(
+            serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+                watchers: vec![FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/Nargo.toml".to_string()),
+                    kind: Some(WatchKind::all()),
+                }],
+            })
+            .expect("serialization of DidChangeWatchedFilesRegistrationOptions should not fail"),
+        ),
+    };
+    drop(
+        state.client.register_capability(RegistrationParams { registrations: vec![registration] }),
+    );
+    ControlFlow::Continue(())
+}
+
+pub(super) fn on_did_change_watched_files(
+    state: &mut LspState,
+    params: DidChangeWatchedFilesParams,
+) -> ControlFlow<Result<(), async_lsp::Error>> {
+    for change in params.changes {
+        if change.typ == FileChangeType::DELETED {
+            // If a Nargo.toml was deleted, clear any diagnostics on it.
+            if state.toml_files_with_errors.remove(&change.uri) {
+                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: change.uri,
+                    version: None,
+                    diagnostics: vec![],
+                });
+            }
+            continue;
+        }
+
+        // For created or changed Nargo.toml files, find a source file in that workspace
+        // and reprocess it. We do this by finding any open file that belongs to the workspace.
+        let Ok(toml_path) = change.uri.to_file_path() else {
+            continue;
+        };
+        let Some(parent) = toml_path.parent() else {
+            continue;
+        };
+        let workspace_root = parent.to_path_buf();
+
+        // Invalidate any cached data for this workspace so it's reprocessed fresh.
+        state.workspace_cache.remove(&workspace_root);
+        state.package_cache.remove(&workspace_root);
+
+        // Find an open file that lives under this workspace root and trigger reprocessing.
+        let open_file_uri = state.input_files.keys().find(|uri| {
+            uri.strip_prefix("file://")
+                .is_some_and(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
+        });
+
+        if let Some(uri_string) = open_file_uri
+            && let Ok(uri) = Url::parse(uri_string)
+        {
+            // Errors are surfaced as diagnostics on Nargo.toml
+            let _ = handle_text_document_open_or_close_notification(state, uri);
+        }
+    }
     ControlFlow::Continue(())
 }
 
@@ -50,9 +124,8 @@ pub(crate) fn on_did_open_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
-    let change = false;
 
-    match handle_text_document_notification(state, document_uri, change) {
+    match handle_text_document_open_or_close_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -67,9 +140,8 @@ pub(super) fn on_did_change_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
-    let change = true;
 
-    match handle_text_document_notification(state, document_uri, change) {
+    match handle_on_did_change_text_document_notification(state, document_uri, &text) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -83,9 +155,8 @@ pub(super) fn on_did_close_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
-    let change = false;
 
-    match handle_text_document_notification(state, document_uri, change) {
+    match handle_text_document_open_or_close_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -95,91 +166,145 @@ pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let workspace = match workspace_from_document_uri(params.text_document.uri) {
-        Ok(workspace) => workspace,
+    let workspace = match workspace_from_document_uri(state, params.text_document.uri) {
+        Ok(Some(workspace)) => workspace,
+        Ok(None) => return ControlFlow::Continue(()),
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
-    // Process any pending changes
-    if state.workspaces_to_process.remove(&workspace.root_dir) {
-        let _ = process_workspace(state, &workspace, false);
+    match process_workspace(state, &workspace) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
     }
-
-    // Cached data should be here but, if it doesn't, we'll just type-check and output diagnostics
-    let (Some(workspace_cache), Some(package_cache)) = (
-        state.workspace_cache.get(&workspace.root_dir),
-        state.package_cache.get(&workspace.root_dir),
-    ) else {
-        let output_diagnostics = true;
-        return match process_workspace(state, &workspace, output_diagnostics) {
-            Ok(_) => ControlFlow::Continue(()),
-            Err(err) => return ControlFlow::Break(Err(err)),
-        };
-    };
-
-    // If the last thing the user did was to save a file in the workspace, it could be that
-    // the underlying files in the filesystem have changed (for example a `git checkout`),
-    // so here we force a type-check just in case.
-    if package_cache.diagnostics_just_published {
-        let output_diagnostics = true;
-        return match process_workspace(state, &workspace, output_diagnostics) {
-            Ok(_) => ControlFlow::Continue(()),
-            Err(err) => return ControlFlow::Break(Err(err)),
-        };
-    }
-
-    // Otherwise, we can publish the diagnostics we computed in the last type-check
-    publish_diagnostics(
-        state,
-        &workspace.root_dir,
-        &workspace_cache.file_manager.clone(),
-        package_cache.diagnostics.clone(),
-    );
-
-    if let Some(package_cache) = state.package_cache.get_mut(&workspace.root_dir) {
-        package_cache.diagnostics_just_published = true;
-    }
-
-    ControlFlow::Continue(())
 }
 
-fn handle_text_document_notification(
+fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
-    change: bool,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri.clone())?;
+    let Some(workspace) = workspace_from_document_uri(state, document_uri)? else {
+        return Ok(());
+    };
 
     if state.package_cache.contains_key(&workspace.root_dir) {
-        // If we have cached data but the file didn't change there's nothing to do
-        if change {
-            state.workspaces_to_process.insert(workspace.root_dir.clone());
-        }
         Ok(())
     } else {
         // If it's the first time we see this package, show diagnostics.
         // This can happen for example when a user opens a Noir file in a package for the first time.
-        let output_diagnostics = true;
-        process_workspace(state, &workspace, output_diagnostics)
+        process_workspace(state, &workspace)
+    }
+}
+
+fn handle_on_did_change_text_document_notification(
+    state: &mut LspState,
+    document_uri: Url,
+    text: &str,
+) -> Result<(), async_lsp::Error> {
+    let Some(workspace) = workspace_from_document_uri(state, document_uri.clone())? else {
+        return Ok(());
+    };
+
+    if state.package_cache.contains_key(&workspace.root_dir) {
+        process_workspace_for_single_file_change(state, &workspace, document_uri, text)
+    } else {
+        // If it's the first time we see this package, show diagnostics.
+        // This can happen for example when a user opens a Noir file in a package for the first time.
+        process_workspace(state, &workspace)
     }
 }
 
 pub(crate) fn workspace_from_document_uri(
+    state: &mut LspState,
     document_uri: Url,
-) -> Result<Workspace, async_lsp::Error> {
+) -> Result<Option<Workspace>, async_lsp::Error> {
     if document_uri.scheme() == "noir-std" {
-        Ok(fake_stdlib_workspace())
-    } else {
-        let file_path = document_uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-        let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-        })?;
-
-        Ok(workspace)
+        return Ok(Some(fake_stdlib_workspace()));
     }
+
+    let file_path = document_uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
+
+    match resolve_workspace_for_source_path(&file_path) {
+        Ok(workspace) => {
+            // If this workspace's Nargo.toml previously had errors, clear them now.
+            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join("Nargo.toml"))
+                && state.toml_files_with_errors.remove(&toml_uri)
+            {
+                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: toml_uri,
+                    version: None,
+                    diagnostics: vec![],
+                });
+            }
+            Ok(Some(workspace))
+        }
+        Err(LspError::ManifestError(toml_path, error)) => {
+            publish_nargo_toml_error(state, &toml_path, &error);
+            Ok(None)
+        }
+        Err(lsp_error) => {
+            Err(ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string()).into())
+        }
+    }
+}
+
+/// Publishes a diagnostic on the Nargo.toml file and sends a `window/showMessage` notification.
+fn publish_nargo_toml_error(
+    state: &mut LspState,
+    toml_path: &Path,
+    error: &nargo_toml::ManifestError,
+) {
+    let Ok(toml_uri) = Url::from_file_path(toml_path) else {
+        return;
+    };
+
+    // Compute the diagnostic range. For TOML parse errors we have a byte-offset span;
+    // for everything else we highlight the beginning of the file.
+    let range = if let nargo_toml::ManifestError::MalformedFile(toml_error) = error {
+        if let Some(span) = toml_error.span()
+            && let Ok(content) = std::fs::read_to_string(toml_path)
+        {
+            let start = byte_offset_to_position(&content, span.start);
+            let end = byte_offset_to_position(&content, span.end);
+            Range { start, end }
+        } else {
+            Range::default()
+        }
+    } else {
+        Range::default()
+    };
+
+    let diagnostic = Diagnostic {
+        range,
+        severity: Some(DiagnosticSeverity::ERROR),
+        message: error.to_string(),
+        ..Default::default()
+    };
+
+    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+        uri: toml_uri.clone(),
+        version: None,
+        diagnostics: vec![diagnostic],
+    });
+    state.toml_files_with_errors.insert(toml_uri);
+}
+
+fn byte_offset_to_position(content: &str, offset: usize) -> Position {
+    let mut line = 0u32;
+    let mut character = 0u32;
+    for (i, ch) in content.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            character = 0;
+        } else {
+            character += 1;
+        }
+    }
+    Position { line, character }
 }
 
 // Given a Noir document, find the workspace it's contained in (an assumed workspace is created if
@@ -188,7 +313,6 @@ pub(crate) fn workspace_from_document_uri(
 pub(crate) fn process_workspace(
     state: &mut LspState,
     workspace: &Workspace,
-    output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
     let mut workspace_file_manager = workspace.new_file_manager();
     if workspace.is_assumed {
@@ -205,7 +329,7 @@ pub(crate) fn process_workspace(
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
-    for package in workspace.into_iter() {
+    for package in workspace {
         let (mut context, crate_id) =
             crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
@@ -230,16 +354,12 @@ pub(crate) fn process_workspace(
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
-                diagnostics: file_diagnostics.clone(),
-                diagnostics_just_published: output_diagnostics,
             },
         );
 
         let fm = &context.file_manager;
 
-        if output_diagnostics {
-            publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
-        }
+        publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
     }
 
     state.workspace_cache.insert(
@@ -248,6 +368,129 @@ pub(crate) fn process_workspace(
     );
 
     Ok(())
+}
+
+/// Type-checks a single file that changed by using existing cached data for the workspace/package,
+/// such as the cached NodeInterner, CrateGraph and DefMaps.
+///
+/// This greatly improves the responsiveness of the LSP server when editing files. However,
+/// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
+/// from the code, it will still existing in the cached data and it will still be offered as
+/// autocompletion. Or for example if the compiler refuses to re-process a trait because
+/// it's already defined, new methods defined on that trait won't be available for autocompletion.
+/// However, this is solved when the file is saved as the entire package is re-processed then.
+/// We think this is an acceptable trade-off to improve responsiveness, and it could eventually
+/// be further improved.
+pub(crate) fn process_workspace_for_single_file_change(
+    state: &mut LspState,
+    workspace: &Workspace,
+    file_uri: Url,
+    file_source: &str,
+) -> Result<(), async_lsp::Error> {
+    let root_dir = &workspace.root_dir;
+    let mut workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
+    let mut package_cache = state.package_cache.remove(root_dir).unwrap();
+
+    let mut file_manager = workspace_cache.file_manager;
+    let file_map = file_manager.as_file_map();
+    let file_path = uri_to_file_path(&file_uri)?;
+
+    // We need to replace the file's source in the file manager
+    let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
+    file_manager.replace_file(file_id, file_source.to_string());
+
+    let mut node_interner = package_cache.node_interner;
+
+    // Clear some locations associated with this file. For example, locations associated
+    // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
+    // This also removes methods that were defined in this file.
+    node_interner.clear_in_file(file_id);
+
+    let mut def_maps = package_cache.def_maps;
+    let crate_graph = package_cache.crate_graph;
+
+    let crate_id = package_cache.crate_id;
+
+    // Get a hold of the CrateDefMap for this crate, by removing it.
+    // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
+    let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
+
+    // Find out the local module ID corresponding to this file
+    let module_index = crate_def_map
+        .modules()
+        .iter()
+        .find(|(_, module_data)| module_data.location.file == file_id)
+        .unwrap()
+        .0;
+    let module_id = LocalModuleId::new(module_index);
+
+    // Clear all the definitions in the existing module (and its children, as long as they happen in
+    // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
+    clear_all_in_file(file_id, module_id, &mut crate_def_map);
+
+    // Parse the program and add it to the parsed files
+    let (parsed_program, errors) = parse_program(file_source, file_id);
+    let mut parsed_files = parse_diff(&file_manager, state);
+    parsed_files.insert(file_id, (parsed_program.clone(), errors));
+
+    // Prepare some things to create a Context
+    let sorted_module = parsed_program.into_sorted();
+    let def_collector = DefCollector::new(crate_def_map);
+    let mut context =
+        Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+    context.activate_lsp_mode(LspMode::SingleFile);
+
+    // Here we enable all options because we won't show errors to users, so it's easier to
+    // assume all unstable features are enabled.
+    let options = FrontendOptions {
+        debug_comptime_in_file: None,
+        enabled_unstable_features: &[UnstableFeature::Enums, UnstableFeature::TraitAsType],
+        disable_required_unstable_features: false,
+    };
+
+    // This is when the type-checking of this single file happens
+    let reuse_existing_module_declarations = true;
+    let mut errors = CompilationErrors::default();
+    DefCollector::collect_defs_and_elaborate(
+        sorted_module,
+        file_id,
+        module_id,
+        crate_id,
+        &mut context,
+        def_collector,
+        options,
+        reuse_existing_module_declarations,
+        &mut errors,
+    );
+
+    // Put some things back before restoring the cached data
+    package_cache.node_interner = context.def_interner;
+    package_cache.def_maps = context.def_maps;
+    package_cache.crate_graph = context.crate_graph;
+
+    workspace_cache.file_manager = file_manager;
+
+    state.workspace_cache.insert(root_dir.clone(), workspace_cache);
+    state.package_cache.insert(root_dir.clone(), package_cache);
+
+    Ok(())
+}
+
+fn clear_all_in_file(file: FileId, module_id: LocalModuleId, crate_def_map: &mut CrateDefMap) {
+    let mut module_ids = vec![module_id];
+
+    while let Some(module_id) = module_ids.pop() {
+        let module_data = &mut crate_def_map[module_id];
+        if module_data.location.file != file {
+            continue;
+        }
+
+        module_data.clear();
+
+        for child_module_id in module_data.children.values() {
+            module_ids.push(*child_module_id);
+        }
+    }
 }
 
 pub(crate) fn fake_stdlib_workspace() -> Workspace {
@@ -260,7 +503,6 @@ pub(crate) fn fake_stdlib_workspace() -> Workspace {
         entry_path: PathBuf::from_str("fake_entry_path.nr").unwrap(),
         name: CrateName::from_str("fake_std").unwrap(),
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
     Workspace {
         root_dir: PathBuf::from_str("std").unwrap(),
@@ -280,15 +522,14 @@ fn publish_diagnostics(
     let files = fm.as_file_map();
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
-    for custom_diagnostic in custom_diagnostics.into_iter() {
+    for custom_diagnostic in custom_diagnostics {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
-        if let Some(uri) = uri_from_path(path) {
-            if let Some(diagnostic) =
+        if let Some(uri) = uri_from_path(path)
+            && let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
-            {
-                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
-            }
+        {
+            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
         }
     }
 
@@ -425,29 +666,18 @@ mod notification_tests {
     use super::*;
     use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
-        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
-        WorkDoneProgressParams,
+        TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
 
     #[test]
     async fn test_caches_open_files() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+        // Open the document with empty text.
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", "").await;
 
-        // Open the document, fake the text to be empty
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: "".to_string(),
-                },
-            },
-        );
-
-        // Fake the text to change to "global a = 1;"
+        // Then change the in-memory text to "global a = true;" and verify subsequent requests
+        // see the new content, not what's on disk.
         let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {

@@ -1,11 +1,12 @@
 //! Primitive type definitions
 
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
     QuotedType, Type,
     ast::{GenericTypeArgs, IntegerBitSize},
-    elaborator::{Elaborator, PathResolutionMode, Turbofish},
+    elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{
@@ -28,16 +29,15 @@ pub enum PrimitiveType {
     I16,
     I32,
     I64,
-    U1,
     U8,
     U16,
     U32,
     U64,
     U128,
+    Location,
     Module,
     Quoted,
     Str,
-    StructDefinition,
     TraitConstraint,
     TraitDefinition,
     TraitImpl,
@@ -56,11 +56,11 @@ impl PrimitiveType {
             "fmtstr" => Some(Self::Fmtstr),
             "Field" => Some(Self::Field),
             "FunctionDefinition" => Some(Self::FunctionDefinition),
+            "Location" => Some(Self::Location),
             "i8" => Some(Self::I8),
             "i16" => Some(Self::I16),
             "i32" => Some(Self::I32),
             "i64" => Some(Self::I64),
-            "u1" => Some(Self::U1),
             "u8" => Some(Self::U8),
             "u16" => Some(Self::U16),
             "u32" => Some(Self::U32),
@@ -69,7 +69,6 @@ impl PrimitiveType {
             "Module" => Some(Self::Module),
             "Quoted" => Some(Self::Quoted),
             "str" => Some(Self::Str),
-            "StructDefinition" => Some(Self::StructDefinition),
             "TraitConstraint" => Some(Self::TraitConstraint),
             "TraitDefinition" => Some(Self::TraitDefinition),
             "TraitImpl" => Some(Self::TraitImpl),
@@ -93,24 +92,57 @@ impl PrimitiveType {
             Self::I16 => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Self::I32 => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Self::I64 => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Self::U1 => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
             Self::U8 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Self::U16 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Self::U32 => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Self::U64 => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Self::U128 => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
+            Self::Location => Type::Quoted(QuotedType::Location),
             Self::Module => Type::Quoted(QuotedType::Module),
             Self::Quoted => Type::Quoted(QuotedType::Quoted),
             Self::Str => Type::String(Box::new(Type::Error)),
             Self::TraitConstraint => Type::Quoted(QuotedType::TraitConstraint),
             Self::TraitDefinition => Type::Quoted(QuotedType::TraitDefinition),
             Self::TraitImpl => Type::Quoted(QuotedType::TraitImpl),
-            Self::StructDefinition | Self::TypeDefinition => {
-                Type::Quoted(QuotedType::TypeDefinition)
-            }
+            Self::TypeDefinition => Type::Quoted(QuotedType::TypeDefinition),
             Self::TypedExpr => Type::Quoted(QuotedType::TypedExpr),
             Self::Type => Type::Quoted(QuotedType::Type),
             Self::UnresolvedType => Type::Quoted(QuotedType::UnresolvedType),
+        }
+    }
+
+    /// Inverse of `to_type()`: converts a `Type` back to a `PrimitiveType` if possible.
+    pub fn from_type(typ: &Type) -> Option<Self> {
+        match typ {
+            Type::Bool => Some(Self::Bool),
+            Type::FieldElement => Some(Self::Field),
+            Type::Integer(Signedness::Signed, IntegerBitSize::Eight) => Some(Self::I8),
+            Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen) => Some(Self::I16),
+            Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo) => Some(Self::I32),
+            Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour) => Some(Self::I64),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) => Some(Self::U8),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen) => Some(Self::U16),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Some(Self::U32),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour) => Some(Self::U64),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                Some(Self::U128)
+            }
+            Type::String(_) => Some(Self::Str),
+            Type::FmtString(_, _) => Some(Self::Fmtstr),
+            Type::Quoted(QuotedType::CtString) => Some(Self::CtString),
+            Type::Quoted(QuotedType::Expr) => Some(Self::Expr),
+            Type::Quoted(QuotedType::FunctionDefinition) => Some(Self::FunctionDefinition),
+            Type::Quoted(QuotedType::Location) => Some(Self::Location),
+            Type::Quoted(QuotedType::Module) => Some(Self::Module),
+            Type::Quoted(QuotedType::Quoted) => Some(Self::Quoted),
+            Type::Quoted(QuotedType::TraitConstraint) => Some(Self::TraitConstraint),
+            Type::Quoted(QuotedType::TraitDefinition) => Some(Self::TraitDefinition),
+            Type::Quoted(QuotedType::TraitImpl) => Some(Self::TraitImpl),
+            Type::Quoted(QuotedType::TypeDefinition) => Some(Self::TypeDefinition),
+            Type::Quoted(QuotedType::TypedExpr) => Some(Self::TypedExpr),
+            Type::Quoted(QuotedType::Type) => Some(Self::Type),
+            Type::Quoted(QuotedType::UnresolvedType) => Some(Self::UnresolvedType),
+            _ => None,
         }
     }
 
@@ -120,7 +152,6 @@ impl PrimitiveType {
             Self::I16 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
             Self::I32 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
             Self::I64 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
-            Self::U1 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::One)),
             Self::U8 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
             Self::U16 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
             Self::U32 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)),
@@ -134,10 +165,10 @@ impl PrimitiveType {
             | Self::Expr
             | Self::Fmtstr
             | Self::FunctionDefinition
+            | Self::Location
             | Self::Module
             | Self::Quoted
             | Self::Str
-            | Self::StructDefinition
             | Self::TraitConstraint
             | Self::TraitDefinition
             | Self::TraitImpl
@@ -160,16 +191,15 @@ impl PrimitiveType {
             Self::I16 => "i16",
             Self::I32 => "i32",
             Self::I64 => "i64",
-            Self::U1 => "u1",
             Self::U8 => "u8",
             Self::U16 => "u16",
             Self::U32 => "u32",
             Self::U64 => "u64",
             Self::U128 => "u128",
+            Self::Location => "Location",
             Self::Module => "Module",
             Self::Quoted => "Quoted",
             Self::Str => "str",
-            Self::StructDefinition => "StructDefinition",
             Self::TraitConstraint => "TraitConstraint",
             Self::TraitDefinition => "TraitDefinition",
             Self::TraitImpl => "TraitImpl",
@@ -182,12 +212,13 @@ impl PrimitiveType {
 }
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn instantiate_primitive_type(
         &mut self,
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         match primitive_type {
             PrimitiveType::Bool
@@ -199,15 +230,14 @@ impl Elaborator<'_> {
             | PrimitiveType::I16
             | PrimitiveType::I32
             | PrimitiveType::I64
-            | PrimitiveType::U1
             | PrimitiveType::U8
             | PrimitiveType::U16
             | PrimitiveType::U32
             | PrimitiveType::U64
             | PrimitiveType::U128
+            | PrimitiveType::Location
             | PrimitiveType::Module
             | PrimitiveType::Quoted
-            | PrimitiveType::StructDefinition
             | PrimitiveType::TraitConstraint
             | PrimitiveType::TraitDefinition
             | PrimitiveType::TraitImpl
@@ -236,7 +266,7 @@ impl Elaborator<'_> {
                     PathResolutionMode::MarkAsReferenced,
                     wildcard_allowed,
                 );
-                assert_eq!(args.len(), 1);
+                assert_eq!(args.len(), 1, "str generics should be: [length]");
                 let length = args.pop().unwrap();
                 return Type::String(Box::new(length));
             }
@@ -249,7 +279,7 @@ impl Elaborator<'_> {
                     PathResolutionMode::MarkAsReferenced,
                     wildcard_allowed,
                 );
-                assert_eq!(args.len(), 2);
+                assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
                 let element = args.pop().unwrap();
                 let length = args.pop().unwrap();
                 return Type::FmtString(Box::new(length), Box::new(element));
@@ -259,11 +289,19 @@ impl Elaborator<'_> {
         primitive_type.to_type()
     }
 
+    /// Instantiates a primitive type with turbofish generics.
+    ///
+    /// # Returns
+    /// A tuple of:
+    /// - The instantiated [Type]
+    /// - A boolean indicating whether this primitive type has generics
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn instantiate_primitive_type_with_turbofish(
         &mut self,
         primitive_type: PrimitiveType,
         turbofish: Option<Turbofish>,
-    ) -> Type {
+        errors: &mut Vec<CompilationError>,
+    ) -> (Type, bool) {
         match primitive_type {
             PrimitiveType::Bool
             | PrimitiveType::CtString
@@ -274,15 +312,14 @@ impl Elaborator<'_> {
             | PrimitiveType::I16
             | PrimitiveType::I32
             | PrimitiveType::I64
-            | PrimitiveType::U1
             | PrimitiveType::U8
             | PrimitiveType::U16
             | PrimitiveType::U32
             | PrimitiveType::U64
             | PrimitiveType::U128
+            | PrimitiveType::Location
             | PrimitiveType::Module
             | PrimitiveType::Quoted
-            | PrimitiveType::StructDefinition
             | PrimitiveType::TraitConstraint
             | PrimitiveType::TraitDefinition
             | PrimitiveType::TraitImpl
@@ -291,7 +328,7 @@ impl Elaborator<'_> {
             | PrimitiveType::Type
             | PrimitiveType::UnresolvedType => {
                 if let Some(turbofish) = turbofish {
-                    self.push_err(CompilationError::TypeError(
+                    errors.push(CompilationError::TypeError(
                         TypeCheckError::GenericCountMismatch {
                             item: primitive_type.name().to_string(),
                             expected: 0,
@@ -300,13 +337,14 @@ impl Elaborator<'_> {
                         },
                     ));
                 }
-                primitive_type.to_type()
+                (primitive_type.to_type(), false)
             }
             PrimitiveType::Str => {
                 let item = StrPrimitiveType;
                 let item_generic_kinds = item.generic_kinds(self.interner);
-                let kind = item_generic_kinds[0].clone();
-                let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                let generics = vecmap(&item_generic_kinds, |kind| {
+                    self.interner.next_type_variable_with_kind(kind.clone())
+                });
                 let mut args = if let Some(turbofish) = turbofish {
                     self.resolve_item_turbofish_generics(
                         item.item_kind(),
@@ -315,35 +353,69 @@ impl Elaborator<'_> {
                         generics,
                         Some(turbofish.generics),
                         turbofish.location,
+                        errors,
                     )
                 } else {
                     generics
                 };
-                assert_eq!(args.len(), 1);
+                assert_eq!(args.len(), 1, "str generics should be: [length]");
                 let length = args.pop().unwrap();
-                Type::String(Box::new(length))
+                (Type::String(Box::new(length)), true)
             }
             PrimitiveType::Fmtstr => {
-                let item_generic_kinds = FmtstrPrimitiveType {}.generic_kinds(self.interner);
-                let kind = item_generic_kinds[0].clone();
-                let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                let item = FmtstrPrimitiveType;
+                let item_generic_kinds = item.generic_kinds(self.interner);
+                let generics = vecmap(&item_generic_kinds, |kind| {
+                    self.interner.next_type_variable_with_kind(kind.clone())
+                });
                 let mut args = if let Some(turbofish) = turbofish {
                     self.resolve_item_turbofish_generics(
-                        "primitive type",
-                        "fmtstr",
+                        FmtstrPrimitiveType.item_kind(),
+                        &item.item_name(self.interner),
                         item_generic_kinds,
                         generics,
                         Some(turbofish.generics),
                         turbofish.location,
+                        errors,
                     )
                 } else {
                     generics
                 };
-                assert_eq!(args.len(), 2);
+                assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
                 let element = args.pop().unwrap();
                 let length = args.pop().unwrap();
-                Type::FmtString(Box::new(length), Box::new(element))
+                (Type::FmtString(Box::new(length), Box::new(element)), true)
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use strum::IntoEnumIterator;
+
+    use super::PrimitiveType;
+
+    #[test]
+    fn from_type_to_type() {
+        for primitive in PrimitiveType::iter() {
+            let typ = primitive.to_type();
+            let recovered = PrimitiveType::from_type(&typ);
+            assert_eq!(
+                recovered,
+                Some(primitive),
+                "from_type(to_type({primitive:?})) should roundtrip"
+            );
+        }
+    }
+
+    #[test]
+    fn to_type_from_type() {
+        for primitive in PrimitiveType::iter() {
+            let typ = primitive.to_type();
+            let recovered = PrimitiveType::from_type(&typ).unwrap();
+            let typ2 = recovered.to_type();
+            assert_eq!(typ, typ2, "to_type(from_type(to_type({primitive:?}))) should roundtrip");
         }
     }
 }

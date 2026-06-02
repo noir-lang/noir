@@ -14,6 +14,7 @@ pub fn foo(
     (b, c): (i32, i32),
 ) -> i32 {
     let _ = (w, y, x, some_field, a, b, c);
+    a = true;
     1
 }
 
@@ -65,39 +66,8 @@ comptime fn check_visibility(f: FunctionDefinition) {
     assert_eq(f.visibility(), quote { pub(crate) })
 }
 
-#[mutate_add_one]
-fn add_one() {}
-
-comptime fn mutate_add_one(f: FunctionDefinition) {
-    // fn add_one(x: Field)
-    assert_eq(f.parameters().len(), 0);
-    f.set_parameters(&[(quote { x }, type_of(0))]);
-    assert_eq(f.parameters().len(), 1);
-
-    // fn add_one(x: Field) -> Field
-    assert_eq(f.return_type(), type_of(()));
-    f.set_return_type(type_of(0));
-    assert_eq(f.return_type(), type_of(0));
-
-    // fn add_one(x: Field) -> Field { x + 1 }
-    f.set_body(quote { x + 1 }.as_expr().unwrap());
-}
-
 fn main() {
-    assert_eq(add_one(41), 42);
     pub_crate_fn();
-}
-
-contract some_contract {
-    // No pub on the return type is an error
-    #[super::set_pub_return]
-    pub fn bar() -> Field {
-        1
-    }
-}
-
-comptime fn set_pub_return(f: FunctionDefinition) {
-    f.set_return_public(true);
 }
 
 mod foo {
@@ -106,13 +76,6 @@ mod foo {
 
     comptime fn attr(f: FunctionDefinition) {
         assert_eq(f.module().name(), quote { foo });
-
-        assert(!f.is_unconstrained());
-
-        f.set_unconstrained(true);
-        assert(f.is_unconstrained());
-
-        f.set_unconstrained(false);
         assert(!f.is_unconstrained());
     }
 }
@@ -127,7 +90,7 @@ mod test_as_typed_expr_1 {
     comptime fn foo(module: Module) -> Quoted {
         let method = module.functions().filter(|f| f.name() == quote { method })[0];
         let func = method.as_typed_expr();
-        quote { 
+        quote {
             pub fn bar() -> i32 {
                 $func(1)
             }
@@ -151,10 +114,12 @@ mod test_as_typed_expr_2 {
     comptime fn foo(module: Module) -> Quoted {
         let method = module.functions().filter(|f| f.name() == quote { method })[0];
         let func = method.as_typed_expr();
-        quote { 
+        quote {
             pub fn bar() -> u32 {
                 // Safety: test program
-                unsafe { $func([1, 2, 3, 0]) }
+                unsafe {
+                    $func([1, 2, 3, 0])
+                }
             }
         }
     }
@@ -177,10 +142,12 @@ mod test_as_typed_expr_3 {
     comptime fn foo(module: Module) -> Quoted {
         let method = module.functions().filter(|f| f.name() == quote { method })[0];
         let func = method.as_typed_expr();
-        quote { 
+        quote {
             pub fn bar() -> u32 {
                 // Safety: test program
-                comptime { $func(([1, 2, 3, 0], "a")) }
+                comptime {
+                    $func(([1, 2, 3, 0], "a"))
+                }
             }
         }
     }
@@ -195,8 +162,8 @@ mod test_as_typed_expr_3 {
 mod test_as_typed_expr_4 {
     comptime fn foo(f: TypedExpr) -> Quoted {
         quote {
-        $f()
-    }
+            $f()
+        }
     }
 
     fn bar() -> Field {
@@ -206,9 +173,9 @@ mod test_as_typed_expr_4 {
     fn baz() -> Field {
         let x: Field = comptime {
             let bar_q = quote {
-            bar
-        };
-            foo(bar_q.as_expr().unwrap().resolve(Option::none()))
+                bar
+            };
+            foo!(bar_q.as_expr().unwrap().resolve(Option::none()))
         };
         x
     }

@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main() -> pub Field {
+    println(foo);
+    println(bar);
+    println(std::as_witness);
+    println(std::hash::blake2s::<10>);
+    // Safety: comment added by `nargo expand`
+    unsafe { unconstrained_take_bar(bar); };
+    take_bar(bar);
+    // Safety: comment added by `nargo expand`
+    unsafe { unconstrained_take_as_witness(std::as_witness); };
+    take_as_witness(std::as_witness);
+    std::as_witness(foo());
+    take_foo(foo)
+}
+
+fn foo() -> Field {
+    0_Field
+}
+
+#[oracle(barnacle)]
+unconstrained fn bar() -> Field {}
+
+fn take_foo(foo: fn() -> Field) -> Field {
+    foo()
+}
+
+fn take_bar(_bar: unconstrained fn() -> Field) {}
+
+unconstrained fn unconstrained_take_bar(_bar: unconstrained fn() -> Field) {}
+
+fn take_as_witness(aw: fn(Field)) {
+    aw(0_Field)
+}
+
+unconstrained fn unconstrained_take_as_witness(aw: fn(Field)) {
+    aw(0_Field)
+}

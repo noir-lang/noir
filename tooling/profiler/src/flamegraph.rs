@@ -6,8 +6,9 @@ use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 use color_eyre::eyre;
 use fm::codespan_files::Files;
 use inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
+use noirc_artifacts::debug::DebugInfo;
 use noirc_errors::Location;
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::call_stack::CallStack;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_evaluator::brillig::ProcedureId;
 use rustc_hash::FxHashMap as HashMap;
@@ -177,16 +178,16 @@ fn find_callsite_labels<'files>(
 ) -> Vec<String> {
     let mut procedure_id = None;
     let source_locations = match opcode_location {
-        OpcodeLocation::Acir(idx) => {
-            debug_symbols.acir_opcode_location(&AcirOpcodeLocation::new(*idx)).unwrap_or_default()
-        }
+        OpcodeLocation::Acir(idx) => debug_symbols
+            .acir_opcode_location(&AcirOpcodeLocation::new(*idx))
+            .unwrap_or_else(CallStack::empty),
         OpcodeLocation::Brillig { .. } => {
             if let (Some(brillig_function_id), Some(brillig_location)) =
                 (brillig_function_id, opcode_location.to_brillig_location())
             {
                 let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
                 if let Some(procedure_locs) = procedure_locs {
-                    for (procedure, range) in procedure_locs.iter() {
+                    for (procedure, range) in procedure_locs {
                         if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
                             procedure_id = Some(*procedure);
                             break;
@@ -198,13 +199,14 @@ fn find_callsite_labels<'files>(
                 if let Some(brillig_locations) = brillig_locations {
                     brillig_locations
                         .get(&brillig_location)
-                        .map(|call_stack| debug_symbols.location_tree.get_call_stack(*call_stack))
-                        .unwrap_or_default()
+                        .map_or_else(CallStack::empty, |call_stack| {
+                            debug_symbols.location_tree.get_call_stack(*call_stack)
+                        })
                 } else {
-                    vec![]
+                    CallStack::empty()
                 }
             } else {
-                vec![]
+                CallStack::empty()
             }
         }
     };
@@ -228,11 +230,10 @@ fn location_to_callsite_label<'files>(
     let filename =
         Path::new(&files.name(location.file).expect("should have a file path").to_string())
             .file_name()
-            .map(|os_str| os_str.to_string_lossy().to_string())
-            .unwrap_or("invalid_path".to_string());
+            .map_or("invalid_path".to_string(), |os_str| os_str.to_string_lossy().to_string());
     let source = files.source(location.file).expect("should have a file source");
 
-    let code_slice = source
+    let code_vector = source
         .as_ref()
         .chars()
         .skip(location.span.start() as usize)
@@ -240,12 +241,12 @@ fn location_to_callsite_label<'files>(
         .collect::<String>();
 
     // ";" is used for frame separation, and is not allowed by inferno
-    // Check code slice for ";" and replace it with 'GREEK QUESTION MARK' (U+037E)
-    let code_slice = code_slice.replace(';', "\u{037E}");
+    // Check code vector for ";" and replace it with 'GREEK QUESTION MARK' (U+037E)
+    let code_vector = code_vector.replace(';', "\u{037E}");
 
     let (line, column) = line_and_column_from_span(source.as_ref(), &location.span);
 
-    format!("{filename}:{line}:{column}::{code_slice}")
+    format!("{filename}:{line}:{column}::{code_vector}")
 }
 
 fn add_locations_to_folded_stack_items(
@@ -278,7 +279,7 @@ fn to_folded_sorted_lines(
 ) -> Vec<String> {
     let mut result_vector = Vec::with_capacity(folded_stack_items.len());
 
-    for (location, folded_stack_item) in folded_stack_items.iter() {
+    for (location, folded_stack_item) in folded_stack_items {
         if folded_stack_item.total_samples > 0 {
             let frame_list: Vec<String> =
                 parent_stacks.iter().cloned().chain(std::iter::once(location.clone())).collect();
@@ -286,7 +287,7 @@ fn to_folded_sorted_lines(
                 format!("{} {}", frame_list.join(";"), folded_stack_item.total_samples);
 
             result_vector.push(line);
-        };
+        }
 
         let mut new_parent_stacks = parent_stacks.clone();
         new_parent_stacks.push_back(location.clone());
@@ -307,10 +308,10 @@ mod tests {
         native_types::Expression,
     };
     use fm::FileManager;
+    use noirc_artifacts::debug::{DebugInfo, LocationTree};
     use noirc_errors::{
         Location, Span,
-        call_stack::{CallStackHelper, CallStackId},
-        debug_info::DebugInfo,
+        call_stack::{CallStack, CallStackHelper, CallStackId},
     };
     use std::{collections::BTreeMap, path::Path};
 
@@ -372,27 +373,29 @@ mod tests {
         let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
         let mut call_stack_hlp = CallStackHelper::default();
         // main::foo::baz::whatever
-        let call_stack_id = call_stack_hlp.get_or_insert_locations(&vec![
+        let call_stack_id = call_stack_hlp.get_or_insert_locations(&CallStack::new(vec![
             main_declaration_location,
             main_foo_call_location,
             foo_baz_call_location,
             baz_whatever_call_location,
-        ]);
+        ]));
         opcode_locations.insert(AcirOpcodeLocation::new(0), call_stack_id);
         // main::bar::whatever
-        let call_stack_id = call_stack_hlp.get_or_insert_locations(&vec![
+        let call_stack_id = call_stack_hlp.get_or_insert_locations(&CallStack::new(vec![
             main_declaration_location,
             main_bar_call_location,
             bar_whatever_call_location,
-        ]);
+        ]));
         opcode_locations.insert(AcirOpcodeLocation::new(1), call_stack_id);
         // main::whatever
-        let call_stack_id = call_stack_hlp
-            .get_or_insert_locations(&vec![main_declaration_location, main_whatever_call_location]);
+        let call_stack_id = call_stack_hlp.get_or_insert_locations(&CallStack::new(vec![
+            main_declaration_location,
+            main_whatever_call_location,
+        ]));
         opcode_locations.insert(AcirOpcodeLocation::new(2), call_stack_id);
 
         opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
-        let location_tree = call_stack_hlp.to_location_tree();
+        let location_tree = LocationTree::from(&call_stack_hlp);
 
         let debug_info = DebugInfo::new(
             BTreeMap::default(),

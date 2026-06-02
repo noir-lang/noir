@@ -39,12 +39,27 @@ mod formatter;
 
 use formatter::Formatter;
 use noirc_frontend::ParsedModule;
+use noirc_frontend::ast::{Expression, Statement};
 
 pub use config::{Config, ImportsGranularity};
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut formatter = Formatter::new(source, config);
     formatter.format_program(parsed_module);
+    formatter.buffer.contents()
+}
+
+/// Formats a single Noir statement given its source and parsed form.
+pub fn format_statement(source: &str, statement: Statement, config: &Config) -> String {
+    let mut formatter = Formatter::new(source, config);
+    formatter.format_single_statement(statement);
+    formatter.buffer.contents()
+}
+
+/// Formats a single Noir expression given its source and parsed form.
+pub fn format_expression(source: &str, expression: Expression, config: &Config) -> String {
+    let mut formatter = Formatter::new(source, config);
+    formatter.format_single_expression(expression);
     formatter.buffer.contents()
 }
 
@@ -86,4 +101,18 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
         println!("Expected (idempotent):\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~");
     }
     similar_asserts::assert_eq!(result, expected, "idempotent check failed");
+}
+
+#[cfg(test)]
+pub(crate) fn assert_formatter_changes_with_config(src: &str, config: Config) {
+    use noirc_frontend::parser;
+
+    let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
+    let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {errors:?}");
+    }
+    let result = format(src, parsed_module, &config);
+
+    assert_ne!(result, src, "idempotent check failed");
 }

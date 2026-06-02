@@ -1,25 +1,19 @@
-# Description
-
-## Problem\*
+## Problem Resolved
 
 Resolves <!-- Link to GitHub Issue -->
 
-## Summary\*
+## Summary of Changes
 
 
 
-## Additional Context
-
-
-
-## Documentation\*
+## User Documentation
 
 Check one:
-- [ ] No documentation needed.
-- [ ] Documentation included in this PR.
-- [ ] **[For Experimental Features]** Documentation to be submitted in a separate PR.
+- [ ] No user documentation needed.
+- [ ] Documented in _docs/_.
+- [ ] **[For Experimental Features]** Documentation tracking issue created: <!-- Link to GitHub Issue -->
 
-# PR Checklist\*
+## PR Checklist
 
 - [ ] I have tested the changes locally.
 - [ ] I have formatted the changes with [Prettier](https://prettier.io/) and/or `cargo fmt` on default settings.

@@ -1,0 +1,16 @@
+[package]
+name = "workspace_layering"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+serde_json.workspace = true

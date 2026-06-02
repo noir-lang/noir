@@ -1,8 +1,22 @@
 //! Implementation of the VM's memory.
+//!
+//! # Memory Addressing Limits
+//!
+//! The VM uses u32 addresses, theoretically allowing up to 2^32 memory slots. However,
+//! practical limits apply:
+//!
+//! - **Rust allocator limit**: All allocations are capped at `isize::MAX` bytes. On 32-bit
+//!   systems, this limits addressable memory to approximately `i32::MAX / sizeof(MemoryValue)`
+//!   elements (~44 million with typical element sizes).
+//!
+//! - **RAM limit**: On 64-bit systems, the allocator limit is not a concern, but allocating
+//!   the full u32 address space would require ~200 GB of RAM.
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
+
+use crate::assert_usize;
 
 /// The bit size used for addressing memory within the Brillig VM.
 ///
@@ -13,6 +27,48 @@ pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 ///
 /// It gets manipulated by opcodes laid down for calls by codegen.
 pub const STACK_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(0);
+
+/// The _free memory pointer_ is always in slot 1.
+///
+/// We added it here to be able to implement a workaround for wrapping around
+/// the free memory, ie. to detect "out of memory" events, but the AVM is not,
+/// and does not want to be aware of the _free memory pointer_, so we cannot,
+/// in general, build much functionality in the VM around it.
+pub const FREE_MEMORY_POINTER_ADDRESS: MemoryAddress = MemoryAddress::Direct(1);
+
+/// Offset constants for arrays and vectors:
+/// * Arrays are `[ref-count, ...items]`
+/// * Vectors are `[ref-count, size, capacity, ...items]`
+pub mod offsets {
+    /// Number of prefix fields in an array: RC.
+    pub const ARRAY_META_COUNT: u32 = 1;
+    pub const ARRAY_ITEMS: u32 = 1;
+
+    /// Number of prefix fields in a vector: RC, size, capacity.
+    pub const VECTOR_META_COUNT: u32 = 3;
+    pub const VECTOR_SIZE: u32 = 1;
+    pub const VECTOR_CAPACITY: u32 = 2;
+    pub const VECTOR_ITEMS: u32 = 3;
+}
+
+/// Wrapper for array addresses, with convenience methods for various offsets.
+///
+/// The array consists of a ref-count followed by a number of items according
+/// the size indicated by the type.
+pub(crate) struct ArrayAddress(MemoryAddress);
+
+impl ArrayAddress {
+    /// The start of the items, after the meta-data.
+    pub(crate) fn items_start(&self) -> MemoryAddress {
+        self.0.offset(offsets::ARRAY_ITEMS)
+    }
+}
+
+impl From<MemoryAddress> for ArrayAddress {
+    fn from(value: MemoryAddress) -> Self {
+        Self(value)
+    }
+}
 
 /// A single typed value in the Brillig VM's memory.
 ///
@@ -53,11 +109,23 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
         match bit_size {
-            IntegerBitSize::U1 => MemoryValue::U1(value != 0),
-            IntegerBitSize::U8 => MemoryValue::U8(value as u8),
-            IntegerBitSize::U16 => MemoryValue::U16(value as u16),
-            IntegerBitSize::U32 => MemoryValue::U32(value as u32),
-            IntegerBitSize::U64 => MemoryValue::U64(value as u64),
+            IntegerBitSize::U1 => MemoryValue::U1(match value {
+                0 => false,
+                1 => true,
+                _ => panic!("{value} is out of 1 bit range"),
+            }),
+            IntegerBitSize::U8 => {
+                MemoryValue::U8(value.try_into().expect("{value} is out of 8 bits range"))
+            }
+            IntegerBitSize::U16 => {
+                MemoryValue::U16(value.try_into().expect("{value} is out of 16 bits range"))
+            }
+            IntegerBitSize::U32 => {
+                MemoryValue::U32(value.try_into().expect("{value} is out of 32 bits range"))
+            }
+            IntegerBitSize::U64 => {
+                MemoryValue::U64(value.try_into().expect("{value} is out of 64 bits range"))
+            }
             IntegerBitSize::U128 => MemoryValue::U128(value),
         }
     }
@@ -77,9 +145,9 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Expects a `U32` value and converts it into `usize`, otherwise panics.
     ///
     /// Primarily a convenience method for using values in memory operations as pointers, sizes and offsets.
-    pub fn to_usize(&self) -> usize {
+    pub fn to_u32(&self) -> u32 {
         match self {
-            MemoryValue::U32(value) => (*value).try_into().unwrap(),
+            MemoryValue::U32(value) => *value,
             other => panic!("value is not typed as Brillig usize: {other}"),
         }
     }
@@ -100,10 +168,10 @@ impl<F: AcirField> MemoryValue<F> {
     /// Builds a memory value from a field element, checking that the value is within the bit size,
     /// otherwise returns `None`.
     pub fn new_checked(value: F, bit_size: BitSize) -> Option<Self> {
-        if let BitSize::Integer(bit_size) = bit_size {
-            if value.num_bits() > bit_size.into() {
-                return None;
-            }
+        if let BitSize::Integer(bit_size) = bit_size
+            && value.num_bits() > bit_size.into()
+        {
+            return None;
         }
 
         Some(MemoryValue::new_from_field(value, bit_size))
@@ -245,12 +313,6 @@ impl<F: AcirField> From<u8> for MemoryValue<F> {
     }
 }
 
-impl<F: AcirField> From<usize> for MemoryValue<F> {
-    fn from(value: usize) -> Self {
-        MemoryValue::U32(value as u32)
-    }
-}
-
 impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
         MemoryValue::U32(value)
@@ -309,31 +371,51 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
     }
 }
 /// The VM's memory.
+///
 /// Memory is internally represented as a vector of values.
 /// We grow the memory when values past the end are set, extending with 0s.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+///
+/// # Capacity Limits
+///
+/// The inner `Vec` is subject to Rust's allocator limit of `isize::MAX` bytes.
+/// This means:
+/// - On 64-bit: Practical limit is available RAM (~200 GB for full u32 range)
+/// - On 32-bit: Hard limit of ~44 million addressable slots
+///
+/// Exceeding these limits will cause a panic with "capacity overflow".
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Memory<F> {
     // Internal memory representation
     inner: Vec<MemoryValue<F>>,
+    /// Cached stack pointer to avoid a memory read + enum match on every
+    /// relative address resolution.
+    ///
+    /// The canonical value lives in memory slot [STACK_POINTER_ADDRESS]
+    /// and must remain there for downstream ZK VM proving. We mirror it here
+    /// because [Self::resolve] is called on every memory access
+    /// with a relative address. Updated on writes to slot [STACK_POINTER_ADDRESS]
+    /// which are more rare than reads.
+    stack_pointer: u32,
+}
+
+impl<F> Default for Memory<F> {
+    fn default() -> Self {
+        Self { inner: Vec::new(), stack_pointer: STACK_POINTER_ADDRESS.to_u32() }
+    }
 }
 
 impl<F: AcirField> Memory<F> {
-    /// Read the value from slot 0.
-    ///
-    /// Panics if it's not a `U32`.
-    fn get_stack_pointer(&self) -> usize {
-        self.read(STACK_POINTER_ADDRESS).to_usize()
-    }
-
     /// Resolve an address to either:
     /// * itself, if it's a direct address, or
-    /// * the current stack pointer plus the offset, if it's relative.
+    /// * the cached stack pointer plus the offset, if it's relative.
     ///
     /// Returns a memory slot index.
-    fn resolve(&self, address: MemoryAddress) -> usize {
+    fn resolve(&self, address: MemoryAddress) -> u32 {
         match address {
             MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Relative(offset) => {
+                self.stack_pointer.checked_add(offset).expect("stack pointer offset overflow")
+            }
         }
     }
 
@@ -341,39 +423,89 @@ impl<F: AcirField> Memory<F> {
     ///
     /// If the address is beyond the size of memory, a default value is returned.
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         self.inner.get(resolved_addr).copied().unwrap_or_default()
     }
 
     /// Reads the value at the address and returns it as a direct memory address,
     /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
-        MemoryAddress::direct(self.read(ptr).to_usize())
+        let resolved = assert_usize(self.resolve(ptr));
+        if resolved >= self.inner.len() {
+            panic!(
+                "read_ref: address {ptr:?} (resolved to {resolved}) is out of bounds (memory size: {})",
+                self.inner.len()
+            );
+        }
+        let value = self.inner[resolved];
+        let MemoryValue::U32(addr) = value else {
+            panic!(
+                "read_ref: expected a U32 pointer at address {ptr:?}, but found {value} ({})",
+                value.bit_size()
+            );
+        };
+        MemoryAddress::direct(addr)
     }
 
-    /// Read a contiguous slice of memory starting at `address`, up to `len` slots.
+    /// Sets `ptr` to point at `address`.
+    pub fn write_ref(&mut self, ptr: MemoryAddress, address: MemoryAddress) {
+        self.write(ptr, MemoryValue::from(address.to_u32()));
+    }
+
+    /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
     pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
-        // Allows to read a slice of uninitialized memory if the length is zero.
+        // Allows to read a vector of uninitialized memory if the length is zero.
         // Ideally we'd be able to read uninitialized memory in general (as read does)
-        // but that's not possible if we want to return a slice instead of owned data.
+        // but that's not possible if we want to return a vector instead of owned data.
         if len == 0 {
             return &[];
         }
-        let resolved_addr = self.resolve(address);
-        &self.inner[resolved_addr..(resolved_addr + len)]
+        let resolved_addr = assert_usize(self.resolve(address));
+        let end = resolved_addr.checked_add(len).expect("read_slice: address + len overflows");
+        assert!(
+            end <= self.inner.len(),
+            "read_slice: out of bounds — reading {len} elements from address {resolved_addr} \
+             exceeds memory size {}. Callers should validate sizes before calling read_slice.",
+            self.inner.len()
+        );
+        &self.inner[resolved_addr..end]
     }
 
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         self.resize_to_fit(resolved_addr + 1);
         self.inner[resolved_addr] = value;
+        if address == STACK_POINTER_ADDRESS
+            && let MemoryValue::U32(sp) = value
+        {
+            self.stack_pointer = sp;
+        }
     }
 
+    /// Maximum number of memory slots that can be allocated.
+    ///
+    /// This limit is set to `i32::MAX` to ensure deterministic behavior across all architectures.
+    /// On 32-bit systems, Rust's allocator limits allocations to `isize::MAX` bytes, which would
+    /// restrict us to fewer elements anyway. By using `i32::MAX`, we ensure the same behavior
+    /// on both 32-bit and 64-bit systems.
+    ///
+    /// See: <https://github.com/rust-lang/rust/pull/95295> and <https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html>
+    const MAX_MEMORY_SIZE: usize = i32::MAX as usize;
+
     /// Increase the size of memory fit `size` elements, or the current length, whichever is bigger.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size` exceeds [`Self::MAX_MEMORY_SIZE`].
     fn resize_to_fit(&mut self, size: usize) {
+        assert!(
+            size <= Self::MAX_MEMORY_SIZE,
+            "Memory address space exceeded: requested {size} slots, maximum is {} (i32::MAX)",
+            Self::MAX_MEMORY_SIZE
+        );
         // Calculate new memory size
         let new_size = std::cmp::max(self.inner.len(), size);
         // Expand memory to new size with default values if needed
@@ -382,10 +514,20 @@ impl<F: AcirField> Memory<F> {
 
     /// Sets the values after `address` to `values`
     pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
-        let resolved_addr = self.resolve(address);
+        let resolved_addr = assert_usize(self.resolve(address));
         let end_addr = resolved_addr + values.len();
         self.resize_to_fit(end_addr);
         self.inner[resolved_addr..end_addr].copy_from_slice(values);
+        if address == STACK_POINTER_ADDRESS
+            && let Some(MemoryValue::U32(sp)) = values.first()
+        {
+            self.stack_pointer = *sp;
+        }
+    }
+
+    /// Returns the number of memory slots currently allocated.
+    pub(crate) fn len(&self) -> usize {
+        self.inner.len()
     }
 
     /// Returns the values of the memory
@@ -398,6 +540,7 @@ impl<F: AcirField> Memory<F> {
 mod tests {
     use super::*;
     use acir::FieldElement;
+    use test_case::test_case;
 
     #[test]
     fn direct_write_and_read() {
@@ -422,7 +565,7 @@ mod tests {
         // Stack pointer + offset
         // 10 + 5 = 15
         assert_eq!(resolved_addr, 15);
-        assert_eq!(memory.values()[resolved_addr].to_u128().unwrap(), 42);
+        assert_eq!(memory.values()[assert_usize(resolved_addr)].to_u128().unwrap(), 42);
     }
 
     #[test]
@@ -528,9 +671,36 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
-    fn read_slice_from_non_existent_memory() {
+    #[should_panic(expected = "read_slice: out of bounds")]
+    fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "Memory address space exceeded")]
+    fn resize_to_fit_panics_when_exceeding_max_memory_size() {
+        let mut memory = Memory::<FieldElement>::default();
+        // Attempting to resize beyond i32::MAX should panic
+        memory.resize_to_fit(Memory::<FieldElement>::MAX_MEMORY_SIZE + 1);
+    }
+
+    #[test_case(IntegerBitSize::U1, 2)]
+    #[test_case(IntegerBitSize::U8, 256)]
+    #[test_case(IntegerBitSize::U16, u128::from(u16::MAX) + 1)]
+    #[test_case(IntegerBitSize::U32, u128::from(u32::MAX) + 1)]
+    #[test_case(IntegerBitSize::U64, u128::from(u64::MAX) + 1)]
+    #[should_panic(expected = "range")]
+    fn memory_value_new_integer_out_of_range(bit_size: IntegerBitSize, value: u128) {
+        let _ = MemoryValue::<FieldElement>::new_integer(value, bit_size);
+    }
+
+    #[test]
+    #[should_panic = "stack pointer offset overflow"]
+    fn memory_resolve_overflow() {
+        let mut memory = Memory::<FieldElement>::default();
+        memory.write(STACK_POINTER_ADDRESS, MemoryValue::from(u32::MAX - 10));
+        let addr = MemoryAddress::relative(20);
+        let _wrap = memory.resolve(addr);
     }
 }

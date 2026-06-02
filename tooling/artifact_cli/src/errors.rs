@@ -28,8 +28,14 @@ pub enum FilesystemError {
     #[error("Failed to create output witness file '{0}': {1}")]
     OutputWitnessCreationFailed(PathBuf, String),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("Failed to read file '{0}':\n{1}")]
+    FailedToReadFile(PathBuf, std::io::Error),
+
+    #[error("Failed to write file '{0}':\n{1}")]
+    FailedToWriteFile(PathBuf, std::io::Error),
+
+    #[error("Failed to create directory '{0}':\n{1}")]
+    FailedToCreateDirectory(PathBuf, std::io::Error),
 }
 
 #[derive(Debug, Error)]
@@ -84,4 +90,10 @@ pub enum CliError {
 
     #[error("Unknown contract function '{name}'; options: {names:?}")]
     UnknownContractFn { name: String, names: Vec<String> },
+
+    #[error("Failed to save program '{0}':\n{1}")]
+    FailedToSaveProgram(String, Box<CliError>),
+
+    #[error("Failed to save contract '{0}':\n{1}")]
+    FailedToSaveContract(String, Box<CliError>),
 }

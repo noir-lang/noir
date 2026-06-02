@@ -50,6 +50,14 @@ impl RuntimeType {
         )
     }
 
+    pub(crate) fn is_inline_never(&self) -> bool {
+        matches!(
+            self,
+            // This attribute is only allowed on Brillig functions
+            RuntimeType::Brillig(InlineType::InlineNever)
+        )
+    }
+
     pub(crate) fn is_no_predicates(&self) -> bool {
         matches!(
             self,
@@ -178,13 +186,19 @@ impl Function {
     /// None might be returned if the function ends up with all of its block
     /// terminators being `jmp`, `jmpif` or `unreachable`.
     pub(crate) fn returns(&self) -> Option<&[ValueId]> {
-        for block in self.reachable_blocks() {
-            let terminator = self.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                return Some(return_values);
-            }
+        match self.return_instruction()? {
+            TerminatorInstruction::Return { return_values, .. } => Some(return_values),
+            _ => None,
         }
-        None
+    }
+
+    /// Retrieve the return instruction of this function, if any.
+    pub(crate) fn return_instruction(&self) -> Option<&TerminatorInstruction> {
+        self.reachable_blocks().into_iter().find_map(|block| {
+            self.dfg[block]
+                .terminator()
+                .filter(|t| matches!(t, TerminatorInstruction::Return { .. }))
+        })
     }
 
     /// Collects all the reachable blocks of this function.
@@ -205,10 +219,11 @@ impl Function {
     }
 
     pub(crate) fn signature(&self) -> Signature {
-        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
-        let returns =
-            vecmap(self.returns().unwrap_or_default(), |ret| self.dfg.type_of_value(*ret));
-        Signature { params, returns }
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param).into_owned());
+        let returns = vecmap(self.returns().unwrap_or_default(), |ret| {
+            self.dfg.type_of_value(*ret).into_owned()
+        });
+        Signature::new(params, returns)
     }
 
     /// Finds the block of the function with the Return instruction
@@ -235,6 +250,28 @@ impl Function {
 
     pub fn view(&self) -> FunctionView {
         FunctionView(self)
+    }
+
+    /// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
+    ///                                                                                                                                                                                                                              
+    /// This creates a [FunctionInserter][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
+    /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
+    /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
+    /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
+    pub(crate) fn simplify_instructions(&mut self) {
+        use crate::ssa::ir::function_inserter::FunctionInserter;
+
+        let mut inserter = FunctionInserter::new(self);
+        let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
+
+        for &block in &blocks {
+            let instructions = inserter.function.dfg[block].take_instructions();
+            for instruction_id in &instructions {
+                inserter.push_instruction(*instruction_id, block, true);
+            }
+            inserter.map_terminator_in_place(block);
+        }
+        inserter.map_data_bus_in_place();
     }
 }
 
@@ -311,12 +348,12 @@ impl<'a> FunctionView<'a> {
 
     /// Return the types of the function parameters.
     pub fn parameter_types(&self) -> Vec<Type> {
-        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p))
+        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p).into_owned())
     }
 
     /// Return the types of the returned values, if there are any.
     pub fn return_types(&self) -> Option<Vec<Type>> {
-        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p)))
+        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p).into_owned()))
     }
 }
 
@@ -330,6 +367,19 @@ pub(crate) type FunctionId = Id<Function>;
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
+}
+
+impl Signature {
+    /// Construct a [Signature] whose parameter and return types have all
+    /// reference mutability canonicalized away. This makes `&T` and `&mut T`
+    /// compare equal when a [Signature] is used as a map key, matching
+    /// [Type::canonical_eq] leniency and the frontend's `&mut T → &T` coercion.
+    pub(crate) fn new(mut params: Vec<Type>, mut returns: Vec<Type>) -> Self {
+        for typ in params.iter_mut().chain(returns.iter_mut()) {
+            typ.canonicalize();
+        }
+        Self { params, returns }
+    }
 }
 
 #[test]

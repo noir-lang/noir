@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index 0 is out of bounds for this array of length 0
+  ┌─ src/main.nr:4:21
+  │
+4 │     let _ = lambdas[0]((0));
+  │                     -
+  │
+
+error: Index 0 is out of bounds for this array of length 0
+  ┌─ src/main.nr:7:21
+  │
+7 │     let _ = lambdas[0]((1));
+  │                     -
+  │
+
+error: Index 0 is out of bounds for this array of length 0
+   ┌─ src/main.nr:10:21
+   │
+10 │     let _ = lambdas[0]((2));
+   │                     -
+   │
+
+Aborting due to 3 previous errors

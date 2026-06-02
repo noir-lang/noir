@@ -7,7 +7,7 @@ use acir::native_types::{WitnessMap, WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
-use nargo::foreign_calls::DefaultForeignCallBuilder;
+use nargo::foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl};
 use noir_artifact_cli::errors::CliError;
 use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
@@ -39,13 +39,7 @@ pub(crate) struct ExecuteCommand {
 
     /// JSON RPC url to resolve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
-
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    #[clap(long, default_value = "false")]
-    pedantic_solving: bool,
+    oracle_resolver: Option<OracleResolverUrl>,
 }
 
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
@@ -54,19 +48,14 @@ fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let output_witness = execute_program_from_witness(
         input_witness,
         &bytecode,
-        args.pedantic_solving,
-        args.oracle_resolver,
+        args.oracle_resolver.as_ref().map(|url| url.to_string()),
     )?;
     assert_eq!(output_witness.length(), 1, "ACVM CLI only supports a witness stack of size 1");
     let output_witness_string = create_output_witness_string(
         &output_witness.peek().expect("Should have a witness stack item").witness,
     )?;
-    if args.output_witness.is_some() {
-        save_witness_to_dir(
-            &output_witness,
-            &args.output_witness.unwrap(),
-            &args.working_directory,
-        )?;
+    if let Some(output_witness_path) = args.output_witness {
+        save_witness_to_dir(&output_witness, &output_witness_path, &args.working_directory)?;
     }
     Ok(output_witness_string)
 }
@@ -83,7 +72,7 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 pub(crate) fn execute_program_from_witness(
     inputs_map: WitnessMap<FieldElement>,
     bytecode: &[u8],
-    pedantic_solving: bool,
+
     resolver_url: Option<String>,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let program: Program<FieldElement> =
@@ -98,7 +87,7 @@ pub(crate) fn execute_program_from_witness(
     nargo::ops::execute_program(
         &program,
         inputs_map,
-        &Bn254BlackBoxSolver(pedantic_solving),
+        &Bn254BlackBoxSolver,
         &mut foreign_call_executor,
     )
     .map_err(CliError::CircuitExecutionError)

@@ -4,7 +4,6 @@ use crate::{
     ast::{
         Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
-        UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token},
@@ -152,21 +151,15 @@ impl Parser<'_> {
             return None;
         }
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
-            let location = self.location_at_previous_token_end();
-            let name = self.unknown_ident_at_previous_token_end();
-            let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            let name = self.empty_ident_at_previous_token_end();
+            let alias = None;
             return Some(TraitImplItemKind::Type { name, alias });
         };
 
-        let alias = if self.eat_assign() {
-            self.parse_type_or_error()
-        } else {
-            let location = self.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Error, location }
-        };
+        let alias = if self.eat_assign() { Some(self.parse_type_or_error()) } else { None };
 
         self.eat_semicolon_or_error();
 
@@ -179,22 +172,22 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type_or_error()
+            Some(self.parse_type_or_error())
         } else {
             self.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 self.previous_token_location,
             );
-            self.unspecified_type_at_previous_token_end()
+            None
         };
 
         let expr = if self.eat_assign() {
@@ -242,8 +235,6 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
@@ -251,7 +242,7 @@ mod tests {
         parse_program_with_dummy_file,
         parser::{
             ItemKind,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -517,7 +508,7 @@ mod tests {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Foo");
-        assert_eq!(alias.to_string(), "i32");
+        assert_eq!(alias.unwrap().to_string(), "i32");
     }
 
     #[test]
@@ -537,7 +528,7 @@ mod tests {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
-        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
         assert_eq!(expr.to_string(), "1");
     }
 
@@ -552,10 +543,9 @@ mod tests {
     fn recovers_on_unknown_impl_item() {
         let src = "
         impl Foo { hello fn foo() {} }
-                   ^^^^^
+                   ^^^^^ Expected a function but found 'hello'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -563,19 +553,15 @@ mod tests {
             panic!("Expected impl");
         };
         assert_eq!(type_impl.methods.len(), 1);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a function but found 'hello'");
     }
 
     #[test]
     fn recovers_on_unknown_trait_impl_item() {
         let src = "
         impl Foo for i32 { hello fn foo() {} }
-                           ^^^^^
+                           ^^^^^ Expected a trait impl item but found 'hello'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -583,9 +569,6 @@ mod tests {
             panic!("Expected trait impl");
         };
         assert_eq!(trait_imp.items.len(), 1);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a trait impl item but found 'hello'");
     }
 
     #[test]

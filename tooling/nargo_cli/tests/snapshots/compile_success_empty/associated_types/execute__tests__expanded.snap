@@ -5,9 +5,9 @@ expression: expanded_code
 trait Collection {
     type Elem;
 
-    fn cget(self, index: u32) -> Option<Elem>;
+    fn cget(self, index: u32) -> Option<Self::Elem>;
 
-    fn ctake(self, index: u32) -> Elem {
+    fn ctake(self, index: u32) -> Self::Elem {
         self.cget(index).unwrap()
     }
 }
@@ -21,10 +21,6 @@ impl<let N: u32, T> Collection for [T; N] {
         } else {
             Option::<T>::none()
         }
-    }
-
-    fn ctake(self, index: u32) -> T {
-        self.cget(index).unwrap()
     }
 }
 

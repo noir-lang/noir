@@ -13,3 +13,4 @@ test_add_and_show
 test_sort
 test_sort_comptime
 test_acir_field_too_big
+test_void_to_vectors_memory_does_not_overlap

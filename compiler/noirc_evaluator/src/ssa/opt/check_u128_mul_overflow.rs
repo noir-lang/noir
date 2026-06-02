@@ -92,11 +92,11 @@ fn check_u128_mul_overflow(
     let rhs_value = dfg.get_numeric_constant(rhs);
 
     assert!(
-        lhs_value.map(|value| value.fits_in_u128()).unwrap_or(true),
+        lhs_value.is_none_or(|value| value.fits_in_u128()),
         "expected lhs_value to fit in a u128, but found {lhs_value:?}"
     );
     assert!(
-        rhs_value.map(|value| value.fits_in_u128()).unwrap_or(true),
+        rhs_value.is_none_or(|value| value.fits_in_u128()),
         "expected rhs_value to fit in a u128, but found {rhs_value:?}"
     );
 
@@ -359,7 +359,7 @@ mod tests {
             "
         acir(inline) fn main f0 {{
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = mul u128 {}, u128 {}
             jmp b2()

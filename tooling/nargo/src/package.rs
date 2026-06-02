@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
-use acvm::acir::circuit::ExpressionWidth;
 pub use noirc_driver::CrateName;
 use noirc_frontend::elaborator::UnstableFeature;
 
@@ -36,10 +35,14 @@ impl Dependency {
         }
     }
 
-    pub fn package_name(&self) -> &CrateName {
+    pub fn package(&self) -> &Package {
         match self {
-            Self::Local { package } | Self::Remote { package } => &package.name,
+            Self::Local { package } | Self::Remote { package } => package,
         }
+    }
+
+    pub fn package_name(&self) -> &CrateName {
+        &self.package().name
     }
 }
 
@@ -54,7 +57,6 @@ pub struct Package {
     pub entry_path: PathBuf,
     pub name: CrateName,
     pub dependencies: BTreeMap<CrateName, Dependency>,
-    pub expression_width: Option<ExpressionWidth>,
 }
 
 impl Package {

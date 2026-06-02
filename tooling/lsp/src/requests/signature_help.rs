@@ -32,19 +32,17 @@ pub(crate) fn on_signature_help_request(
 ) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
         let file_id = args.location.file;
-        utils::position_to_byte_index(
+        let byte_index = utils::position_to_byte_index(
             args.files,
             file_id,
             &params.text_document_position_params.position,
-        )
-        .and_then(|byte_index| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        )?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
-            finder.find(&parsed_module)
-        })
+        let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
+        finder.find(&parsed_module)
     });
     future::ready(result)
 }
@@ -369,8 +367,9 @@ impl Visitor for SignatureFinder<'_> {
     fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
         call_expression.accept_children(self);
 
-        let arguments_span =
-            Span::from(call_expression.func.location.span.end() + 1..span.end() - 1);
+        let arguments_start = call_expression.func.location.span.end() + 1;
+        let arguments_end = (span.end() - 1).max(arguments_start);
+        let arguments_span = Span::from(arguments_start..arguments_end);
         let span = call_expression.func.location.span;
         let name_span = Span::from(span.end() - 1..span.end());
         let has_self = false;

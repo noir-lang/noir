@@ -1,5 +1,8 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
-use std::collections::{BTreeMap, BTreeSet}; // Using BTree for deterministic enumeration, for repeatability.
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+}; // Using BTree for deterministic enumeration, for repeatability.
 
 use func::{FunctionContext, FunctionDeclaration, can_call};
 use strum::IntoEnumIterator;
@@ -25,7 +28,6 @@ mod func;
 pub mod rewrite;
 pub mod scope;
 pub mod types;
-pub mod visitor;
 
 #[cfg(test)]
 mod tests;
@@ -44,28 +46,42 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
 /// Generate an arbitrary monomorphized AST to be reversed into a valid comptime
 /// Noir, with a single comptime function called from main with literal arguments.
 pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
-    let mut config = config.clone();
+    let mut config = config;
     // Comptime should use Brillig feature set
     config.force_brillig = true;
 
     let mut ctx = Context::new(config);
 
+    // Generate the first (main-wrapped) function declaration
     let decl_inner = ctx.gen_function_decl(u, 1, true)?;
     ctx.set_function_decl(FuncId(1), decl_inner.clone());
-    ctx.gen_function(u, FuncId(1))?;
+
+    // Generate the rest of the declarations
+    let num_extra_fns = u.int_in_range(ctx.config.min_functions..=ctx.config.max_functions)?;
+
+    for i in 0..num_extra_fns {
+        let d = ctx.gen_function_decl(u, i + 2, false)?;
+        ctx.set_function_decl(FuncId((i + 2) as u32), d);
+    }
 
     // Parameterless main declaration wrapping the inner "main"
     // function call
     let decl_main = FunctionDeclaration {
         name: "main".into(),
         params: vec![],
-        return_type: decl_inner.return_type.clone(),
+        return_type: decl_inner.return_type,
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: false,
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
+
+    // Generating functions in this way (after the main wrapper has been
+    // declared) will disallow them from calling the wrapper but not the
+    // main inner function
+    ctx.gen_functions(u)?;
+
     ctx.gen_function_with_body(u, FuncId(0), |u, function_ctx| {
         function_ctx.gen_body_with_lit_call(u, FuncId(1))
     })?;
@@ -213,22 +229,24 @@ impl Context {
         // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
         let unconstrained = self.config.force_brillig
             || (!is_main
-                && self
-                    .functions
-                    .get(&Program::main_id())
-                    .map(|func| func.unconstrained)
-                    .unwrap_or_default())
+                && self.functions.get(&Program::main_id()).is_some_and(|func| func.unconstrained))
             || bool::arbitrary(u)?;
 
-        // We could return a function as well.
-        let return_type = self.gen_type(
-            u,
-            self.config.max_depth,
-            false,
-            is_main || is_abi,
-            self.config.comptime_friendly,
-            true,
-        )?;
+        // Non-ABI functions can return `Unit`, so they can be called in statement
+        // position for their side effects (e.g. assertions). `gen_type` never
+        // picks `Unit`, so we choose it explicitly here.
+        let return_type = if !(is_main || is_abi) && u.ratio(1, 5)? {
+            Type::Unit
+        } else {
+            self.gen_type(
+                u,
+                self.config.max_depth,
+                false,
+                is_main || is_abi,
+                self.config.comptime_friendly,
+                true,
+            )?
+        };
 
         // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
@@ -271,11 +289,12 @@ impl Context {
                 // Take a function type.
                 let callee_id = u.choose_iter(&func_param_candidates)?;
                 let callee = &self.function_declarations[callee_id];
-                let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                let param_types =
+                    callee.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
                 let typ = Type::Function(
                     param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
+                    Rc::new(callee.return_type.clone()),
+                    Rc::new(Type::Unit),
                     callee.unconstrained,
                 );
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
@@ -291,7 +310,7 @@ impl Context {
                 Visibility::Private
             };
 
-            params.push((id, is_mutable, name, typ, visibility));
+            params.push((id, is_mutable, name, Rc::new(typ), visibility));
         }
 
         let return_visibility = if is_main {
@@ -306,16 +325,24 @@ impl Context {
             Visibility::Private
         };
 
+        let inline_type = if is_main {
+            InlineType::default()
+        } else {
+            // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
+            let choices = InlineType::iter()
+                .filter(|it| {
+                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                })
+                .collect::<Vec<_>>();
+            *u.choose(&choices)?
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             return_type,
             return_visibility,
-            inline_type: if is_main {
-                InlineType::default()
-            } else {
-                *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
-            },
+            inline_type,
             unconstrained,
         };
 
@@ -331,7 +358,7 @@ impl Context {
 
     /// Generate random function bodies.
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        let ids = self.function_declarations.keys().cloned().collect::<Vec<_>>();
+        let ids = self.function_declarations.keys().copied().collect::<Vec<_>>();
         for id in ids {
             self.gen_function(u, id)?;
         }
@@ -362,7 +389,7 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
-            func_sig: decl.signature(),
+            is_entry_point: id == FuncId(0), // we only need main as an entry point
         };
         self.functions.insert(id, func);
         Ok(())
@@ -372,25 +399,17 @@ impl Context {
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         rewrite::remove_unreachable_functions(self);
         rewrite::add_recursion_limit(self, u)?;
+        rewrite::wrap_oracle_prints_in_functions(self);
         Ok(())
     }
 
     /// Return the generated [Program].
     fn finalize(self) -> Program {
         let functions = self.functions.into_values().collect::<Vec<_>>();
-
-        // The signatures should only contain entry functions. Currently that's just `main`.
-        let function_signatures =
-            functions.iter().take(1).map(|f| f.func_sig.clone()).collect::<Vec<_>>();
-
-        let main_function_signature = function_signatures[0].clone();
-
         let globals = self.globals.into_iter().collect();
 
         let program = Program {
             functions,
-            function_signatures,
-            main_function_signature,
             return_location: None,
             globals,
             debug_variables: Default::default(),
@@ -422,7 +441,7 @@ impl Context {
         is_global: bool,
         is_main: bool,
         is_comptime_friendly: bool,
-        is_slice_allowed: bool,
+        is_vector_allowed: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
@@ -432,7 +451,7 @@ impl Context {
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
-                .filter(|typ| is_slice_allowed || !types::contains_slice(typ))
+                .filter(|typ| is_vector_allowed || !types::contains_vector(typ))
                 .collect::<Vec<_>>();
 
             if !existing_types.is_empty() {
@@ -444,14 +463,14 @@ impl Context {
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
         // Generate the inner type for composite types with reduced maximum depth.
-        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_slice_allowed: bool| {
+        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_vector_allowed: bool| {
             this.gen_type(
                 u,
                 max_depth - 1,
                 is_global,
                 is_main,
                 is_comptime_friendly,
-                is_slice_allowed,
+                is_vector_allowed,
             )
         };
 
@@ -480,19 +499,19 @@ impl Context {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| gen_inner_type(self, u, is_slice_allowed))
+                        .map(|_| gen_inner_type(self, u, is_vector_allowed))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
-                6 if is_slice_allowed && !self.config.avoid_slices => {
+                6 if is_vector_allowed && !self.config.avoid_vectors => {
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Slice(Box::new(typ))
+                    Type::Vector(Rc::new(typ))
                 }
                 6 | 7 => {
                     let min_size = 0;
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Array(size as u32, Box::new(typ))
+                    Type::Array(size as u32, Rc::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };
@@ -533,7 +552,7 @@ fn make_name(mut id: usize, is_global: bool) -> String {
     }
     name.reverse();
     let mut name = name.into_iter().collect::<String>();
-    if matches!(name.as_str(), "as" | "if" | "fn" | "for" | "loop") {
+    if matches!(name.as_str(), "as" | "if" | "in" | "fn" | "for" | "loop") {
         name = format!("{name}_");
     }
     if is_global { format!("G_{name}") } else { name }

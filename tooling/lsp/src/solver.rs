@@ -6,35 +6,25 @@ use acvm::BlackBoxFunctionSolver;
 pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver<acvm::FieldElement>>);
 
 impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
-    fn pedantic_solving(&self) -> bool {
-        self.0.pedantic_solving()
-    }
-
     fn multi_scalar_mul(
         &self,
         points: &[acvm::FieldElement],
         scalars_lo: &[acvm::FieldElement],
         scalars_hi: &[acvm::FieldElement],
-    ) -> Result<
-        (acvm::FieldElement, acvm::FieldElement, acvm::FieldElement),
-        acvm::BlackBoxResolutionError,
-    > {
-        self.0.multi_scalar_mul(points, scalars_lo, scalars_hi)
+        predicate: bool,
+    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        self.0.multi_scalar_mul(points, scalars_lo, scalars_hi, predicate)
     }
 
     fn ec_add(
         &self,
         input1_x: &acvm::FieldElement,
         input1_y: &acvm::FieldElement,
-        input1_infinite: &acvm::FieldElement,
         input2_x: &acvm::FieldElement,
         input2_y: &acvm::FieldElement,
-        input2_infinite: &acvm::FieldElement,
-    ) -> Result<
-        (acvm::FieldElement, acvm::FieldElement, acvm::FieldElement),
-        acvm::BlackBoxResolutionError,
-    > {
-        self.0.ec_add(input1_x, input1_y, input1_infinite, input2_x, input2_y, input2_infinite)
+        predicate: bool,
+    ) -> Result<(acvm::FieldElement, acvm::FieldElement), acvm::BlackBoxResolutionError> {
+        self.0.ec_add(input1_x, input1_y, input2_x, input2_y, predicate)
     }
 
     fn poseidon2_permutation(

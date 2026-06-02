@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::hash::{Hash, Hasher};
+
+struct DummyHasher {}
+
+impl Hasher for DummyHasher {
+    fn finish(self) -> Field {
+        0_Field
+    }
+
+    fn write(&mut self, _input: Field) {}
+}
+
+fn main() {
+    ()
+}

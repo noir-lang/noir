@@ -54,7 +54,7 @@ impl From<serde_json::Error> for InputParserError {
 pub enum AbiError {
     #[error("Received parameters not expected by ABI: {0:?}")]
     UnexpectedParams(Vec<String>),
-    #[error("The value passed for parameter `{}` does not match the specified type:\n{0}", .0.path())]
+    #[error("The value passed for parameter `{path}` does not match the specified type:\n{inner}", path = .0.path(), inner = .0)]
     TypeMismatch(#[from] InputTypecheckingError),
     #[error("ABI expects the parameter `{0}`, but this was not found")]
     MissingParam(String),
@@ -72,4 +72,8 @@ pub enum AbiError {
     ReturnTypeMismatch { return_type: AbiType, value: InputValue },
     #[error("No return value is expected but received {0:?}")]
     UnexpectedReturnValue(InputValue),
+    #[error(
+        "Could not decode string parameter `{name}`: witness value {value} is not a valid byte (must be in the range 0..=255)"
+    )]
+    StringValueOutsideByteRange { name: String, value: FieldElement },
 }

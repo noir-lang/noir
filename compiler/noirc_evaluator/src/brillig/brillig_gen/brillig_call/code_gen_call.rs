@@ -2,8 +2,10 @@ use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::ValueOrArray;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::brillig::BrilligBlock;
+use crate::brillig::brillig_ir::registers::Allocated;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::ssa::ir::instruction::{Endian, Hint, InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -13,7 +15,9 @@ use crate::ssa::ir::{
 };
 
 use super::brillig_black_box::convert_black_box_call;
-use crate::brillig::brillig_ir::brillig_variable::type_to_heap_value_type;
+use crate::brillig::brillig_ir::brillig_variable::{
+    BrilligVariable, SingleAddrVariable, type_to_heap_value_type,
+};
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts a foreign function call into Brillig bytecode.
@@ -27,8 +31,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
     ) {
+        // Foreign calls can return multiple results.
         let result_ids = dfg.instruction_results(instruction_id);
 
+        // Allocate heap typed values for the input arguments.
         let input_values = vecmap(arguments, |value_id| {
             let variable = self.convert_ssa_value(*value_id, dfg);
             self.brillig_context.variable_to_value_or_array(variable)
@@ -38,16 +44,18 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             type_to_heap_value_type(&value_type)
         });
 
-        let output_variables =
-            vecmap(result_ids, |value_id| self.allocate_external_call_result(*value_id, dfg));
-        let output_values = vecmap(&output_variables, |variable| {
-            self.brillig_context.variable_to_value_or_array(*variable)
-        });
+        // Define variables for the results; these can be nested structures which will outlive the call.
+        // Nothing else should allocate from the free memory after this, as it needs to be increased after the call.
+        let output_variables = self.allocate_external_call_results(result_ids, dfg);
+
+        // Allocate heap typed values to receive the results.
+        let output_values = self.output_variables_to_destinations(&output_variables);
         let output_value_types = vecmap(result_ids, |value_id| {
             let value_type = dfg.type_of_value(*value_id);
             type_to_heap_value_type(&value_type)
         });
 
+        // Process the call.
         self.brillig_context.foreign_call_instruction(
             func_name.to_owned(),
             &vecmap(input_values, |v| *v),
@@ -56,36 +64,120 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             &output_value_types,
         );
 
-        // Massage the return value.
-        for (i, (output_register, output_variable)) in
-            output_values.iter().zip(output_variables).enumerate()
+        // Pair up the heap typed output values of the call with the Brillig variables created for the results,
+        // so that we can do some post processing for vectors.
+        for (i, (output_value, output_variable)) in
+            output_values.iter().zip_eq(output_variables).enumerate()
         {
-            match **output_register {
-                // Returned vectors need to emit some bytecode to format the result as a BrilligVector
-                ValueOrArray::HeapVector(heap_vector) => {
-                    self.brillig_context.initialize_externally_returned_vector(
-                        output_variable.extract_vector(),
-                        heap_vector,
+            // We need to emit some bytecode to format the output as a BrilligVector
+            let BrilligVariable::BrilligVector(vector) = output_variable else {
+                // Arrays and simple values are fine as they are.
+                continue;
+            };
+
+            let ValueOrArray::HeapVector(heap_vector) = **output_value else {
+                unreachable!("ICE: a BrilligVector is expected to have a HeapVector as output");
+            };
+
+            // Adjust the metadata of the result variable.
+            // The items don't need to be copied, since we passed the pointer to the items of the
+            // array/vector variable in the heap array/vector.
+            let flattened_size_var = self
+                .brillig_context
+                .codegen_initialize_externally_returned_vector(vector, &heap_vector);
+
+            // Update or validate the dynamic vector length maintained in SSA, a.k.a semantic length,
+            // which is the parameter preceding the vector.
+            if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
+                // Get the number of fields in a vector element.
+                let element_size = dfg[result_ids[i]].get_type().element_size();
+
+                let zero = self.brillig_context.allocate_single_addr(32);
+                self.brillig_context.const_instruction(*zero, FieldElement::zero());
+
+                if element_size.0 == 0 {
+                    // If the element size is 0, then the contents will be zero as well;
+                    // this is verified by the Brillig VM, but to make sure the AVM also rejects such a circuit,
+                    // we lay down an opcode to check. This is such an edge case that it wouldn't affect normal circuit size.
+                    // In this case we have to accept the returned semantic length as is.
+                    let is_length_zero = self.brillig_context.allocate_single_addr_bool();
+                    self.brillig_context.binary_instruction(
+                        flattened_size_var,
+                        *zero,
+                        *is_length_zero,
+                        BrilligBinaryOp::Equals,
                     );
-                    // Update the dynamic slice length maintained in SSA,
-                    // which is the parameter preceding the vector.
-                    if let ValueOrArray::MemoryAddress(len_index) = *output_values[i - 1] {
-                        let element_size = dfg[result_ids[i]].get_type().element_size();
-                        self.brillig_context.mov_instruction(len_index, heap_vector.size);
-                        self.brillig_context.codegen_usize_op_in_place(
-                            len_index,
-                            BrilligBinaryOp::UnsignedDiv,
-                            element_size,
+                    self.brillig_context.codegen_constrain(
+                        *is_length_zero,
+                        Some("Returned non-empty data for zero vector element size".to_string()),
+                    );
+                } else {
+                    // If the element size is not 0, then we can divide the flattened content length with it
+                    // to calculate the semantic length of the vector.
+                    let calculated_semantic_length = self.brillig_context.allocate_single_addr(32);
+                    self.brillig_context.mov_instruction(
+                        calculated_semantic_length.address,
+                        flattened_size_var.address,
+                    );
+                    self.brillig_context.codegen_usize_op_in_place(
+                        calculated_semantic_length.address,
+                        BrilligBinaryOp::UnsignedDiv,
+                        element_size.to_usize(),
+                    );
+
+                    // We use the calculated semantic length in one of two ways:
+                    // * if the returned semantic length is not zero, then we assert that it matches the data
+                    // * if the returned semantic length is 0, we assume the foreign call handler just wasn't updated to set it,
+                    //   and we update it to the calculated length
+                    let length = SingleAddrVariable::new(length_addr, 32);
+
+                    let is_length_zero = self.brillig_context.allocate_single_addr_bool();
+                    self.brillig_context.binary_instruction(
+                        length,
+                        *zero,
+                        *is_length_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+
+                    // If length is zero, use calculated_semantic_length; otherwise keep current length
+                    self.brillig_context.conditional_move_instruction(
+                        is_length_zero.address,
+                        calculated_semantic_length.address,
+                        length_addr,
+                        length_addr,
+                    );
+                    // If length was non-zero, assert it matches the calculated length
+                    self.brillig_context.codegen_if_not(is_length_zero.address, |ctx| {
+                        let length_equals = ctx.allocate_single_addr_bool();
+                        ctx.binary_instruction(
+                            length,
+                            *calculated_semantic_length,
+                            *length_equals,
+                            BrilligBinaryOp::Equals,
                         );
-                    } else {
-                        unreachable!(
-                            "ICE: a vector must be preceded by a register containing its length"
+                        ctx.codegen_constrain(
+                            *length_equals,
+                            Some(
+                                "semantic length returned from oracle does not match data"
+                                    .to_string(),
+                            ),
                         );
-                    }
+                    });
                 }
-                ValueOrArray::HeapArray(_) | ValueOrArray::MemoryAddress(_) => {}
+            } else {
+                unreachable!("ICE: a vector must be preceded by a register containing its length");
             }
         }
+    }
+
+    /// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
+    fn output_variables_to_destinations(
+        &mut self,
+        output_variables: &[BrilligVariable],
+    ) -> Vec<Allocated<ValueOrArray, Registers>> {
+        vecmap(output_variables, |variable| {
+            self.brillig_context.variable_to_value_or_array(*variable)
+        })
     }
 
     /// Converts a field less than comparison intrinsic to Brillig bytecode.
@@ -103,10 +195,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         assert!(rhs.bit_size == FieldElement::max_num_bits());
 
         let [result] = dfg.instruction_result(instruction_id);
-        let destination = self
-            .variables
-            .define_variable(self.function_context, self.brillig_context, result, dfg)
-            .extract_single_addr();
+        let destination = self.define_variable(result, dfg).extract_single_addr();
         assert!(destination.bit_size == 1);
 
         self.brillig_context.binary_instruction(lhs, rhs, destination, BrilligBinaryOp::LessThan);
@@ -125,8 +214,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         assert!(
-            !arguments.iter().any(|arg| dfg.type_of_value(*arg).contains_slice_element()),
-            "Blackbox functions should not be called with arguments of slice type"
+            !arguments.iter().any(|arg| dfg.type_of_value(*arg).contains_vector_element()),
+            "Blackbox functions should not be called with arguments of vector type"
         );
 
         let mut arguments = arguments.to_vec();
@@ -152,8 +241,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         let function_arguments = vecmap(arguments, |arg| self.convert_ssa_value(arg, dfg));
         let function_results = dfg.instruction_results(instruction_id);
-        let function_results =
-            vecmap(function_results, |result| self.allocate_external_call_result(*result, dfg));
+        let function_results = self.allocate_external_call_results(function_results, dfg);
         convert_black_box_call(
             self.brillig_context,
             bb_func,
@@ -162,51 +250,43 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
-    /// Converts an array to a slice by copying the array contents into a vector.
+    /// Converts an array to a vector by copying the array contents into a vector.
     ///
-    /// This intrinsic converts a fixed-size array into a dynamically-sized slice (vector).
-    fn convert_ssa_as_slice(
+    /// This intrinsic converts a fixed-size array into a dynamically-sized vector (vector).
+    fn convert_ssa_as_vector(
         &mut self,
         arguments: &[ValueId],
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
     ) {
-        let source_variable = self.convert_ssa_value(arguments[0], dfg);
-        let result_ids = dfg.instruction_results(instruction_id);
-        let destination_len_variable = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            result_ids[0],
-            dfg,
-        );
-        let destination_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            result_ids[1],
-            dfg,
-        );
+        let source_id = arguments[0];
+        let source_variable = self.convert_ssa_value(source_id, dfg);
+        let [length_id, destination_id] = dfg.instruction_result(instruction_id);
+        let destination_len_variable = self.define_single_addr_variable(length_id, dfg);
+        let destination_variable = self.define_variable(destination_id, dfg);
         let destination_vector = destination_variable.extract_vector();
         let source_array = source_variable.extract_array();
-        let element_size = dfg.type_of_value(arguments[0]).element_size();
+        let element_size = dfg.type_of_value(source_id).element_size();
 
         let source_size_register =
-            self.brillig_context.make_usize_constant_instruction(source_array.size.into());
+            self.brillig_context.make_usize_constant_instruction(source_array.size.0.into());
 
-        // we need to explicitly set the destination_len_variable
+        // We need to explicitly set the destination_len_variable to be the semantic length, which is not flattened.
         self.brillig_context.codegen_usize_op(
             source_size_register.address,
             destination_len_variable.address,
             BrilligBinaryOp::UnsignedDiv,
-            element_size,
+            element_size.to_usize(),
         );
 
+        // Initialize the vector with the flattened size.
         self.brillig_context.codegen_initialize_vector(
             destination_vector,
             *source_size_register,
             None,
         );
 
-        // Items
+        // Copy items from the array into the vector.
         let vector_items_pointer =
             self.brillig_context.codegen_make_vector_items_pointer(destination_vector);
         let array_items_pointer =
@@ -219,7 +299,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         );
     }
 
-    pub(crate) fn call_gen(
+    pub(crate) fn codegen_call(
         &mut self,
         instruction_id: InstructionId,
         func: ValueId,
@@ -227,8 +307,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         match &dfg[func] {
-            Value::ForeignFunction(func_name) => {
-                self.convert_ssa_foreign_call(func_name, arguments, instruction_id, dfg);
+            Value::ForeignFunction { name, .. } => {
+                self.convert_ssa_foreign_call(name, arguments, instruction_id, dfg);
             }
             Value::Function(func_id) => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -238,16 +318,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // This match could be combined with the above but without it rust analyzer
                 // can't automatically insert any missing cases
                 match intrinsic {
-                    Intrinsic::AsSlice => {
-                        self.convert_ssa_as_slice(arguments, instruction_id, dfg);
+                    Intrinsic::AsVector => {
+                        self.convert_ssa_as_vector(arguments, instruction_id, dfg);
                     }
-                    Intrinsic::SlicePushBack
-                    | Intrinsic::SlicePopBack
-                    | Intrinsic::SlicePushFront
-                    | Intrinsic::SlicePopFront
-                    | Intrinsic::SliceInsert
-                    | Intrinsic::SliceRemove => {
-                        self.convert_ssa_slice_intrinsic_call(
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorInsert
+                    | Intrinsic::VectorRemove => {
+                        self.convert_ssa_vector_intrinsic_call(
                             dfg,
                             &dfg[func],
                             instruction_id,
@@ -259,15 +339,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                         let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
-                        let target_array = self
-                            .variables
-                            .define_variable(
-                                self.function_context,
-                                self.brillig_context,
-                                result,
-                                dfg,
-                            )
-                            .extract_array();
+                        let target_array = self.define_variable(result, dfg).extract_array();
 
                         let two =
                             self.brillig_context.make_usize_constant_instruction(2_usize.into());
@@ -287,15 +359,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
                         let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
 
-                        let target_array = self
-                            .variables
-                            .define_variable(
-                                self.function_context,
-                                self.brillig_context,
-                                result,
-                                dfg,
-                            )
-                            .extract_array();
+                        let target_array = self.define_variable(result, dfg).extract_array();
 
                         self.brillig_context.codegen_to_radix(
                             source,
@@ -322,26 +386,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = self.convert_ssa_value(arguments[0], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.variables.define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            result,
-                            dfg,
-                        );
+                        let destination = self.define_variable(result, dfg);
                         let destination = destination.extract_register();
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);
                     }
-                    Intrinsic::SliceRefCount => {
+                    Intrinsic::VectorRefCount => {
                         let array = self.convert_ssa_value(arguments[1], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.variables.define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            result,
-                            dfg,
-                        );
+                        let destination = self.define_variable(result, dfg);
                         let destination = destination.extract_register();
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);

@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Attempt to pop from an empty vector
+   ┌─ src/main.nr:11:20
+   │
+11 │     let (_, ret) = s.pop_back();
+   │                    ----------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:11:20
+
+Failed assertion

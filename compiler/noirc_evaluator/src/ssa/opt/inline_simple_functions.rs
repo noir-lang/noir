@@ -41,6 +41,11 @@ impl Ssa {
                 }
             }
 
+            // Do not inline functions marked with the inline never attribute
+            if callee.runtime().is_inline_never() {
+                return false;
+            }
+
             // Do not inline Brillig entry points
             if brillig_entry_points.contains(&callee.id()) {
                 return false;
@@ -82,7 +87,7 @@ impl Ssa {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_normalized_ssa_equals},
@@ -313,7 +318,7 @@ mod test {
 
         acir(inline) fn foo f1 {
           b0(v0: Field, v1: bool):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
 
           b1():
             v3 = add v0, Field 1
@@ -416,6 +421,23 @@ mod test {
             v3 = not v2
             constrain v2 == u1 0
             return v0
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn inline_never_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
         }
         ";
         assert_does_not_inline(src);

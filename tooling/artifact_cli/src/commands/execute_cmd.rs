@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
+use noirc_artifacts::program::CompiledProgram;
 
 use crate::{
     Artifact,
@@ -9,9 +10,8 @@ use crate::{
     execution::{self, ExecutionResults},
 };
 use nargo::foreign_calls::{
-    DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
+    DefaultForeignCallBuilder, OracleResolverUrl, layers, transcript::ReplayForeignCallExecutor,
 };
-use noirc_driver::CompiledProgram;
 
 use super::parse_and_normalize_path;
 
@@ -22,17 +22,21 @@ pub struct ExecuteCommand {
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub artifact_path: PathBuf,
 
-    /// Path to the Prover.toml file which contains the inputs and the
+    /// Path to the Prover.toml (or .json) file which contains the inputs and the
     /// optional return value in ABI format.
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub prover_file: PathBuf,
+
+    /// Optionally overwrite the `return` entry in the Prover.toml file.
+    #[clap(long, default_value_t = false)]
+    pub overwrite_return: bool,
 
     /// Path to the directory where the output witness should be saved.
     /// If empty then the results are discarded.
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub output_dir: Option<PathBuf>,
 
-    /// Write the execution witness to named file
+    /// Write the execution witness to named file.
     ///
     /// Defaults to the name of the circuit being executed.
     #[clap(long, short)]
@@ -53,19 +57,15 @@ pub struct ExecuteCommand {
 
     /// JSON RPC url to solve oracle calls.
     #[clap(long, conflicts_with = "oracle_file")]
-    pub oracle_resolver: Option<String>,
+    pub oracle_resolver: Option<OracleResolverUrl>,
 
     /// Root directory for the RPC oracle resolver.
     #[clap(long, value_parser = parse_and_normalize_path)]
     pub oracle_root_dir: Option<PathBuf>,
 
-    /// Package name for the RPC oracle resolver
+    /// Package name for the RPC oracle resolver.
     #[clap(long)]
     pub oracle_package_name: Option<String>,
-
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
-    #[clap(long, default_value_t = false)]
-    pub pedantic_solving: bool,
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
@@ -90,12 +90,17 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 
     match execute(&circuit, &args) {
         Ok(results) => {
-            execution::save_and_check_witness(
+            execution::save_and_show_witness(
                 &circuit,
-                results,
+                &results,
                 &circuit_name,
                 args.output_dir.as_deref(),
                 args.witness_name.as_deref(),
+            )?;
+            execution::check_return(
+                &circuit,
+                results.return_values,
+                args.overwrite_return.then_some(&args.prover_file),
             )?;
         }
         Err(e) => {
@@ -117,19 +122,19 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
     // default, rather than trying to match it to the transcript.
     let transcript_executor = match args.oracle_file {
         Some(ref path) => layers::Either::Left(ReplayForeignCallExecutor::from_file(path)?),
-        None => layers::Either::Right(layers::Empty),
+        None => layers::Either::Right(layers::Unhandled),
     };
 
     let mut foreign_call_executor = DefaultForeignCallBuilder {
         output: std::io::stdout(),
         enable_mocks: false,
-        resolver_url: args.oracle_resolver.clone(),
+        resolver_url: args.oracle_resolver.as_ref().map(|url| url.to_string()),
         root_path: None,
         package_name: None,
     }
     .build_with_base(transcript_executor);
 
-    let blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
+    let blackbox_solver = Bn254BlackBoxSolver;
 
     execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, &args.prover_file)
 }

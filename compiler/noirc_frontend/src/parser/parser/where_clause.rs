@@ -71,7 +71,6 @@ impl Parser<'_> {
         self.expected_label(ParsingRuleLabel::TraitBound);
         TraitBound {
             trait_path: Path::plain(Vec::new(), self.location_at_previous_token_end()),
-            trait_id: None,
             trait_generics: GenericTypeArgs::default(),
         }
     }
@@ -80,7 +79,7 @@ impl Parser<'_> {
     pub(crate) fn parse_trait_bound(&mut self) -> Option<TraitBound> {
         let trait_path = self.parse_path_no_turbofish()?;
         let trait_generics = self.parse_generic_type_args();
-        Some(TraitBound { trait_path, trait_generics, trait_id: None })
+        Some(TraitBound { trait_path, trait_generics })
     }
 }
 
@@ -89,12 +88,9 @@ mod tests {
     use crate::{
         ast::UnresolvedTraitConstraint,
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        token::Token,
     };
 
     fn parse_where_clause_no_errors(src: &str) -> Vec<UnresolvedTraitConstraint> {
@@ -147,18 +143,9 @@ mod tests {
     fn parses_two_where_clauses_missing_comma() {
         let src = "
         where Foo: Bar<T> i32: Qux {
-                          ^^^
+                          ^^^ Expected a `,` separating these two where clauses
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let mut constraints = parser.parse_where_clause();
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "where clauses");
+        let mut constraints = check_errors(src, |parser| parser.parse_where_clause());
 
         assert_eq!(constraints.len(), 2);
 

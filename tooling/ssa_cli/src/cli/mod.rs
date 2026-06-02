@@ -1,7 +1,7 @@
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, command};
+use clap::{Args, Parser, Subcommand};
 use color_eyre::eyre::{self, Context, bail};
 use const_format::formatcp;
 use noir_artifact_cli::commands::parse_and_normalize_path;
@@ -58,7 +58,10 @@ enum SsaCommand {
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let SsaCli { command, args } = SsaCli::parse();
 
-    let ssa = || read_source(args.source_path).and_then(|src| parse_ssa(&src, !args.no_validate));
+    let ssa = || {
+        let src = read_source(args.source_path)?;
+        parse_ssa(&src, !args.no_validate)
+    };
 
     match command {
         SsaCommand::List => {
@@ -132,11 +135,14 @@ fn parse_ssa(src: &str, validate: bool) -> eyre::Result<Ssa> {
 /// List of the SSA passes in the primary pipeline, enriched with their "step"
 /// count so we can use unambiguous naming in filtering.
 fn ssa_passes(options: &SsaEvaluatorOptions) -> Vec<(String, SsaPass<'_>)> {
-    primary_passes(options)
-        .into_iter()
+    let passes = primary_passes(options).into_iter();
+    let length = passes.len();
+    passes
         .enumerate()
         .map(|(i, pass)| {
-            let msg = format!("{} (step {})", pass.msg(), i + 1);
+            let last_step = i == length - 1;
+            let last_step_msg = if last_step { " (last step)" } else { "" };
+            let msg = format!("{} (step {}){last_step_msg}", pass.msg(), i + 1);
             (msg, pass)
         })
         .collect()

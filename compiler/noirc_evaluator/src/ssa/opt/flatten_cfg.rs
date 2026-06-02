@@ -21,7 +21,7 @@
 //!     references in constrained (ACIR) code.
 //!   - Flattening inserts `Instruction::IfElse` to merge the values from an if-expression's "then"
 //!     and "else" branches. These are immediately simplified out for numeric values, but for
-//!     arrays and slices we require the `remove_if_else` SSA pass to later be run to remove the
+//!     arrays and vectors we require the `remove_if_else` SSA pass to later be run to remove the
 //!     remaining `Instruction::IfElse` instructions.
 //!
 //! Implementation details & examples:
@@ -70,7 +70,7 @@
 //!    an equality with `c`:
 //! ```text
 //! constrain v0
-//! ============
+//! ---- becomes ----
 //! v1 = mul v0, c
 //! v2 = eq v1, c
 //! constrain v2
@@ -80,7 +80,7 @@
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
 //!    `c * then_arg + !c * else_arg` is used for each argument. Note that this is represented by
 //!    `Instruction::IfElse` which is often simplified to the above when inserted, but in the case
-//!    of complex values (arrays and slices) this simplification is delayed until the
+//!    of complex values (arrays and vectors) this simplification is delayed until the
 //!    `remove_if_else` SSA pass.
 //!
 //! ```text
@@ -92,7 +92,7 @@
 //!   jmp b3(v2)
 //! b3(v3: Field):
 //!   ... b3 instructions ...
-//! =========================
+//! --------- becomes --------
 //! b0(v0: u1, v1: Field, v2: Field):
 //!   v3 = mul v0, v1
 //!   v4 = not v0
@@ -121,7 +121,7 @@
 //!   jmp b3
 //! b3():
 //!   ... b3 instructions ...
-//! =========================
+//! --------- becomes --------
 //! b0():
 //!   v1 = allocate -> &mut Field
 //!   store Field 3 at v1     // no prior value so we do not load & merge
@@ -139,13 +139,13 @@
 //!   enable_side_effects u1 1
 //!   ... b3 instructions ...
 //! ```
-use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -153,7 +153,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
@@ -173,15 +173,14 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
-        let no_predicates: HashMap<_, _> =
-            self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
+        let no_predicates: HashSet<FunctionId> =
+            self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
             // there are still any loops present in the program.
-            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+            if function.runtime().is_brillig() {
                 continue;
             }
 
@@ -199,39 +198,30 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function has at least 1 loop
-///   - Any ACIR function has a `ConstrainNotEqual` instruction
+/// Panics if the ACIR function being flattened has at least 1 loop or contains a
+/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
-    }
-    let loops = super::unrolling::Loops::find_all(function);
-    assert_eq!(loops.yet_to_unroll.len(), 0);
-
-    for block in function.reachable_blocks() {
-        for instruction in function.dfg[block].instructions() {
-            if matches!(function.dfg[*instruction], Instruction::ConstrainNotEqual(_, _, _)) {
-                panic!("ConstrainNotEqual should not be introduced before flattening");
-            }
-        }
-    }
+    super::checks::assert_no_loops(function);
+    super::checks::for_each_instruction(function, |instruction, _dfg| {
+        super::checks::assert_not_constrain_not_equal(instruction);
+    });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function contains > 1 block
+/// Panics if the ACIR function contains more than one block. The caller already
+/// skipped Brillig functions.
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
-    }
-    let blocks = function.reachable_blocks();
-    assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
+    super::checks::assert_cfg_is_flattened(function);
 }
 
+/// Mutable context threaded through the CFG flattening pass.
+///
+/// Holds the function inserter, the pre-modification CFG, branch-end map, and all
+/// bookkeeping needed to merge stores and conditions as branches are inlined one by
+/// one into `target_block`.
 pub(crate) struct Context<'f> {
     pub(crate) inserter: FunctionInserter<'f>,
 
@@ -271,6 +261,11 @@ pub(crate) struct Context<'f> {
     /// helps simplifications.
     not_instructions: HashMap<ValueId, ValueId>,
 
+    /// Maps merge result ValueId to the provenance of the IfElse that produced it.
+    /// Used to detect and collapse redundant nested merges in `inline_branch_end`.
+    /// See [`Context::try_collapse_merge`] for the four patterns this enables.
+    merge_provenance: HashMap<ValueId, MergeProvenance>,
+
     /// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
     ///
     /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
@@ -280,20 +275,36 @@ pub(crate) struct Context<'f> {
     pub(crate) no_predicate: bool,
 }
 
+/// Tracks the origin of a merge result to collapse redundant nested merges.
+///
+/// When nested `jmpif` blocks thread the same value through their else-arguments,
+/// the outer merge is redundant. For example:
+///   `IfElse(c1, IfElse(c2, x, _, y), _, y)` collapses to `IfElse(c2, x, NOT(c2), y)`
+/// because both the inner and outer merges default to the same value `y`.
+///
+/// See [`Context::try_collapse_merge`] for all four supported patterns.
+struct MergeProvenance {
+    then_condition: ValueId,
+    then_value: ValueId,
+    else_condition: ValueId,
+    else_value: ValueId,
+}
+
+/// State for one side (then or else) of a conditional being flattened.
 #[derive(Clone)]
 struct ConditionalBranch {
     /// Contains the last processed block during the processing of the branch.
     ///
     /// It starts out empty, then gets filled in when we finish the branch.
     last_block: Option<BasicBlockId>,
-    /// The unresolved condition of the branch
-    old_condition: ValueId,
     /// The resolved condition of the branch, AND-ed with all outer branch conditions.
     condition: ValueId,
-    /// The allocations accumulated before processing the branch.
-    local_allocations: HashSet<ValueId>,
 }
 
+/// All bookkeeping for a single `jmpif` that is currently being flattened.
+///
+/// Pushed onto `Context::condition_stack` when a `jmpif` is entered and popped when
+/// its join point is reached.
 struct ConditionalContext {
     /// Condition from the conditional statement
     condition: ValueId,
@@ -313,11 +324,16 @@ struct ConditionalContext {
     ///
     /// We use this information to reset the values to their originals when we exit from branches.
     predicated_values: HashMap<ValueId, ValueId>,
+    /// The allocations accumulated before processing the branch.
+    local_allocations: HashSet<ValueId>,
+    /// When JmpIf's else_destination is the exit/merge block (no separate else block),
+    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+    jmpif_else_arguments: Option<Vec<ValueId>>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
 /// single block containing all instructions and no more control-flow.
-fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
+fn flatten_function_cfg(function: &mut Function, no_predicates: &HashSet<FunctionId>) {
     // Creates a context that will perform the flattening
     // We give it the map of the conditional branches in the CFG
     // and the target block where the flattened instructions should be added.
@@ -336,6 +352,11 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
 pub(crate) type WorkList = IndexSet<BasicBlockId>;
 
 impl<'f> Context<'f> {
+    /// Creates a new flattening context.
+    ///
+    /// `cfg` must be computed from `function` before any modifications are made.
+    /// `branch_ends` maps each branch-start block to its join/exit block.
+    /// `target_block` is the single block into which all instructions will be inlined.
     pub(crate) fn new(
         function: &'f mut Function,
         cfg: ControlFlowGraph,
@@ -350,6 +371,7 @@ impl<'f> Context<'f> {
             next_arguments: None,
             local_allocations: HashSet::default(),
             not_instructions: HashMap::default(),
+            merge_provenance: HashMap::default(),
             target_block,
             no_predicate: false,
         }
@@ -374,7 +396,7 @@ impl<'f> Context<'f> {
     ///
     /// Information about the nested if statements is stored in the 'condition_stack' which
     /// is popped/pushed when entering/leaving a conditional statement.
-    pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
+    pub(crate) fn flatten(&mut self, no_predicates: &HashSet<FunctionId>) {
         let mut work_list = WorkList::new();
         work_list.insert(self.target_block);
         while let Some(block) = work_list.pop() {
@@ -390,9 +412,8 @@ impl<'f> Context<'f> {
     /// it is 'AND-ed' with the previous condition (if any)
     fn link_condition(&mut self, condition: ValueId) -> ValueId {
         // Retrieve the previous condition
-        if let Some(context) = self.condition_stack.last() {
-            let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
-            let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
+        if let Some(last_condition) = self.get_last_condition() {
+            let and = Instruction::binary(BinaryOp::And, last_condition, condition);
             let call_stack = self.inserter.function.dfg.get_value_call_stack_id(condition);
             self.insert_instruction(and, call_stack)
         } else {
@@ -416,13 +437,13 @@ impl<'f> Context<'f> {
     /// Use the provided map to say if the instruction is a call to a `no_predicates` function
     fn is_call_to_no_predicate_function(
         &self,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
         instruction: &InstructionId,
     ) -> bool {
-        if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction] {
-            if let Value::Function(fid) = self.inserter.function.dfg[func] {
-                return no_predicates.get(&fid).copied().unwrap_or_default();
-            }
+        if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction]
+            && let Value::Function(fid) = self.inserter.function.dfg[func]
+        {
+            return no_predicates.contains(&fid);
         }
         false
     }
@@ -430,10 +451,11 @@ impl<'f> Context<'f> {
     /// Prepare the arguments for the next block to consume.
     ///
     /// Panics if we already have something prepared.
-    fn prepare_args(&mut self, args: Vec<ValueId>) {
+    pub(crate) fn prepare_args(&mut self, args: Vec<ValueId>) {
         assert!(self.next_arguments.is_none(), "already prepared the arguments");
-        assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
-        self.next_arguments = Some(args);
+        if !args.is_empty() {
+            self.next_arguments = Some(args);
+        }
     }
 
     /// Consume the arguments prepared by the previous block.
@@ -443,7 +465,7 @@ impl<'f> Context<'f> {
         self.next_arguments.take().expect("there are no arguments prepared")
     }
 
-    /// Inline all instructions from the given block into the target block, and track slice capacities.
+    /// Inline all instructions from the given block into the target block, and track vector capacities.
     /// This is done by processing every instruction in the block and using the flattening context
     /// to push them in the target block.
     ///
@@ -451,7 +473,7 @@ impl<'f> Context<'f> {
     pub(crate) fn inline_block(
         &mut self,
         block: BasicBlockId,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
     ) {
         // We do not inline the target block into itself.
         // This is the case in the beginning for the entry block.
@@ -511,11 +533,23 @@ impl<'f> Context<'f> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
-                // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.
-                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
+                // The `then` branch is next and we can prepare its args now, but the `else`
+                // branch's args need to be prepared only when the branch is later started.
+                let resolved = vecmap(then_arguments, |v| self.inserter.resolve(*v));
+                self.prepare_args(resolved);
+                self.if_start(
+                    condition,
+                    then_destination,
+                    else_destination,
+                    else_arguments,
+                    &block,
+                    *call_stack,
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 // If the destination is already on the work list, it means it's an exit block in an if-then-else,
@@ -564,26 +598,28 @@ impl<'f> Context<'f> {
     /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
     /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
     /// and exit block of the conditional statement, so that they will be processed in this order.
-    fn if_start(
+    pub(crate) fn if_start(
         &mut self,
         condition: &ValueId,
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
+        else_arguments: &[ValueId],
         if_entry: &BasicBlockId,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
-        // manage conditions
-        let old_condition = *condition;
-        let then_condition = self.inserter.resolve(old_condition);
+        let then_condition = self.inserter.resolve(*condition);
 
         // Take the current allocations: everything for the new branch is non-local.
-        let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
-            old_condition,
             condition: self.link_condition(then_condition),
             // To be filled in by `then_stop`.
             last_block: None,
-            local_allocations: old_allocations,
+        };
+        let local_allocations = std::mem::take(&mut self.local_allocations);
+        let jmpif_else_arguments = if *else_destination == self.branch_ends[if_entry] {
+            Some(vecmap(else_arguments, |v| self.inserter.resolve(*v)))
+        } else {
+            None
         };
         let cond_context = ConditionalContext {
             condition: then_condition,
@@ -593,7 +629,16 @@ impl<'f> Context<'f> {
             else_branch: None,
             call_stack,
             predicated_values: HashMap::default(),
+            local_allocations,
+            jmpif_else_arguments,
         };
+        // Clear merge provenance from previous conditionals at this nesting level.
+        // Provenance from a previous conditional's merges must not be re-used by
+        // the current conditional's merge, as the conditions would be from an
+        // unrelated context. Provenance from INNER merges (created by deeper
+        // inline_branch_end calls within the current conditional's branches) will
+        // be freshly recorded and available when this conditional's merge runs.
+        self.merge_provenance.clear();
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
 
@@ -627,13 +672,7 @@ impl<'f> Context<'f> {
         let else_condition = self.link_condition(else_condition);
 
         // Pass on the local allocations that came before the 'then_branch' to the 'else_branch'.
-        let old_allocations = std::mem::take(&mut cond_context.then_branch.local_allocations);
-        let else_branch = ConditionalBranch {
-            old_condition: cond_context.then_branch.old_condition,
-            condition: else_condition,
-            last_block: None,
-            local_allocations: old_allocations,
-        };
+        let else_branch = ConditionalBranch { condition: else_condition, last_block: None };
         // All local allocations on the stopped 'then_branch' go out of scope.
         self.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
@@ -652,6 +691,63 @@ impl<'f> Context<'f> {
         let not = self.insert_instruction(Instruction::Not(condition), call_stack);
         self.not_instructions.insert(condition, not);
         not
+    }
+
+    /// Attempt to collapse a redundant nested merge where one value is shared.
+    ///
+    /// When nested `jmpif` blocks thread the same value through their arguments,
+    /// the outer merge is redundant. This detects four patterns:
+    ///
+    /// **Group 1 — shared else_value (y):**
+    /// - `IfElse(c1, IfElse(c2, x, _, y), _, y)` → `IfElse(c2, x, NOT(c2), y)`
+    /// - `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`
+    ///
+    /// **Group 2 — shared then_value (x):**
+    /// - `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`
+    /// - `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`
+    ///
+    /// Returns `(new_then_condition, new_then_value, new_else_value)` if collapsible.
+    fn try_collapse_merge(
+        &mut self,
+        then_arg: ValueId,
+        else_arg: ValueId,
+    ) -> Option<(ValueId, ValueId, ValueId)> {
+        // Check then_arg provenance
+        if let Some(prov) = self.merge_provenance.get(&then_arg) {
+            let prov_else = self.inserter.resolve(prov.else_value);
+            let prov_then = self.inserter.resolve(prov.then_value);
+            if prov_else == else_arg {
+                // Group 1: IfElse(c1, IfElse(c2, x, _, y), _, y) → IfElse(c2, x, _, y)
+                let result = (prov.then_condition, prov_then, else_arg);
+                self.merge_provenance.remove(&then_arg);
+                return Some(result);
+            }
+            if prov_then == else_arg {
+                // Group 2: IfElse(c1, IfElse(_, x, c2e, z), _, x) → IfElse(c2e, z, _, x)
+                let result = (prov.else_condition, prov_else, else_arg);
+                self.merge_provenance.remove(&then_arg);
+                return Some(result);
+            }
+        }
+        // Check else_arg provenance (safe because merge_provenance is cleared at
+        // each jmpif entry, so only provenance from the current conditional survives).
+        if let Some(prov) = self.merge_provenance.get(&else_arg) {
+            let prov_else = self.inserter.resolve(prov.else_value);
+            let prov_then = self.inserter.resolve(prov.then_value);
+            if prov_else == then_arg {
+                // Group 1: IfElse(c1, y, _, IfElse(c2, x, _, y)) → IfElse(c2, x, _, y)
+                let result = (prov.then_condition, prov_then, then_arg);
+                self.merge_provenance.remove(&else_arg);
+                return Some(result);
+            }
+            if prov_then == then_arg {
+                // Group 2: IfElse(c1, x, _, IfElse(_, x, c2e, z)) → IfElse(c2e, z, _, x)
+                let result = (prov.else_condition, prov_else, then_arg);
+                self.merge_provenance.remove(&else_arg);
+                return Some(result);
+            }
+        }
+        None
     }
 
     /// Switch context the 'exit' block of a conditional statement:
@@ -673,7 +769,7 @@ impl<'f> Context<'f> {
         }
 
         let mut else_branch = cond_context.else_branch.unwrap();
-        self.reset_local_allocations(&mut else_branch);
+        self.local_allocations = std::mem::take(&mut cond_context.local_allocations);
         else_branch.last_block = Some(*block);
         cond_context.else_branch = Some(else_branch);
 
@@ -707,11 +803,16 @@ impl<'f> Context<'f> {
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
-        let mut else_args = Vec::new();
-        if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.clone().unwrap().last_block.unwrap();
-            else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
-        }
+        // When JmpIf's else_destination is the exit block, the else_arguments were stored
+        // in jmpif_else_arguments since there is no separate else block to read them from.
+        let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
+            args
+        } else if let Some(else_branch) = &cond_context.else_branch {
+            let last_else = else_branch.last_block.unwrap();
+            self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+        } else {
+            Vec::new()
+        };
 
         let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
@@ -724,30 +825,67 @@ impl<'f> Context<'f> {
             return;
         }
 
-        let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
+        let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let else_condition = if let Some(branch) = cond_context.else_branch {
-            branch.condition
-        } else {
-            self.inserter.function.dfg.make_constant(FieldElement::zero(), NumericType::bool())
+        let Some(else_branch) = cond_context.else_branch else {
+            unreachable!("malformed branch");
         };
         let block = self.target_block;
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
-            let instruction = Instruction::IfElse {
-                then_condition: cond_context.then_branch.condition,
-                then_value: then_arg,
-                else_condition,
-                else_value: else_arg,
-            };
             let call_stack = cond_context.call_stack;
-            self.inserter
+
+            // Try to collapse a redundant nested merge. When the inner merge's
+            // else_value (or then_value) matches the outer merge's corresponding
+            // argument, the two merges can be combined into one.
+            let collapsed = self.try_collapse_merge(then_arg, else_arg);
+            let (then_condition, then_value, else_condition, else_value) =
+                if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
+                    // For the collapsed merge, the then_condition is the inner's
+                    // condition which already incorporates all outer conditions.
+                    // The correct else_condition is NOT(then_condition).
+                    let inner_else_cond = self.not_instruction(
+                        inner_then_cond,
+                        self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
+                    );
+                    (inner_then_cond, inner_then_val, inner_else_cond, shared_val)
+                } else {
+                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
+                };
+
+            let instruction =
+                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+            let result = self
+                .inserter
                 .function
                 .dfg
                 .insert_instruction_and_results(instruction, block, None, call_stack)
-                .first()
+                .first();
+
+            // Record provenance only for non-collapsed merges — collapsed results
+            // carry conditions from an inner nesting level that may not be "under"
+            // the next outer condition. Provenance is also consumed (removed) on
+            // use by `try_collapse_merge`, preventing stale entries from matching
+            // at unrelated merge points. Skip when the IfElse simplified to an
+            // existing value (e.g. then_value == else_value, or one of the conditions).
+            // If we don't skip conditions, an inner merge that simplifies to its
+            // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
+            // to v0, causing false collapses at outer merges that use v0 as an argument.
+            if collapsed.is_none()
+                && result != then_condition
+                && result != then_value
+                && result != else_condition
+                && result != else_value
+            {
+                self.merge_provenance.insert(
+                    result,
+                    MergeProvenance { then_condition, then_value, else_condition, else_value },
+                );
+            }
+
+            result
         });
 
         self.prepare_args(args);
@@ -771,11 +909,6 @@ impl<'f> Context<'f> {
         for (value, old_mapping) in conditional_context.predicated_values.drain() {
             self.inserter.map_value(value, old_mapping);
         }
-    }
-
-    /// Restore the previously known local allocations after a branch is finished.
-    fn reset_local_allocations(&mut self, conditional_branch: &mut ConditionalBranch) {
-        self.local_allocations = std::mem::take(&mut conditional_branch.local_allocations);
     }
 
     /// Insert a new instruction into the target block.
@@ -870,12 +1003,8 @@ impl<'f> Context<'f> {
         match instruction {
             Instruction::Constrain(lhs, rhs, message) => {
                 // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, lhs, call_stack);
-                let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
-                let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
+                let lhs = self.mul_by_condition(lhs, condition, call_stack);
+                let rhs = self.mul_by_condition(rhs, condition, call_stack);
                 Instruction::Constrain(lhs, rhs, message)
             }
             Instruction::ConstrainNotEqual(_, _, _) => {
@@ -890,7 +1019,7 @@ impl<'f> Context<'f> {
                     // If the reference was allocated before this condition took effect, then we must only
                     // overwrite it if the condition is true.
                     // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
-                    let typ = self.inserter.function.dfg.type_of_value(value);
+                    let typ = self.inserter.function.dfg.type_of_value(value).into_owned();
                     let load = Instruction::Load { address };
                     let previous_value = self
                         .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
@@ -911,11 +1040,7 @@ impl<'f> Context<'f> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 // Replace value with `value * predicate` to zero out value when predicate is inactive.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, value, call_stack);
-                let predicate_value = self.mul_by_condition(value, casted_condition, call_stack);
+                let predicate_value = self.mul_by_condition(value, condition, call_stack);
                 // Issue #8617: update the value to be the predicated value.
                 // This ensures that the value has the correct bit size in all cases.
                 self.predicate_value(value, predicate_value);
@@ -956,7 +1081,7 @@ impl<'f> Context<'f> {
             Value::Intrinsic(intrinsic) => {
                 self.handle_intrinsic_side_effects(condition, intrinsic, arguments, call_stack)
             }
-            Value::Function(_) | Value::ForeignFunction(_) => arguments,
+            Value::Function(_) | Value::ForeignFunction { .. } => arguments,
             Value::Instruction { .. }
             | Value::Param { .. }
             | Value::NumericConstant { .. }
@@ -975,9 +1100,7 @@ impl<'f> Context<'f> {
         match intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => {
                 let field = arguments[0];
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, field, call_stack);
-                let field = self.mul_by_condition(field, casted_condition, call_stack);
+                let field = self.mul_by_condition(field, condition, call_stack);
 
                 arguments[0] = field;
 
@@ -990,15 +1113,15 @@ impl<'f> Context<'f> {
             // multiplying their arguments with the condition.
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsSlice
+            | Intrinsic::AsVector
             | Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
-            | Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
-            | Intrinsic::SlicePopBack
-            | Intrinsic::SlicePopFront
-            | Intrinsic::SliceInsert
-            | Intrinsic::SliceRemove
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
+            | Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorRemove
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)
@@ -1007,7 +1130,7 @@ impl<'f> Context<'f> {
             | Intrinsic::DerivePedersenGenerators
             | Intrinsic::FieldLessThan
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount => arguments,
+            | Intrinsic::VectorRefCount => arguments,
         }
     }
 
@@ -1020,126 +1143,22 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> Vec<ValueId> {
         match blackbox {
-            //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
-            // If inputs are distinct curve points, then so is their predicate version.
-            // If inputs are identical (point doubling), then so is their predicate version
-            // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
             BlackBoxFunc::EmbeddedCurveAdd => {
-                #[cfg(feature = "bn254")]
-                {
-                    let generators = Self::grumpkin_generators();
-                    // Convert the generators to ValueId
-                    let generators = generators
-                        .iter()
-                        .map(|v| {
-                            self.inserter.function.dfg.make_constant(*v, NumericType::NativeField)
-                        })
-                        .collect::<Vec<ValueId>>();
-                    let (point1_x, point2_x) = self.predicate_argument(
-                        &arguments,
-                        &generators,
-                        true,
-                        condition,
-                        call_stack,
-                    );
-                    let (point1_y, point2_y) = self.predicate_argument(
-                        &arguments,
-                        &generators,
-                        false,
-                        condition,
-                        call_stack,
-                    );
-                    arguments[0] = point1_x;
-                    arguments[1] = point1_y;
-                    arguments[3] = point2_x;
-                    arguments[4] = point2_y;
-                }
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
-                arguments[5] = self.mul_by_condition(arguments[5], condition, call_stack);
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
-            // For MSM, we also ensure the inputs are on the curve if the predicate is false.
             BlackBoxFunc::MultiScalarMul => {
-                let (elements, typ) =
-                    self.apply_predicate_to_msm_argument(arguments[0], condition, call_stack);
-                let instruction = Instruction::MakeArray { elements, typ };
-                let array = self.insert_instruction(instruction, call_stack);
-                arguments[0] = array;
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
                 arguments[2] = self.mul_by_condition(arguments[2], condition, call_stack);
                 arguments
             }
 
-            // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
-            // the public key doesn't not sit on the relevant curve.
-            //
-            // We then replace the public key with the generator point if the constraint is inactive to avoid
-            // invalid public keys from causing constraints to fail.
-            BlackBoxFunc::EcdsaSecp256k1 => {
-                // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
-                const GENERATOR_X: [u8; 32] = [
-                    0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce,
-                    0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9, 0x59, 0xf2,
-                    0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
-                ];
-                const GENERATOR_Y: [u8; 32] = [
-                    0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb, 0xfc, 0x0e,
-                    0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19, 0x9c, 0x47,
-                    0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
-                ];
-
-                arguments[0] = self.merge_with_array_constant(
-                    arguments[0],
-                    GENERATOR_X,
-                    condition,
-                    call_stack,
-                );
-                arguments[1] = self.merge_with_array_constant(
-                    arguments[1],
-                    GENERATOR_Y,
-                    condition,
-                    call_stack,
-                );
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
-                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
-                arguments
-            }
-            BlackBoxFunc::EcdsaSecp256r1 => {
-                // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
-                const GENERATOR_X: [u8; 32] = [
-                    0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5, 0x63,
-                    0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0, 0xf4, 0xa1,
-                    0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
-                ];
-                const GENERATOR_Y: [u8; 32] = [
-                    0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a, 0x7c,
-                    0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6,
-                    0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
-                ];
-
-                arguments[0] = self.merge_with_array_constant(
-                    arguments[0],
-                    GENERATOR_X,
-                    condition,
-                    call_stack,
-                );
-                arguments[1] = self.merge_with_array_constant(
-                    arguments[1],
-                    GENERATOR_Y,
-                    condition,
-                    call_stack,
-                );
-                // TODO: We now use a predicate in order to disable the blackbox on the backend side
-                // the predicates on the inputs above will be removed once the backend is updated
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
                 arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
-            // TODO: https://github.com/noir-lang/noir/issues/8998
+            // The predicate is injected in ACIRgen so no modification is needed here.
             BlackBoxFunc::RecursiveAggregation => arguments,
 
             // These functions will always be satisfiable no matter the input so no modification is needed.
@@ -1155,91 +1174,6 @@ impl<'f> Context<'f> {
             BlackBoxFunc::RANGE => {
                 unreachable!("RANGE should have been converted into `Instruction::RangeCheck`")
             }
-        }
-    }
-
-    #[cfg(feature = "bn254")]
-    fn grumpkin_generators() -> Vec<FieldElement> {
-        let g1_x = FieldElement::from_hex("0x01").unwrap();
-        let g1_y =
-            FieldElement::from_hex("0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c").unwrap();
-        let g2_x = FieldElement::from_hex(
-            "0x06ce1b0827aafa85ddeb49cdaa36306d19a74caa311e13d46d8bc688cdbffffe",
-        )
-        .unwrap();
-        let g2_y = FieldElement::from_hex(
-            "0x1c122f81a3a14964909ede0ba2a6855fc93faf6fa1a788bf467be7e7a43f80ac",
-        )
-        .unwrap();
-        vec![g1_x, g1_y, g2_x, g2_y]
-    }
-
-    /// Merges the given array with a constant array of 32 elements of type `u8`.
-    ///
-    /// This is expected to be used for the ECDSA secp256k1 and secp256r1 generators,
-    /// where the x and y coordinates of the generators are constant values.
-    fn merge_with_array_constant(
-        &mut self,
-        array: ValueId,
-        constant: [u8; 32],
-        condition: ValueId,
-        call_stack: CallStackId,
-    ) -> ValueId {
-        let expected_array_type = Type::Array(Arc::new(vec![Type::unsigned(8)]), 32);
-        let array_type = self.inserter.function.dfg.type_of_value(array);
-        assert_eq!(array_type, expected_array_type);
-
-        let elements = constant
-            .iter()
-            .map(|elem| {
-                self.inserter
-                    .function
-                    .dfg
-                    .make_constant(FieldElement::from(u32::from(*elem)), NumericType::unsigned(8))
-            })
-            .collect();
-        let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
-        let constant_array_value = self.insert_instruction(constant_array, call_stack);
-        let not_condition = self.not_instruction(condition, call_stack);
-
-        self.insert_instruction(
-            Instruction::IfElse {
-                then_condition: condition,
-                then_value: array,
-                else_condition: not_condition,
-                else_value: constant_array_value,
-            },
-            call_stack,
-        )
-    }
-
-    /// Returns the values corresponding to the given inputs by doing
-    /// 'if condition {inputs} else {generators}'
-    /// It is done for the abscissas or the ordinates, depending on 'abscissa'.
-    /// Inputs are supposed to be of the form:
-    /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
-    /// - generators: [g1_x, g1_y, g2_x, g2_y]
-    /// - index: true for abscissa, false for ordinate
-    #[cfg(feature = "bn254")]
-    fn predicate_argument(
-        &mut self,
-        inputs: &[ValueId],
-        generators: &[ValueId],
-        abscissa: bool,
-        condition: ValueId,
-        call_stack: CallStackId,
-    ) -> (ValueId, ValueId) {
-        let index = usize::from(!abscissa);
-        if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
-            // Point doubling
-            let predicated_value =
-                self.var_or(inputs[index], condition, generators[index], call_stack);
-            (predicated_value, predicated_value)
-        } else {
-            (
-                self.var_or(inputs[index], condition, generators[index], call_stack),
-                self.var_or(inputs[3 + index], condition, generators[2 + index], call_stack),
-            )
         }
     }
 
@@ -1274,81 +1208,24 @@ impl<'f> Context<'f> {
             call_stack,
         )
     }
-
-    /// When a MSM is done under a predicate, we need to apply the predicate
-    /// to the is_infinity property of the input points in order to ensure
-    /// that the points will be on the curve no matter what.
-    fn apply_predicate_to_msm_argument(
-        &mut self,
-        argument: ValueId,
-        predicate: ValueId,
-        call_stack: CallStackId,
-    ) -> (im::Vector<ValueId>, Type) {
-        let array_typ;
-        let mut array_with_predicate = im::Vector::new();
-        if let Some((array, typ)) = &self.inserter.function.dfg.get_array_constant(argument) {
-            array_typ = typ.clone();
-            for (i, value) in array.clone().iter().enumerate() {
-                if i % 3 == 2 {
-                    array_with_predicate.push_back(self.var_or_one(*value, predicate, call_stack));
-                } else {
-                    array_with_predicate.push_back(*value);
-                }
-            }
-        } else {
-            unreachable!(
-                "Expected an array, got {}",
-                &self.inserter.function.dfg.type_of_value(argument)
-            );
-        };
-
-        (array_with_predicate, array_typ)
-    }
-
-    /// Computes: `if condition { var } else { 1 }`
-    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
-        let field = self.mul_by_condition(var, condition, call_stack);
-        let not_condition = self.not_instruction(condition, call_stack);
-        // Unchecked add because of the values is guaranteed to be 0
-        self.insert_instruction(
-            Instruction::binary(BinaryOp::Add { unchecked: true }, field, not_condition),
-            call_stack,
-        )
-    }
-
-    /// Computes: `if condition { var } else { other }`
-    #[cfg(feature = "bn254")]
-    fn var_or(
-        &mut self,
-        var: ValueId,
-        condition: ValueId,
-        other: ValueId,
-        call_stack: CallStackId,
-    ) -> ValueId {
-        let field = self.mul_by_condition(var, condition, call_stack);
-        let not_condition = self.not_instruction(condition, call_stack);
-        let else_field = self.mul_by_condition(other, not_condition, call_stack);
-        // Unchecked add because one of the values is guaranteed to be 0
-        self.insert_instruction(
-            Instruction::binary(BinaryOp::Add { unchecked: true }, field, else_field),
-            call_stack,
-        )
-    }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::acir::AcirField;
 
     use crate::{
         assert_ssa_snapshot,
         ssa::{
             Ssa,
+            interpreter::value::Value as InterpreterValue,
             ir::{
                 dfg::DataFlowGraph,
                 instruction::{Instruction, TerminatorInstruction},
+                types::NumericType,
                 value::{Value, ValueId},
             },
+            opt::assert_pass_does_not_affect_execution,
         },
     };
 
@@ -1357,7 +1234,7 @@ mod test {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3(Field 3)
               b3(v1: Field):
@@ -1391,7 +1268,7 @@ mod test {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 constrain v1 == u1 1
                 jmp b2()
@@ -1422,7 +1299,7 @@ mod test {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: &mut Field):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 5 at v1
                 jmp b2()
@@ -1456,7 +1333,7 @@ mod test {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: &mut Field):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 5 at v1
                 jmp b3()
@@ -1517,11 +1394,11 @@ mod test {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 v2 = allocate -> &mut Field
                 store Field 1 at v2
-                jmpif v1 then: b3, else: b4
+                jmpif v1 then: b3(), else: b4()
               b2():
                 jmp b7(Field 2)
               b3():
@@ -1606,7 +1483,7 @@ mod test {
             store Field 1 at v2
             v6 = load v2 -> Field
             // call v1(Field 1, v6)
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b2():
             store Field 2 at v2
             v8 = load v2 -> Field
@@ -1615,7 +1492,7 @@ mod test {
           b4():
             v12 = load v2 -> Field
             // call v1(Field 4, v12)
-            jmpif v1 then: b5, else: b6
+            jmpif v1 then: b5(), else: b6()
           b5():
             store Field 5 at v2
             v14 = load v2 -> Field
@@ -1657,44 +1534,44 @@ mod test {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![2, 3, 5, 6]);
+        assert_eq!(merged_values, vec![1, 2, 3, 5, 6]);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
-            v2 = allocate -> &mut Field
             enable_side_effects v0
-            v3 = not v0
-            v4 = cast v0 as Field
-            v5 = cast v3 as Field
-            v7 = mul v4, Field 2
-            v8 = add v7, v5
-            v9 = unchecked_mul v0, v1
-            enable_side_effects v9
-            v10 = not v9
-            v11 = cast v9 as Field
+            v2 = not v0
+            v3 = cast v0 as Field
+            v4 = cast v2 as Field
+            v6 = mul v3, Field 2
+            v8 = mul v4, Field 1
+            v9 = add v6, v8
+            v10 = unchecked_mul v0, v1
+            enable_side_effects v10
+            v11 = not v10
             v12 = cast v10 as Field
-            v14 = mul v11, Field 5
-            v15 = mul v12, v8
-            v16 = add v14, v15
-            v17 = not v1
-            v18 = unchecked_mul v0, v17
-            enable_side_effects v18
-            v19 = not v18
-            v20 = cast v18 as Field
+            v13 = cast v11 as Field
+            v15 = mul v12, Field 5
+            v16 = mul v13, v9
+            v17 = add v15, v16
+            v18 = not v1
+            v19 = unchecked_mul v0, v18
+            enable_side_effects v19
+            v20 = not v19
             v21 = cast v19 as Field
-            v23 = mul v20, Field 6
-            v24 = mul v21, v16
-            v25 = add v23, v24
+            v22 = cast v20 as Field
+            v24 = mul v21, Field 6
+            v25 = mul v22, v17
+            v26 = add v24, v25
             enable_side_effects v0
-            enable_side_effects v3
-            v26 = cast v3 as Field
-            v27 = cast v0 as Field
-            v29 = mul v26, Field 3
-            v30 = mul v27, v25
-            v31 = add v29, v30
+            enable_side_effects v2
+            v27 = cast v2 as Field
+            v28 = cast v0 as Field
+            v30 = mul v27, Field 3
+            v31 = mul v28, v26
+            v32 = add v30, v31
             enable_side_effects u1 1
-            return v31
+            return v32
         }
         ");
     }
@@ -1723,11 +1600,11 @@ mod test {
           b0(v0: u1, v1: u1):
             jmp b1(u32 0)
           b1(v2: u32):
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b2():
             jmp b4(u32 2)
           b4(v3: u32):
-            jmpif v1 then: b5, else: b6
+            jmpif v1 then: b5(), else: b6()
           b5():
             jmp b7(u32 5)
           b7(v4: u32):
@@ -1796,7 +1673,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -1880,7 +1757,7 @@ mod test {
         let src = "
             acir(inline) fn main f1 {
               b0():
-                jmpif u1 0 then: b1, else: b2
+                jmpif u1 0 then: b1(), else: b2()
               b1():
                 jmp b2()
               b2():
@@ -1915,7 +1792,7 @@ mod test {
             v5 = cast v4 as u1
             v6 = allocate -> &mut u8
             store u8 0 at v6
-            jmpif v5 then: b2, else: b1
+            jmpif v5 then: b2(), else: b1()
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
@@ -1999,11 +1876,11 @@ mod test {
             store u32 2 at v2
             v4 = load v2 -> u32
             v5 = lt v4, u32 2
-            jmpif v5 then: b4, else: b1
+            jmpif v5 then: b4(), else: b1()
           b1():
             v6 = load v2 -> u32
             v8 = lt v6, u32 4
-            jmpif v8 then: b2, else: b3
+            jmpif v8 then: b2(), else: b3()
           b2():
             v9 = load v0 -> u32
             v10 = load v2 -> u32
@@ -2054,8 +1931,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut u32
-            v1 = allocate -> &mut u32
             enable_side_effects u1 1
             return u32 200
         }
@@ -2070,7 +1945,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b1
+            jmpif v0 then: b2(), else: b1()
           b2():
             return
           b1():
@@ -2088,7 +1963,7 @@ mod test {
           b0(v0: bool):
             v1 = allocate -> &mut Field
             store Field 0 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store Field 1 at v1
             store Field 2 at v1
@@ -2105,16 +1980,15 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut Field
             enable_side_effects v0
-            v2 = not v0
-            v3 = cast v0 as Field
-            v4 = cast v2 as Field
-            v6 = mul v3, Field 2
-            v7 = mul v4, v3
-            v8 = add v6, v7
+            v1 = not v0
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v5 = mul v2, Field 2
+            v6 = mul v3, v2
+            v7 = add v5, v6
             enable_side_effects u1 1
-            return v8
+            return v7
         }
         ");
     }
@@ -2127,7 +2001,7 @@ mod test {
             v2 = make_array [Field 0] : [Field; 1]
             v3 = allocate -> &mut [Field; 1]
             store v2 at v3
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v4 = make_array [Field 1] : [Field; 1]
             store v4 at v3
@@ -2135,7 +2009,7 @@ mod test {
             store v5 at v3
             jmp b2()
           b2():
-            v24 = load v3 -> Field
+            v24 = load v3 -> [Field; 1]
             return v24
         }";
 
@@ -2153,11 +2027,18 @@ mod test {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = cast v0 as Field
-            v4 = mul v2, Field 2
-            v5 = make_array [v4] : [Field; 1]
+            v2 = not v0
             enable_side_effects u1 1
-            return v5
+            v4 = cast v0 as Field
+            v5 = cast v2 as Field
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v7 = mul v4, Field 2
+            v8 = mul v5, v4
+            v9 = add v7, v8
+            v10 = make_array [v9] : [Field; 1]
+            enable_side_effects u1 1
+            return v10
         }
         ");
     }
@@ -2179,10 +2060,10 @@ mod test {
         acir(inline) pure fn main f0 {
           b0(v0: u1, v1: [[u1; 2]; 3]):
             v4 = not v0
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v7 = not v0
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b2():
             v6 = array_get v1, index u32 0 -> [u1; 2]
             jmp b5(v6)
@@ -2232,30 +2113,12 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "bn254")]
-    fn test_grumpkin_points() {
-        use crate::ssa::opt::flatten_cfg::Context;
-        use acvm::acir::FieldElement;
-
-        let generators = Context::grumpkin_generators();
-        let len = generators.len();
-        for i in (0..len).step_by(2) {
-            let gen_x = generators[i];
-            let gen_y = generators[i + 1];
-            assert!(
-                gen_y * gen_y - gen_x * gen_x * gen_x + FieldElement::from(17_u128)
-                    == FieldElement::zero()
-            );
-        }
-    }
-
-    #[test]
     fn use_predicated_value() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool, v1: u32):
             v3 = add u32 42, v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             range_check v3 to 16 bits
             jmp b3(v3)
@@ -2298,7 +2161,7 @@ mod test {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3(u1 0)
               b2():
@@ -2319,6 +2182,634 @@ mod test {
             v1 = not v0
             enable_side_effects u1 1
             return v1
+        }
+        ");
+    }
+
+    /// Regression test: when JmpIf's else_destination IS the exit/merge block
+    /// (no separate else block), the else_arguments carry the "no-change" value
+    /// directly to the merge. This is the pattern mem2reg produces when
+    /// the else branch has no stores (just falls through to the merge block).
+    #[test]
+    fn flatten_jmpif_else_args_to_exit_block() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2(Field 5)
+              b1():
+                jmp b2(Field 10)
+              b2(v1: Field):
+                return v1
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // Should produce: if v0 then 10 else 5
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = cast v0 as Field
+            v4 = cast v1 as Field
+            v6 = mul v3, Field 10
+            v8 = mul v4, Field 5
+            v9 = add v6, v8
+            return v9
+        }
+        ");
+    }
+
+    /// Regression test: when an inner IfElse simplifies to its own condition
+    /// (e.g. IfElse(v0, 1, _, 0) -> v0), provenance must NOT be stored for that
+    /// value. Otherwise the outer merge sees the provenance on v0 and
+    /// incorrectly collapses.
+    ///
+    /// Pattern:
+    ///   if v0 {
+    ///       // inner: if v0 { 1 } else { 0 } -- simplifies to v0 itself
+    ///       result = 1  // b6 ignores inner merge, passes constant
+    ///   } else {
+    ///       result = v0
+    ///   }
+    ///
+    /// Correct result: v0 (returns v0=0 for false input, 1 for true).
+    /// Bug: provenance on v0 causes outer merge to collapse to `not(v0*not(v0))` = 1 always.
+    #[test]
+    fn no_collapse_when_inner_merge_simplifies_to_condition() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmpif v0 then: b4(), else: b5()
+              b2():
+                jmp b3(v0)
+              b3(v1: u1):
+                return v1
+              b4():
+                jmp b6(u1 1)
+              b5():
+                jmp b6(u1 0)
+              b6(v2: u1):
+                jmp b3(u1 1)
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // With v0 = false, the else branch returns v0 = false.
+        // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
+        let false_value =
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap();
+        let inputs = vec![false_value.clone()];
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![false_value]);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects u1 1
+            return v0
+        }
+        ");
+    }
+}
+
+/// Tests for the merge provenance collapse optimization (issue #12106).
+///
+/// When nested `jmpif` blocks thread the same value through their else-arguments,
+/// `flatten_cfg` can collapse the double merge into a single one. These tests verify
+/// the collapse fires correctly, chains across nesting levels, and — critically — that
+/// provenance does not leak across unrelated conditionals.
+#[cfg(test)]
+mod merge_provenance_tests {
+    use crate::{assert_ssa_snapshot, ssa::Ssa};
+
+    /// Regression test for #12106: promoted block params with jmpif else_arguments
+    /// should produce the same (or fewer) instructions as the equivalent store/load
+    /// pattern after flattening + cleanup.
+    ///
+    /// The pattern is 3 iterations of: `if !ok { if bit[i] { ok = true } }`
+    /// where `ok` is threaded through else_arguments.
+    #[test]
+    fn collapse_nested_merge_shared_else_value() {
+        // Promoted version: `ok` threaded through block params with jmpif else_arguments.
+        let promoted_src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b2(u1 0)
+              b1():
+                jmp b2(u1 1)
+              b2(v3: u1):
+                v4 = not v3
+                jmpif v4 then: b3(), else: b6(v3)
+              b3():
+                jmpif v1 then: b4(), else: b5(v3)
+              b4():
+                jmp b5(u1 1)
+              b5(v5: u1):
+                jmp b6(v5)
+              b6(v6: u1):
+                v7 = not v6
+                jmpif v7 then: b7(), else: b10(v6)
+              b7():
+                jmpif v2 then: b8(), else: b9(v6)
+              b8():
+                jmp b9(u1 1)
+              b9(v8: u1):
+                jmp b10(v8)
+              b10(v9: u1):
+                constrain v9 == u1 1
+                return
+            }
+        ";
+
+        // Store/load version: same semantics using allocate/store/load.
+        let store_load_src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                v3 = allocate -> &mut u1
+                store u1 0 at v3
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store u1 1 at v3
+                jmp b2()
+              b2():
+                v4 = load v3 -> u1
+                v5 = not v4
+                jmpif v5 then: b3(), else: b6()
+              b3():
+                jmpif v1 then: b4(), else: b5()
+              b4():
+                store u1 1 at v3
+                jmp b5()
+              b5():
+                jmp b6()
+              b6():
+                v6 = load v3 -> u1
+                v7 = not v6
+                jmpif v7 then: b7(), else: b10()
+              b7():
+                jmpif v2 then: b8(), else: b9()
+              b8():
+                store u1 1 at v3
+                jmp b9()
+              b9():
+                jmp b10()
+              b10():
+                v8 = load v3 -> u1
+                constrain v8 == u1 1
+                return
+            }
+        ";
+
+        let promoted_ssa = Ssa::from_str(promoted_src).unwrap();
+        let store_load_ssa = Ssa::from_str(store_load_src).unwrap();
+
+        let promoted_flat = promoted_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
+        let store_load_flat = store_load_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
+
+        let count = |ssa: &Ssa| -> usize {
+            let main = ssa.main();
+            main.dfg[main.entry_block()].instructions().len()
+        };
+
+        let promoted_count = count(&promoted_flat);
+        let store_load_count = count(&store_load_flat);
+
+        // After the merge-collapse optimization, the promoted version should produce
+        // the same number of instructions (or fewer) as the store/load version.
+        assert!(
+            promoted_count <= store_load_count,
+            "Expected promoted ({promoted_count}) <= store/load ({store_load_count}).\n\
+             Promoted:\n{promoted_flat}\nStore/load:\n{store_load_flat}"
+        );
+
+        assert_ssa_snapshot!(promoted_flat, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v4 = not v0
+            enable_side_effects v4
+            v5 = unchecked_mul v4, v1
+            enable_side_effects v5
+            enable_side_effects v4
+            enable_side_effects u1 1
+            v6 = not v5
+            v7 = unchecked_mul v6, v0
+            v8 = unchecked_add v5, v7
+            v9 = not v8
+            enable_side_effects v9
+            v10 = unchecked_mul v9, v2
+            enable_side_effects v10
+            enable_side_effects v9
+            enable_side_effects u1 1
+            v11 = not v10
+            v12 = unchecked_mul v11, v8
+            v13 = unchecked_add v10, v12
+            constrain v13 == u1 1
+            return
+        }
+        ");
+    }
+
+    /// Test that the merge collapse chains correctly across 3+ nesting levels.
+    /// Each level threads the same else-value, so all intermediate merges collapse.
+    #[test]
+    fn collapse_nested_merge_chains_across_levels() {
+        // 3-deep nesting: if c0 { if c1 { if c2 { ok = true } } }
+        // with ok threaded through all else branches.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b2(u1 0)
+              b1():
+                jmpif v1 then: b3(), else: b4(u1 0)
+              b3():
+                jmpif v2 then: b5(), else: b6(u1 0)
+              b5():
+                jmp b6(u1 1)
+              b6(v3: u1):
+                jmp b4(v3)
+              b4(v4: u1):
+                jmp b2(v4)
+              b2(v5: u1):
+                constrain v5 == u1 1
+                return
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The innermost merge (v0*v1*v2) collapses with the middle merge,
+        // producing a single condition v0*v1*v2 = v4 for the "set to 1" path.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = unchecked_mul v3, v2
+            enable_side_effects v4
+            v5 = not v2
+            v6 = unchecked_mul v3, v5
+            enable_side_effects v3
+            v7 = not v1
+            v8 = unchecked_mul v0, v7
+            enable_side_effects v0
+            v9 = not v0
+            enable_side_effects u1 1
+            v11 = unchecked_mul v0, v4
+            constrain v0 == u1 1
+            constrain v2 == u1 1
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            return
+        }
+        ");
+    }
+
+    /// Regression test: collapsed merge provenance must NOT leak to subsequent
+    /// unrelated conditionals.
+    ///
+    /// Pattern: two sequential conditionals sharing the same default value.
+    ///   1st: `if v0 { if v1 { x = 1 } }` — collapses to `x = v0 AND v1`
+    ///   2nd: `if v2 { x = 1 }`           — should produce `x = v2 OR (v0 AND v1)`
+    ///
+    /// If collapsed provenance leaked, the 2nd merge would incorrectly collapse
+    /// to `x = v0 AND v1`, dropping the v2 contribution entirely.
+    /// With inputs (v0=0, v1=0, v2=1) the correct result is 1, but the buggy
+    /// result would be 0, failing the constraint.
+    #[test]
+    fn collapsed_provenance_does_not_leak_to_subsequent_conditional() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b4(u1 0)
+              b1():
+                jmpif v1 then: b2(), else: b3(u1 0)
+              b2():
+                jmp b3(u1 1)
+              b3(v3: u1):
+                jmp b4(v3)
+              b4(v4: u1):
+                jmpif v2 then: b5(), else: b6(v4)
+              b5():
+                jmp b6(u1 1)
+              b6(v5: u1):
+                constrain v5 == u1 1
+                return
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The second merge (v2 branch) must still reference v2 via the
+        // `unchecked_mul v9, v3` and `unchecked_add v2, v10` instructions.
+        // If collapsed provenance leaked, v2 would be absent and the constrain
+        // would only check `v0 AND v1`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v0, v4
+            enable_side_effects v0
+            v6 = not v0
+            enable_side_effects v2
+            v7 = not v2
+            enable_side_effects u1 1
+            v9 = unchecked_mul v7, v3
+            v10 = unchecked_add v2, v9
+            constrain v10 == u1 1
+            return
+        }
+        ");
+    }
+
+    /// Group 2, inner merge as outer `then_arg`:
+    /// `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`.
+    ///
+    /// Pins the second return of `try_collapse_merge` (the `prov_then == else_arg`
+    /// arm in the `then_arg` provenance block). Without that arm firing, the outer
+    /// merge would emit a second cast+mul+add; with it firing, only the inner
+    /// mul+add pair remains.
+    #[test]
+    fn collapse_nested_merge_shared_then_value_inner_as_then() {
+        // Outer: if v0 { inner_result } else { 100 }
+        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer else-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b4(Field 100)
+              b1():
+                jmpif v1 then: b2(), else: b3(Field 200)
+              b2():
+                jmp b3(Field 100)
+              b3(v2: Field):
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects v2
+            v3 = not v1
+            v4 = unchecked_mul v0, v3
+            enable_side_effects v0
+            v5 = cast v2 as Field
+            v6 = cast v4 as Field
+            v8 = mul v5, Field 100
+            v10 = mul v6, Field 200
+            v11 = add v8, v10
+            v12 = not v0
+            enable_side_effects u1 1
+            v14 = not v4
+            v15 = cast v4 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Group 1, inner merge as outer `else_arg`:
+    /// `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`.
+    ///
+    /// Pins the third return of `try_collapse_merge` (the `prov_else == then_arg`
+    /// arm in the `else_arg` provenance block).
+    #[test]
+    fn collapse_nested_merge_shared_else_value_inner_as_else() {
+        // Outer: if v0 { 100 } else { inner_result }
+        // Inner: if v1 { 200 } else { 100 }       // inner else-value == outer then-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b5(Field 100)
+              b2():
+                jmpif v1 then: b3(), else: b4(Field 100)
+              b3():
+                jmp b4(Field 200)
+              b4(v2: Field):
+                jmp b5(v2)
+              b5(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects v2
+            v3 = unchecked_mul v2, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v2, v4
+            enable_side_effects v2
+            v6 = cast v3 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 200
+            v11 = mul v7, Field 100
+            v12 = add v9, v11
+            enable_side_effects u1 1
+            v14 = not v3
+            v15 = cast v3 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Group 2, inner merge as outer `else_arg`:
+    /// `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`.
+    ///
+    /// Pins the fourth return of `try_collapse_merge` (the `prov_then == then_arg`
+    /// arm in the `else_arg` provenance block).
+    #[test]
+    fn collapse_nested_merge_shared_then_value_inner_as_else() {
+        // Outer: if v0 { 100 } else { inner_result }
+        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer then-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b5(Field 100)
+              b2():
+                jmpif v1 then: b3(), else: b4(Field 200)
+              b3():
+                jmp b4(Field 100)
+              b4(v2: Field):
+                jmp b5(v2)
+              b5(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects v2
+            v3 = unchecked_mul v2, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v2, v4
+            enable_side_effects v2
+            v6 = cast v3 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 100
+            v11 = mul v7, Field 200
+            v12 = add v9, v11
+            enable_side_effects u1 1
+            v14 = not v5
+            v15 = cast v5 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Test that merges with non-matching values are NOT collapsed.
+    /// Uses Field values so there are 3 distinct constants (no boolean overlap).
+    #[test]
+    fn no_collapse_when_values_differ() {
+        // Inner: then=30, else=20. Outer: else=10. No values match, no collapse.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b4(Field 10)
+              b1():
+                jmpif v1 then: b2(), else: b3(Field 20)
+              b2():
+                jmp b3(Field 30)
+              b3(v2: Field):
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // All three values differ, so both inner and outer merges are preserved
+        // (two mul+add pairs: one for the inner merge, one for the outer merge).
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects v2
+            v3 = not v1
+            v4 = unchecked_mul v0, v3
+            enable_side_effects v0
+            v5 = cast v2 as Field
+            v6 = cast v4 as Field
+            v8 = mul v5, Field 30
+            v10 = mul v6, Field 20
+            v11 = add v8, v10
+            v12 = not v0
+            enable_side_effects u1 1
+            v14 = cast v0 as Field
+            v15 = cast v12 as Field
+            v16 = mul v14, v11
+            v18 = mul v15, Field 10
+            v19 = add v16, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Regression test: non-collapsed merge provenance must not leak to a
+    /// subsequent unrelated conditional.
+    ///
+    /// Pattern:
+    ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
+    ///   2nd: `if v1 { y = R } else { y = Field 200 }`
+    ///
+    /// R has provenance {else_value = Field 200}. The second conditional also has
+    /// else_arg = Field 200, which would match R's provenance. If provenance
+    /// leaked, the second merge would incorrectly collapse to
+    /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
+    ///
+    /// With inputs (v0=1, v1=0) the correct result is Field 200, but the buggy
+    /// result would be Field 100.
+    #[test]
+    fn non_collapsed_provenance_does_not_leak_to_subsequent_conditional() {
+        // First conditional produces R = if_else(v0, 100, !v0, 200).
+        // Second conditional passes R through its then-branch so R appears
+        // as then_arg with its provenance still live.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2(Field 200)
+              b1():
+                jmp b2(Field 100)
+              b2(v2: Field):
+                jmpif v1 then: b3(), else: b4(Field 200)
+              b3():
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The second merge (lines v12–v16) must use v1 as its condition,
+        // producing v1*v10 + !v1*200. If provenance leaked from the first
+        // conditional, it would incorrectly collapse to v0*100 + !v0*200.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects u1 1
+            v4 = cast v0 as Field
+            v5 = cast v2 as Field
+            v7 = mul v4, Field 100
+            v9 = mul v5, Field 200
+            v10 = add v7, v9
+            enable_side_effects v1
+            v11 = not v1
+            enable_side_effects u1 1
+            v12 = cast v1 as Field
+            v13 = cast v11 as Field
+            v14 = mul v12, v10
+            v15 = mul v13, Field 200
+            v16 = add v14, v15
+            return v16
         }
         ");
     }

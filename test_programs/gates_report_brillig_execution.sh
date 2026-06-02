@@ -19,7 +19,7 @@ excluded_dirs=(
   "reference_counts_inliner_min"
   "reference_counts_inliner_0"
   "reference_counts_inliner_max"
-  "reference_counts_slices_inliner_0"
+  "reference_counts_vectors_inliner_0"
 )
 
 current_dir=$(pwd)
@@ -30,6 +30,7 @@ test_dirs=$(ls $base_path)
 # This allows us to generate a gates report using `nargo info` for all of them at once.
 
 echo "[workspace]" > Nargo.toml
+trap 'rm -f "$current_dir/Nargo.toml"' EXIT
 echo "members = [" >> Nargo.toml
 
 for dir in $test_dirs; do
@@ -52,4 +53,3 @@ echo "]" >> Nargo.toml
 
 nargo info --silence-warnings --profile-execution --json --inliner-aggressiveness $1 | jq -r ".programs[].functions = []" > gates_report_brillig_execution.json
 
-rm Nargo.toml

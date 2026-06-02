@@ -1,6 +1,7 @@
 use nargo::errors::CompileError;
 use nargo::ops::{check_crate_and_report_errors, report_errors};
 use noir_artifact_cli::fs::artifact::save_program_to_file;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
@@ -12,7 +13,7 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
+use noirc_driver::{CompileOptions, compile_no_check};
 
 use clap::Args;
 
@@ -85,7 +86,8 @@ fn compile_exported_functions(
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
-                file_manager,
+                &context.file_manager,
+                &context.parsed_files,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             )?;

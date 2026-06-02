@@ -50,25 +50,24 @@ pub(crate) fn on_code_action_request(
 
     let result = process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
-        utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let byte_range = utils::range_to_byte_span(args.files, file_id, &params.range)?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder = CodeActionFinder::new(
-                uri,
-                args.files,
-                file_id,
-                source,
-                byte_range,
-                args.crate_id,
-                args.def_maps,
-                args.dependencies(),
-                args.interner,
-                args.usage_tracker,
-            );
-            finder.find(&parsed_module)
-        })
+        let mut finder = CodeActionFinder::new(
+            uri,
+            args.files,
+            file_id,
+            source,
+            byte_range,
+            args.crate_id,
+            args.def_maps,
+            args.dependencies(),
+            args.interner,
+            args.usage_tracker,
+        );
+        finder.find(&parsed_module)
     });
     future::ready(result)
 }
@@ -260,12 +259,16 @@ impl Visitor for CodeActionFinder<'_> {
             self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
         }
 
+        // We are entering a child module so we shouldn't modify imports from a parent module
+        let previous_use_segment_positions = std::mem::take(&mut self.use_segment_positions);
+
         parsed_sub_module.contents.accept(self);
 
         // Restore the old module before continuing
         self.module_id = previous_module_id;
         self.nesting -= 1;
         self.auto_import_line = old_auto_import_line;
+        self.use_segment_positions = previous_use_segment_positions;
 
         false
     }

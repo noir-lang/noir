@@ -75,10 +75,11 @@ fn _derive_generators(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use ark_ec::AffineRepr;
     use ark_ff::{BigInteger, PrimeField};
+    use itertools::Itertools;
 
     use super::*;
 
@@ -162,7 +163,7 @@ mod test {
         let generated_generators =
             derive_generators(DEFAULT_DOMAIN_SEPARATOR, DEFAULT_GENERATORS.len() as u32, 0);
         for (i, (generator, expected_generator)) in
-            generated_generators.iter().zip(DEFAULT_GENERATORS).enumerate()
+            generated_generators.iter().zip_eq(DEFAULT_GENERATORS).enumerate()
         {
             assert_eq!(
                 hex::encode(generator.x().unwrap().into_bigint().to_bytes_be()),

@@ -1,0 +1,6 @@
+   [package]
+   name = "for_loop_inclusive_u8_max"
+   type = "bin"
+   authors = [""]
+
+   [dependencies]

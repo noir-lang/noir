@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn __debug_var_assign(var_id: u32, value: Field) -> Field {
+    value + (var_id as Field)
+}
+
+fn __debug_var_drop(var_id: u32) -> u32 {
+    var_id + 1_u32
+}
+
+fn main() {
+    let result: Field = __debug_var_assign(5_u32, 10_Field);
+    assert(result == 15_Field);
+    let dropped: u32 = __debug_var_drop(42_u32);
+    assert(dropped == 43_u32);
+}

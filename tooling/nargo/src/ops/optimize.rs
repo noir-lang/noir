@@ -5,8 +5,7 @@ use acvm::{
     acir::circuit::{Program, brillig::BrilligFunctionId},
 };
 use iter_extended::vecmap;
-use noirc_driver::{CompiledContract, CompiledProgram};
-use noirc_errors::debug_info::DebugInfo;
+use noirc_artifacts::{contract::CompiledContract, debug::DebugInfo, program::CompiledProgram};
 
 pub fn optimize_program(mut compiled_program: CompiledProgram) -> CompiledProgram {
     compiled_program.program =

@@ -6,7 +6,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
-import { UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
+import { Barretenberg, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
 
 import { getFile } from './utils.js';
 
@@ -28,6 +28,16 @@ async function getCircuit(projectPath: string) {
 describe('Noir end to end test', function () {
   this.timeout(60 * 20e3); // 20 minutes
 
+  let api: Barretenberg;
+
+  before(async () => {
+    api = await Barretenberg.new({ logger: debugLogger });
+  });
+
+  after(async () => {
+    await api.destroy();
+  });
+
   it('a_1_mul (Compile, Execute, Prove, Verify)', async () => {
     const base_relative_path = '../../../../..';
     const test_case = 'test_programs/execution_success/a_1_mul';
@@ -41,15 +51,12 @@ describe('Noir end to end test', function () {
     const program = new Noir(noir_program);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
+    const backend = new UltraHonkBackend(noir_program.bytecode, api);
     const proof = await backend.generateProof(witness);
-    await backend.destroy();
 
-    const vkBackend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
-    const verificationKey = await vkBackend.getVerificationKey();
-    await vkBackend.destroy();
+    const verificationKey = await backend.getVerificationKey();
 
-    const verifier_backend = new UltraHonkVerifierBackend();
+    const verifier_backend = new UltraHonkVerifierBackend(api);
     const verified = await verifier_backend.verifyProof({ ...proof, verificationKey });
     expect(verified).to.be.true;
   });
@@ -67,12 +74,11 @@ describe('Noir end to end test', function () {
     const program = new Noir(noir_program);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
+    const backend = new UltraHonkBackend(noir_program.bytecode, api);
     const proof = await backend.generateProof(witness);
     const verificationKey = await backend.getVerificationKey();
-    await backend.destroy();
 
-    const verifier_backend = new UltraHonkVerifierBackend();
+    const verifier_backend = new UltraHonkVerifierBackend(api);
     const verified = await verifier_backend.verifyProof({ ...proof, verificationKey });
     expect(verified).to.be.true;
   });

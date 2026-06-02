@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: pub bool, b: pub bool, c: bool) -> pub bool {
+    if (b & a) & !c {
+        // Safety: comment added by `nargo expand`
+        unsafe { func_2_proxy(c as Field); };
+    };
+    !(true ^ (!c ^ true))
+}
+
+unconstrained fn func_2(b: Field, ctx_limit: u32) -> Field {
+    if ctx_limit != 0_u32 {
+        let _: Field = func_2(b, ctx_limit - 1_u32);
+    };
+    0_Field
+}
+
+unconstrained fn func_2_proxy(b: Field) -> Field {
+    func_2(b, 0_u32)
+}

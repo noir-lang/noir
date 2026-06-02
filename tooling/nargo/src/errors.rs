@@ -9,8 +9,11 @@ use acvm::{
     pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 use noirc_abi::{Abi, AbiErrorType, display_abi_error};
+use noirc_artifacts::debug::DebugInfo;
 use noirc_errors::{
-    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
+    CustomDiagnostic,
+    call_stack::{CallStack, CallStackId},
+    reporter::ReportedErrors,
 };
 
 pub use noirc_errors::Location;
@@ -68,7 +71,7 @@ impl<F: AcirField> NargoError<F> {
         match self {
             NargoError::ExecutionError(error) => match error {
                 ExecutionError::AssertionFailed(payload, _, _) => match payload {
-                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::String(message) => Some(message.clone()),
                     ResolvedAssertionPayload::Raw(raw) => {
                         let abi_type = error_types.get(&raw.selector)?;
                         let decoded = display_abi_error(&raw.data, abi_type.clone());
@@ -77,13 +80,13 @@ impl<F: AcirField> NargoError<F> {
                 },
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                        Some(reason.to_string())
+                        Some(reason.clone())
                     }
                     _ => None,
                 },
             },
             NargoError::ForeignCallError(error) => Some(error.to_string()),
-            _ => None,
+            NargoError::CompilationError => None,
         }
     }
 }
@@ -115,7 +118,7 @@ pub enum ExecutionError<F: AcirField> {
 fn extract_locations_from_error<F: AcirField>(
     error: &ExecutionError<F>,
     debug: &[DebugInfo],
-) -> Option<Vec<Location>> {
+) -> Option<CallStack> {
     let mut opcode_locations = match error {
         ExecutionError::SolvingError(
             OpcodeResolutionError::BrilligFunctionFailed { .. },
@@ -139,7 +142,7 @@ fn extract_locations_from_error<F: AcirField>(
             }
             ErrorLocation::Resolved(_) => acir_call_stack.clone(),
         },
-        _ => None,
+        ExecutionError::SolvingError(..) => None,
     }?;
 
     // Insert the top-level Acir location where the Brillig function failed
@@ -168,10 +171,10 @@ fn extract_locations_from_error<F: AcirField>(
             _,
         ) => Some(*function_id),
         ExecutionError::AssertionFailed(_, _, function_id) => *function_id,
-        _ => None,
+        ExecutionError::SolvingError(..) => None,
     };
 
-    Some(
+    Some(CallStack::new(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
@@ -191,7 +194,7 @@ fn extract_locations_from_error<F: AcirField>(
                     .get_call_stack(call_stack_id)
             })
             .collect(),
-    )
+    ))
 }
 
 fn extract_message_from_error(
@@ -230,7 +233,8 @@ fn extract_message_from_error(
     }
 }
 
-/// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
+/// Tries to generate a runtime diagnostic from a nargo error.
+/// It will successfully do so if it's a runtime error with a non-empty call stack.
 pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
@@ -242,9 +246,12 @@ pub fn try_to_diagnose_runtime_error(
         }
         _ => return None,
     };
+    if source_locations.is_empty() {
+        return None;
+    }
     // The location of the error itself will be the location at the top
     // of the call stack (the last item in the Vec).
-    let location = *source_locations.last()?;
+    let location = source_locations.last_or_dummy();
     let message = extract_message_from_error(&abi.error_types, nargo_err);
     let error = CustomDiagnostic::simple_error(message, String::new(), location);
     Some(error.with_call_stack(source_locations))

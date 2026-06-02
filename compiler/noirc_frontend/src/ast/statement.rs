@@ -6,11 +6,10 @@ use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
 use super::{
-    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
-    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
+    IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
-use crate::ast::UnresolvedTypeData;
+use crate::ast::BinaryOpKind;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::graph::CrateId;
 use crate::node_interner::{
@@ -35,6 +34,12 @@ pub struct Statement {
     pub location: Location,
 }
 
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
 /// ends in a block, such as a Statement::Expression containing an if expression.
@@ -43,21 +48,22 @@ pub enum StatementKind {
     Let(LetStatement),
     Expression(Expression),
     Assign(AssignStatement),
+    AssignOp(AssignOpStatement),
     For(ForLoopStatement),
-    Loop(Expression, Location /* loop keyword location */),
+    Loop(LoopStatement),
     While(WhileStatement),
     Break,
     Continue,
     /// This statement should be executed at compile-time
     Comptime(Box<Statement>),
-    // This is an expression with a trailing semi-colon
+    /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    // This is an interned StatementKind during comptime code.
-    // The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned StatementKind during comptime code.
+    /// The actual StatementKind can be retrieved with a NodeInterner.
     Interned(InternedStatementKind),
-    // This statement is the result of a recovered parse error.
-    // To avoid issuing multiple errors in later steps, it should
-    // be skipped in any future analysis if possible.
+    /// This statement is the result of a recovered parse error.
+    /// To avoid issuing multiple errors in later steps, it should
+    /// be skipped in any future analysis if possible.
     Error,
 }
 
@@ -80,6 +86,7 @@ impl Statement {
             StatementKind::Comptime(statement) => statement.type_location(),
             StatementKind::Let(..)
             | StatementKind::Assign(..)
+            | StatementKind::AssignOp(..)
             | StatementKind::For(..)
             | StatementKind::Loop(..)
             | StatementKind::While(..)
@@ -113,6 +120,7 @@ impl StatementKind {
                 self
             }
             StatementKind::Assign(_)
+            | StatementKind::AssignOp(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
@@ -124,6 +132,20 @@ impl StatementKind {
                 self
             }
             StatementKind::Comptime(mut statement) => {
+                // `comptime { expr };` => `Semi(comptime { expr })`
+                if semi.is_some()
+                    && let StatementKind::Expression(Expression {
+                        kind: ExpressionKind::Block(block),
+                        ..
+                    }) = statement.kind
+                {
+                    let comptime_expr = Expression {
+                        kind: ExpressionKind::Comptime(block, statement.location),
+                        location,
+                    };
+                    return StatementKind::Semi(comptime_expr);
+                }
+
                 *statement =
                     statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
@@ -164,7 +186,7 @@ impl StatementKind {
 impl StatementKind {
     pub fn new_let(
         pattern: Pattern,
-        r#type: UnresolvedType,
+        r#type: Option<UnresolvedType>,
         expression: Expression,
         attributes: Vec<SecondaryAttribute>,
     ) -> StatementKind {
@@ -315,10 +337,11 @@ pub struct ImportStatement {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PathKind {
     Crate,
-    Dep,
+    Absolute,
     Plain,
     Super,
-    /// This path is a Crate or Dep path which always points to the given crate
+    /// This path is a Crate or Dep path which always points to the given crate.
+    /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
     Resolved(CrateId),
 }
 
@@ -394,16 +417,24 @@ pub struct UnsafeExpression {
 /// A special kind of path in the form `<MyType as Trait>::ident`.
 /// Note that this path must consist of exactly two segments.
 ///
-/// An AsTraitPath may be used in either a type context where `ident`
-/// refers to an associated type of a particular impl, or in a value
-/// context where `ident` may refer to an associated constant or a
-/// function within the impl.
+/// An `AsTraitPath` may be used in in the following contexts:
+/// * in a type context where the `ident` refers to an associated type of a particular impl
+/// * in a value context where `ident` may refer to an associated constant or a function within the impl
+/// * in the trait definition itself, referring to an associated type of the same trait
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct AsTraitPath {
+    /// The `MyType` in the path.
     pub typ: UnresolvedType,
+    /// The `Trait` in the path.
     pub trait_path: Path,
+    /// Any generics on the trait itself.
     pub trait_generics: GenericTypeArgs,
+    /// The `ident` in the path.
     pub impl_item: Ident,
+    /// Any turbofish generics applied to `impl_item`, e.g. `::<T>` in
+    /// `<Ty as Trait>::method::<T>()`. Only meaningful when `impl_item` refers
+    /// to a generic function; always `None` when this path is used as a type.
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 /// A special kind of path in the form `Type::ident::<turbofish>`
@@ -421,7 +452,7 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub location: Location,
-    // The location of `kind` (this is the same as `location` for plain kinds)
+    /// The location of `kind` (this is the same as `location` for plain kinds)
     pub kind_location: Location,
 }
 
@@ -434,17 +465,18 @@ impl Path {
         self.segments.pop().unwrap()
     }
 
-    fn join(mut self, ident: Ident) -> Path {
+    pub fn join(mut self, ident: Ident) -> Path {
         self.segments.push(PathSegment::from(ident));
         self
     }
 
-    /// Construct a PathKind::Plain from this single
+    /// Construct a [PathKind::Plain] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
+    /// Construct a [PathKind::Plain] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)
@@ -493,10 +525,6 @@ impl Path {
             return None;
         }
         self.segments.first().map(|segment| &segment.ident)
-    }
-
-    pub(crate) fn is_wildcard(&self) -> bool {
-        if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -556,7 +584,7 @@ impl Display for PathSegment {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
     pub pattern: Pattern,
-    pub r#type: UnresolvedType,
+    pub r#type: Option<UnresolvedType>,
     pub expression: Expression,
     pub attributes: Vec<SecondaryAttribute>,
 
@@ -569,6 +597,46 @@ pub struct LetStatement {
 pub struct AssignStatement {
     pub lvalue: LValue,
     pub expression: Expression,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AssignOpStatement {
+    pub lvalue: LValue,
+    pub op: AssignOp,
+    pub expression: Expression,
+}
+
+pub type AssignOp = Located<AssignOpKind>;
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum AssignOpKind {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    And,
+    Or,
+    Xor,
+    ShiftRight,
+    ShiftLeft,
+    Modulo,
+}
+
+impl AssignOpKind {
+    pub fn to_binary_op_kind(&self) -> BinaryOpKind {
+        match self {
+            AssignOpKind::Add => BinaryOpKind::Add,
+            AssignOpKind::Subtract => BinaryOpKind::Subtract,
+            AssignOpKind::Multiply => BinaryOpKind::Multiply,
+            AssignOpKind::Divide => BinaryOpKind::Divide,
+            AssignOpKind::And => BinaryOpKind::And,
+            AssignOpKind::Or => BinaryOpKind::Or,
+            AssignOpKind::Xor => BinaryOpKind::Xor,
+            AssignOpKind::ShiftRight => BinaryOpKind::ShiftRight,
+            AssignOpKind::ShiftLeft => BinaryOpKind::ShiftLeft,
+            AssignOpKind::Modulo => BinaryOpKind::Modulo,
+        }
+    }
 }
 
 /// Represents an Ast form that can be assigned to
@@ -734,31 +802,6 @@ pub struct ForBounds {
     pub inclusive: bool,
 }
 
-impl ForBounds {
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),
-    /// desugaring `start..=end` into `start..end+1` if necessary.
-    ///
-    /// Returns the `start` and `end` expressions.
-    pub(crate) fn into_half_open(self) -> (Expression, Expression) {
-        let end = if self.inclusive {
-            let end_location = self.end.location;
-            let end = ExpressionKind::Infix(Box::new(InfixExpression {
-                lhs: self.end,
-                operator: Located::from(end_location, BinaryOpKind::Add),
-                rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(1u32), None),
-                    end_location,
-                ),
-            }));
-            Expression::new(end, end_location)
-        } else {
-            self.end
-        };
-
-        (self.start, end)
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ForRange {
     Range(ForBounds),
@@ -767,8 +810,8 @@ pub enum ForRange {
 
 impl ForRange {
     /// Create a half-open range, bounded inclusively below and exclusively above.
-    pub fn range(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: false })
+    pub fn range(start: Expression, end: Expression, inclusive: bool) -> Self {
+        Self::Range(ForBounds { start, end, inclusive })
     }
 
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
@@ -812,7 +855,7 @@ impl ForRange {
                 let let_array = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(array_ident.clone()),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         array,
                         vec![],
                     ),
@@ -849,7 +892,7 @@ impl ForRange {
                 let let_elem = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
-                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         Expression::new(loop_element, array_location),
                         vec![],
                     ),
@@ -870,7 +913,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::range(start_range, end_range),
+                        range: ForRange::range(start_range, end_range, false),
                         block: new_block,
                         location: for_loop_location,
                     }),
@@ -904,14 +947,21 @@ pub struct WhileStatement {
     pub while_keyword_location: Location,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct LoopStatement {
+    pub body: Expression,
+    pub loop_keyword_location: Location,
+}
+
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StatementKind::Let(let_statement) => let_statement.fmt(f),
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
+            StatementKind::AssignOp(assign_op) => assign_op.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
+            StatementKind::Loop(loop_) => write!(f, "loop {}", loop_.body),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }
@@ -927,10 +977,10 @@ impl Display for StatementKind {
 
 impl Display for LetStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if matches!(&self.r#type.typ, UnresolvedTypeData::Unspecified) {
-            write!(f, "let {} = {}", self.pattern, self.expression)
+        if let Some(typ) = &self.r#type {
+            write!(f, "let {}: {} = {}", self.pattern, typ, self.expression)
         } else {
-            write!(f, "let {}: {} = {}", self.pattern, self.r#type, self.expression)
+            write!(f, "let {} = {}", self.pattern, self.expression)
         }
     }
 }
@@ -938,6 +988,29 @@ impl Display for LetStatement {
 impl Display for AssignStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.lvalue, self.expression)
+    }
+}
+
+impl Display for AssignOpStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}= {}", self.lvalue, self.op.contents, self.expression)
+    }
+}
+
+impl Display for AssignOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssignOpKind::Add => write!(f, "+"),
+            AssignOpKind::Subtract => write!(f, "-"),
+            AssignOpKind::Multiply => write!(f, "*"),
+            AssignOpKind::Divide => write!(f, "/"),
+            AssignOpKind::And => write!(f, "&"),
+            AssignOpKind::Or => write!(f, "|"),
+            AssignOpKind::Xor => write!(f, "^"),
+            AssignOpKind::ShiftRight => write!(f, ">>"),
+            AssignOpKind::ShiftLeft => write!(f, "<<"),
+            AssignOpKind::Modulo => write!(f, "%"),
+        }
     }
 }
 
@@ -970,7 +1043,7 @@ impl Display for PathKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PathKind::Crate => write!(f, "crate"),
-            PathKind::Dep => write!(f, "dep"),
+            PathKind::Absolute => write!(f, ""),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
             PathKind::Resolved(_) => write!(f, "$crate"),

@@ -5,33 +5,40 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, IntegerBitSize, LValue,
-        LetStatement, Statement, StatementKind, WhileStatement,
+        AssignOpStatement, AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement,
+        LoopStatement, Statement, StatementKind, UnaryOp, WhileStatement,
     },
-    elaborator::PathResolutionTarget,
+    elaborator::{
+        PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
+        types::WildcardAllowed,
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirBlockExpression, HirExpression, HirIdent},
+        expr::{
+            HirBinaryOp, HirBlockExpression, HirExpression, HirIdent, HirIndexExpression,
+            HirLiteral, HirMemberAccess, HirPrefixExpression,
+        },
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
             HirStatement,
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
-    shared::Signedness,
 };
 
 use super::{Elaborator, Loop};
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         self.elaborate_statement_value_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value_with_target_type(
         &mut self,
         statement: Statement,
@@ -40,12 +47,22 @@ impl Elaborator<'_> {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
+            StatementKind::AssignOp(assign_op) => self.elaborate_assign_op(assign_op),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block, location) => self.elaborate_loop(block, location),
+            StatementKind::Loop(loop_) => self.elaborate_loop(loop_),
             StatementKind::While(while_) => self.elaborate_while(while_),
             StatementKind::Break => self.elaborate_jump(true, statement.location),
             StatementKind::Continue => self.elaborate_jump(false, statement.location),
-            StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
+            StatementKind::Comptime(statement) => {
+                if self.in_comptime_context() {
+                    // Treat a nested comptime block as a regular block. Nested comptime blocks
+                    // can happen as a result of macro expansion so it wouldn't be good to produce
+                    // a warning in that case.
+                    self.elaborate_statement_value_with_target_type(*statement, target_type)
+                } else {
+                    self.elaborate_comptime_statement(*statement, target_type)
+                }
+            }
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
@@ -63,11 +80,29 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         self.elaborate_statement_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
+
+        if has_errors {
+            self.interner.stmts_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_statement_inner(
         &mut self,
         statement: Statement,
         target_type: Option<&Type>,
@@ -75,11 +110,11 @@ impl Elaborator<'_> {
         let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
-        let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, location);
+        let id = self.interner.push_stmt_full(hir_statement, location);
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
         let (let_statement, typ) = self.elaborate_let(let_stmt, None);
         (HirStatement::Let(let_statement), typ)
@@ -89,21 +124,60 @@ impl Elaborator<'_> {
     /// If this is a global let, the DefinitionId of the global is specified so that
     /// elaborate_pattern can create a Global definition kind with the correct ID
     /// instead of a local one with a fresh ID.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_let(
         &mut self,
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirLetStatement, Type) {
-        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
-        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+        let previous_in_comptime_context = self.in_comptime_context;
+
+        // If this is a global we need to evaluate its type and value in a new function context.
+        // Also, if it's a comptime global we check the type in a comptime context (so Quoted
+        // and other comptime-only types are allowed).
+        if let Some(global_id) = global_id {
+            self.in_comptime_context = self.interner.get_global_definition(global_id).comptime;
+            self.push_function_context();
+        }
+
+        let no_type = let_stmt.r#type.is_none();
+        let wildcard_allowed = if global_id.is_some() {
+            WildcardAllowed::No(WildcardDisallowedContext::Global)
+        } else {
+            WildcardAllowed::Yes
+        };
+
+        let previous_impl_trait_context = if global_id.is_some() {
+            self.impl_trait_is_disallowed.replace(super::types::ImplTraitDisallowedContext::Global)
+        } else {
+            self.impl_trait_is_disallowed
+        };
+        let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
+        self.impl_trait_is_disallowed = previous_impl_trait_context;
+
+        // After resolving the type we'll elaborate the global's value. The value is interpreted
+        // at compile time, so we need to switch to a comptime context. For example using `Quoted`
+        // is allowed in global values, even in non-comptime globals, as long as these comptime-only
+        // values do not survive until runtime (if they do survive, the monomorphizer will catch this).
+        if global_id.is_some() {
+            self.in_comptime_context = true;
+        }
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
-        let (expression, expr_type) =
-            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
+
+        // If this is a global, the global's value will be interpreted at compile time later on,
+        // which means the expression must be elaborated in a comptime context. For example
+        // Quoted and other comptime-only types are allowed here (though if they survive until
+        // runtime the monomorphizer will detect this).
+        let (expression, expr_type) = if no_type {
+            self.elaborate_expression(let_stmt.expression)
+        } else {
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type))
+        };
 
         // Require the top-level of a global's type to be fully-specified
-        if type_contains_unspecified && global_id.is_some() {
+        if global_id.is_some() && (no_type || annotated_type.contains_type_variable()) {
             let expected_type = annotated_type.clone();
             let error = ResolverError::UnspecifiedGlobalType {
                 pattern_location,
@@ -114,30 +188,46 @@ impl Elaborator<'_> {
         }
 
         let definition = match global_id {
-            None => DefinitionKind::Local(Some(expression)),
-            Some(id) => DefinitionKind::Global(id),
+            None => {
+                assert!(!let_stmt.is_global_let);
+                DefinitionKind::Local(Some(expression))
+            }
+            Some(id) => {
+                assert!(let_stmt.is_global_let);
+                DefinitionKind::Global(id)
+            }
         };
 
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
-        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_location, || {
-            CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                expected_typ: annotated_type.to_string(),
-                expr_typ: expr_type.to_string(),
-                expr_location,
-            })
-        });
+        self.unify_with_coercions(
+            &expr_type,
+            &annotated_type,
+            expression,
+            expr_location,
+            |elaborator| {
+                CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                    &expr_type,
+                    &annotated_type,
+                    expr_location,
+                ))
+            },
+        );
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
+        let warn_if_not_mutated =
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_mut"));
 
         let r#type = annotated_type;
-        let pattern = self.elaborate_pattern_and_store_ids(
+        let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+        let pattern = self.elaborate_pattern(
             let_stmt.pattern,
             r#type.clone(),
             definition,
-            &mut Vec::new(),
             warn_if_unused,
+            warn_if_not_mutated,
+            &mut parameter_names_in_list,
         );
 
         let attributes = let_stmt.attributes;
@@ -145,31 +235,130 @@ impl Elaborator<'_> {
         let is_global_let = let_stmt.is_global_let;
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
+
+        if global_id.is_some() {
+            self.check_and_pop_function_context();
+            self.in_comptime_context = previous_in_comptime_context;
+        }
+
         (let_, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
+        let (lvalue, lvalue_type, mutable, new_statements) =
+            self.elaborate_lvalue(assign.lvalue, true);
+        self.finish_assign(
+            lvalue,
+            lvalue_type,
+            mutable,
+            expression,
+            expr_type,
+            expr_location,
+            new_statements,
+        )
+    }
 
-        let (lvalue, lvalue_type, mutable, mut new_statements) =
-            self.elaborate_lvalue(assign.lvalue);
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn elaborate_assign_op(
+        &mut self,
+        assign_op: AssignOpStatement,
+    ) -> (HirStatement, Type) {
+        // Transform `lvalue <op>= rhs` into `lvalue = lvalue <op> rhs`.
+        //
+        // We must elaborate the lvalue first and reuse its HIR form for the read side of the
+        // infix expression. This prevents index sub-expressions from being evaluated twice.
+        // For example, `x[f()] += 1` must call `f()` only once.
+        //
+        // `elaborate_lvalue` already extracts any side-effectful index expressions into fresh
+        // let bindings (new_statements) and replaces them with simple ident references, so the
+        // HIR lvalue we get back is safe to convert into a read expression without re-evaluating
+        // any side effects.
+        //
+        // We also extract a side-effectful right-hand side into a fresh let-binding emitted before
+        // the lvalue is evaluated. This ensures the RHS is evaluated before the lvalue is read or written.
+        // For example, in `arr[i] += { i = 1; 5 }` we want `i = 1` to be observed by the lvalue, so the final
+        // lowering reads/writes `arr[1]`. For a plain-variable lvalue the place doesn't depend
+        // on any sub-expression the RHS could change, so we leave the RHS inline.
+        let expression_location = assign_op.expression.location;
 
-        if !mutable {
-            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
-            self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
-        } else {
-            let (id, name, location) = self.get_lvalue_error_info(&lvalue);
-            self.check_can_mutate_lambda_capture(id, name, location);
+        // Elaborate the right-hand side of the operator first.
+        let (mut rhs_expr, rhs_type) = self.elaborate_expression(assign_op.expression);
+
+        let (hir_lvalue, lvalue_type, mutable, mut new_statements) =
+            self.elaborate_lvalue(assign_op.lvalue, true);
+
+        if let Some((rhs_let, rhs_ident)) = self.fresh_definition_for_side_effect_extraction(
+            rhs_expr,
+            rhs_type.clone(),
+            expression_location,
+            "op_rhs",
+        ) {
+            new_statements.insert(0, rhs_let);
+            rhs_expr = rhs_ident;
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
-            CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
-                actual: expr_type.clone(),
-                expected: lvalue_type.clone(),
-                location: expr_location,
-                source: Source::Assignment,
-            })
+        // Convert the HIR lvalue into a read expression, reusing the same ident ExprIds
+        // that were already bound by the index let-statements in new_statements.
+        let lhs_expr = self.hir_lvalue_as_expr(&hir_lvalue);
+        let lhs_type = lvalue_type.clone();
+
+        let op_kind = assign_op.op.contents.to_binary_op_kind();
+        let operator = HirBinaryOp { kind: op_kind, location: assign_op.op.location() };
+        let (expression, expression_type) = self.finish_infix(
+            lhs_expr,
+            lhs_type,
+            operator,
+            rhs_expr,
+            rhs_type,
+            expression_location,
+        );
+
+        self.finish_assign(
+            hir_lvalue,
+            lvalue_type,
+            mutable,
+            expression,
+            expression_type,
+            expression_location,
+            new_statements,
+        )
+    }
+
+    /// Complete assignment elaboration given an already-elaborated lvalue and rhs expression.
+    /// Handles mutability checks, type unification, and wrapping in a block when index
+    /// let-bindings were emitted by `elaborate_lvalue`.
+    #[allow(clippy::too_many_arguments)]
+    fn finish_assign(
+        &mut self,
+        lvalue: HirLValue,
+        lvalue_type: Type,
+        mutable: bool,
+        expression: ExprId,
+        expr_type: Type,
+        location: Location,
+        mut new_statements: Vec<StmtId>,
+    ) -> (HirStatement, Type) {
+        self.mark_lvalue_variables_as_mutated(&lvalue);
+
+        if !mutable {
+            self.push_assign_to_immutable_lvalue_error(&lvalue, &lvalue);
+        } else {
+            let (id, name, loc) = self.get_lvalue_error_info(&lvalue);
+            if let Some(id) = id {
+                self.check_can_mutate_lambda_capture(id, name, loc);
+            }
+        }
+
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, location, |elaborator| {
+            CompilationError::TypeError(elaborator.new_type_mismatch_with_source_error(
+                &expr_type,
+                &lvalue_type,
+                Source::Assignment,
+                location,
+            ))
         });
 
         let assign = HirAssignStatement { lvalue, expression };
@@ -178,18 +367,101 @@ impl Elaborator<'_> {
         if new_statements.is_empty() {
             (assign, Type::Unit)
         } else {
-            let assign = self.interner.push_stmt(assign);
-            self.interner.push_stmt_location(assign, expr_location);
+            let assign = self.interner.push_stmt_full(assign, location);
             new_statements.push(assign);
             let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
-            let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
+            let block = self.interner.push_expr_full(block, location, Type::Unit);
             (HirStatement::Expression(block), Type::Unit)
         }
     }
 
+    /// Convert a HIR lvalue into a read expression, reusing the same ident ExprIds.
+    /// This is used to build the read side of a desugared op-assign without re-evaluating
+    /// any index sub-expressions.
+    fn hir_lvalue_as_expr(&mut self, lvalue: &HirLValue) -> ExprId {
+        let location = lvalue.location();
+        match lvalue {
+            HirLValue::Ident(ident, typ) => {
+                let expr = HirExpression::Ident(ident.clone(), None);
+                self.interner.push_expr_full(expr, location, typ.clone())
+            }
+            HirLValue::MemberAccess { object, field_name, field_index, typ, location } => {
+                let lhs = self.hir_lvalue_as_expr(object);
+                let expr = HirExpression::MemberAccess(HirMemberAccess {
+                    lhs,
+                    rhs: field_name.clone(),
+                    is_offset: false,
+                });
+                let expr_id = self.interner.push_expr_full(expr, *location, typ.clone());
+                if let Some(index) = field_index {
+                    self.interner.set_field_index(expr_id, *index);
+                }
+                expr_id
+            }
+            HirLValue::Index { array, index, typ, location } => {
+                let collection = self.hir_lvalue_as_expr(array);
+                let expr = HirExpression::Index(HirIndexExpression { collection, index: *index });
+                self.interner.push_expr_full(expr, *location, typ.clone())
+            }
+            HirLValue::Dereference { lvalue, element_type, implicitly_added, location } => {
+                let inner = self.hir_lvalue_as_expr(lvalue);
+                let expr = HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: *implicitly_added },
+                    inner,
+                ));
+                self.interner.push_expr_full(expr, *location, element_type.clone())
+            }
+            HirLValue::Error { location } => {
+                self.interner.push_expr_full(HirExpression::Error, *location, Type::Error)
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn push_assign_to_immutable_lvalue_error(
+        &mut self,
+        lvalue: &HirLValue,
+        main_lvalue: &HirLValue,
+    ) {
+        match lvalue {
+            HirLValue::Ident(ident, _) => {
+                let definition = self.interner.definition(ident.id);
+                let name = definition.name.clone();
+                let location = ident.location;
+                self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+            }
+
+            HirLValue::MemberAccess { object, .. } => {
+                self.push_assign_to_immutable_lvalue_error(object, main_lvalue);
+            }
+            HirLValue::Index { array, .. } => {
+                self.push_assign_to_immutable_lvalue_error(array, main_lvalue);
+            }
+            HirLValue::Dereference { lvalue, .. } => {
+                if let HirLValue::Ident(ident, _) = lvalue.as_ref() {
+                    let definition = self.interner.definition(ident.id);
+                    let name = definition.name.clone();
+                    let location = ident.location;
+                    self.push_err(TypeCheckError::CannotAssignToReference { name, location });
+                } else {
+                    let lvalue = main_lvalue.to_display_ast(self.interner).to_string();
+                    let location = main_lvalue.location();
+                    self.push_err(TypeCheckError::CannotAssignToLValueBehindReference {
+                        lvalue,
+                        location,
+                    });
+                }
+            }
+            HirLValue::Error { .. } => {
+                // An error was already pushed for this
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
-        let (start, end) = match for_loop.range {
-            ForRange::Range(bounds) => bounds.into_half_open(),
+        let (start, end, inclusive) = match for_loop.range {
+            ForRange::Range(bounds) => (bounds.start, bounds.end, bounds.inclusive),
             ForRange::Array(_) => {
                 let for_stmt =
                     for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.location);
@@ -210,26 +482,21 @@ impl Elaborator<'_> {
         self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
-        // TODO: For loop variables are currently mutable by default since we haven't
-        //       yet implemented syntax for them to be optionally mutable.
         let kind = DefinitionKind::Local(None);
         let identifier = self.add_variable_decl(
             identifier, false, // mutable
             true,  // allow_shadowing
             true,  // warn_if_unused
+            true,  // warn_if_not_mutated
             kind,
         );
 
         // Check that start range and end range have the same types
-        self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
-            expected_typ: start_range_type.to_string(),
-            expr_typ: end_range_type.to_string(),
-            expr_location: end_location,
-        });
+        self.unify_or_type_mismatch(&end_range_type, &start_range_type, end_location);
 
         let expected_type = self.polymorphic_integer();
 
-        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
+        self.unify(&start_range_type, &expected_type, |_| TypeCheckError::TypeCannotBeUsed {
             typ: start_range_type.clone(),
             place: "for loop",
             location: start_location,
@@ -240,26 +507,25 @@ impl Elaborator<'_> {
         let block_location = block.type_location();
         let (block, block_type) = self.elaborate_expression(block);
 
-        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Unit.to_string(),
-            expr_typ: block_type.to_string(),
-            expr_location: block_location,
-        });
+        self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
         self.current_loop = old_loop;
 
-        let statement =
-            HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
+        let statement = HirStatement::For(HirForStatement {
+            start_range,
+            end_range,
+            block,
+            identifier,
+            inclusive,
+        });
 
         (statement, Type::Unit)
     }
 
-    pub(super) fn elaborate_loop(
-        &mut self,
-        block: Expression,
-        location: Location,
-    ) -> (HirStatement, Type) {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
+        let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
             self.push_err(ResolverError::LoopInConstrainedFn { location });
@@ -272,11 +538,7 @@ impl Elaborator<'_> {
         let block_location = block.type_location();
         let (block, block_type) = self.elaborate_expression(block);
 
-        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Unit.to_string(),
-            expr_typ: block_type.to_string(),
-            expr_location: block_location,
-        });
+        self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
 
@@ -291,6 +553,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
@@ -306,20 +569,12 @@ impl Elaborator<'_> {
         let location = while_.condition.type_location();
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
-            expr_typ: cond_type.to_string(),
-            expr_location: location,
-        });
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);
 
-        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Unit.to_string(),
-            expr_typ: block_type.to_string(),
-            expr_location: block_location,
-        });
+        self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
 
@@ -330,6 +585,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_jump(&mut self, is_break: bool, location: Location) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
 
@@ -346,23 +602,23 @@ impl Elaborator<'_> {
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
-        (expr, self.interner.next_type_variable())
+        (expr, Type::Unit)
     }
 
-    fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
+    fn get_lvalue_error_info(
+        &self,
+        lvalue: &HirLValue,
+    ) -> (Option<DefinitionId>, String, Location) {
         match lvalue {
             HirLValue::Ident(name, _) => {
                 let location = name.location;
-
-                if let Some(definition) = self.interner.try_definition(name.id) {
-                    (name.id, definition.name.clone(), location)
-                } else {
-                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), location)
-                }
+                let definition = self.interner.definition(name.id);
+                (Some(name.id), definition.name.clone(), location)
             }
             HirLValue::MemberAccess { object, .. } => self.get_lvalue_error_info(object),
             HirLValue::Index { array, .. } => self.get_lvalue_error_info(array),
             HirLValue::Dereference { lvalue, .. } => self.get_lvalue_error_info(lvalue),
+            HirLValue::Error { location, .. } => (None, "(undeclared variable)".into(), *location),
         }
     }
 
@@ -372,36 +628,34 @@ impl Elaborator<'_> {
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
-    fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_lvalue(
+        &mut self,
+        lvalue: LValue,
+        is_assignment_target: bool,
+    ) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Path(path) => {
-                let mut mutable = true;
                 let location = path.location;
                 let path = self.validate_path(path);
                 match self.get_ident_from_path_or_error(path.clone()) {
-                    Ok(((ident, scope_index), _)) => {
-                        self.resolve_local_variable(ident.clone(), scope_index);
-
-                        if let Some(definition) = self.interner.try_definition(ident.id) {
-                            mutable = definition.mutable;
-
-                            if definition.comptime && !self.in_comptime_context() {
-                                self.push_err(
-                                    ResolverError::MutatingComptimeInNonComptimeContext {
-                                        name: definition.name.clone(),
-                                        location: ident.location,
-                                    },
-                                );
-                            }
-                        }
-
-                        let typ =
-                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
-                        let typ = typ.follow_bindings();
-
-                        self.interner.add_local_reference(ident.id, location);
-
-                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                    Ok(IdentFromPath::Variable(variable)) => {
+                        self.check_if_variable_is_captured_by_closure(&variable);
+                        self.elaborate_lvalue_ident(variable.ident, location)
+                    }
+                    Ok(IdentFromPath::Definition { id, item: _ }) => {
+                        let ident = HirIdent::non_trait_method(id, location);
+                        self.elaborate_lvalue_ident(ident, location)
+                    }
+                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                        let type_alias = self.interner.get_type_alias(type_alias_id);
+                        self.push_err(ResolverError::Expected {
+                            location,
+                            expected: "value",
+                            found: format!("type alias `{}`", type_alias.borrow().name),
+                        });
+                        let mutable = true;
+                        (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
                     Err(error) => {
                         // We couldn't find a variable or global. Let's see if the identifier refers to something
@@ -412,48 +666,43 @@ impl Elaborator<'_> {
                             super::PathResolutionMode::MarkAsUsed,
                         );
                         if let Ok(result) = result {
-                            for error in result.errors {
-                                self.push_err(error);
-                            }
+                            self.push_errors(result.errors);
                             self.push_err(ResolverError::Expected {
                                 location,
                                 expected: "value",
-                                got: result.item.description(),
+                                found: result.item.description(self.interner),
                             });
                         } else {
                             self.push_err(error);
                         }
 
-                        let id = DefinitionId::dummy_id();
-                        let ident = HirIdent::non_trait_method(id, location);
-                        let typ = Type::Error;
-                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                        // We se this to mutable to prevent further errors from being reported
+                        let mutable = true;
+                        (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
                 }
             }
             LValue::MemberAccess { object, field_name, location } => {
-                let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);
+                let (object, lhs_type, mut mutable, statements) =
+                    self.elaborate_lvalue(*object, false);
                 let mut object = Box::new(object);
-                let field_name = field_name.clone();
 
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
 
-                let dereference_lhs = move |_: &mut Self, _, element_type| {
+                let dereference_lhs = move |_: &mut Self, _, element_type, is_mutable| {
                     // We must create a temporary value first to move out of object_ref before
                     // we eventually reassign to it.
-                    let id = DefinitionId::dummy_id();
-                    let ident = HirIdent::non_trait_method(id, location);
-                    let tmp_value = HirLValue::Ident(ident, Type::Error);
+                    let tmp_value = HirLValue::Error { location };
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    *object_ref = Box::new(HirLValue::Dereference {
+                    **object_ref = HirLValue::Dereference {
                         lvalue,
                         element_type,
                         location,
                         implicitly_added: true,
-                    });
-                    *mutable_ref = true;
+                    };
+                    *mutable_ref = is_mutable;
                 };
 
                 let name = field_name.as_str();
@@ -476,23 +725,28 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (mut index, index_type) = self.elaborate_expression(index);
 
-                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
-                    expected: expected.clone(),
-                    actual: index_type.clone(),
-                    location: expr_location,
-                    source: Source::ArrayIndex,
-                });
+                let expected = Type::u32();
+                self.unify_or_type_mismatch_with_source(
+                    &index_type,
+                    &expected,
+                    Source::ArrayIndex,
+                    expr_location,
+                );
 
                 let (mut lvalue, mut lvalue_type, mut mutable, mut statements) =
-                    self.elaborate_lvalue(*array);
+                    self.elaborate_lvalue(*array, false);
 
                 // Push the index expression to the end of the new statements list, referring to it
                 // afterward with a let binding. Note that since we recur first then push to the
                 // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
                 // be evaluated first, followed by `j`.
-                if let Some((index_definition, new_index)) =
-                    self.fresh_definition_for_lvalue_index(index, index_type, expr_location)
+                if let Some((index_definition, new_index)) = self
+                    .fresh_definition_for_side_effect_extraction(
+                        index,
+                        index_type,
+                        expr_location,
+                        "i",
+                    )
                 {
                     index = new_index;
                     statements.push(index_definition);
@@ -500,7 +754,7 @@ impl Elaborator<'_> {
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any `&` or `&mut` wrappers.
-                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
+                while let Type::Reference(element, is_mutable) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
                     lvalue = HirLValue::Dereference {
                         lvalue: Box::new(lvalue),
@@ -509,13 +763,15 @@ impl Elaborator<'_> {
                         implicitly_added: true,
                     };
                     lvalue_type = *element;
-                    // We know this value to be mutable now since we found an `&mut`
-                    mutable = true;
+                    mutable = is_mutable;
                 }
 
                 let typ = match lvalue_type.follow_bindings() {
-                    Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
+                    Type::Array(ref elem_type, ref size) => {
+                        self.check_array_index_out_of_bounds(size, &index, location);
+                        *elem_type.clone()
+                    }
+                    Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_id, _lvalue_name, lvalue_location) =
@@ -534,6 +790,7 @@ impl Elaborator<'_> {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
                             expr_location: location,
+                            similarly_named_types: Vec::new(),
                         });
                         Type::Error
                     }
@@ -544,21 +801,29 @@ impl Elaborator<'_> {
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
             }
             LValue::Dereference(lvalue, location) => {
-                let (lvalue, reference_type, _, statements) = self.elaborate_lvalue(*lvalue);
+                let (lvalue, reference_type, mut mutable, statements) =
+                    self.elaborate_lvalue(*lvalue, false);
                 let lvalue = Box::new(lvalue);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
-                // Always expect a mutable reference here since we're storing to it
-                let expected_type = Type::Reference(Box::new(element_type.clone()), true);
+                if is_assignment_target {
+                    // The final dereference must be a mutable reference since we're storing to it
+                    let expected_type = Type::Reference(Box::new(element_type.clone()), true);
+                    self.unify_or_type_mismatch(&reference_type, &expected_type, location);
+                } else {
+                    // Intermediate dereferences can be immutable
+                    let expected_type = Type::Reference(Box::new(element_type.clone()), false);
+                    self.unify_with_reference_coercion(&reference_type, &expected_type, location);
+                }
 
-                self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: reference_type.to_string(),
-                    expr_location: location,
-                });
+                // Check mutability after unification so that type variables are resolved first
+                if let Type::Reference(_, is_mutable) =
+                    reference_type.follow_bindings_shallow().as_ref()
+                {
+                    mutable = *is_mutable;
+                }
 
-                // Dereferences are always mutable since we already type checked against a &mut T
                 let typ = element_type.clone();
                 let lvalue = HirLValue::Dereference {
                     lvalue,
@@ -566,33 +831,66 @@ impl Elaborator<'_> {
                     location,
                     implicitly_added: false,
                 };
-                (lvalue, typ, true, statements)
+                (lvalue, typ, mutable, statements)
             }
             LValue::Interned(id, location) => {
-                let lvalue = self.interner.get_lvalue(id, location).clone();
-                self.elaborate_lvalue(lvalue)
+                let lvalue = self.interner.get_lvalue(id, location);
+                self.elaborate_lvalue(lvalue, is_assignment_target)
             }
         }
     }
 
-    fn fresh_definition_for_lvalue_index(
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_lvalue_ident(
+        &mut self,
+        ident: HirIdent,
+        location: Location,
+    ) -> (HirLValue, Type, bool, Vec<StmtId>) {
+        // Mirror the rvalue path: if this identifier refers to a global whose
+        // initializer hasn't been elaborated yet, lazy-resolve it now so its
+        // recorded type is the real annotated type rather than `Type::Error`.
+        let mut definition = self.interner.definition(ident.id);
+        if let DefinitionKind::Global(global_id) = definition.kind {
+            let _ = definition;
+            self.elaborate_global_if_unresolved(&global_id);
+            definition = self.interner.definition(ident.id);
+        }
+
+        let mutable = definition.mutable;
+
+        if definition.comptime && !self.in_comptime_context() {
+            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+                name: definition.name.clone(),
+                location: ident.location,
+            });
+        }
+
+        let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
+        let typ = typ.follow_bindings();
+
+        self.interner.add_local_reference(ident.id, location);
+
+        (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn fresh_definition_for_side_effect_extraction(
         &mut self,
         expr: ExprId,
         typ: Type,
         location: Location,
+        name_prefix: &str,
     ) -> Option<(StmtId, ExprId)> {
         // If the original expression trivially cannot have side-effects, don't bother cluttering
         // the output with a let binding. Note that array literals can have side-effects but these
         // would produce type errors anyway.
-        if matches!(
-            self.interner.expression(&expr),
-            HirExpression::Ident(..) | HirExpression::Literal(..)
-        ) {
+        if !self.expression_could_have_side_effects(expr) {
             return None;
         }
 
+        let counter = self.next_lvalue_index_counter();
         let id = self.interner.push_definition(
-            format!("i_{}", self.interner.definition_count()),
+            format!("{name_prefix}_{counter}"),
             false,
             false,
             DefinitionKind::Local(None),
@@ -605,92 +903,108 @@ impl Elaborator<'_> {
 
         let pattern = HirPattern::Identifier(ident);
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-        let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location);
+        let let_ = self.interner.push_stmt_full(let_, location);
         Some((let_, ident_id))
     }
 
-    /// Type checks a field access, adding dereference operators as necessary
-    pub(super) fn check_field_access(
-        &mut self,
-        lhs_type: &Type,
-        field_name: &str,
-        location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
-    ) -> Option<(Type, usize)> {
-        let lhs_type = lhs_type.follow_bindings();
-
-        match &lhs_type {
-            Type::DataType(s, args) => {
-                let s = s.borrow();
-                if let Some((field, visibility, index)) = s.get_field(field_name, args) {
-                    self.interner.add_struct_member_reference(s.id, index, location);
-
-                    self.check_struct_field_visibility(&s, field_name, visibility, location);
-
-                    return Some((field, index));
+    /// Returns `true` if the given expression could potentially have side-effects.
+    /// Returns `false` if the expression is guaranteed to not have side-effects.
+    fn expression_could_have_side_effects(&self, expr: ExprId) -> bool {
+        match self.interner.expression_ref(&expr) {
+            HirExpression::Ident(..) => false,
+            HirExpression::Literal(hir_literal) => match hir_literal {
+                HirLiteral::Bool(_)
+                | HirLiteral::Integer(..)
+                | HirLiteral::Str(_)
+                | HirLiteral::Unit => false,
+                HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) => true,
+            },
+            HirExpression::Prefix(hir_prefix_expression) => {
+                // Something like `-x` can't have side effects if `x` is numeric
+                if hir_prefix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_prefix_expression.rhs).is_numeric_value()
+                {
+                    return true;
                 }
+                self.expression_could_have_side_effects(hir_prefix_expression.rhs)
             }
-            Type::Tuple(elements) => {
-                if let Ok(index) = field_name.parse::<usize>() {
-                    let length = elements.len();
-                    if index < length {
-                        return Some((elements[index].clone(), index));
-                    } else {
-                        self.push_err(TypeCheckError::TupleIndexOutOfBounds {
-                            index,
-                            lhs_type,
-                            length,
-                            location,
-                        });
-                        return None;
-                    }
+            HirExpression::Infix(hir_infix_expression) => {
+                // Something like `x + y` can't have side effects if `x` is numeric
+                if hir_infix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_infix_expression.lhs).is_numeric_value()
+                {
+                    return true;
                 }
+                self.expression_could_have_side_effects(hir_infix_expression.lhs)
+                    || self.expression_could_have_side_effects(hir_infix_expression.rhs)
             }
-            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
-            Type::Reference(element, mutable) => {
-                if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                    return self.check_field_access(
-                        element,
-                        field_name,
-                        location,
-                        Some(dereference_lhs),
-                    );
-                } else {
-                    let (element, index) =
-                        self.check_field_access(element, field_name, location, dereference_lhs)?;
-                    return Some((Type::Reference(Box::new(element), *mutable), index));
-                }
+            HirExpression::Index(hir_index_expression) => {
+                self.expression_could_have_side_effects(hir_index_expression.collection)
+                    || self.expression_could_have_side_effects(hir_index_expression.index)
             }
-            _ => (),
+            HirExpression::Constructor(hir_constructor_expression) => {
+                !hir_constructor_expression.fields.is_empty()
+            }
+            HirExpression::EnumConstructor(hir_enum_constructor_expression) => {
+                !hir_enum_constructor_expression.arguments.is_empty()
+            }
+            HirExpression::MemberAccess(hir_member_access) => {
+                self.expression_could_have_side_effects(hir_member_access.lhs)
+            }
+            HirExpression::Call(..) => true,
+            HirExpression::Constrain(..) => true,
+            HirExpression::Cast(hir_cast_expression) => {
+                self.expression_could_have_side_effects(hir_cast_expression.lhs)
+            }
+            HirExpression::If(..)
+            | HirExpression::Match(..)
+            | HirExpression::Tuple(..)
+            | HirExpression::Lambda(..)
+            | HirExpression::Quote(..)
+            | HirExpression::Unquote(..)
+            | HirExpression::Unsafe(..)
+            | HirExpression::Block(..)
+            | HirExpression::Error => true,
         }
-
-        // If we get here the type has no field named 'access.rhs'.
-        // Now we specialize the error message based on whether we know the object type in question yet.
-        if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
-        } else if lhs_type != Type::Error {
-            self.push_err(TypeCheckError::AccessUnknownMember {
-                lhs_type,
-                field_name: field_name.to_string(),
-                location,
-            });
-        }
-
-        None
     }
 
-    fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_comptime_statement(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (HirStatement, Type) {
         let location = statement.location;
-        let (hir_statement, _typ) =
-            self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
+        let hir_statement = self.elaborate_in_comptime_context(|this| {
+            let (hir_statement, typ) = this.elaborate_statement(statement);
+
+            // If the comptime statement is expected to return a specific type, unify their types.
+            // This for example allows this code to compile:
+            //
+            // ```
+            // fn foo() -> u8 {
+            //   comptime { 1 }
+            // }
+            // ```
+            //
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            if let Some(target_type) = target_type {
+                this.unify_or_type_mismatch(&typ, target_type, location);
+            }
+
+            hir_statement
+        });
+
+        // Run the interpreter - it will check if execution has been halted
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
-        let (expr, typ) = self.inline_comptime_value(value, location);
+
+        let from_macro_call = false;
+        let (expr, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(hir_statement);
-        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+        self.debug_comptime(location, |interner, _| expr.to_display_ast(interner).kind);
 
         (HirStatement::Expression(expr), typ)
     }

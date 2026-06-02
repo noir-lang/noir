@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "moduleResolution": "node",
     "outDir": "lib",
     "target": "esnext",
@@ -12,5 +13,6 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
   }
 }

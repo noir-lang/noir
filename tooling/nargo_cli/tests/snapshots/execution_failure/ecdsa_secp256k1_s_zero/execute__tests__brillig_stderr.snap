@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: 'failed to solve blackbox function: ecdsa_secp256k1, reason: Signature provided for ECDSA verification is zero'
+   ┌─ std/ecdsa_secp256k1.nr:25:5
+   │
+25 │     _verify_signature(public_key_x, public_key_y, signature, message_hash, true)
+   │     ----------------------------------------------------------------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:3:9
+     2: verify_signature
+             at std/ecdsa_secp256k1.nr:25:5
+
+Failed assertion

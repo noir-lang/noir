@@ -32,7 +32,7 @@ struct Foo {
 }
 
 comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
-    let mut result = &[];
+    let mut result = [].as_vector();
     for my_field in fields {
         let name = my_field.0;
         result = result.push_back(quote { $name: Default::default(), });
@@ -40,9 +40,9 @@ comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     result
 }
 
-comptime fn join(slice: [Quoted]) -> Quoted {
+comptime fn join(vector: [Quoted]) -> Quoted {
     let mut result = quote {};
-    for elem in slice {
+    for elem in vector {
         result = quote { $result $elem };
     }
     result

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected the global to have a value
+  ┌─ src/main.nr:1:13
+  │
+1 │ pub  global X: [Field];
+  │             -
+  │
+
+Aborting due to 1 previous error

@@ -28,6 +28,8 @@ pub enum ParserErrorReason {
     UnconstrainedNotFollowedByAnItem,
     #[error("`comptime` is not followed by an item")]
     ComptimeNotFollowedByAnItem,
+    #[error("`mut` is not followed by an item")]
+    MutableNotFollowedByAnItem,
     #[error("`mut` cannot be applied to this item")]
     MutableNotApplicable,
     #[error("`comptime` cannot be applied to this item")]
@@ -36,7 +38,9 @@ pub enum ParserErrorReason {
     UnconstrainedNotApplicable,
     #[error("Expected an identifier or `(expression) after `$` for unquoting")]
     ExpectedIdentifierOrLeftParenAfterDollar,
-    #[error("`&mut` can only be used with `self")]
+    #[error(
+        "`&` and `&mut` can only be used with `self` as a name. Try putting it on the parameter's type instead"
+    )]
     RefMutCanOnlyBeUsedWithSelf,
     #[error("Invalid pattern")]
     InvalidPattern,
@@ -47,6 +51,10 @@ pub enum ParserErrorReason {
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
+    #[error("Expected a `:` between the parameter name and its type")]
+    MissingColonInFunctionParameter,
+    #[error("Expected a `:` between the variable name and its type")]
+    MissingColonInLetStatement,
     #[error("Missing type for numeric generic")]
     MissingTypeForNumericGeneric,
     #[error("Expected a function body (`{{ ... }}`), not `;`")]
@@ -95,8 +103,10 @@ pub enum ParserErrorReason {
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
-    #[error("The `deprecated` attribute expects a string argument")]
-    DeprecatedAttributeExpectsAStringArgument,
+    #[error(
+        "The `deprecated` attribute expects two optional arguments: `deny` and/or a string literal message"
+    )]
+    DeprecatedAttributeInvalidArgument,
     #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
@@ -113,6 +123,24 @@ pub enum ParserErrorReason {
     MissingTypeForAssociatedConstant,
     #[error("Associated trait constant default values are not supported")]
     AssociatedTraitConstantDefaultValuesAreNotSupported,
+    #[error("`mut` on a binding cannot be repeated")]
+    MutOnABindingCannotBeRepeated,
+    #[error("Maximum recursion depth exceeded while parsing expression")]
+    MaximumRecursionDepthExceeded,
+    #[error("missing condition for `if` expression")]
+    MissingIfCondition,
+    #[error("Struct literals are not allowed in `if` conditions")]
+    StructLiteralInIfCondition,
+    #[error("expected an identifier, found reserved identifier `_`")]
+    ExpectedIdentifierGotUnderscore,
+    #[error(
+        "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
+    )]
+    UnexpectedTypeExpressionInTypeAlias,
+    #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
+    DeprecatedDep(String),
+    #[error("`call_data` id must fit in a `u32`")]
+    CallDataIdMustFitInU32,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -256,7 +284,17 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
                     );
-                    Diagnostic::simple_error(reason.to_string(), secondary, error.location())
+                    match feature {
+                        UnstableFeature::TraitAsType => {
+                            let primary = "`impl Trait` as a type is experimental".to_string();
+                            Diagnostic::simple_warning(primary, secondary, error.location())
+                        }
+                        UnstableFeature::Enums => Diagnostic::simple_error(
+                            reason.to_string(),
+                            secondary,
+                            error.location(),
+                        ),
+                    }
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
@@ -302,6 +340,16 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     "Missing type for associated constant".to_string(),
                     "Provide a type for the associated constant: `: u32`".to_string(),
                     error.location,
+                ),
+                ParserErrorReason::DeprecatedDep(name) => {
+                    let primary = format!("`dep::{name}` path is deprecated");
+                    let secondary = format!("Please use `::{name}` instead");
+                    Diagnostic::simple_warning(primary, secondary, error.location())
+                }
+                ParserErrorReason::StructLiteralInIfCondition => Diagnostic::simple_error(
+                    "Struct literals are not allowed in `if` conditions".to_string(),
+                    "Surround the struct literal with parentheses, for example: `if (MyStruct { field: true }).field { ... }`".to_string(),
+                    error.location(),
                 ),
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())

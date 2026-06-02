@@ -23,11 +23,8 @@ fn main() {
                 is_assumed: false,
             };
 
-            let compile_options = CompileOptions {
-                debug_compile_stdin: true,
-                pedantic_solving: true,
-                ..Default::default()
-            };
+            let compile_options =
+                CompileOptions { debug_compile_stdin: true, ..Default::default() };
 
             let _ = compile_workspace_full(
                 &workspace,

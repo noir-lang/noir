@@ -11,6 +11,10 @@ impl Formatter<'_> {
         self.format_secondary_attributes(noir_enum.attributes);
         self.write_indentation();
         self.format_item_visibility(noir_enum.visibility);
+        if noir_enum.comptime {
+            self.write_keyword(Keyword::Comptime);
+            self.write_space();
+        }
         self.write_keyword(Keyword::Enum);
         self.write_space();
         self.write_identifier(noir_enum.name);
@@ -77,7 +81,7 @@ impl Formatter<'_> {
                 self.chunk_formatter().skip_comments_and_whitespace_chunk();
             comments_and_whitespace_chunk.string =
                 comments_and_whitespace_chunk.string.trim_end().to_string();
-            group.text(comments_and_whitespace_chunk);
+            group.trailing_comment_at_block_end(comments_and_whitespace_chunk);
 
             if self.is_at(Token::Comma) {
                 self.bump();
@@ -200,5 +204,11 @@ enum Bar {}
 }
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_comptime_enum() {
+        let src = "comptime enum Foo {}\n";
+        assert_format(src, src);
     }
 }

@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Comptime-only type `CtString` used in runtime code
+  ┌─ src/main.nr:4:21
+  │  
+4 │       let ct_string = comptime {
+  │ ╭─────────────────────'
+5 │ │         let mut ct_string = CtString::new();
+6 │ │         ct_string = ct_string.append("Hello");
+7 │ │         ct_string = ct_string.append(" world");
+8 │ │         ct_string
+9 │ │     };
+  │ ╰─────' Comptime type used here
+  │  
+
+Aborting due to 1 previous error

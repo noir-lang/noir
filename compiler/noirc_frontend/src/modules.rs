@@ -101,11 +101,7 @@ pub fn relative_module_id_path(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
-        loop {
-            let Some(parent_local_id) = current_attributes.parent else {
-                break;
-            };
-
+        while let Some(parent_local_id) = current_attributes.parent {
             let parent_module_id =
                 &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
 
@@ -154,11 +150,7 @@ pub fn module_full_path(
         segments.push(module_attributes.name.clone());
 
         let mut current_attributes = module_attributes;
-        loop {
-            let Some(parent_local_id) = current_attributes.parent else {
-                break;
-            };
-
+        while let Some(parent_local_id) = current_attributes.parent {
             let Some(parent_attributes) = interner
                 .try_module_attributes(ModuleId { krate: module.krate, local_id: parent_local_id })
             else {
@@ -183,7 +175,7 @@ pub fn module_full_path(
                 }
             }
         }
-    };
+    }
 
     segments.reverse();
     segments.join("::")
@@ -232,7 +224,7 @@ pub fn module_def_id_relative_path(
             format!("{module_path}::{name}")
         }
     } else {
-        module_path.clone()
+        module_path
     };
 
     Some(path)

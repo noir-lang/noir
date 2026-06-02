@@ -1,11 +1,14 @@
 //! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
+use std::collections::HashMap;
+
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location};
+use noirc_errors::{Located, Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    DataType, Kind, MustUse, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -14,10 +17,15 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
+    elaborator::{
+        ScopeForest,
+        patterns::IdentFromPath,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -28,14 +36,15 @@ use crate::{
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitItem,
         },
-        stmt::{HirLetStatement, HirPattern, HirStatement},
+        stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, InternedStatementKind,
+        StmtId, TraitItemId,
+        pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -46,11 +55,36 @@ use super::{
 };
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         self.elaborate_expression_with_target_type(expr, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_expression_with_target_type(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
+        if !self.inc_recursion_depth(expr.location) {
+            let id = self.interner.push_expr_full(HirExpression::Error, expr.location, Type::Error);
+            return (id, Type::Error);
+        }
+
+        let ((id, typ), has_errors) =
+            self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+
+        self.dec_recursion_depth();
+
+        if has_errors {
+            self.interner.exprs_with_errors.insert(id);
+        }
+
+        (id, typ)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_expression_inner(
         &mut self,
         expr: Expression,
         target_type: Option<&Type>,
@@ -83,8 +117,15 @@ impl Elaborator<'_> {
                 return self.elaborate_expression_with_target_type(*expr, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
-            ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type);
+            ExpressionKind::Comptime(block, _) => {
+                if self.in_comptime_context {
+                    // Treat a nested comptime block as a regular block. Nested comptime blocks
+                    // can happen as a result of macro expansion so it wouldn't be good to produce
+                    // a warning in that case.
+                    self.elaborate_block(block, target_type)
+                } else {
+                    return self.elaborate_comptime_block(block, expr.location, target_type);
+                }
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
@@ -108,9 +149,7 @@ impl Elaborator<'_> {
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, expr.location);
-        self.interner.push_expr_type(id, typ.clone());
+        let id = self.interner.push_expr_full(hir_expr, expr.location, typ.clone());
 
         if is_integer_literal {
             self.push_integer_literal_expr_id(id);
@@ -124,6 +163,7 @@ impl Elaborator<'_> {
     /// result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
     /// instead of a reference). This flag is used when `&mut foo.bar.baz` is used to cancel out
     /// the `&mut`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_reference_expression(&mut self, expr: Expression) -> (ExprId, Type, bool) {
         match expr.kind {
             ExpressionKind::MemberAccess(access) => {
@@ -136,6 +176,8 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Given its ID, retrieve and elaborate an interned [StatementKind].
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_interned_statement_as_expr(
         &mut self,
         id: InternedStatementKind,
@@ -162,6 +204,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_block(
         &mut self,
         block: BlockExpression,
@@ -171,6 +214,7 @@ impl Elaborator<'_> {
         (HirExpression::Block(block), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_block_expression(
         &mut self,
         block: BlockExpression,
@@ -201,9 +245,15 @@ impl Elaborator<'_> {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
-                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
-                    expr_type: inner_expr_type.clone(),
-                    expr_location: location,
+                self.unify(&inner_expr_type, &Type::Unit, |_| {
+                    let expr_type = inner_expr_type.clone();
+                    let expr_location = location;
+
+                    if let MustUse::MustUse(message) = Self::type_is_must_use(&expr_type) {
+                        TypeCheckError::UnusedResultError { expr_type, expr_location, message }
+                    } else {
+                        TypeCheckError::UnusedResultWarning { expr_type, expr_location }
+                    }
                 });
             }
 
@@ -222,7 +272,7 @@ impl Elaborator<'_> {
             }
 
             if i + 1 == statements.len() {
-                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
+                block_type = stmt_type;
             }
         }
 
@@ -230,43 +280,83 @@ impl Elaborator<'_> {
         (HirBlockExpression { statements }, block_type)
     }
 
+    /// If the given type was declared as:
+    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
+    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - otherwise, return `MustUse::NoMustUse`
+    fn type_is_must_use(typ: &Type) -> MustUse {
+        /// Helper function to avoid infinite recursion for infinitely recursive types
+        fn helper(typ: &Type, fuel: u32) -> MustUse {
+            if fuel == 0 {
+                return MustUse::NoMustUse;
+            }
+            let fuel = fuel - 1;
+            match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(data_type, _generics) => data_type.borrow().must_use.clone(),
+                // If any element in the tuple is `#[must_use]`, the whole tuple is
+                Type::Tuple(elements) => {
+                    for element in elements {
+                        if let MustUse::MustUse(message) = helper(element, fuel) {
+                            return MustUse::MustUse(message);
+                        }
+                    }
+                    MustUse::NoMustUse
+                }
+                Type::Alias(alias, generics) => helper(&alias.borrow().get_type(generics), fuel),
+                Type::CheckedCast { to, .. } => helper(to.as_ref(), fuel),
+                Type::Reference(element, _) => helper(element.as_ref(), fuel),
+                _ => MustUse::NoMustUse,
+            }
+        }
+
+        // 10 is an arbitrary maximum bound on recursion through `Type`s here
+        // in case an infinitely recursive type is used. In practice most types should
+        // require just 1 iteration, or up to 3 for a reference to an aliased type.
+        helper(typ, 10)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_unsafe_block(
         &mut self,
         unsafe_expression: UnsafeExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        use UnsafeBlockStatus::*;
+        // Before entering the block we cache the old value of the unsafe block status, so it can be restored.
         let old_in_unsafe_block = self.unsafe_block_status;
-        let is_nested_unsafe_block =
-            !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
+        let is_nested_unsafe_block = !matches!(old_in_unsafe_block, NotInUnsafeBlock);
+
         if is_nested_unsafe_block {
             self.push_err(TypeCheckError::NestedUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
+        self.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) =
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
-        if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
-        {
+        let has_unconstrained_call =
+            matches!(self.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
+
+        if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        // Finally, we restore the original value of `self.in_unsafe_block`,
-        // but only if this isn't a nested unsafe block (that way if we found an unconstrained call
-        // for this unsafe block we'll also consider the outer one as finding one, and we don't double error)
-        if !is_nested_unsafe_block {
+        // Finally, we restore the original value of the unsafe block status,
+        // unless we are in a nested block and we have found an unconstrained call,
+        // in which case we should consider the outer block as having that call as well.
+        if !is_nested_unsafe_block || !has_unconstrained_call {
             self.unsafe_block_status = old_in_unsafe_block;
         }
 
         (HirExpression::Unsafe(hir_block_expression), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_literal(&mut self, literal: Literal, location: Location) -> (HirExpression, Type) {
         use HirExpression::Literal as Lit;
         match literal {
@@ -276,19 +366,23 @@ impl Elaborator<'_> {
                 (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len().into(), Kind::u32());
-                (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
+                let len: u32 = str.len().try_into().expect(
+                    "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
+                );
+                let len = Type::constant_u32(len);
+                (Lit(HirLiteral::Str(str.into_bytes())), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, true)
             }
-            Literal::Slice(array_literal) => {
+            Literal::Vector(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, false)
             }
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
         use {Signedness::*, Type::Integer};
         match suffix {
@@ -296,7 +390,6 @@ impl Elaborator<'_> {
             Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
             Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
-            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
             Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
             Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
@@ -307,6 +400,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_array_literal(
         &mut self,
         array_literal: ArrayLiteral,
@@ -325,13 +419,13 @@ impl Elaborator<'_> {
                 );
 
                 let first_elem_type = Type::TypeVariable(type_variable);
-                let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
+                let first_location = elements.first().map_or(location, |elem| elem.location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
                     let location = elem.location;
                     let (elem_id, elem_type) = self.elaborate_expression(elem);
 
-                    self.unify(&elem_type, &first_elem_type, || {
+                    self.unify(&elem_type, &first_elem_type, |_| {
                         TypeCheckError::NonHomogeneousArray {
                             first_location,
                             first_type: first_elem_type.to_string(),
@@ -345,7 +439,8 @@ impl Elaborator<'_> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len().into(), Kind::u32());
+                let length: u32 = elements.len().try_into().expect("ICE: Elaborator::elaborate_array_literal: elements.len() is expected to fit into a u32");
+                let length = Type::constant_u32(length);
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -353,11 +448,11 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 
-                let wildcard_allowed = true;
+                let wildcard_allowed = WildcardAllowed::Yes;
                 let length =
                     self.convert_expression_type(length, &Kind::u32(), location, wildcard_allowed);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
@@ -366,16 +461,17 @@ impl Elaborator<'_> {
                 (HirArrayLiteral::Repeated { repeated_element, length }, elem_type, length_clone)
             }
         };
-        let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Slice };
+        let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
+            Type::Array(elem_type, Box::new(length))
         } else {
-            Type::Slice(elem_type)
+            Type::Vector(elem_type)
         };
         (HirExpression::Literal(constructor(expr)), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_fmt_string(
         &mut self,
         fragments: Vec<FmtStrFragment>,
@@ -386,42 +482,67 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let ident = Ident::new(ident_name.clone(), *location);
-
-                let (hir_ident, var_scope_index) =
-                    if let Ok((ident, var_scope_index)) = self.use_variable(&ident) {
-                        (ident, var_scope_index)
-                    } else if let Ok((definition_id, _)) = self
-                        .lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
-                    {
-                        (HirIdent::non_trait_method(definition_id, *location), 0)
-                    } else {
-                        self.push_err(ResolverError::VariableNotDeclared {
-                            name: ident_name.to_owned(),
-                            location: *location,
-                        });
-                        continue;
-                    };
-
-                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
-
-                let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                let expr_id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(expr_id, *location);
-                let typ = self.type_check_variable(hir_ident, expr_id, None);
-                self.interner.push_expr_type(expr_id, typ.clone());
-
+                let (typ, expr_id) = match self
+                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
+                {
+                    Some(IdentFromPath::Variable(variable)) => {
+                        self.handle_local_variable(&variable);
+                        self.elaborate_fmt_string_ident(variable.ident, *location)
+                    }
+                    Some(IdentFromPath::Definition { id, item: _ }) => {
+                        self.handle_definition_id(id, *location);
+                        let hir_ident = HirIdent::non_trait_method(id, *location);
+                        self.elaborate_fmt_string_ident(hir_ident, *location)
+                    }
+                    Some(IdentFromPath::TypeAlias(_)) | None => {
+                        let hir_expr = HirExpression::Error;
+                        let expr_id = self.intern_expr(hir_expr, *location);
+                        let typ = Type::Error;
+                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+                        (typ, expr_id)
+                    }
+                };
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
         }
 
-        let len = Type::Constant(length.into(), Kind::u32());
-        let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
+        let len = Type::constant_u32(length);
+        let fmtstr_type =
+            if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
+        let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_fmt_string_ident(
+        &mut self,
+        hir_ident: HirIdent,
+        location: Location,
+    ) -> (Type, ExprId) {
+        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+        let expr_id = self.intern_expr(hir_expr, location);
+        let typ = self.type_check_variable(hir_ident, &expr_id, None);
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+        (typ, expr_id)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
+        // Simplify `*&x` and `*&mut x` to just `x`
+        if let UnaryOp::Dereference { .. } = prefix.operator
+            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
+            && let UnaryOp::Reference { mutable } = inner.operator
+        {
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
+            let rhs_location = inner.rhs.location;
+            let (rhs, typ) = self.elaborate_expression(inner.rhs);
+            if mutable {
+                self.check_can_mutate(rhs, rhs_location);
+            }
+            return (rhs, typ);
+        }
+
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
@@ -436,16 +557,28 @@ impl Elaborator<'_> {
             (rhs, rhs_type, false)
         };
 
+        // Simplify `&*x` and `&mut *x` to just `x` when the reborrow preserves mutability:
+        // A reborrow that changes mutability (e.g. `&mut *x` where `x: &T`) is left
+        // as the full `&[mut] (*x)`
+        if let UnaryOp::Reference { mutable } = operator
+            && let HirExpression::Prefix(deref) = self.interner.expression(&rhs)
+            && let UnaryOp::Dereference { .. } = deref.operator
+        {
+            let inner_type = self.interner.id_type(deref.rhs);
+            if matches!(inner_type.follow_bindings(), Type::Reference(_, inner_mutable) if inner_mutable == mutable)
+            {
+                return (deref.rhs, inner_type);
+            }
+        }
+
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
-        if let UnaryOp::Reference { mutable } = operator {
-            if mutable {
-                // If skip_op is set we already know we have a mutable reference
-                if !skip_op {
-                    self.check_can_mutate(rhs, rhs_location);
-                }
-            } else {
-                self.use_unstable_feature(UnstableFeature::Ownership, location);
+        if let UnaryOp::Reference { mutable } = operator
+            && mutable
+        {
+            // If skip_op is set we already know we have a mutable reference
+            if !skip_op {
+                self.check_can_mutate(rhs, rhs_location);
             }
         }
 
@@ -455,39 +588,46 @@ impl Elaborator<'_> {
             trait_method_id,
             skip: skip_op,
         });
-        let expr_id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(expr_id, location);
+        let expr_id = self.intern_expr(expr, location);
 
+        // If `skip_op` is set we already know we have a mutable reference due to a member access on a mutable reference.
+        // The prefix operand type rules will return the result of a prefix operation.
+        // We do not want to check the prefix operand type rules as we will then get a type mismatch.
         let typ = if skip_op {
             rhs_type
         } else {
             let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
+            let not_ord = false;
             self.handle_operand_type_rules_result(
                 result,
                 &rhs_type,
                 trait_method_id,
-                expr_id,
+                *expr_id,
                 location,
+                not_ord,
             )
         };
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
+    /// Check whether we can create a mutable reference over an expression.
+    /// Pushes an error if it cannot be done.
+    ///
+    /// Also, if the expression is a local variable, marks it as mutated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
-                if let Some(definition) = self.interner.try_definition(hir_ident.id) {
-                    let name = definition.name.clone();
-                    if !definition.mutable {
-                        self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                            name,
-                            location,
-                        });
-                    } else {
-                        self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
-                    }
+                let definition = self.interner.definition(hir_ident.id);
+                let name = definition.name.clone();
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+
+                if !definition.mutable {
+                    self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
+                } else {
+                    self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
                 }
             }
             HirExpression::Index(_) => {
@@ -500,9 +640,13 @@ impl Elaborator<'_> {
         }
     }
 
-    // We must check whether the mutable variable we are attempting to mutate
-    // comes from a lambda capture. All captures are immutable so we want to error
-    // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+    /// We must check whether the mutable variable we are attempting to mutate
+    /// comes from a lambda capture. All captures are immutable so we want to error
+    /// if the user attempts to mutate a captured variable inside of a lambda without
+    /// having captured a mutable reference.
+    ///
+    /// Pushes an error if the mutation is illegal.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_can_mutate_lambda_capture(
         &mut self,
         id: DefinitionId,
@@ -518,18 +662,53 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Go over the given `lvalue` and any nested l-values and mark any local variables as mutated.
+    /// However, dereferences do not cause mutation of their inner variables.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn mark_lvalue_variables_as_mutated(&mut self, lvalue: &HirLValue) {
+        match lvalue {
+            HirLValue::Ident(hir_ident, _) => {
+                let definition = self.interner.definition(hir_ident.id);
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+            }
+            HirLValue::MemberAccess { object, .. } => {
+                self.mark_lvalue_variables_as_mutated(object);
+            }
+            HirLValue::Index { array, .. } => {
+                self.mark_lvalue_variables_as_mutated(array);
+            }
+            HirLValue::Dereference { .. } => {
+                // A dereference like `*x` means `x` is `&mut Something` so the contents of `x`
+                // can be mutated even if `x` isn't itself `mut`
+            }
+            HirLValue::Error { .. } => (),
+        }
+    }
+
+    /// If the given definition corresponds to a local variable, find a local variable with the
+    /// given definition name and mark it as mutated.
+    fn mark_local_variable_as_mutated(definition: &DefinitionInfo, scopes: &mut ScopeForest) {
+        if matches!(definition.kind, DefinitionKind::Local(_)) {
+            let scope_tree = scopes.current_scope_tree();
+            if let Some((variable, _index)) = scope_tree.find(&definition.name) {
+                variable.mutated = true;
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
         let location = index_expr.index.location;
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
-            expected: expected.clone(),
-            actual: index_type.clone(),
+        let expected = Type::u32();
+        self.unify_or_type_mismatch_with_source(
+            &index_type,
+            &expected,
+            Source::ArrayIndex,
             location,
-            source: Source::ArrayIndex,
-        });
+        );
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -538,10 +717,11 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            // XXX: We can check the array bounds here also, but it may be better to constant fold first
-            // and have ConstId instead of ExprId for constants
-            Type::Array(_, base_type) => *base_type,
-            Type::Slice(base_type) => *base_type,
+            Type::Array(ref base_type, ref size) => {
+                self.check_array_index_out_of_bounds(size, &index, location);
+                *base_type.clone()
+            }
+            Type::Vector(base_type) => *base_type,
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex {
@@ -554,6 +734,7 @@ impl Elaborator<'_> {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
                     expr_location: lhs_location,
+                    similarly_named_types: Vec::new(),
                 });
                 Type::Error
             }
@@ -563,28 +744,267 @@ impl Elaborator<'_> {
         (expr, typ)
     }
 
+    /// If the index expression is a constant integer literal, check that it is
+    /// within bounds for the given array length type.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn check_array_index_out_of_bounds(
+        &mut self,
+        array_size: &Type,
+        index: &ExprId,
+        location: Location,
+    ) {
+        if let HirExpression::Literal(HirLiteral::Integer(index_value)) =
+            self.interner.expression(index)
+            && let Ok(index_u32) = index_value.try_into()
+            && let Ok(array_len) = array_size.evaluate_to_u32(location)
+            && index_u32 >= array_len
+        {
+            self.push_err(TypeCheckError::ArrayIndexOutOfBounds {
+                index: index_u32,
+                array_length: array_len,
+                location,
+            });
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_call(
         &mut self,
         call: CallExpression,
         location: Location,
     ) -> (HirExpression, Type) {
+        let is_macro_call = call.is_macro_call;
+
+        let (hir_call, mut typ) = self.elaborate_call_inner(call, location, is_macro_call);
+
+        // Only check has_errors when we need to call the interpreter
+        if is_macro_call && !self.in_comptime_context() {
+            return self
+                .call_macro(hir_call.func, hir_call.arguments, location, typ)
+                .unwrap_or((HirExpression::Error, Type::Error));
+        }
+
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
+        if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(hir_call.func, &typ, location);
+            typ = self.interner.next_type_variable();
+        }
+
+        (HirExpression::Call(hir_call), typ)
+    }
+
+    /// Helper function containing the elaboration logic for a call expression.
+    /// Returns the HIR call and its type.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_call_inner(
+        &mut self,
+        call: CallExpression,
+        location: Location,
+        is_macro_call: bool,
+    ) -> (HirCallExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
         let func_type = func_type.follow_bindings();
-        let func_arg_types =
-            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
+
+        // Even if the function type is a Type::Error, we still want to elaborate the call's function arguments.
+        // Thus, we simply return None here for the argument types rather than returning early.
+        let (func_arg_types, unconstrained) =
+            if let Type::Function(args, _, _, unconstrained) = &func_type {
+                (Some(args), *unconstrained)
+            } else {
+                (None, false)
+            };
+
+        // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
+        let was_in_unconstrained_args =
+            std::mem::replace(&mut self.in_unconstrained_args, unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
             let location = arg.location;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            let (arg, typ) = if call.is_macro_call {
+            let (arg, typ) = if is_macro_call {
                 self.elaborate_in_comptime_context(|this| {
-                    this.elaborate_expression_with_type(arg, expected_type)
+                    this.elaborate_expression_with_target_type(arg, expected_type)
                 })
             } else {
-                self.elaborate_expression_with_type(arg, expected_type)
+                self.elaborate_expression_with_target_type(arg, expected_type)
             };
+
+            // Try to unify this argument type against the function's argument type
+            // so that a potential lambda following this argument can have more concrete types.
+            if let Some(expected_type) = expected_type {
+                let _ = typ.unify(expected_type);
+            }
+
+            arguments.push(arg);
+            (typ, arg, location)
+        });
+
+        let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
+        let typ = self.type_check_call(&hir_call, func_type, args, location);
+
+        // Restore the old one after type checking.
+        self.in_unconstrained_args = was_in_unconstrained_args;
+
+        (hir_call, typ)
+    }
+
+    /// Elaborate the target of the method call and try to look up the method in its type.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_method_call(
+        &mut self,
+        method_call: MethodCallExpression,
+        location: Location,
+    ) -> (HirExpression, Type) {
+        let is_macro_call = method_call.is_macro_call;
+
+        let (function_call, mut typ) = self.elaborate_method_call_inner(method_call, location);
+
+        // Only check has_errors when we need to call the interpreter
+        if is_macro_call && !self.in_comptime_context() {
+            let args = function_call.arguments;
+            return self
+                .call_macro(function_call.func, args, location, typ)
+                .unwrap_or((HirExpression::Error, Type::Error));
+        }
+
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
+        if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(function_call.func, &typ, location);
+            typ = self.interner.next_type_variable();
+        }
+
+        (HirExpression::Call(function_call), typ)
+    }
+
+    /// Helper function containing the elaboration logic for a method call.
+    /// Returns the desugared function call and its type.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn elaborate_method_call_inner(
+        &mut self,
+        method_call: MethodCallExpression,
+        location: Location,
+    ) -> (HirCallExpression, Type) {
+        let object_location = method_call.object.location;
+        let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
+        object_type = object_type.follow_bindings();
+
+        let method_name_location = method_call.method_name.location();
+        let method_name = method_call.method_name.as_str();
+        let check_self_param = true;
+
+        let method_ref = self.lookup_method(
+            &object_type,
+            method_name,
+            location,
+            object_location,
+            check_self_param,
+        );
+        let Some(method_ref) = method_ref else {
+            // Return a dummy call expression with Error type
+            let error_func =
+                self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            let error_call = HirCallExpression {
+                func: error_func,
+                arguments: Vec::new(),
+                location,
+                is_macro_call: method_call.is_macro_call,
+            };
+            return (error_call, Type::Error);
+        };
+
+        // Automatically add `&mut` if the method expects a mutable reference and
+        // the object is not already one.
+        let func_id = method_ref
+            .func_id(self.interner)
+            .expect("Expected trait function to be a DefinitionKind::Function");
+
+        self.usage_tracker.mark_impl_function_as_used(&func_id);
+
+        let function_type = self.function_meta(func_id).typ.clone();
+        self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
+
+        // When an impl inherits a trait's default method, the impl's slot points at the
+        // trait's own `FuncId`, so the function meta's self parameter is the trait's `Self`
+        // type variable. If we let the receiver be unified directly with that `Self` and a
+        // polymorphic receiver (e.g. an integer literal) is involved, the receiver will
+        // default to the kind's default type (e.g. `Field`) before the trait constraint
+        // check can pick the right impl. Capture the matching impl's concrete self type
+        // here so we can unify the receiver with it below, pinning the polymorphic type
+        // to the impl's type before defaulting runs.
+        let shared_trait_impl_self_type =
+            self.shared_trait_impl_self_type_for_method(func_id, &object_type, method_name);
+
+        let generics = method_call.generics;
+        let generics = generics.map(|generics| {
+            vecmap(generics, |generic| {
+                let location = generic.location;
+                let wildcard_allowed = WildcardAllowed::Yes;
+                let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
+                Located::from(location, typ)
+            })
+        });
+        let generics = self.resolve_function_turbofish_generics(&func_id, generics, location);
+
+        let location = object_location.merge(method_name_location);
+
+        let (function_id, function_name) = method_ref.into_function_id_and_name(
+            object_type.clone(),
+            generics.clone(),
+            location,
+            self.interner,
+        );
+
+        let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
+
+        let function_id = self.intern_expr_type(function_id, func_type.clone());
+
+        let func_arg_types =
+            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
+
+        // Try to unify the object type with the first argument of the function.
+        // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
+        // as a parameter. By unifying `self` with the first argument we'll potentially get more
+        // concrete types in the arguments that are function types, which will later be passed as
+        // lambda parameter hints.
+
+        if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
+            if first_arg_type.unify(&object_type).is_err()
+                && let Type::Reference(inner_expected, _) = first_arg_type
+                && let Type::Reference(inner_actual, _) = &object_type
+            {
+                // If unification failed due to a reference mutability mismatch
+                // (e.g. `& self` method called on `&mut T`), unify the inner types
+                // to still bind generic type parameters.
+                let _ = inner_expected.unify(inner_actual);
+            }
+
+            // For a shared trait-default method, also unify the impl's concrete self type
+            // with the receiver. The first arg is the trait's `Self` type variable, so the
+            // unify above only ties Self to the receiver (still polymorphic if the receiver
+            // was a literal). Unifying again with the impl's self type pins both Self and the
+            // receiver to the impl's concrete type before kind-based defaulting runs.
+            if let Some(impl_self_type) = &shared_trait_impl_self_type {
+                let _ = first_arg_type.unify(impl_self_type);
+            }
+        }
+
+        // These arguments will be given to the desugared function call.
+        // Compared to the method arguments, they also contain the object.
+        let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
+        let mut arguments = Vec::with_capacity(method_call.arguments.len());
+
+        function_args.push((object_type.clone(), object, object_location));
+
+        for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
+            let location = arg.location;
+            // The argument types also contain the object type as the first argument.
+            // Thus, we need to add one when indexing the argument types to match them up with method arguments.
+            let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
+            let (arg, typ) = self.elaborate_expression_with_target_type(arg, expected_type);
 
             // Try to unify this argument type against the function's argument type
             // so that a potential lambda following this argument can have more concrete types.
@@ -593,173 +1013,59 @@ impl Elaborator<'_> {
             }
 
             arguments.push(arg);
-            (typ, arg, location)
-        });
-
-        // Avoid cloning arguments unless this is a macro call
-        let mut comptime_args = Vec::new();
-        if call.is_macro_call {
-            comptime_args = arguments.clone();
+            function_args.push((typ, arg, location));
         }
 
-        let is_macro_call = call.is_macro_call;
-        let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
-        let mut typ = self.type_check_call(&hir_call, func_type, args, location);
+        let method = method_call.method_name;
+        let is_macro_call = method_call.is_macro_call;
+        let method_call = HirMethodCallExpression { method, object, arguments, location, generics };
 
-        if is_macro_call {
-            if self.in_comptime_context() {
-                typ = self.interner.next_type_variable();
-            } else {
-                return self
-                    .call_macro(func, comptime_args, location, typ)
-                    .unwrap_or((HirExpression::Error, Type::Error));
-            }
-        }
+        self.check_method_call_visibility(func_id, &object_type, &method_call.method);
 
-        (HirExpression::Call(hir_call), typ)
+        // Desugar the method call into a normal, resolved function call
+        // so that the backend doesn't need to worry about methods
+        let function_call = method_call.into_function_call(function_id, is_macro_call, location);
+
+        self.interner.add_function_reference(func_id, method_name_location);
+
+        // Type check the new call now that it has been changed from a method call
+        // to a function call. This way we avoid duplicating code.
+        let typ = self.type_check_call(&function_call, func_type, function_args, location);
+
+        (function_call, typ)
     }
 
-    fn elaborate_method_call(
-        &mut self,
-        method_call: MethodCallExpression,
-        location: Location,
-    ) -> (HirExpression, Type) {
-        let object_location = method_call.object.location;
-        let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
-        object_type = object_type.follow_bindings();
-
-        let method_name_location = method_call.method_name.location();
-        let method_name = method_call.method_name.as_str();
-        let check_self_param = true;
-        match self.lookup_method(
-            &object_type,
-            method_name,
-            location,
-            object_location,
-            check_self_param,
-        ) {
-            Some(method_ref) => {
-                // Automatically add `&mut` if the method expects a mutable reference and
-                // the object is not already one.
-                let func_id = method_ref
-                    .func_id(self.interner)
-                    .expect("Expected trait function to be a DefinitionKind::Function");
-
-                let generics = if func_id != FuncId::dummy_id() {
-                    let function_type = self.interner.function_meta(&func_id).typ.clone();
-                    self.try_add_mutable_reference_to_object(
-                        &function_type,
-                        &mut object_type,
-                        &mut object,
-                    );
-                    let generics = method_call.generics;
-                    let generics = generics.map(|generics| {
-                        vecmap(generics, |generic| {
-                            let location = generic.location;
-                            let wildcard_allowed = true;
-                            let typ =
-                                self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
-                            Located::from(location, typ)
-                        })
-                    });
-                    self.resolve_function_turbofish_generics(&func_id, generics, location)
-                } else {
-                    None
-                };
-
-                let location = object_location.merge(method_name_location);
-
-                let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
-                    object_type.clone(),
-                    generics.clone(),
-                    location,
-                    self.interner,
-                );
-
-                let func_type =
-                    self.type_check_variable(function_name.clone(), function_id, generics.clone());
-                self.interner.push_expr_type(function_id, func_type.clone());
-
-                let func_arg_types =
-                    if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
-
-                // Try to unify the object type with the first argument of the function.
-                // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
-                // as a parameter. By unifying `self` with the first argument we'll potentially get more
-                // concrete types in the arguments that are function types, which will later be passed as
-                // lambda parameter hints.
-                if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
-                    let _ = first_arg_type.unify(&object_type);
-                }
-
-                // These arguments will be given to the desugared function call.
-                // Compared to the method arguments, they also contain the object.
-                let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
-                let mut arguments = Vec::with_capacity(method_call.arguments.len());
-
-                function_args.push((object_type.clone(), object, object_location));
-
-                for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
-                    let location = arg.location;
-                    let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
-                    let (arg, typ) = self.elaborate_expression_with_type(arg, expected_type);
-
-                    // Try to unify this argument type against the function's argument type
-                    // so that a potential lambda following this argument can have more concrete types.
-                    if let Some(expected_type) = expected_type {
-                        let _ = expected_type.unify(&typ);
-                    }
-
-                    arguments.push(arg);
-                    function_args.push((typ, arg, location));
-                }
-
-                let method = method_call.method_name;
-                let is_macro_call = method_call.is_macro_call;
-                let method_call =
-                    HirMethodCallExpression { method, object, arguments, location, generics };
-
-                self.check_method_call_visibility(func_id, &object_type, &method_call.method);
-
-                // Desugar the method call into a normal, resolved function call
-                // so that the backend doesn't need to worry about methods
-                // TODO: update object_type here?
-
-                let function_call =
-                    method_call.into_function_call(function_id, is_macro_call, location);
-
-                self.interner.add_function_reference(func_id, method_name_location);
-
-                // Type check the new call now that it has been changed from a method call
-                // to a function call. This way we avoid duplicating code.
-                let mut typ =
-                    self.type_check_call(&function_call, func_type, function_args, location);
-                if is_macro_call {
-                    if self.in_comptime_context() {
-                        typ = self.interner.next_type_variable();
-                    } else {
-                        let args = function_call.arguments.clone();
-                        return self
-                            .call_macro(function_call.func, args, location, typ)
-                            .unwrap_or((HirExpression::Error, Type::Error));
-                    }
-                }
-                (HirExpression::Call(function_call), typ)
-            }
-            None => (HirExpression::Error, Type::Error),
-        }
+    /// If `func_id` is a trait method declaration whose `FuncId` is shared with this call's
+    /// matching impl (because the impl inherits the default body), return the impl's concrete
+    /// self type. Returns `None` when the function is a regular impl method or when zero/multiple
+    /// impls match the receiver — in those cases the existing impl-selection paths take over.
+    fn shared_trait_impl_self_type_for_method(
+        &self,
+        func_id: FuncId,
+        object_type: &Type,
+        method_name: &str,
+    ) -> Option<Type> {
+        let trait_id = self.interner.function_meta(&func_id).trait_id?;
+        let candidates = self.interner.lookup_trait_methods(object_type, method_name, true);
+        let mut matching = candidates
+            .into_iter()
+            .filter(|(f, t, _)| *f == func_id && *t == trait_id)
+            .map(|(_, _, self_typ)| self_typ);
+        let first = matching.next()?;
+        if matching.next().is_some() { None } else { Some(first) }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_constrain(
         &mut self,
         mut expr: ConstrainExpression,
     ) -> (HirExpression, Type) {
         let location = expr.location;
         let min_args_count = expr.kind.required_arguments_count();
-        let max_args_count = min_args_count + 1;
         let actual_args_count = expr.arguments.len();
+        let has_optional_msg = actual_args_count == min_args_count + 1;
 
-        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
+        let (message, expr) = if actual_args_count != min_args_count && !has_optional_msg {
             self.push_err(TypeCheckError::AssertionParameterCountMismatch {
                 kind: expr.kind,
                 found: actual_args_count,
@@ -773,8 +1079,7 @@ impl Elaborator<'_> {
             let expr = Expression { kind, location };
             (message, expr)
         } else {
-            let message =
-                (actual_args_count != min_args_count).then(|| expr.arguments.pop().unwrap());
+            let message = has_optional_msg.then(|| expr.arguments.pop().unwrap());
             let expr = match expr.kind {
                 ConstrainKind::Assert | ConstrainKind::Constrain => expr.arguments.pop().unwrap(),
                 ConstrainKind::AssertEq => {
@@ -794,37 +1099,46 @@ impl Elaborator<'_> {
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
-
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool.to_string(),
-            expr_location,
+        let msg = message.map(|assert_msg_expr| {
+            let (msg, typ) = self.elaborate_expression(assert_msg_expr);
+            // If the error message contains a format string, those types need to appear in the ABI,
+            // except if we are in a meta-programming context, in which case the comptime interpreter
+            // handles a wider variety of types, e.g. quoted types.
+            if !self.in_comptime_context() {
+                let location = self.interner.expr_location(&msg);
+                let typ = typ.follow_bindings();
+                let mut check_msg_compat = |typ: &Type| {
+                    if typ.is_message_compatible(false) || matches!(typ, Type::Error) {
+                        return;
+                    }
+                    let error = TypeCheckError::TypeCannotBeUsed {
+                        typ: typ.clone(),
+                        place: "message",
+                        location,
+                    };
+                    self.push_err(CompilationError::TypeError(error));
+                };
+                if let Type::FmtString(_, item_types) = typ {
+                    if let Type::Tuple(item_types) = item_types.as_ref() {
+                        item_types.iter().for_each(check_msg_compat);
+                    }
+                } else {
+                    check_msg_compat(&typ);
+                }
+            }
+            msg
         });
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
+        self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
+
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location, msg)), Type::Unit)
     }
 
-    /// Elaborates an expression knowing that it has to match a given type.
-    fn elaborate_expression_with_type(
-        &mut self,
-        arg: Expression,
-        typ: Option<&Type>,
-    ) -> (ExprId, Type) {
-        let ExpressionKind::Lambda(lambda) = arg.kind else {
-            return self.elaborate_expression(arg);
-        };
-
-        let location = arg.location;
-        let type_hint =
-            if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
-        let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, location);
-        self.interner.push_expr_type(id, typ.clone());
-        (id, typ)
-    }
-
+    /// Elaborate a struct constructor.
+    ///
+    /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
+    /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_constructor(
         &mut self,
         constructor: ConstructorExpression,
@@ -857,8 +1171,10 @@ impl Elaborator<'_> {
             return (HirExpression::Error, Type::Error);
         };
 
-        let last_segment = path.segments.last_mut().unwrap();
+        // When instantiating a generic struct, treat any generics in the type
+        // as if they were part of the turbofish, so they can be validated with the path.
         if !generics.ordered_args.is_empty() {
+            let last_segment = path.segments.last_mut().unwrap();
             last_segment.generics = Some(generics.ordered_args);
         }
 
@@ -872,6 +1188,8 @@ impl Elaborator<'_> {
         self.elaborate_constructor_with_type(typ, constructor.fields, location, Some(last_segment))
     }
 
+    /// Knowing the [Type] being constructed, elaborate all field expressions.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_constructor_with_type(
         &mut self,
         typ: Type,
@@ -880,9 +1198,9 @@ impl Elaborator<'_> {
         last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
-        let (r#type, generics) = match typ.as_ref() {
-            Type::DataType(r#type, struct_generics) if r#type.borrow().is_struct() => {
-                (r#type, struct_generics)
+        let (struct_type, generics) = match typ.as_ref() {
+            Type::DataType(struct_type, struct_generics) if struct_type.borrow().is_struct() => {
+                (struct_type.clone(), struct_generics)
             }
             typ => {
                 self.push_err(ResolverError::NonStructUsedInConstructor {
@@ -892,7 +1210,9 @@ impl Elaborator<'_> {
                 return (HirExpression::Error, Type::Error);
             }
         };
-        self.mark_struct_as_constructed(r#type.clone());
+        let struct_id = struct_type.borrow().id;
+
+        self.mark_struct_as_constructed(struct_type.clone());
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
         let mut generics = generics.clone();
@@ -904,16 +1224,18 @@ impl Elaborator<'_> {
             is_self_type = last_segment.ident.is_self_type_name();
             constructor_type_location = last_segment.ident.location();
 
+            let mut errors = Vec::new();
             generics = self.resolve_struct_turbofish_generics(
-                &r#type.borrow(),
+                &struct_type.borrow(),
                 generics,
                 last_segment.generics,
                 turbofish_location,
+                &mut errors,
             );
+            self.push_errors(errors);
         }
 
         // Each of the struct generics must be bound at the end of the function
-        let struct_id = r#type.borrow().id;
         for (index, generic) in generics.iter().enumerate() {
             if let Type::TypeVariable(type_variable) = generic {
                 self.push_required_type_variable(
@@ -925,9 +1247,9 @@ impl Elaborator<'_> {
             }
         }
 
-        let struct_type = r#type.clone();
-
-        let field_types = r#type
+        // The struct's fields may still be deferred, so type-check them now.
+        self.define_struct_fields_if_undefined(struct_id);
+        let field_types = struct_type
             .borrow()
             .get_fields_with_visibility(&generics)
             .expect("This type should already be validated to be a struct");
@@ -944,12 +1266,13 @@ impl Elaborator<'_> {
             struct_generics: generics.clone(),
         });
 
-        let struct_id = struct_type.borrow().id;
         self.interner.add_type_reference(struct_id, constructor_type_location, is_self_type);
 
         (expr, Type::DataType(struct_type, generics))
     }
 
+    /// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
@@ -959,6 +1282,7 @@ impl Elaborator<'_> {
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_constructor_expr_fields(
         &mut self,
         struct_type: Shared<DataType>,
@@ -973,21 +1297,23 @@ impl Elaborator<'_> {
             .field_names()
             .expect("This type should already be validated to be a struct");
 
+        let expected_fields_by_name = field_types
+            .iter()
+            .enumerate()
+            .map(|(i, (name, vis, typ))| (name.as_str(), (i, vis, typ)))
+            .collect::<HashMap<_, _>>();
+
         for (field_name, field) in fields {
-            let expected_field_with_index = field_types
-                .iter()
-                .enumerate()
-                .find(|(_, (name, _, _))| name == field_name.as_str());
+            let expected_field = expected_fields_by_name.get(field_name.as_str());
+
             let expected_index_and_visibility =
-                expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
-            let expected_type =
-                expected_field_with_index.map(|(_, (_, _, typ))| typ).unwrap_or(&Type::Error);
+                expected_field.map(|(index, visibility, _)| (index, visibility));
+            let expected_type = expected_field.map_or(&&Type::Error, |(_, _, typ)| typ);
 
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
 
-            if unseen_fields.contains(&field_name) {
-                unseen_fields.remove(&field_name);
+            if unseen_fields.remove(&field_name) {
                 seen_fields.insert(field_name.clone());
 
                 self.unify_with_coercions(
@@ -995,12 +1321,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || {
-                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                            expected_typ: expected_type.to_string(),
-                            expr_typ: field_type.to_string(),
-                            expr_location: field_location,
-                        })
+                    |elaborator| {
+                        CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                            &field_type,
+                            expected_type,
+                            field_location,
+                        ))
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -1021,11 +1347,11 @@ impl Elaborator<'_> {
                 self.check_struct_field_visibility(
                     &struct_type,
                     field_name,
-                    *visibility,
+                    **visibility,
                     field_location,
                 );
 
-                self.interner.add_struct_member_reference(struct_type.id, index, field_location);
+                self.interner.add_struct_member_reference(struct_type.id, *index, field_location);
             }
 
             ret.push((field_name, resolved));
@@ -1047,6 +1373,7 @@ impl Elaborator<'_> {
     /// - `is_offset = false`: Auto-dereferencing will occur, and this will always return false
     /// - `is_offset = true`: Auto-dereferencing is disabled, and this will return true if the lhs
     ///   is a reference.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_member_access(
         &mut self,
         access: MemberAccessExpression,
@@ -1066,60 +1393,98 @@ impl Elaborator<'_> {
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
-        let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
-        self.interner.push_expr_type(expr_id, typ.clone());
+        let typ = self.type_check_member_access(access, *expr_id, lhs_type, rhs_location);
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ, is_offset && is_reference)
     }
 
-    pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
-        let id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(id, location);
-        id
+    /// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn intern_expr(
+        &mut self,
+        expr: HirExpression,
+        location: Location,
+    ) -> PushedExpr<HasLocation> {
+        self.interner.push_expr(expr).push_location(self.interner, location)
     }
 
+    /// Follow up [Self::intern_expr] with the [Type].
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn intern_expr_type(&mut self, expr_id: PushedExpr<HasLocation>, typ: Type) -> ExprId {
+        expr_id.push_type(self.interner, typ)
+    }
+
+    /// Elaborate the expression, resolve the target type, then type check that they are compatible.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_cast(
         &mut self,
         cast: CastExpression,
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::Cast);
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
+
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
-        let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
         let operator = HirBinaryOp::new(infix.operator, file);
+        self.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+    }
+
+    /// Complete infix elaboration given pre-elaborated operands.
+    ///
+    /// This is the shared core of [`Self::elaborate_infix`] and the op-assign desugaring in
+    /// [`Self::elaborate_assign_op`], which needs to supply an already-elaborated lhs to avoid
+    /// evaluating index sub-expressions twice.
+    pub(super) fn finish_infix(
+        &mut self,
+        lhs: ExprId,
+        lhs_type: Type,
+        operator: HirBinaryOp,
+        rhs: ExprId,
+        rhs_type: Type,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let opt_trait_id = self.interner.try_get_operator_trait_method(operator.kind);
+        let is_ord = operator.kind.is_comparator() && !operator.kind.is_equality();
+
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
-            trait_method_id: trait_id,
+            trait_method_id: opt_trait_id,
             rhs,
         });
 
-        let expr_id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(expr_id, location);
+        let expr_id = self.intern_expr(expr, location);
 
         let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
             result,
             &lhs_type,
-            Some(trait_id),
-            expr_id,
+            opt_trait_id,
+            *expr_id,
             location,
+            is_ord,
         );
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
+    /// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
+    /// * if the rules returned an `Err`, it returns [Type::Error]
+    /// * if the results indicate that a trait method should be used,
+    ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
+    #[tracing::instrument(level = "trace", skip_all)]
     fn handle_operand_type_rules_result(
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
@@ -1127,12 +1492,13 @@ impl Elaborator<'_> {
         trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
+        is_ord: bool,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
                     let trait_method_id = trait_method_id
-                        .expect("ice: expected some trait_method_id when use_impl is true");
+                        .expect("ICE: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
@@ -1143,11 +1509,14 @@ impl Elaborator<'_> {
                     let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
                     let select_impl = true; // this constraint should lead to choosing a trait impl
                     self.push_trait_constraint(constraint, expr_id, select_impl);
+
                     self.type_check_operator_method(
                         expr_id,
                         trait_method_id,
                         operand_type,
+                        &typ,
                         location,
+                        is_ord,
                     );
                 }
                 typ
@@ -1159,6 +1528,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_if(
         &mut self,
         if_expr: IfExpression,
@@ -1170,11 +1540,7 @@ impl Elaborator<'_> {
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
-            expr_typ: cond_type.to_string(),
-            expr_location,
-        });
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, expr_location);
 
         let (alternative, else_type, error_location) =
             if let Some(alternative) = if_expr.alternative {
@@ -1186,12 +1552,8 @@ impl Elaborator<'_> {
                 (None, Type::Unit, consequence_location)
             };
 
-        self.unify(&ret_type, &else_type, || {
-            let err = TypeCheckError::TypeMismatch {
-                expected_typ: ret_type.to_string(),
-                expr_typ: else_type.to_string(),
-                expr_location: error_location,
-            };
+        self.unify(&else_type, &ret_type, |elaborator| {
+            let err = elaborator.new_type_mismatch_error(&else_type, &ret_type, error_location);
 
             let context = if ret_type == Type::Unit {
                 "Are you missing a semicolon at the end of your 'else' branch?"
@@ -1212,12 +1574,25 @@ impl Elaborator<'_> {
         (HirExpression::If(if_expr), ret_type)
     }
 
+    /// Elaborate a `match <expr> { <rules> }` expression by creating an block such as this:
+    /// ```text
+    /// {
+    ///   let internal variable = <expr>;
+    ///   match internal variable { <rules> }
+    /// }
+    /// ```
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_match(
         &mut self,
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
-        self.use_unstable_feature(UnstableFeature::Enums, location);
+        // Show error on the `match` keyword
+        let match_location = Location::new(
+            Span::from(location.span.start()..location.span.start() + 5),
+            location.file,
+        );
+        self.use_unstable_feature(UnstableFeature::Enums, match_location);
 
         let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
@@ -1235,17 +1610,16 @@ impl Elaborator<'_> {
             HirMatch::Failure { missing_case: false }
         });
 
-        let tree = self.interner.push_expr(tree);
-        self.interner.push_expr_type(tree, result_type.clone());
-        self.interner.push_expr_location(tree, location);
+        let tree = self.interner.push_expr_full(tree, location, result_type.clone());
 
-        let tree = self.interner.push_stmt(HirStatement::Expression(tree));
-        self.interner.push_stmt_location(tree, location);
+        let tree = self.interner.push_stmt_full(HirStatement::Expression(tree), location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, tree] });
         (block, result_type)
     }
 
+    /// Introduce an internal variable in order to be able to refer to the expression using a local identifier.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn wrap_in_let(&mut self, expr_id: ExprId, typ: Type) -> (StmtId, DefinitionId) {
         let location = self.interner.expr_location(&expr_id);
         let name = "internal variable".to_string();
@@ -1255,11 +1629,11 @@ impl Elaborator<'_> {
 
         let pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
-        let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location);
+        let let_ = self.interner.push_stmt_full(let_, location);
         (let_, variable)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_tuple(
         &mut self,
         tuple: Vec<Expression>,
@@ -1268,8 +1642,8 @@ impl Elaborator<'_> {
         let mut element_ids = Vec::with_capacity(tuple.len());
         let mut element_types = Vec::with_capacity(tuple.len());
 
+        let target_type = target_type.map(|typ| typ.follow_bindings());
         for (index, element) in tuple.into_iter().enumerate() {
-            let target_type = target_type.map(|typ| typ.follow_bindings());
             let expr_target_type =
                 if let Some(Type::Tuple(types)) = &target_type { types.get(index) } else { None };
             let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
@@ -1280,6 +1654,7 @@ impl Elaborator<'_> {
         (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lambda_with_target_type(
         &mut self,
         lambda: Lambda,
@@ -1287,59 +1662,79 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
-        if let Some(Type::Function(args, _, _, _)) = target_type {
-            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+        if let Some(Type::Function(args, _, _, unconstrained)) = target_type {
+            self.elaborate_lambda_with_parameter_type_hints(
+                lambda,
+                Some(&args),
+                unconstrained || self.in_unconstrained_args,
+            )
+        } else {
+            self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
         }
-
-        self.elaborate_lambda_with_parameter_type_hints(lambda, None)
     }
 
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
-    /// call that has this lambda as the argument.
-    /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
+    /// call that has this lambda as the argument. The parameter type hints will be the types of
+    /// the function type corresponding to the lambda argument.
+    ///
+    /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
+    /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
         parameters_type_hints: Option<&Vec<Type>>,
+        unconstrained: bool,
     ) -> (HirExpression, Type) {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
 
-        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
+        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
+        let mut parameter_names_in_list = HashMap::default();
         let parameters =
             vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
                 let parameter = DefinitionKind::Local(None);
-                let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
-                    if let Some(parameter_type_hint) =
-                        parameters_type_hints.and_then(|hints| hints.get(index))
-                    {
-                        parameter_type_hint.clone()
-                    } else {
-                        self.interner.next_type_variable_with_kind(Kind::Any)
+                let typ = match typ {
+                    Some(typ) => {
+                        let wildcard_allowed = WildcardAllowed::Yes;
+                        self.resolve_type(typ, wildcard_allowed)
                     }
-                } else {
-                    let wildcard_allowed = true;
-                    self.resolve_type(typ, wildcard_allowed)
+                    None => {
+                        if let Some(parameter_type_hint) =
+                            parameters_type_hints.and_then(|hints| hints.get(index))
+                        {
+                            parameter_type_hint.clone()
+                        } else {
+                            self.interner.next_type_variable_with_kind(Kind::Any)
+                        }
+                    }
                 };
 
                 arg_types.push(typ.clone());
-                (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
+                (
+                    self.elaborate_pattern(
+                        pattern,
+                        typ.clone(),
+                        parameter,
+                        true, // warn_if_unused
+                        true, // warn_if_not_mutated
+                        &mut parameter_names_in_list,
+                    ),
+                    typ,
+                )
             });
 
-        let return_type = self.resolve_inferred_type(lambda.return_type);
+        let wildcard_allowed = WildcardAllowed::Yes;
+        let return_type = self.resolve_inferred_type(lambda.return_type, wildcard_allowed);
         let body_location = lambda.body.location;
         let (body, body_type) = self.elaborate_expression(lambda.body);
 
         let lambda_context = self.lambda_stack.pop().unwrap();
         self.pop_scope();
 
-        self.unify(&body_type, &return_type, || TypeCheckError::TypeMismatch {
-            expected_typ: return_type.to_string(),
-            expr_typ: body_type.to_string(),
-            expr_location: body_location,
-        });
+        self.unify_or_type_mismatch(&body_type, &return_type, body_location);
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
             self.interner.definition_type(capture.ident.id)
@@ -1349,10 +1744,17 @@ impl Elaborator<'_> {
             if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
         let captures = lambda_context.captures;
-        let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
+        let expr = HirExpression::Lambda(HirLambda {
+            parameters,
+            return_type,
+            body,
+            captures,
+            unconstrained,
+        });
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_quote(&mut self, mut tokens: Tokens, location: Location) -> (HirExpression, Type) {
         tokens = self.find_unquoted_exprs_tokens(tokens);
 
@@ -1364,39 +1766,54 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_block(
         &mut self,
         block: BlockExpression,
         location: Location,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
-            this.elaborate_block_expression(block, target_type)
+        let block = self.elaborate_in_comptime_context(|this| {
+            let (block, block_type) = this.elaborate_block_expression(block, target_type);
+
+            // If the comptime block is expected to return a specific type, unify their types.
+            // This for example allows this code to compile: `let x: u8 = comptime { 1 }`.
+            // If we don't do this, "1" will end up with the default integer or field type,
+            // which is Field.
+            if let Some(target_type) = target_type {
+                this.unify_or_type_mismatch(&block_type, target_type, location);
+            }
+
+            block
         });
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        let (id, typ) = self.inline_comptime_value(value, location);
+
+        let from_macro_call = false;
+        let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
-        self.debug_comptime(location, |interner| {
+        self.debug_comptime(location, |interner, _| {
             interner.expression(&id).to_display_ast(interner, location).kind
         });
 
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
+        from_macro_call: bool,
     ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
             this.push_err(error);
-            let error = this.interner.push_expr(HirExpression::Error);
-            this.interner.push_expr_location(error, location);
-            (error, Type::Error)
+            let typ = Type::Error;
+            let error = this.interner.push_expr_full(HirExpression::Error, location, typ.clone());
+            (error, typ)
         };
 
         let value = match value {
@@ -1406,14 +1823,19 @@ impl Elaborator<'_> {
 
         match value.into_expression(self, location) {
             Ok(new_expr) => {
-                // At this point the Expression was already elaborated and we got a Value.
+                // Unless the value to inline comes from a macro call (quoted content that is being unquoted),
+                // at this point the Expression was already elaborated and we got a Value.
                 // We'll elaborate this value turned into Expression to inline it and get
                 // an ExprId and Type, but we don't want any visibility errors to happen
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
-                self.silence_field_visibility_errors += 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors += 1;
+                }
                 let value = self.elaborate_expression(new_expr);
-                self.silence_field_visibility_errors -= 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors -= 1;
+                }
                 value
             }
             Err(error) => make_error(self, error),
@@ -1421,34 +1843,53 @@ impl Elaborator<'_> {
     }
 
     fn try_get_comptime_function(
-        &mut self,
+        &self,
         func: ExprId,
         location: Location,
-    ) -> Result<Option<FuncId>, ResolverError> {
+    ) -> Result<FuncId, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let meta = self.interner.function_modifiers(&function);
-                        if meta.is_comptime {
-                            Ok(Some(function))
-                        } else {
-                            Err(ResolverError::MacroIsNotComptime { location })
-                        }
+                let definition = self.interner.definition(ident.id);
+                if let DefinitionKind::Function(function) = definition.kind {
+                    let meta = self.interner.function_modifiers(&function);
+                    if meta.is_comptime {
+                        Ok(function)
                     } else {
-                        Err(ResolverError::InvalidSyntaxInMacroCall { location })
+                        Err(ResolverError::MacroIsNotComptime { location })
                     }
                 } else {
-                    // Assume a name resolution error has already been issued
-                    Ok(None)
+                    Err(ResolverError::InvalidSyntaxInMacroCall { location })
                 }
             }
             _ => Err(ResolverError::InvalidSyntaxInMacroCall { location }),
         }
     }
 
+    /// Validate a macro call without executing it.
+    /// Checks that the callee is a comptime function and the return type is `Quoted`.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn validate_macro_call(
+        &mut self,
+        func: ExprId,
+        return_type: &Type,
+        location: Location,
+    ) -> Option<FuncId> {
+        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), |_| {
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
+        });
+
+        match self.try_get_comptime_function(func, location) {
+            Ok(function) => Some(function),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Call a macro function and inlines its code at the call site.
     /// This will also perform a type check to ensure that the return type is an `Expr` value.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn call_macro(
         &mut self,
         func: ExprId,
@@ -1456,21 +1897,11 @@ impl Elaborator<'_> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), || {
-            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
-        });
-
-        let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function?,
-            Err(error) => {
-                self.push_err(error);
-                return None;
-            }
-        };
+        let function = self.validate_macro_call(func, &return_type, location)?;
 
         let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
-        let mut errors = Vec::new();
+        let mut errors: Vec<CompilationError> = Vec::new();
 
         for argument in arguments {
             match interpreter.evaluate(argument) {
@@ -1486,14 +1917,16 @@ impl Elaborator<'_> {
         let result = interpreter.call_function(function, comptime_args, bindings, location);
 
         if !errors.is_empty() {
-            self.errors.append(&mut errors);
+            self.push_errors(errors);
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location);
+        let from_macro_call = true;
+        let (expr_id, typ) = self.inline_comptime_value(result, location, from_macro_call);
         Some((self.interner.expression(&expr_id), typ))
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
         let location = path.typ.location.merge(path.trait_path.location);
 
@@ -1501,12 +1934,11 @@ impl Elaborator<'_> {
             typ: path.typ,
             trait_bound: TraitBound {
                 trait_path: path.trait_path,
-                trait_id: None,
                 trait_generics: path.trait_generics,
             },
         };
 
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
@@ -1540,25 +1972,31 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
-        self.interner.push_expr_location(id, location);
+        let generics = if let Some(turbofish) = path.turbofish {
+            let definition_kind = self.interner.definition(definition).kind.clone();
+            if let DefinitionKind::Function(func_id) = definition_kind {
+                let ident_location = path.impl_item.location();
+                Some(self.use_type_args(turbofish, func_id, ident_location).0)
+            } else {
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: format!("associated item `{}`", path.impl_item),
+                    location: path.impl_item.location(),
+                });
+                None
+            }
+        } else {
+            None
+        };
+
+        let id = self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), location);
 
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-
-        let typ = self.type_check_variable_with_bindings(
-            ident,
-            id,
-            None,
-            bindings,
-            push_required_type_variables,
-        );
-        self.interner.push_expr_type(id, typ.clone());
+        let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
+        let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
     }
 }

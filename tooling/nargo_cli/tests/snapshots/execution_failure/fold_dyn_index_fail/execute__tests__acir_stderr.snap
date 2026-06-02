@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index out of bounds, array has size 5, but index was 14
+  ┌─ src/main.nr:9:12
+  │
+9 │     assert(x[idx] != 0);
+  │            ------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:3:5
+    2: dynamic_index_check
+            at src/main.nr:9:12
+
+Failed to solve program: 'Index out of bounds, array has size 5, but index was 14'

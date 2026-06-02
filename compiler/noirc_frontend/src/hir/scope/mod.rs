@@ -41,6 +41,11 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
         self.0.insert(key, value)
     }
 
+    /// Returns an iterator over all of the elements
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+        self.0.iter()
+    }
+
     /// Returns an iterator over all of the elements which satisfy the predicate
     pub fn filter<F>(&self, pred: F) -> impl Iterator<Item = (&K, &V)>
     where

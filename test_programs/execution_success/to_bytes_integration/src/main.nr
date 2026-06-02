@@ -15,9 +15,9 @@ fn main(x: Field, a: Field) {
     assert(p_bytes[0] == z_bytes[0] as u8 + 1);
 
     let p_bits = std::field::modulus_le_bits();
-    let z_bits: [u1; 254] = z.to_le_bits();
-    assert(z_bits[0] == 0);
+    let z_bits: [bool; 254] = z.to_le_bits();
+    assert(!z_bits[0]);
     assert(p_bits[100] == z_bits[100]);
 
-    let _: [u1; 254] = a.to_le_bits();
+    let _: [bool; 254] = a.to_le_bits();
 }

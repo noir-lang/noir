@@ -59,6 +59,12 @@ impl Formatter<'_> {
 
     pub(super) fn format_generic_type_args(&mut self, mut generics: GenericTypeArgs) {
         self.skip_comments_and_whitespace();
+
+        // Outside of expressions, the double colon is optional so we prefer to omit it
+        if self.is_at(Token::DoubleColon) {
+            self.bump();
+        }
+
         if self.token != Token::Less {
             return;
         }

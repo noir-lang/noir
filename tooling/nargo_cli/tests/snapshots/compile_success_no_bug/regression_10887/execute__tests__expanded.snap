@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G_A: Option<bool> = Option::<bool> { _is_some: false, _value: false };
+
+fn main() {
+    let a: Option<bool> = Option::<bool>::none();
+    f(a);
+    f(G_A);
+}
+
+fn f(_arg: Option<bool>) {}

@@ -3,11 +3,13 @@ name: deny
 on:
   push:
     branches: [master]
-    paths: [Cargo.lock]
+    paths: [Cargo.lock, .github/workflows/deny.yml]
   pull_request:
     branches: [master]
-    paths: [Cargo.lock]
+    paths: [Cargo.lock, .github/workflows/deny.yml]
   merge_group:
+
+permissions: {}
 
 env:
   RUSTFLAGS: -D warnings
@@ -22,7 +24,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: EmbarkStudios/cargo-deny-action@30f817c6f72275c6d54dc744fbca09ebc958599f
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe
         with:
           command: check all

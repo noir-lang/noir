@@ -48,10 +48,10 @@ pub enum Intrinsic {
     /// argument: array (value id)
     /// result: str
     ArrayAsStrUnchecked,
-    /// AsSlice
+    /// AsVector
     /// argument: value id
-    /// result: a slice containing the elements of the argument. Panic if the value id does not correspond to an `array` type
-    AsSlice,
+    /// result: a vector containing the elements of the argument. Panic if the value id does not correspond to an `array` type
+    AsVector,
     /// AssertConstant - Enforce the argument to be a constant value, at compile time.
     /// argument: value id
     /// result: (), panic if the argument does not resolve to a constant value
@@ -60,30 +60,38 @@ pub enum Intrinsic {
     /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
     /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
-    /// SlicePushBack - Add elements at the end of a slice
-    /// arguments:  slice length, slice contents, ...elements_to_push
-    /// result: a slice containing `slice contents,..elements_to_push`
-    SlicePushBack,
-    /// SlicePushFront - Add elements at the start of a slice
-    /// arguments:  slice length, slice contents, ...elements_to_push
-    /// result: a slice containing `..elements_to_push, slice contents`
-    SlicePushFront,
-    /// SlicePopBack - Removes the last element of a slice
-    /// arguments: slice length, slice contents
-    /// result: a slice without the last element of `slice contents`
-    SlicePopBack,
-    /// SlicePopFront - Removes the first element of a slice
-    /// arguments: slice length, slice contents
-    /// result: a slice without the first element of `slice contents`
-    SlicePopFront,
-    /// SliceInsert - Insert elements inside a slice.
-    /// arguments: slice length, slice contents, insert index, ...elements_to_insert
-    /// result: a slice with ...elements_to_insert inserted at the `insert index`
-    SliceInsert,
-    /// SliceRemove - Removes an element from a slice
-    /// arguments: slice length, slice contents, remove index
-    /// result: a slice with without the element at `remove index`
-    SliceRemove,
+    /// VectorPushBack - Add elements at the end of a vector
+    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// result: a vector containing `vector contents,..elements_to_push`
+    VectorPushBack,
+    /// VectorPushFront - Add elements at the start of a vector
+    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// result: a vector containing `..elements_to_push, vector contents`
+    VectorPushFront,
+    /// VectorPopBack - Removes the last element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
+    /// arguments: vector length, vector contents
+    /// result: a vector without the last element of `vector contents`
+    VectorPopBack,
+    /// VectorPopFront - Removes the first element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
+    /// arguments: vector length, vector contents
+    /// result: a vector without the first element of `vector contents`
+    VectorPopFront,
+    /// VectorInsert - Insert elements inside a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
+    /// arguments: vector length, vector contents, insert index, ...elements_to_insert
+    /// result: a vector with ...elements_to_insert inserted at the `insert index`
+    VectorInsert,
+    /// VectorRemove - Removes an element from a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
+    /// arguments: vector length, vector contents, remove index
+    /// result: a vector with without the element at `remove index`
+    VectorRemove,
     /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
     /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
@@ -130,11 +138,11 @@ pub enum Intrinsic {
     /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
     /// in constrained context, it will be 0.
     ArrayRefCount,
-    /// SliceRefCount - Gives the reference count of the slice
-    /// arguments: slice length, slice contents (value id)
-    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
+    /// VectorRefCount - Gives the reference count of the vector
+    /// arguments: vector length, vector contents (value id)
+    /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
     /// in constrained context, it will be 0.
-    SliceRefCount,
+    VectorRefCount,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -142,15 +150,15 @@ impl std::fmt::Display for Intrinsic {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
-            Intrinsic::AsSlice => write!(f, "as_slice"),
+            Intrinsic::AsVector => write!(f, "as_vector"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
-            Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
-            Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
-            Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
-            Intrinsic::SlicePopFront => write!(f, "slice_pop_front"),
-            Intrinsic::SliceInsert => write!(f, "slice_insert"),
-            Intrinsic::SliceRemove => write!(f, "slice_remove"),
+            Intrinsic::VectorPushBack => write!(f, "vector_push_back"),
+            Intrinsic::VectorPushFront => write!(f, "vector_push_front"),
+            Intrinsic::VectorPopBack => write!(f, "vector_pop_back"),
+            Intrinsic::VectorPopFront => write!(f, "vector_pop_front"),
+            Intrinsic::VectorInsert => write!(f, "vector_insert"),
+            Intrinsic::VectorRemove => write!(f, "vector_remove"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
@@ -164,7 +172,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
             Intrinsic::FieldLessThan => write!(f, "field_less_than"),
             Intrinsic::ArrayRefCount => write!(f, "array_refcount"),
-            Intrinsic::SliceRefCount => write!(f, "slice_refcount"),
+            Intrinsic::VectorRefCount => write!(f, "vector_refcount"),
         }
     }
 }
@@ -181,24 +189,23 @@ impl Intrinsic {
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            // Array & slice ref counts are treated as having side effects since they operate
+            // Array & vector ref counts are treated as having side effects since they operate
             // on hidden variables on otherwise identical array values.
             | Intrinsic::ArrayRefCount
-            | Intrinsic::SliceRefCount
+            | Intrinsic::VectorRefCount
             | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
-            // These imply a check that the slice is non-empty and should fail otherwise.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => true,
+            // These imply a check that the vector is non-empty and should fail otherwise.
+            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::AsSlice
-            | Intrinsic::SlicePushBack
-            | Intrinsic::SlicePushFront
-            | Intrinsic::SliceInsert
+            | Intrinsic::AsVector
+            | Intrinsic::VectorPushBack
+            | Intrinsic::VectorPushFront
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -210,6 +217,24 @@ impl Intrinsic {
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => func.has_side_effects(),
         }
+    }
+
+    /// Returns true if this intrinsic can modify its input array in Brillig
+    /// due to copy-on-write optimization when the reference count is 1.
+    ///
+    /// This is used to ensure we don't skip clones for these operations,
+    /// even though they're technically "pure" (no observable side effects).
+    /// Without proper reference counting, the caller's array could be corrupted.
+    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
     }
 
     pub(crate) fn purity(&self) -> Purity {
@@ -224,10 +249,12 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => Purity::PureWithPredicate,
             Intrinsic::BlackBox(func) if func.has_side_effects() => Purity::PureWithPredicate,
 
-            // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
-            Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                Purity::PureWithPredicate
-            }
+            // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
+            // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            Intrinsic::VectorPopBack
+            | Intrinsic::VectorPopFront
+            | Intrinsic::VectorRemove
+            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -245,16 +272,16 @@ impl Intrinsic {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
             "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
-            "as_slice" => Some(Intrinsic::AsSlice),
+            "as_vector" => Some(Intrinsic::AsVector),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
-            "slice_push_back" => Some(Intrinsic::SlicePushBack),
-            "slice_push_front" => Some(Intrinsic::SlicePushFront),
-            "slice_pop_back" => Some(Intrinsic::SlicePopBack),
-            "slice_pop_front" => Some(Intrinsic::SlicePopFront),
-            "slice_insert" => Some(Intrinsic::SliceInsert),
-            "slice_remove" => Some(Intrinsic::SliceRemove),
+            "vector_push_back" => Some(Intrinsic::VectorPushBack),
+            "vector_push_front" => Some(Intrinsic::VectorPushFront),
+            "vector_pop_back" => Some(Intrinsic::VectorPopBack),
+            "vector_pop_front" => Some(Intrinsic::VectorPopFront),
+            "vector_insert" => Some(Intrinsic::VectorInsert),
+            "vector_remove" => Some(Intrinsic::VectorRemove),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
@@ -266,7 +293,7 @@ impl Intrinsic {
             "field_less_than" => Some(Intrinsic::FieldLessThan),
             "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
             "array_refcount" => Some(Intrinsic::ArrayRefCount),
-            "slice_refcount" => Some(Intrinsic::SliceRefCount),
+            "vector_refcount" => Some(Intrinsic::VectorRefCount),
 
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
@@ -358,8 +385,10 @@ pub enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// to those in the given array.
+    /// In ACIR this will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    /// In Brillig, this might modify the original array if the array's reference count is 1.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
@@ -392,9 +421,9 @@ pub enum Instruction {
         else_value: ValueId,
     },
 
-    /// Creates a new array or slice.
+    /// Creates a new array or vector.
     ///
-    /// `typ` should be an array or slice type with an element type
+    /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
     MakeArray { elements: im::Vector<ValueId>, typ: Type },
 
@@ -467,17 +496,28 @@ impl Instruction {
             | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
+                // All user-defined function calls are predicated during ACIR generation
+                // (both ACIR and Brillig calls unconditionally pass the side effects predicate),
+                // so this must return true regardless of purity.
+                Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     match intrinsic {
                         // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                         // which uses the side effects predicate.
-                        Intrinsic::SliceInsert | Intrinsic::SliceRemove => true,
-                        // Technically these don't use the side effects predicate, but they fail on empty slices,
+                        Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
+                        // The heterogeneous vector path in ACIR lowering uses
+                        // `get_flattened_index` which reads `current_side_effects_enabled_var`
+                        // to guard the element-type-sizes memory lookup.
+                        Intrinsic::VectorPushBack => true,
+                        // Technically these don't use the side effects predicate, but they fail on empty vectors,
                         // and by pretending that they require the predicate, we can preserve any current side
                         // effect variable in the SSA and use it to optimize out memory operations that we know
                         // would fail, but they shouldn't because they might be disabled.
-                        Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => true,
+                        Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
+                        // RecursiveAggregation's predicate is injected implicitly from
+                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // must preserve the EnableSideEffectsIf that sets it.
+                        Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
                     }
                 }
@@ -532,7 +572,7 @@ impl Instruction {
                 | BinaryOp::Sub { unchecked: false }
                 | BinaryOp::Mul { unchecked: false } => {
                     let typ = dfg.type_of_value(binary.lhs);
-                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                    !matches!(*typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
                     // If we don't know rhs at compile time, it might be zero or -1
@@ -595,10 +635,21 @@ impl Instruction {
     }
 
     /// Replaces values present in this instruction with other values according to the given mapping.
-    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
-        if !mapping.is_empty() {
-            self.map_values_mut(|value_id| mapping.get(value_id));
+    ///
+    /// Returns `true` if any value was actually replaced.
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) -> bool {
+        if mapping.is_empty() {
+            return false;
         }
+        let mut changed = false;
+        self.map_values_mut(|value_id| {
+            let new_value = mapping.get(value_id);
+            if new_value != value_id {
+                changed = true;
+            }
+            new_value
+        });
+        changed
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
@@ -630,7 +681,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
@@ -646,7 +697,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }
@@ -744,9 +795,7 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => {
-                *value = f(*value);
-            }
+            Instruction::DecrementRc { value } => *value = f(*value),
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -829,6 +878,13 @@ impl Instruction {
             Instruction::Noop => (),
         }
     }
+
+    /// Returns true if any value in this instruction satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
+    }
 }
 
 /// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
@@ -838,7 +894,7 @@ impl Instruction {
 pub enum ArrayOffset {
     None,
     Array,
-    Slice,
+    Vector,
 }
 
 impl ArrayOffset {
@@ -846,7 +902,7 @@ impl ArrayOffset {
         match value {
             0 => Some(Self::None),
             1 => Some(Self::Array),
-            3 => Some(Self::Slice),
+            3 => Some(Self::Vector),
             _ => None,
         }
     }
@@ -856,8 +912,8 @@ impl ArrayOffset {
             Self::None => 0,
             // Arrays in brillig are represented as [RC, ...items]
             Self::Array => 1,
-            // Slices in brillig are represented as [RC, Size, Capacity, ...items]
-            Self::Slice => 3,
+            // Vectors in brillig are represented as [RC, Size, Capacity, ...items]
+            Self::Vector => 3,
         }
     }
 }
@@ -868,11 +924,24 @@ impl Binary {
             BinaryOp::Add { unchecked: false }
             | BinaryOp::Sub { unchecked: false }
             | BinaryOp::Mul { unchecked: false } => {
-                // Some binary math can overflow or underflow, but this is only the case
-                // for unsigned types (here we assume the type of binary.lhs is the same)
-                dfg.type_of_value(self.rhs).is_unsigned()
+                match dfg.type_of_value(self.rhs).unwrap_numeric() {
+                    NumericType::NativeField => false,
+                    // Some binary math can overflow or underflow for non-field types.
+                    NumericType::Unsigned { .. } => true,
+                    // However, we assume that signed types should have already been expanded using unsigned operations.
+                    NumericType::Signed { .. } => {
+                        unreachable!("signed instructions should have been already expanded")
+                    }
+                }
             }
-            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => true,
+            BinaryOp::Shl | BinaryOp::Shr => {
+                // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                dfg.get_numeric_constant(self.rhs).is_none_or(|c| {
+                    let typ = dfg.type_of_value(self.lhs);
+                    c >= typ.bit_size().into()
+                })
+            }
+            BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }
@@ -892,6 +961,7 @@ pub enum ErrorType {
 }
 
 impl ErrorType {
+    /// Hash the error type to get a unique selector for it.
     pub fn selector(&self) -> ErrorSelector {
         struct U64(pub u64);
 
@@ -966,7 +1036,9 @@ pub(crate) enum TerminatorInstruction {
     JmpIf {
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     },
 
@@ -996,8 +1068,14 @@ impl TerminatorInstruction {
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 *condition = f(*condition);
+                for argument in then_arguments {
+                    *argument = f(*argument);
+                }
+                for argument in else_arguments {
+                    *argument = f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1017,8 +1095,14 @@ impl TerminatorInstruction {
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 f(*condition);
+                for argument in then_arguments {
+                    f(*argument);
+                }
+                for argument in else_arguments {
+                    f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1034,25 +1118,11 @@ impl TerminatorInstruction {
         }
     }
 
-    /// Apply a function to each value along with its index
-    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
-        use TerminatorInstruction::*;
-        match self {
-            JmpIf { condition, .. } => {
-                f(0, *condition);
-            }
-            Jmp { arguments, .. } => {
-                for (index, argument) in arguments.iter().enumerate() {
-                    f(index, *argument);
-                }
-            }
-            Return { return_values, .. } => {
-                for (index, return_value) in return_values.iter().enumerate() {
-                    f(index, *return_value);
-                }
-            }
-            Unreachable { .. } => (),
-        }
+    /// Returns true if any value in this terminator satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
     }
 
     /// Mutate each BlockId to a new BlockId specified by the given mapping function.
@@ -1117,5 +1187,58 @@ where
     let mut focus = xs.focus_mut();
     for (i, y) in changes {
         focus.set(i, y);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acvm::acir::brillig::lengths::SemanticLength;
+
+    #[test]
+    fn replace_values_returns_true_only_when_a_value_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let mut instruction_using_v1 = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(instruction_using_v1.replace_values(&mapping));
+        assert!(matches!(instruction_using_v1, Instruction::Cast(v, _) if v == v2));
+
+        let mut instruction_using_v0 = Instruction::Cast(v0, NumericType::NativeField);
+        assert!(!instruction_using_v0.replace_values(&mapping));
+        assert!(matches!(instruction_using_v0, Instruction::Cast(v, _) if v == v0));
+
+        let empty_mapping = ValueMapping::default();
+        let mut instruction = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(!instruction.replace_values(&empty_mapping));
+    }
+
+    #[test]
+    fn replace_values_returns_true_when_a_make_array_element_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
+        let mut instruction =
+            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v1]), typ: typ.clone() };
+        assert!(instruction.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v2);
+
+        let mut unrelated =
+            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v0]), typ };
+        assert!(!unrelated.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v0);
     }
 }

@@ -9,10 +9,10 @@ mod fuzz_lib;
 mod mutations;
 mod utils;
 use base64::{Engine as _, engine::general_purpose};
-use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::{fuzz_target_lib::fuzz_target, fuzzer::FuzzerData, options::FuzzerOptions};
 use mutations::mutate as mutate_fuzzer_data;
 use rand::{SeedableRng, rngs::StdRng};
+use rmp_serde::{decode::from_slice as decode_from_slice, encode::to_vec as encode_to_rmp_vec};
 use utils::fuzzer_output_to_json;
 
 const SEED: u64 = 1337;
@@ -30,12 +30,10 @@ const SEED: u64 = 1337;
 fn mutate(b64_data: &[u8]) -> String {
     let data = general_purpose::STANDARD.decode(b64_data).unwrap_or_default();
     let mut new_fuzzer_data: FuzzerData =
-        borrow_decode_from_slice(&data, bincode::config::legacy())
-            .unwrap_or((FuzzerData::default(), 1337))
-            .0;
+        decode_from_slice(&data).unwrap_or((FuzzerData::default(), 1337)).0;
     let mut rng = StdRng::seed_from_u64(SEED);
     mutate_fuzzer_data(&mut new_fuzzer_data, &mut rng);
-    let new_bytes = encode_to_vec(&new_fuzzer_data, bincode::config::legacy()).unwrap();
+    let new_bytes = encode_to_rmp_vec(&new_fuzzer_data).unwrap();
     general_purpose::STANDARD.encode(&new_bytes)
 }
 
@@ -51,9 +49,8 @@ fn mutate(b64_data: &[u8]) -> String {
 ///
 fn execute(b64_data: &[u8]) -> String {
     let data = general_purpose::STANDARD.decode(b64_data).unwrap_or_default();
-    let fuzzer_data: FuzzerData = borrow_decode_from_slice(&data, bincode::config::legacy())
-        .unwrap_or((FuzzerData::default(), 1337))
-        .0;
+    let fuzzer_data: FuzzerData =
+        decode_from_slice(&data).unwrap_or((FuzzerData::default(), 1337)).0;
     let fuzzer_output = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match fuzzer_output {
         Some(fuzzer_output) => fuzzer_output_to_json(fuzzer_output),

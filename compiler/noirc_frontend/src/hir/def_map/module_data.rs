@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use noirc_errors::Location;
 
@@ -11,6 +11,8 @@ use crate::token::SecondaryAttribute;
 /// children, and scope with all definitions defined within the scope.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleData {
+    /// This module's name. The root module has no name (None).
+    pub name: Option<String>,
     pub parent: Option<LocalModuleId>,
     pub children: HashMap<Ident, LocalModuleId>,
 
@@ -20,16 +22,22 @@ pub struct ModuleData {
     pub child_declaration_order: Vec<LocalModuleId>,
 
     /// Contains all definitions visible to the current module. This includes
-    /// all definitions in self.definitions as well as all imported definitions.
+    /// all definitions in `self.definitions` as well as all imported definitions.
     scope: ItemScope,
 
     /// Contains only the definitions directly defined in the current module
     definitions: ItemScope,
 
-    /// All traits in scope, either from `use` imports or `trait` declarations.
+    /// Multiple traits in scope, either from `use` imports or `trait` declarations.
     /// The Ident value is the trait name or the `use` alias, if any.
     /// This is stored separately from `scope` to quickly check if a trait is in scope.
     traits_in_scope: HashMap<TraitId, Ident>,
+
+    /// Items brought into `scope` by an import that are not actually visible from this module.
+    /// This happens when a `use` resolves to a name that exists in both the type and value
+    /// namespaces and only some of those items are visible: the visible item makes the import
+    /// legal, while the invisible one is kept here so that referencing it reports a privacy error.
+    deferred_private_imports: HashSet<ModuleDefId>,
 
     pub location: Location,
 
@@ -44,6 +52,7 @@ pub struct ModuleData {
 
 impl ModuleData {
     pub fn new(
+        name: Option<String>,
         parent: Option<LocalModuleId>,
         location: Location,
         outer_attributes: Vec<SecondaryAttribute>,
@@ -55,12 +64,14 @@ impl ModuleData {
         attributes.extend(inner_attributes);
 
         ModuleData {
+            name,
             parent,
             children: HashMap::new(),
             child_declaration_order: Vec::new(),
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
             traits_in_scope: HashMap::new(),
+            deferred_private_imports: HashSet::new(),
             location,
             is_contract,
             is_type,
@@ -76,6 +87,17 @@ impl ModuleData {
         &self.definitions
     }
 
+    /// Records that `id` was imported into this module but is not visible from here, so that
+    /// referencing it can be reported as a privacy error at the use site rather than at the import.
+    pub fn defer_private_import(&mut self, id: ModuleDefId) {
+        self.deferred_private_imports.insert(id);
+    }
+
+    /// Returns `true` if `id` was imported into this module without being visible from here.
+    pub fn is_private_import_deferred(&self, id: ModuleDefId) -> bool {
+        self.deferred_private_imports.contains(&id)
+    }
+
     fn declare(
         &mut self,
         name: Ident,
@@ -83,15 +105,17 @@ impl ModuleData {
         item_id: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
-
         if let ModuleDefId::ModuleId(child) = item_id {
             self.child_declaration_order.push(child.local_id);
         }
 
+        let result1 = self.scope.add_definition(name.clone(), visibility, item_id, trait_id);
+
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        self.definitions.add_definition(name, visibility, item_id, trait_id)
+        let result2 = self.definitions.add_definition(name, visibility, item_id, trait_id);
+
+        result1.or(result2)
     }
 
     pub fn declare_function(
@@ -190,6 +214,9 @@ impl ModuleData {
         self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
+    /// Find an [Ident] in the types and values in scope.
+    ///
+    /// Returns the preferred, unambiguous result in both.
     pub fn find_name(&self, name: &Ident) -> PerNs {
         self.scope.find_name(name)
     }
@@ -208,5 +235,15 @@ impl ModuleData {
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
+    }
+
+    /// Clears all scope and definitions in this module.
+    /// This isn't used in the compiler. It's only used in the LSP server
+    /// when a file is changed, to clear out all definitions that are meant to be
+    /// replaced with new ones from the changed file.
+    pub fn clear(&mut self) {
+        self.scope.clear();
+        self.definitions.clear();
+        self.deferred_private_imports.clear();
     }
 }

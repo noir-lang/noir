@@ -1,0 +1,6 @@
+[package]
+name = "loop_carried_aliases"
+type = "bin"
+authors = [""]
+
+[dependencies]

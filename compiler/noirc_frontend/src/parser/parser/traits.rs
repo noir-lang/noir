@@ -26,7 +26,7 @@ impl Parser<'_> {
     ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             let noir_trait =
                 empty_trait(attributes, visibility, self.location_since(start_location));
@@ -64,7 +64,7 @@ impl Parser<'_> {
         let noir_impl = is_alias.then(|| {
             let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
-            let object_type_generic = UnresolvedGeneric::from(object_type_ident.clone());
+            let object_type_generic = UnresolvedGeneric::from(object_type_ident);
 
             let is_synthesized = true;
             let object_type = UnresolvedType {
@@ -176,11 +176,11 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
@@ -197,23 +197,22 @@ impl Parser<'_> {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                self.unknown_ident_at_previous_token_end()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type_or_error()
+            Some(self.parse_type_or_error())
         } else {
             self.push_error(
                 ParserErrorReason::MissingTypeForAssociatedConstant,
                 self.previous_token_location,
             );
-            let location = self.location_at_previous_token_end();
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
+            None
         };
 
         if self.eat_assign() {
@@ -305,10 +304,7 @@ mod tests {
         parse_program_with_dummy_file,
         parser::{
             ItemKind,
-            parser::{
-                ParserErrorReason,
-                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-            },
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -358,10 +354,12 @@ mod tests {
 
     #[test]
     fn parse_empty_trait_alias() {
-        let src = "trait Foo = ;";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+        let src = "
+        trait Foo = ;
+                  ^ Empty trait alias
+                    ^ Expected a trait bound but found ';'
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -417,10 +415,12 @@ mod tests {
 
     #[test]
     fn parse_empty_trait_alias_with_generics() {
-        let src = "trait Foo<A, B> = ;";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+        let src = "
+        trait Foo<A, B> = ;
+                        ^ Empty trait alias
+                          ^ Expected a trait bound but found ';'
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -480,10 +480,12 @@ mod tests {
 
     #[test]
     fn parse_empty_trait_alias_with_where_clause() {
-        let src = "trait Foo<A, B> = where A: Z;";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+        let src = "
+        trait Foo<A, B> = where A: Z;
+                        ^ Empty trait alias
+                          ^^^^^ Expected a trait bound but found 'where'
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -528,7 +530,7 @@ mod tests {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
-        assert_eq!(typ.to_string(), "Field");
+        assert_eq!(typ.unwrap().to_string(), "Field");
         assert!(!noir_trait.is_alias);
     }
 
@@ -536,12 +538,9 @@ mod tests {
     fn parse_trait_with_constant_default_value() {
         let src = "
         trait Foo { let x: Field = 1 + 2; }
-                                   ^^^^^
+                                   ^^^^^ Associated trait constant default values are not supported
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_module, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span).to_string();
-        assert!(error.contains("Associated trait constant default values are not supported"));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -576,12 +575,9 @@ mod tests {
     fn parse_trait_function_with_visibility() {
         let src = "
         trait Foo { pub fn foo(); }
-                    ^^^
+                    ^^^ Visibility is ignored on a trait method
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_module, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("Visibility is ignored on a trait method"));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]

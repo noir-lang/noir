@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(b: bool, i: u32, v: u32) {
+    if b {
+        let mut arr: [u32] = @[];
+        arr = arr.insert(i, v);
+        println(arr);
+    }
+}

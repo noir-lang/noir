@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot call `std::verify_proof_with_type` in unconstrained context
+   ┌─ src/main.nr:11:5
+   │
+11 │     std::verify_proof_with_type(verification_key, proof, public_inputs, key_hash, proof_type);
+   │     ---------------------------
+   │
+
+Aborting due to 1 previous error

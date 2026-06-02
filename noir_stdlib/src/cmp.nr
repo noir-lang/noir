@@ -1,5 +1,7 @@
+use crate::meta::ctstring::AsCtString;
 use crate::meta::derive_via;
 
+/// Compare two values for equality
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
 pub trait Eq {
@@ -60,12 +62,6 @@ impl Eq for u8 {
         self == other
     }
 }
-impl Eq for u1 {
-    fn eq(self, other: u1) -> bool {
-        self == other
-    }
-}
-
 impl Eq for i8 {
     fn eq(self, other: i8) -> bool {
         self == other
@@ -134,53 +130,83 @@ impl<let N: u32> Eq for str<N> {
     }
 }
 
-impl<A, B> Eq for (A, B)
-where
-    A: Eq,
-    B: Eq,
-{
+comptime fn make_tuple_eq_body(n: u32) -> Quoted {
+    let mut body = f"self.0.eq(other.0)".as_ctstring();
+    for i in 1u32..n {
+        body = body.append_fmtstr(f" & self.{i}.eq(other.{i})");
+    }
+    f"{body}".quoted_contents()
+}
+
+impl<A: Eq> Eq for (A,) {
+    fn eq(self, other: (A,)) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<A: Eq, B: Eq> Eq for (A, B) {
     fn eq(self, other: (A, B)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1)
+        make_tuple_eq_body!(2u32)
     }
 }
 
-impl<A, B, C> Eq for (A, B, C)
-where
-    A: Eq,
-    B: Eq,
-    C: Eq,
-{
+impl<A: Eq, B: Eq, C: Eq> Eq for (A, B, C) {
     fn eq(self, other: (A, B, C)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2)
+        make_tuple_eq_body!(3u32)
     }
 }
 
-impl<A, B, C, D> Eq for (A, B, C, D)
-where
-    A: Eq,
-    B: Eq,
-    C: Eq,
-    D: Eq,
-{
+impl<A: Eq, B: Eq, C: Eq, D: Eq> Eq for (A, B, C, D) {
     fn eq(self, other: (A, B, C, D)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3)
+        make_tuple_eq_body!(4u32)
     }
 }
 
-impl<A, B, C, D, E> Eq for (A, B, C, D, E)
-where
-    A: Eq,
-    B: Eq,
-    C: Eq,
-    D: Eq,
-    E: Eq,
-{
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq> Eq for (A, B, C, D, E) {
     fn eq(self, other: (A, B, C, D, E)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
+        make_tuple_eq_body!(5u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq> Eq for (A, B, C, D, E, F) {
+    fn eq(self, other: (A, B, C, D, E, F)) -> bool {
+        make_tuple_eq_body!(6u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq> Eq for (A, B, C, D, E, F, G) {
+    fn eq(self, other: (A, B, C, D, E, F, G)) -> bool {
+        make_tuple_eq_body!(7u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq> Eq for (A, B, C, D, E, F, G, H) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H)) -> bool {
+        make_tuple_eq_body!(8u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq> Eq for (A, B, C, D, E, F, G, H, I) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I)) -> bool {
+        make_tuple_eq_body!(9u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq> Eq for (A, B, C, D, E, F, G, H, I, J) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I, J)) -> bool {
+        make_tuple_eq_body!(10u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq, K: Eq> Eq for (A, B, C, D, E, F, G, H, I, J, K) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I, J, K)) -> bool {
+        make_tuple_eq_body!(11u32)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq, K: Eq, L: Eq> Eq for (A, B, C, D, E, F, G, H, I, J, K, L) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I, J, K, L)) -> bool {
+        make_tuple_eq_body!(12u32)
     }
 }
 
@@ -192,6 +218,8 @@ impl Eq for Ordering {
 
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
+/// A value with three states: `Ordering::less()`, `Ordering::equal()` or `Ordering::greater()`.
+/// Most often used to encode the result of a comparison operation.
 pub struct Ordering {
     result: Field,
 }
@@ -213,6 +241,8 @@ impl Ordering {
     }
 }
 
+/// Compare one object to another, returning whether it is less-than, equal-to,
+/// or greater-than the other object.
 #[derive_via(derive_ord)]
 // docs:start:ord-trait
 pub trait Ord {
@@ -416,112 +446,108 @@ where
     }
 }
 
-impl<A, B> Ord for (A, B)
-where
-    A: Ord,
-    B: Ord,
-{
+comptime fn make_tuple_ord_body(n: u32) -> Quoted {
+    let last = n - 1u32;
+    let mut body = if last == 1 {
+        f"let result = self.0.cmp(other.0);".as_ctstring()
+    } else {
+        f"let mut result = self.0.cmp(other.0);".as_ctstring()
+    };
+    for i in 1u32..last {
+        body = body.append_fmtstr(
+            f" if result == Ordering::equal() {{ result = self.{i}.cmp(other.{i}); }}",
+        );
+    }
+    body = body.append_fmtstr(
+        f" if result != Ordering::equal() {{ result }} else {{ self.{last}.cmp(other.{last}) }}",
+    );
+    f"{body}".quoted_contents()
+}
+
+impl<A: Ord> Ord for (A,) {
+    fn cmp(self, other: (A,)) -> Ordering {
+        self.0.cmp(other.0)
+    }
+}
+
+impl<A: Ord, B: Ord> Ord for (A, B) {
     fn cmp(self, other: (A, B)) -> Ordering {
-        let result = self.0.cmp(other.0);
-
-        if result != Ordering::equal() {
-            result
-        } else {
-            self.1.cmp(other.1)
-        }
+        make_tuple_ord_body!(2u32)
     }
 }
 
-impl<A, B, C> Ord for (A, B, C)
-where
-    A: Ord,
-    B: Ord,
-    C: Ord,
-{
+impl<A: Ord, B: Ord, C: Ord> Ord for (A, B, C) {
     fn cmp(self, other: (A, B, C)) -> Ordering {
-        let mut result = self.0.cmp(other.0);
-
-        if result == Ordering::equal() {
-            result = self.1.cmp(other.1);
-        }
-
-        if result == Ordering::equal() {
-            result = self.2.cmp(other.2);
-        }
-
-        result
+        make_tuple_ord_body!(3u32)
     }
 }
 
-impl<A, B, C, D> Ord for (A, B, C, D)
-where
-    A: Ord,
-    B: Ord,
-    C: Ord,
-    D: Ord,
-{
+impl<A: Ord, B: Ord, C: Ord, D: Ord> Ord for (A, B, C, D) {
     fn cmp(self, other: (A, B, C, D)) -> Ordering {
-        let mut result = self.0.cmp(other.0);
-
-        if result == Ordering::equal() {
-            result = self.1.cmp(other.1);
-        }
-
-        if result == Ordering::equal() {
-            result = self.2.cmp(other.2);
-        }
-
-        if result == Ordering::equal() {
-            result = self.3.cmp(other.3);
-        }
-
-        result
+        make_tuple_ord_body!(4u32)
     }
 }
 
-impl<A, B, C, D, E> Ord for (A, B, C, D, E)
-where
-    A: Ord,
-    B: Ord,
-    C: Ord,
-    D: Ord,
-    E: Ord,
-{
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord> Ord for (A, B, C, D, E) {
     fn cmp(self, other: (A, B, C, D, E)) -> Ordering {
-        let mut result = self.0.cmp(other.0);
-
-        if result == Ordering::equal() {
-            result = self.1.cmp(other.1);
-        }
-
-        if result == Ordering::equal() {
-            result = self.2.cmp(other.2);
-        }
-
-        if result == Ordering::equal() {
-            result = self.3.cmp(other.3);
-        }
-
-        if result == Ordering::equal() {
-            result = self.4.cmp(other.4);
-        }
-
-        result
+        make_tuple_ord_body!(5u32)
     }
 }
 
-// Compares and returns the maximum of two values.
-//
-// Returns the second argument if the comparison determines them to be equal.
-//
-// # Examples
-//
-// ```
-// use std::cmp;
-//
-// assert_eq(cmp::max(1, 2), 2);
-// assert_eq(cmp::max(2, 2), 2);
-// ```
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord> Ord for (A, B, C, D, E, F) {
+    fn cmp(self, other: (A, B, C, D, E, F)) -> Ordering {
+        make_tuple_ord_body!(6u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord> Ord for (A, B, C, D, E, F, G) {
+    fn cmp(self, other: (A, B, C, D, E, F, G)) -> Ordering {
+        make_tuple_ord_body!(7u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord> Ord for (A, B, C, D, E, F, G, H) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H)) -> Ordering {
+        make_tuple_ord_body!(8u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord> Ord for (A, B, C, D, E, F, G, H, I) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I)) -> Ordering {
+        make_tuple_ord_body!(9u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: Ord> Ord for (A, B, C, D, E, F, G, H, I, J) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I, J)) -> Ordering {
+        make_tuple_ord_body!(10u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: Ord, K: Ord> Ord for (A, B, C, D, E, F, G, H, I, J, K) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I, J, K)) -> Ordering {
+        make_tuple_ord_body!(11u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: Ord, K: Ord, L: Ord> Ord for (A, B, C, D, E, F, G, H, I, J, K, L) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I, J, K, L)) -> Ordering {
+        make_tuple_ord_body!(12u32)
+    }
+}
+
+/// Compares and returns the maximum of two values.
+///
+/// Returns the second argument if the comparison determines them to be equal.
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp;
+///
+/// assert_eq(cmp::max(1, 2), 2);
+/// assert_eq(cmp::max(2, 2), 2);
+/// ```
 pub fn max<T>(v1: T, v2: T) -> T
 where
     T: Ord,
@@ -533,18 +559,18 @@ where
     }
 }
 
-// Compares and returns the minimum of two values.
-//
-// Returns the first argument if the comparison determines them to be equal.
-//
-// # Examples
-//
-// ```
-// use std::cmp;
-//
-// assert_eq(cmp::min(1, 2), 1);
-// assert_eq(cmp::min(2, 2), 2);
-// ```
+/// Compares and returns the minimum of two values.
+///
+/// Returns the first argument if the comparison determines them to be equal.
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp;
+///
+/// assert_eq(cmp::min(1, 2), 1);
+/// assert_eq(cmp::min(2, 2), 2);
+/// ```
 pub fn min<T>(v1: T, v2: T) -> T
 where
     T: Ord,
@@ -557,7 +583,8 @@ where
 }
 
 mod cmp_tests {
-    use super::{Eq, max, min, Ord};
+    use crate::meta::unquote;
+    use super::{Eq, max, min, Ord, Ordering};
 
     #[test]
     fn sanity_check_min() {
@@ -576,15 +603,177 @@ mod cmp_tests {
     }
 
     #[test]
-    fn correctly_handles_unequal_length_slices() {
-        let slice_1 = &[0, 1, 2, 3];
-        let slice_2 = &[0, 1, 2];
-        assert(!slice_1.eq(slice_2));
+    fn correctly_handles_unequal_length_vectors() {
+        let vector_1 = [0, 1, 2, 3].as_vector();
+        let vector_2 = [0, 1, 2].as_vector();
+        assert(!vector_1.eq(vector_2));
     }
 
     #[test]
-    fn lexicographic_ordering_for_slices() {
-        assert(&[2_u32].cmp(&[1_u32, 1_u32, 1_u32]) == super::Ordering::greater());
-        assert(&[1_u32, 2_u32].cmp(&[1_u32, 2_u32, 3_u32]) == super::Ordering::less());
+    fn lexicographic_ordering_for_vectors() {
+        assert(
+            [2_u32].as_vector().cmp([1_u32, 1_u32, 1_u32].as_vector())
+                == super::Ordering::greater(),
+        );
+        assert(
+            [1_u32, 2_u32].as_vector().cmp([1_u32, 2_u32, 3_u32].as_vector())
+                == super::Ordering::less(),
+        );
+    }
+
+    #[test]
+    fn eq_unit() {
+        assert(().eq(()));
+    }
+
+    #[test]
+    fn eq_bool() {
+        assert(false.eq(false));
+        assert(!(false.eq(true)));
+        assert(!(true.eq(false)));
+        assert(true.eq(true));
+    }
+
+    #[test]
+    fn eq_integers() {
+        comptime {
+            for typ in @[
+                quote { u8 },
+                quote { i8 },
+                quote { u16 },
+                quote { i16 },
+                quote { u32 },
+                quote { i32 },
+                quote { u64 },
+                quote { i64 },
+                quote { u128 },
+                quote { Field },
+            ] {
+                let one = f"1_{typ}".quoted_contents();
+                let two = f"2_{typ}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert($one.eq($one));
+                        assert(!($one.eq($two)));
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn eq_tuples() {
+        comptime {
+            for i in 1..=12 {
+                let mut tuple1 = @[];
+                let mut tuple2 = @[];
+                for _ in 0..i - 1 {
+                    tuple1 = tuple1.push_back(quote { 0 });
+                    tuple2 = tuple2.push_back(quote { 0 });
+                }
+                tuple1 = tuple1.push_back(quote { 0 });
+                tuple2 = tuple2.push_back(quote { 1 });
+                let tuple1 = tuple1.join(quote { , });
+                let tuple2 = tuple2.join(quote { , });
+                let tuple1 = quote { ($tuple1,) };
+                let tuple2 = quote { ($tuple2,) };
+                unquote!(
+                    quote {
+                    assert($tuple1.eq($tuple1));
+                    assert(!($tuple1.eq($tuple2)));
+                },
+                )
+            }
+        }
+    }
+
+    #[test]
+    fn cmp_unit() {
+        assert_eq(().cmp(()), Ordering::equal());
+    }
+
+    #[test]
+    fn cmp_bool() {
+        assert_eq(false.cmp(true), Ordering::less());
+        assert_eq(false.cmp(false), Ordering::equal());
+        assert_eq(true.cmp(true), Ordering::equal());
+        assert_eq(true.cmp(false), Ordering::greater());
+    }
+
+    #[test]
+    fn cmp_integers() {
+        comptime {
+            for typ in @[
+                quote { u8 },
+                quote { i8 },
+                quote { u16 },
+                quote { i16 },
+                quote { u32 },
+                quote { i32 },
+                quote { u64 },
+                quote { i64 },
+                quote { u128 },
+            ] {
+                let one = f"1_{typ}".quoted_contents();
+                let two = f"2_{typ}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert_eq($one.cmp($two), Ordering::less());
+                        assert_eq($one.cmp($one), Ordering::equal());
+                        assert_eq($two.cmp($one), Ordering::greater());
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn cmp_tuples() {
+        comptime {
+            for i in 1..=12 {
+                let mut tuple1 = @[];
+                let mut tuple2 = @[];
+                for _ in 0..i - 1 {
+                    tuple1 = tuple1.push_back(quote { 0_u8 });
+                    tuple2 = tuple2.push_back(quote { 0_u8 });
+                }
+                tuple1 = tuple1.push_back(quote { 0_u8 });
+                tuple2 = tuple2.push_back(quote { 1_u8 });
+                let tuple1 = tuple1.join(quote { , });
+                let tuple2 = tuple2.join(quote { , });
+                let tuple1 = quote { ($tuple1,) };
+                let tuple2 = quote { ($tuple2,) };
+                unquote!(
+                    quote {
+                    assert_eq($tuple1.cmp($tuple1), Ordering::equal());
+                    assert_eq($tuple1.cmp($tuple2), Ordering::less());
+                    assert_eq($tuple2.cmp($tuple1), Ordering::greater());
+                },
+                )
+            }
+        }
+    }
+
+    #[test]
+    fn cmp_array() {
+        assert_eq([1_u8, 2, 3].cmp([1, 2, 3]), Ordering::equal());
+        assert_eq([1_u8, 2, 3].cmp([1, 3, 2]), Ordering::less());
+        assert_eq([1_u8, 3, 3].cmp([1, 2, 3]), Ordering::greater());
+    }
+
+    #[test]
+    fn cmp_vectors() {
+        // Equal lengths
+        assert_eq(@[1_u8, 2, 3].cmp(@[1, 2, 3]), Ordering::equal());
+        assert_eq(@[1_u8, 3, 3].cmp(@[1, 2, 3]), Ordering::greater());
+        assert_eq(@[1_u8, 2, 3].cmp(@[1, 3, 3]), Ordering::less());
+
+        // Different lengths
+        assert_eq(@[1_u8, 2].cmp(@[1, 2, 3]), Ordering::less());
+        assert_eq(@[1_u8, 2, 3].cmp(@[1, 2]), Ordering::greater());
+        assert_eq(@[10_u8, 0].cmp(@[9]), Ordering::greater());
+        assert_eq(@[9_u8, 0].cmp(@[10]), Ordering::less());
+        assert_eq(@[9_u8].cmp(@[10, 0]), Ordering::less());
+        assert_eq(@[10_u8].cmp(@[9, 0]), Ordering::greater());
     }
 }

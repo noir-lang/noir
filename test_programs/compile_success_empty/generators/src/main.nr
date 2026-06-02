@@ -3,7 +3,7 @@
 // for arguments this can be handled with a generic Env (or with Fn traits when we add them)
 // but for return types neither fo these will help, you need to type out the exact type
 fn make_counter() -> fn[(&mut Field,)]() -> Field {
-    let mut x = &mut 0;
+    let x = &mut 0;
 
     || {
         *x = *x + 1;
@@ -12,8 +12,8 @@ fn make_counter() -> fn[(&mut Field,)]() -> Field {
 }
 
 fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
-    let mut x = &mut 1;
-    let mut y = &mut 2;
+    let x = &mut 1;
+    let y = &mut 2;
 
     || {
         let old_x = *x;

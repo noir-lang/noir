@@ -1,27 +1,42 @@
 use crate::option::Option;
 
 impl TypeDefinition {
-    #[builtin(type_def_add_attribute)]
-    // docs:start:add_attribute
-    pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
-    // docs:end:add_attribute
-
-    #[builtin(type_def_add_generic)]
-    // docs:start:add_generic
-    pub comptime fn add_generic<let N: u32>(self, generic_name: str<N>) -> Type {}
-    // docs:end:add_generic
+    #[builtin(type_def_add_abi)]
+    // docs:start:add_abi
+    pub comptime fn add_abi(self, abi_argument: CtString) {}
+    // docs:end:add_abi
 
     /// Return a syntactic version of this type definition as a type.
-    /// For example, `as_type(quote { type Foo<A, B> { ... } })` would return `Foo<A, B>`
+    /// For example, `type Foo<A, B> { ... })` would return `Foo<A, B>` when called with this method.
     #[builtin(type_def_as_type)]
     // docs:start:as_type
     pub comptime fn as_type(self) -> Type {}
     // docs:end:as_type
 
+    /// Return this type applied to the given generic arguments.
+    /// For example, given `type Foo<A, B> { ... })` could be applied to `[quote[i32].as_type(), quote[Field].as_type()].as_vector()`
+    /// to return `Foo<i32, Field>`.
+    ///
+    /// If an incorrect number of generic arguments are given, this function will return None.
+    /// Otherwise, this function returns Some with the resulting type inside.
+    #[builtin(type_def_as_type_with_generics)]
+    // docs:start:as_type_with_generics
+    pub comptime fn as_type_with_generics(self, generics: [Type]) -> Option<Type> {}
+    // docs:end:as_type_with_generics
+
     #[builtin(type_def_has_named_attribute)]
     // docs:start:has_named_attribute
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
+
+    #[builtin(type_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+    #[builtin(type_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 
     /// Return (type, option<type>) pairs of each generic in this type definition.
     /// If a generic is numeric, the second element of the pair will contain the numeric type.
@@ -40,7 +55,7 @@ impl TypeDefinition {
 
     /// Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
     /// with any generic arguments unchanged. Unless the field types are not needed,
-    /// users should generally prefer to use `TypeDefinition::fields` over this
+    /// users should generally prefer to use [`TypeDefinition::fields`][Self::fields] over this
     /// function if possible.
     #[builtin(type_def_fields_as_written)]
     // docs:start:fields_as_written
@@ -56,15 +71,6 @@ impl TypeDefinition {
     // docs:start:name
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
-
-    /// Sets the fields of this type to the given fields list.
-    /// All existing fields of the type will be overridden with the given fields.
-    /// Each element of the fields list corresponds to the name and type of a field.
-    /// Each name is expected to be a single identifier.
-    #[builtin(type_def_set_fields)]
-    // docs:start:set_fields
-    pub comptime fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
-    // docs:end:set_fields
 }
 
 impl crate::hash::Hash for TypeDefinition {

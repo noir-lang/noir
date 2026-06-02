@@ -10,12 +10,12 @@ use crate::mutations::{
     functions::commands_mutator::generate_random_fuzzer_function_command,
     functions::function::mutate_function,
 };
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 fn generate_random_function_data(rng: &mut StdRng) -> FunctionData {
     FunctionData {
         commands: vec![generate_random_fuzzer_function_command(rng)],
-        return_instruction_block_idx: rng.gen_range(u8::MIN..u8::MAX).into(),
+        return_instruction_block_idx: rng.random_range(u8::MIN..u8::MAX).into(),
         return_type: generate_random_ssa_fuzzer_type(rng, BASIC_GENERATE_TYPE_CONFIGURATION),
         input_types: vec![generate_random_ssa_fuzzer_type(rng, BASIC_GENERATE_TYPE_CONFIGURATION)],
     }

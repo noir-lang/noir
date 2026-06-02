@@ -1,0 +1,6 @@
+[package]
+name = "nested_vector_last_index_access_post_insert"
+type = "bin"
+authors = [""]
+
+[dependencies]

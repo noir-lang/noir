@@ -43,7 +43,8 @@ impl CodeActionFinder<'_> {
 
         let trait_methods =
             self.interner.lookup_trait_methods(typ, method_call.method_name.as_str(), true);
-        let trait_ids: HashSet<_> = trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
+        let trait_ids: HashSet<_> =
+            trait_methods.iter().map(|(_, trait_id, _)| *trait_id).collect();
 
         for trait_id in trait_ids {
             self.import_trait(trait_id);
@@ -83,7 +84,7 @@ impl CodeActionFinder<'_> {
                     module_id: reexport.module_id,
                     name: trait_.name.clone(),
                 });
-                intermediate_name = Some(reexport.name.clone());
+                intermediate_name = Some(reexport.name);
             } else {
                 return;
             }

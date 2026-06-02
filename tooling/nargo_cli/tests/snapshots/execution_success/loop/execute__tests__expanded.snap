@@ -23,7 +23,7 @@ fn loop_excl(x: u32) -> u32 {
 
 fn loop_incl(x: u32) -> u32 {
     let mut sum: u32 = 0_u32;
-    for i in 0_u32..x + 1_u32 {
+    for i in 0_u32..=x {
         sum = sum + i;
     }
     sum

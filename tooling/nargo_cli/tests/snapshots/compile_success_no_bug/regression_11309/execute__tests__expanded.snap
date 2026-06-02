@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let (x, f): (Field, fn(Field) -> Field) =
+        std::hint::black_box((1_Field, |x: Field| -> Field { x + 1_Field }));
+    println(f(x));
+    let fs: [(Field, fn(Field) -> Field); 1] =
+        std::hint::black_box([(2_Field, |x: Field| -> Field { x + 2_Field })]);
+    let (x, f): (Field, fn(Field) -> Field) = fs[0_u32];
+    println(f(x));
+}

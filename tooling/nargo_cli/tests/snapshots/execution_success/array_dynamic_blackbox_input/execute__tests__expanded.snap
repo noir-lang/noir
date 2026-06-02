@@ -16,14 +16,8 @@ fn compute_root(leaf: [u8; 32], path: [u8; 64], _index: u32, root: [u8; 32]) {
         let a: u32 = if is_right { 32_u32 } else { 0_u32 };
         let b: u32 = if is_right { 0_u32 } else { 32_u32 };
         for j in 0_u32..32_u32 {
-            {
-                let i_4506: u32 = j + a;
-                hash_input[i_4506] = current[j];
-            };
-            {
-                let i_4507: u32 = j + b;
-                hash_input[i_4507] = path[offset + j];
-            }
+            hash_input[j + a] = current[j];
+            hash_input[j + b] = path[offset + j];
         }
         current = std::hash::blake3(hash_input);
         index = index >> 1_u32;

@@ -14,6 +14,7 @@ pub struct NoirStruct {
     pub name: Ident,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<Documented<StructField>>,
     pub location: Location,
@@ -40,7 +41,7 @@ impl Display for NoirStruct {
 
         writeln!(f, "struct {}{} {{", self.name, generics)?;
 
-        for field in self.fields.iter() {
+        for field in &self.fields {
             writeln!(f, "    {}: {},", field.item.name, field.item.typ)?;
         }
 

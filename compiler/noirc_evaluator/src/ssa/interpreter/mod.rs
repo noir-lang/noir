@@ -18,6 +18,7 @@ use crate::ssa::{
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::Shared;
 use num_traits::{CheckedShl, CheckedShr};
 use rustc_hash::FxHashMap as HashMap;
@@ -30,6 +31,9 @@ pub mod value;
 
 use value::Value;
 
+/// Maximum number of recursive calls allowed at comptime.
+const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 1000;
+
 pub(crate) struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
@@ -38,14 +42,14 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
 
-    /// This variable can be modified by `enable_side_effects_if` instructions and is
-    /// expected to have no effect if there are no such instructions or if the code
-    /// being executed is an unconstrained function.
-    side_effects_enabled: bool,
-
+    /// The options the interpreter was created with.
     options: InterpreterOptions,
+
     /// Print output.
     output: W,
+
+    /// Number of instructions and terminators executed.
+    step_counter: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -54,6 +58,8 @@ pub struct InterpreterOptions {
     pub trace: bool,
     /// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
     pub no_foreign_calls: bool,
+    /// Optional limit on the number of executed instructions and terminators, to avoid infinite loops.
+    pub step_limit: Option<usize>,
 }
 
 struct CallContext {
@@ -63,15 +69,24 @@ struct CallContext {
 
     /// Contains each value currently defined and visible to the current function.
     scope: HashMap<ValueId, Value>,
+
+    /// This variable can be modified by `enable_side_effects_if` instructions and is
+    /// expected to have no effect if there are no such instructions or if the code
+    /// being executed is an unconstrained function.
+    side_effects_enabled: bool,
 }
 
 impl CallContext {
     fn new(called_function: FunctionId) -> Self {
-        Self { called_function: Some(called_function), scope: Default::default() }
+        Self {
+            called_function: Some(called_function),
+            scope: Default::default(),
+            side_effects_enabled: true,
+        }
     }
 
     fn global_context() -> Self {
-        Self { called_function: None, scope: Default::default() }
+        Self { called_function: None, scope: Default::default(), side_effects_enabled: true }
     }
 }
 
@@ -102,7 +117,7 @@ impl Ssa {
     ) -> IResults {
         let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
-        interpreter.call_function(function, args)
+        interpreter.interpret_function(function, args)
     }
 }
 
@@ -117,11 +132,26 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, side_effects_enabled: true, options, output }
+        Self { functions, call_stack, options, output, step_counter: 0 }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
         self.functions
+    }
+
+    /// Increment the step counter, or return [InterpreterError::OutOfBudget].
+    ///
+    /// If there is no step limit, then it doesn't increment the counter.
+    fn inc_step_counter(&mut self) -> IResult<()> {
+        if let Some(limit) = self.options.step_limit {
+            if self.step_counter >= limit {
+                return Err(InterpreterError::OutOfBudget { steps: self.step_counter });
+            }
+            // With a limit we shouldn't wrap around, but just in case we wanted move this outside,
+            // use a safe wrap-around increment.
+            self.step_counter = self.step_counter.wrapping_add(1);
+        }
+        Ok(())
     }
 
     fn call_context(&self) -> &CallContext {
@@ -166,12 +196,31 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let expected_type = func.dfg.type_of_value(id);
             let actual_type = value.get_type();
 
-            if expected_type != actual_type {
-                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
-                    value_id: id,
-                    expected_type: expected_type.to_string(),
-                    actual_type: actual_type.to_string(),
-                }));
+            if *expected_type != actual_type {
+                // Special case for ZST (Zero-Sized Type) arrays: Allow length mismatches.
+                // In early SSA passes, ZST arrays like [(); 3] are represented with empty element lists.
+                // Later optimization passes will fix the representation.
+                let types_compatible = match (&*expected_type, &actual_type) {
+                    (Type::Array(expected_elem, _), Type::Array(actual_elem, actual_len)) => {
+                        expected_elem == actual_elem
+                            && expected_elem.is_empty()
+                            && actual_len.to_usize() == 0
+                    }
+                    // Reference mutability doesn't affect runtime behavior —
+                    // the interpreter treats &T and &mut T identically.
+                    (Type::Reference(expected_elem, _), Type::Reference(actual_elem, _)) => {
+                        expected_elem == actual_elem
+                    }
+                    _ => false,
+                };
+
+                if !types_compatible {
+                    return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                        value_id: id,
+                        expected_type: expected_type.to_string(),
+                        actual_type: actual_type.to_string(),
+                    }));
+                }
             }
         }
 
@@ -180,8 +229,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
+    /// Interpret the global instructions.
+    ///
+    /// Once this is complete, the interpreter can be reused for multiple
+    /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
-        let (_, function) = self.functions.first_key_value().unwrap();
+        assert_eq!(self.call_stack.len(), 1, "should be in the global context");
+        let Some((_, function)) = self.functions.first_key_value() else {
+            return Ok(());
+        };
+
         let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
@@ -195,7 +252,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 super::ir::value::Value::Function(id) => Value::Function(*id),
                 super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-                super::ir::value::Value::ForeignFunction(name) => {
+                super::ir::value::Value::ForeignFunction { name, .. } => {
                     Value::ForeignFunction(name.clone())
                 }
                 super::ir::value::Value::Global(_) | super::ir::value::Value::Param { .. } => {
@@ -207,12 +264,41 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    pub(crate) fn call_function(
+    /// Interpret an entry point, assuming the globals have already been interpreted.
+    ///
+    /// This resets any previous call stack and step counter.
+    pub(crate) fn interpret_function(
         &mut self,
         function_id: FunctionId,
-        mut arguments: Vec<Value>,
+        arguments: Vec<Value>,
     ) -> IResults {
+        self.step_counter = 0;
+        self.call_stack.truncate(1);
+        self.call_function(function_id, arguments)
+    }
+
+    /// Interpret a function call.
+    ///
+    /// Unlike `interpret_function` this does not reset the state;
+    /// it is meant to be used for internal calls.
+    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
+
+        if self.call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+            let call_stack = self
+                .call_stack
+                .iter()
+                .skip(1)
+                .map(|ctx| {
+                    let id = ctx
+                        .called_function
+                        .expect("all but the first global context has a called function");
+                    let name = self.functions[&id].name().to_string();
+                    (id, name)
+                })
+                .collect();
+            return Err(InterpreterError::StackOverflow { call_stack });
+        }
 
         let function = &self.functions[&function_id];
         if self.options.trace {
@@ -238,7 +324,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }));
             }
 
-            for (parameter, argument) in block.parameters().iter().zip(arguments) {
+            for (parameter, argument) in block.parameters().iter().zip_eq(arguments) {
                 self.define(*parameter, argument)?;
             }
 
@@ -246,6 +332,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let results = dfg.instruction_results(*instruction_id);
                 self.interpret_instruction(&dfg[*instruction_id], results)?;
             }
+
+            // Account for the terminator; a function might not have actual instructions, other than jumping around.
+            self.inc_step_counter()?;
 
             match block.terminator() {
                 None => {
@@ -263,18 +352,19 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack: _,
                 }) => {
-                    block_id = if self.lookup_bool(*condition, "jmpif condition")? {
-                        *then_destination
+                    (block_id, arguments) = if self.lookup_bool(*condition, "jmpif condition")? {
+                        (*then_destination, self.lookup_all(then_arguments)?)
                     } else {
-                        *else_destination
+                        (*else_destination, self.lookup_all(else_arguments)?)
                     };
                     if self.options.trace {
                         println!("jump to {block_id}");
                     }
-                    arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
                     let return_values = self.lookup_all(return_values)?;
@@ -299,13 +389,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         self.call_stack.pop();
 
-        if self.options.trace {
-            if let Some(context) = self.call_stack.last() {
-                if let Some(function_id) = context.called_function {
-                    let function = &self.functions[&function_id];
-                    println!("back in function {} ({})", function_id, function.name());
-                }
-            }
+        if self.options.trace
+            && let Some(context) = self.call_stack.last()
+            && let Some(function_id) = context.called_function
+        {
+            let function = &self.functions[&function_id];
+            println!("back in function {} ({})", function_id, function.name());
         }
 
         Ok(return_values)
@@ -326,7 +415,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-            super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
+            super::ir::value::Value::ForeignFunction { name, .. } => {
+                Value::ForeignFunction(name.clone())
+            }
             super::ir::value::Value::Instruction { .. }
             | super::ir::value::Value::Param { .. }
             | super::ir::value::Value::Global(_) => {
@@ -377,12 +468,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.lookup_helper(value_id, instruction, "numeric", Value::as_numeric)
     }
 
-    fn lookup_array_or_slice(
+    fn lookup_array_or_vector(
         &self,
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<ArrayValue> {
-        self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
+        self.lookup_helper(value_id, instruction, "array or vector", Value::as_array_or_vector)
     }
 
     /// Look up an array index.
@@ -395,19 +486,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         length: u32,
     ) -> IResult<u32> {
         self.lookup_helper(value_id, instruction, "u32", Value::as_u32).map_err(|e| {
-            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
-                if let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. }))
+                && let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
                     self.lookup(value_id)
-                {
-                    return InterpreterError::IndexOutOfBounds { index, length };
-                }
+            {
+                return InterpreterError::IndexOutOfBounds { index, length };
             }
             e
         })
     }
 
     fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -425,7 +515,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -443,7 +533,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -465,7 +555,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array = self.lookup_array_or_slice(value_id, instruction)?;
+        let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
@@ -506,7 +596,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         match current_function.runtime() {
             RuntimeType::Acir(_) => {
-                self.side_effects_enabled
+                self.call_context().side_effects_enabled
                     || !instruction.requires_acir_gen_predicate(&current_function.dfg)
             }
             RuntimeType::Brillig(_) => true,
@@ -519,6 +609,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         instruction: &Instruction,
         results: &[ValueId],
     ) -> IResult<()> {
+        self.inc_step_counter()?;
+
         let side_effects_enabled = self.side_effects_enabled(instruction);
 
         match instruction {
@@ -602,7 +694,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             Instruction::Load { address } => self.interpret_load(*address, results[0]),
             Instruction::Store { address, value } => self.interpret_store(*address, *value),
             Instruction::EnableSideEffectsIf { condition } => {
-                self.side_effects_enabled = self.lookup_bool(*condition, "enable_side_effects")?;
+                self.call_context_mut().side_effects_enabled =
+                    self.lookup_bool(*condition, "enable_side_effects")?;
                 Ok(())
             }
             Instruction::ArrayGet { array, index } => {
@@ -687,10 +780,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        // Checked (non-unchecked) subtractions may produce Unfit values due to integer underflow;
+        // the integer modulus is added before truncating to correct for it.
         let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
             matches!(
                 self.dfg()[instruction],
-                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: false }, .. })
             )
         } else {
             false
@@ -770,7 +865,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_range_check(
-        &mut self,
+        &self,
         value_id: ValueId,
         max_bit_size: u32,
         error_message: Option<&String>,
@@ -858,7 +953,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     if !self.in_unconstrained_context()
                         && self.functions[&id].runtime().is_brillig()
                     {
-                        for argument in arguments.iter_mut() {
+                        for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
                         }
                     }
@@ -882,10 +977,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
         } else {
-            vecmap(results, |result| {
-                let typ = self.dfg().type_of_value(*result);
-                Value::uninitialized(&typ, *result)
-            })
+            self.uninitialized_call_results(&function, argument_ids, results)?
         };
 
         if new_results.len() != results.len() {
@@ -898,10 +990,69 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }));
         }
 
-        for (result, new_result) in results.iter().zip(new_results) {
+        for (result, new_result) in results.iter().zip_eq(new_results) {
             self.define(*result, new_result)?;
         }
         Ok(())
+    }
+
+    /// Create uninitialized results for a call that was skipped due to disabled side effects.
+    ///
+    /// For vector intrinsics, we create properly-sized zeroed vectors rather than empty ones,
+    /// to avoid out-of-bounds error after Remove IfElse that need to do `array_get` to
+    /// merge the vector from a 'side effect disabled' branch.
+    fn uninitialized_call_results(
+        &self,
+        function: &Value,
+        argument_ids: &[ValueId],
+        results: &[ValueId],
+    ) -> IResult<Vec<Value>> {
+        use crate::ssa::ir::instruction::Intrinsic;
+        // Get the length of the vector
+        if let Value::Intrinsic(intrinsic) = function {
+            let input_vector_info = match intrinsic {
+                Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorRemove => {
+                    let vec = self.lookup_array_or_vector(
+                        argument_ids[1],
+                        "uninitialized vector intrinsic",
+                    )?;
+                    Some((vec.elements.borrow().len(), vec.element_types.clone()))
+                }
+                _ => None,
+            };
+
+            if let Some((input_len, element_types)) = input_vector_info {
+                let element_count = element_types.len();
+                let output_len = match intrinsic {
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorInsert => input_len + element_count,
+                    Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorRemove => input_len.saturating_sub(element_count),
+                    _ => unreachable!(),
+                };
+
+                return Ok(vecmap(results, |result| {
+                    let typ = self.dfg().type_of_value(*result);
+                    if matches!(*typ, Type::Vector(_)) {
+                        Value::uninitialized_vector(&element_types, output_len, *result)
+                    } else {
+                        Value::uninitialized(&typ, *result)
+                    }
+                }));
+            }
+        }
+
+        Ok(vecmap(results, |result| {
+            let typ = self.dfg().type_of_value(*result);
+            Value::uninitialized(&typ, *result)
+        }))
     }
 
     /// Try to get a function's name or approximate it if it is not known
@@ -928,14 +1079,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             | Value::Intrinsic(_)
             | Value::ForeignFunction(_) => Ok(()),
 
-            Value::Reference(value) => {
-                let value = value.to_string();
-                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
-            }
+            // Immutable references are allowed to cross the constrained->unconstrained
+            // boundary. Mutable references are rejected earlier by the frontend type check.
+            Value::Reference(_) => Ok(()),
 
-            Value::ArrayOrSlice(array_value) => {
+            Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
-                for element in elements.iter_mut() {
+                for element in &mut elements {
                     Self::reset_array_state(element)?;
                 }
                 array_value.elements = Shared::new(elements);
@@ -946,14 +1096,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
-        let result_type = self.dfg().type_of_value(result);
-        let element_type = match result_type {
-            Type::Reference(element_type) => element_type,
+        let result_type = self.dfg().type_of_value(result).into_owned();
+        let (element_type, mutable) = match result_type {
+            Type::Reference(element_type, mutable) => (element_type, mutable),
             other => unreachable!(
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        let value = Value::reference(result, element_type);
+        let value = Value::reference(result, element_type, mutable);
         self.define(result, value)
     }
 
@@ -970,7 +1120,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn interpret_store(&mut self, address: ValueId, value: ValueId) -> IResult<()> {
+    fn interpret_store(&self, address: ValueId, value: ValueId) -> IResult<()> {
         let reference_address = self.lookup_reference(address, "store")?;
 
         let value = self.lookup(value)?;
@@ -1000,11 +1150,19 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
 
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_slice(array, "array get")?;
+        let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
+        // Per `Instruction::requires_acir_gen_predicate`, in Brillig an
+        // `array_get` is pure-in-isolation: the OOB check is inserted as a
+        // separate constraint, not part of the access itself. Match that here
+        // so the interpreter agrees with the Brillig VM on dead/unused gets.
+        let oob_is_pure = self.current_function().runtime().is_brillig();
+
         let index = match self.lookup_array_index(index, "array get index", length) {
-            Err(InterpreterError::IndexOutOfBounds { .. }) if !side_effects_enabled => {
+            Err(InterpreterError::IndexOutOfBounds { .. })
+                if !side_effects_enabled || oob_is_pure =>
+            {
                 return uninitialized(self);
             }
             other => other?,
@@ -1016,11 +1174,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
-            if side_effects_enabled {
+            if side_effects_enabled && !oob_is_pure {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
                 return uninitialized(self);
             }
+        }
+
+        if oob_is_pure && index >= length {
+            return uninitialized(self);
         }
 
         let element = {
@@ -1030,7 +1192,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // Find a valid index
                 let typ = self.dfg().type_of_value(result);
                 for (i, element) in array.elements.borrow().iter().enumerate() {
-                    if element.get_type() == typ {
+                    if element.get_type() == *typ {
                         index = i as u32;
                         break;
                     }
@@ -1043,15 +1205,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             // Either return a fresh nested array (in constrained context) or just clone the element.
             if !self.in_unconstrained_context() {
-                if let Some(array) = element.as_array_or_slice() {
+                if let Some(array) = element.as_array_or_vector() {
                     // In the ACIR runtime we expect fresh arrays when accessing a nested array.
                     // If we do not clone the elements here a mutable array set afterwards could mutate
                     // not just this returned array but the array we are fetching from in this array get.
-                    Value::ArrayOrSlice(ArrayValue {
+                    Value::ArrayOrVector(ArrayValue {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_slice: array.is_slice,
+                        length: array.length,
                     })
                 } else {
                     element.clone()
@@ -1075,7 +1237,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         side_effects_enabled: bool,
     ) -> IResult<()> {
         let offset = self.dfg().array_offset(array, index);
-        let array = self.lookup_array_or_slice(array, "array set")?;
+        let array = self.lookup_array_or_vector(array, "array set")?;
 
         let result_array = if side_effects_enabled {
             let length = array.elements.borrow().len() as u32;
@@ -1083,8 +1245,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
-            let should_mutate =
-                if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+            let is_rc_one = *array.rc.borrow() == 1;
+            let should_mutate = if self.in_unconstrained_context() { is_rc_one } else { mutable };
 
             if index >= length {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
@@ -1092,27 +1254,37 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrSlice(array.clone())
+                Value::ArrayOrVector(array)
             } else {
+                if !is_rc_one {
+                    Self::decrement_rc(&array);
+                }
                 let mut elements = array.elements.borrow().to_vec();
                 elements[index as usize] = value;
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_slice = array.is_slice;
-                Value::ArrayOrSlice(ArrayValue { elements, rc, element_types, is_slice })
+                let length = array.length;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
             }
         } else {
             // Side effects are disabled, return the original array
-            Value::ArrayOrSlice(array)
+            Value::ArrayOrVector(array)
         };
         self.define(result, result_array)?;
         Ok(())
     }
 
+    /// Decrement the ref-count of an array by 1.
+    fn decrement_rc(_array: &ArrayValue) {
+        // The decrement of the ref-count is currently disabled in SSA as well as the Brillig codegen,
+        // but we might re-enable it in the future if the ownership optimizations change.
+        // *array.rc.borrow_mut() -= 1;
+    }
+
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_slice(value_id, "inc_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "inc_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1125,7 +1297,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_dec_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
-            let array = self.lookup_array_or_slice(value_id, "dec_rc")?;
+            let array = self.lookup_array_or_vector(value_id, "dec_rc")?;
             let mut rc = array.rc.borrow_mut();
             if *rc == 0 {
                 let value = array.to_string();
@@ -1182,7 +1354,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_slice = matches!(&result_type, Type::Slice(..));
+        let length = if let Type::Array(_, length) = result_type { Some(*length) } else { None };
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1207,7 +1379,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements.iter().zip(element_types.iter().cycle()).enumerate()
         {
             let actual_type = element.get_type();
-            if &actual_type != expected_type {
+            if !actual_type.canonical_eq(expected_type) {
                 return Err(internal(InternalError::MakeArrayElementTypeMismatch {
                     result,
                     index,
@@ -1217,11 +1389,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
         }
 
-        let array = Value::ArrayOrSlice(ArrayValue {
+        let array = Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_slice,
+            length,
         });
         self.define(result, array)
     }
@@ -1377,7 +1549,11 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
+            // For `Div`/`Mod`, `checked_div`/`checked_rem` return `None` either because
+            // the divisor is zero or because the operation overflows
+            // (e.g. signed `MIN / -1`). Distinguish the two by inspecting the divisor.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs.convert_to_field().is_zero()
+            {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1551,23 +1727,32 @@ fn evaluate_binary(
         ),
         BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b, |a, b| a == b),
         BinaryOp::Lt => {
-            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| unreachable!(
-                "unfit lt: fit types should have been restored already"
-            ))
+            apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b, |_, _| {
+                // This could be the result of the DIE pass removing an `ArrayGet` and leaving a `LessThan`
+                // and a `Constrain` in its place. `LessThan` implicitly includes a `RangeCheck` on
+                // the operands during ACIR generation, which an `Unfit` value would fail, so we
+                // cannot treat them differently here, even if we could compare the values as `u128` or `i128`.
+                //
+                // Instead we `Cast` the values in SSA, which should have converted our `Unfit` value
+                // back to a `Fit` one with an acceptable number of bits.
+                //
+                // If we still hit this case, we have a problem.
+                unreachable!("unfit 'lt': fit types should have been restored already")
+            })
         }
         BinaryOp::And => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a & b), |_, _| unreachable!(
-                "unfit and: fit types should have been restored already"
+                "unfit 'and': fit types should have been restored already"
             ))
         }
         BinaryOp::Or => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a | b), |_, _| unreachable!(
-                "unfit or: fit types should have been restored already"
+                "unfit 'or': fit types should have been restored already"
             ))
         }
         BinaryOp::Xor => {
             apply_int_binop!(lhs, rhs, binary, |a, b| Some(a ^ b), |_, _| unreachable!(
-                "unfit xor: fit types should have been restored already"
+                "unfit 'xor': fit types should have been restored already"
             ))
         }
         BinaryOp::Shl => {
@@ -1722,11 +1907,11 @@ fn interpret_u1_binary_op(
             }
         }
         BinaryOp::Sub { unchecked: true } => {
-            // (0, 0) -> 0
-            // (0, 1) -> 1  (underflow)
-            // (1, 0) -> 1
-            // (1, 1) -> 0
-            lhs ^ rhs
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
+            }
         }
         BinaryOp::Sub { unchecked: false } => {
             if !lhs && rhs {
@@ -1807,85 +1992,4 @@ where
 
 fn internal(error: InternalError) -> InterpreterError {
     InterpreterError::Internal(error)
-}
-
-#[cfg(test)]
-mod test {
-    use crate::ssa::{
-        interpreter::{IResult, errors::InterpreterError, value::NumericValue},
-        ir::{
-            instruction::{Binary, BinaryOp},
-            value::ValueId,
-        },
-    };
-
-    #[test]
-    fn test_truncate_unsigned() {
-        assert_eq!(super::truncate_unsigned(57_u32, 8).unwrap(), 57);
-        assert_eq!(super::truncate_unsigned(257_u16, 8).unwrap(), 1);
-        assert_eq!(super::truncate_unsigned(130_u8, 7).unwrap(), 2);
-        assert_eq!(super::truncate_unsigned(u8::MAX, 8).unwrap(), u8::MAX);
-        assert_eq!(super::truncate_unsigned(u128::MAX, 128).unwrap(), u128::MAX);
-    }
-
-    #[test]
-    fn test_truncate_signed() {
-        // Signed values roundtrip through truncate_unsigned
-        assert_eq!(super::truncate_unsigned(57_i32 as u32, 8).unwrap() as i32, 57);
-        assert_eq!(super::truncate_unsigned(257_i16 as u16, 8).unwrap() as i16, 1);
-        assert_eq!(super::truncate_unsigned(130_i64 as u64, 7).unwrap() as i64, 2);
-        assert_eq!(super::truncate_unsigned(i16::MAX as u16, 16).unwrap() as i16, i16::MAX);
-
-        // For negatives we rely on the `as iN` cast at the end to convert large integers
-        // back into negatives. For this reason we don't test bit sizes other than 8, 16, 32, 64
-        // although we don't support other bit sizes anyway.
-        assert_eq!(super::truncate_unsigned(-57_i32 as u32, 8).unwrap() as i8, -57);
-        assert_eq!(super::truncate_unsigned(-258_i16 as u16, 8).unwrap() as i8, -2);
-        assert_eq!(super::truncate_unsigned(i8::MIN as u8, 8).unwrap() as i8, i8::MIN);
-        assert_eq!(super::truncate_unsigned(-129_i32 as u32, 8).unwrap() as i8, 127);
-
-        // underflow to i16::MAX
-        assert_eq!(super::truncate_unsigned(i16::MIN as u32 - 1, 16).unwrap() as i16, 32767);
-    }
-
-    #[test]
-    fn test_shl() {
-        let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
-
-        fn display(_: &Binary) -> String {
-            String::new()
-        }
-
-        let i8_testcases: Vec<((i8, i8), IResult<i8>)> = vec![
-            ((1, 7), Ok(-128)),
-            ((2, 6), Ok(-128)),
-            ((4, 5), Ok(-128)),
-            ((8, 4), Ok(-128)),
-            ((16, 3), Ok(-128)),
-            ((32, 2), Ok(-128)),
-            ((64, 1), Ok(-128)),
-            ((3, 7), Ok(-128)),
-            (
-                (1, 8),
-                Err(InterpreterError::Overflow {
-                    operator: BinaryOp::Shl,
-                    instruction: "`` (i8 1 << i8 8)".to_string(),
-                }),
-            ),
-        ];
-
-        for ((lhs, rhs), expected_result) in i8_testcases {
-            assert_eq!(
-                super::evaluate_binary(
-                    &binary,
-                    NumericValue::I8(lhs.into()),
-                    NumericValue::I8(rhs.into()),
-                    true,
-                    display
-                ),
-                expected_result.map(|i| NumericValue::I8(i.into())),
-                "{lhs} << {rhs}",
-            );
-        }
-    }
 }

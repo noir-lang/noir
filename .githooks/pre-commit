@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Pre-commit hook: reject commits that include pending insta snapshots (.snap.new).
+#
+# To enable, run:
+#   git config core.hooksPath .githooks
+
+snapshots=$(git diff --cached --name-only --diff-filter=ACM -- '*.snap.new' '*.pending-snap')
+if [ -n "$snapshots" ]; then
+    echo "pre-commit: Found pending insta snapshots staged for commit:"
+    echo ""
+    echo "$snapshots"
+    echo ""
+    echo "pre-commit: Review, then accept or remove these snapshots before committing."
+    echo "pre-commit: Run 'cargo insta accept' to accept all pending snapshots."
+    exit 1
+fi
+
+exit 0

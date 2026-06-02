@@ -1,20 +1,27 @@
+//! Various helpers for implementing built-in functions in the comptime interpreter.
+//!
+//! These functions may implement error checking for argument count, type-check an
+//! argument for a specific type, returning its value, etc.
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
+use acvm::FieldElement;
+use fm::FileMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
+use crate::hir::comptime::Integer;
 use crate::hir::comptime::display::tokens_to_string;
-use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_map::fully_qualified_module_path;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::signed_field::SignedField;
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
-use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
@@ -30,10 +37,7 @@ use crate::{
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
-    hir_def::{
-        function::{FuncMeta, FunctionBody},
-        stmt::HirPattern,
-    },
+    hir_def::{function::FunctionBody, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
     shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
@@ -91,14 +95,12 @@ pub(crate) fn check_arguments<const N: usize>(
 }
 
 pub(crate) fn get_array(
-    interner: &NodeInterner,
     (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
         value => {
-            let type_var = Box::new(interner.next_type_variable());
-            let expected = Type::Array(type_var.clone(), type_var);
+            let expected = "array";
             type_mismatch(value, expected, location)
         }
     }
@@ -113,14 +115,7 @@ pub(crate) fn get_struct_fields(
     match value {
         Value::Struct(fields, typ) => Ok((fields, typ)),
         _ => {
-            let expected = DataType::new(
-                TypeId::dummy_id(),
-                Ident::new(name.to_string(), location),
-                location,
-                Vec::new(),
-                ItemVisibility::Public,
-            );
-            let expected = Type::DataType(Shared::new(expected), Vec::new());
+            let expected = format!("struct {name}");
             type_mismatch(value, expected, location)
         }
     }
@@ -134,11 +129,11 @@ pub(crate) fn get_struct_field<T>(
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<T> {
-    let key = Rc::new(field_name.to_string());
+    let key = field_name.to_string();
     let Some(value) = struct_fields.get(&key) else {
         return Err(InterpreterError::ExpectedStructToHaveField {
             typ: struct_type.clone(),
-            field_name: Rc::into_inner(key).unwrap(),
+            field_name: key,
             location,
         });
     };
@@ -148,19 +143,17 @@ pub(crate) fn get_struct_field<T>(
 pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
     match value {
         Value::Bool(value) => Ok(value),
-        value => type_mismatch(value, Type::Bool, location),
+        value => type_mismatch(value, "bool", location),
     }
 }
 
-pub(crate) fn get_slice(
-    interner: &NodeInterner,
+pub(crate) fn get_vector(
     (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
-        Value::Slice(values, typ) => Ok((values, typ)),
+        Value::Vector(values, typ) => Ok((values, typ)),
         value => {
-            let type_var = Box::new(interner.next_type_variable());
-            let expected = Type::Slice(type_var);
+            let expected = "vector";
             type_mismatch(value, expected, location)
         }
     }
@@ -169,11 +162,10 @@ pub(crate) fn get_slice(
 /// Interpret the input as an array, then map each element.
 /// Returns the values in the array and the original array type.
 pub(crate) fn get_array_map<T>(
-    interner: &NodeInterner,
     (value, location): (Value, Location),
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<(Vec<T>, Type)> {
-    let (values, typ) = get_array(interner, (value, location))?;
+    let (values, typ) = get_array((value, location))?;
     let values = try_vecmap(values, |value| f((value, location)))?;
     Ok((values, typ))
 }
@@ -181,66 +173,50 @@ pub(crate) fn get_array_map<T>(
 /// Get an array and convert it to a fixed size.
 /// Returns the values in the array and the original array type.
 pub(crate) fn get_fixed_array_map<T, const N: usize>(
-    interner: &NodeInterner,
     (value, location): (Value, Location),
     f: impl Fn((Value, Location)) -> IResult<T>,
 ) -> IResult<([T; N], Type)> {
-    let (values, typ) = get_array_map(interner, (value, location), f)?;
+    let (values, typ) = get_array_map((value, location), f)?;
 
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
         // Assuming that `values.len()` corresponds to `typ`.
-        let Type::Array(_, ref elem) = typ else {
+        let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let expected = Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone());
+        let len: u32 =
+            N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
+        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
 
-pub(crate) fn get_str(
-    interner: &NodeInterner,
-    (value, location): (Value, Location),
-) -> IResult<Rc<String>> {
+pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::String(string) => Ok(string),
+        Value::String(bytes) => Ok(bytes),
         value => {
-            let expected = Type::String(Box::new(interner.next_type_variable()));
+            let expected = "str";
             type_mismatch(value, expected, location)
         }
     }
 }
 
-pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::CtString(string) => Ok(string),
+        Value::CtString(bytes) => Ok(bytes),
         value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }
 
-pub(crate) fn get_tuple(
-    interner: &NodeInterner,
-    (value, location): (Value, Location),
-) -> IResult<Vec<Shared<Value>>> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
     match value {
-        Value::Tuple(values) => Ok(values),
-        value => {
-            let type_var = interner.next_type_variable();
-            let expected = Type::Tuple(vec![type_var]);
-            type_mismatch(value, expected, location)
-        }
-    }
-}
-
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
-    match value {
-        Value::Field(value) => Ok(value),
+        Value::Integer(Integer::Field(value)) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
     }
 }
 
 pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
     match value {
-        Value::U8(value) => Ok(value),
+        Value::Integer(Integer::U8(value)) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
             type_mismatch(value, expected, location)
@@ -250,9 +226,9 @@ pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
 
 pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
-        Value::U32(value) => Ok(value),
+        Value::Integer(Integer::U32(value)) => Ok(value),
         value => {
-            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            let expected = Type::u32();
             type_mismatch(value, expected, location)
         }
     }
@@ -260,7 +236,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
 
 pub(crate) fn get_u64((value, location): (Value, Location)) -> IResult<u64> {
     match value {
-        Value::U64(value) => Ok(value),
+        Value::Integer(Integer::U64(value)) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
             type_mismatch(value, expected, location)
@@ -281,7 +257,7 @@ pub(crate) fn get_expr(
                 Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
             }
             ExprValue::LValue(LValue::Interned(id, _)) => {
-                Ok(ExprValue::LValue(interner.get_lvalue(id, location).clone()))
+                Ok(ExprValue::LValue(interner.get_lvalue(id, location)))
             }
             ExprValue::Pattern(Pattern::Interned(id, _)) => {
                 Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))
@@ -293,16 +269,11 @@ pub(crate) fn get_expr(
 }
 
 pub(crate) fn get_format_string(
-    interner: &NodeInterner,
     (value, location): (Value, Location),
-) -> IResult<(Rc<String>, Type)> {
+) -> IResult<(Rc<Vec<FormatStringFragment>>, Type, u32)> {
     match value {
-        Value::FormatString(value, typ) => Ok((value, typ)),
-        value => {
-            let n = Box::new(interner.next_type_variable());
-            let e = Box::new(interner.next_type_variable());
-            type_mismatch(value, Type::FmtString(n, e), location)
-        }
+        Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
+        value => type_mismatch(value, "fmtstr", location),
     }
 }
 
@@ -317,6 +288,13 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     match value {
         Value::ModuleDefinition(module_id) => Ok(module_id),
         value => type_mismatch(value, Type::Quoted(QuotedType::Module), location),
+    }
+}
+
+pub(crate) fn get_location((value, location): (Value, Location)) -> IResult<Location> {
+    match value {
+        Value::Location(loc) => Ok(loc),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Location), location),
     }
 }
 
@@ -352,7 +330,7 @@ pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<Tr
 
 pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
-        Value::Type(typ) => Ok(typ),
+        Value::Type(typ) => Ok(typ.follow_bindings()),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
     }
 }
@@ -388,8 +366,52 @@ pub(crate) fn get_unresolved_type(
     }
 }
 
-fn type_mismatch<T>(value: Value, expected: Type, location: Location) -> IResult<T> {
+enum TypeOrString {
+    Type(Type),
+    String(String),
+}
+
+impl From<&'static str> for TypeOrString {
+    fn from(value: &'static str) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<String> for TypeOrString {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Type> for TypeOrString {
+    fn from(value: Type) -> Self {
+        Self::Type(value)
+    }
+}
+
+/// Helper function to report an [InterpreterError::TypeMismatch] where a [Value] could not be unwrapped
+/// into an expected type, which can either be a concrete [Type] or a textual description, e.g. "tuple".
+///
+/// It has special handling for [Value::Zeroed], which wraps a [Type] that might actually be the
+/// one we expected, but we expected a concrete _value_ with that type, not a zeroed placeholder,
+/// which we optimistically created expecting that it will never be used. In such cases
+/// [InterpreterError::UnexpectedZeroedValue] is returned.
+fn type_mismatch<T>(
+    value: Value,
+    expected: impl Into<TypeOrString>,
+    location: Location,
+) -> IResult<T> {
     let actual = value.get_type().into_owned();
+    let expected = match expected.into() {
+        TypeOrString::Type(t) if t == actual && matches!(value, Value::Zeroed(_)) => {
+            return Err(InterpreterError::UnexpectedZeroedValue {
+                expected: t.to_string(),
+                location,
+            });
+        }
+        TypeOrString::Type(t) => t.to_string(),
+        TypeOrString::String(s) => s,
+    };
     Err(InterpreterError::TypeMismatch { expected, actual, location })
 }
 
@@ -463,12 +485,36 @@ fn gather_hir_pattern_tokens(
     }
 }
 
-pub(super) fn check_function_not_yet_resolved(
+/// If the given `item_module`'s crate does not match the crate the interpreter is in, issue an
+/// error to prevent modifying an item from an external crate.
+pub(super) fn check_item_crate_matches_current_crate(
     interpreter: &Interpreter,
+    item: &Value,
+    item_module: ModuleId,
+    location: Location,
+) -> IResult<()> {
+    let current_crate = interpreter.elaborator.module_id().krate;
+    if current_crate != item_module.krate {
+        let module = fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &current_crate,
+            item_module,
+        );
+        let item =
+            item.display(interpreter.elaborator.interner, interpreter.elaborator.files).to_string();
+        Err(InterpreterError::CannotModifyExternalItem { item, module, location })
+    } else {
+        Ok(())
+    }
+}
+
+pub(super) fn check_function_not_yet_resolved(
+    interpreter: &mut Interpreter,
     func_id: FuncId,
     location: Location,
-) -> Result<(), InterpreterError> {
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+) -> IResult<()> {
+    let func_meta = interpreter.elaborator.function_meta(func_id);
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
         FunctionBody::Resolving | FunctionBody::Resolved => {
@@ -498,8 +544,15 @@ where
 {
     let tokens = get_quoted((value, location))?;
     let quoted = Tokens(unwrap_rc(tokens.clone()));
-    let (result, warnings) =
-        parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
+    let (result, warnings) = parse_tokens(
+        tokens,
+        quoted,
+        elaborator.interner,
+        elaborator.files,
+        location,
+        parser,
+        rule,
+    )?;
     for warning in warnings {
         let warning: CompilationError = warning.into();
         elaborator.push_err(warning);
@@ -511,6 +564,7 @@ pub(super) fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     quoted: Tokens,
     interner: &NodeInterner,
+    files: &FileMap,
     location: Location,
     parsing_function: F,
     rule: &'static str,
@@ -519,52 +573,22 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
-        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = errors
+            .into_iter()
+            .find(|error| !error.is_warning())
+            .expect("there is at least 1 error");
         let error = Box::new(error);
-        let tokens = tokens_to_string(&tokens, interner);
+        let tokens = tokens_to_string(&tokens, interner, files);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
 
-pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
-where
-    F: FnOnce(&mut FuncMeta),
-{
-    let (name_id, function_type) = {
-        let func_meta = interner.function_meta_mut(&func_id);
-        f(func_meta);
-        (func_meta.name.id, func_meta.typ.clone())
-    };
-
-    interner.push_definition_type(name_id, function_type);
-}
-
-pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
-    match typ {
-        Type::Function(parameters, _, _, _) => {
-            *parameters = parameter_types;
-        }
-        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
-        _ => {}
-    }
-}
-
-pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
-    match typ {
-        Type::Function(_, ret, _, _) => {
-            *ret = Box::new(return_type);
-        }
-        Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
-        _ => {}
-    }
-}
-
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
-    Value::Slice(statements, typ)
+    Value::Vector(statements, typ)
 }
 
 pub(super) fn has_named_attribute(
@@ -573,37 +597,51 @@ pub(super) fn has_named_attribute(
     interner: &NodeInterner,
 ) -> bool {
     for attribute in attributes {
-        if let Some(attribute_name) = secondary_attribute_name(attribute, interner) {
-            if name == attribute_name {
-                return true;
-            }
+        if let Some(attribute_name) = secondary_attribute_name(attribute, interner)
+            && name == attribute_name
+        {
+            return true;
         }
     }
 
     false
 }
 
+pub(super) fn has_builtin_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
+    attributes.iter().any(|attr| builtin_secondary_attribute_name(attr) == Some(name))
+}
+
 fn secondary_attribute_name(
     attribute: &SecondaryAttribute,
     interner: &NodeInterner,
 ) -> Option<String> {
+    if let Some(name) = builtin_secondary_attribute_name(attribute) {
+        return Some(name.to_string());
+    }
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
-        SecondaryAttributeKind::ContractLibraryMethod => {
-            Some("contract_library_method".to_string())
-        }
-        SecondaryAttributeKind::Export => Some("export".to_string()),
-        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
         SecondaryAttributeKind::Tag(contents) => {
             let mut lexer = Lexer::new_with_dummy_file(contents);
             let token = lexer.next()?.ok()?;
             if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
         }
         SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
-        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
-        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
-        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
-        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
+        _ => None,
+    }
+}
+
+fn builtin_secondary_attribute_name(attribute: &SecondaryAttribute) -> Option<&'static str> {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated"),
+        SecondaryAttributeKind::ContractLibraryMethod => Some("contract_library_method"),
+        SecondaryAttributeKind::Export => Some("export"),
+        SecondaryAttributeKind::Field(_) => Some("field"),
+        SecondaryAttributeKind::Abi(_) => Some("abi"),
+        SecondaryAttributeKind::Varargs => Some("varargs"),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope"),
+        SecondaryAttributeKind::Allow(_) => Some("allow"),
+        SecondaryAttributeKind::MustUse(_) => Some("must_use"),
+        SecondaryAttributeKind::Tag(_) | SecondaryAttributeKind::Meta(_) => None,
+        SecondaryAttributeKind::Pure => Some("pure"),
     }
 }
 
@@ -628,7 +666,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(u128::from(hash).into()))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -644,25 +682,16 @@ pub(super) fn eq_item<T: Eq>(
 
 /// Type to be used in `Value::Array(<values>, <array-type>)`.
 pub(crate) fn byte_array_type(len: usize) -> Type {
+    let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(Type::Constant(len.into(), Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        Box::new(Type::constant_u32(len)),
     )
-}
-
-/// Type to be used in `Value::Slice(<values>, <slice-type>)`.
-pub(crate) fn byte_slice_type() -> Type {
-    Type::Slice(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)))
 }
 
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
-    Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
-}
-
-/// Create a `Value::Slice` from bytes.
-pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
-    Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
+    Value::Array(values.iter().copied().map(Value::u8).collect(), byte_array_type(values.len()))
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
@@ -689,10 +718,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(
-        Rc::new("op".to_string()),
-        Shared::new(Value::Field(SignedField::positive(unary_op_value))),
-    );
+    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(unary_op_value.into())));
 
     Some(Value::Struct(fields, typ))
 }
@@ -702,10 +728,7 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(
-        Rc::new("op".to_string()),
-        Shared::new(Value::Field(SignedField::positive(binary_op_value))),
-    );
+    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(binary_op_value.into())));
 
     Value::Struct(fields, typ)
 }
@@ -723,4 +746,64 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     };
     let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
     Value::Quoted(Rc::new(tokens))
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+    files: &FileMap,
+) -> String {
+    let mut result = String::new();
+    for fragment in fragments {
+        match fragment {
+            FormatStringFragment::String(string) => {
+                result.push_str(string);
+            }
+            FormatStringFragment::Value { name: _, value } => {
+                match value {
+                    Value::Quoted(tokens) => {
+                        // When interpolating a quoted value inside a format string, we don't include the
+                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+                        for (index, token) in tokens.iter().enumerate() {
+                            if index > 0 {
+                                result.push(' ');
+                            }
+                            result.push_str(&token.token().display(interner, files).to_string());
+                        }
+                    }
+                    Value::FormatString(fragments, _, _) => {
+                        // Nested format strings might have quoted values inside them,
+                        // so we need to recurse here instead of calling `value.display`.
+                        let inner_string = fragments_to_string(fragments, interner, files);
+                        result.push_str(&inner_string);
+                    }
+                    _ => {
+                        result.push_str(&value.display(interner, files).to_string());
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
+/// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
+pub(crate) fn get_option((value, value_location): (Value, Location)) -> IResult<Option<Value>> {
+    let Value::Struct(fields, _) = value else {
+        return Err(InterpreterError::TypeMismatch {
+            expected: "Option<_>".to_string(),
+            actual: Type::Error,
+            location: value_location,
+        });
+    };
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
+    let Value::Bool(is_some) = is_some.borrow().clone() else {
+        panic!("Expected `_is_some` field of Option to be a boolean");
+    };
+    if !is_some {
+        return Ok(None);
+    }
+    let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
+    let value = value.borrow().clone();
+    Ok(Some(value))
 }

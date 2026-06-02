@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, str::FromStr};
 use acir_field::{AcirField, FieldElement};
 
 use lexer::{Lexer, LexerError};
-use noirc_span::Span;
+use span::Span;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod lexer;
+mod span;
 #[cfg(test)]
 mod tests;
 mod token;
@@ -191,7 +192,6 @@ impl<'a> Parser<'a> {
         let opcodes = self.parse_opcodes()?;
 
         Ok(Circuit {
-            current_witness_index: self.max_witness_index,
             opcodes,
             private_parameters,
             public_parameters,
@@ -371,6 +371,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::AES128Encrypt => {
                 let inputs = self.parse_blackbox_inputs(Keyword::Inputs)?;
                 self.eat_comma_or_error()?;
+                assert!(inputs.len() % 16 == 0, "input length must be a multiple of 16");
 
                 let iv = self.parse_blackbox_inputs_array::<16>(Keyword::Iv)?;
                 self.eat_comma_or_error()?;
@@ -500,8 +501,8 @@ impl<'a> Parser<'a> {
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
             }
@@ -541,17 +542,17 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let input1 = self.parse_blackbox_inputs_array::<3>(Keyword::Input1)?;
+                let input1 = self.parse_blackbox_inputs_array::<2>(Keyword::Input1)?;
                 self.eat_comma_or_error()?;
 
-                let input2 = self.parse_blackbox_inputs_array::<3>(Keyword::Input2)?;
+                let input2 = self.parse_blackbox_inputs_array::<2>(Keyword::Input2)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
             }
@@ -673,16 +674,14 @@ impl<'a> Parser<'a> {
         self.eat_keyword_or_error(Keyword::MemoryRead)?;
 
         // value = blockId[index]
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
         self.eat_or_error(Token::Equal)?;
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
 
-        let operation = Expression::zero();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(index, value) })
     }
 
     fn parse_memory_write(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -691,14 +690,12 @@ impl<'a> Parser<'a> {
         // blockId[index] = value
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
         self.eat_or_error(Token::Equal)?;
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
 
-        let operation = Expression::one();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp::write_to_mem_index(index, value) })
     }
 
     fn parse_brillig_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -778,14 +775,12 @@ impl<'a> Parser<'a> {
         Ok(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
     }
 
-    fn eat_predicate(&mut self) -> ParseResult<Option<Expression<FieldElement>>> {
-        let mut predicate = None;
-        if self.eat_keyword(Keyword::Predicate)? && self.eat(Token::Colon)? {
-            let expr = self.parse_arithmetic_expression()?;
-            self.eat_or_error(Token::Comma)?;
-            predicate = Some(expr);
-        }
-        Ok(predicate)
+    fn eat_predicate(&mut self) -> ParseResult<Expression<FieldElement>> {
+        self.eat_keyword_or_error(Keyword::Predicate)?;
+        self.eat_or_error(Token::Colon)?;
+        let expr = self.parse_arithmetic_expression()?;
+        self.eat_or_error(Token::Comma)?;
+        Ok(expr)
     }
 
     fn parse_bracketed_list<T, F>(&mut self, parser: F) -> ParseResult<Vec<T>>
@@ -943,7 +938,7 @@ impl<'a> Parser<'a> {
         if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
     }
 
-    fn at(&mut self, token: Token) -> bool {
+    fn at(&self, token: Token) -> bool {
         self.token.token() == &token
     }
 
@@ -972,42 +967,42 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expected_identifier<T>(&mut self) -> ParseResult<T> {
+    fn expected_identifier<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_field_element<T>(&mut self) -> ParseResult<T> {
+    fn expected_field_element<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedFieldElement {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_witness<T>(&mut self) -> ParseResult<T> {
+    fn expected_witness<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedWitness {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_block_id<T>(&mut self) -> ParseResult<T> {
+    fn expected_block_id<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedBlockId {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_term<T>(&mut self) -> ParseResult<T> {
+    fn expected_term<T>(&self) -> ParseResult<T> {
         Err(ParserError::ExpectedTerm {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
     }
 
-    fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
+    fn expected_token<T>(&self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
             found: self.token.token().clone(),
@@ -1015,7 +1010,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expected_one_of_tokens<T>(&mut self, tokens: &[Token]) -> ParseResult<T> {
+    fn expected_one_of_tokens<T>(&self, tokens: &[Token]) -> ParseResult<T> {
         Err(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: self.token.token().clone(),

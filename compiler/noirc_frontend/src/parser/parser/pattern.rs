@@ -37,6 +37,16 @@ impl Parser<'_> {
     pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
         let mutable = self.eat_keyword(Keyword::Mut);
+
+        if mutable {
+            while self.eat_keyword(Keyword::Mut) {
+                self.push_error(
+                    ParserErrorReason::MutOnABindingCannotBeRepeated,
+                    self.previous_token_location,
+                );
+            }
+        }
+
         self.parse_pattern_after_modifiers(mutable, start_location)
     }
 
@@ -206,7 +216,7 @@ impl Parser<'_> {
     }
 
     fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {
-        let Some(ident) = self.eat_ident() else {
+        let Some(ident) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return None;
         };
@@ -227,13 +237,11 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
 
-    use insta::assert_snapshot;
-
     use crate::{
         ast::Pattern,
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -348,14 +356,9 @@ mod tests {
     fn parses_struct_pattern_recovers_if_assign_instead_of_colon() {
         let src = "
         foo::Bar { x = one, y }
-                     ^
+                     ^ Expected a ':' but found '='
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let pattern = parser.parse_pattern_or_error();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ':' but found '='");
+        let pattern = check_errors(src, |parser| parser.parse_pattern_or_error());
 
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")

@@ -3,6 +3,7 @@ use crate::fuzz_lib::fuzzer::FuzzerOutput;
 use acvm::acir::circuit::Program;
 use acvm::{AcirField, FieldElement};
 use base64::Engine;
+use itertools::Itertools;
 use sancov::Counters;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -134,7 +135,8 @@ pub(crate) fn compare_with_abstract_vm(
         return AbstractVMComparisonResult::Mismatch { brillig_outputs, abstract_vm_outputs };
     }
 
-    for (brillig_out, abstract_vm_out) in brillig_outputs.iter().zip(abstract_vm_outputs.iter()) {
+    for (brillig_out, abstract_vm_out) in brillig_outputs.iter().zip_eq(abstract_vm_outputs.iter())
+    {
         if *brillig_out != *abstract_vm_out {
             return AbstractVMComparisonResult::Mismatch { brillig_outputs, abstract_vm_outputs };
         }

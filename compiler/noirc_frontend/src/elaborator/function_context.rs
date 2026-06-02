@@ -3,11 +3,16 @@
 use noirc_errors::Location;
 
 use crate::{
-    Kind, Type,
+    Kind, Type, TypeBindings,
     elaborator::lints::check_integer_literal_fits_its_type,
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{
+        comptime::{InterpreterError, Value},
+        type_check::{NoMatchingImplFoundError, TypeCheckError},
+    },
     hir_def::traits::TraitConstraint,
-    node_interner::{DefinitionKind, ExprId, GlobalValue, TypeId},
+    node_interner::{
+        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TypeId,
+    },
 };
 use crate::{TypeVariableId, node_interner::DefinitionId};
 
@@ -31,7 +36,7 @@ pub(super) struct FunctionContext {
     /// the resulting trait impl should be the one used for a call (sometimes trait
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
-    trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
+    trait_constraints: Vec<LocalTraitConstraint>,
 
     /// All ExprId in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
@@ -39,11 +44,27 @@ pub(super) struct FunctionContext {
 }
 
 /// A type variable that is required to be bound after type-checking a function.
+#[derive(Debug)]
 struct RequiredTypeVariable {
     type_variable_id: TypeVariableId,
     typ: Type,
     kind: BindableTypeVariableKind,
     location: Location,
+}
+
+/// A constraint local to the current [FunctionContext] to solve at the end of the context.
+#[derive(Debug)]
+struct LocalTraitConstraint {
+    constraint: TraitConstraint,
+
+    /// The expression this constraint originated from. Used for its location in error messages,
+    /// and if `select_impl` is true, to be the expression the impl will replace during
+    /// monomorphization.
+    expr: ExprId,
+
+    /// True if a reference to some function in this constraint's trait should replace the
+    /// expression at `self.expr` during monomorphization.
+    select_impl: bool,
 }
 
 /// The kind of required type variable.
@@ -60,12 +81,20 @@ pub(super) enum BindableTypeVariableKind {
 impl Elaborator<'_> {
     /// Push a type variable into the current FunctionContext to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_defaultable_type_variable(&mut self, typ: Type) {
         self.get_function_context_mut().defaultable_type_variables.push(typ);
     }
 
     /// Push a type variable (its ID and type) as a required type variable: it must be
     /// bound after type-checking the current function.
+    ///
+    /// The type variable is only pushed if the elaborator is not in a comptime context.
+    /// The reason is that in a comptime context the type of a variable might change
+    /// across a loop's iterations, so a type can temporarily remain as `Type<_>` where
+    /// `_` is bound by the interpreter evaluating an expression's type being unified with
+    /// that type.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_required_type_variable(
         &mut self,
         type_variable_id: TypeVariableId,
@@ -73,38 +102,57 @@ impl Elaborator<'_> {
         kind: BindableTypeVariableKind,
         location: Location,
     ) {
-        let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
-        self.get_function_context_mut().required_type_variables.push(var);
+        if !self.in_comptime_context() {
+            let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
+            self.get_function_context_mut().required_type_variables.push(var);
+        }
     }
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_trait_constraint(
         &mut self,
         constraint: TraitConstraint,
-        expr_id: ExprId,
+        expr: ExprId,
         select_impl: bool,
     ) {
-        self.get_function_context_mut().trait_constraints.push((constraint, expr_id, select_impl));
+        self.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
+            constraint,
+            expr,
+            select_impl,
+        });
     }
 
     /// Push an `ExprId` that corresponds to an integer literal.
     /// At the end of the current function we'll check that they fit in their type's range.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
         self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
     }
 
+    pub(super) fn integer_literal_expr_ids_len(&mut self) -> usize {
+        self.get_function_context_mut().integer_literal_expr_ids.len()
+    }
+
+    pub(super) fn truncate_integer_literal_expr_ids(&mut self, len: usize) {
+        self.get_function_context_mut().integer_literal_expr_ids.truncate(len);
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn get_function_context_mut(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
         context.expect("The function_context stack should always be non-empty")
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_function_context(&mut self) {
         self.function_context.push(FunctionContext::default());
     }
 
     /// Defaults all type variables used in this function context then solves
     /// all still-unsolved trait constraints in this context.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.check_defaultable_type_variables(context.defaultable_type_variables);
@@ -122,6 +170,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_integer_literal_fit_their_type(&mut self, expr_ids: Vec<ExprId>) {
         for expr_id in expr_ids {
             if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
@@ -130,28 +179,98 @@ impl Elaborator<'_> {
         }
     }
 
-    fn check_trait_constraints(&mut self, trait_constraints: Vec<(TraitConstraint, ExprId, bool)>) {
-        for (mut constraint, expr_id, select_impl) in trait_constraints {
-            let location = self.interner.expr_location(&expr_id);
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
+        let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
 
-            if matches!(&constraint.typ, Type::Reference(..)) {
-                let (_, dereferenced_typ) =
-                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
+        for local in trait_constraints {
+            match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {
+                Ok((impl_kind, instantiation_bindings)) => {
+                    if local.select_impl {
+                        self.select_impl(local.expr, impl_kind, instantiation_bindings);
+                    }
+                }
+                Err(error) => {
+                    let location = self.interner.expr_location(&local.expr);
+                    self.push_trait_constraint_error(&local.constraint.typ, error, location);
+                }
             }
-
-            self.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_bound.trait_id,
-                &constraint.trait_bound.trait_generics.ordered,
-                &constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn select_impl(
+        &mut self,
+        function_ident_id: ExprId,
+        impl_kind: TraitImplKind,
+        instantiation_bindings: TypeBindings,
+    ) {
+        // Insert any additional instantiation bindings into this expression's
+        // instantiation bindings. We should avoid doing this if `select_impl` is
+        // not true since that means we're not solving for this expressions exact
+        // impl anyway. If we ignore this, we may rarely overwrite existing type
+        // bindings causing incorrect types. The `vector_regex` test is one example
+        // of that happening without this being behind `select_impl`.
+        let mut bindings = self.interner.get_instantiation_bindings(function_ident_id).clone();
+
+        // These can clash in the `vector_regex` test which causes us to insert
+        // incorrect type bindings if they override the previous bindings.
+        for (id, binding) in instantiation_bindings {
+            let existing = bindings.insert(id, binding.clone());
+
+            if let Some((_, type_var, existing)) = existing {
+                let existing = existing.follow_bindings();
+                let new = binding.2.follow_bindings();
+
+                // Exact equality on types is intentional here, we never want to
+                // overwrite even type variables but should probably avoid a panic if
+                // the types are exactly the same.
+                if existing != new {
+                    panic!(
+                        "Overwriting an existing type binding with a different type!\n  {type_var:?} <- {existing:?}\n  {type_var:?} <- {new:?}"
+                    );
+                }
+            }
+        }
+
+        self.interner.store_instantiation_bindings(function_ident_id, bindings);
+        self.interner.select_impl_for_expression(function_ident_id, impl_kind);
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn push_trait_constraint_error(
+        &mut self,
+        object_type: &Type,
+        error: ImplSearchErrorKind,
+        location: Location,
+    ) {
+        match error {
+            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
+            }
+            ImplSearchErrorKind::NoImplFound(constraints)
+            | ImplSearchErrorKind::NoMatching(constraints) => {
+                if let Some(error) =
+                    NoMatchingImplFoundError::new(self.interner, constraints, location)
+                {
+                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
+                }
+            }
+            ImplSearchErrorKind::RecursionLimitReached => {
+                self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                    location,
+                });
+            }
+            ImplSearchErrorKind::MultipleMatching(candidates) => {
+                let object_type = object_type.clone();
+                let err =
+                    TypeCheckError::MultipleMatchingImpls { object_type, location, candidates };
+                self.push_err(err);
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_required_type_variables(&mut self, type_variables: Vec<RequiredTypeVariable>) {
         for var in type_variables {
             let id = var.type_variable_id;
@@ -184,11 +303,19 @@ impl Elaborator<'_> {
                         let definition_kind = definition.kind.clone();
                         match definition_kind {
                             DefinitionKind::Function(func_id) => {
+                                let (direct_generics_clone, self_type_clone, all_generics_clone) =
+                                    self.with_function_meta(func_id, |meta| {
+                                        (
+                                            meta.direct_generics.clone(),
+                                            meta.self_type.clone(),
+                                            meta.all_generics.clone(),
+                                        )
+                                    });
+
                                 // Try to find the type variable in the function's generic arguments
-                                let mut direct_generics =
-                                    self.interner.function_meta(&func_id).direct_generics.iter();
-                                let generic =
-                                    direct_generics.find(|generic| generic.type_var.id() == id);
+                                let generic = direct_generics_clone
+                                    .iter()
+                                    .find(|generic| generic.type_var.id() == id);
                                 if let Some(generic) = generic {
                                     let item_name =
                                         self.interner.definition_name(definition_id).to_string();
@@ -206,9 +333,7 @@ impl Elaborator<'_> {
 
                                 // If we find one in `all_generics` it means it's a generic on the type
                                 // the function is in.
-                                let Some(Type::DataType(typ, ..)) =
-                                    &self.interner.function_meta(&func_id).self_type
-                                else {
+                                let Some(Type::DataType(typ, ..)) = &self_type_clone else {
                                     continue;
                                 };
                                 let typ = typ.borrow();
@@ -216,8 +341,7 @@ impl Elaborator<'_> {
                                 let item_kind = if typ.is_struct() { "struct" } else { "enum" };
                                 drop(typ);
 
-                                let mut all_generics =
-                                    self.interner.function_meta(&func_id).all_generics.iter();
+                                let mut all_generics = all_generics_clone.iter();
                                 let generic =
                                     all_generics.find(|generic| generic.type_var.id() == id);
                                 if let Some(generic) = generic {

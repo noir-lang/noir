@@ -1,8 +1,8 @@
 #[foo([1, 2, 3], "hello", f"world")]
-comptime fn foo(_: FunctionDefinition, slice: [u8], _str1: CtString, _str2: CtString) -> Quoted {
+comptime fn foo(_: FunctionDefinition, vector: [u8], _str1: CtString, _str2: CtString) -> Quoted {
     quote {
         fn bar() -> [u8] {
-            $slice
+            $vector
         }
     }
 }
@@ -15,5 +15,5 @@ comptime fn baz(_f: FunctionDefinition, args: [CtString]) {
 }
 
 fn main() {
-    assert_eq(bar(), &[1, 2, 3])
+    assert_eq(bar(), [1, 2, 3].as_vector())
 }

@@ -5,7 +5,7 @@ require 'open3'
 
 def run_nargo(program_path, program_str)
   nargo_path = "../../target/release/nargo"
-  cmd_str = "#{nargo_path} compile --debug-compile-stdin --pedantic-solving"
+  cmd_str = "#{nargo_path} compile --debug-compile-stdin"
 
   # If opts[:stdin_data] is specified, it is sent to the command’s standard input.
   stdout_and_stderr_str, status = Open3.capture2e(cmd_str, stdin_data: program_str)

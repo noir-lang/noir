@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;
 
 use acvm::{AcirField, FieldElement};
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::errors::InputParserError;
@@ -136,7 +137,7 @@ impl InputValue {
                     } else {
                         return Err(InputTypecheckingError::MissingField {
                             path,
-                            expected_field: field_name.to_string(),
+                            expected_field: field_name.clone(),
                             found_fields: map.keys().cloned().collect(),
                         });
                     }
@@ -144,12 +145,12 @@ impl InputValue {
 
                 if map.len() > fields.len() {
                     let expected_fields: HashSet<String> =
-                        fields.iter().map(|(field, _)| field.to_string()).collect();
+                        fields.iter().map(|(field, _)| field.clone()).collect();
                     let extra_field = map.keys().find(|&key| !expected_fields.contains(key)).cloned().expect("`map` is larger than the expected type's `fields` so it must contain an unexpected field");
                     return Err(InputTypecheckingError::UnexpectedField {
                         path,
                         typ: abi_param.clone(),
-                        extra_field: extra_field.to_string(),
+                        extra_field,
                     });
                 }
 
@@ -167,7 +168,7 @@ impl InputValue {
                     });
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                for (i, (element, expected_typ)) in vec_elements.iter().zip(fields).enumerate() {
+                for (i, (element, expected_typ)) in vec_elements.iter().zip_eq(fields).enumerate() {
                     let mut path = path.clone();
                     path.push_str(&format!(".{i}"));
                     element.find_type_mismatch(expected_typ, path)?;
@@ -325,22 +326,19 @@ fn parse_str_to_field(value: &str, arg_name: &str) -> Result<FieldElement, Input
     } else {
         BigUint::from_str_radix(value, 10)
     };
-    big_num
-        .map_err(|err_msg| InputParserError::ParseStr {
+    let bigint = big_num.map_err(|err_msg| InputParserError::ParseStr {
+        arg_name: arg_name.into(),
+        value: value.into(),
+        error: err_msg.to_string(),
+    })?;
+    if bigint < FieldElement::modulus() {
+        Ok(field_from_big_uint(bigint))
+    } else {
+        Err(InputParserError::InputExceedsFieldModulus {
             arg_name: arg_name.into(),
-            value: value.into(),
-            error: err_msg.to_string(),
+            value: value.to_string(),
         })
-        .and_then(|bigint| {
-            if bigint < FieldElement::modulus() {
-                Ok(field_from_big_uint(bigint))
-            } else {
-                Err(InputParserError::InputExceedsFieldModulus {
-                    arg_name: arg_name.into(),
-                    value: value.to_string(),
-                })
-            }
-        })
+    }
 }
 
 fn parse_str_to_signed(
@@ -356,50 +354,47 @@ fn parse_str_to_signed(
         BigInt::from_str_radix(value, 10)
     };
 
-    big_num
-        .map_err(|err_msg| InputParserError::ParseStr {
+    let bigint = big_num.map_err(|err_msg| InputParserError::ParseStr {
+        arg_name: arg_name.into(),
+        value: value.into(),
+        error: err_msg.to_string(),
+    })?;
+    let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+    let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
+
+    let max = BigInt::from(max);
+    let min = BigInt::from(min);
+
+    if bigint < min {
+        return Err(InputParserError::InputUnderflowsMinimum {
             arg_name: arg_name.into(),
-            value: value.into(),
-            error: err_msg.to_string(),
+            value: bigint.to_string(),
+            min: min.to_string(),
+        });
+    }
+
+    if bigint > max {
+        return Err(InputParserError::InputOverflowsMaximum {
+            arg_name: arg_name.into(),
+            value: bigint.to_string(),
+            max: max.to_string(),
+        });
+    }
+
+    let modulus: BigInt = FieldElement::modulus().into();
+    let bigint = if bigint.sign() == num_bigint::Sign::Minus {
+        BigInt::from(2).pow(width) + bigint
+    } else {
+        bigint
+    };
+    if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
+        Ok(field_from_big_int(bigint))
+    } else {
+        Err(InputParserError::InputExceedsFieldModulus {
+            arg_name: arg_name.into(),
+            value: value.to_string(),
         })
-        .and_then(|bigint| {
-            let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
-            let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
-
-            let max = BigInt::from(max);
-            let min = BigInt::from(min);
-
-            if bigint < min {
-                return Err(InputParserError::InputUnderflowsMinimum {
-                    arg_name: arg_name.into(),
-                    value: bigint.to_string(),
-                    min: min.to_string(),
-                });
-            }
-
-            if bigint > max {
-                return Err(InputParserError::InputOverflowsMaximum {
-                    arg_name: arg_name.into(),
-                    value: bigint.to_string(),
-                    max: max.to_string(),
-                });
-            }
-
-            let modulus: BigInt = FieldElement::modulus().into();
-            let bigint = if bigint.sign() == num_bigint::Sign::Minus {
-                BigInt::from(2).pow(width) + bigint
-            } else {
-                bigint
-            };
-            if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
-                Ok(field_from_big_int(bigint))
-            } else {
-                Err(InputParserError::InputExceedsFieldModulus {
-                    arg_name: arg_name.into(),
-                    value: value.to_string(),
-                })
-            }
-        })
+    }
 }
 
 fn parse_integer_to_signed(
@@ -462,7 +457,7 @@ fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
     use strum::IntoEnumIterator;

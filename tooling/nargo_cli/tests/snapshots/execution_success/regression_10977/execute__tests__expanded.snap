@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(flag: bool, arr: [Field; 4]) {
+    let sli: [Field] = arr.as_slice();
+    println(sli);
+    std::hint::black_box(arr);
+}

@@ -1,6 +1,0 @@
-[package]
-name = "slice_access_failure"
-type = "bin"
-authors = [""]
-
-[dependencies]

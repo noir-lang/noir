@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(c: bool) -> pub (Field, Field) {
+    let f: fn() -> [Field] = std::hint::black_box(|| -> [Field] @[1_Field, 2_Field, 3_Field]);
+    let v: [Field] = if c { f() } else { @[4_Field, 5_Field] };
+    let x: Field = v[0_u32];
+    let g: fn() -> &mut Field = std::hint::black_box(|| -> &mut Field &mut 2_Field);
+    let y: Field = *g();
+    let h: unconstrained fn() -> &mut Field = unconstrained || -> &mut Field &mut 3_Field;
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        let n: Field = call_and_deref(g);
+        let m: Field = call_and_deref(h);
+        assert((n + 1_Field) == m);
+    };
+    (x, y)
+}
+
+unconstrained fn call_and_deref(f: fn() -> &mut Field) -> Field {
+    *f()
+}

@@ -35,11 +35,11 @@ pub(crate) fn read_witness_from_file(
 
     let mut witnesses: WitnessMap<FieldElement> = WitnessMap::new();
 
-    for (key, value) in input_map.into_iter() {
+    for (key, value) in input_map {
         let index =
             Witness(key.trim().parse().map_err(|_| CliError::WitnessIndexError(key.clone()))?);
         if !value.is_str() {
-            return Err(CliError::WitnessValueError(key.clone()));
+            return Err(CliError::WitnessValueError(key));
         }
         let field = FieldElement::from_hex(value.as_str().unwrap()).unwrap();
         witnesses.insert(index, field);
@@ -53,7 +53,7 @@ pub(crate) fn create_output_witness_string(
     witnesses: &WitnessMap<FieldElement>,
 ) -> Result<String, CliError> {
     let mut witness_map: BTreeMap<String, String> = BTreeMap::new();
-    for (key, value) in witnesses.clone().into_iter() {
+    for (key, value) in witnesses.clone() {
         witness_map.insert(key.0.to_string(), format!("0x{}", value.to_hex()));
     }
     toml::to_string(&witness_map).map_err(CliError::OutputWitnessSerializationFailed)

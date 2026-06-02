@@ -23,7 +23,7 @@ pub(crate) fn on_folding_range_request(
     params: FoldingRangeParams,
 ) -> impl Future<Output = Result<Option<Vec<FoldingRange>>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 

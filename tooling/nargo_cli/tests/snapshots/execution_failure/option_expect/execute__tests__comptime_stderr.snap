@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Should have the value 0x03
+   ┌─ std/option.nr:67:16
+   │
+67 │         assert(self.is_some(), message);
+   │                -------------- Assertion failed
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:1:4
+     2: main
+             at src/main.nr:7:12
+
+Error interpreting main function

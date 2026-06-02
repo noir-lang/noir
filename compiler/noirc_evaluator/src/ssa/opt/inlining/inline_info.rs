@@ -6,9 +6,9 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
-        call_graph::{CallGraph, called_functions},
+        call_graph::{CallGraph, called_functions_partial},
         dfg::DataFlowGraph,
-        function::{Function, FunctionId},
+        function::FunctionId,
         instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -22,7 +22,15 @@ use crate::ssa::{
 /// When that function has no control flow, it generally means we can expect all loads and stores within the
 /// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
 /// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
-pub const MAX_INSTRUCTIONS: usize = 10;
+pub(crate) const MAX_INSTRUCTIONS: usize = 10;
+
+/// The maximum Brillig weight for a function to be considered "simple" by the inlining cost model.
+/// This is used in `compute_function_should_be_inlined` where instruction weights are in Brillig
+/// cost units (not raw SSA instruction count). A value of 80 covers the worst case of 10 SSA
+/// instructions at maximum per-instruction cost (checked u32 mul = 8 opcodes each).
+/// The `inline_simple_functions` pass handles the common case using raw SSA count;
+/// this threshold acts as a safety net in the cost model.
+pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 80;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -43,19 +51,32 @@ impl InlineInfo {
         self.is_brillig_entry_point
             || self.is_acir_entry_point
             // We still want to attempt inlining recursive ACIR functions in case
-            // they have a compile-time completion point. 
+            // they have a compile-time completion point.
             // A recursive function is going to set `should_inline` to false as well,
-            // so we need to determine whether a function is an inline target 
+            // so we need to determine whether a function is an inline target
             // with auxiliary runtime information.
             || ((self.is_recursive || !self.should_inline) && !dfg.runtime().is_acir())
     }
 
     pub(crate) fn should_inline(inline_infos: &InlineInfos, called_func_id: FunctionId) -> bool {
-        inline_infos.get(&called_func_id).map(|info| info.should_inline).unwrap_or_default()
+        inline_infos.get(&called_func_id).is_some_and(|info| info.should_inline)
     }
 }
 
 pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
+
+/// Build a map from function ID to body weight for all functions that will be inlined.
+/// This is used by loop unrolling to estimate the true cost of call instructions
+/// to functions that will be inlined (instead of using call overhead as the cost).
+pub(crate) fn inlineable_callee_costs(
+    infos: &InlineInfos,
+) -> rustc_hash::FxHashMap<FunctionId, usize> {
+    infos
+        .iter()
+        .filter(|(_, info)| info.should_inline)
+        .map(|(id, info)| (*id, info.weight.max(0) as usize))
+        .collect()
+}
 
 /// The functions we should inline into (and that should be left in the final program) are:
 ///  - main
@@ -83,7 +104,7 @@ pub(crate) fn compute_inline_infos(
     );
 
     // Handle ACIR functions.
-    for (func_id, function) in ssa.functions.iter() {
+    for (func_id, function) in &ssa.functions {
         if function.runtime().is_brillig() {
             continue;
         }
@@ -96,7 +117,7 @@ pub(crate) fn compute_inline_infos(
         }
 
         // Any Brillig function called from ACIR is an entry into the Brillig VM.
-        for called_func_id in called_functions(function) {
+        for called_func_id in called_functions_partial(function) {
             if ssa.functions[&called_func_id].runtime().is_brillig() {
                 inline_infos.entry(called_func_id).or_default().is_brillig_entry_point = true;
             }
@@ -107,7 +128,7 @@ pub(crate) fn compute_inline_infos(
     // Find mutual recursion in our call graph
     let recursive_functions = call_graph.get_recursive_functions();
     let small_function_max_instructions = small_function_max_instructions as i64;
-    for recursive_func in recursive_functions.iter() {
+    for recursive_func in &recursive_functions {
         inline_infos.entry(*recursive_func).or_default().is_recursive = true;
         compute_function_should_be_inlined(
             ssa,
@@ -149,12 +170,12 @@ pub(crate) fn compute_inline_infos(
 /// - the cost of inlining outweighs the cost of not doing so
 ///
 /// The total weight of a function and its cost are computed in this method.
-/// The total weight is calculated by taking the function's own weight and multiplying
-/// it by the weight of each callee. We then determine the cost of inlining to be
-/// the times a function has been called multiplied by its total weight.
+/// The total weight is calculated by taking the function's own weight and adding
+/// the weight of each callee that will be inlined. We then determine the cost of
+/// inlining to be the times a function has been called multiplied by (total weight
+/// minus return cost), since a function's return terminator is eliminated when inlined.
 ///
-/// To determine the cost of retaining a function we first need the function interface cost,
-/// computed in [compute_function_interface_cost].
+/// To determine the cost of retaining a function we first need the [function interface cost][crate::ssa::ir::function::Function::call_overhead],
 /// The cost of retaining of a function is then (times a function has been called) * (interface cost) + total weight.
 ///
 /// A function's net cost is then (cost of inlining - cost of retaining).
@@ -214,7 +235,7 @@ fn compute_function_should_be_inlined(
     };
 
     let neighbors = call_graph.graph().neighbors(index);
-    let mut total_weight = compute_function_own_weight(function) as i64;
+    let mut total_weight = function.cost() as i64;
     let instruction_weight = total_weight;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
@@ -223,8 +244,9 @@ fn compute_function_should_be_inlined(
         }
     }
     let times = times_called[&func_id] as i64;
-    let interface_cost = compute_function_interface_cost(function) as i64;
-    let inline_cost = times.saturating_mul(total_weight);
+    let interface_cost = function.call_overhead() as i64;
+    let return_cost = function.return_cost();
+    let inline_cost = times.saturating_mul(total_weight.saturating_sub(return_cost));
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
     let info = inline_infos.entry(func_id).or_default();
@@ -240,12 +262,19 @@ fn compute_function_should_be_inlined(
     let is_simple_function = entry_block.successors().next().is_none()
         && instruction_weight < small_function_max_instructions;
 
-    let should_inline = is_simple_function
-        || net_cost < aggressiveness
-        || runtime.is_inline_always()
-        || should_inline_no_pred_function
-        || contains_static_assertion
-        || runtime.is_acir();
+    // Single-caller inlining has zero code duplication: the function body exists
+    // in exactly one place before and after inlining. Aggressiveness controls
+    // duplication tolerance, so it should not gate this decision.
+    let called_once = times == 1;
+
+    let should_inline = !runtime.is_inline_never()
+        && (is_simple_function
+            || net_cost < aggressiveness
+            || called_once
+            || runtime.is_inline_always()
+            || should_inline_no_pred_function
+            || contains_static_assertion
+            || runtime.is_acir());
 
     info.should_inline = should_inline;
 }
@@ -281,11 +310,8 @@ pub(crate) fn compute_bottom_up_order(
     });
 
     // Start with the weight of the functions in isolation, then accumulate as we pop off the ones they call.
-    let own_weights = ssa
-        .functions
-        .iter()
-        .map(|(id, f)| (*id, compute_function_own_weight(f)))
-        .collect::<HashMap<_, _>>();
+    let own_weights =
+        ssa.functions.iter().map(|(id, f)| (*id, f.cost())).collect::<HashMap<_, _>>();
     let mut weights = own_weights.clone();
 
     // Seed the queue with functions that don't call anything.
@@ -338,31 +364,15 @@ pub(crate) fn compute_bottom_up_order(
     }
 }
 
-/// Compute a weight of a function based on the number of instructions in its reachable blocks.
-fn compute_function_own_weight(func: &Function) -> usize {
-    let mut weight = 0;
-    for block_id in func.reachable_blocks() {
-        weight += func.dfg[block_id].instructions().len() + 1; // We add one for the terminator
-    }
-    // We use an approximation of the average increase in instruction ratio from SSA to Brillig
-    // In order to get the actual weight we'd need to codegen this function to brillig.
-    weight
-}
-
-/// Compute interface cost of a function based on the number of inputs and outputs.
-fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().unwrap_or_default().len()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
         ir::{call_graph::CallGraph, map::Id},
-        opt::inlining::{MAX_INSTRUCTIONS, inline_info::compute_bottom_up_order},
+        opt::inlining::inline_info::compute_bottom_up_order,
         ssa_gen::Ssa,
     };
 
-    use super::compute_inline_infos;
+    use super::{MAX_INSTRUCTIONS, compute_inline_infos};
 
     #[test]
     fn mark_mutually_recursive_functions() {
@@ -420,7 +430,7 @@ mod tests {
           brillig(inline) fn is_even f1 {
             b0(v0: u32):
               v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
+              jmpif v3 then: b2(), else: b1()
             b1():
               v5 = call f3(v0) -> u32
               v7 = call f2(v5) -> u1
@@ -433,7 +443,7 @@ mod tests {
           brillig(inline) fn is_odd f2 {
             b0(v0: u32):
               v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
+              jmpif v3 then: b2(), else: b1()
             b1():
               v5 = call f3(v0) -> u32
               v7 = call f1(v5) -> u1
@@ -472,7 +482,10 @@ mod tests {
         assert_eq!(ids[3], 0, "main: last, it's the entry");
 
         // Check own weights
-        assert_eq!(ows, [2, 7, 7, 4]);
+        // decrement: sub(3, checked u32) + return(2) = 5
+        // is_even/is_odd: b0(eq=1 + jmpif=2) + b1(call=7 + call=7 + jmp=2) + b2(jmp=2) + b3(return=2) = 23
+        // main: call(7) + eq(1) + constrain(4) + return(1) = 13
+        assert_eq!(ows, [5, 23, 23, 13]);
 
         // Check transitive weights
         assert_eq!(tws[0], ows[0], "decrement");
@@ -600,6 +613,29 @@ mod tests {
     }
 
     #[test]
+    fn inline_never_functions_are_not_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_never) fn never_inline f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(!f1.should_inline, "inline_never functions should not be inlined");
+    }
+
+    #[test]
     fn basic_inlining_brillig_not_inlined_into_acir() {
         let src = "
         acir(inline) fn foo f0 {
@@ -618,5 +654,153 @@ mod tests {
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(!f1.should_inline, "Brillig entry points should never be inlined");
+    }
+
+    #[test]
+    fn called_once_non_simple_function_is_inlined() {
+        // f1 is a non-simple Brillig function (has control flow via jmpif, so
+        // entry block has successors) called exactly once by main.
+        // Even at minimum aggressiveness, it should be inlined because
+        // single-caller inlining has zero code duplication.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f1(v0) -> u1
+            return v2
+        }
+        brillig(inline) fn big f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            f1.should_inline,
+            "A non-simple function called exactly once should be inlined regardless of aggressiveness"
+        );
+    }
+
+    #[test]
+    fn called_twice_non_simple_function_not_inlined_at_min_aggressiveness() {
+        // f1 is called twice (once by f2, once by f3). It should NOT be inlined
+        // at minimum aggressiveness since the single-caller heuristic does not apply.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f2(v0) -> u1
+            v3 = call f3(v0) -> u1
+            return v2
+        }
+        brillig(inline) fn big f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        brillig(inline) fn caller_a f2 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> u1
+            return v1
+        }
+        brillig(inline) fn caller_b f3 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> u1
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "A non-simple function called more than once should NOT be inlined at minimum aggressiveness"
+        );
+    }
+
+    #[test]
+    fn called_once_inline_never_not_inlined() {
+        // f1 is called once but marked inline_never. The inline_never attribute
+        // must take precedence over the single-caller heuristic.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f1(v0) -> u1
+            return v2
+        }
+        brillig(inline_never) fn never f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "inline_never must take precedence over the single-caller heuristic"
+        );
+    }
+
+    #[test]
+    fn called_once_recursive_not_inlined() {
+        // f1 is self-recursive and called once externally by main.
+        // Recursive Brillig functions early-return before reaching the
+        // should_inline decision, so the single-caller heuristic has no effect.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f1(v0) -> u1
+            return v2
+        }
+        brillig(inline) fn recursive f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = call f1(v0) -> u1
+            jmp b3(v2)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.is_recursive, "f1 should be detected as recursive");
+        assert!(
+            !f1.should_inline,
+            "Recursive functions should not be inlined even if called once externally"
+        );
     }
 }

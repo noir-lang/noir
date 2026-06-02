@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Invalid type [Field] used in the error message
+  ┌─ src/main.nr:9:19
+  │
+9 │     assert(false, x);
+  │                   - Error message fragments must be ABI compatible
+  │
+
+Aborting due to 1 previous error

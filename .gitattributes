@@ -1,1 +1,10 @@
 tooling/nargo_cli/tests/snapshots/**/* linguist-generated=true
+noir_stdlib/docs/**/* linguist-generated=true
+acvm-repo/acir/codegen/acir.cpp linguist-generated=true
+acvm-repo/acir/codegen/witness.cpp linguist-generated=true
+acvm-repo/acvm_js/test/shared/addition.ts linguist-generated=true
+acvm-repo/acvm_js/test/shared/complex_foreign_call.ts linguist-generated=true
+acvm-repo/acvm_js/test/shared/foreign_call.ts linguist-generated=true
+acvm-repo/acvm_js/test/shared/memory_op.ts linguist-generated=true
+acvm-repo/acvm_js/test/shared/multi_scalar_mul.ts linguist-generated=true
+acvm-repo/acvm_js/test/shared/nested_acir_call.ts linguist-generated=true

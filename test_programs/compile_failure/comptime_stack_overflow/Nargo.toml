@@ -1,0 +1,6 @@
+[package]
+name = "comptime_stack_overflow"
+type = "bin"
+authors = [""]
+
+[dependencies]
