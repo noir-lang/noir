@@ -1,0 +1,19 @@
+[package]
+name = "usb-verifier"
+version.workspace = true
+edition.workspace = true
+description = "Standalone USB ZK proof verifier with hardware serial binding"
+license.workspace = true
+
+[[bin]]
+name = "usb-verifier"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
