@@ -233,7 +233,7 @@ pub(crate) fn simplify(
         Instruction::IncrementRc { .. } => None,
         Instruction::DecrementRc { .. } => None,
         Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-            let max_potential_bits = dfg.get_value_max_num_bits(*value);
+            let max_potential_bits = dfg.type_max_num_bits(*value);
             if max_potential_bits <= *max_bit_size {
                 Remove
             } else if *max_bit_size == 0 {

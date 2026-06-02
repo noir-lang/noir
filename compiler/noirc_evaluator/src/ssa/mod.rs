@@ -382,6 +382,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
+        SsaPass::new(Ssa::remove_redundant_range_checks, "Removing redundant range checks"),
         SsaPass::new(
             |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
             "Constant Folding using constraints",

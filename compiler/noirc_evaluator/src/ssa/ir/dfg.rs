@@ -561,10 +561,38 @@ impl DataFlowGraph {
         range_analysis::Analysis::new(self).bits(value)
     }
 
+    /// Returns the maximum number of bits `value` can occupy based only on its type, recovering a
+    /// smaller width through casts and exact constants.
+    ///
+    /// Unlike [`Self::get_value_max_num_bits`] this does not run the range analysis, so it is cheap
+    /// enough to call from instruction simplification, which runs on every insertion.
+    pub(crate) fn type_max_num_bits(&self, value: ValueId) -> u32 {
+        match self[value] {
+            Value::Instruction { instruction, .. } => {
+                let value_bit_size = self.type_of_value(value).bit_size();
+                if let Instruction::Cast(original_value, _) = self[instruction] {
+                    value_bit_size.min(self.type_max_num_bits(original_value))
+                } else {
+                    value_bit_size
+                }
+            }
+            Value::NumericConstant { constant, .. } => constant.num_bits(),
+            _ => self.type_of_value(value).bit_size(),
+        }
+    }
+
     /// Like [`Self::get_value_max_num_bits`], but also narrows the width using range-check and
     /// equality constraints that bound `value`.
     pub(crate) fn get_constrained_value_max_num_bits(&self, value: ValueId) -> u32 {
         range_analysis::Analysis::new(self).constrained_bits(value)
+    }
+
+    /// Returns [`Self::get_value_max_num_bits`] for every value in one fixed-point pass.
+    ///
+    /// A pass querying many values (such as range-check elision) should build this once rather than
+    /// re-running the analysis per value.
+    pub(crate) fn value_max_num_bits(&self) -> HashMap<ValueId, u32> {
+        range_analysis::Analysis::new(self).unconstrained_bits_all()
     }
 
     /// Returns [`Self::get_constrained_value_max_num_bits`] for every value in one fixed-point pass.

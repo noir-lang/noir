@@ -125,7 +125,19 @@ impl<'dfg> Analysis<'dfg> {
     /// A pass that queries many values should build this once, since each fixed point is a full
     /// pass over the function. Non-numeric values are omitted, since they have no bit width.
     pub(super) fn constrained_bits_all(&self) -> HashMap<ValueId, u32> {
-        let facts = self.infer_facts(true);
+        self.bits_all(true)
+    }
+
+    /// Returns [`Self::bits`] for every numeric value, computed in a single fixed point.
+    ///
+    /// A pass that queries many values should build this once, since each fixed point is a full
+    /// pass over the function. Non-numeric values are omitted, since they have no bit width.
+    pub(super) fn unconstrained_bits_all(&self) -> HashMap<ValueId, u32> {
+        self.bits_all(false)
+    }
+
+    fn bits_all(&self, include_global_constraints: bool) -> HashMap<ValueId, u32> {
+        let facts = self.infer_facts(include_global_constraints);
         self.dfg
             .values_iter()
             .filter(|(value, _)| self.dfg.type_of_value(*value).is_numeric())
