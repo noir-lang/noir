@@ -177,8 +177,8 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 /// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
 /// this can be solved.
 /// There are two Noir types that show out differently in comptime: functions and references.
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
-    ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 3] =
+    ["debug_logs", "regression_10156", "regression_10158"];
 
 const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
     // For some reason at comptime a `comptime` function is considered a constant.
