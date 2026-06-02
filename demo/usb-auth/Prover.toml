@@ -1,0 +1,5 @@
+challenge = "0x1"
+commitment = "0xd"
+device_secret = "0x3"
+usb_serial = "0x4d2"
+user_id_hash = "0x4"

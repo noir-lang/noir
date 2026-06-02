@@ -28,8 +28,10 @@ export function computeCommitment(deviceSecret, userIdHash) {
   return fieldToString(secret * secret + BigInt(userIdHash));
 }
 
-export function computeNullifier(deviceSecret, challenge, userIdHash) {
-  return fieldToString(normalizeField(deviceSecret) * normalizeField(challenge) + BigInt(userIdHash));
+export function computeNullifier(deviceSecret, challenge, userIdHash, usbSerial) {
+  return fieldToString(
+    normalizeField(deviceSecret) * normalizeField(challenge) + BigInt(userIdHash) + BigInt(usbSerial ?? 0),
+  );
 }
 
 function bytesToField(bytes) {

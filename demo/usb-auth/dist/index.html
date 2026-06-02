@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>USB ZK Auth Demo</title>
-    <script type="module" crossorigin src="/assets/index-BTrrgA5k.js"></script>
+    <script type="module" crossorigin src="/assets/index-BJ2MA2cc.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-tzOPPe_8.css">
   </head>
   <body>
@@ -22,11 +22,11 @@
           <h2>Register Secret File</h2>
           <label>
             User ID
-            <input id="register-user" value="demo-user" autocomplete="username" />
+            <input id="register-user" type="text" name="username" value="demo-user" autocomplete="username" />
           </label>
           <label>
             PIN
-            <input id="register-pin" type="password" minlength="6" autocomplete="new-password" />
+            <input id="register-pin" type="password" name="new-password" minlength="6" autocomplete="new-password" />
           </label>
           <button type="submit">Generate encrypted USB file</button>
           <output id="register-output"></output>
@@ -36,11 +36,11 @@
           <h2>Prove From USB File</h2>
           <label>
             User ID
-            <input id="prove-user" value="demo-user" autocomplete="username" />
+            <input id="prove-user" type="text" name="username" value="demo-user" autocomplete="username" />
           </label>
           <label>
             PIN
-            <input id="prove-pin" type="password" minlength="6" autocomplete="current-password" />
+            <input id="prove-pin" type="password" name="current-password" minlength="6" autocomplete="current-password" />
           </label>
           <label>
             Encrypted secret JSON

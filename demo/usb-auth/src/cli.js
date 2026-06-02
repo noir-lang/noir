@@ -4,7 +4,7 @@ import { createEncryptedSecretFile, serializeEncryptedSecretFile } from './secre
 import { NodePathSecretProvider } from './secret-providers.js';
 import { computeCommitment, randomField, userIdToField } from './fields.js';
 import { createAuthInputs, generateAndVerifyProof, proofToJson } from './proof.js';
-import { compileCircuitFromFiles } from './compile-circuit.js';
+import circuit from './circuit-artifact.js';
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -79,7 +79,7 @@ async function verify(args) {
 }
 
 async function loadCircuit() {
-  return compileCircuitFromFiles(new URL('../', import.meta.url));
+  return circuit;
 }
 
 function parseArgs(tokens) {

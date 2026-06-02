@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "generate:circuit": "node scripts/generate-circuit-artifact.js",
     "build": "vite build",
-    "test": "mocha --timeout 30000 test/fields.test.js test/providers.test.js test/secret-file.test.js",
-    "test:proof": "mocha --timeout 120000 test/proof.test.js"
+    "test": "mocha --exit --timeout 30000 test/fields.test.js test/providers.test.js test/secret-file.test.js",
+    "test:proof": "mocha --exit --timeout 120000 test/proof.test.js"
   },
   "dependencies": {
     "@aztec/bb.js": "5.0.0-nightly.20260522",

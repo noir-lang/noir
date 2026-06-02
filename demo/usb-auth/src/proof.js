@@ -1,21 +1,23 @@
 import { Barretenberg, UltraHonkBackend } from '@aztec/bb.js';
 import { Noir } from '@noir-lang/noir_js';
-import { computeCommitment, computeNullifier, randomField, userIdToField } from './fields.js';
+import { computeCommitment, computeNullifier, fieldToString, randomField, userIdToField } from './fields.js';
 
-export async function createAuthInputs({ deviceSecret, userId, challenge = randomField() }) {
+export async function createAuthInputs({ deviceSecret, userId, usbSerial = 0, challenge = randomField() }) {
   const userIdHash = await userIdToField(userId);
   return {
     privateInputs: {
       device_secret: deviceSecret,
+      usb_serial: usbSerial,
       commitment: computeCommitment(deviceSecret, userIdHash),
       challenge,
       user_id_hash: userIdHash,
     },
     publicInputs: {
+      usb_serial: usbSerial,
       commitment: computeCommitment(deviceSecret, userIdHash),
       challenge,
       user_id_hash: userIdHash,
-      expected_nullifier: computeNullifier(deviceSecret, challenge, userIdHash),
+      expected_nullifier: computeNullifier(deviceSecret, challenge, userIdHash, usbSerial),
     },
   };
 }
@@ -31,7 +33,7 @@ export async function generateAndVerifyProof(circuit, authInputs) {
     return {
       proof,
       verified,
-      nullifier: String(returnValue ?? authInputs.publicInputs.expected_nullifier),
+      nullifier: fieldToString(returnValue ?? authInputs.publicInputs.expected_nullifier),
       publicInputs: authInputs.publicInputs,
     };
   } finally {

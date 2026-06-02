@@ -1,5 +1,17 @@
 export async function compileCircuitFromSource({ nargoToml, mainNr }) {
-  const { compile, createFileManager } = await loadNoirWasmCompiler();
+  const compiler = await loadNoirWasmCompiler();
+  const { compile, createFileManager } = compiler;
+  if (compiler.webFileManager) {
+    const fileManager = createFileManager('/');
+    await fileManager.writeFile('./Nargo.toml', stringToStream(nargoToml));
+    await fileManager.writeFile('./src/main.nr', stringToStream(mainNr));
+    const result = await compile(fileManager);
+    if (!('program' in result)) {
+      throw new Error('Noir circuit compilation failed.');
+    }
+    return result.program;
+  }
+
   const [{ mkdtemp, mkdir, rm }, { tmpdir }, { join }] = await Promise.all([
     import('node:fs/promises'),
     import('node:os'),
@@ -45,10 +57,14 @@ async function loadNoirWasmCompiler() {
       import('node:path'),
     ]);
     const repoRoot = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
-    const fallback = resolve(repoRoot, 'demo/client/node_modules/@noir-lang/noir_wasm/dist/node/main.js');
+    const fallback = resolve(repoRoot, 'demo/client/node_modules/@noir-lang/noir_wasm/dist/web/main.mjs');
     try {
       await access(fallback);
-      return import(pathToFileURL(fallback).href);
+      globalThis.self ??= globalThis;
+      globalThis.document ??= { baseURI: pathToFileURL(fallback).href };
+      globalThis.location ??= { href: pathToFileURL(fallback).href };
+      const compiler = await import(pathToFileURL(fallback).href);
+      return { ...compiler, webFileManager: true };
     } catch (_fallbackError) {
       throw new Error('No built Noir WASM compiler found. Build @noir-lang/noir_wasm or run nargo compile first.');
     }

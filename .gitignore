@@ -77,3 +77,7 @@ mutants.out.old
 /.vscode
 options.txt
 .vscode/settings.json
+/demo/usb-auth/dist
+demo/usb-auth/dist/assets/index-BTrrgA5k.js
+demo/usb-auth/dist/index.html
+/demo/usb-auth/dist
