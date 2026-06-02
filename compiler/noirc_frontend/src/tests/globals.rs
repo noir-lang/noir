@@ -1,4 +1,34 @@
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::elaborator::FrontendOptions;
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::resolution::errors::ResolverError;
+use crate::test_utils::{GetProgramOptions, get_program_with_options};
+use crate::tests::{
+    assert_no_errors, check_errors, check_monomorphization_error, get_program_errors,
+};
+
+/// Compiles `src` with the given `--define`/`-D` global overrides and returns any errors.
+fn compile_with_defines(src: &str, defines: &[(String, String)]) -> Vec<CompilationError> {
+    get_program_with_options(
+        src,
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                global_overrides: defines,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    )
+    .2
+}
+
+fn has_invalid_global_override(errors: &[CompilationError]) -> bool {
+    errors.iter().any(|error| {
+        matches!(
+            error,
+            CompilationError::ResolverError(ResolverError::InvalidGlobalOverride { .. })
+        )
+    })
+}
 
 #[test]
 fn deny_cyclic_globals() {
@@ -429,4 +459,115 @@ fn errors_if_global_is_needed_in_initialize_and_function_signature() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn cli_define_overrides_integer_global() {
+    // `N` is declared as 2, so `[0; N]` would normally be a `[Field; 2]` and
+    // disagree with the `[Field; 3]` return type. Overriding `N` to 3 makes the
+    // program type-check, which only happens if the CLI value actually replaces
+    // the global's initializer.
+    let src = "
+        global N: u32 = 2;
+        fn main() -> pub [Field; 3] {
+            [0; N]
+        }
+    ";
+
+    assert!(!get_program_errors(src).is_empty(), "expected a length mismatch without the override");
+
+    let defines = vec![("N".to_string(), "3".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(errors.is_empty(), "expected override to make the program compile, got: {errors:?}");
+}
+
+#[test]
+fn cli_define_overrides_field_global() {
+    let src = "
+        global X: Field = 1;
+        fn main() -> pub Field {
+            X
+        }
+    ";
+    let defines = vec![("X".to_string(), "42".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(errors.is_empty(), "expected a `Field` override to compile, got: {errors:?}");
+}
+
+#[test]
+fn cli_define_overrides_bool_global() {
+    let src = "
+        global ENABLED: bool = false;
+        fn main() -> pub bool {
+            ENABLED
+        }
+    ";
+    let defines = vec![("ENABLED".to_string(), "true".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(errors.is_empty(), "expected a `bool` override to compile, got: {errors:?}");
+}
+
+#[test]
+fn cli_define_ignores_unknown_global() {
+    let src = "
+        global N: u32 = 2;
+        fn main() {
+            let _ = N;
+        }
+    ";
+    let defines = vec![("DOES_NOT_EXIST".to_string(), "5".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(
+        errors.is_empty(),
+        "an override for an unknown global should be ignored, got: {errors:?}"
+    );
+}
+
+#[test]
+fn cli_define_rejects_malformed_value() {
+    let src = "
+        global N: u32 = 2;
+        fn main() {
+            let _ = N;
+        }
+    ";
+    let defines = vec![("N".to_string(), "not_a_number".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(
+        has_invalid_global_override(&errors),
+        "expected an InvalidGlobalOverride error, got: {errors:?}"
+    );
+}
+
+#[test]
+fn cli_define_rejects_out_of_range_value() {
+    let src = "
+        global N: u8 = 2;
+        fn main() {
+            let _ = N;
+        }
+    ";
+    let defines = vec![("N".to_string(), "256".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(
+        has_invalid_global_override(&errors),
+        "expected an InvalidGlobalOverride error for an out-of-range `u8`, got: {errors:?}"
+    );
+}
+
+#[test]
+fn cli_define_rejects_unsupported_type() {
+    let src = "
+        pub struct Point { x: Field, y: Field }
+        global P: Point = Point { x: 1, y: 2 };
+        fn main() {
+            let _ = P;
+        }
+    ";
+    let defines = vec![("P".to_string(), "3".to_string())];
+    let errors = compile_with_defines(src, &defines);
+    assert!(
+        has_invalid_global_override(&errors),
+        "expected an InvalidGlobalOverride error for a struct global, got: {errors:?}"
+    );
 }

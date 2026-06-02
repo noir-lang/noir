@@ -22,9 +22,16 @@
 
 use std::collections::HashSet;
 
+use acvm::FieldElement;
+
 use crate::{
+    Type,
     ast::Pattern,
-    hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
+    hir::{
+        comptime::{Integer, Value},
+        def_collector::dc_crate::UnresolvedGlobal,
+        resolution::errors::ResolverError,
+    },
     hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{DependencyId, GlobalId, GlobalValue},
     token::SecondaryAttributeKind,
@@ -148,6 +155,33 @@ impl Elaborator<'_> {
 
         let definition_id = global.definition_id;
         let location = global.location;
+        let name = global.ident.to_string();
+
+        // A CLI `--define NAME=VALUE` override replaces the global's initializer
+        // with a value parsed from the command line. Look it up by name; cloning
+        // the value releases the borrow on `self.options` before we mutate the
+        // interner below.
+        let override_value = self
+            .options
+            .global_overrides
+            .iter()
+            .find(|(overridden_name, _)| *overridden_name == name)
+            .map(|(_, value)| value.clone());
+
+        if let Some(raw) = override_value {
+            match global_override_value(&let_statement.r#type, &raw) {
+                Ok(value) => {
+                    self.debug_comptime(location, |interner, file_manager| {
+                        value.display(interner, file_manager).to_string()
+                    });
+                    self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+                }
+                Err(message) => {
+                    self.push_err(ResolverError::InvalidGlobalOverride { name, message, location });
+                }
+            }
+            return;
+        }
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
@@ -192,5 +226,45 @@ impl Elaborator<'_> {
         } else {
             false
         }
+    }
+}
+
+/// Parses a `--define`/`-D` global override string into a comptime [`Value`] of
+/// the global's declared type. Only `bool`, `Field`, and integer-typed globals
+/// are supported; any other type, an out-of-range value, or a malformed value
+/// produces an error message describing the problem.
+fn global_override_value(typ: &Type, raw: &str) -> Result<Value, String> {
+    let typ = typ.follow_bindings();
+    match &typ {
+        Type::Bool => match raw.trim() {
+            "true" => Ok(Value::Bool(true)),
+            "false" => Ok(Value::Bool(false)),
+            other => {
+                Err(format!("expected `true` or `false` for a `bool` global, found `{other}`"))
+            }
+        },
+        Type::FieldElement | Type::Integer(..) => {
+            let field = parse_override_field(raw)?;
+            Integer::try_from_type(field, &typ)
+                .map(Value::Integer)
+                .ok_or_else(|| format!("value `{}` does not fit in type `{typ}`", raw.trim()))
+        }
+        other => Err(format!(
+            "`--define` overrides are only supported for `bool`, `Field`, and integer globals, \
+             but this global has type `{other}`"
+        )),
+    }
+}
+
+/// Parses a (possibly negative) decimal integer override into a [`FieldElement`].
+/// Negative values are encoded as negated fields, matching how the comptime
+/// interpreter represents signed integers.
+fn parse_override_field(raw: &str) -> Result<FieldElement, String> {
+    let raw = raw.trim();
+    let parse_magnitude =
+        |s: &str| s.parse::<u128>().map_err(|_| format!("`{raw}` is not a valid integer"));
+    match raw.strip_prefix('-') {
+        Some(magnitude) => Ok(-FieldElement::from(parse_magnitude(magnitude)?)),
+        None => Ok(FieldElement::from(parse_magnitude(raw)?)),
     }
 }

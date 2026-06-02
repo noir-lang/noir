@@ -250,6 +250,8 @@ pub enum ResolverError {
     RemovedType { location: Location, typ: String, replacement: String },
     #[error("Recursion limit reached during elaboration")]
     MaximumRecursionDepthExceeded { location: Location },
+    #[error("Invalid `--define` override for global `{name}`: {message}")]
+    InvalidGlobalOverride { name: String, message: String, location: Location },
 }
 
 impl ResolverError {
@@ -337,7 +339,8 @@ impl ResolverError {
             | ResolverError::DataBusOnNonEntryPoint { location, .. }
             | ResolverError::DataBusOnWrongPosition { location, .. }
             | ResolverError::RemovedType { location, .. }
-            | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
+            | ResolverError::MaximumRecursionDepthExceeded { location, .. }
+            | ResolverError::InvalidGlobalOverride { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
@@ -1093,6 +1096,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Reached the recursion limit during elaboration and type checking".into(),
                     "Try to simplify expressions".into(),
+                    *location,
+                )
+            },
+            ResolverError::InvalidGlobalOverride { name, message, location } => {
+                Diagnostic::simple_error(
+                    format!("Invalid `--define` override for global `{name}`"),
+                    message.clone(),
                     *location,
                 )
             },

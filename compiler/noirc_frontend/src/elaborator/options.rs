@@ -43,6 +43,13 @@ pub struct GenericOptions<'a, T> {
 
     /// Deny crates from requiring unstable features.
     pub disable_required_unstable_features: bool,
+
+    /// `NAME=VALUE` overrides for top-level global constants, supplied on the
+    /// command line via `nargo --define`/`-D`. When a global's name matches an
+    /// entry here, its initializer is ignored and the parsed value is used
+    /// instead. Independent of `T`, so it is shared verbatim between
+    /// [`FrontendOptions`] and [`ElaboratorOptions`].
+    pub global_overrides: &'a [(String, String)],
 }
 
 /// Options from nargo_cli that need to be passed down to the elaborator
@@ -59,6 +66,7 @@ impl<T> GenericOptions<'_, T> {
             debug_comptime_in_file: None,
             enabled_unstable_features: &[UnstableFeature::Enums],
             disable_required_unstable_features: true,
+            global_overrides: &[],
         }
     }
 }

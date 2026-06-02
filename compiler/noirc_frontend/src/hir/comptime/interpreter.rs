@@ -1977,6 +1977,7 @@ impl Context<'_, '_> {
 
             enabled_unstable_features,
             disable_required_unstable_features: false,
+            global_overrides: &[],
         };
         let module_id = ModuleId { krate: crate_id, local_id };
 

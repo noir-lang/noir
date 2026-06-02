@@ -79,3 +79,25 @@ to make the global public or `pub(crate)` to make it public to just its crate:
 // This global is now public
 pub global N: u32 = 5;
 ```
+
+### Overriding globals from the command line
+
+A global's value can be overridden at compile time with the `--define` (`-D`) flag, ignoring
+its declared initializer:
+
+```bash
+nargo compile -D N=256
+```
+
+```rust
+global N: u32 = 100; // compiled as 256 with the flag above
+```
+
+The flag can be passed multiple times (`-D A=1 -D B=2`) and is matched against globals by name.
+Only `bool`, `Field`, and integer-typed globals can be overridden; supplying a malformed value,
+a value that does not fit the global's type, or a name with an unsupported type is an error,
+while a name that matches no global is ignored.
+
+This is useful for producing differently-sized circuits from a single codebase — for example
+compiling "small", "medium", and "large" variants by overriding a size global, instead of
+maintaining a separate package for each size.

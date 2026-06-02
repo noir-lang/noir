@@ -482,6 +482,7 @@ fn dereference_immutable_reference() {
             debug_comptime_in_file: None,
             enabled_unstable_features: &[],
             disable_required_unstable_features: true,
+            global_overrides: &[],
         },
         ..Default::default()
     };

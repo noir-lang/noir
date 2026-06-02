@@ -549,6 +549,7 @@ impl DefCollector {
             debug_comptime_in_file,
             enabled_unstable_features: options.enabled_unstable_features,
             disable_required_unstable_features: options.disable_required_unstable_features,
+            global_overrides: options.global_overrides,
         };
 
         let more_errors =

@@ -179,6 +179,14 @@ pub struct CompileOptions {
     #[arg(long)]
     pub debug_comptime_in_file: Option<String>,
 
+    /// Override a top-level global constant's value at compile time, e.g.
+    /// `-D MAX_SIZE=100`. Can be passed multiple times. The named global's
+    /// initializer is ignored and the given value is used instead, which lets a
+    /// single codebase produce differently-sized circuits. Only `bool`, `Field`,
+    /// and integer-typed globals are supported.
+    #[arg(short = 'D', long = "define", value_name = "NAME=VALUE", value_parser = parse_global_override)]
+    pub defines: Vec<(String, String)>,
+
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
@@ -321,6 +329,7 @@ impl Default for CompileOptions {
             instrument_debug: false,
             force_brillig: false,
             debug_comptime_in_file: None,
+            defines: Vec::new(),
             show_artifact_paths: false,
             skip_underconstrained_check: false,
             skip_brillig_constraints_check: false,
@@ -397,8 +406,22 @@ impl CompileOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             enabled_unstable_features: &self.unstable_features,
             disable_required_unstable_features: self.no_unstable_features,
+            global_overrides: &self.defines,
         }
     }
+}
+
+/// Parses a `NAME=VALUE` global override as passed to `--define`/`-D`. The value
+/// may itself contain `=`; only the first `=` is treated as the separator.
+fn parse_global_override(arg: &str) -> Result<(String, String), String> {
+    let (name, value) = arg
+        .split_once('=')
+        .ok_or_else(|| format!("expected a `NAME=VALUE` global override, but found `{arg}`"))?;
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(format!("global override is missing a name: `{arg}`"));
+    }
+    Ok((name.to_string(), value.to_string()))
 }
 
 #[derive(Debug)]

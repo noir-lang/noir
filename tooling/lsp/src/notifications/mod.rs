@@ -446,6 +446,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         debug_comptime_in_file: None,
         enabled_unstable_features: &[UnstableFeature::Enums, UnstableFeature::TraitAsType],
         disable_required_unstable_features: false,
+        global_overrides: &[],
     };
 
     // This is when the type-checking of this single file happens

@@ -843,6 +843,7 @@ mod proptests {
                 debug_comptime_in_file: None,
                 enabled_unstable_features: &[],
                 disable_required_unstable_features: false,
+                global_overrides: &[],
             };
             let mut elaborator = Elaborator::from_context(
                 &mut context,
