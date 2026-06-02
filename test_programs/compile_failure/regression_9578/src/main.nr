@@ -4,12 +4,9 @@ struct Foo {
     c: [u64; 3],
 }
 
-// Printing references to enums don't work at the moment,
-// because instead of the tag, we get the address of the tag,
-// and we can't tell how many fields follow.
-// enum Bar {
-//     Baz((u32, [u32; 2])),
-// }
+// Printing references is not supported, because Oracles cannot handle 
+// references in parameters.
+// #9578 has been superseded by #12838
 
 unconstrained fn main() {
     show(1, ());
@@ -23,7 +20,6 @@ unconstrained fn main() {
     show(9, [1, 2, 3].as_vector());
     show(9, [(1, 2), (3, 4)].as_vector());
     show(10, Foo { a: 1, b: (true, [3, 4]), c: [5, 6, 7] });
-    // show(11, Bar::Baz((1, [2, 3])));
 }
 
 unconstrained fn show<T>(case: u32, mut value: T) {
