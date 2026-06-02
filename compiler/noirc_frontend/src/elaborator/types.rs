@@ -3398,6 +3398,17 @@ impl Elaborator<'_> {
     ) {
         self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
 
+        // A trait method's signature may reference an associated type inherited from a parent
+        // trait (e.g. `fn get(self) -> Self::A` on `Trait: Parent` where `Parent` defines `A`).
+        // Binding only this trait's associated types would leave such inherited associated types
+        // as unresolved `<T as Parent>::A` placeholders, so walk the parent hierarchy and bind
+        // their associated types too.
+        self.bind_parent_trait_associated_types(
+            &constraint.trait_bound,
+            bindings,
+            &mut BTreeSet::new(),
+        );
+
         // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
         // Otherwise `self` will be replaced with a fresh type variable, which will require the user
         // to specify a redundant type annotation.
@@ -3422,6 +3433,33 @@ impl Elaborator<'_> {
                     (param.type_var.clone(), param.kind(), arg.clone()),
                 );
             }
+        }
+    }
+
+    /// Recursively bind the ordered generics and associated types of every parent trait reachable
+    /// from `trait_bound`, instantiating each parent bound with the child's bindings as we go. This
+    /// makes associated types inherited from ancestor traits resolvable, not just those defined on
+    /// the trait named by `trait_bound`.
+    fn bind_parent_trait_associated_types(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+        bindings: &mut TypeBindings,
+        visited: &mut BTreeSet<TraitId>,
+    ) {
+        if !visited.insert(trait_bound.trait_id) {
+            return;
+        }
+
+        let parent_bounds: Vec<_> = self
+            .interner
+            .try_get_trait(trait_bound.trait_id)
+            .map(|the_trait| the_trait.parent_bounds().cloned().collect())
+            .unwrap_or_default();
+
+        for parent_bound in &parent_bounds {
+            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
+            self.bind_generics_from_trait_bound(&instantiated, bindings);
+            self.bind_parent_trait_associated_types(&instantiated, bindings, visited);
         }
     }
 
