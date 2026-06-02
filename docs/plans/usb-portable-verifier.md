@@ -35,11 +35,33 @@ A standalone tool written in Rust for performance and easy cross-compilation.
 - **Task 4.1**: Bundle all circuit bytecode into the Rust binary so the USB only needs to hold the `proof.json`.
 - **Task 4.2**: Ensure the web demo provides the correct OS-specific binary during provisioning.
 
+## Implementation Status
+
+### Phase 1 — Web Provisioning
+- [x] **Task 1.1**: WebUSB Serial Auto-Detection (`demo/usb-auth/src/app.js`)
+- [x] **Task 1.2**: File System Access API directory picker (`demo/usb-auth/src/app.js`)
+- [x] **Task 1.3**: USB Package download (proof.json + README.txt + verify-usb.bat/sh) (`demo/usb-auth/src/app.js`)
+
+### Phase 2 — Hardware Binding
+- [x] **Task 2.1**: `usb_serial` as public input in `demo/usb-auth/src/main.nr`
+- [ ] **Task 2.2**: Encrypted challenge protocol (not yet implemented; local file binding is the current MVP)
+
+### Phase 3 — Native Rust Verifier
+- [x] **Task 3.1**: `tooling/usb-verifier-rs` created (Rust binary, workspace member)
+- [x] **Task 3.2**: CLI mode (`--json`, `--quiet`), `--info` for circuit identity, serial binding check
+- [x] **Task 3.3**: Cross-compile targets supported (pure Rust, no C deps); platform serial detection on Windows/macOS/Linux
+
+### Phase 4 — Full Offline Integration
+- [x] **Task 4.1**: Circuit bytecode embedded in Rust binary (`src/circuit.rs` — `CIRCUIT.bytecode`)
+- [ ] **Task 4.2**: OS-specific binary links during web provisioning (requires GitHub Releases hosting)
+
 ## TODO List
-- [ ] Research File System Access API "Directory Picker" permissions.
-- [ ] Implement Windows/macOS/Linux serial detection in Rust.
-- [ ] Refactor `main.nr` to accept hardware serial as an input.
-- [ ] Build the "Provisioning UI" with WebUSB auto-detect.
+- [x] Research File System Access API "Directory Picker" permissions.
+- [x] Implement Windows/macOS/Linux serial detection in Rust.
+- [x] Refactor `main.nr` to accept hardware serial as an input.
+- [x] Build the "Provisioning UI" with WebUSB auto-detect.
+- [ ] Wire `bb verify` subprocess for cryptographic re-verification in the Rust binary.
+- [ ] Add GitHub Releases links for OS-specific binary download in provisioning UI.
 
 ---
 

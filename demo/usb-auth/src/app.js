@@ -11,6 +11,9 @@ const proveForm = document.querySelector('#prove-form');
 const registerOutput = document.querySelector('#register-output');
 const proveOutput = document.querySelector('#prove-output');
 const deviceOutput = document.querySelector('#device-output');
+const proofActions = document.querySelector('#proof-actions');
+
+let lastProofJson = null;
 
 registerForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -59,7 +62,9 @@ proveForm.addEventListener('submit', async (event) => {
     const deviceSecret = await provider.readSecret({ file, pin });
     const authInputs = await createAuthInputs({ deviceSecret, userId, usbSerial });
     const result = await generateAndVerifyProof(circuit, authInputs);
-    proveOutput.value = JSON.stringify(proofToJson(result), null, 2);
+    lastProofJson = proofToJson(result);
+    proveOutput.value = JSON.stringify(lastProofJson, null, 2);
+    proofActions.hidden = false;
   });
 });
 
@@ -91,6 +96,19 @@ document.querySelector('#webusb-button').addEventListener('click', async () => {
       deviceOutput.value = error.message;
     }
   });
+});
+
+document.querySelector('#download-proof').addEventListener('click', () => {
+  if (!lastProofJson) return;
+  downloadBlob(JSON.stringify(lastProofJson, null, 2), 'proof.json', 'application/json');
+});
+
+document.querySelector('#download-usb-package').addEventListener('click', () => {
+  if (!lastProofJson) return;
+  downloadBlob(JSON.stringify(lastProofJson, null, 2), 'proof.json', 'application/json');
+  downloadBlob(usbPackageReadme(lastProofJson), 'README.txt', 'text/plain');
+  downloadBlob(usbVerifyBat(), 'verify-usb.bat', 'text/plain');
+  downloadBlob(usbVerifySh(), 'verify-usb.sh', 'text/plain');
 });
 
 document.querySelector('#fido-button').addEventListener('click', async () => {
@@ -136,4 +154,73 @@ function downloadSecretFile(encryptedFile, filename) {
 
 function safeName(value) {
   return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'user';
+}
+
+function downloadBlob(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function usbPackageReadme(proofJson) {
+  const serial = proofJson?.publicInputs?.usb_serial ?? '(unknown)';
+  const nullifier = proofJson?.nullifier ?? '(unknown)';
+  return [
+    'USB ZK Auth — Portable Verifier Package',
+    '========================================',
+    '',
+    'This package contains a zero-knowledge proof bound to your USB hardware serial.',
+    '',
+    `USB Serial (embedded) : ${serial}`,
+    `Nullifier             : ${nullifier}`,
+    `Proof verified        : ${proofJson?.verified ? 'YES' : 'NO'}`,
+    '',
+    'To verify this proof offline:',
+    '  Windows : verify-usb.bat',
+    '  Linux/Mac: chmod +x verify-usb.sh && ./verify-usb.sh',
+    '',
+    'Both scripts use usb-verifier (download from GitHub Releases or build from source):',
+    '  https://github.com/noir-lang/noir/releases',
+    '',
+    'Build from source:',
+    '  cargo build -p usb-verifier --release',
+    '  # Binary at: target/release/usb-verifier',
+  ].join('\n');
+}
+
+function usbVerifyBat() {
+  return [
+    '@echo off',
+    'REM Verify a USB ZK proof bound to this drive\'s hardware serial.',
+    'REM Usage: verify-usb.bat [DRIVE_LETTER]',
+    'SET DRIVE=%1',
+    'IF "%DRIVE%"=="" SET DRIVE=D',
+    'usb-verifier --proof proof.json --drive %DRIVE% --json',
+    'IF %ERRORLEVEL% EQU 0 (',
+    '  echo PROOF VALID',
+    ') ELSE (',
+    '  echo PROOF INVALID',
+    ')',
+  ].join('\r\n');
+}
+
+function usbVerifySh() {
+  return [
+    '#!/bin/sh',
+    '# Verify a USB ZK proof bound to this drive\'s hardware serial.',
+    '# Usage: ./verify-usb.sh [/mount/point]',
+    'MOUNT="${1:-/media/$USER/USB}"',
+    './usb-verifier --proof proof.json --drive "$MOUNT" --json',
+    'STATUS=$?',
+    'if [ $STATUS -eq 0 ]; then',
+    '  echo "PROOF VALID"',
+    'else',
+    '  echo "PROOF INVALID"',
+    'fi',
+    'exit $STATUS',
+  ].join('\n');
 }

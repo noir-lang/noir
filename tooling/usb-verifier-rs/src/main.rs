@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod circuit;
 mod proof;
 mod serial;
 
@@ -18,8 +19,8 @@ use crate::{
 #[command(name = "usb-verifier", author, version, about)]
 struct Cli {
     /// Path to the proof.json file to verify.
-    #[arg(long, short = 'p', value_name = "FILE")]
-    proof: PathBuf,
+    #[arg(long, short = 'p', value_name = "FILE", required_unless_present = "info")]
+    proof: Option<PathBuf>,
 
     /// USB serial number to compare against the proof's public input.
     /// If omitted, attempts auto-detection using --drive / --mount.
@@ -38,6 +39,10 @@ struct Cli {
     /// Suppress all output; exit 0 for valid, 1 for invalid.
     #[arg(long, short = 'q')]
     quiet: bool,
+
+    /// Print circuit information (embedded bytecode identity) and exit.
+    #[arg(long)]
+    info: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -55,6 +60,15 @@ struct VerifyResult {
 fn main() {
     let cli = Cli::parse();
 
+    if cli.info {
+        let c = &circuit::CIRCUIT;
+        println!("Circuit  : {}", c.name);
+        println!("Noir     : {}", c.noir_version);
+        println!("Inputs   : {}", c.public_inputs.join(", "));
+        println!("Bytecode : {}...({} chars)", &c.bytecode[..16], c.bytecode.len());
+        return;
+    }
+
     match run(&cli) {
         Ok(result) => {
             if !cli.quiet {
@@ -67,7 +81,7 @@ fn main() {
             if !result.valid {
                 process::exit(1);
             }
-        }
+        },
         Err(msg) => {
             if !cli.quiet {
                 if cli.json {
@@ -83,7 +97,8 @@ fn main() {
 }
 
 fn run(cli: &Cli) -> Result<VerifyResult, String> {
-    let proof = ProofJson::from_file(&cli.proof).map_err(|e: ProofError| e.to_string())?;
+    let proof_path = cli.proof.as_deref().ok_or("--proof is required for verification")?;
+    let proof = ProofJson::from_file(proof_path).map_err(|e: ProofError| e.to_string())?;
 
     let expected_serial = proof.usb_serial().unwrap_or("0").to_string();
 
@@ -109,7 +124,7 @@ fn run(cli: &Cli) -> Result<VerifyResult, String> {
 
     // The proof.verified flag is set by the cryptographic backend at generation time.
     // If bb is available, re-verify; otherwise trust the flag.
-    let proof_verified = try_bb_verify(&proof, &cli.proof).unwrap_or(proof.verified);
+    let proof_verified = try_bb_verify(&proof, proof_path).unwrap_or(proof.verified);
 
     let valid = serial_match && proof_verified;
 
@@ -126,7 +141,7 @@ fn run(cli: &Cli) -> Result<VerifyResult, String> {
 
 /// Attempt verification via the `bb` barretenberg backend.
 /// Returns `None` if `bb` is not installed.
-fn try_bb_verify(_proof: &ProofJson, _proof_path: &PathBuf) -> Option<bool> {
+fn try_bb_verify(_proof: &ProofJson, _proof_path: &std::path::Path) -> Option<bool> {
     // Check if `bb` is in PATH.
     let check = std::process::Command::new("bb").arg("--version").output();
     if check.is_err() {

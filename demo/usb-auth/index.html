@@ -60,6 +60,10 @@
             <input id="secret-file" type="file" accept="application/json,.json" />
           </label>
           <button type="submit">Generate and verify proof</button>
+          <div class="actions" id="proof-actions" hidden>
+            <button id="download-proof" type="button" class="secondary">Download proof.json</button>
+            <button id="download-usb-package" type="button" class="secondary">Download USB Package</button>
+          </div>
           <output id="prove-output"></output>
         </form>
 
