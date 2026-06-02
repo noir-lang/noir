@@ -474,6 +474,32 @@ mod multi_scalar_mul {
 
     #[test]
     #[cfg(feature = "bn254")]
+    fn retains_witness_scalar_for_constant_infinity_point() {
+        // A point at infinity contributes nothing to the result regardless of the scalar,
+        // but eliding the term would also drop the range validation of the witness scalar
+        // limbs that the MSM blackbox enforces. The term must be retained.
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v2 = make_array [Field 0, Field 0] : [(Field, Field); 1]
+                v3 = make_array [v0, v1] : [(Field, Field); 1]
+                v4 = call multi_scalar_mul (v2, v3, u1 1) -> [(Field, Field); 1]
+                return v4
+            }"#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = make_array [Field 0, Field 0] : [(Field, Field); 1]
+            v4 = make_array [v0, v1] : [(Field, Field); 1]
+            v5 = make_array [Field 0, Field 0] : [(Field, Field); 1]
+            return v5
+        }
+        ");
+    }
+
+    #[test]
+    #[cfg(feature = "bn254")]
     fn partial_constant_folding() {
         let src = r#"
             acir(inline) fn main f0 {
