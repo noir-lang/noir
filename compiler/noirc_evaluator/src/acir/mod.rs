@@ -116,6 +116,10 @@ struct Context<'a> {
 
     /// Options affecting Brillig code generation.
     brillig_options: &'a BrilligOptions,
+
+    /// Constrained maximum bit width of each value in the function being converted, computed once
+    /// per function so that the per-comparison range analysis is not re-run for every `Lt`.
+    constrained_value_bits: HashMap<Id<Value>, u32>,
 }
 
 impl<'a> Context<'a> {
@@ -142,6 +146,7 @@ impl<'a> Context<'a> {
             shared_context,
             brillig,
             brillig_options,
+            constrained_value_bits: HashMap::default(),
         }
     }
 
@@ -192,6 +197,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
+        self.constrained_value_bits = dfg.constrained_value_max_num_bits();
         let entry_block = &dfg[main_func.entry_block()];
         self.acir_context.acir_ir.input_witnesses =
             self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
@@ -725,6 +731,17 @@ impl<'a> Context<'a> {
         }
     }
 
+    /// Returns the constrained maximum bit width of `value`.
+    ///
+    /// Uses the per-function snapshot computed in [`Self::convert_acir_main`], falling back to a
+    /// direct query for values not in it (such as globals).
+    fn constrained_value_max_num_bits(&self, value: ValueId, dfg: &DataFlowGraph) -> u32 {
+        self.constrained_value_bits
+            .get(&value)
+            .copied()
+            .unwrap_or_else(|| dfg.get_constrained_value_max_num_bits(value))
+    }
+
     /// Processes a binary operation and converts the result into an `AcirVar`
     fn convert_ssa_binary(
         &mut self,
@@ -757,8 +774,8 @@ impl<'a> Context<'a> {
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
             BinaryOp::Lt => match num_type {
                 NumericType::Unsigned { bit_size } => {
-                    let lhs_bits = dfg.get_constrained_value_max_num_bits(binary.lhs);
-                    let rhs_bits = dfg.get_constrained_value_max_num_bits(binary.rhs);
+                    let lhs_bits = self.constrained_value_max_num_bits(binary.lhs, dfg);
+                    let rhs_bits = self.constrained_value_max_num_bits(binary.rhs, dfg);
                     let comparison_bits = lhs_bits.max(rhs_bits).max(1).min(bit_size);
                     self.acir_context.less_than_var(lhs, rhs, comparison_bits)
                 }

@@ -567,6 +567,14 @@ impl DataFlowGraph {
         range_analysis::Analysis::new(self).constrained_bits(value)
     }
 
+    /// Returns [`Self::get_constrained_value_max_num_bits`] for every value in one fixed-point pass.
+    ///
+    /// A pass querying many values (such as ACIR generation) should build this once rather than
+    /// re-running the analysis per value.
+    pub(crate) fn constrained_value_max_num_bits(&self) -> HashMap<ValueId, u32> {
+        range_analysis::Analysis::new(self).constrained_bits_all()
+    }
+
     /// Returns the inferred unsigned bounds for every value in a single fixed-point computation.
     ///
     /// A pass querying many values should build this once rather than re-running the analysis per

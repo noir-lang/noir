@@ -120,6 +120,19 @@ impl<'dfg> Analysis<'dfg> {
             .collect()
     }
 
+    /// Returns [`Self::constrained_bits`] for every numeric value, computed in a single fixed point.
+    ///
+    /// A pass that queries many values should build this once, since each fixed point is a full
+    /// pass over the function. Non-numeric values are omitted, since they have no bit width.
+    pub(super) fn constrained_bits_all(&self) -> HashMap<ValueId, u32> {
+        let facts = self.infer_facts(true);
+        self.dfg
+            .values_iter()
+            .filter(|(value, _)| self.dfg.type_of_value(*value).is_numeric())
+            .map(|(value, _)| (value, self.value_bits(value, &facts)))
+            .collect()
+    }
+
     fn value_bits(&self, value: ValueId, facts: &Facts) -> u32 {
         let value_bit_size = self.dfg.type_of_value(value).bit_size();
         if let Some(range) = facts.range(value) {
