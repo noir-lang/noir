@@ -82,21 +82,24 @@ fn on_goto_definition_inner(
 mod goto_definition_tests {
     use std::panic;
 
-    use crate::test_utils::{self, search_in_file};
+    use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;
 
-    async fn expect_goto_for_all_references(directory: &str, name: &str, definition_index: usize) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        let ranges = search_in_file(noir_text_document.path(), name);
+    /// Run goto-definition from every occurrence of `name` in `src` and assert each lands at
+    /// the `definition_index`-th occurrence. The definition position itself is skipped because
+    /// goto on a definition does not currently return itself.
+    async fn expect_goto_for_all_references(src: &str, name: &str, definition_index: usize) {
+        let ranges = search_in_text(src, name);
         let expected_range = ranges[definition_index];
 
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
+                .await;
+
         for (index, range) in ranges.iter().enumerate() {
-            // Ideally "go to" at the definition should return the same location, but this isn't currently
-            // working. But it's also not that important, so we'll keep it for later.
             if index == definition_index {
                 continue;
             }
@@ -124,6 +127,43 @@ mod goto_definition_tests {
             } else {
                 panic!("Expected a scalar response");
             }
+        }
+    }
+
+    /// Run goto-definition at the `>|<` cursor in `src` and assert the response targets the
+    /// `[[...]]` range, also embedded in `src`. Both markers are stripped before the source
+    /// is sent to the LSP, so the test reads as "click here, expect to land there" without
+    /// any line/character arithmetic in the assertion.
+    async fn expect_goto_inline(src: &str) {
+        let (cleaned, cursor, expected_target) = test_utils::parse_cursor_and_target_marker(src);
+        let (mut state, noir_text_document) = test_utils::init_lsp_server_with_inline_source(
+            "document_symbol",
+            "src/main.nr",
+            &cleaned,
+        )
+        .await;
+
+        let params = GotoDefinitionParams {
+            text_document_position_params: lsp_types::TextDocumentPositionParams {
+                text_document: lsp_types::TextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                },
+                position: cursor,
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let response = on_goto_definition_request(&mut state, params)
+            .await
+            .expect("Could execute on_goto_definition_request")
+            .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
+
+        if let GotoDefinitionResponse::Scalar(location) = response {
+            assert_eq!(location.uri, noir_text_document);
+            assert_eq!(location.range, expected_target);
+        } else {
+            panic!("Expected a scalar response");
         }
     }
 
@@ -161,19 +201,37 @@ mod goto_definition_tests {
 
     #[test]
     async fn goto_from_function_location_to_declaration() {
-        expect_goto_for_all_references("go_to_definition", "another_function", 0).await;
+        expect_goto_for_all_references(
+            r#"fn another_function() -> Field {
+    1
+}
+
+fn main() {
+    another_function();
+    another_function();
+}
+"#,
+            "another_function",
+            0,
+        )
+        .await;
     }
 
     #[test]
     async fn goto_from_use_as() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 7, character: 29 }, // The word after `as`,
-            "src/main.nr",
-            Range {
-                start: Position { line: 1, character: 11 },
-                end: Position { line: 1, character: 27 },
-            },
+        // Clicking on the `aliased_function` introduced by `use ... as` jumps to the
+        // underlying function declaration (marked by `[[...]]`).
+        expect_goto_inline(
+            r#"mod foo {
+    pub fn [[another_function]]() -> Field { 1 }
+}
+
+use foo::another_function as >|<aliased_function;
+
+fn main() {
+    let _ = aliased_function();
+}
+"#,
         )
         .await;
     }
@@ -208,14 +266,13 @@ mod goto_definition_tests {
 
     #[test]
     async fn goto_module_from_use_path() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 6, character: 4 }, // "foo" in "use foo::another_function;"
-            "src/main.nr",
-            Range {
-                start: Position { line: 0, character: 4 },
-                end: Position { line: 0, character: 7 },
-            },
+        expect_goto_inline(
+            r#"mod [[foo]] {
+    pub fn another_function() -> Field { 1 }
+}
+
+use >|<foo::another_function;
+"#,
         )
         .await;
     }
@@ -236,35 +293,26 @@ mod goto_definition_tests {
 
     #[test]
     async fn goto_for_local_variable() {
-        expect_goto_for_all_references("local_variable", "some_var", 0).await;
+        expect_goto_for_all_references(
+            r#"fn main() {
+    let some_var = 1;
+    let _ = some_var + some_var;
+}
+"#,
+            "some_var",
+            0,
+        )
+        .await;
     }
 
     #[test]
     async fn goto_at_struct_definition_finds_same_struct() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 21, character: 7 }, // "Foo" in "struct Foo"
-            "src/main.nr",
-            Range {
-                start: Position { line: 21, character: 7 },
-                end: Position { line: 21, character: 10 },
-            },
-        )
-        .await;
+        expect_goto_inline("struct [[>|<Foo]] {}\n").await;
     }
 
     #[test]
     async fn goto_at_trait_definition_finds_same_trait() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 25, character: 6 }, // "Trait" in "trait Trait"
-            "src/main.nr",
-            Range {
-                start: Position { line: 25, character: 6 },
-                end: Position { line: 25, character: 11 },
-            },
-        )
-        .await;
+        expect_goto_inline("trait [[>|<Trait]] {}\n").await;
     }
 
     #[test]
@@ -283,22 +331,32 @@ mod goto_definition_tests {
 
     #[test]
     async fn goto_attribute_function() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 31, character: 3 }, // "attr"
-            "src/main.nr",
-            Range {
-                start: Position { line: 34, character: 12 },
-                end: Position { line: 34, character: 16 },
-            },
+        expect_goto_inline(
+            r#"#[>|<attr]
+pub fn foo() {}
+
+comptime fn [[attr]](_: FunctionDefinition) -> Quoted {
+    quote { pub fn hello() {} }
+}
+"#,
         )
         .await;
     }
 
     #[test]
     async fn goto_reference_in_doc_comment() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("go_to_definition").await;
-        let position = Position { line: 38, character: 10 };
+        let src = r#"struct Foo {}
+
+/// See [F>|<oo].
+fn test_doc_comment() {}
+"#;
+        let (mut state, noir_text_document, position, src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
@@ -320,30 +378,14 @@ mod goto_definition_tests {
         };
         assert_eq!(links.len(), 1);
         let link = &links[0];
-        assert!(link.target_uri.to_string().ends_with("src/main.nr"));
+        assert_eq!(link.target_uri, noir_text_document);
 
-        // This range is `[Foo]` in the doc comment
-        assert_eq!(
-            link.origin_selection_range,
-            Some(Range {
-                start: Position { line: 38, character: 8 },
-                end: Position { line: 38, character: 13 },
-            },)
-        );
+        // Origin = the `[Foo]` clicked in the doc comment.
+        let origin = link.origin_selection_range.expect("Expected an origin_selection_range");
+        assert_eq!(test_utils::text_at(&src, origin), "[Foo]");
 
-        assert_eq!(
-            link.target_range,
-            Range {
-                start: Position { line: 21, character: 7 },
-                end: Position { line: 21, character: 10 },
-            }
-        );
-        assert_eq!(
-            link.target_selection_range,
-            Range {
-                start: Position { line: 21, character: 7 },
-                end: Position { line: 21, character: 10 },
-            }
-        );
+        // Target = `Foo` in `struct Foo {}`.
+        assert_eq!(test_utils::text_at(&src, link.target_range), "Foo");
+        assert_eq!(link.target_selection_range, link.target_range);
     }
 }

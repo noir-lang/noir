@@ -72,4 +72,8 @@ pub enum AbiError {
     ReturnTypeMismatch { return_type: AbiType, value: InputValue },
     #[error("No return value is expected but received {0:?}")]
     UnexpectedReturnValue(InputValue),
+    #[error(
+        "Could not decode string parameter `{name}`: witness value {value} is not a valid byte (must be in the range 0..=255)"
+    )]
+    StringValueOutsideByteRange { name: String, value: FieldElement },
 }

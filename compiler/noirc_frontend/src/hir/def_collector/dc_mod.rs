@@ -263,6 +263,7 @@ impl ModCollector<'_> {
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
                 unresolved_associated_types: Vec::new(),
+                inherited_default_method_func_ids: Default::default(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -1465,7 +1466,12 @@ pub fn collect_impl(
 
     let key = (r#impl.object_type, module_id.local_id);
     let methods = items.impls.entry(key).or_default();
-    methods.push((r#impl.generics, r#impl.type_location, unresolved_functions));
+    methods.push((
+        r#impl.generics,
+        r#impl.where_clause,
+        r#impl.type_location,
+        unresolved_functions,
+    ));
 }
 
 fn find_module(

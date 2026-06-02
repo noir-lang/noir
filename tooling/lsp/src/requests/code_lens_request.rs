@@ -287,32 +287,17 @@ fn debug_test_lens(
 mod tests {
 
     use async_lsp::lsp_types::{
-        CodeLensParams, DidOpenTextDocumentParams, PartialResultParams, TextDocumentIdentifier,
-        TextDocumentItem, WorkDoneProgressParams,
+        CodeLensParams, PartialResultParams, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use iter_extended::vecmap;
     use serde_json::Value;
     use tokio::test;
 
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_code_lens_request, test_utils,
-        types::CodeLensResult,
-    };
+    use crate::{requests::on_code_lens_request, test_utils, types::CodeLensResult};
 
     async fn get_code_lens(src: &str, directory: &str) -> CodeLensResult {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source(directory, "src/main.nr", src).await;
 
         on_code_lens_request(
             &mut state,

@@ -973,7 +973,7 @@ fn vector_remove_affected_by_predicate() {
 #[test]
 fn as_vector_for_composite_vector() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0():
         v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [(Field, Field); 2]
         v4, v5 = call as_vector(v3) -> (u32, [(Field, Field)])

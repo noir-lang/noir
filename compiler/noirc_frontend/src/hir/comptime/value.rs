@@ -586,7 +586,15 @@ impl Value {
                 })?;
                 HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
-            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
+            Value::Closure(closure) => {
+                // Captures would point at interpreter-only locals that don't exist at runtime.
+                if closure.lambda.captures.is_empty() {
+                    HirExpression::Lambda(closure.lambda.clone())
+                } else {
+                    let value = Value::Closure(closure).display(interner, files).to_string();
+                    return Err(InterpreterError::CannotInlineMacro { value, typ, location });
+                }
+            }
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
             Value::Pointer(element, true, _) => {

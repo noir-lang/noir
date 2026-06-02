@@ -322,7 +322,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
-            | Token::DeprecatedVectorStart
             | Token::ShiftLeft
             | Token::ShiftRight
             | Token::LogicalAnd => {
@@ -554,7 +553,7 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::ModuleDefinition(module_id) => {
                 if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
-                    write!(f, "{}", &attributes.name)
+                    write!(f, "{}", attributes.name)
                 } else {
                     write!(f, "(crate root)")
                 }
