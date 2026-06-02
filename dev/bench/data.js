@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780420731591,
+  "lastUpdate": 1780421497993,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23070,48 +23070,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "bf1f2b3f2320974eeb62f717f5dcc141a5ee0000",
-          "message": "fix(ast_fuzzer): forbid rebinding `&mut T` locals in constrained code (#12791)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-05-26T13:45:33Z",
-          "tree_id": "7958015e49c24ae9d54036bd0ebe4a9d23567d67",
-          "url": "https://github.com/noir-lang/noir/commit/bf1f2b3f2320974eeb62f717f5dcc141a5ee0000"
-        },
-        "date": 1779804732324,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128728,
-            "range": "± 1005",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 114011,
-            "range": "± 2175",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042002,
-            "range": "± 18027",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "f5f13815866097e3613af212bcf06a281bc51104",
           "message": "fix(acvm): require recursive aggregation operands in validate_witness (#12795)",
@@ -25154,6 +25112,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644002,
             "range": "± 49557",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8799409b872305367a7351b3744205d00979c401",
+          "message": "feat(fmt): comments reflow (#12746)",
+          "timestamp": "2026-06-02T17:04:59Z",
+          "tree_id": "314c3f0bc03caaefe4b28698f1eb9f5e0ae61bb0",
+          "url": "https://github.com/noir-lang/noir/commit/8799409b872305367a7351b3744205d00979c401"
+        },
+        "date": 1780421432603,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167444,
+            "range": "± 1212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136941,
+            "range": "± 596",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647396,
+            "range": "± 37397",
             "unit": "ns/iter"
           }
         ]
