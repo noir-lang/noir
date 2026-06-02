@@ -1,0 +1,105 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Verifies the implicit invariant that Brillig SSA must satisfy around `array_set` and reference counts."><title>noirc_evaluator::ssa::validation::array_set_rc_invariant - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.22</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module array_<wbr>set_<wbr>rc_<wbr>invariant</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-invariant" title="The invariant">The invariant</a></li><li><a href="#algorithm" title="Algorithm">Algorithm</a></li><li><a href="#precondition" title="Precondition">Precondition</a></li><li><a href="#known-limitations" title="Known limitations">Known limitations</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>validation</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">validation</a></div><h1>Module <span>array_set_rc_invariant</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1-2676">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Verifies the implicit invariant that Brillig SSA must satisfy around
+<code>array_set</code> and reference counts.</p>
+<h2 id="the-invariant"><a class="doc-anchor" href="#the-invariant">§</a>The invariant</h2>
+<p>In Brillig, <code>array_set vX, i, x</code> may modify <code>vX</code>’s storage in place at runtime
+when <code>vX</code>’s reference count is 1. SSA-level semantics still says <code>vX</code> is unchanged
+and the array_set produces a fresh value; the in-place mutation is a runtime
+optimization that’s only sound when no later use can observe <code>vX</code>’s pre-mutation
+contents through aliasing.</p>
+<p>Two mechanisms keep the optimization invisible to SSA semantics:</p>
+<ol>
+<li><strong><code>inc_rc</code></strong> before the <code>array_set</code> forces RC ≥ 2 at runtime so <code>array_set</code>
+copies rather than mutating in place.</li>
+<li><strong>Block-parameter threading</strong> routes the post-mutation value forward as a new
+SSA value (the <code>array_set</code>’s result), so no later instruction references
+<code>vX</code> after the mutation.</li>
+</ol>
+<p>The frontend uses whichever mechanism the program needs. This pass verifies
+that one of them is in place for every <code>array_set</code> whose source has an
+aliased use reachable forward in the CFG.</p>
+<h2 id="algorithm"><a class="doc-anchor" href="#algorithm">§</a>Algorithm</h2>
+<p>For each <code>array_set vX, …</code>:</p>
+<ol>
+<li>
+<p><strong>Backward alias-set.</strong> Compute the set of values that may share <code>vX</code>’s
+storage <em>at the array_set’s program point</em> by walking block-parameter →
+predecessor-arg edges backward to a fixed point. Only aliasing introduced
+by the values that flow <em>into</em> <code>vX</code>’s binding is included. Filtered to
+drop values that can’t represent pre-mutation storage: <code>array_set</code> /
+<code>Call</code> results (always fresh), iteration-local <code>MakeArray</code>s (back-edge
+args), and instruction results defined in the array_set’s own block at
+an index after the array_set (they can land in the backward set
+through a forward-then-back round-trip, but don’t exist as storage
+at the array_set’s program point yet).</p>
+</li>
+<li>
+<p><strong>inc_rc precedence / back-edge-participant.</strong> If some <code>inc_rc</code> on an
+alias-set member either RPO-precedes the array_set or sits on a
+non-source alias that’s also a loop back-edge arg, accept — the
+frontend is deliberately managing iteration aliasing.</p>
+</li>
+<li>
+<p><strong>Forward walk.</strong> Otherwise, walk the CFG forward from the array_set with
+the alias-set as the initial use-set. At each block-parameter crossing
+we both <strong>kill</strong> params that the predecessor rebinds to a non-alias and
+<strong>add</strong> params whose arg is still an alias (so alias propagation stays
+accurate as the walk crosses joins and loops). The walk maintains two
+additional pieces of state:</p>
+<ul>
+<li><strong><code>derived</code></strong>, the set of values that may share the source’s storage
+through transitive in-place chain mutations. Seeded with the
+array_set’s own result; extended by every later <code>array_set</code> whose
+<code>array</code> operand is already in <code>derived</code>.</li>
+<li><strong><code>tainted_indices</code></strong>, the storage positions any chain link may
+already have written. Seeded with the array_set’s own write index
+(when constant) and widened by chain-link writes; collapsed to “all
+positions” if any chain link uses a dynamic index.</li>
+</ul>
+<p>An <code>array_get</code> on a use-set member is a hazard iff its read index is
+covered by <code>tainted_indices</code>. Non-<code>array_get</code> uses are always hazards.
+An <code>inc_rc v</code> with <code>v ∈ use_set ∪ derived</code> lifts the storage’s RC,
+so chain writes after it run on fresh storage — <code>derived</code> is cleared
+at that point. <code>tainted_indices</code> is <em>not</em> cleared: prior chain writes
+have already mutated the source’s storage.</p>
+</li>
+</ol>
+<h2 id="precondition"><a class="doc-anchor" href="#precondition">§</a>Precondition</h2>
+<p>Must be run <strong>after <code>mem2reg_brillig</code></strong>. The alias walk through
+block-parameter edges only reflects post-mem2reg aliasing; pre-mem2reg, an
+<code>Allocate</code>/<code>Store</code>/<code>Load</code> chain would route aliasing through references that
+this pass does not track.</p>
+<h2 id="known-limitations"><a class="doc-anchor" href="#known-limitations">§</a>Known limitations</h2>
+<p>The verifier walks aliasing <em>only</em> through block-parameter edges. The
+following are not tracked and are documented gaps:</p>
+<ul>
+<li><strong>Sibling-args-of-same-value.</strong> A <code>jmp b1(v, v)</code> makes <code>b1</code>’s two
+parameters runtime-equal, but the backward walk doesn’t see this — each
+parameter’s backward set includes <code>v</code> but not the other parameter. The
+<code>end_to_end_sibling_args_to_same_value_is_false_negative</code> and
+<code>end_to_end_sibling_args_across_jmp_is_false_negative</code> tests pin this
+down as documented false negatives.</li>
+<li><strong>Nested-array <code>MakeArray</code></strong>, <strong><code>IfElse</code> on arrays</strong>, <strong>non-inlined
+<code>Call</code> returns</strong>, <strong><code>Store</code>/<code>Load</code> on ineligible (nested-ref)
+allocates</strong> — same as before.</li>
+</ul>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.AliasedUse.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::AliasedUse">Aliased<wbr>Use</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>A non-terminator instruction reachable forward from an <code>array_set</code> that
+reads a value still in the alias-set — the <em>aliased use</em> that the
+reachable-use walk surfaced. Carries both pieces so callers can build a
+diagnostic that names the offending alias value and the instruction
+that observed it.</dd><dt><a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::Context">Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Pre-computed indices over a Brillig function. The verifier’s per-array_set
+checks read from these structures rather than re-scanning the function.</dd><dt><a class="struct" href="struct.WalkFrame.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkFrame">Walk<wbr>Frame</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>One entry on the forward reachable-use walk’s worklist: a block to
+enter, the instruction index to start at within that block, and the
+walk’s evolving state. <code>start_idx &gt; 0</code> denotes the very first frame,
+which continues inside the array_set’s own block past the array_set
+instruction itself; all later frames enter at block start.</dd><dt><a class="struct" href="struct.WalkState.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState">Walk<wbr>State</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Per-frame state of the forward reachable-use walk: which alias-set
+members are live, which chain-derived values share storage with the
+source, and which storage positions any chain link may already have
+clobbered. Also serves as the per-block visited frontier for cycle
+detection — see <a href="struct.WalkState.html#method.is_covered_by" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState::is_covered_by"><code>WalkState::is_covered_by</code></a> / <a href="struct.WalkState.html#method.merge" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState::merge"><code>WalkState::merge</code></a>.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.compute_backward_aliases.html" title="fn noirc_evaluator::ssa::validation::array_set_rc_invariant::compute_backward_aliases">compute_<wbr>backward_<wbr>aliases</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Compute, for each array-typed block parameter, the set of values that
+may share its storage at the parameter’s binding — itself plus every
+value that flows into it through some chain of predecessor →
+block-parameter edges.</dd><dt><a class="fn" href="fn.verify_array_set_rc_invariant.html" title="fn noirc_evaluator::ssa::validation::array_set_rc_invariant::verify_array_set_rc_invariant">verify_<wbr>array_<wbr>set_<wbr>rc_<wbr>invariant</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Verifies the <code>array_set</code> / <code>inc_rc</code> aliasing invariant on every Brillig
+function in <code>ssa</code>. See the module-level docs for details.</dd><dt><a class="fn" href="fn.verify_function.html" title="fn noirc_evaluator::ssa::validation::array_set_rc_invariant::verify_function">verify_<wbr>function</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Per-function entry point. Skips ACIR functions (the invariant only
+applies to Brillig, where <code>array_set</code> may mutate in place) and runs the
+alias / dominance / reachable-use checks for every <code>array_set</code> in the
+function.</dd></dl></section></div></main></body></html>

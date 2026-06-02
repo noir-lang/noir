@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["is_non_dynamic"]};
+window.SIDEBAR_ITEMS = {"fn":["is_non_dynamic","verify_function","verify_no_dynamic_indices_to_references"]};
