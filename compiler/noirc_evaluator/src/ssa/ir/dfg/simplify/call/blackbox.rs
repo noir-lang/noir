@@ -92,19 +92,16 @@ fn simplify_msm_helper(
                 constant_points.push(FieldElement::zero());
                 constant_points.push(FieldElement::zero());
             }
-            // The point at infinity is (0, 0); its contribution is always zero regardless of scalar.
-            (_, _, Some(x), Some(y)) if x.is_zero() && y.is_zero() => {
-                constant_scalars_lo.push(FieldElement::zero());
-                constant_scalars_hi.push(FieldElement::zero());
-                constant_points.push(FieldElement::zero());
-                constant_points.push(FieldElement::zero());
-            }
             (Some(lo), Some(hi), Some(x), Some(y)) => {
                 constant_scalars_lo.push(lo);
                 constant_scalars_hi.push(hi);
                 constant_points.push(x);
                 constant_points.push(y);
             }
+            // A point at infinity (0, 0) contributes nothing to the result, but a term with a
+            // witness scalar is still kept as a variable term rather than elided: the MSM blackbox
+            // range-validates witness scalar limbs, so dropping the term would silently remove that
+            // validation.
             _ => {
                 var_points.push(points[2 * i]);
                 var_points.push(points[2 * i + 1]);
@@ -458,14 +455,16 @@ mod multi_scalar_mul {
 
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        //First point is zero (point at infinity), second scalar is zero, so we should be left with the scalar mul of the last point.
+        // The second scalar is a constant zero, so that term is dropped. The first point is the
+        // point at infinity, but its scalar is a witness, so the term is retained to preserve the
+        // scalar limb range validation; it is kept alongside the last point.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
             v5 = make_array [Field 0, Field 0, v0, v1, Field 1, v0] : [(Field, Field); 3]
-            v6 = make_array [v0, Field 0] : [(Field, Field); 1]
-            v7 = make_array [Field 1, v0] : [(Field, Field); 1]
+            v6 = make_array [v0, Field 0, v0, Field 0] : [(Field, Field); 2]
+            v7 = make_array [Field 0, Field 0, Field 1, v0] : [(Field, Field); 2]
             v10 = call multi_scalar_mul(v7, v6, u1 1) -> [(Field, Field); 1]
             return v10
         }
@@ -492,8 +491,8 @@ mod multi_scalar_mul {
           b0(v0: Field, v1: Field):
             v3 = make_array [Field 0, Field 0] : [(Field, Field); 1]
             v4 = make_array [v0, v1] : [(Field, Field); 1]
-            v5 = make_array [Field 0, Field 0] : [(Field, Field); 1]
-            return v5
+            v7 = call multi_scalar_mul(v3, v4, u1 1) -> [(Field, Field); 1]
+            return v7
         }
         ");
     }
