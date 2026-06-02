@@ -16,7 +16,7 @@ The prompt walks you through setting up and interacting with a basic Noir projec
 Additionally, paste this into your AI agent to install Noir's MCP server:
 
 ```
-If you support MCP, install noir-mcp-server following the instructions in https://github.com/critesjosh/noir-mcp-server/blob/master/README.md#install; test and make sure it is properly installed and configured to be accessible whenever you would need it (e.g. answering Noir questions, writing Noir code)
+If you support MCP, install Noir's MCP server following the instructions in https://github.com/noir-lang/mcp-server/blob/master/README.md#install; test and make sure it is properly installed and configured to be accessible whenever you would need it (e.g. answering Noir questions, writing Noir code)
 ```
 
-The prompt installs [noir-mcp-server](https://github.com/critesjosh/noir-mcp-server), which provides your AI agent with efficient access to Noir's repository, documentation, libraries, etc.
+The prompt installs [Noir's MCP server](https://github.com/noir-lang/mcp-server), which provides your AI agent with efficient access to Noir's repository, documentation, libraries, etc.
