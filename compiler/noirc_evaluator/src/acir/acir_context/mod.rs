@@ -1554,7 +1554,7 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, ops::Sub};
+    use std::collections::BTreeMap;
 
     use acvm::{
         AcirField, FieldElement,
@@ -1719,6 +1719,5 @@ mod tests {
         context.acir_ir.input_witnesses = vec![lhs_witness, rhs_witness, predicate_witness];
 
         context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
-
     }
 }
