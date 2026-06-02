@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { webcrypto } from 'node:crypto';
 import { createEncryptedSecretFile, serializeEncryptedSecretFile } from '../src/secret-file.js';
-import { FidoHsmSecretProvider, NodePathSecretProvider, WebUsbSecretProvider } from '../src/secret-providers.js';
+import { NodePathSecretProvider } from '../src/node-providers.js';
+import { FidoHsmSecretProvider, WebUsbSecretProvider } from '../src/secret-providers.js';
 
 describe('secret providers', () => {
   it('reads an encrypted secret from a local path', async () => {

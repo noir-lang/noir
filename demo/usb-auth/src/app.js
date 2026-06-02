@@ -1,9 +1,18 @@
 import './style.css';
-import circuit from './circuit-artifact.js';
 import { BrowserFileSecretProvider, FidoHsmSecretProvider, WebUsbSecretProvider } from './secret-providers.js';
 import { createEncryptedSecretFile, serializeEncryptedSecretFile } from './secret-file.js';
 import { randomField, userIdToField, computeCommitment } from './fields.js';
-import { createAuthInputs, generateAndVerifyProof, proofToJson } from './proof.js';
+
+// proof.js pulls in @aztec/bb.js (141 MB WASM package). Import it lazily so
+// the dev server never analyzes it at startup — only loaded when the user
+// actually clicks "Generate proof".
+async function loadProof() {
+  const [{ createAuthInputs, generateAndVerifyProof, proofToJson }, { default: circuit }] = await Promise.all([
+    import('./proof.js'),
+    import('./circuit-artifact.js'),
+  ]);
+  return { createAuthInputs, generateAndVerifyProof, proofToJson, circuit };
+}
 
 const status = document.querySelector('#status');
 const registerForm = document.querySelector('#register-form');
@@ -53,7 +62,9 @@ registerForm.addEventListener('submit', async (event) => {
 
 proveForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  await withBusy('Generating proof', async () => {
+  await withBusy('Loading ZK backend…', async () => {
+    const { createAuthInputs, generateAndVerifyProof, proofToJson, circuit } = await loadProof();
+    status.textContent = 'Generating proof';
     const userId = document.querySelector('#prove-user').value.trim();
     const pin = document.querySelector('#prove-pin').value;
     const usbSerial = document.querySelector('#usb-serial').value || '0';

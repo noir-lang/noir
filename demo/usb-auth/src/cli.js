@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from 'node:fs/promises';
 import { createEncryptedSecretFile, serializeEncryptedSecretFile } from './secret-file.js';
-import { NodePathSecretProvider } from './secret-providers.js';
+import { NodePathSecretProvider } from './node-providers.js';
 import { computeCommitment, randomField, userIdToField } from './fields.js';
 import { createAuthInputs, generateAndVerifyProof, proofToJson } from './proof.js';
 import circuit from './circuit-artifact.js';

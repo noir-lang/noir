@@ -7,15 +7,18 @@
     "usb-auth": "./src/cli.js"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node --max-old-space-size=8192 ../../node_modules/vite/bin/vite.js --host 127.0.0.1",
     "generate:circuit": "node scripts/generate-circuit-artifact.js",
-    "build": "vite build",
+    "build": "node ../../node_modules/vite/bin/vite.js build",
     "test": "mocha --exit --timeout 30000 test/fields.test.js test/providers.test.js test/secret-file.test.js",
     "test:proof": "mocha --exit --timeout 120000 test/proof.test.js"
   },
   "dependencies": {
     "@aztec/bb.js": "5.0.0-nightly.20260522",
-    "@noir-lang/noir_js": "workspace:*"
+    "@noir-lang/noir_js": "workspace:*",
+    "@vitejs/plugin-react": "^6.0.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",

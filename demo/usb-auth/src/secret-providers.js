@@ -11,25 +11,6 @@ export class BrowserFileSecretProvider {
   }
 }
 
-export class NodePathSecretProvider {
-  async readSecret({ path, pin }) {
-    if (!path) {
-      throw new Error('Missing --secret path.');
-    }
-    const { readFile } = await import(/* @vite-ignore */ 'node:fs/promises');
-    const encryptedFile = parseEncryptedSecretFile(await readFile(path, 'utf8'));
-    return decryptSecretFile(encryptedFile, pin);
-  }
-
-  async writeSecret({ path, contents }) {
-    if (!path) {
-      throw new Error('Missing --out path.');
-    }
-    const { writeFile } = await import(/* @vite-ignore */ 'node:fs/promises');
-    await writeFile(path, contents, 'utf8');
-  }
-}
-
 export class WebUsbSecretProvider {
   async readSecret({ filters = [] } = {}) {
     if (!globalThis.navigator?.usb) {
