@@ -256,10 +256,13 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -931,12 +934,9 @@ impl Binary {
             | BinaryOp::Mul { unchecked: false } => {
                 match dfg.type_of_value(self.rhs).unwrap_numeric() {
                     NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
+                    // Non-field integer arithmetic can overflow or underflow, so it needs a
+                    // predicate to guard the side effect.
+                    NumericType::Unsigned { .. } | NumericType::Signed { .. } => true,
                 }
             }
             BinaryOp::Shl | BinaryOp::Shr => {

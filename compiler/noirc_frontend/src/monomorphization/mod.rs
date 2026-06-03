@@ -2382,28 +2382,49 @@ impl<'interner> Monomorphizer<'interner> {
         for argument in &call.arguments {
             let typ = self.interner.id_type(argument);
             let location = self.interner.id_location(argument);
+            self.check_type_crossing_runtime_boundaries(&typ, location)?;
+        }
 
-            if typ.contains_mutable_reference() {
-                let typ = typ.to_string();
-                return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
-                    typ,
-                    location,
-                });
-            }
+        // For closure calls, monomorphization inserts the captured environment as a
+        // synthetic first argument *after* this check runs (see `function_call`), so it
+        // never appears in `call.arguments`. Validate the environment here as well;
+        // otherwise a mutable reference captured from constrained code could cross into
+        // an unconstrained closure call undetected, and its mutation would be silently
+        // lost at the ACIR/Brillig boundary.
+        let func_type = self.interner.id_type(call.func).follow_bindings();
+        if let Type::Function(_, _, env, _) = &func_type {
+            let location = self.interner.id_location(call.func);
+            self.check_type_crossing_runtime_boundaries(env, location)?;
+        }
 
-            // Only a direct immutable reference `&T` where T is reference-free is supported.
-            // Reject nested refs (&&T) and containers that embed refs ([&T; N], structs, etc.).
-            let has_unsupported_ref = match typ.follow_bindings_shallow().as_ref() {
-                Type::Reference(inner, false) => inner.contains_reference(),
-                _ => typ.contains_reference(),
-            };
-            if has_unsupported_ref {
-                let typ = typ.to_string();
-                return Err(MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
-                    typ,
-                    location,
-                });
-            }
+        Ok(())
+    }
+
+    fn check_type_crossing_runtime_boundaries(
+        &self,
+        typ: &Type,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        if typ.contains_mutable_reference() {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                typ,
+                location,
+            });
+        }
+
+        // Only a direct immutable reference `&T` where T is reference-free is supported.
+        // Reject nested refs (&&T) and containers that embed refs ([&T; N], structs, etc.).
+        let has_unsupported_ref = match typ.follow_bindings_shallow().as_ref() {
+            Type::Reference(inner, false) => inner.contains_reference(),
+            _ => typ.contains_reference(),
+        };
+        if has_unsupported_ref {
+            let typ = typ.to_string();
+            return Err(MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
+                typ,
+                location,
+            });
         }
 
         Ok(())
@@ -3217,14 +3238,13 @@ fn resolve_trait_item_impl(
 
     match trait_impl {
         TraitImplKind::Normal(impl_id) => {
-            // If the impl's matching method shares the trait's default-method `FuncId`
-            // (the impl inherited the default), bind the trait's `Self` to the impl's self
-            // type so monomorphization of the shared body can look up impl-specific items
-            // (`Self::N`, etc.). For overridden impl methods this is a no-op — the impl's
-            // own `FuncId` carries the binding via `set_function_trait`.
-            let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
-            bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
-            interner.store_instantiation_bindings(expr_id, bindings);
+            record_impl_instantiation_bindings(
+                interner,
+                method_id,
+                impl_id,
+                expr_id,
+                TypeBindings::default(),
+            );
             Ok(impl_id)
         }
         TraitImplKind::Prepared { .. } => {
@@ -3240,21 +3260,15 @@ fn resolve_trait_item_impl(
                 &trait_generics.named,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
-                    // Insert any additional instantiation bindings into this expression's instantiation bindings.
-                    // This is similar to what's done in `verify_trait_constraint` in the frontend.
-                    let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
-                    bindings.extend(instantiation_bindings);
-
-                    bind_trait_impl_func_generics_to_trait_func_generics(
+                    // The extra bindings come from impl lookup, similar to
+                    // what's done in `verify_trait_constraint` in the frontend.
+                    record_impl_instantiation_bindings(
                         interner,
                         method_id,
                         impl_id,
-                        &mut bindings,
+                        expr_id,
+                        instantiation_bindings,
                     );
-
-                    bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
-
-                    interner.store_instantiation_bindings(expr_id, bindings);
                     Ok(impl_id)
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
@@ -3293,6 +3307,29 @@ fn resolve_trait_item_impl(
             }
         }
     }
+}
+
+/// Apply all instantiation bindings needed once a concrete impl has been chosen for a
+/// trait-method call expression: merge in any bindings discovered during impl lookup,
+/// connect the impl method's direct generics to the trait method's generics, bind the
+/// trait's `Self` to the impl's self type when applicable, and store the result back.
+fn record_impl_instantiation_bindings(
+    interner: &mut NodeInterner,
+    method_id: TraitItemId,
+    impl_id: node_interner::TraitImplId,
+    expr_id: ExprId,
+    extra_bindings: TypeBindings,
+) {
+    let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
+    bindings.extend(extra_bindings);
+    bind_trait_impl_func_generics_to_trait_func_generics(
+        interner,
+        method_id,
+        impl_id,
+        &mut bindings,
+    );
+    bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
+    interner.store_instantiation_bindings(expr_id, bindings);
 }
 
 /// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's
