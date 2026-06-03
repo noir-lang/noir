@@ -26,7 +26,7 @@ use crate::{
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
-        opt::{LoopOrder, Loops},
+        opt::{LoopBounds, LoopOrder, Loops},
         ssa_gen::Ssa,
     },
 };
@@ -116,9 +116,7 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
 
         // We default to `true` if the bounds are dynamic so that we still
         // evaluate static assertion in dynamic loops.
-        let does_execute = const_bounds.is_none_or(|(lower_bound, upper_bound, kind)| {
-            kind.loop_executes(lower_bound, upper_bound)
-        });
+        let does_execute = const_bounds.is_none_or(LoopBounds::loop_executes);
 
         if !does_execute {
             blocks_within_empty_loop.extend(loop_.blocks);

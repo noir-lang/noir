@@ -108,7 +108,7 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::unrolling::{Loop, LoopBoundKind, LoopOrder, Loops};
+use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops};
 
 mod simplify;
 
@@ -221,9 +221,9 @@ struct LoopInvariantContext<'f> {
     /// This will be used by inner loops to determine whether they
     /// have safe operations reliant upon an outer loop's maximum induction variable
     outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    /// All induction variables collected up front, with the bound kind needed to decide
+    /// All induction variables collected up front, with the [`LoopBounds`] needed to decide
     /// whether each loop's body is guaranteed to execute (see [`does_loop_execute`]).
-    all_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant, LoopBoundKind)>,
+    all_induction_variables: HashMap<ValueId, LoopBounds>,
 
     cfg: ControlFlowGraph,
 
@@ -318,10 +318,10 @@ impl LoopContext {
             }
         }
         let induction = get_induction_var_bounds(inserter, loop_, pre_header);
-        let does_loop_execute =
-            does_loop_execute(induction.map(|(_, (lower, upper), _, kind)| (lower, upper, kind)));
-        let (induction_variable, induction_step) =
-            induction.map(|(var, bounds, step, _)| ((var, bounds), step)).unzip();
+        let does_loop_execute = does_loop_execute(induction.map(|(_, bounds, _)| bounds));
+        let (induction_variable, induction_step) = induction
+            .map(|(var, bounds, step)| ((var, (bounds.lower, bounds.upper)), step))
+            .unzip();
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -426,12 +426,12 @@ impl<'f> LoopInvariantContext<'f> {
 
         // Insert all loop bounds up front, so we can inspect both outer and nested loops.
         for loop_ in loops {
-            if let Some((induction_variable, (lower, upper), _, kind)) =
+            if let Some((induction_variable, bounds, _)) =
                 loop_.get_pre_header(context.inserter.function, &context.cfg).ok().and_then(
                     |pre_header| get_induction_var_bounds(&context.inserter, loop_, pre_header),
                 )
             {
-                context.all_induction_variables.insert(induction_variable, (lower, upper, kind));
+                context.all_induction_variables.insert(induction_variable, bounds);
             }
         }
 
@@ -508,10 +508,10 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
-        if let Some((induction_variable, bounds, _, _)) =
+        if let Some((induction_variable, bounds, _)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
         {
-            self.outer_induction_variables.insert(induction_variable, bounds);
+            self.outer_induction_variables.insert(induction_variable, (bounds.lower, bounds.upper));
         }
     }
 
@@ -826,24 +826,24 @@ fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<V
 /// whenever `lower < upper`, but an `Equal` guard (an `Eq`/`Not` header with the body on the
 /// `then` branch) only enters when the induction variable already sits on its single matching
 /// value `upper - 1`, i.e. `lower == upper - 1`.
-fn does_loop_execute(bounds: Option<(IntegerConstant, IntegerConstant, LoopBoundKind)>) -> bool {
-    bounds.is_some_and(|(lower, upper, kind)| kind.loop_executes(lower, upper))
+fn does_loop_execute(bounds: Option<LoopBounds>) -> bool {
+    bounds.is_some_and(LoopBounds::loop_executes)
 }
 
-/// Keep track of a loop induction variable, its respective lower/upper bound, the constant step
-/// by which it advances each iteration, and the [`LoopBoundKind`] describing how the guard
-/// decides entry. Only returns `Some` when the loop's back-edge proves the bounds are real
-/// iteration invariants (see [`monotonic_back_edge_step`]).
+/// Keep track of a loop induction variable, its [`LoopBounds`], and the constant step by which
+/// it advances each iteration. Only returns `Some` when the loop's back-edge proves the bounds
+/// are real iteration invariants (see [`monotonic_back_edge_step`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
     pre_header: BasicBlockId,
-) -> Option<(ValueId, (IntegerConstant, IntegerConstant), IntegerConstant, LoopBoundKind)> {
-    let (lower, upper, kind) =
+) -> Option<(ValueId, LoopBounds, IntegerConstant)> {
+    let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
-    let step = monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, upper)?;
-    Some((induction_variable, (lower, upper), step, kind))
+    let step =
+        monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, bounds.upper)?;
+    Some((induction_variable, bounds, step))
 }
 
 /// If the loop's back-edge preserves the inferred `[lower, upper)` interval, return the

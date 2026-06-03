@@ -472,17 +472,25 @@ pub(crate) enum LoopBoundKind {
     Equal,
 }
 
-impl LoopBoundKind {
-    /// Whether a loop with this guard, starting at constant `lower` with constant upper bound
-    /// `upper`, is guaranteed to execute its body at least once.
-    pub(super) fn loop_executes(self, lower: IntegerConstant, upper: IntegerConstant) -> bool {
-        match self {
+/// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
+/// how its guard decides, from the lower bound, whether the body executes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LoopBounds {
+    pub(crate) lower: IntegerConstant,
+    pub(crate) upper: IntegerConstant,
+    pub(crate) kind: LoopBoundKind,
+}
+
+impl LoopBounds {
+    /// Whether the loop body is guaranteed to execute at least once.
+    pub(super) fn loop_executes(self) -> bool {
+        match self.kind {
             LoopBoundKind::LessThan => {
-                upper.reduce(lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
+                self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
             }
             // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
             // maximum (where `inc` would overflow) correctly reads as "does not execute".
-            LoopBoundKind::Equal => lower.inc() == Some(upper),
+            LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
         }
     }
 }
@@ -861,19 +869,17 @@ impl Loop {
         }
     }
 
-    /// Get the lower and upper bounds of the loop if both are constant numeric values, along
-    /// with the [`LoopBoundKind`] describing how the guard relates the induction variable to the
-    /// upper bound (needed to tell whether the body executes).
+    /// Get the [`LoopBounds`] of the loop if both bounds are constant numeric values.
     /// See `get_const_upper_bound` for the role of `resolve_value`.
     pub(super) fn get_const_bounds(
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
-    ) -> Option<(IntegerConstant, IntegerConstant, LoopBoundKind)> {
+    ) -> Option<LoopBounds> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
         let (upper, kind) = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
-        Some((lower, upper, kind))
+        Some(LoopBounds { lower, upper, kind })
     }
 
     /// Unroll a single loop in the function.
@@ -1542,7 +1548,8 @@ impl Loop {
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let (lower, upper, _) = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
+        let LoopBounds { lower, upper, .. } =
+            self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
         let (refs, constant_initial_refs) = self.find_pre_header_reference_values(function, cfg)?;
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
@@ -2096,8 +2103,8 @@ mod tests {
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
-        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopOrder, Loops,
-        MAX_UNROLL_ITERATIONS, is_new_size_ok,
+        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopBounds, LoopOrder,
+        Loops, MAX_UNROLL_ITERATIONS, is_new_size_ok,
     };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
@@ -2292,7 +2299,7 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper, kind) = loop_
+        let LoopBounds { lower, upper, kind } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("bounds are numeric const");
 
@@ -2326,7 +2333,7 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper, kind) = loop_
+        let LoopBounds { lower, upper, kind } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("should use the lower for upper");
 
@@ -3240,7 +3247,7 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper, _) = loop_
+        let LoopBounds { lower, upper, .. } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("bounds are numeric const");
         assert_eq!(lower, upper);
