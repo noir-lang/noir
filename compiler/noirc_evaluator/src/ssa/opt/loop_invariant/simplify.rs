@@ -260,11 +260,11 @@ impl LoopInvariantContext<'_> {
             loop_context
                 .get_current_induction_variable_bounds(*lhs)
                 .filter(|_| !only_outer_induction)
-                .or(self.outer_induction_variables.get(lhs).copied()),
+                .or(self.outer_induction_variables.get(lhs).map(|b| (b.lower, b.upper))),
             loop_context
                 .get_current_induction_variable_bounds(*rhs)
                 .filter(|_| !only_outer_induction)
-                .or(self.outer_induction_variables.get(rhs).copied()),
+                .or(self.outer_induction_variables.get(rhs).map(|b| (b.lower, b.upper))),
         ) {
             // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
             (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {

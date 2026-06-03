@@ -217,12 +217,17 @@ impl Loop {
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
 
-    /// Maps outer loop induction variable -> fixed lower and upper loop bound
-    /// This will be used by inner loops to determine whether they
-    /// have safe operations reliant upon an outer loop's maximum induction variable
-    outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    /// All induction variables collected up front, with the [`LoopBounds`] needed to decide
-    /// whether each loop's body is guaranteed to execute (see [`does_loop_execute`]).
+    /// Maps an outer loop's induction variable to its [`LoopBounds`].
+    ///
+    /// Used by inner loops to reason about operations on an outer loop's induction variable —
+    /// hoisting an in-bounds array access or proving a `Div`/`Mod` divisor is never zero. Only
+    /// the `[lower, upper)` range is consulted here, never [`LoopBoundKind`]: the kind decides
+    /// whether the body executes, which is a non-issue because any instruction referencing the
+    /// outer variable lives inside that loop's body, so a never-entered loop never runs it.
+    outer_induction_variables: HashMap<ValueId, LoopBounds>,
+    /// All induction variables collected up front, with their [`LoopBounds`]. Unlike
+    /// `outer_induction_variables`, the [`LoopBoundKind`] is consulted here to decide whether
+    /// each loop's body is guaranteed to execute (see [`does_loop_execute`]).
     all_induction_variables: HashMap<ValueId, LoopBounds>,
 
     cfg: ControlFlowGraph,
@@ -511,7 +516,7 @@ impl<'f> LoopInvariantContext<'f> {
         if let Some((induction_variable, bounds, _)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
         {
-            self.outer_induction_variables.insert(induction_variable, (bounds.lower, bounds.upper));
+            self.outer_induction_variables.insert(induction_variable, bounds);
         }
     }
 
@@ -779,7 +784,8 @@ impl<'f> LoopInvariantContext<'f> {
         match instruction {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
+                let upper_bound =
+                    self.outer_induction_variables.get(index).map(|bounds| bounds.upper);
                 if let (Type::Array(_, len), Some(upper_bound)) =
                     (array_typ.into_owned(), upper_bound)
                 {
