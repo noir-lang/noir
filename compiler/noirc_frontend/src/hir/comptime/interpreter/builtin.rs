@@ -804,7 +804,10 @@ fn vector_remove(
         return failing_constraint(message, location, call_stack);
     }
 
-    let element = Shared::new(values.remove(index));
+    // The removed element is returned by value, so it must not keep sharing interior
+    // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the temporary
+    // would write back through to the original vector).
+    let element = Shared::new(values.remove(index).move_struct());
     Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), element]))
 }
 
@@ -826,6 +829,10 @@ fn vector_pop_front(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_front() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
         None => failing_constraint(
@@ -846,6 +853,10 @@ fn vector_pop_back(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_back() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
         None => failing_constraint(
@@ -1563,8 +1574,15 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat_n(element, length as usize).collect();
+                let array = if elem.contains_reference() {
+                    // A reference becomes a fresh `Value::Pointer`. Cloning one shares its
+                    // underlying cell, so build an independent zeroed value per slot instead
+                    // of repeating a single element, matching the `Tuple` arm below.
+                    (0..length).map(|_| zeroed(elem.as_ref().clone(), location)).collect()
+                } else {
+                    let element = zeroed(elem.as_ref().clone(), location);
+                    std::iter::repeat_n(element, length as usize).collect()
+                };
                 Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later

@@ -929,12 +929,9 @@ impl Binary {
             | BinaryOp::Mul { unchecked: false } => {
                 match dfg.type_of_value(self.rhs).unwrap_numeric() {
                     NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
+                    // Non-field integer arithmetic can overflow or underflow, so it needs a
+                    // predicate to guard the side effect.
+                    NumericType::Unsigned { .. } | NumericType::Signed { .. } => true,
                 }
             }
             BinaryOp::Shl | BinaryOp::Shr => {
