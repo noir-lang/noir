@@ -1882,11 +1882,9 @@ fn generic_fn_returning_tuple_with_associated_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11551): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11551
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_with_associated_type_used_in_other_method_signature() {
-    // Bug: Associated type from one trait method used in another's signature
     let src = r#"
     trait Mappable {
         type Target;
@@ -1924,6 +1922,87 @@ fn trait_with_associated_type_used_in_other_method_signature() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// A chained associated-type projection in a trait method signature normalizes to the concrete
+/// associated type for a concrete impl, so the impl may spell the return type out concretely.
+#[test]
+fn chained_associated_type_in_signature_normalizes_to_concrete() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> u32 where Self::Target: Mappable {
+            self.map_to().map_to()
+        }
+    }
+
+    fn main() {
+        let x: Field = 5;
+        let result: u32 = x.chain();
+        assert(result == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn chained_associated_type_in_signature_rejects_wrong_concrete_impl_return() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> bool where Self::Target: Mappable {
+                          ^^^^ Expected type u32, found type bool
+            self.map_to()
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
 }
 
 /// Regression test for https://github.com/noir-lang/noir/issues/11538
@@ -2240,6 +2319,53 @@ fn trait_associated_constant_duplicate_is_an_error() {
         let N: u8;
             ^ Duplicate definitions of trait associated item with name N found
             ~ Second trait associated item found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn resolves_associated_constant_shorthand_on_generic_trait() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+        let CONST: u32 = 8;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_impls() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+                     ~~~ candidate `Foo<u8>` defined here
+        let CONST: u32 = 8;
+    }
+
+    impl Foo<u16> for Bar {
+                      ~~~ candidate `Foo<u16>` defined here
+        let CONST: u32 = 16;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+                          ^^^^^ Multiple `impl`s of `Foo` apply to `Bar`
     }
     "#;
     check_errors(src);

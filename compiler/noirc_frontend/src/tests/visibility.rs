@@ -863,6 +863,40 @@ fn unnecessary_pub_on_argument() {
 }
 
 #[test]
+fn unnecessary_pub_on_fold_function_parameter() {
+    let src = "
+    fn main(x: Field) -> pub Field {
+        foo(x)
+    }
+
+    #[fold]
+    fn foo(x: pub Field) -> Field {
+              ^^^ unnecessary pub keyword on parameter for function foo
+              ~~~ unnecessary pub parameter
+        x + 1
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_fold_function_return_type() {
+    let src = "
+    fn main(x: Field) -> pub Field {
+        foo(x)
+    }
+
+    #[fold]
+    fn foo(x: Field) -> pub Field {
+                        ^^^ unnecessary pub keyword on return type for function foo
+                        ~~~ unnecessary pub return type
+        x + 1
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_calling_private_inherent_impl_method_from_outside_impl_module() {
     // Regression test: inherent impl methods defined in a submodule on a type from the parent
     // module should not be callable from outside the impl's defining module.
