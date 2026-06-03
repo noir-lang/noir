@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780501604752,
+  "lastUpdate": 1780502095271,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23086,48 +23086,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7e476b27614a3f57e6a8ce9e81b946cc087ef6b8",
-          "message": "fix: Change mod by 0 error message (#12691)",
-          "timestamp": "2026-05-27T15:53:27Z",
-          "tree_id": "46fd7ed3bb0c52fba8009ecf882acd3ce36fc34e",
-          "url": "https://github.com/noir-lang/noir/commit/7e476b27614a3f57e6a8ce9e81b946cc087ef6b8"
-        },
-        "date": 1779898869243,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 179604,
-            "range": "± 1070",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144361,
-            "range": "± 2116",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2651561,
-            "range": "± 17333",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647161,
             "range": "± 8531",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "253ec7edb091da05bb7e614cedda85145d8784b8",
+          "message": "chore(acvm): clarify CSAT width is a best-effort target, not a contract (#12884)",
+          "timestamp": "2026-06-03T14:43:44Z",
+          "tree_id": "d1e86cc5f588e118f0a90784307515af109b40e5",
+          "url": "https://github.com/noir-lang/noir/commit/253ec7edb091da05bb7e614cedda85145d8784b8"
+        },
+        "date": 1780502027286,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168153,
+            "range": "± 676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137271,
+            "range": "± 1195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650409,
+            "range": "± 6119",
             "unit": "ns/iter"
           }
         ]
