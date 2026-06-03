@@ -79,6 +79,29 @@ fn unsigned_to_signed(value: u128, bit_size: u32) -> Option<i128> {
     }
 }
 
+/// True when `value` is the result of an unchecked unsigned `add` or `mul`.
+///
+/// Such an operation does not truncate, so its exact value can exceed the value's own type range.
+/// Stored ranges stay clamped to the type so the type-relative range arithmetic keeps its
+/// invariants; only a widening cast, which preserves the exact value, recovers the untruncated
+/// bound (see [`Analysis::untruncated_range`]). Restricted to unsigned values: signed overflow has
+/// already been made explicit by `expand_signed_checks`.
+fn unchecked_arithmetic_can_exceed_type(dfg: &DataFlowGraph, value: ValueId) -> bool {
+    if !matches!(dfg.type_of_value(value).as_ref(), Type::Numeric(NumericType::Unsigned { .. })) {
+        return false;
+    }
+    let Value::Instruction { instruction, .. } = dfg[value] else {
+        return false;
+    };
+    matches!(
+        dfg[instruction],
+        Instruction::Binary(Binary {
+            operator: BinaryOp::Add { unchecked: true } | BinaryOp::Mul { unchecked: true },
+            ..
+        })
+    )
+}
+
 /// Computes conservative numeric value ranges for SSA values.
 pub(super) struct Analysis<'dfg> {
     dfg: &'dfg DataFlowGraph,
@@ -360,6 +383,35 @@ impl<'dfg> Analysis<'dfg> {
         }
     }
 
+    /// The range of `value`, recovering the untruncated bound when `value` is an unchecked unsigned
+    /// add or multiply.
+    ///
+    /// The fact stored for such a value is clamped to its type, but the operation does not truncate,
+    /// so its exact value can be wider. Only a widening cast consumes this range, and it re-clamps
+    /// the result to the destination type, so the wider bound never reaches the type-relative range
+    /// arithmetic that assumes a value fits its own type. For every other value this is just the
+    /// stored fact.
+    fn untruncated_range(&self, value: ValueId, facts: &Facts) -> Option<ValueRange> {
+        if !unchecked_arithmetic_can_exceed_type(self.dfg, value) {
+            return facts.range(value);
+        }
+        let Value::Instruction { instruction, .. } = self.dfg[value] else {
+            return facts.range(value);
+        };
+        let Instruction::Binary(binary) = &self.dfg[instruction] else {
+            return facts.range(value);
+        };
+        let value_bit_size = self.dfg.type_of_value(binary.lhs).bit_size();
+        let Some(ranges) = self.binary_ranges(binary, value_bit_size, facts) else {
+            return facts.range(value);
+        };
+        match binary.operator {
+            BinaryOp::Add { .. } => Some(ranges.add(true)),
+            BinaryOp::Mul { .. } => Some(ranges.mul(true)),
+            _ => facts.range(value),
+        }
+    }
+
     /// Compute an instruction result range from known facts.
     fn instruction_range(
         &self,
@@ -381,14 +433,13 @@ impl<'dfg> Analysis<'dfg> {
                         return None;
                     }
                     let original_type = self.dfg.type_of_value(*original_value);
-                    facts
-                        .range(*original_value)
+                    self.untruncated_range(*original_value, facts)
                         .and_then(|range| range.cast_to_field(original_type.as_ref()))
                         .map(ValueRange::Unsigned)
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size }) => {
                     let original_type = self.dfg.type_of_value(*original_value);
-                    let original_range = facts.range(*original_value)?;
+                    let original_range = self.untruncated_range(*original_value, facts)?;
                     original_range
                         .cast_to_unsigned(original_type.as_ref(), *bit_size)
                         .map(ValueRange::Unsigned)
@@ -693,9 +744,23 @@ impl Range {
         self,
         rhs: Self,
         type_max: u128,
+        unchecked: bool,
         operation: impl Fn(u128, u128) -> Option<u128>,
     ) -> Self {
         let max_result = operation(self.max, rhs.max);
+
+        // An unchecked operation does not truncate its result, so the exact arithmetic value can
+        // exceed `type_max`. Clamping it to the type would be an unsound under-approximation that a
+        // later widening cast could trust to narrow a comparison below the value's true width. Use
+        // the raw bounds whenever they are representable in `u128`, falling back to the full type
+        // range otherwise (no worse than the clamp it replaces).
+        if unchecked {
+            return match (operation(self.min, rhs.min), max_result) {
+                (Some(min), Some(max)) => Self::new(min, max),
+                _ => Self::new(0, type_max),
+            };
+        }
+
         let may_exceed_type = max_result.is_none_or(|result| result > type_max);
         let max = max_result.unwrap_or(type_max).min(type_max);
         let min = if may_exceed_type {
@@ -864,16 +929,16 @@ impl BinaryRanges {
         }
     }
 
-    fn add(self) -> ValueRange {
-        self.map(UnsignedBinaryRanges::add, SignedBinaryRanges::add)
+    fn add(self, unchecked: bool) -> ValueRange {
+        self.map(|ranges| ranges.add(unchecked), SignedBinaryRanges::add)
     }
 
     fn sub(self, unchecked: bool) -> ValueRange {
         self.map(|ranges| ranges.sub(unchecked), SignedBinaryRanges::sub)
     }
 
-    fn mul(self) -> ValueRange {
-        self.map(UnsignedBinaryRanges::mul, SignedBinaryRanges::mul)
+    fn mul(self, unchecked: bool) -> ValueRange {
+        self.map(|ranges| ranges.mul(unchecked), SignedBinaryRanges::mul)
     }
 
     fn div(self) -> ValueRange {
@@ -914,8 +979,8 @@ impl UnsignedBinaryRanges {
         Some(Self { lhs, rhs, bit_size, type_max: max_unsigned_value_for_bit_size(bit_size)? })
     }
 
-    fn add(self) -> Range {
-        self.lhs.increasing_result(self.rhs, self.type_max, u128::checked_add)
+    fn add(self, unchecked: bool) -> Range {
+        self.lhs.increasing_result(self.rhs, self.type_max, unchecked, u128::checked_add)
     }
 
     fn sub(self, unchecked: bool) -> Range {
@@ -932,8 +997,8 @@ impl UnsignedBinaryRanges {
         }
     }
 
-    fn mul(self) -> Range {
-        self.lhs.increasing_result(self.rhs, self.type_max, u128::checked_mul)
+    fn mul(self, unchecked: bool) -> Range {
+        self.lhs.increasing_result(self.rhs, self.type_max, unchecked, u128::checked_mul)
     }
 
     fn div(self) -> Range {
@@ -1293,9 +1358,9 @@ impl BinaryOp {
     fn forward(self, ranges: Option<BinaryRanges>) -> Option<ValueRange> {
         match self {
             BinaryOp::Eq | BinaryOp::Lt => Some(ValueRange::Unsigned(Range::new(0, 1))),
-            BinaryOp::Add { .. } => Some(ranges?.add()),
+            BinaryOp::Add { unchecked } => Some(ranges?.add(unchecked)),
             BinaryOp::Sub { unchecked } => Some(ranges?.sub(unchecked)),
-            BinaryOp::Mul { .. } => Some(ranges?.mul()),
+            BinaryOp::Mul { unchecked } => Some(ranges?.mul(unchecked)),
             BinaryOp::Div => Some(ranges?.div()),
             BinaryOp::Mod => Some(ranges?.modulo()),
             BinaryOp::And => Some(ranges?.bitand()),
@@ -1387,8 +1452,22 @@ mod tests {
     #[test]
     fn range_increasing_result_uses_full_range_on_overflow() {
         let range =
-            Range::new(200, 254).increasing_result(Range::new(2, 2), 255, u128::checked_add);
+            Range::new(200, 254).increasing_result(Range::new(2, 2), 255, false, u128::checked_add);
         assert_eq!(range, Range::new(0, 255));
+    }
+
+    #[test]
+    fn unchecked_add_and_mul_ranges_keep_untruncated_bounds() {
+        // An unchecked operation does not truncate, so its result can exceed the type maximum and
+        // must be over-approximated with the raw arithmetic bounds. A checked operation cannot
+        // overflow without failing the circuit, so its result is clamped to the type.
+        let ranges = u8_ranges(Range::new(200, 255), Range::new(10, 10));
+        assert_eq!(ranges.add(true), Range::new(210, 265));
+        assert_eq!(ranges.add(false), Range::new(0, 255));
+
+        let ranges = u8_ranges(Range::new(100, 200), Range::new(2, 3));
+        assert_eq!(ranges.mul(true), Range::new(200, 600));
+        assert_eq!(ranges.mul(false), Range::new(0, 255));
     }
 
     #[test]
@@ -1523,14 +1602,14 @@ mod tests {
     fn binary_ranges_add_falls_back_when_sum_may_wrap() {
         let ranges = u8_ranges(Range::new(250, 255), Range::new(1, 10));
 
-        assert_eq!(ranges.add(), Range::new(0, 255));
+        assert_eq!(ranges.add(false), Range::new(0, 255));
     }
 
     #[test]
     fn binary_ranges_mul_falls_back_when_product_may_wrap() {
         let ranges = u8_ranges(Range::new(100, 200), Range::new(2, 3));
 
-        assert_eq!(ranges.mul(), Range::new(0, 255));
+        assert_eq!(ranges.mul(false), Range::new(0, 255));
     }
 
     #[test]

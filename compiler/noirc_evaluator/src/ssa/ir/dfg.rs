@@ -1201,6 +1201,23 @@ mod tests {
     }
 
     #[test]
+    fn unchecked_mul_overflow_keeps_full_width_through_widening_cast() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = unchecked_mul v0, u32 2
+            v2 = cast v1 as u64
+            return v2
+        }
+        ";
+
+        // `unchecked_mul` does not truncate, so `2 * u32::MAX` is a 33-bit value. The widening cast
+        // to `u64` must carry that 33-bit width; clamping the multiply to its `u32` type would let a
+        // later comparison narrow below the value's true size and reject valid witnesses.
+        assert_eq!(returned_value_max_bits(src), 33);
+    }
+
+    #[test]
     fn unsigned_range_uses_subtraction_rhs_lower_bound() {
         let src = "
         acir(inline) fn main f0 {
