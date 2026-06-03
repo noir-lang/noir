@@ -1365,9 +1365,11 @@ impl Elaborator<'_> {
             .lookup_trait_implementation_ignoring_assumed(object_type, trait_id, ordered, &[])
             .ok()?;
         let associated_types = match impl_kind {
-            TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
+            TraitImplKind::Assumed { .. } => unreachable!(
+                "*lookup_trait_implementation_ignoring_assumed should ignore assumed impls"
+            ),
             TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
-                Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
+                self.interner.get_associated_types_for_impl(impl_id)
             }
         };
         let typ =
