@@ -130,7 +130,6 @@ jobs:
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-          fetch-depth: 0 # sync_tutorial_versions.js refuses to trust the working tree in a shallow clone
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
