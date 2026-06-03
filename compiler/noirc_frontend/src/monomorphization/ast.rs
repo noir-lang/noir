@@ -578,6 +578,22 @@ impl Type {
         }
     }
 
+    /// Returns true if this type is, or transitively contains, a reference.
+    pub fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(..) => true,
+            Type::Array(_, element) | Type::Vector(element) => element.contains_reference(),
+            Type::Tuple(fields) => fields.iter().any(Type::contains_reference),
+            Type::FmtString(_, fields) => fields.contains_reference(),
+            Type::Field
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Function(..) => false,
+        }
+    }
+
     /// Returns the element type of this array or vector
     pub fn array_element_type(&self) -> Option<&Type> {
         match self {
