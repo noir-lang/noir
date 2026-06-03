@@ -959,9 +959,9 @@ impl<'a> Parser<'a> {
             // out of range verbatim as a positive literal (e.g. `i8 256`); re-parsing it
             // must reproduce that field value rather than mistake it for a negative one.
             let value = if negative && typ.is_signed() {
-                // Two's complement bit pattern of `-magnitude`. Computed with field
-                // arithmetic (mirroring the printer) so `2^bit_size` does not overflow
-                // the host integer width for an `i128`.
+                // Two's complement field value of `-magnitude`, computed exactly as the
+                // inverse of how the printer renders a negative signed integer
+                // (`2^bit_size - value`, in field arithmetic).
                 FieldElement::from(2u32).pow(&typ.bit_size().into()) - magnitude
             } else if negative {
                 // The printer never emits a `-` for an unsigned type (it prints the raw

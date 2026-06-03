@@ -716,16 +716,17 @@ fn test_out_of_range_unsigned_constant_roundtrips() {
     assert_ssa_roundtrip(src);
 }
 
-// `-1` and the most negative value of each signed type are printed with a leading
-// `-`; the parser reconstructs the two's-complement field value via field arithmetic,
-// so even an `i128` (whose `2^bit_size` overflows `u128`) round-trips.
+// `-1` and the most negative value of each signed type are printed with a leading `-`;
+// the parser reconstructs the two's-complement field value as the exact inverse of the
+// printer, so each boundary round-trips. (The IR's signed types are i8/i16/i32/i64.)
 #[test_case("i8 -1")]
 #[test_case("i8 -128")]
+#[test_case("i16 -1")]
 #[test_case("i16 -32768")]
 #[test_case("i32 -1")]
+#[test_case("i32 -2147483648")]
 #[test_case("i64 -1")]
-#[test_case("i128 -1")]
-#[test_case("i128 -170141183460469231731687303715884105728"; "i128 min")]
+#[test_case("i64 -9223372036854775808")]
 fn signed_negative_boundary_constant_roundtrips(literal: &str) {
     let src = format!(
         "
