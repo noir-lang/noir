@@ -95,6 +95,13 @@ impl IntegerConstant {
         }
     }
 
+    pub(crate) fn is_one(&self) -> bool {
+        match self {
+            Self::Signed { value, .. } => *value == 1,
+            Self::Unsigned { value, .. } => *value == 1,
+        }
+    }
+
     pub(crate) fn is_minus_one(&self) -> bool {
         match self {
             Self::Signed { value, .. } => *value == -1,

@@ -21,6 +21,10 @@ pub fn foo(
     1_i32
 }
 
+pub fn singleton_tuples(((nested,),): ((Field,),)) {
+    let _: Field = nested;
+}
+
 #[test]
 #[deprecated]
 fn some_test() {}
@@ -50,6 +54,12 @@ comptime fn function_attr(f: FunctionDefinition) {
     assert(f.name() == quote { foo });
     assert(f.has_named_attribute("function_attr"));
     assert(f.visibility() == quote { pub })
+}
+
+comptime fn singleton_tuple_attr(f: FunctionDefinition) {
+    let parameters: [(Quoted, Type)] = f.parameters();
+    assert(parameters.len() == 1_u32);
+    assert(parameters[0_u32].0 == quote { ((nested,),) });
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
