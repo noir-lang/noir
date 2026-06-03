@@ -1225,23 +1225,7 @@ impl Elaborator<'_> {
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
 
-        // When the object type is fully concrete, normalize the projection against the concrete
-        // impl alone. A `where` clause such as `where Self::Target: Mappable` lands an assumed impl
-        // on the (now concrete) object type, which would otherwise tie with the concrete impl and
-        // report a spurious "multiple matching impls" error. The concrete impl discharges that
-        // hypothesis, so it is the single correct answer.
-        let lookup = if object_type.contains_type_variable() {
-            self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named)
-        } else {
-            self.interner.lookup_trait_implementation_ignoring_assumed(
-                &object_type,
-                trait_id,
-                &ordered,
-                &named,
-            )
-        };
-
-        match lookup {
+        match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok((impl_kind, instantiation_bindings)) => {
                 let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
                 typ.substitute(&instantiation_bindings)
@@ -1346,18 +1330,20 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Reduce a concrete associated-type projection `<object_type as trait>::assoc_name` to the
-    /// concrete type defined by the matching impl. Assumed (`where` clause) impls are ignored, so
-    /// the answer is the single ground truth from the concrete impl. Returns `None` when the
-    /// object type isn't fully concrete or no such impl/associated type is found.
-    pub(super) fn normalize_concrete_associated_type(
+    /// Reduce an associated-type projection `<object_type as trait>::assoc_name` over a rigid
+    /// object type to the type defined by the matching impl. Assumed (`where` clause) impls are
+    /// ignored, so the answer is the single ground truth from the real impl. Returns `None` when
+    /// the object type contains unbound type variables (unification could still change which
+    /// impl matches) or no such impl/associated type is found - in particular for a bare generic
+    /// like `T`, which no real impl matches and only a `where` clause hypothesis can answer.
+    pub(super) fn normalize_rigid_associated_type(
         &self,
         object_type: &Type,
         trait_id: TraitId,
         ordered: &[Type],
         assoc_name: &str,
     ) -> Option<Type> {
-        if object_type.contains_type_variable() {
+        if object_type.contains_unbound_type_variable() {
             return None;
         }
         let (impl_kind, instantiation_bindings) = self

@@ -1275,9 +1275,9 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         }
 
         // A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
-        // for each of `Mappable`'s associated types. Once the constraint's object type is concrete
+        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
         // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
-        // `<Self::Target as Mappable>::Target` has a single concrete answer via the concrete impl
+        // `<Self::Target as Mappable>::Target` has a single answer via the real impl
         // (`<bool as Mappable>::Target = u32`). Bind each such implicit generic to that answer so
         // the trait method's signature matches the impl method's already-normalized signature.
         // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
@@ -1295,7 +1295,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
                 if bindings.contains_key(&type_var.id()) {
                     continue;
                 }
-                if let Some(normalized) = elaborator.normalize_concrete_associated_type(
+                if let Some(normalized) = elaborator.normalize_rigid_associated_type(
                     &object_type,
                     trait_bound.trait_id,
                     &ordered,

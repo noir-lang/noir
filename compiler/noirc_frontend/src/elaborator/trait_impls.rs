@@ -588,7 +588,7 @@ impl Elaborator<'_> {
     }
 
     /// Replace each named (associated-type) argument that is still an unresolved implicit generic
-    /// with its concrete value, when the constraint's object type is concrete. A discharged
+    /// with its normalized value, when the constraint's object type is rigid. A discharged
     /// `where Self::Target: Mappable` clause then compares equal between a trait method and its
     /// impl, instead of tripping the "impl has stricter requirements" check over differing
     /// implicit generics that both stand for `<Self::Target as Mappable>::Target`.
@@ -601,7 +601,7 @@ impl Elaborator<'_> {
         let ordered = generics.ordered.clone();
         for named in &mut generics.named {
             if matches!(named.typ, Type::NamedGeneric(_))
-                && let Some(normalized) = self.normalize_concrete_associated_type(
+                && let Some(normalized) = self.normalize_rigid_associated_type(
                     object_type,
                     trait_id,
                     &ordered,

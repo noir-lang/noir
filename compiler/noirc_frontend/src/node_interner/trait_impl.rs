@@ -29,9 +29,9 @@ pub(crate) enum TraitLookupMode {
     /// The returned bindings are not expected to be applied.
     SelfAssumedOnly,
     /// Like [Default](TraitLookupMode::Default), but skips every [TraitImplKind::Assumed] impl.
-    /// Used to normalize an associated-type projection over a fully concrete object type: the
-    /// concrete impl is the single ground truth, and any `where` clause hypothesis for the same
-    /// type is discharged by it rather than competing with it.
+    /// Used to normalize an associated-type projection over a rigid object type: the real impl
+    /// is the single ground truth, and any `where` clause hypothesis for the same type is
+    /// discharged by it rather than competing with it.
     IgnoreAssumed,
     /// Used only when registering a new impl, to detect whether it overlaps an existing one.
     /// Unlike [Default](TraitLookupMode::Default), this does not bail out for bindable object types:
@@ -345,8 +345,8 @@ impl NodeInterner {
     }
 
     /// Like [Self::lookup_trait_implementation] but ignores [TraitImplKind::Assumed] impls.
-    /// Intended for normalizing an associated-type projection whose object type is fully concrete,
-    /// where a `where` clause hypothesis must not compete with the concrete impl that discharges it.
+    /// Intended for normalizing an associated-type projection whose object type is rigid,
+    /// where a `where` clause hypothesis must not compete with the real impl that discharges it.
     pub(crate) fn lookup_trait_implementation_ignoring_assumed(
         &self,
         object_type: &Type,
@@ -582,11 +582,38 @@ impl NodeInterner {
             errors.push(make_constraint());
             Err(ImplSearchErrorKind::NoMatching(errors))
         } else {
-            let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
-                let name = &self.get_trait(constraint.trait_bound.trait_id).name;
-                format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
-            });
-            Err(ImplSearchErrorKind::MultipleMatching(impls))
+            // An assumed impl is a `where` clause hypothesis that an impl exists for the object
+            // type. When a real impl also matches, it discharges that hypothesis rather than
+            // competing with it: by coherence it is the unique ground truth, so prefer it over
+            // the assumed candidates. This only holds when the query is rigid (no unbound type
+            // variables in the object type or ordered generics). Otherwise the candidates may
+            // bind a variable differently - e.g. an assumed `Wrapper<u16>: Foo` and a real
+            // `impl Foo for Wrapper<u32>` both match `Wrapper<_>` - and the match is genuinely
+            // ambiguous.
+            let query_is_rigid = !object_type.contains_unbound_type_variable()
+                && trait_generics.iter().all(|generic| {
+                    !generic.substitute(type_bindings).contains_unbound_type_variable()
+                });
+
+            let is_real_impl = |kind: &TraitImplKind| {
+                matches!(kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..))
+            };
+            let real_impl_count =
+                matching_impls.iter().filter(|(kind, ..)| is_real_impl(kind)).count();
+
+            if query_is_rigid && real_impl_count == 1 {
+                let index = matching_impls.iter().position(|(kind, ..)| is_real_impl(kind));
+                let (impl_, fresh_bindings, instantiation_bindings, _) =
+                    matching_impls.swap_remove(index.unwrap());
+                *type_bindings = fresh_bindings;
+                Ok((impl_, instantiation_bindings))
+            } else {
+                let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
+                    let name = &self.get_trait(constraint.trait_bound.trait_id).name;
+                    format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
+                });
+                Err(ImplSearchErrorKind::MultipleMatching(impls))
+            }
         }
     }
 
