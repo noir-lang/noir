@@ -61,6 +61,13 @@ pub enum PathResolutionError {
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
+    #[error("Multiple `impl`s of `{trait_name}` apply to `{type_name}`")]
+    MultipleApplicableImpls {
+        ident: Ident,
+        trait_name: String,
+        type_name: String,
+        impls: Vec<(String, Location)>,
+    },
     #[error("No function named '{ident}' found for '{typ}' in the current scope")]
     UnresolvedMethodForType { typ: String, ident: Ident, available_impls: Vec<String> },
 }
@@ -75,6 +82,7 @@ impl PathResolutionError {
             | PathResolutionError::NotAModule { ident, .. }
             | PathResolutionError::TraitMethodNotInScope { ident, .. }
             | PathResolutionError::MultipleTraitsInScope { ident, .. }
+            | PathResolutionError::MultipleApplicableImpls { ident, .. }
             | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. }
             | PathResolutionError::UnresolvedMethodForType { ident, .. } => ident.location(),
         }
@@ -146,6 +154,17 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ),
                     ident.location(),
                 )
+            }
+            PathResolutionError::MultipleApplicableImpls { ident, impls, .. } => {
+                let mut diag = CustomDiagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    ident.location(),
+                );
+                for (signature, location) in impls {
+                    diag.add_secondary(format!("candidate `{signature}` defined here"), *location);
+                }
+                diag
             }
             PathResolutionError::UnresolvedMethodForType { typ: _, ident, available_impls } => {
                 let secondary = if available_impls.is_empty() {
