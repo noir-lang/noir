@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780437553785,
+  "lastUpdate": 1780490862444,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23095,48 +23095,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "2160948374c07438764db65440b1fb3b0aa8d517",
-          "message": "fix(lsp): let signature help work for \"foo(\" calls (#12765)",
-          "timestamp": "2026-05-26T16:08:48Z",
-          "tree_id": "c1983e2817987404eb8ed6e31af89c3e52fbfa5d",
-          "url": "https://github.com/noir-lang/noir/commit/2160948374c07438764db65440b1fb3b0aa8d517"
-        },
-        "date": 1779813617936,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 178690,
-            "range": "± 596",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144197,
-            "range": "± 885",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2658114,
-            "range": "± 16624",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "f04257aa371e20c5d49e3643b97065757287902e",
           "message": "fix: elaborate numeric type alias in its module (#12776)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647613,
             "range": "± 3813",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8c4d71bdaf64db1472ce022e9a510ad77a554e76",
+          "message": "chore(acvm): regression tests for MSM constant-predicate gate in RedundantRangeOptimizer (#12886)",
+          "timestamp": "2026-06-03T12:21:10Z",
+          "tree_id": "a3d65ae30f2dadcd40c3f39b2d144f82e10d964e",
+          "url": "https://github.com/noir-lang/noir/commit/8c4d71bdaf64db1472ce022e9a510ad77a554e76"
+        },
+        "date": 1780490787003,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 164081,
+            "range": "± 287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143493,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2126919,
+            "range": "± 3108",
             "unit": "ns/iter"
           }
         ]
