@@ -595,16 +595,16 @@ impl NodeInterner {
                     !generic.substitute(type_bindings).contains_unbound_type_variable()
                 });
 
-            let is_real_impl = |kind: &TraitImplKind| {
-                matches!(kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..))
-            };
-            let real_impl_count =
-                matching_impls.iter().filter(|(kind, ..)| is_real_impl(kind)).count();
+            let real_impl_indexes: Vec<usize> = matching_impls
+                .iter()
+                .positions(|(kind, ..)| {
+                    matches!(kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..))
+                })
+                .collect();
 
-            if query_is_rigid && real_impl_count == 1 {
-                let index = matching_impls.iter().position(|(kind, ..)| is_real_impl(kind));
+            if query_is_rigid && let [index] = real_impl_indexes[..] {
                 let (impl_, fresh_bindings, instantiation_bindings, _) =
-                    matching_impls.swap_remove(index.unwrap());
+                    matching_impls.swap_remove(index);
                 *type_bindings = fresh_bindings;
                 Ok((impl_, instantiation_bindings))
             } else {

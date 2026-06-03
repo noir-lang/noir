@@ -1225,23 +1225,7 @@ impl Elaborator<'_> {
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
 
-        // When the object type is fully concrete, normalize the projection against the concrete
-        // impl alone. A `where` clause such as `where Self::Target: Mappable` lands an assumed impl
-        // on the (now concrete) object type, which would otherwise tie with the concrete impl and
-        // report a spurious "multiple matching impls" error. The concrete impl discharges that
-        // hypothesis, so it is the single correct answer.
-        let lookup = if object_type.contains_type_variable() {
-            self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named)
-        } else {
-            self.interner.lookup_trait_implementation_ignoring_assumed(
-                &object_type,
-                trait_id,
-                &ordered,
-                &named,
-            )
-        };
-
-        match lookup {
+        match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok((impl_kind, instantiation_bindings)) => {
                 let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
                 typ.substitute(&instantiation_bindings)
@@ -1368,7 +1352,7 @@ impl Elaborator<'_> {
             .ok()?;
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { .. } => unreachable!(
-                "*lookup_trait_implementation_ignoring_assumed should ignore assumed impls"
+                "lookup_trait_implementation_ignoring_assumed should ignore assumed impls"
             ),
             TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
                 self.interner.get_associated_types_for_impl(impl_id)

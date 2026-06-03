@@ -2233,52 +2233,7 @@ impl Type {
     }
 
     pub(crate) fn contains_type_variable(&self) -> bool {
-        match self {
-            Type::Integer(..)
-            | Type::Bool
-            | Type::Unit
-            | Type::FieldElement
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::Error => false,
-            Type::Forall(..) => true,
-            Type::Array(typ, length) => {
-                length.contains_type_variable() || typ.contains_type_variable()
-            }
-            Type::Vector(typ) => typ.contains_type_variable(),
-            Type::String(length) => length.contains_type_variable(),
-            Type::FmtString(length, typ) => {
-                length.contains_type_variable() || typ.contains_type_variable()
-            }
-            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
-                items.iter().any(|typ| typ.contains_type_variable())
-            }
-            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                match &*type_var.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_type_variable(),
-                    TypeBinding::Unbound(_, _) => true,
-                }
-            }
-            Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
-                trait_generics.ordered.iter().any(|typ| typ.contains_type_variable())
-                    || trait_generics
-                        .named
-                        .iter()
-                        .any(|named_type| named_type.typ.contains_type_variable())
-            }
-            Type::CheckedCast { from, to } => {
-                from.contains_type_variable() || to.contains_type_variable()
-            }
-            Type::Function(args, ret, env, _) => {
-                args.iter().any(|typ| typ.contains_type_variable())
-                    || ret.contains_type_variable()
-                    || env.contains_type_variable()
-            }
-            Type::Reference(typ, _) => typ.contains_type_variable(),
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.contains_type_variable() || rhs.contains_type_variable()
-            }
-        }
+        self.contains_type_variable_helper(true)
     }
 
     /// True if the type contains an unbound [Type::TypeVariable] (an inference variable that
@@ -2287,6 +2242,11 @@ impl Type {
     /// so a type built only from them cannot be changed by unification. A type for which this
     /// returns false is "rigid" in that sense.
     pub(crate) fn contains_unbound_type_variable(&self) -> bool {
+        self.contains_type_variable_helper(false)
+    }
+
+    fn contains_type_variable_helper(&self, unbound_named_generic_counts: bool) -> bool {
+        let contains = |typ: &Type| typ.contains_type_variable_helper(unbound_named_generic_counts);
         match self {
             Type::Integer(..)
             | Type::Bool
@@ -2296,44 +2256,31 @@ impl Type {
             | Type::Quoted(..)
             | Type::Error => false,
             Type::Forall(..) => true,
-            Type::Array(typ, length) => {
-                length.contains_unbound_type_variable() || typ.contains_unbound_type_variable()
-            }
-            Type::Vector(typ) => typ.contains_unbound_type_variable(),
-            Type::String(length) => length.contains_unbound_type_variable(),
-            Type::FmtString(length, typ) => {
-                length.contains_unbound_type_variable() || typ.contains_unbound_type_variable()
-            }
+            Type::Array(typ, length) => contains(length) || contains(typ),
+            Type::Vector(typ) => contains(typ),
+            Type::String(length) => contains(length),
+            Type::FmtString(length, typ) => contains(length) || contains(typ),
             Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
-                items.iter().any(|typ| typ.contains_unbound_type_variable())
+                items.iter().any(contains)
             }
             Type::TypeVariable(type_var) => match &*type_var.borrow() {
-                TypeBinding::Bound(binding) => binding.contains_unbound_type_variable(),
+                TypeBinding::Bound(binding) => contains(binding),
                 TypeBinding::Unbound(_, _) => true,
             },
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => match &*type_var.borrow() {
-                TypeBinding::Bound(binding) => binding.contains_unbound_type_variable(),
-                TypeBinding::Unbound(_, _) => false,
+                TypeBinding::Bound(binding) => contains(binding),
+                TypeBinding::Unbound(_, _) => unbound_named_generic_counts,
             },
             Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
-                trait_generics.ordered.iter().any(|typ| typ.contains_unbound_type_variable())
-                    || trait_generics
-                        .named
-                        .iter()
-                        .any(|named_type| named_type.typ.contains_unbound_type_variable())
+                trait_generics.ordered.iter().any(contains)
+                    || trait_generics.named.iter().any(|named_type| contains(&named_type.typ))
             }
-            Type::CheckedCast { from, to } => {
-                from.contains_unbound_type_variable() || to.contains_unbound_type_variable()
-            }
+            Type::CheckedCast { from, to } => contains(from) || contains(to),
             Type::Function(args, ret, env, _) => {
-                args.iter().any(|typ| typ.contains_unbound_type_variable())
-                    || ret.contains_unbound_type_variable()
-                    || env.contains_unbound_type_variable()
+                args.iter().any(contains) || contains(ret) || contains(env)
             }
-            Type::Reference(typ, _) => typ.contains_unbound_type_variable(),
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.contains_unbound_type_variable() || rhs.contains_unbound_type_variable()
-            }
+            Type::Reference(typ, _) => contains(typ),
+            Type::InfixExpr(lhs, _, rhs, _) => contains(lhs) || contains(rhs),
         }
     }
 
