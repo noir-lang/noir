@@ -40,7 +40,41 @@ impl Chainable for Field {
     }
 }
 
+// Regression test for https://github.com/noir-lang/noir/issues/12889
+//
+// The projection `<Wrapper<T> as Mappable>::Target` has both a real generic impl and a
+// `where Self: Mappable` assumed impl in scope; the real impl must discharge the hypothesis
+// instead of being reported as ambiguous with it.
+struct Wrapper<T> {
+    val: T,
+}
+
+impl<U> Mappable for Wrapper<U> {
+    type Target = U;
+    fn map_to(self) -> U {
+        self.val
+    }
+}
+
+trait Unwrappable {
+    fn unwrap(self) -> <Self as Mappable>::Target
+    where
+        Self: Mappable;
+}
+
+impl<T> Unwrappable for Wrapper<T> {
+    fn unwrap(self) -> <Self as Mappable>::Target
+    where
+        Self: Mappable,
+    {
+        self.map_to()
+    }
+}
+
 fn main(x: Field) {
     let result: u32 = x.chain();
     assert(result == 1);
+
+    let wrapped = Wrapper { val: x };
+    assert(wrapped.unwrap() == x);
 }

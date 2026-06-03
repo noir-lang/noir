@@ -44,7 +44,36 @@ impl Chainable for Field {
     }
 }
 
+struct Wrapper<T> {
+    val: T,
+}
+
+impl<U> Mappable for Wrapper<U> {
+    type Target = U;
+
+    fn map_to(self) -> U {
+        self.val
+    }
+}
+
+impl<T> Unwrappable for Wrapper<T> {
+    fn unwrap(self) -> T
+    where
+        Self: Mappable,
+    {
+        self.map_to()
+    }
+}
+
+trait Unwrappable {
+    fn unwrap(self) -> Self::Target
+    where
+        Self: Mappable;
+}
+
 fn main(x: Field) {
     let result: u32 = x.chain();
     assert(result == 1_u32);
+    let wrapped: Wrapper<Field> = Wrapper::<Field> { val: x };
+    assert(wrapped.unwrap() == x);
 }

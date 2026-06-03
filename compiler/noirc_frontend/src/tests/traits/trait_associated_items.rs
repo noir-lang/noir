@@ -2005,6 +2005,152 @@ fn chained_associated_type_in_signature_rejects_wrong_concrete_impl_return() {
     check_errors(src);
 }
 
+/// Regression test for https://github.com/noir-lang/noir/issues/12889
+///
+/// The projection `<Wrapper<T> as Mappable>::Target` has both a real generic impl and a
+/// `where Self: Mappable` assumed impl in scope. The real impl discharges the hypothesis,
+/// so no "multiple matching impls" ambiguity should be reported.
+#[test]
+fn partially_generic_associated_type_in_signature_subsumed_by_real_impl() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    trait Chainable {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable;
+    }
+
+    impl<T> Chainable for Wrapper<T> {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable {
+            self.map_to()
+        }
+    }
+
+    fn main() {
+        let w: Wrapper<u32> = Wrapper { val: 5 };
+        assert(w.chain() == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_generic_associated_type_rejects_wrong_impl_return() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    trait Chainable {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable;
+    }
+
+    impl<T> Chainable for Wrapper<T> {
+        fn chain(self) -> bool where Self: Mappable {
+                          ^^^^ Expected type T, found type bool
+                          ^^^^ expected type bool, found type T
+                          ~~~~ expected bool because of return type
+            self.map_to()
+            ~~~~~~~~~~~~~ T returned here
+        }
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+/// A fully generic object type (bare `T`) has no real impl matching it, so the projection
+/// must still resolve through the assumed `where` clause impl.
+#[test]
+fn fully_generic_object_projection_uses_assumed_impl() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    fn map_it<T>(x: T) -> <T as Mappable>::Target where T: Mappable {
+        x.map_to()
+    }
+
+    fn main() {
+        let w: Wrapper<u32> = Wrapper { val: 5 };
+        let r: u32 = map_it(w);
+        assert(r == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// When the object type still contains an unbound type variable, a real impl and an assumed
+/// impl that bind it differently are genuinely ambiguous: neither discharges the other.
+#[test]
+fn ambiguous_impl_with_unbound_type_variable_still_errors() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl Foo for Wrapper<u32> {
+        type Bar = u8;
+    }
+
+    pub fn f() where Wrapper<u16>: Foo {
+        let _x: <Wrapper<_> as Foo>::Bar = 0;
+                               ^^^ Multiple trait impls match the object type `Wrapper<_>`
+                               ~~~ Ambiguous impl
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
 /// Regression test for https://github.com/noir-lang/noir/issues/11538
 #[test]
 fn associated_constant_can_reference_generic_from_trait_bound() {
