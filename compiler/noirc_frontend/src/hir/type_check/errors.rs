@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
@@ -51,7 +50,7 @@ pub enum TypeCheckError {
     OverflowingConstant {
         value: SignedField,
         kind: Kind,
-        maximum_size: FieldElement,
+        maximum_size: SignedField,
         location: Location,
     },
     #[error(

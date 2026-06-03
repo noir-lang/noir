@@ -6,6 +6,7 @@ use super::{
         FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, SpannedToken, Token, Tokens,
     },
 };
+use crate::signed_field::SignedField;
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use noirc_errors::{Location, Position, Span};
@@ -442,8 +443,7 @@ impl<'a> Lexer<'a> {
                         limit: self.max_integer.to_string(),
                     });
                 }
-                let big_uint = bigint.magnitude();
-                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+                SignedField::positive(bigint)
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
@@ -1079,7 +1079,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(SignedField::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1101,7 +1101,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(SignedField::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1149,7 +1149,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(SignedField::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);

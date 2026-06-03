@@ -2058,14 +2058,16 @@ fn expr_as_integer(
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
-                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                Shared::new(Value::Field(SignedField::from_field_element(field.absolute_value()))),
                 Shared::new(Value::Bool(field.is_negative())),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                    Shared::new(Value::Field(SignedField::from_field_element(
+                        field.absolute_value(),
+                    ))),
                     Shared::new(Value::Bool(field.is_negative())),
                 ]))
             } else {
@@ -3254,10 +3256,14 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+        embedded_curve_point_fields.insert(
+            x_field_name.clone(),
+            Shared::new(Value::Field(SignedField::from_field_element(x))),
+        );
+        embedded_curve_point_fields.insert(
+            y_field_name.clone(),
+            Shared::new(Value::Field(SignedField::from_field_element(y))),
+        );
         embedded_curve_point_fields
             .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =

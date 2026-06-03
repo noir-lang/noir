@@ -783,7 +783,8 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                let Ok(global_value) = kind.ensure_value_fits(global_value.clone(), location)
+                else {
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
@@ -865,7 +866,7 @@ impl Elaborator<'_> {
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location) {
+                        match op.function(lhs.clone(), rhs.clone(), &lhs_kind, location) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
@@ -1517,9 +1518,7 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
-                Some(field.absolute_value())
-            }
+            Literal(HirLiteral::Integer(field)) if !field.is_negative() => Some(field.clone()),
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals

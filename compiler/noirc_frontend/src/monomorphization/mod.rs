@@ -66,7 +66,6 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
 use crate::{NamedGeneric, TypeVariable, TypeVariableId};
-use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -1120,8 +1119,7 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&id);
         let variants = unwrap_enum_type(typ, location)?;
 
-        let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
+        let tag_value = SignedField::from(constructor.variant_index);
         let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         let mut fields = vec![ast::Expression::Literal(tag)];
 
@@ -2794,15 +2792,14 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the fact the Ordering struct contains a single Field type, and our SSA
                 // pass will automatically unpack tuple values.
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
-                    FieldElement::zero() // Ordering::Less
+                    SignedField::zero() // Ordering::Less
                 } else {
-                    2u128.into() // Ordering::Greater
+                    SignedField::from(2u128) // Ordering::Greater
                 };
 
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
-                let ordering_value = SignedField::positive(ordering_value);
                 let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));

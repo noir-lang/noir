@@ -537,7 +537,7 @@ impl UnresolvedTypeExpression {
         match self {
             UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
             UnresolvedTypeExpression::Constant(int, suffix, _) => {
-                ExpressionKind::Literal(Literal::Integer(*int, *suffix))
+                ExpressionKind::Literal(Literal::Integer(int.clone(), *suffix))
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 ExpressionKind::Infix(Box::new(InfixExpression {

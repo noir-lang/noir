@@ -1,4 +1,4 @@
-use acvm::{AcirField, FieldElement};
+use crate::signed_field::SignedField;
 use fm::FileId;
 use modifiers::Modifiers;
 use noirc_errors::{Location, Span};
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
                 )) => {
                     let location = error.location();
                     self.errors.push(error.into());
-                    let token = LocatedToken::new(Token::Int(FieldElement::zero(), None), location);
+                    let token = LocatedToken::new(Token::Int(SignedField::zero(), None), location);
                     return (token, last_comments);
                 }
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
@@ -305,7 +305,7 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn eat_int(&mut self) -> Option<(FieldElement, Option<IntegerTypeSuffix>)> {
+    fn eat_int(&mut self) -> Option<(SignedField, Option<IntegerTypeSuffix>)> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump();
             match token.into_token() {

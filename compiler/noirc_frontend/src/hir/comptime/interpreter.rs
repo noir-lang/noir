@@ -1003,7 +1003,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let first_field = fields.iter().next();
                     match first_field {
                         Some((_, value)) => match &*value.borrow() {
-                            Value::Field(ordering) => Some(*ordering),
+                            Value::Field(ordering) => Some(ordering.clone()),
                             _ => None,
                         },
                         None => None,

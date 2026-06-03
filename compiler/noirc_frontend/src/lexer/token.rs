@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use crate::signed_field::SignedField;
 use noirc_errors::{Located, Location, Position, Span, Spanned};
 use std::fmt::{self, Display};
 
@@ -67,7 +67,7 @@ impl IntegerTypeSuffix {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement, Option<IntegerTypeSuffix>),
+    Int(SignedField, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
@@ -342,8 +342,8 @@ impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n, Some(suffix)) => write!(f, "{n}_{suffix}"),
-            Token::Int(n, None) => write!(f, "{n}"),
+            Token::Int(ref n, Some(suffix)) => write!(f, "{n}_{suffix}"),
+            Token::Int(ref n, None) => write!(f, "{n}"),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
             Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),

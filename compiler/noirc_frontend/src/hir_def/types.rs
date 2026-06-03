@@ -5,8 +5,6 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::{AcirField, FieldElement};
-
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
     elaborator::types::SELF_TYPE_NAME,
@@ -270,7 +268,7 @@ impl Kind {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
+    fn integral_maximum_size(&self) -> Option<SignedField> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
@@ -291,7 +289,7 @@ impl Kind {
         location: Location,
     ) -> Result<SignedField, TypeCheckError> {
         if let Some(maximum_size) = self.integral_maximum_size()
-            && value > SignedField::positive(maximum_size)
+            && value > maximum_size
         {
             return Err(TypeCheckError::OverflowingConstant {
                 value,
@@ -3133,7 +3131,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<SignedField> {
         match self {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
@@ -3144,7 +3142,7 @@ impl Type {
                 let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
                 Some(max.into())
             }
-            Type::Bool => Some(FieldElement::one()),
+            Type::Bool => Some(SignedField::one()),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -3305,7 +3303,7 @@ impl BinaryTypeOperator {
                 BinaryTypeOperator::Subtraction => Ok(a - b),
                 BinaryTypeOperator::Multiplication => Ok(a * b),
                 BinaryTypeOperator::Division => (!b.is_zero())
-                    .then(|| a / b)
+                    .then(|| a.clone() / b.clone())
                     .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
                 BinaryTypeOperator::Modulo => {
                     Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })

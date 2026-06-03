@@ -76,9 +76,10 @@ impl Type {
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) = lhs_evaluated
-                    && let Ok(rhs_value) = rhs_evaluated
-                    && let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                if let Ok(lhs_value) = &lhs_evaluated
+                    && let Ok(rhs_value) = &rhs_evaluated
+                    && let Ok(result) =
+                        op.function(lhs_value.clone(), rhs_value.clone(), &kind, dummy_location)
                 {
                     return Type::Constant(result, kind);
                 }
@@ -88,7 +89,7 @@ impl Type {
 
                 // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division)
-                    && let Ok(rhs_value) = rhs_evaluated
+                    && let Ok(rhs_value) = &rhs_evaluated
                     && rhs_value.is_one()
                 {
                     return lhs;
@@ -96,7 +97,7 @@ impl Type {
 
                 // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction)
-                    && let Ok(rhs_value) = rhs_evaluated
+                    && let Ok(rhs_value) = &rhs_evaluated
                     && rhs_value.is_zero()
                 {
                     return lhs;
@@ -159,7 +160,7 @@ impl Type {
         } else {
             SignedField::one()
         };
-        let mut constant = zero_value;
+        let mut constant = zero_value.clone();
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
@@ -170,9 +171,12 @@ impl Type {
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
                     let dummy_location = Location::dummy();
-                    if let Ok(result) =
-                        op.function(constant, new_constant, &new_constant_kind, dummy_location)
-                    {
+                    if let Ok(result) = op.function(
+                        constant.clone(),
+                        new_constant.clone(),
+                        &new_constant_kind,
+                        dummy_location,
+                    ) {
                         constant = result;
                     } else {
                         let constant = Type::Constant(new_constant, new_constant_kind);
@@ -690,7 +694,7 @@ mod proptests {
             let (infix_expr, typ, _value_generator) = infix_type_gen;
             let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(*value, Kind::numeric(typ.clone()))
+                    Type::Constant(value.clone(), Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)
@@ -727,7 +731,7 @@ mod proptests {
                         "convert_infix_type_expr_to_expr: unexpected non-numeric kind: {kind}"
                     ),
                 };
-                let literal = Literal::Integer(*value, Some(integer_type_suffix));
+                let literal = Literal::Integer(value.clone(), Some(integer_type_suffix));
                 ExpressionKind::Literal(literal)
             }
             Type::TypeVariable(type_var) => unimplemented!(
@@ -907,7 +911,7 @@ mod proptests {
         let n = Type::TypeVariable(var_n);
 
         // large_field ≈ 2^200
-        let large_field = SignedField::positive(FieldElement::from_be_bytes_reduce(&[
+        let large_field = SignedField::from_field_element(FieldElement::from_be_bytes_reduce(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,

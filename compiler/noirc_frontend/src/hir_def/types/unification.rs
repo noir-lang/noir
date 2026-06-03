@@ -276,7 +276,7 @@ impl Type {
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = Type::inverted_infix_expr(
-                            Box::new(Constant(*value, kind.clone())),
+                            Box::new(Constant(value.clone(), kind.clone())),
                             inverse,
                             rhs.clone(),
                         );

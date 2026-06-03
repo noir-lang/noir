@@ -743,9 +743,9 @@ impl Value {
             }
             Value::Field(value) => {
                 if value.is_negative() {
-                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
+                    vec![Token::Minus, Token::Int(value.absolute_value().into(), None)]
                 } else {
-                    vec![Token::Int(value.absolute_value(), None)]
+                    vec![Token::Int(value.absolute_value().into(), None)]
                 }
             }
             Value::String(value) | Value::CtString(value) => {

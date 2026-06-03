@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
-use acvm::FieldElement;
-use acvm::acir::AcirField;
+use crate::signed_field::SignedField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
@@ -780,7 +779,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
+                let start_range = ExpressionKind::integer(SignedField::zero(), None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;

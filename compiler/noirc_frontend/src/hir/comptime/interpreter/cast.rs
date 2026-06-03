@@ -115,12 +115,65 @@ fn convert_to_field(value: Value, location: Location) -> IResult<(FieldElement, 
     })
 }
 
+/// Sign- or zero-extends an integer or boolean to its 128-bit two's-complement
+/// bit pattern.
+fn integer_bit_pattern(value: &Value) -> Option<u128> {
+    Some(match value {
+        Value::U1(value) => u128::from(*value),
+        Value::U8(value) => u128::from(*value),
+        Value::U16(value) => u128::from(*value),
+        Value::U32(value) => u128::from(*value),
+        Value::U64(value) => u128::from(*value),
+        Value::U128(value) => *value,
+        Value::Bool(value) => u128::from(*value),
+        Value::I8(value) => i128::from(*value) as u128,
+        Value::I16(value) => i128::from(*value) as u128,
+        Value::I32(value) => i128::from(*value) as u128,
+        Value::I64(value) => i128::from(*value) as u128,
+        _ => return None,
+    })
+}
+
+/// Casts an integer bit pattern to another integer type without touching the field.
+fn integer_to_integer(
+    bits: u128,
+    sign: Signedness,
+    bit_size: IntegerBitSize,
+    location: Location,
+) -> IResult<Value> {
+    use IntegerBitSize::*;
+    let unsupported =
+        || InterpreterError::TypeUnsupported { typ: Type::Integer(sign, bit_size), location };
+    Ok(match (sign, bit_size) {
+        (Signedness::Unsigned, One) => Value::U1(bits != 0),
+        (Signedness::Unsigned, Eight) => Value::U8(bits as u8),
+        (Signedness::Unsigned, Sixteen) => Value::U16(bits as u16),
+        (Signedness::Unsigned, ThirtyTwo) => Value::U32(bits as u32),
+        (Signedness::Unsigned, SixtyFour) => Value::U64(bits as u64),
+        (Signedness::Unsigned, HundredTwentyEight) => Value::U128(bits),
+        (Signedness::Signed, One) => return Err(unsupported()),
+        (Signedness::Signed, Eight) => Value::I8(bits as i8),
+        (Signedness::Signed, Sixteen) => Value::I16(bits as i16),
+        (Signedness::Signed, ThirtyTwo) => Value::I32(bits as i32),
+        (Signedness::Signed, SixtyFour) => Value::I64(bits as i64),
+        (Signedness::Signed, HundredTwentyEight) => return Err(unsupported()),
+    })
+}
+
 /// evaluate_cast without recursion
 pub(super) fn evaluate_cast_one_step(
     output_type: &Type,
     location: Location,
     evaluated_lhs: Value,
 ) -> IResult<Value> {
+    // Integer-to-integer casts are pure bit operations and must not round-trip
+    // through a field element, which would be lossy when the source exceeds p.
+    if let Type::Integer(sign, bit_size) = output_type.follow_bindings()
+        && let Some(bits) = integer_bit_pattern(&evaluated_lhs)
+    {
+        return integer_to_integer(bits, sign, bit_size, location);
+    }
+
     let lhs_type = evaluated_lhs.get_type().into_owned();
     let (lhs, lhs_is_negative) = convert_to_field(evaluated_lhs, location)?;
 

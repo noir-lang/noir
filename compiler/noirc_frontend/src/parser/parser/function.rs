@@ -12,7 +12,6 @@ use crate::{
     },
     parser::ParserErrorReason,
 };
-use acvm::AcirField;
 
 use noirc_errors::{Location, Span};
 
