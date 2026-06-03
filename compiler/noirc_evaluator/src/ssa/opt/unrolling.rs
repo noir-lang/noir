@@ -253,14 +253,14 @@ impl Function {
             has_unrolled |= unrolled;
             accumulated_errors.extend(errors);
 
-            if !refresh {
-                break;
-            }
-
             // After unrolling a level of loops, simplify before evaluating the next:
             // for Brillig this is needed for accurate cost estimates; for ACIR it helps
             // resolve bounds that become constant after the enclosing loop is unrolled.
             simplify_between_unrolls(self);
+
+            if !refresh {
+                break;
+            }
         }
 
         (has_unrolled, accumulated_errors)
