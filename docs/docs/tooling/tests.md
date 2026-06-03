@@ -2,7 +2,6 @@
 title: Tests
 description: Learn how to use Nargo to test your Noir program in a quick and easy way
 keywords: [Nargo, testing, Noir, compile, test]
-sidebar_position: 1
 ---
 
 You can test your Noir programs using Noir circuits.
@@ -179,7 +178,7 @@ The files use [lcov trace file format](https://ltp.sourceforge.net/coverage/lcov
 
 ## Mocking Oracles
 
-When testing code that calls [oracles](../noir/concepts/oracles.mdx), you can use `OracleMock` from `std::test` to provide return values without needing an actual oracle server.
+When testing code that calls [oracles](../language/oracles.mdx), you can use `OracleMock` from `std::test` to provide return values without needing an actual oracle server.
 
 ### Basic usage
 

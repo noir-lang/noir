@@ -134,11 +134,16 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+        function_sets: &mut Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
     ) {
         self.local_module = Some(local_module);
 
-        for (generics, _, function_set) in function_sets {
+        for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
             self.add_generics(generics);
@@ -358,6 +363,17 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
+
+        self.run_lint(|_| {
+            lints::databus_visibility_on_return(
+                func,
+                func.def.return_visibility,
+                func.def.return_visibility_location,
+                is_entry_point,
+            )
+            .map(Into::into)
+        });
+
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             let output = true;
@@ -541,7 +557,7 @@ impl Elaborator<'_> {
                 .map(Into::into)
             });
             self.run_lint(|_| {
-                lints::databus_on_non_entry_point(
+                lints::databus_visibility_on_parameter(
                     func,
                     visibility,
                     visibility_location,

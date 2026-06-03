@@ -583,10 +583,16 @@ pub(crate) fn constant_to_radix(
         // acir::generated_acir::radix_le_decompose
         return None;
     }
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
-
-    // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = big_integer.to_radix_le(radix);
+    // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make a
+    // zero value appear to require one limb. Decomposing zero requires no significant limbs, so
+    // treat it as an empty decomposition (zero-padded up to `limb_count`).
+    let decomposed_integer = if field.is_zero() {
+        Vec::new()
+    } else {
+        let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+        // Decompose the integer into its radix digits in little endian form.
+        big_integer.to_radix_le(radix)
+    };
     if limb_count < decomposed_integer.len() as u32 {
         // `field` cannot be represented as `limb_count` bits.
         // defer error to acir_gen.
@@ -942,10 +948,31 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
+    use acvm::{AcirField, FieldElement};
+
+    use crate::ssa::ir::instruction::Endian;
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, ir::dfg::simplify::call::constant_to_radix, opt::assert_normalized_ssa_equals},
     };
+
+    #[test]
+    fn constant_to_radix_decomposes_zero_into_zero_limbs() {
+        let limbs = constant_to_radix(Endian::Little, FieldElement::zero(), 256, 0);
+        assert_eq!(limbs, Some(Vec::new()));
+    }
+
+    #[test]
+    fn constant_to_radix_zero_pads_zero_value() {
+        let limbs = constant_to_radix(Endian::Little, FieldElement::zero(), 256, 3);
+        assert_eq!(limbs, Some(vec![FieldElement::zero(); 3]));
+    }
+
+    #[test]
+    fn constant_to_radix_rejects_non_zero_value_with_zero_limbs() {
+        let limbs = constant_to_radix(Endian::Little, FieldElement::from(5u128), 256, 0);
+        assert_eq!(limbs, None);
+    }
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {

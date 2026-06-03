@@ -49,6 +49,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # `compile_fail` runs trybuild, which spawns its own `cargo build` and
+      # needs the cargo registry to resolve transitive proc-macro deps. The
+      # run-tests job runs from the archive without registry access, so the
+      # test detects the nextest run via NEXTEST_TEST_GROUP and skips itself.
+      # We exercise it here via plain `cargo test`, where the registry cache
+      # restored by Swatinem/rust-cache is intact.
+      - name: Run trybuild compile_fail tests
+        run: cargo test -p msgpack_tagged --test compile_fail
+
       - name: Upload archive to workflow
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -89,6 +98,12 @@ jobs:
           cargo nextest run --archive-file nextest-archive-arm64.tar.zst \
             --partition count:${{ matrix.partition }}/8 \
             --profile ci-master
+        env:
+          # Tests that spawn their own `cargo build` (notably trybuild's
+          # compile_fail in `msgpack_tagged`) detect this and skip — see
+          # acvm-repo/msgpack_tagged/tests/compile_fail.rs. They run instead
+          # in the build-test-artifacts job where the registry cache is intact.
+          NOIR_NEXTEST_ARCHIVED: 1
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.

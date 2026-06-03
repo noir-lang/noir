@@ -26,6 +26,8 @@ use acvm::{
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+#[cfg(debug_assertions)]
+pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
@@ -807,14 +809,13 @@ impl<'f> Validator<'f> {
                 // struct EmbeddedCurvePoint {
                 //     x: Field,
                 //     y: Field,
-                //     is_infinite: bool,
                 // }
-                assert_arguments_length(arguments, 7, "embedded_curve_add");
+                assert_arguments_length(arguments, 5, "embedded_curve_add");
 
                 assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
-                assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
+                assert_embedded_curve_point(arguments, 2, dfg, "embedded_curve_add _point2");
 
-                let predicate_type = dfg.type_of_value(arguments[6]);
+                let predicate_type = dfg.type_of_value(arguments[4]);
                 assert_u1(&predicate_type, "embedded_curve_add _predicate");
 
                 let result_type = self.assert_one_result(instruction, "embedded_curve_add");
@@ -823,13 +824,12 @@ impl<'f> Validator<'f> {
                 assert_array_length(result_length, 1, "embedded_curve_add result length");
                 assert_eq!(
                     result_elements.len(),
-                    3,
-                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    2,
+                    "Expected embedded_curve_add result element types length to be 2, got: {}",
                     result_elements.len(),
                 );
                 assert_field(&result_elements[0], "embedded_curve_add result x");
                 assert_field(&result_elements[1], "embedded_curve_add result y");
-                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
             }
             BlackBoxFunc::Keccakf1600 => {
                 // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
@@ -856,13 +856,12 @@ impl<'f> Validator<'f> {
                     assert_array(&points_type, "multi_scalar_mul points");
                 assert_eq!(
                     points_elements.len(),
-                    3,
-                    "Expected multi_scalar_mul points element types length to be 3, got: {}",
+                    2,
+                    "Expected multi_scalar_mul points element types length to be 2, got: {}",
                     points_elements.len()
                 );
                 assert_field(&points_elements[0], "multi_scalar_mul points x");
                 assert_field(&points_elements[1], "multi_scalar_mul points y");
-                assert_u1(&points_elements[2], "multi_scalar_mul points is_infinite");
 
                 let (scalars_elements, scalars_length) =
                     assert_array(&scalars_type, "multi_scalar_mul scalars");
@@ -1236,11 +1235,13 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
 /// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
 /// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
 /// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
-/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// of those passes regresses we want this to fail at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
 #[cfg(debug_assertions)]
-pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<()> {
+    use crate::errors::RuntimeError;
+
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
             continue;
@@ -1248,20 +1249,22 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
         for block_id in func.reachable_blocks() {
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                assert!(
-                    !matches!(
-                        instruction,
-                        Instruction::Load { .. }
-                            | Instruction::Store { .. }
-                            | Instruction::Allocate
-                    ),
-                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
-                     pipeline; mem2reg + flatten_cfg should have removed it",
-                    func.name()
-                );
+                if matches!(
+                    instruction,
+                    Instruction::Load { .. } | Instruction::Store { .. } | Instruction::Allocate
+                ) {
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                         pipeline; mem2reg + flatten_cfg should have removed it",
+                        func.name()
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
     }
+    Ok(())
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1389,7 +1392,6 @@ fn assert_embedded_curve_point(
     // struct EmbeddedCurvePoint {
     //     x: Field,
     //     y: Field,
-    //     is_infinite: bool,
     // }
     let point_x = arguments[index];
     let point_x_type = dfg.type_of_value(point_x);
@@ -1398,10 +1400,6 @@ fn assert_embedded_curve_point(
     let point_y = arguments[index + 1];
     let point_y_type = dfg.type_of_value(point_y);
     assert_field(&point_y_type, &format!("{object} y"));
-
-    let point_is_infinite = arguments[index + 2];
-    let point_is_infinite_type = dfg.type_of_value(point_is_infinite);
-    assert_u1(&point_is_infinite_type, &format!("{object} is_infinite"));
 }
 
 #[cfg(test)]
@@ -1434,7 +1432,7 @@ mod tests {
     #[should_panic(expected = "Cannot use `lt` with field elements")]
     fn disallows_comparing_fields_with_lt() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v2 = lt Field 1, Field 2
             return
@@ -1620,7 +1618,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_in_range() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 42 as u8
             return v0
@@ -1632,7 +1630,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_out_of_range_with_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -1659,7 +1657,7 @@ mod tests {
     #[should_panic(expected = "Constant too large")]
     fn cast_from_field_constant_too_large() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 300 as u8
             return v0
@@ -1672,7 +1670,7 @@ mod tests {
     #[should_panic(expected = "Invalid cast from Field")]
     fn cast_from_raw_field() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = add Field 255, Field 1
             v1 = cast v0 as u8
@@ -1686,7 +1684,7 @@ mod tests {
     #[should_panic(expected = "assertion")]
     fn cast_after_unsafe_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -2218,12 +2216,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "multi_scalar_mul points is_infinite must be u1, not Field")]
+    #[should_panic(
+        expected = "Expected multi_scalar_mul points element types length to be 2, got: 3"
+    )]
     fn msm_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
-            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
+            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field); 1]
             return v3
         }
         ";

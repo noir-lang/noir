@@ -229,6 +229,13 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, name: String, location: Location },
+    #[error("{visibility} attribute is not allowed on {position}")]
+    DataBusOnWrongPosition {
+        visibility: String,
+        position: &'static str,
+        allowed: &'static str,
+        location: Location,
+    },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
@@ -328,6 +335,7 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. }
+            | ResolverError::DataBusOnWrongPosition { location, .. }
             | ResolverError::RemovedType { location, .. }
             | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
@@ -1031,6 +1039,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
+            },
+            ResolverError::DataBusOnWrongPosition { visibility, position, allowed, location } => {
+                Diagnostic::simple_error(
+                    format!("{visibility} attribute is not allowed on {position}"),
+                    format!("{visibility} is only allowed on {allowed}"),
+                    *location,
+                )
             },
             ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
                 Diagnostic::simple_error(
