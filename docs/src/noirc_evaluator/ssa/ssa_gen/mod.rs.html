@@ -1564,27 +1564,27 @@
 <a href=#1564 id=1564 data-nosnippet>1564</a>    }
 <a href=#1565 id=1565 data-nosnippet>1565</a>}
 <a href=#1566 id=1566 data-nosnippet>1566</a>
-<a href=#1567 id=1567 data-nosnippet>1567</a><span class="doccomment">/// Return whether the expression refers to a pure builtin or low level function
-<a href=#1568 id=1568 data-nosnippet>1568</a>/// that does not modify its array inputs.
-<a href=#1569 id=1569 data-nosnippet>1569</a>///
-<a href=#1570 id=1570 data-nosnippet>1570</a>/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-<a href=#1571 id=1571 data-nosnippet>1571</a>/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-<a href=#1572 id=1572 data-nosnippet>1572</a>/// when the reference count is 1. We must NOT skip clones for these operations.
-<a href=#1573 id=1573 data-nosnippet>1573</a></span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#1574 id=1574 data-nosnippet>1574</a>    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
-<a href=#1575 id=1575 data-nosnippet>1575</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1576 id=1576 data-nosnippet>1576</a>    };
-<a href=#1577 id=1577 data-nosnippet>1577</a>    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
-<a href=#1578 id=1578 data-nosnippet>1578</a>    <span class="kw">else </span>{
-<a href=#1579 id=1579 data-nosnippet>1579</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1580 id=1580 data-nosnippet>1580</a>    };
-<a href=#1581 id=1581 data-nosnippet>1581</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
-<a href=#1582 id=1582 data-nosnippet>1582</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1583 id=1583 data-nosnippet>1583</a>    };
-<a href=#1584 id=1584 data-nosnippet>1584</a>
-<a href=#1585 id=1585 data-nosnippet>1585</a>    <span class="comment">// Vector operations can modify their input array in Brillig when RC=1,
-<a href=#1586 id=1586 data-nosnippet>1586</a>    // so we must clone them to ensure that they are "pure".
-<a href=#1587 id=1587 data-nosnippet>1587</a>    </span><span class="kw">if </span>intrinsic.modifies_input_array_in_brillig() {
+<a href=#1567 id=1567 data-nosnippet>1567</a><span class="doccomment">/// Return whether the expression refers to a builtin or low level function for
+<a href=#1568 id=1568 data-nosnippet>1568</a>/// which the ownership pass's `Clone` around an array argument can be safely
+<a href=#1569 id=1569 data-nosnippet>1569</a>/// elided: the callee must neither modify the input nor return an alias of it
+<a href=#1570 id=1570 data-nosnippet>1570</a>/// that a later Brillig mutation could observe.
+<a href=#1571 id=1571 data-nosnippet>1571</a></span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1572 id=1572 data-nosnippet>1572</a>    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
+<a href=#1573 id=1573 data-nosnippet>1573</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1574 id=1574 data-nosnippet>1574</a>    };
+<a href=#1575 id=1575 data-nosnippet>1575</a>    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
+<a href=#1576 id=1576 data-nosnippet>1576</a>    <span class="kw">else </span>{
+<a href=#1577 id=1577 data-nosnippet>1577</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1578 id=1578 data-nosnippet>1578</a>    };
+<a href=#1579 id=1579 data-nosnippet>1579</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
+<a href=#1580 id=1580 data-nosnippet>1580</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1581 id=1581 data-nosnippet>1581</a>    };
+<a href=#1582 id=1582 data-nosnippet>1582</a>
+<a href=#1583 id=1583 data-nosnippet>1583</a>    <span class="comment">// Some intrinsics are technically pure but unsafe to elide clones around in
+<a href=#1584 id=1584 data-nosnippet>1584</a>    // Brillig: vector mutators mutate through the input pointer when RC=1, and
+<a href=#1585 id=1585 data-nosnippet>1585</a>    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
+<a href=#1586 id=1586 data-nosnippet>1586</a>    // alias of their input that a later mutation could corrupt.
+<a href=#1587 id=1587 data-nosnippet>1587</a>    </span><span class="kw">if </span>intrinsic.unsafe_for_clone_elision_in_brillig() {
 <a href=#1588 id=1588 data-nosnippet>1588</a>        <span class="kw">return </span><span class="bool-val">false</span>;
 <a href=#1589 id=1589 data-nosnippet>1589</a>    }
 <a href=#1590 id=1590 data-nosnippet>1590</a>
