@@ -28,6 +28,11 @@ pub(crate) enum TraitLookupMode {
     /// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
     /// The returned bindings are not expected to be applied.
     SelfAssumedOnly,
+    /// Like [Default](TraitLookupMode::Default), but skips every [TraitImplKind::Assumed] impl.
+    /// Used to normalize an associated-type projection over a fully concrete object type: the
+    /// concrete impl is the single ground truth, and any `where` clause hypothesis for the same
+    /// type is discharged by it rather than competing with it.
+    IgnoreAssumed,
     /// Used only when registering a new impl, to detect whether it overlaps an existing one.
     /// Unlike [Default](TraitLookupMode::Default), this does not bail out for bindable object types:
     /// overlap detection must consider generic impls such as `impl<T> Foo for T` or
@@ -339,6 +344,28 @@ impl NodeInterner {
         Ok((impl_kind, instantiation_bindings))
     }
 
+    /// Like [Self::lookup_trait_implementation] but ignores [TraitImplKind::Assumed] impls.
+    /// Intended for normalizing an associated-type projection whose object type is fully concrete,
+    /// where a `where` clause hypothesis must not compete with the concrete impl that discharges it.
+    pub(crate) fn lookup_trait_implementation_ignoring_assumed(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        let (impl_kind, bindings, instantiation_bindings) = self.try_lookup_trait_implementation(
+            object_type,
+            trait_id,
+            trait_generics,
+            trait_associated_types,
+            TraitLookupMode::IgnoreAssumed,
+        )?;
+
+        Type::apply_type_bindings(bindings);
+        Ok((impl_kind, instantiation_bindings))
+    }
+
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
     /// On error returns either:
     /// - 1+ failing trait constraints, including the original.
@@ -421,7 +448,8 @@ impl NodeInterner {
         let object_type = object_type.substitute(type_bindings);
         let is_bindable = object_type.is_bindable();
 
-        if is_bindable && matches!(mode, TraitLookupMode::Default) {
+        if is_bindable && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
+        {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
@@ -442,6 +470,9 @@ impl NodeInterner {
                 TraitLookupMode::Overlapping => matches!(impl_kind, TraitImplKind::Prepared(..)),
                 TraitLookupMode::SelfAssumedOnly => {
                     !matches!(impl_kind, TraitImplKind::Assumed { .. })
+                }
+                TraitLookupMode::IgnoreAssumed => {
+                    matches!(impl_kind, TraitImplKind::Assumed { .. })
                 }
             };
             if skip {

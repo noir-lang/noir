@@ -15,7 +15,7 @@ use crate::{
             errors::DefCollectorErrorKind,
         },
         resolution::errors::ResolverError,
-        type_check::TypeCheckError,
+        type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::traits::{NamedType, TraitImpl},
     node_interner::{TraitImplId, TraitLookupMode},
@@ -529,11 +529,17 @@ impl Elaborator<'_> {
 
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in &method.trait_constraints {
-            let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
-            let substituted_trait_generics = method_constraint
+            let substituted_constraint_type =
+                method_constraint.typ.substitute(&bindings).follow_bindings();
+            let mut substituted_trait_generics = method_constraint
                 .trait_bound
                 .trait_generics
                 .map(|generic| generic.substitute(&bindings));
+            self.normalize_constraint_named_generics(
+                &substituted_constraint_type,
+                method_constraint.trait_bound.trait_id,
+                &mut substituted_trait_generics,
+            );
 
             substituted_method_ids.insert((
                 substituted_constraint_type,
@@ -551,11 +557,17 @@ impl Elaborator<'_> {
                 continue;
             }
 
-            let override_trait_generics =
+            let override_constraint_type = override_trait_constraint.typ.follow_bindings();
+            let mut override_trait_generics =
                 override_trait_constraint.trait_bound.trait_generics.clone();
+            self.normalize_constraint_named_generics(
+                &override_constraint_type,
+                override_trait_constraint.trait_bound.trait_id,
+                &mut override_trait_generics,
+            );
 
             if !substituted_method_ids.contains(&(
-                override_trait_constraint.typ.clone(),
+                override_constraint_type,
                 override_trait_constraint.trait_bound.trait_id,
                 override_trait_generics,
             )) {
@@ -573,6 +585,32 @@ impl Elaborator<'_> {
         }
 
         self.interner.push_fn_meta(override_meta, *func_id);
+    }
+
+    /// Replace each named (associated-type) argument that is still an unresolved implicit generic
+    /// with its concrete value, when the constraint's object type is concrete. A discharged
+    /// `where Self::Target: Mappable` clause then compares equal between a trait method and its
+    /// impl, instead of tripping the "impl has stricter requirements" check over differing
+    /// implicit generics that both stand for `<Self::Target as Mappable>::Target`.
+    fn normalize_constraint_named_generics(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        generics: &mut TraitGenerics,
+    ) {
+        let ordered = generics.ordered.clone();
+        for named in &mut generics.named {
+            if matches!(named.typ, Type::NamedGeneric(_))
+                && let Some(normalized) = self.normalize_concrete_associated_type(
+                    object_type,
+                    trait_id,
+                    &ordered,
+                    named.name.as_str(),
+                )
+            {
+                named.typ = normalized;
+            }
+        }
     }
 
     /// Check that an associated type in a trait impl is not assigned a type that is more
