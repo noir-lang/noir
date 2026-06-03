@@ -1,8 +1,10 @@
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+
 use crate::errors::CliError;
 
 use clap::Args;
-use nargo::workspace::Workspace;
-use nargo_toml::PackageSelection;
+use nargo_toml::{PackageSelection, list_cached_git_dependencies};
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
@@ -27,9 +29,24 @@ impl WorkspaceCommand for InstallCommand {
     }
 }
 
-pub(crate) fn run(_args: InstallCommand, _workspace: Workspace) -> Result<(), CliError> {
+pub(crate) fn run(installed_before: BTreeSet<PathBuf>) -> Result<(), CliError> {
     // Resolving the workspace (which happens before this runs) downloads any missing git
-    // dependencies into the global cache, with `git` printing its own progress as it clones.
-    // There is nothing left to do here.
+    // dependencies into the global cache. Comparing the cache against the snapshot taken before
+    // resolution tells us exactly which dependencies were downloaded during this run; ones that
+    // were already cached are not reported.
+    let installed_after = list_cached_git_dependencies();
+    let newly_installed: Vec<_> = installed_after.difference(&installed_before).collect();
+
+    if newly_installed.is_empty() {
+        return Ok(());
+    }
+
+    let count = newly_installed.len();
+    let noun = if count == 1 { "dependency" } else { "dependencies" };
+    println!("Installed {count} {noun}:");
+    for dependency in newly_installed {
+        println!("  {}", dependency.display());
+    }
+
     Ok(())
 }

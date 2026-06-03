@@ -151,7 +151,14 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
-        NargoCommand::Install(args) => with_workspace(args, config, install_cmd::run),
+        NargoCommand::Install(args) => {
+            // Snapshot the dependency cache before resolution downloads anything, so the command
+            // can report exactly what was installed during this run.
+            let installed_before = nargo_toml::list_cached_git_dependencies();
+            with_workspace(args, config, move |_args, _workspace| {
+                install_cmd::run(installed_before)
+            })
+        }
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
         NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
