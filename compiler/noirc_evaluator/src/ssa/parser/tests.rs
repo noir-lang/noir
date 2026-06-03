@@ -7,6 +7,8 @@ use crate::{
 
 use super::{ParserError, SsaError};
 
+use test_case::test_case;
+
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
     let ssa = ssa.print_without_locations().to_string();
@@ -714,25 +716,26 @@ fn test_out_of_range_unsigned_constant_roundtrips() {
     assert_ssa_roundtrip(src);
 }
 
-#[test]
-fn test_signed_negative_boundary_constants_roundtrip() {
-    // `-1` and the most negative value of each signed type are printed with a leading
-    // `-`; the parser reconstructs the two's-complement field value via field
-    // arithmetic, so even an `i128` (whose `2^bit_size` overflows `u128`) round-trips.
-    for src in [
-        "i8 -1", "i8 -128", "i16 -32768", "i32 -1", "i64 -1", "i128 -1",
-        "i128 -170141183460469231731687303715884105728",
-    ] {
-        let src = format!(
-            "
-            acir(inline) fn main f0 {{
-              b0():
-                return {src}
-            }}
-            "
-        );
-        assert_ssa_roundtrip(&src);
-    }
+// `-1` and the most negative value of each signed type are printed with a leading
+// `-`; the parser reconstructs the two's-complement field value via field arithmetic,
+// so even an `i128` (whose `2^bit_size` overflows `u128`) round-trips.
+#[test_case("i8 -1")]
+#[test_case("i8 -128")]
+#[test_case("i16 -32768")]
+#[test_case("i32 -1")]
+#[test_case("i64 -1")]
+#[test_case("i128 -1")]
+#[test_case("i128 -170141183460469231731687303715884105728"; "i128 min")]
+fn signed_negative_boundary_constant_roundtrips(literal: &str) {
+    let src = format!(
+        "
+        acir(inline) fn main f0 {{
+          b0():
+            return {literal}
+        }}
+        "
+    );
+    assert_ssa_roundtrip(&src);
 }
 
 #[test]
