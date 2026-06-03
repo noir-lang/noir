@@ -3704,6 +3704,34 @@ mod control_dependence {
     }
 
     #[test]
+    fn neq_guarded_while_body_not_hoisted_when_skipped() {
+        // Sibling of `eq_guarded_while_body_not_hoisted_when_skipped` for the `!=` shape. A
+        // `while i != 4` whose induction variable starts at 4 never executes. It lowers to an
+        // `Eq` header with the body on the *else* branch (`jmpif eq then: exit, else: body`),
+        // which `get_const_upper_bound` classifies as `LessThan` with upper = rhs. The body is
+        // skipped exactly when `lower == rhs == upper`, so `upper > lower` is false and the
+        // control-dependent `constrain v0 == u32 1` must stay in the body. Unlike the `==`
+        // case this can only ever under-claim execution, never over-claim, but we lock in the
+        // behavior so a future bound refactor cannot turn it into a spurious hoist.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 4)
+          b1(v1: u32):
+            v3 = eq v1, u32 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            constrain v0 == u32 1
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return v0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
     fn eq_guarded_while_body_still_hoisted_when_executed() {
         // Counterpart to `eq_guarded_while_body_not_hoisted_when_skipped`: when an `Eq`-guarded
         // body *does* execute (here `i` starts at 0 and the guard is `i == 0`, so the body runs
