@@ -220,16 +220,10 @@ struct LoopInvariantContext<'f> {
     /// Maps an outer loop's induction variable to its [`LoopBounds`].
     ///
     /// Used by inner loops to reason about operations on an outer loop's induction variable —
-    /// hoisting an in-bounds array access or proving a `Div`/`Mod` divisor is never zero. Only
-    /// the `[lower, upper)` range is consulted here, never [`LoopBoundKind`]: the kind decides
-    /// whether the body executes, which is a non-issue because any instruction referencing the
-    /// outer variable lives inside that loop's body, so a never-entered loop never runs it.
+    /// hoisting an in-bounds array access or proving a `Div`/`Mod` divisor is never zero.
     outer_induction_variables: HashMap<ValueId, LoopBounds>,
-    /// All induction variables collected up front, with their [`LoopBounds`]. Unlike
-    /// `outer_induction_variables`, the [`LoopBoundKind`] is consulted here to decide whether
-    /// each loop's body is guaranteed to execute (see [`does_loop_execute`]).
+    /// All induction variables collected up front, with their [`LoopBounds`].    
     all_induction_variables: HashMap<ValueId, LoopBounds>,
-
     cfg: ControlFlowGraph,
 
     /// Maps a block to its post-dominance frontiers
