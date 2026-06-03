@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780505573502,
+  "lastUpdate": 1780505691235,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23095,48 +23095,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "1cdfd150579411e48117740126a18afa9c934478",
-          "message": "fix: composite offsets in array_set (#12701)",
-          "timestamp": "2026-05-27T17:34:16Z",
-          "tree_id": "050ae130c5554b80f19eafebb8c6fbbb24c61376",
-          "url": "https://github.com/noir-lang/noir/commit/1cdfd150579411e48117740126a18afa9c934478"
-        },
-        "date": 1779904710578,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 163002,
-            "range": "± 1968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135067,
-            "range": "± 1457",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2122004,
-            "range": "± 1045",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "b1e611696f782a657b1a0b2971efabb6987c4101",
           "message": "fix: Remove zeroing of popped elements (#11679)",
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041942,
             "range": "± 27099",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bce969836a9549ba979e4fd782620221ac69324e",
+          "message": "fix: Eager normalization of concrete trait constraints (#12888)",
+          "timestamp": "2026-06-03T16:27:22Z",
+          "tree_id": "e4084cdb98d63e474600f8e48f2bbacec8bc0a12",
+          "url": "https://github.com/noir-lang/noir/commit/bce969836a9549ba979e4fd782620221ac69324e"
+        },
+        "date": 1780505622968,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128031,
+            "range": "± 182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113883,
+            "range": "± 2000",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3039111,
+            "range": "± 1493",
             "unit": "ns/iter"
           }
         ]
