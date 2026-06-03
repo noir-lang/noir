@@ -588,7 +588,7 @@
 <a href=#588 id=588 data-nosnippet>588</a>    }
 <a href=#589 id=589 data-nosnippet>589</a>
 <a href=#590 id=590 data-nosnippet>590</a>    <span class="doccomment">/// Replace each named (associated-type) argument that is still an unresolved implicit generic
-<a href=#591 id=591 data-nosnippet>591</a>    /// with its concrete value, when the constraint's object type is concrete. A discharged
+<a href=#591 id=591 data-nosnippet>591</a>    /// with its normalized value, when the constraint's object type is rigid. A discharged
 <a href=#592 id=592 data-nosnippet>592</a>    /// `where Self::Target: Mappable` clause then compares equal between a trait method and its
 <a href=#593 id=593 data-nosnippet>593</a>    /// impl, instead of tripping the "impl has stricter requirements" check over differing
 <a href=#594 id=594 data-nosnippet>594</a>    /// implicit generics that both stand for `&lt;Self::Target as Mappable&gt;::Target`.
@@ -601,7 +601,7 @@
 <a href=#601 id=601 data-nosnippet>601</a>        <span class="kw">let </span>ordered = generics.ordered.clone();
 <a href=#602 id=602 data-nosnippet>602</a>        <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;mut </span>generics.named {
 <a href=#603 id=603 data-nosnippet>603</a>            <span class="kw">if </span><span class="macro">matches!</span>(named.typ, Type::NamedGeneric(<span class="kw">_</span>))
-<a href=#604 id=604 data-nosnippet>604</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(normalized) = <span class="self">self</span>.normalize_concrete_associated_type(
+<a href=#604 id=604 data-nosnippet>604</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(normalized) = <span class="self">self</span>.normalize_rigid_associated_type(
 <a href=#605 id=605 data-nosnippet>605</a>                    object_type,
 <a href=#606 id=606 data-nosnippet>606</a>                    trait_id,
 <a href=#607 id=607 data-nosnippet>607</a>                    <span class="kw-2">&amp;</span>ordered,

@@ -29,9 +29,9 @@
 <a href=#29 id=29 data-nosnippet>29</a>    /// The returned bindings are not expected to be applied.
 <a href=#30 id=30 data-nosnippet>30</a>    </span>SelfAssumedOnly,
 <a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// Like [Default](TraitLookupMode::Default), but skips every [TraitImplKind::Assumed] impl.
-<a href=#32 id=32 data-nosnippet>32</a>    /// Used to normalize an associated-type projection over a fully concrete object type: the
-<a href=#33 id=33 data-nosnippet>33</a>    /// concrete impl is the single ground truth, and any `where` clause hypothesis for the same
-<a href=#34 id=34 data-nosnippet>34</a>    /// type is discharged by it rather than competing with it.
+<a href=#32 id=32 data-nosnippet>32</a>    /// Used to normalize an associated-type projection over a rigid object type: the real impl
+<a href=#33 id=33 data-nosnippet>33</a>    /// is the single ground truth, and any `where` clause hypothesis for the same type is
+<a href=#34 id=34 data-nosnippet>34</a>    /// discharged by it rather than competing with it.
 <a href=#35 id=35 data-nosnippet>35</a>    </span>IgnoreAssumed,
 <a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Used only when registering a new impl, to detect whether it overlaps an existing one.
 <a href=#37 id=37 data-nosnippet>37</a>    /// Unlike [Default](TraitLookupMode::Default), this does not bail out for bindable object types:
@@ -345,8 +345,8 @@
 <a href=#345 id=345 data-nosnippet>345</a>    }
 <a href=#346 id=346 data-nosnippet>346</a>
 <a href=#347 id=347 data-nosnippet>347</a>    <span class="doccomment">/// Like [Self::lookup_trait_implementation] but ignores [TraitImplKind::Assumed] impls.
-<a href=#348 id=348 data-nosnippet>348</a>    /// Intended for normalizing an associated-type projection whose object type is fully concrete,
-<a href=#349 id=349 data-nosnippet>349</a>    /// where a `where` clause hypothesis must not compete with the concrete impl that discharges it.
+<a href=#348 id=348 data-nosnippet>348</a>    /// Intended for normalizing an associated-type projection whose object type is rigid,
+<a href=#349 id=349 data-nosnippet>349</a>    /// where a `where` clause hypothesis must not compete with the real impl that discharges it.
 <a href=#350 id=350 data-nosnippet>350</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_trait_implementation_ignoring_assumed(
 <a href=#351 id=351 data-nosnippet>351</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#352 id=352 data-nosnippet>352</a>        object_type: <span class="kw-2">&amp;</span>Type,
@@ -582,113 +582,140 @@
 <a href=#582 id=582 data-nosnippet>582</a>            errors.push(make_constraint());
 <a href=#583 id=583 data-nosnippet>583</a>            <span class="prelude-val">Err</span>(ImplSearchErrorKind::NoMatching(errors))
 <a href=#584 id=584 data-nosnippet>584</a>        } <span class="kw">else </span>{
-<a href=#585 id=585 data-nosnippet>585</a>            <span class="kw">let </span>impls = vecmap(matching_impls, |(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, constraint)| {
-<a href=#586 id=586 data-nosnippet>586</a>                <span class="kw">let </span>name = <span class="kw-2">&amp;</span><span class="self">self</span>.get_trait(constraint.trait_bound.trait_id).name;
-<a href=#587 id=587 data-nosnippet>587</a>                <span class="macro">format!</span>(<span class="string">"{}: {name}{}"</span>, constraint.typ, constraint.trait_bound.trait_generics)
-<a href=#588 id=588 data-nosnippet>588</a>            });
-<a href=#589 id=589 data-nosnippet>589</a>            <span class="prelude-val">Err</span>(ImplSearchErrorKind::MultipleMatching(impls))
-<a href=#590 id=590 data-nosnippet>590</a>        }
-<a href=#591 id=591 data-nosnippet>591</a>    }
-<a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="doccomment">/// Verifies that each constraint in the given where clause is valid.
-<a href=#594 id=594 data-nosnippet>594</a>    /// If an impl cannot be found for any constraint, the erroring constraint is returned.
-<a href=#595 id=595 data-nosnippet>595</a>    </span><span class="kw">fn </span>validate_where_clause(
-<a href=#596 id=596 data-nosnippet>596</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#597 id=597 data-nosnippet>597</a>        where_clause: <span class="kw-2">&amp;</span>[TraitConstraint],
-<a href=#598 id=598 data-nosnippet>598</a>        type_bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#599 id=599 data-nosnippet>599</a>        instantiation_bindings: <span class="kw-2">&amp;</span>TypeBindings,
-<a href=#600 id=600 data-nosnippet>600</a>        recursion_limit: u32,
-<a href=#601 id=601 data-nosnippet>601</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), (TraitConstraint, ImplSearchErrorKind)&gt; {
-<a href=#602 id=602 data-nosnippet>602</a>        <span class="kw">for </span>constraint <span class="kw">in </span>where_clause {
-<a href=#603 id=603 data-nosnippet>603</a>            <span class="comment">// Instantiation bindings are generally safe to force substitute into the same type.
-<a href=#604 id=604 data-nosnippet>604</a>            // This is needed here to undo any bindings done to trait methods by monomorphization.
-<a href=#605 id=605 data-nosnippet>605</a>            // Otherwise, an impl for any (A, B) could get narrowed to only an impl for e.g. (u8, u16).
-<a href=#606 id=606 data-nosnippet>606</a>            </span><span class="kw">let </span>constraint_type =
-<a href=#607 id=607 data-nosnippet>607</a>                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a>            <span class="kw">let </span>trait_generics =
-<a href=#610 id=610 data-nosnippet>610</a>                vecmap(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.ordered, |generic| {
-<a href=#611 id=611 data-nosnippet>611</a>                    generic.force_substitute(instantiation_bindings).substitute(type_bindings)
-<a href=#612 id=612 data-nosnippet>612</a>                });
-<a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a>            <span class="kw">let </span>trait_associated_types =
-<a href=#615 id=615 data-nosnippet>615</a>                vecmap(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.named, |generic| {
-<a href=#616 id=616 data-nosnippet>616</a>                    <span class="kw">let </span>typ = generic.typ.force_substitute(instantiation_bindings);
-<a href=#617 id=617 data-nosnippet>617</a>                    NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
-<a href=#618 id=618 data-nosnippet>618</a>                });
+<a href=#585 id=585 data-nosnippet>585</a>            <span class="comment">// An assumed impl is a `where` clause hypothesis that an impl exists for the object
+<a href=#586 id=586 data-nosnippet>586</a>            // type. When a real impl also matches, it discharges that hypothesis rather than
+<a href=#587 id=587 data-nosnippet>587</a>            // competing with it: by coherence it is the unique ground truth, so prefer it over
+<a href=#588 id=588 data-nosnippet>588</a>            // the assumed candidates. This only holds when the query is rigid (no unbound type
+<a href=#589 id=589 data-nosnippet>589</a>            // variables in the object type or ordered generics). Otherwise the candidates may
+<a href=#590 id=590 data-nosnippet>590</a>            // bind a variable differently - e.g. an assumed `Wrapper&lt;u16&gt;: Foo` and a real
+<a href=#591 id=591 data-nosnippet>591</a>            // `impl Foo for Wrapper&lt;u32&gt;` both match `Wrapper&lt;_&gt;` - and the match is genuinely
+<a href=#592 id=592 data-nosnippet>592</a>            // ambiguous.
+<a href=#593 id=593 data-nosnippet>593</a>            </span><span class="kw">let </span>query_is_rigid = !object_type.contains_unbound_type_variable()
+<a href=#594 id=594 data-nosnippet>594</a>                &amp;&amp; trait_generics.iter().all(|generic| {
+<a href=#595 id=595 data-nosnippet>595</a>                    !generic.substitute(type_bindings).contains_unbound_type_variable()
+<a href=#596 id=596 data-nosnippet>596</a>                });
+<a href=#597 id=597 data-nosnippet>597</a>
+<a href=#598 id=598 data-nosnippet>598</a>            <span class="kw">let </span>real_impl_indexes: Vec&lt;usize&gt; = matching_impls
+<a href=#599 id=599 data-nosnippet>599</a>                .iter()
+<a href=#600 id=600 data-nosnippet>600</a>                .positions(|(kind, ..)| {
+<a href=#601 id=601 data-nosnippet>601</a>                    <span class="macro">matches!</span>(kind, TraitImplKind::Normal(<span class="kw">_</span>) | TraitImplKind::Prepared(..))
+<a href=#602 id=602 data-nosnippet>602</a>                })
+<a href=#603 id=603 data-nosnippet>603</a>                .collect();
+<a href=#604 id=604 data-nosnippet>604</a>
+<a href=#605 id=605 data-nosnippet>605</a>            <span class="kw">if </span>query_is_rigid &amp;&amp; <span class="kw">let </span>[index] = real_impl_indexes[..] {
+<a href=#606 id=606 data-nosnippet>606</a>                <span class="kw">let </span>(impl_, fresh_bindings, instantiation_bindings, <span class="kw">_</span>) =
+<a href=#607 id=607 data-nosnippet>607</a>                    matching_impls.swap_remove(index);
+<a href=#608 id=608 data-nosnippet>608</a>                <span class="kw-2">*</span>type_bindings = fresh_bindings;
+<a href=#609 id=609 data-nosnippet>609</a>                <span class="prelude-val">Ok</span>((impl_, instantiation_bindings))
+<a href=#610 id=610 data-nosnippet>610</a>            } <span class="kw">else </span>{
+<a href=#611 id=611 data-nosnippet>611</a>                <span class="kw">let </span>impls = vecmap(matching_impls, |(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, constraint)| {
+<a href=#612 id=612 data-nosnippet>612</a>                    <span class="kw">let </span>name = <span class="kw-2">&amp;</span><span class="self">self</span>.get_trait(constraint.trait_bound.trait_id).name;
+<a href=#613 id=613 data-nosnippet>613</a>                    <span class="macro">format!</span>(<span class="string">"{}: {name}{}"</span>, constraint.typ, constraint.trait_bound.trait_generics)
+<a href=#614 id=614 data-nosnippet>614</a>                });
+<a href=#615 id=615 data-nosnippet>615</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::MultipleMatching(impls))
+<a href=#616 id=616 data-nosnippet>616</a>            }
+<a href=#617 id=617 data-nosnippet>617</a>        }
+<a href=#618 id=618 data-nosnippet>618</a>    }
 <a href=#619 id=619 data-nosnippet>619</a>
-<a href=#620 id=620 data-nosnippet>620</a>            <span class="comment">// We can ignore any associated types on the constraint since those should not affect
-<a href=#621 id=621 data-nosnippet>621</a>            // which impl we choose.
-<a href=#622 id=622 data-nosnippet>622</a>            </span><span class="self">self</span>.lookup_trait_implementation_helper(
-<a href=#623 id=623 data-nosnippet>623</a>                <span class="kw-2">&amp;</span>constraint_type,
-<a href=#624 id=624 data-nosnippet>624</a>                constraint.trait_bound.trait_id,
-<a href=#625 id=625 data-nosnippet>625</a>                <span class="kw-2">&amp;</span>trait_generics,
-<a href=#626 id=626 data-nosnippet>626</a>                <span class="kw-2">&amp;</span>trait_associated_types,
-<a href=#627 id=627 data-nosnippet>627</a>                <span class="comment">// Use a fresh set of type bindings here since the constraint_type originates from
-<a href=#628 id=628 data-nosnippet>628</a>                // our impl list, which we don't want to bind to.
-<a href=#629 id=629 data-nosnippet>629</a>                </span>type_bindings,
-<a href=#630 id=630 data-nosnippet>630</a>                TraitLookupMode::Default,
-<a href=#631 id=631 data-nosnippet>631</a>                recursion_limit - <span class="number">1</span>,
-<a href=#632 id=632 data-nosnippet>632</a>            )
-<a href=#633 id=633 data-nosnippet>633</a>            .map_err(|error| (constraint.clone(), error))<span class="question-mark">?</span>;
-<a href=#634 id=634 data-nosnippet>634</a>        }
+<a href=#620 id=620 data-nosnippet>620</a>    <span class="doccomment">/// Verifies that each constraint in the given where clause is valid.
+<a href=#621 id=621 data-nosnippet>621</a>    /// If an impl cannot be found for any constraint, the erroring constraint is returned.
+<a href=#622 id=622 data-nosnippet>622</a>    </span><span class="kw">fn </span>validate_where_clause(
+<a href=#623 id=623 data-nosnippet>623</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#624 id=624 data-nosnippet>624</a>        where_clause: <span class="kw-2">&amp;</span>[TraitConstraint],
+<a href=#625 id=625 data-nosnippet>625</a>        type_bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#626 id=626 data-nosnippet>626</a>        instantiation_bindings: <span class="kw-2">&amp;</span>TypeBindings,
+<a href=#627 id=627 data-nosnippet>627</a>        recursion_limit: u32,
+<a href=#628 id=628 data-nosnippet>628</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), (TraitConstraint, ImplSearchErrorKind)&gt; {
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">for </span>constraint <span class="kw">in </span>where_clause {
+<a href=#630 id=630 data-nosnippet>630</a>            <span class="comment">// Instantiation bindings are generally safe to force substitute into the same type.
+<a href=#631 id=631 data-nosnippet>631</a>            // This is needed here to undo any bindings done to trait methods by monomorphization.
+<a href=#632 id=632 data-nosnippet>632</a>            // Otherwise, an impl for any (A, B) could get narrowed to only an impl for e.g. (u8, u16).
+<a href=#633 id=633 data-nosnippet>633</a>            </span><span class="kw">let </span>constraint_type =
+<a href=#634 id=634 data-nosnippet>634</a>                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 <a href=#635 id=635 data-nosnippet>635</a>
-<a href=#636 id=636 data-nosnippet>636</a>        <span class="prelude-val">Ok</span>(())
-<a href=#637 id=637 data-nosnippet>637</a>    }
-<a href=#638 id=638 data-nosnippet>638</a>
-<a href=#639 id=639 data-nosnippet>639</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>trait_constraint_string(
-<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#641 id=641 data-nosnippet>641</a>        object_type: <span class="kw-2">&amp;</span>Type,
-<a href=#642 id=642 data-nosnippet>642</a>        trait_id: TraitId,
-<a href=#643 id=643 data-nosnippet>643</a>        trait_generics: <span class="kw-2">&amp;</span>[Type],
-<a href=#644 id=644 data-nosnippet>644</a>        trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
-<a href=#645 id=645 data-nosnippet>645</a>    ) -&gt; String {
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">let </span>name = <span class="self">self</span>.get_trait(trait_id).name.to_string();
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span><span class="kw-2">mut </span>generics = vecmap(trait_generics, |t| <span class="macro">format!</span>(<span class="string">"{t:?}"</span>)).join(<span class="string">", "</span>);
-<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>associated =
-<a href=#649 id=649 data-nosnippet>649</a>            vecmap(trait_associated_types, |t| <span class="macro">format!</span>(<span class="string">"{}: {:?}"</span>, t.name, t.typ)).join(<span class="string">", "</span>);
-<a href=#650 id=650 data-nosnippet>650</a>
-<a href=#651 id=651 data-nosnippet>651</a>        <span class="kw">if </span>!generics.is_empty() &amp;&amp; !associated.is_empty() {
-<a href=#652 id=652 data-nosnippet>652</a>            generics += <span class="string">", "</span>;
-<a href=#653 id=653 data-nosnippet>653</a>            generics += <span class="kw-2">&amp;</span>associated;
-<a href=#654 id=654 data-nosnippet>654</a>        }
-<a href=#655 id=655 data-nosnippet>655</a>
-<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw">if </span>!generics.is_empty() {
-<a href=#657 id=657 data-nosnippet>657</a>            generics = <span class="macro">format!</span>(<span class="string">"&lt;{generics}&gt;"</span>);
-<a href=#658 id=658 data-nosnippet>658</a>        }
-<a href=#659 id=659 data-nosnippet>659</a>        <span class="macro">format!</span>(<span class="string">"{object_type:?}: {name}{generics}"</span>)
-<a href=#660 id=660 data-nosnippet>660</a>    }
-<a href=#661 id=661 data-nosnippet>661</a>
-<a href=#662 id=662 data-nosnippet>662</a>    <span class="doccomment">/// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
-<a href=#663 id=663 data-nosnippet>663</a>    </span><span class="kw">pub fn </span>remove_assumed_trait_implementations_for_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) {
-<a href=#664 id=664 data-nosnippet>664</a>        <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(
-<a href=#665 id=665 data-nosnippet>665</a>            trait_id,
-<a href=#666 id=666 data-nosnippet>666</a>            <span class="kw-2">&amp;mut </span>HashSet::new(),
-<a href=#667 id=667 data-nosnippet>667</a>        );
-<a href=#668 id=668 data-nosnippet>668</a>    }
-<a href=#669 id=669 data-nosnippet>669</a>
-<a href=#670 id=670 data-nosnippet>670</a>    <span class="kw">fn </span>remove_assumed_trait_implementations_for_trait_and_parents(
-<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#672 id=672 data-nosnippet>672</a>        trait_id: TraitId,
-<a href=#673 id=673 data-nosnippet>673</a>        visited_trait_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;TraitId&gt;,
-<a href=#674 id=674 data-nosnippet>674</a>    ) {
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="comment">// Avoid looping forever in case there are cycles
-<a href=#676 id=676 data-nosnippet>676</a>        </span><span class="kw">if </span>!visited_trait_ids.insert(trait_id) {
-<a href=#677 id=677 data-nosnippet>677</a>            <span class="kw">return</span>;
-<a href=#678 id=678 data-nosnippet>678</a>        }
-<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw">let </span>entries = <span class="self">self</span>.trait_implementation_map.entry(trait_id).or_default();
-<a href=#680 id=680 data-nosnippet>680</a>        entries.retain(|(<span class="kw">_</span>, kind)| !<span class="macro">matches!</span>(kind, TraitImplKind::Assumed { .. }));
-<a href=#681 id=681 data-nosnippet>681</a>
-<a href=#682 id=682 data-nosnippet>682</a>        <span class="comment">// Also remove assumed implementations for the parent traits, if any
-<a href=#683 id=683 data-nosnippet>683</a>        </span><span class="kw">let </span>parent_trait_ids: Vec&lt;TraitId&gt; = <span class="self">self
-<a href=#684 id=684 data-nosnippet>684</a>            </span>.try_get_trait(trait_id)
-<a href=#685 id=685 data-nosnippet>685</a>            .map(|the_trait| the_trait.parent_bounds().map(|b| b.trait_id).collect())
-<a href=#686 id=686 data-nosnippet>686</a>            .unwrap_or_default();
-<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">for </span>parent_trait_id <span class="kw">in </span>parent_trait_ids {
-<a href=#688 id=688 data-nosnippet>688</a>            <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(
-<a href=#689 id=689 data-nosnippet>689</a>                parent_trait_id,
-<a href=#690 id=690 data-nosnippet>690</a>                visited_trait_ids,
-<a href=#691 id=691 data-nosnippet>691</a>            );
-<a href=#692 id=692 data-nosnippet>692</a>        }
-<a href=#693 id=693 data-nosnippet>693</a>    }
-<a href=#694 id=694 data-nosnippet>694</a>}</code></pre></div></section></main></body></html>
+<a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">let </span>trait_generics =
+<a href=#637 id=637 data-nosnippet>637</a>                vecmap(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.ordered, |generic| {
+<a href=#638 id=638 data-nosnippet>638</a>                    generic.force_substitute(instantiation_bindings).substitute(type_bindings)
+<a href=#639 id=639 data-nosnippet>639</a>                });
+<a href=#640 id=640 data-nosnippet>640</a>
+<a href=#641 id=641 data-nosnippet>641</a>            <span class="kw">let </span>trait_associated_types =
+<a href=#642 id=642 data-nosnippet>642</a>                vecmap(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.named, |generic| {
+<a href=#643 id=643 data-nosnippet>643</a>                    <span class="kw">let </span>typ = generic.typ.force_substitute(instantiation_bindings);
+<a href=#644 id=644 data-nosnippet>644</a>                    NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
+<a href=#645 id=645 data-nosnippet>645</a>                });
+<a href=#646 id=646 data-nosnippet>646</a>
+<a href=#647 id=647 data-nosnippet>647</a>            <span class="comment">// We can ignore any associated types on the constraint since those should not affect
+<a href=#648 id=648 data-nosnippet>648</a>            // which impl we choose.
+<a href=#649 id=649 data-nosnippet>649</a>            </span><span class="self">self</span>.lookup_trait_implementation_helper(
+<a href=#650 id=650 data-nosnippet>650</a>                <span class="kw-2">&amp;</span>constraint_type,
+<a href=#651 id=651 data-nosnippet>651</a>                constraint.trait_bound.trait_id,
+<a href=#652 id=652 data-nosnippet>652</a>                <span class="kw-2">&amp;</span>trait_generics,
+<a href=#653 id=653 data-nosnippet>653</a>                <span class="kw-2">&amp;</span>trait_associated_types,
+<a href=#654 id=654 data-nosnippet>654</a>                <span class="comment">// Use a fresh set of type bindings here since the constraint_type originates from
+<a href=#655 id=655 data-nosnippet>655</a>                // our impl list, which we don't want to bind to.
+<a href=#656 id=656 data-nosnippet>656</a>                </span>type_bindings,
+<a href=#657 id=657 data-nosnippet>657</a>                TraitLookupMode::Default,
+<a href=#658 id=658 data-nosnippet>658</a>                recursion_limit - <span class="number">1</span>,
+<a href=#659 id=659 data-nosnippet>659</a>            )
+<a href=#660 id=660 data-nosnippet>660</a>            .map_err(|error| (constraint.clone(), error))<span class="question-mark">?</span>;
+<a href=#661 id=661 data-nosnippet>661</a>        }
+<a href=#662 id=662 data-nosnippet>662</a>
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="prelude-val">Ok</span>(())
+<a href=#664 id=664 data-nosnippet>664</a>    }
+<a href=#665 id=665 data-nosnippet>665</a>
+<a href=#666 id=666 data-nosnippet>666</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>trait_constraint_string(
+<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#668 id=668 data-nosnippet>668</a>        object_type: <span class="kw-2">&amp;</span>Type,
+<a href=#669 id=669 data-nosnippet>669</a>        trait_id: TraitId,
+<a href=#670 id=670 data-nosnippet>670</a>        trait_generics: <span class="kw-2">&amp;</span>[Type],
+<a href=#671 id=671 data-nosnippet>671</a>        trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
+<a href=#672 id=672 data-nosnippet>672</a>    ) -&gt; String {
+<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>name = <span class="self">self</span>.get_trait(trait_id).name.to_string();
+<a href=#674 id=674 data-nosnippet>674</a>        <span class="kw">let </span><span class="kw-2">mut </span>generics = vecmap(trait_generics, |t| <span class="macro">format!</span>(<span class="string">"{t:?}"</span>)).join(<span class="string">", "</span>);
+<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>associated =
+<a href=#676 id=676 data-nosnippet>676</a>            vecmap(trait_associated_types, |t| <span class="macro">format!</span>(<span class="string">"{}: {:?}"</span>, t.name, t.typ)).join(<span class="string">", "</span>);
+<a href=#677 id=677 data-nosnippet>677</a>
+<a href=#678 id=678 data-nosnippet>678</a>        <span class="kw">if </span>!generics.is_empty() &amp;&amp; !associated.is_empty() {
+<a href=#679 id=679 data-nosnippet>679</a>            generics += <span class="string">", "</span>;
+<a href=#680 id=680 data-nosnippet>680</a>            generics += <span class="kw-2">&amp;</span>associated;
+<a href=#681 id=681 data-nosnippet>681</a>        }
+<a href=#682 id=682 data-nosnippet>682</a>
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="kw">if </span>!generics.is_empty() {
+<a href=#684 id=684 data-nosnippet>684</a>            generics = <span class="macro">format!</span>(<span class="string">"&lt;{generics}&gt;"</span>);
+<a href=#685 id=685 data-nosnippet>685</a>        }
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="macro">format!</span>(<span class="string">"{object_type:?}: {name}{generics}"</span>)
+<a href=#687 id=687 data-nosnippet>687</a>    }
+<a href=#688 id=688 data-nosnippet>688</a>
+<a href=#689 id=689 data-nosnippet>689</a>    <span class="doccomment">/// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
+<a href=#690 id=690 data-nosnippet>690</a>    </span><span class="kw">pub fn </span>remove_assumed_trait_implementations_for_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) {
+<a href=#691 id=691 data-nosnippet>691</a>        <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(
+<a href=#692 id=692 data-nosnippet>692</a>            trait_id,
+<a href=#693 id=693 data-nosnippet>693</a>            <span class="kw-2">&amp;mut </span>HashSet::new(),
+<a href=#694 id=694 data-nosnippet>694</a>        );
+<a href=#695 id=695 data-nosnippet>695</a>    }
+<a href=#696 id=696 data-nosnippet>696</a>
+<a href=#697 id=697 data-nosnippet>697</a>    <span class="kw">fn </span>remove_assumed_trait_implementations_for_trait_and_parents(
+<a href=#698 id=698 data-nosnippet>698</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#699 id=699 data-nosnippet>699</a>        trait_id: TraitId,
+<a href=#700 id=700 data-nosnippet>700</a>        visited_trait_ids: <span class="kw-2">&amp;mut </span>HashSet&lt;TraitId&gt;,
+<a href=#701 id=701 data-nosnippet>701</a>    ) {
+<a href=#702 id=702 data-nosnippet>702</a>        <span class="comment">// Avoid looping forever in case there are cycles
+<a href=#703 id=703 data-nosnippet>703</a>        </span><span class="kw">if </span>!visited_trait_ids.insert(trait_id) {
+<a href=#704 id=704 data-nosnippet>704</a>            <span class="kw">return</span>;
+<a href=#705 id=705 data-nosnippet>705</a>        }
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">let </span>entries = <span class="self">self</span>.trait_implementation_map.entry(trait_id).or_default();
+<a href=#707 id=707 data-nosnippet>707</a>        entries.retain(|(<span class="kw">_</span>, kind)| !<span class="macro">matches!</span>(kind, TraitImplKind::Assumed { .. }));
+<a href=#708 id=708 data-nosnippet>708</a>
+<a href=#709 id=709 data-nosnippet>709</a>        <span class="comment">// Also remove assumed implementations for the parent traits, if any
+<a href=#710 id=710 data-nosnippet>710</a>        </span><span class="kw">let </span>parent_trait_ids: Vec&lt;TraitId&gt; = <span class="self">self
+<a href=#711 id=711 data-nosnippet>711</a>            </span>.try_get_trait(trait_id)
+<a href=#712 id=712 data-nosnippet>712</a>            .map(|the_trait| the_trait.parent_bounds().map(|b| b.trait_id).collect())
+<a href=#713 id=713 data-nosnippet>713</a>            .unwrap_or_default();
+<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">for </span>parent_trait_id <span class="kw">in </span>parent_trait_ids {
+<a href=#715 id=715 data-nosnippet>715</a>            <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(
+<a href=#716 id=716 data-nosnippet>716</a>                parent_trait_id,
+<a href=#717 id=717 data-nosnippet>717</a>                visited_trait_ids,
+<a href=#718 id=718 data-nosnippet>718</a>            );
+<a href=#719 id=719 data-nosnippet>719</a>        }
+<a href=#720 id=720 data-nosnippet>720</a>    }
+<a href=#721 id=721 data-nosnippet>721</a>}</code></pre></div></section></main></body></html>

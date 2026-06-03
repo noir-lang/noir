@@ -1275,9 +1275,9 @@
 <a href=#1275 id=1275 data-nosnippet>1275</a>        }
 <a href=#1276 id=1276 data-nosnippet>1276</a>
 <a href=#1277 id=1277 data-nosnippet>1277</a>        <span class="comment">// A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
-<a href=#1278 id=1278 data-nosnippet>1278</a>        // for each of `Mappable`'s associated types. Once the constraint's object type is concrete
+<a href=#1278 id=1278 data-nosnippet>1278</a>        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
 <a href=#1279 id=1279 data-nosnippet>1279</a>        // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
-<a href=#1280 id=1280 data-nosnippet>1280</a>        // `&lt;Self::Target as Mappable&gt;::Target` has a single concrete answer via the concrete impl
+<a href=#1280 id=1280 data-nosnippet>1280</a>        // `&lt;Self::Target as Mappable&gt;::Target` has a single answer via the real impl
 <a href=#1281 id=1281 data-nosnippet>1281</a>        // (`&lt;bool as Mappable&gt;::Target = u32`). Bind each such implicit generic to that answer so
 <a href=#1282 id=1282 data-nosnippet>1282</a>        // the trait method's signature matches the impl method's already-normalized signature.
 <a href=#1283 id=1283 data-nosnippet>1283</a>        // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
@@ -1295,7 +1295,7 @@
 <a href=#1295 id=1295 data-nosnippet>1295</a>                <span class="kw">if </span>bindings.contains_key(<span class="kw-2">&amp;</span>type_var.id()) {
 <a href=#1296 id=1296 data-nosnippet>1296</a>                    <span class="kw">continue</span>;
 <a href=#1297 id=1297 data-nosnippet>1297</a>                }
-<a href=#1298 id=1298 data-nosnippet>1298</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(normalized) = elaborator.normalize_concrete_associated_type(
+<a href=#1298 id=1298 data-nosnippet>1298</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(normalized) = elaborator.normalize_rigid_associated_type(
 <a href=#1299 id=1299 data-nosnippet>1299</a>                    <span class="kw-2">&amp;</span>object_type,
 <a href=#1300 id=1300 data-nosnippet>1300</a>                    trait_bound.trait_id,
 <a href=#1301 id=1301 data-nosnippet>1301</a>                    <span class="kw-2">&amp;</span>ordered,

@@ -8,9 +8,9 @@
 </div><section id="variant.SelfAssumedOnly" class="variant"><a href="#variant.SelfAssumedOnly" class="anchor">§</a><h3 class="code-header">SelfAssumedOnly</h3></section><div class="docblock"><p>Looks up implementation for bindable object types, and matches only <a href="../enum.TraitImplKind.html#variant.Assumed" title="variant noirc_frontend::node_interner::TraitImplKind::Assumed">TraitImplKind::Assumed</a>.
 The returned bindings are not expected to be applied.</p>
 </div><section id="variant.IgnoreAssumed" class="variant"><a href="#variant.IgnoreAssumed" class="anchor">§</a><h3 class="code-header">IgnoreAssumed</h3></section><div class="docblock"><p>Like <a href="enum.TraitLookupMode.html#variant.Default" title="variant noirc_frontend::node_interner::trait_impl::TraitLookupMode::Default">Default</a>, but skips every <a href="../enum.TraitImplKind.html#variant.Assumed" title="variant noirc_frontend::node_interner::TraitImplKind::Assumed">TraitImplKind::Assumed</a> impl.
-Used to normalize an associated-type projection over a fully concrete object type: the
-concrete impl is the single ground truth, and any <code>where</code> clause hypothesis for the same
-type is discharged by it rather than competing with it.</p>
+Used to normalize an associated-type projection over a rigid object type: the real impl
+is the single ground truth, and any <code>where</code> clause hypothesis for the same type is
+discharged by it rather than competing with it.</p>
 </div><section id="variant.Overlapping" class="variant"><a href="#variant.Overlapping" class="anchor">§</a><h3 class="code-header">Overlapping</h3></section><div class="docblock"><p>Used only when registering a new impl, to detect whether it overlaps an existing one.
 Unlike <a href="enum.TraitLookupMode.html#variant.Default" title="variant noirc_frontend::node_interner::trait_impl::TraitLookupMode::Default">Default</a>, this does not bail out for bindable object types:
 overlap detection must consider generic impls such as <code>impl&lt;T&gt; Foo for T</code> or
