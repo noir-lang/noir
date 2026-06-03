@@ -804,7 +804,10 @@ fn vector_remove(
         return failing_constraint(message, location, call_stack);
     }
 
-    let element = Shared::new(values.remove(index));
+    // The removed element is returned by value, so it must not keep sharing interior
+    // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the temporary
+    // would write back through to the original vector).
+    let element = Shared::new(values.remove(index).move_struct());
     Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), element]))
 }
 
@@ -826,6 +829,10 @@ fn vector_pop_front(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_front() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
         None => failing_constraint(
@@ -846,6 +853,10 @@ fn vector_pop_back(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_back() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
         None => failing_constraint(
