@@ -24,34 +24,6 @@ impl T256BlackboxSolver {
         ))
     }
 
-    fn coordinates_to_projective(
-        x: FieldElement,
-        y: FieldElement,
-        is_infinite: FieldElement,
-    ) -> Result<ark_secp256r1::Projective, BlackBoxResolutionError> {
-        Ok(if is_infinite.is_one() {
-            ark_secp256r1::Projective::zero()
-        } else {
-            let p1 = ark_secp256r1::Affine::new_unchecked(
-                ark_secp256r1::Fq::new(x.into_repr().into_bigint()),
-                ark_secp256r1::Fq::new(y.into_repr().into_bigint()),
-            );
-            if !p1.is_on_curve() {
-                return Err(BlackBoxResolutionError::Failed(
-                    BlackBoxFunc::EmbeddedCurveAdd,
-                    format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()),
-                ));
-            }
-            if !p1.is_in_correct_subgroup_assuming_on_curve() {
-                return Err(BlackBoxResolutionError::Failed(
-                    BlackBoxFunc::EmbeddedCurveAdd,
-                    format!("Point ({}, {}) is not in correct subgroup", x.to_hex(), y.to_hex()),
-                ));
-            }
-            ark_secp256r1::Projective::from(p1)
-        })
-    }
-
     // Taken from the embedded_curve_ops in the Bn254 blackbox solver
     fn parse_msm_inputs(
         points: &[FieldElement],
@@ -69,26 +41,18 @@ impl T256BlackboxSolver {
         let mut bases = Vec::new();
         let mut big_ints = Vec::new();
 
-        for i in (0..points.len()).step_by(3) {
-            if points[i + 2] > FieldElement::one() {
-                return Err(BlackBoxResolutionError::Failed(
-                    BlackBoxFunc::MultiScalarMul,
-                    "EmbeddedCurvePoint is malformed (non-boolean `is_infinite` flag)".to_string(),
-                ));
-            }
-            let point = Self::coordinates_to_projective(points[i], points[i + 1], points[i + 2])
-                .map_err(|e| {
-                    BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e.to_string())
-                })?
-                .into_affine();
+        for i in (0..points.len()).step_by(2) {
+            let point = Self::coordinates_to_affine(points[i], points[i + 1]).map_err(|e| {
+                BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e.to_string())
+            })?;
 
             let scalar_low: u128 = T256BlackboxSolver::field_to_u128_limb(
-                &scalars_lo[i / 3],
+                &scalars_lo[i / 2],
                 BlackBoxFunc::MultiScalarMul,
             )?;
 
             let scalar_high: u128 = T256BlackboxSolver::field_to_u128_limb(
-                &scalars_hi[i / 3],
+                &scalars_hi[i / 2],
                 BlackBoxFunc::MultiScalarMul,
             )?;
 
