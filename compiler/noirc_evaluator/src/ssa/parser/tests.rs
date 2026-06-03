@@ -686,6 +686,21 @@ fn test_negative() {
 }
 
 #[test]
+fn test_out_of_range_signed_constant_roundtrips() {
+    // A signed constant whose field value lies outside the type's range (here `256`
+    // for an `i8`, requiring more than 8 bits) is printed verbatim as a positive
+    // literal. The parser must store it verbatim rather than mistaking it for a
+    // field-negated negative literal and adding `2^bit_size` (which would yield 512).
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return i8 256
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_function_type() {
     let src = "
         acir(inline) fn main f0 {

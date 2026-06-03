@@ -945,24 +945,25 @@ impl<'a> Parser<'a> {
 
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
-            let value = self.eat_int_or_error()?;
+            let negative = self.eat(Token::Dash)?;
+            let magnitude = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
 
-            let value = if typ.is_signed() {
-                let bit_size = typ.bit_size();
-                let max_bit_pattern = FieldElement::from(2u128.pow(bit_size) - 1);
-                if value > max_bit_pattern {
-                    // Negative literal: eat_int() returned p - magnitude (field negation).
-                    // Convert to two's complement bit pattern: 2^bit_size + (p - magnitude) mod p
-                    FieldElement::from(2u128.pow(bit_size)) + value
-                } else {
-                    value
-                }
+            // The sign is taken from the literal's syntax, not inferred from the
+            // magnitude: a positive literal can legitimately exceed the type's range
+            // (the printer emits such out-of-range signed values verbatim, e.g. `i8 256`),
+            // and that must not be mistaken for a negative value.
+            let value = if negative && typ.is_signed() {
+                // Two's complement bit pattern of `-magnitude`.
+                FieldElement::from(2u128.pow(typ.bit_size())) - magnitude
+            } else if negative {
+                // Field negation, mirroring how `Field` literals store negatives.
+                -magnitude
             } else {
-                value
+                magnitude
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
