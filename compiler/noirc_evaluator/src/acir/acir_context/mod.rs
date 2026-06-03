@@ -1698,4 +1698,26 @@ mod tests {
 
         assert!(matches!(acvm.solve(), ACVMStatus::Solved));
     }
+
+    /// Exercise bound_constraint_with_offset() with the invalid inputs:
+    /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
+    #[test]
+    #[should_panic = "range check with bit size + 1 >= the prime field bit size is not implemented yet"]
+    fn bound_constraint_shifted_path_rhs_const() {
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+
+        let bits = 253;
+
+        let lhs = context.add_variable();
+        let rhs = context.add_variable();
+        let predicate = context.add_variable();
+        let one = context.add_constant(1_u128);
+
+        let lhs_witness = context.var_to_witness(lhs).unwrap();
+        let rhs_witness = context.var_to_witness(rhs).unwrap();
+        let predicate_witness = context.var_to_witness(predicate).unwrap();
+        context.acir_ir.input_witnesses = vec![lhs_witness, rhs_witness, predicate_witness];
+
+        context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
+    }
 }
