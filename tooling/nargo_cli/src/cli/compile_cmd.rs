@@ -79,7 +79,7 @@ fn watch_workspace(
     debouncer.watch(&workspace.root_dir, RecursiveMode::Recursive)?;
 
     let mut screen = std::io::stdout();
-    write!(screen, "{}", termion::cursor::Save).unwrap();
+    write!(screen, "\x1B7").unwrap(); // Save cursor position
     screen.flush().unwrap();
     let debug_compile_stdin = None;
     let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
@@ -101,7 +101,7 @@ fn watch_workspace(
         });
 
         if noir_files_modified {
-            write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
+            write!(screen, "\x1B8\x1B[J").unwrap(); // Restore cursor position and clear after cursor
             screen.flush().unwrap();
             let debug_compile_stdin = None;
             let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);

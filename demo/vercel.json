@@ -1,0 +1,19 @@
+{
+  "installCommand": "rm -f package-lock.json client/package-lock.json && npm install --include=optional",
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": [
+        "server/artifacts/recovery.json",
+        "node_modules/@aztec/bb.js/dest/node-cjs/barretenberg_wasm/*.wasm"
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/v1/(.*)",
+      "destination": "/api/index"
+    }
+  ]
+}

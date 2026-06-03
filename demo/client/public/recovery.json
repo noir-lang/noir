@@ -1,0 +1,54 @@
+{
+  "noir_version": "0.33.0+325dac54efb6f99201de9fdeb0a507d45189607d",
+  "hash": 5014660705111446000,
+  "abi": {
+    "parameters": [
+      {
+        "name": "device_secret",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "commitment",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "challenge",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      },
+      {
+        "name": "user_id_hash",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62SwQ3DMAhFYycDgYEYbl2lVp39R2irEtVKcgtPspA5fMETafqxfF6e/iSvD69wD9xz8yGXYGXutXQkfEKxpgIsbVVUFJVXUaKurNWaVTBk6riJ0ebBKXDGOS4Lrhze3XX3F+0wcG9cAh0mv8vR5Zd56GX/p+GOT7wB254FMOUCAAA=",
+  "debug_symbols": "NYxbCoAgEEX3Mt99VBSRW4mIqSwEGcVHEOLeG4v+7rmvBLtc47koOowHMSXQZsOgDDElqF/LW6RCPqALILphrEDSDqJv2lzBobRkPeSZ4UKncNWyzEsWafvfGMNtv4S7Dw==",
+  "file_map": {
+    "57": {
+      "source": "use dep::std;\r\n\r\nfn main(\n    device_secret: Field,           // Private input\n    commitment: pub Field,         // Public: demo commitment for device_secret\n    challenge: pub Field,          // Public: Prevent replay/ensure freshness\r\n    user_id_hash: pub Field        // Public: Anchors to specific user\r\n) -> pub Field {                   // Return Nullifier\n    // 1. Check commitment\n    let computed_commitment = device_secret * device_secret + user_id_hash;\n    assert(computed_commitment == commitment);\n\n    // 2. Generate Nullifier to prevent proof reuse for the same challenge\n    let nullifier = device_secret * challenge + user_id_hash;\n    \r\n    nullifier\r\n}\r\n\r\n#[test]\r\nfn test_recovery() {\r\n    let secret = 12345;\n    let challenge = 67890;\n    let user_id = 1;\n    let commitment = secret * secret + user_id;\n    \r\n    let nullifier = main(secret, commitment, challenge, user_id);\r\n    assert(nullifier != 0);\r\n}\r\n",
+      "path": "C:\\Users\\dennis.lee\\Documents\\GitHub\\noir\\zk\\noir\\recovery\\src\\main.nr"
+    }
+  },
+  "names": [
+    "main"
+  ]
+}

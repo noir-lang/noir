@@ -404,7 +404,7 @@ fn generate_test_cases(
         r#"
 {test_cases}
 fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
-    let test_program_dir = PathBuf::from("{test_dir}");
+    let test_program_dir = PathBuf::from(r"{test_dir}");
     #[allow(unused_variables)]
     let runtime = if force_brillig.0 {{
         Runtime::Brillig
@@ -440,7 +440,7 @@ fn test_{test_name}() {{
 
     let corpus_dir = assert_fs::TempDir::new().unwrap();
     let fuzzing_failure_dir = assert_fs::TempDir::new().unwrap();
-    let test_program_dir = PathBuf::from("{test_dir}");
+    let test_program_dir = PathBuf::from(r"{test_dir}");
     #[allow(deprecated)]
     let mut nargo = Command::cargo_bin("nargo").unwrap();
     nargo.arg("--program-dir").arg(test_program_dir);
@@ -591,7 +591,7 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
             #[test]
             {should_panic}
             fn test_{test_name}() {{
-                let test_program_dir = PathBuf::from("{test_dir}");
+                let test_program_dir = PathBuf::from(r"{test_dir}");
                 nargo_execute_comptime(test_program_dir, {check_stdout});
             }}
             "#
@@ -632,7 +632,7 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
               #[test]
               {should_panic}
               fn test_{test_name}() {{
-                  let test_program_dir = PathBuf::from("{test_dir}");
+                  let test_program_dir = PathBuf::from(r"{test_dir}");
                   nargo_execute_comptime_expect_failure(test_program_dir);
               }}
               "#
@@ -663,7 +663,7 @@ fn generate_comptime_interpret_noir_test_success_tests(test_file: &mut File, tes
             r#"
             #[test]
             fn test_{test_name}() {{
-                let test_program_dir = PathBuf::from("{test_dir}");
+                let test_program_dir = PathBuf::from(r"{test_dir}");
                 nargo_test_comptime(test_program_dir);
             }}
             "#
@@ -691,7 +691,7 @@ fn generate_comptime_interpret_noir_test_failure_tests(test_file: &mut File, tes
             r#"
             #[test]
             fn test_{test_name}() {{
-                let test_program_dir = PathBuf::from("{test_dir}");
+                let test_program_dir = PathBuf::from(r"{test_dir}");
                 nargo_test_comptime_expect_failure(test_program_dir);
             }}
             "#
@@ -734,7 +734,7 @@ fn generate_brillig_small_stack_execution_success_tests(
             #[test]
             {should_panic}
             fn test_{test_name}() {{
-                let test_program_dir = PathBuf::from("{test_dir}");
+                let test_program_dir = PathBuf::from(r"{test_dir}");
                 nargo_execute_brillig_small_stack(test_program_dir);
             }}
             "#
@@ -1098,7 +1098,7 @@ mod nargo_expand_{test_type} {{
             r#"
     #[test]
     fn test_{test_name}() {{
-        let test_program_dir = PathBuf::from("{test_dir}");
+        let test_program_dir = PathBuf::from(r"{test_dir}");
         nargo_expand_execute(test_program_dir);
     }}
     "#
@@ -1149,7 +1149,7 @@ mod nargo_expand_{test_type} {{
     #[test]
     {should_panic}
     fn test_{test_name}() {{
-        let test_program_dir = PathBuf::from("{test_dir}");
+        let test_program_dir = PathBuf::from(r"{test_dir}");
         nargo_expand_compile(test_program_dir, "{test_type}");
     }}
     "#

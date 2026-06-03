@@ -41,13 +41,17 @@ serde-reflection = "0.5.2"
 serde-generate = "0.33.0"
 rustc-hash.workspace = true
 criterion.workspace = true
-pprof.workspace = true
 regex.workspace = true
 rmpv.workspace = true
 insta.workspace = true
 similar-asserts.workspace = true
 
-acir = { path = ".", features = ["arb", "test-fixtures"] } # Self to turn on `arb` and expose test fixtures.
+[target.'cfg(unix)'.dev-dependencies]
+pprof.workspace = true
+
+[dev-dependencies.acir]
+path = "."
+features = ["arb", "test-fixtures"] # Self to turn on `arb` and expose test fixtures.
 
 [features]
 default = []

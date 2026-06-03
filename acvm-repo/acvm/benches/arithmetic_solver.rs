@@ -8,6 +8,7 @@ use acir::{
 use acvm::pwg::{ACVM, ACVMStatus};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use criterion::{Criterion, criterion_group, criterion_main};
+#[cfg(unix)]
 use pprof::criterion::{Output, PProfProfiler};
 
 fn purely_sequential_opcodes(c: &mut Criterion) {
@@ -83,9 +84,16 @@ fn bench_bytecode<F: AcirField>(c: &mut Criterion, benchmark_name: &str, bytecod
     });
 }
 
+#[cfg(unix)]
 criterion_group! {
     name = execution_benches;
     config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = purely_sequential_opcodes, perfectly_parallel_opcodes, perfectly_parallel_batch_inversion_opcodes
+}
+#[cfg(not(unix))]
+criterion_group! {
+    name = execution_benches;
+    config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20));
     targets = purely_sequential_opcodes, perfectly_parallel_opcodes, perfectly_parallel_batch_inversion_opcodes
 }
 criterion_main!(execution_benches);

@@ -3,7 +3,11 @@ use-cross := env("JUST_USE_CROSS", "")
 
 # target information
 
-target-host := `rustc -vV | grep host: | cut -d ' ' -f 2`
+target-host := if os() == "windows" {
+    `powershell -NoProfile -Command "(rustc -vV | Select-String 'host:').ToString().Split(' ')[1]"`
+} else {
+    `rustc -vV | grep host: | cut -d ' ' -f 2`
+}
 target := env("CARGO_BUILD_TARGET", target-host)
 
 # Install tools
@@ -93,6 +97,15 @@ package: build-bins
     7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-{{ target }}.tar.gz
     7z a -ttar -so -an ./dist/* | 7z a -si ./noir-{{ target }}.tar.gz
 
+[windows]
+package: build-bins
+    if (!(Test-Path dist)) { New-Item -ItemType Directory -Path dist }
+    Copy-Item ./target/{{ target }}/release/nargo.exe ./dist/nargo.exe
+    Copy-Item ./target/{{ target }}/release/noir-profiler.exe ./dist/noir-profiler.exe
+    Copy-Item ./target/{{ target }}/release/noir-inspector.exe ./dist/noir-inspector.exe
+    Compress-Archive -Path ./dist/nargo.exe -DestinationPath nargo-{{ target }}.zip -Force
+    Compress-Archive -Path ./dist/* -DestinationPath noir-{{ target }}.zip -Force
+
 # Run tests
 test:
     cargo nextest run --no-fail-fast -j32 --workspace
@@ -119,14 +132,25 @@ mutation-test base="master": install-rust-tools
 
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
-    #!/usr/bin/env bash
-    snapshots=$(find . -name '*.snap.new' -o -name '*.pending-snap')
-    if [[ -n "$snapshots" ]]; then \
-      echo "Found pending snapshots:"
-      echo ""
-      echo $snapshots
-      exit 1
-    fi
+    #!/usr/bin/env pwsh
+    if ($IsWindows) {
+        $snapshots = Get-ChildItem -Path . -Include *.snap.new, *.pending-snap -Recurse
+        if ($snapshots) {
+            Write-Host "Found pending snapshots:"
+            Write-Host ""
+            $snapshots | ForEach-Object { Write-Host $_.FullName }
+            exit 1
+        }
+    } else {
+        #!/usr/bin/env bash
+        snapshots=$(find . -name '*.snap.new' -o -name '*.pending-snap')
+        if [[ -n "$snapshots" ]]; then \
+          echo "Found pending snapshots:"
+          echo ""
+          echo $snapshots
+          exit 1
+        fi
+    }
 
 export RUSTDOCFLAGS := "-Dwarnings -Drustdoc::unescaped_backticks"
 
@@ -142,10 +166,12 @@ generate-acvm-js-fixtures:
     cargo run -p acvm --features generate-test-fixtures,bn254 --bin generate_acvm_js_fixtures
     yarn lint --fix
 
+format-noir-cmd := if os() == "windows" { "powershell ./format.ps1 check" } else { "./format.sh check" }
+
 # Format noir code
 format-noir:
     cargo run -- --program-dir={{ justfile_dir() }}/noir_stdlib fmt --check
-    cd ./test_programs && NARGO="{{ justfile_dir() }}/target/debug/nargo" ./format.sh check
+    cd ./test_programs && {{ format-noir-cmd }}
 
 # Regenerates the docs site for the Noir standard library.
 stdlib-doc:

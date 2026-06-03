@@ -78,7 +78,6 @@ dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
 notify-debouncer-full = "0.7.0"
-termion = "4"
 
 # Logs
 tracing.workspace = true
@@ -86,6 +85,9 @@ tracing-subscriber.workspace = true
 tracing-appender = "0.2.5"
 clap_complete = "4.6.5"
 fs2 = "0.4.3"
+
+[target.'cfg(unix)'.dependencies]
+termion = "4"
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
@@ -99,17 +101,19 @@ assert_fs = "1.0.10"
 predicates = "3"
 fm.workspace = true
 criterion.workspace = true
-pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
 serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
-iai = "0.1.1"
 test-case.workspace = true
 insta = { workspace = true, features = ["json", "redactions"] }
 base64.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+pprof.workspace = true
+iai = "0.1.1"
 
 noirc_evaluator.workspace = true
 

@@ -1,0 +1,20 @@
+{
+  "name": "zk-recovery-demo",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "build": "npm run build --workspace client"
+  },
+  "workspaces": [
+    "client"
+  ],
+  "dependencies": {
+    "@aztec/bb.js": "^0.61.0",
+    "@noir-lang/noir_js": "0.33.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
