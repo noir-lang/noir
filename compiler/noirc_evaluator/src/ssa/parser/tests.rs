@@ -5,7 +5,7 @@ use crate::{
     trim_leading_whitespace_from_lines,
 };
 
-use super::SsaError;
+use super::{ParserError, SsaError};
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
@@ -698,6 +698,61 @@ fn test_out_of_range_signed_constant_roundtrips() {
         }
         ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_out_of_range_unsigned_constant_roundtrips() {
+    // The printer emits an unsigned constant as its raw field value, so a value larger
+    // than the type's range (here `256` for a `u8`) is printed verbatim as `u8 256`.
+    // Parsing must store that field value as-is rather than rejecting or rewrapping it.
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return u8 256
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_signed_negative_boundary_constants_roundtrip() {
+    // `-1` and the most negative value of each signed type are printed with a leading
+    // `-`; the parser reconstructs the two's-complement field value via field
+    // arithmetic, so even an `i128` (whose `2^bit_size` overflows `u128`) round-trips.
+    for src in [
+        "i8 -1", "i8 -128", "i16 -32768", "i32 -1", "i64 -1", "i128 -1",
+        "i128 -170141183460469231731687303715884105728",
+    ] {
+        let src = format!(
+            "
+            acir(inline) fn main f0 {{
+              b0():
+                return {src}
+            }}
+            "
+        );
+        assert_ssa_roundtrip(&src);
+    }
+}
+
+#[test]
+fn parser_rejects_negative_unsigned_literal() {
+    // The printer never emits a `-` for an unsigned type (it prints the raw field
+    // value), so a negative unsigned literal is not valid SSA and must be rejected
+    // rather than silently field-negated into an out-of-range value.
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return u8 -1
+        }
+        ";
+    let Err(err) = Ssa::from_str(src) else {
+        panic!("parser must reject a negative unsigned literal");
+    };
+    assert!(
+        matches!(&err.error, SsaError::ParserError(ParserError::NegativeUnsignedLiteral { .. })),
+        "unexpected error: {err:?}",
+    );
 }
 
 #[test]

@@ -945,6 +945,7 @@ impl<'a> Parser<'a> {
 
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
+            let dash_span = self.token.span();
             let negative = self.eat(Token::Dash)?;
             let magnitude = self.eat_int_or_error()?;
             let typ = match int_type {
@@ -953,15 +954,19 @@ impl<'a> Parser<'a> {
             };
 
             // The sign is taken from the literal's syntax, not inferred from the
-            // magnitude: a positive literal can legitimately exceed the type's range
-            // (the printer emits such out-of-range signed values verbatim, e.g. `i8 256`),
-            // and that must not be mistaken for a negative value.
+            // magnitude. The IR does not normalize numeric constants into their type's
+            // range, and the printer emits a signed value whose field representation is
+            // out of range verbatim as a positive literal (e.g. `i8 256`); re-parsing it
+            // must reproduce that field value rather than mistake it for a negative one.
             let value = if negative && typ.is_signed() {
-                // Two's complement bit pattern of `-magnitude`.
-                FieldElement::from(2u128.pow(typ.bit_size())) - magnitude
+                // Two's complement bit pattern of `-magnitude`. Computed with field
+                // arithmetic (mirroring the printer) so `2^bit_size` does not overflow
+                // the host integer width for an `i128`.
+                FieldElement::from(2u32).pow(&typ.bit_size().into()) - magnitude
             } else if negative {
-                // Field negation, mirroring how `Field` literals store negatives.
-                -magnitude
+                // The printer never emits a `-` for an unsigned type (it prints the raw
+                // field value), so a negative unsigned literal is not valid SSA.
+                return Err(ParserError::NegativeUnsignedLiteral { span: dash_span });
             } else {
                 magnitude
             };
@@ -1335,6 +1340,8 @@ pub(crate) enum ParserError {
     UnexpectedOffset { found: Token, span: Span },
     #[error("Invalid integer value")]
     InvalidInteger { found: Token, span: Span },
+    #[error("Unsigned integers cannot be negative, but a negative literal was given")]
+    NegativeUnsignedLiteral { span: Span },
 }
 
 impl ParserError {
@@ -1355,7 +1362,8 @@ impl ParserError {
             | ParserError::ExpectedU32 { span, .. }
             | ParserError::ExpectedUSize { span, .. }
             | ParserError::UnexpectedOffset { span, .. }
-            | ParserError::InvalidInteger { span, .. } => *span,
+            | ParserError::InvalidInteger { span, .. }
+            | ParserError::NegativeUnsignedLiteral { span } => *span,
 
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span
