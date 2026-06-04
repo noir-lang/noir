@@ -45,3 +45,29 @@ fn main() {
     let eight = tup.3;
 }
 ```
+
+## Comparing tuples
+
+Tuples of up to 12 elements can be compared, as long as every element type is itself comparable.
+
+Equality (`==`) and inequality (`!=`) require each element type to implement `Eq`. Two tuples are
+equal when all of their corresponding elements are equal:
+
+```rust
+fn main() {
+    assert((1, 2, 3) == (1, 2, 3));
+    assert((1, 2, 3) != (1, 2, 4));
+}
+```
+
+The ordering operators (`<`, `<=`, `>`, `>=`) require each element type to implement `Ord`. Tuples
+are ordered lexicographically: the first elements are compared, and only if they are equal are the
+next elements compared, and so on:
+
+```rust
+fn main() {
+    assert((1, 2) < (1, 3)); // first elements equal, second decides
+    assert((1, 5) < (2, 0)); // first element decides, second is ignored
+    assert((1, 2, 3) <= (1, 2, 3));
+}
+```
