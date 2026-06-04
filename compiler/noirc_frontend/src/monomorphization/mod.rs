@@ -2519,7 +2519,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> FuncId {
         let location = self.interner.expr_location(&expr_id);
         let bindings = self.interner.get_instantiation_bindings(expr_id);
-        let bindings = self.follow_bindings(bindings);
+        let bindings = Self::follow_bindings(bindings);
         self.queue_function_with_bindings(
             id,
             location,
@@ -2566,12 +2566,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// Without this, a monomorphized type may fail to propagate passed more than 2
     /// function calls deep since it is possible for a previous link in the chain to
     /// unbind a type variable that was previously bound.
-    pub fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
+    pub fn follow_bindings(bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()
             .map(|(id, (var, kind, binding))| {
-                let binding2 = binding.follow_bindings();
-                (*id, (var.clone(), kind.clone(), binding2))
+                (*id, (var.clone(), kind.follow_bindings(), binding.follow_bindings()))
             })
             .collect()
     }
