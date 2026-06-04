@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780569217698,
+  "lastUpdate": 1780569236358,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14871,95 +14871,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "e8c72eee9fdaa490953af68ce5ac54df4b028df8",
-          "message": "fix(frontend): infer trait generic in default method body (#12813)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-05-27T18:57:13Z",
-          "tree_id": "7e4a9788811a05aedb99fe3e69da94b054b269a5",
-          "url": "https://github.com/noir-lang/noir/commit/e8c72eee9fdaa490953af68ce5ac54df4b028df8"
-        },
-        "date": 1779910851507,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 286.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 311.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 283,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 359.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 359.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 359.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 467.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 477.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 359.37,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 81.94,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 77.63,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "3a400a7d33864c7a9a3a4213c2e6f48b28816de6",
           "message": "fix: check trait impl associated constant visibility (#12804)",
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3c775dc8ac34c24e165552cd9d9468e04338a476"
         },
         "date": 1780518527853,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 287.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 311.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 283.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 359.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 359.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 360.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 467.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 478.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 359.56,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 82,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 77.75,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b970531a25cf354f799fe7ad53a4a68642f651fd",
+          "message": "chore(deps): bump the hardhat group with 10 updates (#12908)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-04T09:41:26Z",
+          "tree_id": "b6bbd1f5ddfaee437e59955430c24f5f88a592bc",
+          "url": "https://github.com/noir-lang/noir/commit/b970531a25cf354f799fe7ad53a4a68642f651fd"
+        },
+        "date": 1780569158991,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
