@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780604266406,
+  "lastUpdate": 1780604443942,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23126,48 +23126,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c57152f91260ecdb9faad4efc20abb14b6d2ece7",
-          "message": "chore: Release Noir(1.0.0-beta.22) (#12586)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-06-01T12:43:24Z",
-          "tree_id": "d1b0bead6d3cecbca14483e61559ac7cffbb358b",
-          "url": "https://github.com/noir-lang/noir/commit/c57152f91260ecdb9faad4efc20abb14b6d2ece7"
-        },
-        "date": 1780319580650,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126975,
-            "range": "± 495",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112901,
-            "range": "± 6687",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040174,
-            "range": "± 6435",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4952659d7e58d312a62589849abc2f136c928fda",
           "message": "chore: bump external pinned commits (#12857)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
           "timestamp": "2026-06-01T14:14:26Z",
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646571,
             "range": "± 4653",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "510e128492abca17ba0c9e87997495441e63dce0",
+          "message": "fix: Check failures in intermediate CheckedCasts in monomorphization (#12919)",
+          "timestamp": "2026-06-04T19:54:36Z",
+          "tree_id": "cc7b1c6ca219f29883f3cd5104225cf680601bc5",
+          "url": "https://github.com/noir-lang/noir/commit/510e128492abca17ba0c9e87997495441e63dce0"
+        },
+        "date": 1780604377138,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168037,
+            "range": "± 717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138151,
+            "range": "± 3400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647788,
+            "range": "± 2217",
             "unit": "ns/iter"
           }
         ]
