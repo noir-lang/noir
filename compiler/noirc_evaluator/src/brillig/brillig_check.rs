@@ -608,3 +608,37 @@ trait OpcodeAddressVisitor {
         }
     }
 }
+
+/// The highest relative (stack-frame) register index referenced anywhere in `byte_code`.
+///
+/// Reuses [`OpcodeAddressVisitor`] so it stays in sync with the opcode set. For a call-free
+/// function this is the peak stack-frame register usage, i.e. the allocator high-water mark
+/// that the spill decision is meant to predict.
+#[cfg(test)]
+pub(crate) fn max_relative_register<F: AcirField>(byte_code: &[Opcode<F>]) -> usize {
+    struct MaxRelative(usize);
+
+    impl OpcodeAddressVisitor for MaxRelative {
+        fn should_visit_opcode<G: AcirField>(&mut self, _opcode: &Opcode<G>) -> bool {
+            true
+        }
+
+        fn read(&mut self, addr: &MemoryAddress, _location: OpcodeLocation) {
+            if let MemoryAddress::Relative(index) = addr {
+                self.0 = self.0.max(*index as usize);
+            }
+        }
+
+        fn write(&mut self, addr: &MemoryAddress, _location: OpcodeLocation) {
+            if let MemoryAddress::Relative(index) = addr {
+                self.0 = self.0.max(*index as usize);
+            }
+        }
+    }
+
+    let mut visitor = MaxRelative(0);
+    for (location, opcode) in byte_code.iter().enumerate() {
+        visitor.visit_opcode(opcode, location);
+    }
+    visitor.0
+}
