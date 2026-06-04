@@ -231,6 +231,8 @@ pub enum TypeCheckError {
     NonConstantEvaluated { typ: Type, location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    #[error("Entry point parameter must use a simple identifier pattern")]
+    InvalidPatternForEntryPoint { location: Location },
     #[error("Mismatched number of parameters in trait implementation")]
     MismatchTraitImplNumParameters {
         actual_num_parameters: usize,
@@ -380,6 +382,7 @@ impl TypeCheckError {
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::InvalidTypeForEntryPoint { location, .. }
+            | TypeCheckError::InvalidPatternForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::MacroReturningNonExpr { location, .. }
@@ -753,6 +756,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 diagnostic
+            },
+            TypeCheckError::InvalidPatternForEntryPoint { location } => {
+                let primary = "Entry point parameter must use a simple identifier pattern".to_string();
+                let secondary = "Destructuring patterns are not allowed here; bind to a name and destructure inside the body".to_string();
+                Diagnostic::simple_error(primary, secondary, *location)
             },
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
