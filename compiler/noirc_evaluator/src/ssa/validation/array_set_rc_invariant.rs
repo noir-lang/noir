@@ -1325,6 +1325,118 @@ mod tests {
         );
     }
 
+    /// **Known false positive — multi-index inclusive-range (`..=`) peel.**
+    ///
+    /// SSA for
+    ///
+    /// ```ignore
+    /// for _ in 254_u8..=255_u8 { c4[0] = 9; c4[1] = 19; c4 = c3; c3 = [b[0], b[1]]; }
+    /// ```
+    ///
+    /// Same peel shape as
+    /// [`Self::end_to_end_inclusive_range_peel_array_set_same_index_is_accepted`],
+    /// but the loop body now writes **both** indices, so the source's chain
+    /// taints `{0, 1}`. The peel's `array_set v38` (`b4`) writes index `0`,
+    /// which overwrites tainted index `0` but still copies tainted index `1`
+    /// forward — so the index-aware `array_set`-use rule (correctly, for its
+    /// model) flags it: a single write can't overwrite both tainted indices.
+    ///
+    /// It is nonetheless a **false positive**: the program executes
+    /// identically under Brillig and comptime. The real reason is invisible
+    /// to the validator — the loop body mutates one storage (`v6`) while the
+    /// peel mutates a *different* one (the old `c3`), and both writes are
+    /// dead; `backward(v38)` conflates the two per-iteration storages into a
+    /// single alias-set. The same-index case happens to be rescued by the
+    /// overwrite rule; the multi-index case is the residual limitation,
+    /// pinned here. (Replacing `..=` with `..` removes the peel and the
+    /// flag.)
+    #[test]
+    fn end_to_end_multi_index_inclusive_range_peel_is_a_known_false_positive() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v2 = make_array [u8 1, u8 11] : [u8; 2]
+                v6 = make_array [u8 2, u8 12] : [u8; 2]
+                v10 = make_array [u8 3, u8 13] : [u8; 2]
+                jmp b1(u8 254, v2, v6)
+              b1(v13: u8, v37: [u8; 2], v38: [u8; 2]):
+                v16 = lt v13, u8 255
+                jmpif v16 then: b2(), else: b3()
+              b2():
+                v22 = array_set v38, index u32 0, value u8 9
+                v25 = array_set v22, index u32 1, value u8 19
+                v27 = make_array [u8 3, u8 13] : [u8; 2]
+                v28 = unchecked_add v13, u8 1
+                jmp b1(v28, v27, v37)
+              b3():
+                jmpif u1 1 then: b4(), else: b5(v37, v38)
+              b4():
+                v32 = array_set v38, index u32 0, value u8 9
+                v34 = array_set v32, index u32 1, value u8 19
+                v36 = make_array [u8 3, u8 13] : [u8; 2]
+                jmp b5(v36, v37)
+              b5(v39: [u8; 2], v40: [u8; 2]):
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// **Known false positive — the general form (no peel).** SSA for
+    ///
+    /// ```ignore
+    /// for _ in 253_u8..255_u8 { c4[0] = 9; c4[1] = 19; c4 = c3; c3 = [b[0], b[1]]; }
+    /// println(c4);
+    /// ```
+    ///
+    /// This is an **exclusive** (`..`) loop — *no peel* — yet it's still
+    /// rejected, which shows the false positive isn't peel-specific. The
+    /// shared root is the swap `c4 = c3`: it threads `v30` (`c3`) into
+    /// `v31` (`c4`) on the back-edge (`jmp b1(.., v26, v30)`), so `v30`
+    /// joins `backward(v31)`. The loop's `array_set v31` (`b2`) mutates
+    /// `c4`'s storage, but its result (`v24`) is **discarded** and `v31` is
+    /// rebound to `v30` — so the mutated storage is dead. At the loop exit
+    /// `v31` holds a fresh `c3`-derived array (`v26`), distinct from any
+    /// mutated storage, and `call f1(v31)` (the `println`) reads it. Because
+    /// a `call` observes the *whole* array, the index-aware `array_set` rule
+    /// doesn't apply, and there's no `inc_rc` (the frontend correctly
+    /// omitted it — the storages are genuinely distinct), so no relaxation
+    /// applies either.
+    ///
+    /// It is a **false positive** (Brillig == comptime). The alias-set
+    /// conflates the loop variable's distinct per-iteration storages across
+    /// the swap; the inclusive-range peel
+    /// ([`Self::end_to_end_multi_index_inclusive_range_peel_is_a_known_false_positive`])
+    /// is just one way to reach such a forward read. A sound fix needs
+    /// per-iteration storage/liveness disambiguation (recognizing the
+    /// mutated storage is dead after the swap), not anything peel-specific.
+    #[test]
+    fn end_to_end_loop_swap_then_whole_array_read_is_a_known_false_positive() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v2 = make_array [u8 1, u8 11] : [u8; 2]
+                v6 = make_array [u8 2, u8 12] : [u8; 2]
+                jmp b1(u8 253, v2, v6)
+              b1(v13: u8, v30: [u8; 2], v31: [u8; 2]):
+                v14 = lt v13, u8 255
+                jmpif v14 then: b2(), else: b3()
+              b2():
+                v21 = array_set v31, index u32 0, value u8 9
+                v24 = array_set v21, index u32 1, value u8 19
+                v26 = make_array [u8 3, u8 13] : [u8; 2]
+                v27 = unchecked_add v13, u8 1
+                jmp b1(v27, v26, v30)
+              b3():
+                call f1(v31)
+                return
+            }
+            brillig(inline) fn observe f1 {
+              b0(v0: [u8; 2]):
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
     #[test]
