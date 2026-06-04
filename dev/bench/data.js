@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780580298058,
+  "lastUpdate": 1780580301095,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -40048,105 +40048,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "a2e70b5f4b5f094dead4c356a29fde78e4e78625",
-          "message": "fix(frontend): bind impl-method generics on Normal trait-dispatch path (#12829)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-05-29T14:40:12Z",
-          "tree_id": "d7066b8751ea02bd9514efeb1a078b3fffc74e93",
-          "url": "https://github.com/noir-lang/noir/commit/a2e70b5f4b5f094dead4c356a29fde78e4e78625"
-        },
-        "date": 1780068026196,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 803.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 771,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 370.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 319.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 323.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 384.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 295.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 587.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 629.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 456.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 685.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 858.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 240.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2072.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 150,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "ba91e25294640fd45d3d33e864fb8f60a494d59b",
           "message": "fix(frontend): identify trait generics by id in `<Self as Trait<..>>::Assoc` shortcut (#12825)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
@@ -44907,6 +44808,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7c08b6d46140e63312bb3f24b9ee5cb124ad1dcf"
         },
         "date": 1780580118220,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 807.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 774.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 371.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 320.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 324.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 385.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 295.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 588.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 630.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 458,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 687,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 860.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 241.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2074.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e263bf02e6dfeaa4b3f04c52347b293ebae9b26f",
+          "message": "chore(deps-dev): bump webpack from 5.106.2 to 5.107.2 in the webpack group across 1 directory (#12905)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-04T12:58:54Z",
+          "tree_id": "92e3a71e2e9f8613bbd62aa0779b6d2e46e562b4",
+          "url": "https://github.com/noir-lang/noir/commit/e263bf02e6dfeaa4b3f04c52347b293ebae9b26f"
+        },
+        "date": 1780580219084,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
