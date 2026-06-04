@@ -141,7 +141,7 @@ impl Elaborator<'_> {
             UnresolvedFunctions,
         )>,
     ) {
-        self.local_module = Some(local_module);
+        let previous_local_module = self.local_module.replace(local_module);
 
         for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
@@ -170,6 +170,8 @@ impl Elaborator<'_> {
 
             self.generics.clear();
         }
+
+        self.local_module = previous_local_module;
     }
 
     /// Registers each trait impl method as an unresolved meta, capturing the trait
@@ -689,7 +691,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = Some(func_meta.source_module);
+        let previous_local_module = self.local_module.replace(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
         self.current_trait = func_meta.trait_id;
@@ -806,6 +808,7 @@ impl Elaborator<'_> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+        self.local_module = previous_local_module;
     }
 }
 

@@ -117,7 +117,7 @@ impl Elaborator<'_> {
         )],
         self_type: &UnresolvedType,
     ) {
-        self.local_module = Some(module);
+        let previous_local_module = self.local_module.replace(module);
 
         for (generics, _, location, unresolved) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
@@ -127,6 +127,8 @@ impl Elaborator<'_> {
                 this.declare_methods_on_data_type(no_trait_id, unresolved, *location);
             });
         }
+
+        self.local_module = previous_local_module;
     }
 
     /// Declares methods in the appropriate module and registers them in the interner.

@@ -3,7 +3,7 @@
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
 use crate::elaborator::patterns::Variable;
-use crate::hir::def_map::ModuleId;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::ScopeTree as GenericScopeTree;
 use crate::node_interner::{DefinitionKind, TypeAliasId};
@@ -40,6 +40,23 @@ impl Elaborator<'_> {
         self.crate_id = new_module.krate;
         self.local_module = Some(new_module.local_id);
         current_module
+    }
+
+    /// Runs `f` with `self.local_module` set to `module`, restoring the previous value
+    /// afterwards (on every exit path, including early returns inside `f`). This is the
+    /// module-scope analogue of [`Self::recover_generics`] and should be used instead of a
+    /// bare `self.local_module = Some(..)` so that the caller's module context is never left
+    /// dangling.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn in_local_module<T>(
+        &mut self,
+        module: LocalModuleId,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let previous = self.local_module.replace(module);
+        let result = f(self);
+        self.local_module = previous;
+        result
     }
 
     pub(super) fn get_type(&self, type_id: TypeId) -> Shared<DataType> {

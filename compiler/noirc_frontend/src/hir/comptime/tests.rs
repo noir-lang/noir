@@ -11,7 +11,7 @@ use super::value::Value;
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
-use crate::hir::def_map::{CrateDefMap, ModuleData};
+use crate::hir::def_map::{CrateDefMap, ModuleData, ModuleId};
 use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
@@ -75,6 +75,12 @@ pub(crate) fn with_interpreter<T>(
     );
 
     let errors = elaborator.errors.clone();
+
+    // Mirror `Context::interpret_function`: the interpreter is entered with the module
+    // of the function being run, rather than relying on whatever module the elaborator
+    // happened to leave set after elaborating the program.
+    let source_module = elaborator.interner.function_meta(&main).source_module;
+    elaborator.replace_module(ModuleId { krate, local_id: source_module });
 
     let mut interpreter = elaborator.setup_interpreter();
 

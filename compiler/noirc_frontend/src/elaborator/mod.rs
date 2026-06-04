@@ -1084,7 +1084,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.local_module = Some(trait_impl.module_id);
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
@@ -1101,9 +1101,10 @@ impl<'context> Elaborator<'context> {
             if trait_impl.inherited_default_method_func_ids.contains(function) {
                 continue;
             }
-            self.local_module = Some(*module);
+            let previous_method_module = self.local_module.replace(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
+            self.local_module = previous_method_module;
             self.push_errors(errors);
         }
 
@@ -1119,6 +1120,7 @@ impl<'context> Elaborator<'context> {
         self.current_trait_impl = None;
         self.current_trait = None;
         self.generics.clear();
+        self.local_module = previous_local_module;
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
@@ -1134,7 +1136,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.local_module = Some(alias.module_id);
+        let previous_local_module = self.local_module.replace(alias.module_id);
 
         let previous_in_comptime_context =
             std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
@@ -1193,6 +1195,7 @@ impl<'context> Elaborator<'context> {
 
         self.current_item = None;
         self.in_comptime_context = previous_in_comptime_context;
+        self.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -1354,7 +1357,7 @@ pub mod test_utils {
             hir::{
                 Context, ParsedFiles,
                 def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
-                def_map::{CrateDefMap, ModuleData},
+                def_map::{CrateDefMap, ModuleData, ModuleId},
             },
         };
         use fm::{FileId, FileManager};
@@ -1422,6 +1425,11 @@ pub mod test_utils {
             return Err(ElaboratorError::Compile(errors));
         }
 
+        // Mirror `Context::interpret_function`: enter the interpreter with the module of the
+        // function being run rather than relying on the module the elaborator happened to leave set.
+        let source_module = elaborator.interner.function_meta(&main).source_module;
+        elaborator.replace_module(ModuleId { krate, local_id: source_module });
+
         let mut interpreter = elaborator.setup_interpreter();
 
         // The most straightforward way to convert the interpreter result into
@@ -1454,5 +1462,101 @@ pub mod test_utils {
             false,
         );
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
+    }
+}
+
+#[cfg(test)]
+mod local_module_restore_tests {
+    use super::{Elaborator, ElaboratorOptions};
+    use crate::hir::def_collector::dc_crate::DefCollector;
+    use crate::hir::def_collector::dc_mod::collect_defs;
+    use crate::hir::def_map::{CrateDefMap, ModuleData};
+    use crate::hir::{Context, ParsedFiles};
+    use crate::parse_program;
+    use fm::{FileId, FileManager};
+    use noirc_errors::Location;
+    use std::path::PathBuf;
+
+    /// Every place that sets `local_module` during elaboration must restore the previous value
+    /// once it is done. The elaborator starts with no module set, so after a balanced
+    /// elaboration `local_module` must be `None` again. A single un-restored setter propagates
+    /// its module all the way to this final value, so this asserts the invariant holds across
+    /// every kind of item.
+    #[test]
+    fn local_module_is_restored_after_elaboration() {
+        let src = r#"
+            type Alias = Field;
+
+            struct S { x: Field }
+
+            enum E { A, B(Field) }
+
+            trait T {
+                fn f(self) -> Field;
+            }
+
+            impl S {
+                fn g(self) -> Field { self.x }
+            }
+
+            impl T for S {
+                fn f(self) -> Field { self.x }
+            }
+
+            mod sub {
+                pub fn helper() -> Field { 1 }
+            }
+
+            #[attr]
+            pub fn annotated() {}
+
+            comptime fn attr(_f: FunctionDefinition) {}
+
+            fn main() -> pub Field { 0 }
+        "#;
+
+        let file = FileId::default();
+        let location = Location::new(Default::default(), file);
+        let root_module =
+            ModuleData::new(None, None, location, Vec::new(), Vec::new(), false, false);
+
+        let file_manager = FileManager::new(&PathBuf::new());
+        let parsed_files = ParsedFiles::new();
+        let mut context = Context::new(file_manager, parsed_files);
+        context.def_interner.populate_dummy_operator_traits();
+
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
+
+        let (module, errors) = parse_program(src, file);
+        assert_eq!(errors.len(), 0, "test program should parse without errors");
+        let ast = module.into_sorted();
+
+        let def_map = CrateDefMap::new(krate, root_module);
+        let root_module_id = def_map.root();
+        let mut collector = DefCollector::new(def_map);
+
+        collect_defs(
+            &mut collector,
+            ast,
+            FileId::dummy(),
+            root_module_id,
+            krate,
+            &mut context,
+            false,
+        );
+        context.def_maps.insert(krate, collector.def_map);
+
+        let elaborator = Elaborator::elaborate_and_return_self(
+            &mut context,
+            krate,
+            collector.items,
+            ElaboratorOptions::test_default(),
+        );
+
+        assert!(
+            elaborator.local_module.is_none(),
+            "local_module should be restored to None after elaboration, but was {:?}",
+            elaborator.local_module
+        );
     }
 }
