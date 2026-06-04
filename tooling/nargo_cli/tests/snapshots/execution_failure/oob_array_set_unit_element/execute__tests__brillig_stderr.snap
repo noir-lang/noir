@@ -5,7 +5,7 @@ expression: stderr
 error: Assertion failed: Index out of bounds
   ┌─ src/main.nr:3:5
   │
-3 │     array[x] = 1; // Index out of bounds
+3 │     array[x] = ();
   │     --------
   │
   = Call stack:
