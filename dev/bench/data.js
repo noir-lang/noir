@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780602926427,
+  "lastUpdate": 1780603070323,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23116,48 +23116,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "78591d8fe33f1e018749b73a1dd4916f012ec23a",
-          "message": "fix: range-check decoded ABI values to keep encode/decode symmetric (#12847)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-05-29T19:37:18Z",
-          "tree_id": "39f46e8ed8e6dfca66c6773b1a2b3993deadad9e",
-          "url": "https://github.com/noir-lang/noir/commit/78591d8fe33f1e018749b73a1dd4916f012ec23a"
-        },
-        "date": 1780085114810,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 98736,
-            "range": "± 942",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 88232,
-            "range": "± 1276",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2360402,
-            "range": "± 7846",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043894,
             "range": "± 10649",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "50901410eb7ada91844e85ca0e6eba11457ed68d",
+          "message": "fix: undo trait self binding in monomorphization (#12921)",
+          "timestamp": "2026-06-04T19:30:06Z",
+          "tree_id": "ea0d179c6f2dfc50efe542975ce978193f8af9c0",
+          "url": "https://github.com/noir-lang/noir/commit/50901410eb7ada91844e85ca0e6eba11457ed68d"
+        },
+        "date": 1780603001516,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128313,
+            "range": "± 802",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 114005,
+            "range": "± 1907",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3044723,
+            "range": "± 4481",
             "unit": "ns/iter"
           }
         ]
