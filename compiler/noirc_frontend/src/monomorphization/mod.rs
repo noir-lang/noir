@@ -1845,10 +1845,11 @@ impl<'interner> Monomorphizer<'interner> {
                 }
 
                 let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        let typ = Self::convert_type_helper(binding, location, seen_types);
-                        seen_types.remove(&input_type);
-                        return typ;
+                    // `convert_type_helper` resolves its input with `follow_bindings_shallow`,
+                    // which substitutes bound type variables before we reach this match, so any
+                    // type variable that gets here is necessarily unbound.
+                    TypeBinding::Bound(_) => {
+                        unreachable!("Bound type variables are resolved by follow_bindings_shallow")
                     }
                     TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
                 };
@@ -1863,6 +1864,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let monomorphized_default =
                     Self::convert_type_helper(&default, location, seen_types)?;
                 binding.bind(default);
+
+                // No need to remove `input_type` from `seen_types`: the type variable is now bound,
+                // so `follow_bindings_shallow` substitutes it away and it is never traversed here again.
                 monomorphized_default
             }
 
