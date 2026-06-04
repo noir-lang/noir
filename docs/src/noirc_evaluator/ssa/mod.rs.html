@@ -213,7 +213,7 @@
 <a href=#213 id=213 data-nosnippet>213</a>                </span>validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)<span class="question-mark">?</span>;
 <a href=#214 id=214 data-nosnippet>214</a>                <span class="prelude-val">Ok</span>(())
 <a href=#215 id=215 data-nosnippet>215</a>            }),
-<a href=#216 id=216 data-nosnippet>216</a>        SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
+<a href=#216 id=216 data-nosnippet>216</a>        SsaPass::new_try(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
 <a href=#217 id=217 data-nosnippet>217</a>        SsaPass::new(
 <a href=#218 id=218 data-nosnippet>218</a>            Ssa::lower_refs_at_acir_brillig_boundary,
 <a href=#219 id=219 data-nosnippet>219</a>            <span class="string">"Lower refs at ACIR/Brillig boundary"</span>,
@@ -420,7 +420,7 @@
 <a href=#420 id=420 data-nosnippet>420</a>        <span class="comment">// Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
 <a href=#421 id=421 data-nosnippet>421</a>        </span>SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
 <a href=#422 id=422 data-nosnippet>422</a>        <span class="comment">// We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
-<a href=#423 id=423 data-nosnippet>423</a>        </span>SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
+<a href=#423 id=423 data-nosnippet>423</a>        </span>SsaPass::new_try(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
 <a href=#424 id=424 data-nosnippet>424</a>        <span class="comment">// Even the initial SSA generation can result in optimizations that leave a function
 <a href=#425 id=425 data-nosnippet>425</a>        // which was called in the AST not being called in the SSA. Such functions would cause
 <a href=#426 id=426 data-nosnippet>426</a>        // panics later, when we are looking for global allocations.
