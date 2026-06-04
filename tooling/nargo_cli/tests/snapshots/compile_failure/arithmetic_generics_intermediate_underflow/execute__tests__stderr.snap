@@ -2,11 +2,11 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Invalid array length
+error: `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
    ┌─ src/main.nr:13:5
    │
 13 │     push_zero(pop(array))
-   │     --------- `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
+   │     ---------
    │
 
 Aborting due to 1 previous error

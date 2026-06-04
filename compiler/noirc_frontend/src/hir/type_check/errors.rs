@@ -41,6 +41,8 @@ pub enum TypeCheckError {
     DivisionByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    #[error("Modulo by zero: {lhs} % {rhs}")]
+    ModuloByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: FieldElement,
@@ -333,6 +335,7 @@ impl TypeCheckError {
         match self {
             TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
+            | TypeCheckError::ModuloByZero { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::OverflowingBinaryOp { location, .. }
@@ -614,6 +617,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::OverflowingBinaryOp { location, .. }
+            | TypeCheckError::ModuloByZero { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
