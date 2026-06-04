@@ -675,31 +675,44 @@ impl<'f> Context<'f> {
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
-        // Protected-participant filter. Drop from the use-set every
-        // non-source alias that is both a loop back-edge participant
-        // ([`Context::back_edge_participants`]) and carries its own
-        // `inc_rc`: such a value is RC ≥ 2 whenever it equals `source`'s
-        // storage (the `inc_rc` runs before it crosses the back-edge into
-        // the loop-header parameter), so reads of it can't observe an
-        // in-place mutation. Removing it also lets the per-arg kill rule
-        // in [`Context::succ_use_set`] drop the loop-header parameter on
-        // the back-edge, since the value threaded back is this protected
-        // participant rather than a still-live alias.
+        // Protected-participant set. A non-source alias that is both a
+        // loop back-edge participant ([`Context::back_edge_participants`])
+        // and carries its own `inc_rc` is RC ≥ 2 whenever it equals
+        // `source`'s storage (the `inc_rc` runs before it crosses the
+        // back-edge into the loop-header parameter), so reads of it can't
+        // observe an in-place mutation.
         //
         // The gate is **per value** on that value's own `inc_rc` — a
         // sibling's `inc_rc` never exonerates an unprotected value. A
-        // back-edge position fed by an `inc_rc`'d value on one
-        // predecessor edge and an unprotected value on another drops only
-        // the former; the latter stays for the walk to flag.
-        let use_set: im::HashSet<ValueId> = alias_set
+        // back-edge position fed by an `inc_rc`'d value on one predecessor
+        // edge and an unprotected value on another protects only the
+        // former; the latter stays in the use-set for the walk to flag.
+        //
+        // The removal is **sticky**: protected members are kept out of the
+        // use-set for the whole walk, not just the initial seed. A
+        // protected participant that is itself a loop-header parameter
+        // would otherwise be re-introduced the moment another in-use alias
+        // flows into its position (the add-rule in
+        // [`Context::succ_use_set`]); excluding it there too keeps it out.
+        // Dropping it from the seed also lets the per-arg kill rule drop
+        // the loop-header parameter on the back-edge, since the value
+        // threaded back is this protected participant rather than a
+        // still-live alias.
+        //
+        // `protected` is computed over *all* back-edge participants, not
+        // just the current `alias_set` members: the forward walk's
+        // add-rule can pull a participant into the use-set that wasn't in
+        // the source's static alias-set (it reaches the source's storage
+        // only along the walked path), and that value must be excluded
+        // too.
+        let protected: im::HashSet<ValueId> = self
+            .back_edge_participants
             .iter()
             .copied()
-            .filter(|&v| {
-                v == source
-                    || !(self.inc_rc_locations.contains_key(&v)
-                        && self.back_edge_participants.contains(&v))
-            })
+            .filter(|&v| v != source && self.inc_rc_locations.contains_key(&v))
             .collect();
+        let use_set: im::HashSet<ValueId> =
+            alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 
         let array_set_result = self.function.dfg.instruction_results(array_set_id)[0];
         let initial_state = WalkState {
@@ -825,7 +838,7 @@ impl<'f> Context<'f> {
             let Some(terminator) = self.function.dfg[block].terminator() else { continue };
             match terminator {
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                    let next = self.succ_walk_state(*destination, arguments, &state);
+                    let next = self.succ_walk_state(*destination, arguments, &state, &protected);
                     worklist.push(WalkFrame { block: *destination, start_idx: 0, state: next });
                 }
                 TerminatorInstruction::JmpIf {
@@ -836,14 +849,14 @@ impl<'f> Context<'f> {
                     ..
                 } => {
                     let then_state =
-                        self.succ_walk_state(*then_destination, then_arguments, &state);
+                        self.succ_walk_state(*then_destination, then_arguments, &state, &protected);
                     worklist.push(WalkFrame {
                         block: *then_destination,
                         start_idx: 0,
                         state: then_state,
                     });
                     let else_state =
-                        self.succ_walk_state(*else_destination, else_arguments, &state);
+                        self.succ_walk_state(*else_destination, else_arguments, &state, &protected);
                     worklist.push(WalkFrame {
                         block: *else_destination,
                         start_idx: 0,
@@ -867,10 +880,11 @@ impl<'f> Context<'f> {
         dest: BasicBlockId,
         arguments: &[ValueId],
         state: &WalkState,
+        protected: &im::HashSet<ValueId>,
     ) -> WalkState {
         WalkState {
-            use_set: self.succ_use_set(dest, arguments, &state.use_set),
-            derived: self.succ_use_set(dest, arguments, &state.derived),
+            use_set: self.succ_use_set(dest, arguments, &state.use_set, protected),
+            derived: self.succ_use_set(dest, arguments, &state.derived, protected),
             tainted: state.tainted.clone(),
         }
     }
@@ -888,9 +902,13 @@ impl<'f> Context<'f> {
     ///      result, excluded at lookup time): drop it.
     ///    - **Add.** If the param is not in `use_set` but the arg is,
     ///      this edge introduces a fresh alias: the param at `dest`'s
-    ///      entry shares storage with an alias-set member, so add it.
-    ///      This keeps alias propagation accurate at joins and loop
-    ///      back-edges.
+    ///      entry shares storage with an alias-set member, so add it —
+    ///      *unless* the param is a protected back-edge participant
+    ///      ([`Context::find_reachable_aliased_use`]), which must stay out
+    ///      of the use-set for the whole walk (its own `inc_rc` keeps it
+    ///      RC ≥ 2). Without this exclusion a protected participant that
+    ///      is itself a loop-header parameter would be re-introduced the
+    ///      moment any in-use alias flowed into its position.
     ///    - Otherwise (both in or both out), no change.
     ///    Only array-typed params participate.
     ///
@@ -905,6 +923,7 @@ impl<'f> Context<'f> {
         dest: BasicBlockId,
         arguments: &[ValueId],
         use_set: &im::HashSet<ValueId>,
+        protected: &im::HashSet<ValueId>,
     ) -> im::HashSet<ValueId> {
         let mut result = use_set.clone();
 
@@ -921,7 +940,9 @@ impl<'f> Context<'f> {
                     result.remove(&param);
                 }
                 (false, true) => {
-                    result.insert(param);
+                    if !protected.contains(&param) {
+                        result.insert(param);
+                    }
                 }
                 _ => {}
             }
@@ -1900,6 +1921,262 @@ mod tests {
                 jmp b1(v9, v8)
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern with
+    /// *nested* loops where the protected back-edge participant is itself
+    /// an inner-loop-header parameter that other in-use aliases flow into.
+    /// Source-level shape (`func_1` from the minimized repro):
+    ///
+    /// ```ignore
+    /// for _ in 0..2 {
+    ///     c.4[0] = if b.2[1] {
+    ///         for _ in 0..2 {
+    ///             if func_1(a, c, (.., c.2, b.4, ["E"]), ..) { c = (.., b.2, [b.3[0]], c.3); }
+    ///         }
+    ///         "F"
+    ///     } else { c.4[0] };
+    /// }
+    /// ```
+    ///
+    /// The outer-latch `array_set v85` (`c.4[0] = …`) has `v85`'s alias-set
+    /// pull in the inner-loop-header param `v78` transitively through the
+    /// loop structure. `v78` carries its own `inc_rc` (the calling-
+    /// convention RC bump before it is passed to the recursive `call`),
+    /// and it is a back-edge participant (it flows into `v90`, an inner
+    /// back-edge arg). So the protected-participant filter drops it — but
+    /// because `v78` is an inner-loop-header parameter, the forward walk's
+    /// add-rule re-introduces it the moment another in-use alias flows
+    /// into `v78`'s position, and the `call` then reads it.
+    ///
+    /// The fix makes the removal *sticky*: a protected participant is kept
+    /// out of the use-set for the whole walk (the add-rule never
+    /// re-introduces it), not just at the initial seed.
+    #[test]
+    fn end_to_end_protected_participant_is_inner_loop_header_param_is_accepted() {
+        let src = r#"
+            brillig(inline_always) fn func_1 f0 {
+              b0(v0: u1, v1: u1, v3: u1, v5: u1, v7: [u1; 2], v9: [[u8; 1]; 1], v11: [[u8; 1]; 1], v13: u1, v15: u1, v17: u1, v19: [u1; 2], v21: [[u8; 1]; 1], v23: [[u8; 1]; 1], v25: &mut u32):
+                jmp b1(u32 0, v13, v19, v21, v23)
+              b1(v28: u32, v68: u1, v71: [u1; 2], v72: [[u8; 1]; 1], v73: [[u8; 1]; 1]):
+                v29 = lt v28, u32 2
+                jmpif v29 then: b2(), else: b3()
+              b2():
+                v33 = array_get v7, index u32 1 -> u1
+                jmpif v33 then: b4(), else: b5()
+              b3():
+                return u1 1
+              b4():
+                jmp b6(u32 0, v68, v71, v72, v73)
+              b5():
+                v63 = array_get v73, index u32 0 -> [u8; 1]
+                inc_rc v63
+                jmp b12(v63, v68, v71, v72, v73)
+              b6(v34: u32, v74: u1, v77: [u1; 2], v78: [[u8; 1]; 1], v79: [[u8; 1]; 1]):
+                v35 = lt v34, u32 2
+                jmpif v35 then: b7(), else: b8()
+              b7():
+                inc_rc v77
+                inc_rc v78
+                inc_rc v79
+                inc_rc v77
+                inc_rc v11
+                v49 = make_array b"E"
+                v50 = make_array [v49] : [[u8; 1]; 1]
+                v51 = call f0(v0, v74, v15, v17, v77, v78, v79, u1 0, v15, v17, v77, v11, v50, v25) -> u1
+                jmpif v51 then: b9(), else: b10()
+              b8():
+                v61 = make_array b"F"
+                jmp b12(v61, v74, v77, v78, v79)
+              b9():
+                inc_rc v7
+                v56 = array_get v9, index u32 0 -> [u8; 1]
+                inc_rc v56
+                v57 = make_array [v56] : [[u8; 1]; 1]
+                jmp b11(u1 0, v7, v57, v78)
+              b10():
+                jmp b11(v74, v77, v78, v79)
+              b11(v86: u1, v89: [u1; 2], v90: [[u8; 1]; 1], v91: [[u8; 1]; 1]):
+                v59 = unchecked_add v34, u32 1
+                jmp b6(v59, v86, v89, v90, v91)
+              b12(v64: [u8; 1], v80: u1, v83: [u1; 2], v84: [[u8; 1]; 1], v85: [[u8; 1]; 1]):
+                v66 = array_set v85, index u32 0, value v64
+                v67 = unchecked_add v28, u32 1
+                jmp b1(v67, v80, v83, v84, v66)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v78 is an inner-loop-header param that is a back-edge participant with its own inc_rc; sticky removal keeps it out of the use-set so the add-rule can't re-introduce it for the recursive call to read",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern (the
+    /// `..=` inclusive-range duplicated-body variant of
+    /// [`end_to_end_protected_participant_is_inner_loop_header_param_is_accepted`]).
+    /// The protected participant `v167` is an inner-loop-header parameter
+    /// that the forward walk's add-rule pulls into the use-set *even
+    /// though it is not in the `array_set` source `v209`'s static
+    /// alias-set* — `v167` lives in the duplicated last-iteration body
+    /// (`b33`) and reaches `v209`'s storage only along the walked path.
+    ///
+    /// This pins down that the protected set must be computed over *all*
+    /// back-edge participants, not just the source's static alias-set:
+    /// `v167` has its own `inc_rc` (the calling-convention bump before the
+    /// recursive `call`) and is a back-edge participant (it flows into
+    /// `v180`, the `b41 → b33` back-edge arg), so it is excluded from the
+    /// use-set globally and the add-rule never re-introduces it.
+    #[test]
+    fn end_to_end_protected_participant_added_outside_static_alias_set_is_accepted() {
+        let src = r#"
+            brillig(inline_always) fn func_1 f0 {
+              b0(v0: u1, v1: u1, v3: u1, v5: u1, v7: [u1; 2], v9: [[u8; 1]; 1], v11: [[u8; 1]; 1], v13: u1, v15: u1, v17: u1, v19: [u1; 2], v21: [[u8; 1]; 1], v23: [[u8; 1]; 1], v25: &mut u32):
+                v26 = load v25 -> u32
+                v28 = eq v26, u32 0
+                jmpif v28 then: b1(), else: b2()
+              b1():
+                jmp b3(v7, v13, v21, v23)
+              b2():
+                v30 = load v25 -> u32
+                v32 = sub v30, u32 1
+                store v32 at v25
+                jmp b4(i16 -26238, v7, v13, v21, v23)
+              b3(v216: [u1; 2], v217: u1, v221: [[u8; 1]; 1], v222: [[u8; 1]; 1]):
+                return u1 0
+              b4(v36: i16, v148: [u1; 2], v149: u1, v153: [[u8; 1]; 1], v154: [[u8; 1]; 1]):
+                v38 = lt v36, i16 -26235
+                jmpif v38 then: b5(), else: b6()
+              b5():
+                jmp b7(v148, v149, v153, v154, u32 0)
+              b6():
+                jmpif u1 1 then: b24(), else: b25(v148, v149, v153, v154)
+              b7(v189: [u1; 2], v190: u1, v194: [[u8; 1]; 1], v195: [[u8; 1]; 1], v196: u32):
+                v41 = eq v196, u32 0
+                jmpif v41 then: b9(), else: b10()
+              b8():
+                v99 = unchecked_add v36, i16 1
+                jmp b4(v99, v189, v190, v194, v195)
+              b9():
+                jmp b8()
+              b10():
+                v43 = add v196, u32 1
+                v46 = array_get v189, index u32 1 -> u1
+                jmpif v46 then: b12(), else: b13()
+              b11():
+                jmp b7(v203, v204, v208, v91, v43)
+              b12():
+                inc_rc v19
+                jmp b14(i32 -261577443, v190, v194, v195)
+              b13():
+                v88 = array_get v195, index u32 0 -> [u8; 1]
+                inc_rc v88
+                jmp b23(v88, v189, v190, v194, v195)
+              b14(v50: i32, v197: u1, v201: [[u8; 1]; 1], v202: [[u8; 1]; 1]):
+                v51 = lt v50, i32 -261577442
+                jmpif v51 then: b15(), else: b16()
+              b15():
+                inc_rc v19
+                inc_rc v201
+                inc_rc v202
+                inc_rc v19
+                inc_rc v11
+                v64 = make_array b"S"
+                v65 = make_array [v64] : [[u8; 1]; 1]
+                v66 = call f0(v0, v197, v15, v17, v19, v201, v202, u1 0, v15, v17, v19, v11, v65, v25) -> u1
+                jmpif v66 then: b17(), else: b18()
+              b16():
+                v86 = make_array b"T"
+                jmp b23(v86, v19, v197, v201, v202)
+              b17():
+                jmp b19(i32 -439841945)
+              b18():
+                jmp b19(i32 -569613121)
+              b19(v69: i32):
+                v71 = lt v69, i32 -255727548
+                v72 = not v71
+                jmpif v72 then: b20(), else: b21()
+              b20():
+                inc_rc v19
+                v78 = array_get v9, index u32 0 -> [u8; 1]
+                inc_rc v78
+                v79 = make_array [v78] : [[u8; 1]; 1]
+                jmp b22(u1 0, v79, v201)
+              b21():
+                jmp b22(v197, v201, v202)
+              b22(v210: u1, v214: [[u8; 1]; 1], v215: [[u8; 1]; 1]):
+                constrain u1 0 == u1 1, "LCC"
+                v84 = unchecked_add v50, i32 1
+                jmp b14(v84, v210, v214, v215)
+              b23(v89: [u8; 1], v203: [u1; 2], v204: u1, v208: [[u8; 1]; 1], v209: [[u8; 1]; 1]):
+                v91 = array_set v209, index u32 0, value v89
+                jmp b11()
+              b24():
+                jmp b26(v148, v149, v153, v154, u32 0)
+              b25(v182: [u1; 2], v183: u1, v187: [[u8; 1]; 1], v188: [[u8; 1]; 1]):
+                jmp b3(v182, v183, v187, v188)
+              b26(v155: [u1; 2], v156: u1, v160: [[u8; 1]; 1], v161: [[u8; 1]; 1], v162: u32):
+                v103 = eq v162, u32 0
+                jmpif v103 then: b28(), else: b29()
+              b27():
+                jmp b25(v155, v156, v160, v161)
+              b28():
+                jmp b27()
+              b29():
+                v105 = add v162, u32 1
+                v107 = array_get v155, index u32 1 -> u1
+                jmpif v107 then: b31(), else: b32()
+              b30():
+                jmp b26(v169, v170, v174, v140, v105)
+              b31():
+                inc_rc v19
+                jmp b33(i32 -261577443, v156, v160, v161)
+              b32():
+                v137 = array_get v161, index u32 0 -> [u8; 1]
+                inc_rc v137
+                jmp b42(v137, v155, v156, v160, v161)
+              b33(v109: i32, v163: u1, v167: [[u8; 1]; 1], v168: [[u8; 1]; 1]):
+                v110 = lt v109, i32 -261577442
+                jmpif v110 then: b34(), else: b35()
+              b34():
+                inc_rc v19
+                inc_rc v167
+                inc_rc v168
+                inc_rc v19
+                inc_rc v11
+                v121 = make_array b"S"
+                v122 = make_array [v121] : [[u8; 1]; 1]
+                v123 = call f0(v0, v163, v15, v17, v19, v167, v168, u1 0, v15, v17, v19, v11, v122, v25) -> u1
+                jmpif v123 then: b36(), else: b37()
+              b35():
+                v135 = make_array b"T"
+                jmp b42(v135, v19, v163, v167, v168)
+              b36():
+                jmp b38(i32 -439841945)
+              b37():
+                jmp b38(i32 -569613121)
+              b38(v124: i32):
+                v125 = lt v124, i32 -255727548
+                v126 = not v125
+                jmpif v126 then: b39(), else: b40()
+              b39():
+                inc_rc v19
+                v131 = array_get v9, index u32 0 -> [u8; 1]
+                inc_rc v131
+                v132 = make_array [v131] : [[u8; 1]; 1]
+                jmp b41(u1 0, v132, v167)
+              b40():
+                jmp b41(v163, v167, v168)
+              b41(v176: u1, v180: [[u8; 1]; 1], v181: [[u8; 1]; 1]):
+                constrain u1 0 == u1 1, "LCC"
+                v134 = unchecked_add v109, i32 1
+                jmp b33(v134, v176, v180, v181)
+              b42(v138: [u8; 1], v169: [u1; 2], v170: u1, v174: [[u8; 1]; 1], v175: [[u8; 1]; 1]):
+                v140 = array_set v175, index u32 0, value v138
+                jmp b30()
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v167 (and v201/v202 etc.) are protected back-edge participants pulled into the use-set by the walk's add-rule outside v209's static alias-set; the global protected set excludes them so neither array_set is flagged",
+        );
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered minimal shape:
