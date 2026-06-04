@@ -17,6 +17,7 @@ pub enum MonomorphizationError {
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
     CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: String, expected: Type, location: Location },
+    CheckedCastEvaluationFailed { err: TypeCheckError, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
@@ -45,6 +46,7 @@ impl MonomorphizationError {
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
+            | MonomorphizationError::CheckedCastEvaluationFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
@@ -90,6 +92,9 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
+            // Show the underlying type-check error (e.g. a division by zero)
+            // as the user-facing diagnostic.
+            MonomorphizationError::CheckedCastEvaluationFailed { err, .. } => return err.into(),
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
