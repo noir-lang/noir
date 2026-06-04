@@ -219,13 +219,16 @@ impl Intrinsic {
         }
     }
 
-    /// Returns true if this intrinsic can modify its input array in Brillig
-    /// due to copy-on-write optimization when the reference count is 1.
+    /// Returns true if eliding the ownership pass's `Clone` around this intrinsic's
+    /// argument would be unsafe in Brillig, even though the intrinsic is otherwise
+    /// "pure" (no observable side effects). Two cases qualify:
     ///
-    /// This is used to ensure we don't skip clones for these operations,
-    /// even though they're technically "pure" (no observable side effects).
-    /// Without proper reference counting, the caller's array could be corrupted.
-    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+    /// * Vector mutators (`push`/`pop`/`insert`/`remove`) can write through the input
+    ///   pointer when the copy-on-write reference count is 1.
+    /// * `StrAsBytes` and `ArrayAsStrUnchecked` simplify to their input value, so the
+    ///   returned array aliases the source. A later array_set against the result
+    ///   would, under RC=1 COW, mutate the source as well.
+    pub(crate) fn unsafe_for_clone_elision_in_brillig(&self) -> bool {
         matches!(
             self,
             Intrinsic::VectorPushBack
@@ -234,6 +237,8 @@ impl Intrinsic {
                 | Intrinsic::VectorPopFront
                 | Intrinsic::VectorInsert
                 | Intrinsic::VectorRemove
+                | Intrinsic::StrAsBytes
+                | Intrinsic::ArrayAsStrUnchecked
         )
     }
 
@@ -251,10 +256,13 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -635,10 +643,21 @@ impl Instruction {
     }
 
     /// Replaces values present in this instruction with other values according to the given mapping.
-    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
-        if !mapping.is_empty() {
-            self.map_values_mut(|value_id| mapping.get(value_id));
+    ///
+    /// Returns `true` if any value was actually replaced.
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) -> bool {
+        if mapping.is_empty() {
+            return false;
         }
+        let mut changed = false;
+        self.map_values_mut(|value_id| {
+            let new_value = mapping.get(value_id);
+            if new_value != value_id {
+                changed = true;
+            }
+            new_value
+        });
+        changed
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
@@ -915,12 +934,9 @@ impl Binary {
             | BinaryOp::Mul { unchecked: false } => {
                 match dfg.type_of_value(self.rhs).unwrap_numeric() {
                     NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
+                    // Non-field integer arithmetic can overflow or underflow, so it needs a
+                    // predicate to guard the side effect.
+                    NumericType::Unsigned { .. } | NumericType::Signed { .. } => true,
                 }
             }
             BinaryOp::Shl | BinaryOp::Shr => {
@@ -1176,5 +1192,58 @@ where
     let mut focus = xs.focus_mut();
     for (i, y) in changes {
         focus.set(i, y);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acvm::acir::brillig::lengths::SemanticLength;
+
+    #[test]
+    fn replace_values_returns_true_only_when_a_value_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let mut instruction_using_v1 = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(instruction_using_v1.replace_values(&mapping));
+        assert!(matches!(instruction_using_v1, Instruction::Cast(v, _) if v == v2));
+
+        let mut instruction_using_v0 = Instruction::Cast(v0, NumericType::NativeField);
+        assert!(!instruction_using_v0.replace_values(&mapping));
+        assert!(matches!(instruction_using_v0, Instruction::Cast(v, _) if v == v0));
+
+        let empty_mapping = ValueMapping::default();
+        let mut instruction = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(!instruction.replace_values(&empty_mapping));
+    }
+
+    #[test]
+    fn replace_values_returns_true_when_a_make_array_element_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
+        let mut instruction =
+            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v1]), typ: typ.clone() };
+        assert!(instruction.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v2);
+
+        let mut unrelated =
+            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v0]), typ };
+        assert!(!unrelated.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v0);
     }
 }

@@ -1,0 +1,6 @@
+[package]
+name = "macro_unquote_captured_closure"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -12,7 +12,7 @@ use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -848,14 +848,17 @@ fn compile_contract_inner(
             .globals
             .iter()
             .map(|(tag, globals)| {
-                let globals: Vec<AbiValue> = globals
+                let globals: Vec<AbiNamedValue> = globals
                     .iter()
                     .map(|global_id| {
+                        let global_info = context.def_interner.get_global(*global_id);
+                        let name = global_info.ident.to_string();
                         let let_statement =
                             context.def_interner.get_global_let_statement(*global_id).unwrap();
                         let hir_expression =
                             context.def_interner.expression(&let_statement.expression);
-                        value_from_hir_expression(context, hir_expression)
+                        let value = value_from_hir_expression(context, hir_expression);
+                        AbiNamedValue { name, value }
                     })
                     .collect();
                 (tag.clone(), globals)
@@ -963,12 +966,18 @@ pub fn compile_no_check(
         monomorphize_debug(
             main_function,
             &mut context.def_interner,
+            context.file_manager.as_file_map(),
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )?
     } else {
-        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
+        monomorphize(
+            main_function,
+            &mut context.def_interner,
+            context.file_manager.as_file_map(),
+            force_unconstrained,
+        )?
     };
 
     if options.show_monomorphized {

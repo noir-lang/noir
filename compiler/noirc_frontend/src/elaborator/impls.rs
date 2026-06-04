@@ -80,7 +80,7 @@ use noirc_errors::Location;
 
 use crate::{
     Type,
-    ast::{UnresolvedGenerics, UnresolvedType},
+    ast::{UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType},
     hir::{
         def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
         def_map::LocalModuleId,
@@ -109,12 +109,17 @@ impl Elaborator<'_> {
     pub(super) fn collect_impls(
         &mut self,
         module: LocalModuleId,
-        impls: &mut [(UnresolvedGenerics, Location, UnresolvedFunctions)],
+        impls: &mut [(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )],
         self_type: &UnresolvedType,
     ) {
         self.local_module = Some(module);
 
-        for (generics, location, unresolved) in impls {
+        for (generics, _, location, unresolved) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
 
             self.recover_generics(|this| {

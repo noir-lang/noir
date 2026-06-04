@@ -57,14 +57,8 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
         InterpreterOptions { trace: args.trace, step_limit: args.step_limit, ..Default::default() };
 
     let (input_map, return_value) = read_inputs_and_return(&abi, &args)?;
-    let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);
 
-    let ssa_return =
-        if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
-            Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
-        } else {
-            None
-        };
+    let (ssa_args, ssa_return) = noir_ast_fuzzer::encode_to_ssa(&abi, &input_map, return_value)?;
 
     let result = ssa.interpret_with_options(ssa_args, options, std::io::stdout());
 

@@ -1,0 +1,5 @@
+error: expected `reserved(...)`, `allow_unknown_tags`, `via(...)`, or `extra_bound = "..."` inside `#[tagged(...)]` on a type
+ --> tests/compile_fail/on_reserved_at_type_level.rs:8:10
+  |
+8 | #[tagged(on_reserved)]
+  |          ^^^^^^^^^^^

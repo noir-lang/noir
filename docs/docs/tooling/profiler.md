@@ -2,7 +2,6 @@
 title: Profiler
 description: Learn about the Noir Profiler, how to generate execution flamegraphs, identify bottlenecks, and visualize optimizations.
 keywords: [profiling, profiler, flamegraph]
-sidebar_position: 4
 ---
 
 The profiler is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
@@ -11,7 +10,7 @@ The profiler is a sampling profiler designed to analyze and visualize Noir progr
 
 The profiler is automatically installed with Nargo starting noirup v0.1.4.
 
-Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started/quick_start.md#noir).
+Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started_manually.md#installing-nargo).
 
 ## Usage
 
@@ -68,7 +67,7 @@ With insight into our program's bottleneck, let's optimize it.
 
 #### Visualizing optimizations
 
-We can improve our program's performance using [unconstrained functions](../noir/concepts/unconstrained.md).
+We can improve our program's performance using [unconstrained functions](../language/unconstrained.md).
 
 Let's replace expensive array writes with array gets with the new code below:
 ```rust
@@ -121,7 +120,7 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying proving bottlenecks of Noir programs.
 
-This feature depends on the proving backend you are using and whether it supports the profiler with a gate profiling API. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [quick start guide](../getting_started/quick_start.md#proving-backend) to install it if you have not already.
+This feature depends on the proving backend you are using and whether it supports the profiler with a gate profiling API. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here.
 
 #### Flamegraphing
 

@@ -1,0 +1,5 @@
+error: variant-level `#[tag(...)]` is not allowed on a type with `#[tagged(via(...))]` — variants of a `via`-delegating enum are wire-irrelevant; tag the wire DTO's variants instead
+  --> tests/compile_fail/enum_via_with_variant_tag.rs:17:5
+   |
+17 |     #[tag(0)]
+   |     ^^^^^^^^^
