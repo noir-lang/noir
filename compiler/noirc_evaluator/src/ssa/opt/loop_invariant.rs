@@ -108,7 +108,7 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::unrolling::{Loop, LoopOrder, Loops};
+use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops};
 
 mod simplify;
 
@@ -217,13 +217,13 @@ impl Loop {
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
 
-    /// Maps outer loop induction variable -> fixed lower and upper loop bound
-    /// This will be used by inner loops to determine whether they
-    /// have safe operations reliant upon an outer loop's maximum induction variable
-    outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    /// All induction variables collected up front.
-    all_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-
+    /// Maps an outer loop's induction variable to its [`LoopBounds`].
+    ///
+    /// Used by inner loops to reason about operations on an outer loop's induction variable —
+    /// hoisting an in-bounds array access or proving a `Div`/`Mod` divisor is never zero.
+    outer_induction_variables: HashMap<ValueId, LoopBounds>,
+    /// All induction variables collected up front, with their [`LoopBounds`].    
+    all_induction_variables: HashMap<ValueId, LoopBounds>,
     cfg: ControlFlowGraph,
 
     /// Maps a block to its post-dominance frontiers
@@ -317,14 +317,16 @@ impl LoopContext {
             }
         }
         let induction = get_induction_var_bounds(inserter, loop_, pre_header);
-        let (induction_variable, induction_step) =
-            induction.map(|(var, bounds, step)| ((var, bounds), step)).unzip();
+        let does_loop_execute = does_loop_execute(induction.map(|(_, bounds, _)| bounds));
+        let (induction_variable, induction_step) = induction
+            .map(|(var, bounds, step)| ((var, (bounds.lower, bounds.upper)), step))
+            .unzip();
 
         Self {
             // There is only ever one current induction variable for a loop.
             induction_variable,
             induction_step,
-            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
+            does_loop_execute,
             pre_header,
             defined_in_loop,
             loop_invariants: HashSet::default(),
@@ -776,7 +778,8 @@ impl<'f> LoopInvariantContext<'f> {
         match instruction {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
+                let upper_bound =
+                    self.outer_induction_variables.get(index).map(|bounds| bounds.upper);
                 if let (Type::Array(_, len), Some(upper_bound)) =
                     (array_typ.into_owned(), upper_bound)
                 {
@@ -818,28 +821,28 @@ fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<V
     loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
 }
 
-/// Check that a loop has have fixed bounds and upper is higher than lower, indicating that it would execute.
-fn does_loop_execute(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool {
-    bounds
-        .and_then(|(lower_bound, upper_bound)| {
-            upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-        })
-        .unwrap_or(false)
+/// Check that a loop has fixed bounds indicating that its body is guaranteed to execute at
+/// least once. The `[lower, upper)` interval alone is not enough: a `LessThan` guard enters
+/// whenever `lower < upper`, but an `Equal` guard (an `Eq`/`Not` header with the body on the
+/// `then` branch) only enters when the induction variable already sits on its single matching
+/// value `upper - 1`, i.e. `lower == upper - 1`.
+fn does_loop_execute(bounds: Option<LoopBounds>) -> bool {
+    bounds.is_some_and(LoopBounds::loop_executes)
 }
 
-/// Keep track of a loop induction variable, its respective lower/upper bound, and the
-/// constant step by which it advances each iteration, but only when the loop's back-edge
-/// proves the bounds are real iteration invariants (see [`monotonic_back_edge_step`]).
+/// Keep track of a loop induction variable, its [`LoopBounds`], and the constant step by which
+/// it advances each iteration. Only returns `Some` when the loop's back-edge proves the bounds
+/// are real iteration invariants (see [`monotonic_back_edge_step`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
     pre_header: BasicBlockId,
-) -> Option<(ValueId, (IntegerConstant, IntegerConstant), IntegerConstant)> {
+) -> Option<(ValueId, LoopBounds, IntegerConstant)> {
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
     let step =
-        monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, bounds.1)?;
+        monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, bounds.upper)?;
     Some((induction_variable, bounds, step))
 }
 
@@ -3672,6 +3675,104 @@ mod control_dependence {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn eq_guarded_while_body_not_hoisted_when_skipped() {
+        // Regression for noir-lang/noir-claude#1365: `while i == 4` with `i` starting at 0
+        // never executes its body, but `get_const_upper_bound` infers `[0, 5)` from the
+        // `eq v1, u32 4` header (upper = rhs + 1) and `does_loop_execute` only checks
+        // `upper > lower`. That made LICM treat the body as definitely executed and hoist
+        // the control-dependent `constrain v0 == u32 1` into the pre-header, rejecting the
+        // valid execution `v0 = 0` that should skip the body entirely.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = eq v1, u32 4
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            constrain v0 == u32 1
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return v0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn neq_guarded_while_body_not_hoisted_when_skipped() {
+        // Sibling of `eq_guarded_while_body_not_hoisted_when_skipped` for the `!=` shape. A
+        // `while i != 4` whose induction variable starts at 4 never executes. It lowers to an
+        // `Eq` header with the body on the *else* branch (`jmpif eq then: exit, else: body`),
+        // which `get_const_upper_bound` classifies as `LessThan` with upper = rhs. The body is
+        // skipped exactly when `lower == rhs == upper`, so `upper > lower` is false and the
+        // control-dependent `constrain v0 == u32 1` must stay in the body. Unlike the `==`
+        // case this can only ever under-claim execution, never over-claim, but we lock in the
+        // behavior so a future bound refactor cannot turn it into a spurious hoist.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 4)
+          b1(v1: u32):
+            v3 = eq v1, u32 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            constrain v0 == u32 1
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return v0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn eq_guarded_while_body_still_hoisted_when_executed() {
+        // Counterpart to `eq_guarded_while_body_not_hoisted_when_skipped`: when an `Eq`-guarded
+        // body *does* execute (here `i` starts at 0 and the guard is `i == 0`, so the body runs
+        // exactly once), the `Equal` bound must still classify the loop as executing so the
+        // control-dependent `constrain v0 == u32 1` is hoisted into the pre-header as before.
+        // This guards against the fix being over-conservative and silently disabling legitimate
+        // hoisting for unit-trip equality loops.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            constrain v0 == u32 1
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return v0
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            constrain v0 == u32 1
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v5 = unchecked_add v1, u32 1
+            jmp b1(v5)
+          b3():
+            return v0
+        }
+        ");
     }
 
     /// Change `constrain v0 != i` into `constrain v0 < 10 or v0 > 19`
