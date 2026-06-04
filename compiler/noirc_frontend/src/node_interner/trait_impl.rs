@@ -28,6 +28,17 @@ pub(crate) enum TraitLookupMode {
     /// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
     /// The returned bindings are not expected to be applied.
     SelfAssumedOnly,
+    /// Like [Default](TraitLookupMode::Default), but skips every [TraitImplKind::Assumed] impl.
+    /// Used to normalize an associated-type projection over a rigid object type: the real impl
+    /// is the single ground truth, and any `where` clause hypothesis for the same type is
+    /// discharged by it rather than competing with it.
+    IgnoreAssumed,
+    /// Used only when registering a new impl, to detect whether it overlaps an existing one.
+    /// Unlike [Default](TraitLookupMode::Default), this does not bail out for bindable object types:
+    /// overlap detection must consider generic impls such as `impl<T> Foo for T` or
+    /// `impl<T> Foo for Bar<T>`. Any existing impl whose object type unifies with the new one is
+    /// reported as the overlap, even when several do.
+    Overlapping,
 }
 
 impl NodeInterner {
@@ -254,18 +265,31 @@ impl NodeInterner {
             trait_id,
             ordered_generics,
             &associated_types,
-            TraitLookupMode::Default,
+            TraitLookupMode::Overlapping,
         );
 
         match existing {
-            Ok((TraitImplKind::Normal(existing), ..)) => {
-                let existing_impl = self.get_trait_implementation(existing);
-                let existing_impl = existing_impl.borrow();
-                return Ok(Err(existing_impl.ident.location()));
-            }
-            Ok((TraitImplKind::Prepared(_, location), ..)) => {
-                // A different Prepared impl matched; this would be a full conflict later if we added both normal ones.
-                return Ok(Err(location));
+            Ok((TraitImplKind::Normal(existing), mut bindings, _)) => {
+                // The object types unify, but the impls only truly overlap if the new impl's own
+                // `where` clause is also satisfiable under that unification. Noir's coherence is
+                // where-clause-aware: `impl<T> Two for T where T: One` does not overlap
+                // `impl Two for u32` when `u32: One` does not hold. The matched impl's where
+                // clause was already validated during the lookup; here we validate the new one's.
+                let where_clause = trait_impl.borrow().where_clause.clone();
+                let overlaps = self
+                    .validate_where_clause(
+                        &where_clause,
+                        &mut bindings,
+                        &substitutions,
+                        IMPL_SEARCH_RECURSION_LIMIT,
+                    )
+                    .is_ok();
+
+                if overlaps {
+                    let existing_impl = self.get_trait_implementation(existing);
+                    let existing_impl = existing_impl.borrow();
+                    return Ok(Err(existing_impl.ident.location()));
+                }
             }
             Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
                 // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
@@ -273,6 +297,8 @@ impl NodeInterner {
                 // if they were, we should never prevent defining a new impl because a 'where'
                 // clause already assumes it exists.
             }
+            // `Overlapping` lookups skip `Prepared` entries, so only `Normal` impls are matched.
+            Ok((TraitImplKind::Prepared(..), ..)) => unreachable!(),
         }
 
         for method in &trait_impl.borrow().methods {
@@ -312,6 +338,28 @@ impl NodeInterner {
             trait_generics,
             trait_associated_types,
             TraitLookupMode::Default,
+        )?;
+
+        Type::apply_type_bindings(bindings);
+        Ok((impl_kind, instantiation_bindings))
+    }
+
+    /// Like [Self::lookup_trait_implementation] but ignores [TraitImplKind::Assumed] impls.
+    /// Intended for normalizing an associated-type projection whose object type is rigid,
+    /// where a `where` clause hypothesis must not compete with the real impl that discharges it.
+    pub(crate) fn lookup_trait_implementation_ignoring_assumed(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        let (impl_kind, bindings, instantiation_bindings) = self.try_lookup_trait_implementation(
+            object_type,
+            trait_id,
+            trait_generics,
+            trait_associated_types,
+            TraitLookupMode::IgnoreAssumed,
         )?;
 
         Type::apply_type_bindings(bindings);
@@ -400,7 +448,8 @@ impl NodeInterner {
         let object_type = object_type.substitute(type_bindings);
         let is_bindable = object_type.is_bindable();
 
-        if is_bindable && !matches!(mode, TraitLookupMode::SelfAssumedOnly) {
+        if is_bindable && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
+        {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
@@ -415,8 +464,15 @@ impl NodeInterner {
         for (existing_object_type, impl_kind) in impls {
             let skip = match mode {
                 TraitLookupMode::Default => false,
+                // Match only finalized impls when detecting overlaps. Skipping `Prepared` entries
+                // keeps detection deterministic: each overlapping pair is reported exactly once,
+                // when the second impl is collected and finds the first (now `Normal`).
+                TraitLookupMode::Overlapping => matches!(impl_kind, TraitImplKind::Prepared(..)),
                 TraitLookupMode::SelfAssumedOnly => {
                     !matches!(impl_kind, TraitImplKind::Assumed { .. })
+                }
+                TraitLookupMode::IgnoreAssumed => {
+                    matches!(impl_kind, TraitImplKind::Assumed { .. })
                 }
             };
             if skip {
@@ -509,7 +565,13 @@ impl NodeInterner {
             let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok((impl_, instantiation_bindings))
-        } else if is_bindable {
+        } else if matches!(mode, TraitLookupMode::Overlapping) && !matching_impls.is_empty() {
+            // For overlap detection any matching impl is a conflict, even if several match.
+            // Report the first one as the overlapping impl.
+            let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.swap_remove(0);
+            *type_bindings = fresh_bindings;
+            Ok((impl_, instantiation_bindings))
+        } else if is_bindable && !matches!(mode, TraitLookupMode::Overlapping) {
             Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
@@ -520,11 +582,38 @@ impl NodeInterner {
             errors.push(make_constraint());
             Err(ImplSearchErrorKind::NoMatching(errors))
         } else {
-            let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
-                let name = &self.get_trait(constraint.trait_bound.trait_id).name;
-                format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
-            });
-            Err(ImplSearchErrorKind::MultipleMatching(impls))
+            // An assumed impl is a `where` clause hypothesis that an impl exists for the object
+            // type. When a real impl also matches, it discharges that hypothesis rather than
+            // competing with it: by coherence it is the unique ground truth, so prefer it over
+            // the assumed candidates. This only holds when the query is rigid (no unbound type
+            // variables in the object type or ordered generics). Otherwise the candidates may
+            // bind a variable differently - e.g. an assumed `Wrapper<u16>: Foo` and a real
+            // `impl Foo for Wrapper<u32>` both match `Wrapper<_>` - and the match is genuinely
+            // ambiguous.
+            let query_is_rigid = !object_type.contains_unbound_type_variable()
+                && trait_generics.iter().all(|generic| {
+                    !generic.substitute(type_bindings).contains_unbound_type_variable()
+                });
+
+            let real_impl_indexes: Vec<usize> = matching_impls
+                .iter()
+                .positions(|(kind, ..)| {
+                    matches!(kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..))
+                })
+                .collect();
+
+            if query_is_rigid && let [index] = real_impl_indexes[..] {
+                let (impl_, fresh_bindings, instantiation_bindings, _) =
+                    matching_impls.swap_remove(index);
+                *type_bindings = fresh_bindings;
+                Ok((impl_, instantiation_bindings))
+            } else {
+                let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
+                    let name = &self.get_trait(constraint.trait_bound.trait_id).name;
+                    format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
+                });
+                Err(ImplSearchErrorKind::MultipleMatching(impls))
+            }
         }
     }
 

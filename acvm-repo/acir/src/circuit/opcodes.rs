@@ -113,7 +113,7 @@ pub enum Opcode<F: AcirField> {
         block_id: BlockId,
         /// Describe the memory operation to perform
         #[tag(1)]
-        op: MemOp<F>,
+        op: MemOp,
     },
 
     /// Initialize an ACIR array from a vector of witnesses.

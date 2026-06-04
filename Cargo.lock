@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acir_field",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254 0.6.0",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "aes",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir_field",
  "itertools 0.14.0",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1969,7 +1969,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2816,7 +2816,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 
 [[package]]
 name = "itertools"
@@ -3210,9 +3210,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.29"
+version = "0.4.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+checksum = "616ec5685824bcc94416c6d4a7a446eea774a31efd7062c8480ba6fd06d7a6e5"
 
 [[package]]
 name = "louds-rs"
@@ -3354,7 +3354,7 @@ dependencies = [
 
 [[package]]
 name = "nargo"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "brillig",
@@ -3385,7 +3385,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "ark-bn254 0.6.0",
@@ -3437,7 +3437,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "similar 3.1.0",
+ "similar 3.1.1",
  "similar-asserts",
  "tempfile",
  "termcolor",
@@ -3455,7 +3455,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_doc"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "fm",
  "insta",
@@ -3470,7 +3470,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_expand"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "fm",
  "nargo_fmt",
@@ -3480,7 +3480,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "noirc_errors",
  "noirc_frontend",
@@ -3493,7 +3493,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fuzz_target"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "afl",
  "nargo",
@@ -3503,7 +3503,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "dirs",
  "fm",
@@ -3568,7 +3568,7 @@ dependencies = [
 
 [[package]]
 name = "noir_artifact_cli"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm",
@@ -3593,7 +3593,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm",
@@ -3625,7 +3625,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer_fuzz"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "arbitrary",
@@ -3643,7 +3643,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3665,7 +3665,7 @@ dependencies = [
 
 [[package]]
 name = "noir_greybox_fuzzer"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "build-data",
@@ -3686,7 +3686,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "assert_cmd",
@@ -3705,7 +3705,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3737,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3766,7 +3766,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_cli"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "base64",
  "clap",
@@ -3788,7 +3788,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_executor"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "base64",
@@ -3805,7 +3805,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "libfuzzer-sys",
@@ -3823,7 +3823,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "build-data",
  "console_error_panic_hook",
@@ -3847,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3867,7 +3867,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "build-data",
@@ -3886,11 +3886,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm",
@@ -3910,7 +3910,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm",
@@ -3924,7 +3924,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "build-data",
@@ -3944,7 +3944,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "codespan-reporting",
  "fm",
@@ -3956,7 +3956,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "arbtest",
@@ -3995,7 +3995,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "base64",
@@ -4030,7 +4030,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4042,7 +4042,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "codespan",
  "serde",
@@ -5513,9 +5513,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.149"
+version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83fc039473c5595ace860d8c4fafa220ff474b3fc6bfdb4293327f1a37e94d86"
+checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
  "itoa",
  "memchr",
@@ -5702,9 +5702,9 @@ checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "similar"
-version = "3.1.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04d93e861ede2e497b47833469b8ec9d5c07fa4c78ce7a00f6eb7dd8168b4b3f"
+checksum = "e6505efef05804732ed8a3f2d4f279429eb485bd69d5b0cc6b19cc02005cda16"
 dependencies = [
  "bstr",
  "unicode-segmentation",
@@ -5717,7 +5717,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "997e6ca38e97437973fc9f7f50a50d1274cacd874341a4960fea90067291038c"
 dependencies = [
  "console",
- "similar 3.1.0",
+ "similar 3.1.1",
 ]
 
 [[package]]
@@ -5861,7 +5861,7 @@ dependencies = [
 
 [[package]]
 name = "ssa_verification"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "clap",
@@ -7408,7 +7408,7 @@ dependencies = [
 
 [[package]]
 name = "workspace_layering"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "serde_json",
 ]

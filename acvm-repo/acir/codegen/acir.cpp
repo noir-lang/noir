@@ -1639,22 +1639,18 @@ namespace Acir {
         struct EmbeddedCurveAdd {
             Acir::MemoryAddress input1_x;
             Acir::MemoryAddress input1_y;
-            Acir::MemoryAddress input1_infinite;
             Acir::MemoryAddress input2_x;
             Acir::MemoryAddress input2_y;
-            Acir::MemoryAddress input2_infinite;
             Acir::HeapArray result;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_array(7);
+                packer.pack_array(5);
                 packer.pack(input1_x);
                 packer.pack(input1_y);
-                packer.pack(input1_infinite);
                 packer.pack(input2_x);
                 packer.pack(input2_y);
-                packer.pack(input2_infinite);
                 packer.pack(result);
             }
 
@@ -1671,18 +1667,12 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "input1_y", input1_y);
                                     break;
                                 case 2:
-                                    Helpers::convert_or_throw(val, name, "input1_infinite", input1_infinite);
-                                    break;
-                                case 3:
                                     Helpers::convert_or_throw(val, name, "input2_x", input2_x);
                                     break;
-                                case 4:
+                                case 3:
                                     Helpers::convert_or_throw(val, name, "input2_y", input2_y);
                                     break;
-                                case 5:
-                                    Helpers::convert_or_throw(val, name, "input2_infinite", input2_infinite);
-                                    break;
-                                case 6:
+                                case 4:
                                     Helpers::convert_or_throw(val, name, "result", result);
                                     break;
                                 default:
@@ -1691,26 +1681,22 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_size(o.via.map.size, name, 7, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
-                        Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
-                        Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_size(array.size, name, 7, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_x", input1_x, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_y", input1_y, 1);
-                    Helpers::conv_fld_from_array(array, name, "input1_infinite", input1_infinite, 2);
-                    Helpers::conv_fld_from_array(array, name, "input2_x", input2_x, 3);
-                    Helpers::conv_fld_from_array(array, name, "input2_y", input2_y, 4);
-                    Helpers::conv_fld_from_array(array, name, "input2_infinite", input2_infinite, 5);
-                    Helpers::conv_fld_from_array(array, name, "result", result, 6);
+                    Helpers::conv_fld_from_array(array, name, "input2_x", input2_x, 2);
+                    Helpers::conv_fld_from_array(array, name, "input2_y", input2_y, 3);
+                    Helpers::conv_fld_from_array(array, name, "result", result, 4);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
                 }
@@ -4830,7 +4816,7 @@ namespace Acir {
             std::vector<Acir::FunctionInput> points;
             std::vector<Acir::FunctionInput> scalars;
             Acir::FunctionInput predicate;
-            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 2>> outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
 
@@ -4887,10 +4873,10 @@ namespace Acir {
         };
 
         struct EmbeddedCurveAdd {
-            std::shared_ptr<std::array<Acir::FunctionInput, 3>> input1;
-            std::shared_ptr<std::array<Acir::FunctionInput, 3>> input2;
+            std::shared_ptr<std::array<Acir::FunctionInput, 2>> input1;
+            std::shared_ptr<std::array<Acir::FunctionInput, 2>> input2;
             Acir::FunctionInput predicate;
-            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 2>> outputs;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
 
@@ -6176,15 +6162,15 @@ namespace Acir {
     };
 
     struct MemOp {
-        Acir::Expression operation;
-        Acir::Expression index;
-        Acir::Expression value;
+        bool read;
+        Acir::Witness index;
+        Acir::Witness value;
 
         friend bool operator==(const MemOp&, const MemOp&);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_array(3);
-            packer.pack(operation);
+            packer.pack(read);
             packer.pack(index);
             packer.pack(value);
         }
@@ -6196,7 +6182,7 @@ namespace Acir {
                     Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
                         switch (tag) {
                             case 0:
-                                Helpers::convert_or_throw(val, name, "operation", operation);
+                                Helpers::convert_or_throw(val, name, "read", read);
                                 break;
                             case 1:
                                 Helpers::convert_or_throw(val, name, "index", index);
@@ -6212,14 +6198,14 @@ namespace Acir {
                 } else {
                     Helpers::check_size(o.via.map.size, name, 3, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "read", read, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
                 Helpers::check_size(array.size, name, 3, 0);
-                Helpers::conv_fld_from_array(array, name, "operation", operation, 0);
+                Helpers::conv_fld_from_array(array, name, "read", read, 0);
                 Helpers::conv_fld_from_array(array, name, "index", index, 1);
                 Helpers::conv_fld_from_array(array, name, "value", value, 2);
             } else {
@@ -7113,7 +7099,6 @@ namespace Acir {
 
     struct Circuit {
         std::string function_name;
-        uint32_t current_witness_index;
         std::vector<Acir::Opcode> opcodes;
         std::vector<Acir::Witness> private_parameters;
         Acir::PublicInputs public_parameters;
@@ -7123,9 +7108,8 @@ namespace Acir {
         friend bool operator==(const Circuit&, const Circuit&);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_array(7);
+            packer.pack_array(6);
             packer.pack(function_name);
-            packer.pack(current_witness_index);
             packer.pack(opcodes);
             packer.pack(private_parameters);
             packer.pack(public_parameters);
@@ -7143,21 +7127,18 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "function_name", function_name);
                                 break;
                             case 1:
-                                Helpers::convert_or_throw(val, name, "current_witness_index", current_witness_index);
-                                break;
-                            case 2:
                                 Helpers::convert_or_throw(val, name, "opcodes", opcodes);
                                 break;
-                            case 3:
+                            case 2:
                                 Helpers::convert_or_throw(val, name, "private_parameters", private_parameters);
                                 break;
-                            case 4:
+                            case 3:
                                 Helpers::convert_or_throw(val, name, "public_parameters", public_parameters);
                                 break;
-                            case 5:
+                            case 4:
                                 Helpers::convert_or_throw(val, name, "return_values", return_values);
                                 break;
-                            case 6:
+                            case 5:
                                 Helpers::convert_or_throw(val, name, "assert_messages", assert_messages);
                                 break;
                             default:
@@ -7169,7 +7150,6 @@ namespace Acir {
                 } else {
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
@@ -7179,12 +7159,11 @@ namespace Acir {
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
                 Helpers::conv_fld_from_array(array, name, "function_name", function_name, 0);
-                Helpers::conv_fld_from_array(array, name, "current_witness_index", current_witness_index, 1);
-                Helpers::conv_fld_from_array(array, name, "opcodes", opcodes, 2);
-                Helpers::conv_fld_from_array(array, name, "private_parameters", private_parameters, 3);
-                Helpers::conv_fld_from_array(array, name, "public_parameters", public_parameters, 4);
-                Helpers::conv_fld_from_array(array, name, "return_values", return_values, 5);
-                Helpers::conv_fld_from_array(array, name, "assert_messages", assert_messages, 6);
+                Helpers::conv_fld_from_array(array, name, "opcodes", opcodes, 1);
+                Helpers::conv_fld_from_array(array, name, "private_parameters", private_parameters, 2);
+                Helpers::conv_fld_from_array(array, name, "public_parameters", public_parameters, 3);
+                Helpers::conv_fld_from_array(array, name, "return_values", return_values, 4);
+                Helpers::conv_fld_from_array(array, name, "assert_messages", assert_messages, 5);
             } else {
                 throw_or_abort("expected MAP or ARRAY for " + name);
             }
@@ -8583,10 +8562,8 @@ namespace Acir {
     inline bool operator==(const BlackBoxOp::EmbeddedCurveAdd &lhs, const BlackBoxOp::EmbeddedCurveAdd &rhs) {
         if (!(lhs.input1_x == rhs.input1_x)) { return false; }
         if (!(lhs.input1_y == rhs.input1_y)) { return false; }
-        if (!(lhs.input1_infinite == rhs.input1_infinite)) { return false; }
         if (!(lhs.input2_x == rhs.input2_x)) { return false; }
         if (!(lhs.input2_y == rhs.input2_y)) { return false; }
-        if (!(lhs.input2_infinite == rhs.input2_infinite)) { return false; }
         if (!(lhs.result == rhs.result)) { return false; }
         return true;
     }
@@ -8598,10 +8575,8 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxOp::EmbeddedCurveAdd>::serialize(const Acir::BlackBoxOp::EmbeddedCurveAdd &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.input1_x)>::serialize(obj.input1_x, serializer);
     serde::Serializable<decltype(obj.input1_y)>::serialize(obj.input1_y, serializer);
-    serde::Serializable<decltype(obj.input1_infinite)>::serialize(obj.input1_infinite, serializer);
     serde::Serializable<decltype(obj.input2_x)>::serialize(obj.input2_x, serializer);
     serde::Serializable<decltype(obj.input2_y)>::serialize(obj.input2_y, serializer);
-    serde::Serializable<decltype(obj.input2_infinite)>::serialize(obj.input2_infinite, serializer);
     serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
 }
 
@@ -8611,10 +8586,8 @@ Acir::BlackBoxOp::EmbeddedCurveAdd serde::Deserializable<Acir::BlackBoxOp::Embed
     Acir::BlackBoxOp::EmbeddedCurveAdd obj;
     obj.input1_x = serde::Deserializable<decltype(obj.input1_x)>::deserialize(deserializer);
     obj.input1_y = serde::Deserializable<decltype(obj.input1_y)>::deserialize(deserializer);
-    obj.input1_infinite = serde::Deserializable<decltype(obj.input1_infinite)>::deserialize(deserializer);
     obj.input2_x = serde::Deserializable<decltype(obj.input2_x)>::deserialize(deserializer);
     obj.input2_y = serde::Deserializable<decltype(obj.input2_y)>::deserialize(deserializer);
-    obj.input2_infinite = serde::Deserializable<decltype(obj.input2_infinite)>::deserialize(deserializer);
     obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
     return obj;
 }
@@ -9574,7 +9547,6 @@ namespace Acir {
 
     inline bool operator==(const Circuit &lhs, const Circuit &rhs) {
         if (!(lhs.function_name == rhs.function_name)) { return false; }
-        if (!(lhs.current_witness_index == rhs.current_witness_index)) { return false; }
         if (!(lhs.opcodes == rhs.opcodes)) { return false; }
         if (!(lhs.private_parameters == rhs.private_parameters)) { return false; }
         if (!(lhs.public_parameters == rhs.public_parameters)) { return false; }
@@ -9590,7 +9562,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::Circuit>::serialize(const Acir::Circuit &obj, Serializer &serializer) {
     serializer.increase_container_depth();
     serde::Serializable<decltype(obj.function_name)>::serialize(obj.function_name, serializer);
-    serde::Serializable<decltype(obj.current_witness_index)>::serialize(obj.current_witness_index, serializer);
     serde::Serializable<decltype(obj.opcodes)>::serialize(obj.opcodes, serializer);
     serde::Serializable<decltype(obj.private_parameters)>::serialize(obj.private_parameters, serializer);
     serde::Serializable<decltype(obj.public_parameters)>::serialize(obj.public_parameters, serializer);
@@ -9605,7 +9576,6 @@ Acir::Circuit serde::Deserializable<Acir::Circuit>::deserialize(Deserializer &de
     deserializer.increase_container_depth();
     Acir::Circuit obj;
     obj.function_name = serde::Deserializable<decltype(obj.function_name)>::deserialize(deserializer);
-    obj.current_witness_index = serde::Deserializable<decltype(obj.current_witness_index)>::deserialize(deserializer);
     obj.opcodes = serde::Deserializable<decltype(obj.opcodes)>::deserialize(deserializer);
     obj.private_parameters = serde::Deserializable<decltype(obj.private_parameters)>::deserialize(deserializer);
     obj.public_parameters = serde::Deserializable<decltype(obj.public_parameters)>::deserialize(deserializer);
@@ -10103,7 +10073,7 @@ Acir::IntegerBitSize::U128 serde::Deserializable<Acir::IntegerBitSize::U128>::de
 namespace Acir {
 
     inline bool operator==(const MemOp &lhs, const MemOp &rhs) {
-        if (!(lhs.operation == rhs.operation)) { return false; }
+        if (!(lhs.read == rhs.read)) { return false; }
         if (!(lhs.index == rhs.index)) { return false; }
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
@@ -10115,7 +10085,7 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Acir::MemOp>::serialize(const Acir::MemOp &obj, Serializer &serializer) {
     serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.operation)>::serialize(obj.operation, serializer);
+    serde::Serializable<decltype(obj.read)>::serialize(obj.read, serializer);
     serde::Serializable<decltype(obj.index)>::serialize(obj.index, serializer);
     serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
     serializer.decrease_container_depth();
@@ -10126,7 +10096,7 @@ template <typename Deserializer>
 Acir::MemOp serde::Deserializable<Acir::MemOp>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::MemOp obj;
-    obj.operation = serde::Deserializable<decltype(obj.operation)>::deserialize(deserializer);
+    obj.read = serde::Deserializable<decltype(obj.read)>::deserialize(deserializer);
     obj.index = serde::Deserializable<decltype(obj.index)>::deserialize(deserializer);
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();

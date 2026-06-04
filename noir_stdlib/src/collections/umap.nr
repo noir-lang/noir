@@ -95,7 +95,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Clears the map, removing all key-value entries.
     // docs:start:clear
-    pub fn clear(&mut self) {
+    pub unconstrained fn clear(&mut self) {
         // docs:end:clear
         self._table = [Slot::default()].as_vector();
         self._len = 0;
@@ -103,19 +103,18 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(&self, key: K) -> bool
+    pub unconstrained fn contains_key(&self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher,
     {
         // docs:end:contains_key
-        // Safety: unconstrained context
-        unsafe { self.get(key) }.is_some()
+        self.get(key).is_some()
     }
 
     /// Returns true if the map contains no elements.
     // docs:start:is_empty
-    pub fn is_empty(&self) -> bool {
+    pub unconstrained fn is_empty(&self) -> bool {
         // docs:end:is_empty
         self._len == 0
     }
@@ -123,7 +122,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns a vector of all valid entries in this UHashMap.
     /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:entries
-    pub fn entries(&self) -> [(K, V)] {
+    pub unconstrained fn entries(&self) -> [(K, V)] {
         // docs:end:entries
         let mut entries = [].as_vector();
 
@@ -146,7 +145,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns a vector containing all the keys within this UHashMap.
     /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:keys
-    pub fn keys(&self) -> [K] {
+    pub unconstrained fn keys(&self) -> [K] {
         // docs:end:keys
         let mut keys = [].as_vector();
 
@@ -168,7 +167,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns a vector containing all the values within this UHashMap.
     /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:values
-    pub fn values(&self) -> [V] {
+    pub unconstrained fn values(&self) -> [V] {
         // docs:end:values
         let mut values = [].as_vector();
 
@@ -231,7 +230,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// For each value applies mutator function.
     // docs:start:iter_values_mut
-    pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
+    pub unconstrained fn iter_values_mut(&mut self, f: fn(V) -> V) {
         // docs:end:iter_values_mut
         for i in 0..self._table.len() {
             let mut slot = self._table[i];
@@ -244,7 +243,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Retains only the elements specified by the predicate.
     // docs:start:retain
-    pub fn retain(&mut self, f: fn(K, V) -> bool) {
+    pub unconstrained fn retain(&mut self, f: fn(K, V) -> bool) {
         // docs:end:retain
         for index in 0..self._table.len() {
             let mut slot = self._table[index];
@@ -260,14 +259,14 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Amount of active key-value entries.
     // docs:start:len
-    pub fn len(&self) -> u32 {
+    pub unconstrained fn len(&self) -> u32 {
         // docs:end:len
         self._len
     }
 
     /// Get the current capacity of the inner table.
     // docs:start:capacity
-    pub fn capacity(&self) -> u32 {
+    pub unconstrained fn capacity(&self) -> u32 {
         // docs:end:capacity
         self._table.len()
     }
@@ -427,29 +426,38 @@ where
 {
     fn eq(self, other: UHashMap<K, V, B>) -> bool {
         // docs:end:eq
-        let mut equal = false;
+        if crate::runtime::is_unconstrained() {
+            // Safety: Checked above to be in unconstrained context.
+            unsafe {
+                let mut equal = false;
 
-        if self.len() == other.len() {
-            equal = true;
-            for slot in self._table {
-                // Not marked as deleted and has key-value.
-                if equal & slot.is_valid() {
-                    // Safety: unconstrained context
-                    let other_value = unsafe { other.get(slot._key) };
+                if self.len() == other.len() {
+                    equal = true;
+                    for slot in self._table {
+                        // Not marked as deleted and has key-value.
+                        if equal & slot.is_valid() {
+                            // Safety: unconstrained context
+                            let other_value = other.get(slot._key);
 
-                    if other_value.is_none() {
-                        equal = false;
-                    } else {
-                        let other_value = other_value.unwrap_unchecked();
-                        if slot._value != other_value {
-                            equal = false;
+                            if other_value.is_none() {
+                                equal = false;
+                            } else {
+                                let other_value = other_value.unwrap_unchecked();
+                                if slot._value != other_value {
+                                    equal = false;
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
 
-        equal
+                equal
+            }
+        } else {
+            crate::panic::panic(
+                "Equality check on UHashMap is not supported in constrained context",
+            )
+        }
     }
 }
 

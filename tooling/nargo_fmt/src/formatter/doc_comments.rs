@@ -13,8 +13,9 @@ impl Formatter<'_> {
 
             match self.bump() {
                 Token::LineComment(comment, Some(DocStyle::Inner)) => {
+                    let bodies = self.collect_doc_line_comment_group(comment, DocStyle::Inner);
                     self.write_indentation();
-                    self.write_line_comment(&comment, "//!");
+                    self.write_line_comment_group(&bodies, "//!");
                     self.write_line();
                 }
                 Token::BlockComment(comment, Some(DocStyle::Inner)) => {
@@ -37,9 +38,9 @@ impl Formatter<'_> {
 
             match self.bump() {
                 Token::LineComment(comment, Some(DocStyle::Outer)) => {
-                    let comment = comment.clone();
+                    let bodies = self.collect_doc_line_comment_group(comment, DocStyle::Outer);
                     self.write_indentation();
-                    self.write_line_comment(&comment, "///");
+                    self.write_line_comment_group(&bodies, "///");
                     self.write_line();
                 }
                 Token::BlockComment(comment, Some(DocStyle::Outer)) => {
@@ -51,6 +52,39 @@ impl Formatter<'_> {
                 _ => unreachable!("Expected an outer doc comment"),
             }
         }
+    }
+
+    /// Greedily collects the consecutive run of line-style doc comments at the same
+    /// `style` (separated by a single newline) starting from a body that was already
+    /// consumed via `bump`. The returned bodies are the lexer comment strings (with the
+    /// leading `///` or `//!` already stripped); the caller passes them to
+    /// `write_line_comment_group` so the reflow engine can recognize fenced code blocks
+    /// and other paragraph-spanning markdown across multiple source lines.
+    fn collect_doc_line_comment_group(&mut self, first: String, style: DocStyle) -> Vec<String> {
+        let mut bodies = vec![first];
+        if !self.config.wrap_comments || self.ignore_next {
+            return bodies;
+        }
+        loop {
+            let Token::Whitespace(ws) = &self.token else { break };
+            let newlines = ws.chars().filter(|c| *c == '\n').count();
+            if newlines != 1 {
+                break;
+            }
+            let extends = matches!(
+                self.peek_next_token(),
+                Token::LineComment(_, Some(next_style)) if *next_style == style
+            );
+            if !extends {
+                break;
+            }
+            self.bump();
+            let Token::LineComment(next_body, Some(_)) = self.bump() else {
+                unreachable!("peek confirmed a matching doc line comment")
+            };
+            bodies.push(next_body);
+        }
+        bodies
     }
 
     /// Formats outer doc comments, turning them into regular comments if they start with "Safety:"
@@ -101,7 +135,14 @@ mod tests {
     use crate::{Config, assert_format, assert_format_with_config};
 
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
-        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        let config = Config {
+            wrap_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
+            format_code_blocks: true,
+            comment_width,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
@@ -190,6 +231,32 @@ global x: Field = 1;
     }
 
     #[test]
+    fn outer_doc_comment_not_merged_with_following_plain_comment() {
+        let src = "/// Hello
+// world
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn inner_doc_comment_not_merged_with_following_plain_comment() {
+        let src = "//! Hello
+// world
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn plain_comment_not_merged_with_following_outer_doc_comment() {
+        let src = "// plain
+/// outer doc
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
     fn doc_comment_followed_by_comment() {
         let src = "
         /// Some doc comment
@@ -201,6 +268,189 @@ global x: Field = 1;
 global x: Field = 1;
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_wrap_fenced_code_block_in_outer_doc_comment() {
+        let src = "/// ```
+/// fn foo() {
+///     x + y + z + a + b + c + d + e + f
+/// }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
+    fn does_not_wrap_fenced_code_block_in_middle_of_outer_doc_comment() {
+        let src = "/// Example below.
+///
+/// ```
+/// fn foo() {
+///     x + y + z + a + b + c + d + e + f
+/// }
+/// ```
+///
+/// After the fence.
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
+    fn does_not_wrap_fenced_code_block_in_top_level_block_comment() {
+        let src = "/**
+ * Example below.
+ *
+ * ```
+ * fn foo() {
+ *     x + y + z + a + b + c + d + e + f
+ * }
+ * ```
+ *
+ * After the fence.
+ */
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
+    fn does_not_wrap_fenced_code_block_in_inner_doc_comment() {
+        let src = "//! ```
+//! fn foo() {
+//!     x + y + z + a + b + c + d + e + f
+//! }
+//! ```
+";
+        assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
+    fn formats_noir_code_in_untagged_fence() {
+        let src = "/// ```
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        let expected = "/// ```
+/// fn foo() {
+///     1
+/// }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 80);
+    }
+
+    #[test]
+    fn formats_noir_code_in_noir_tagged_fence() {
+        let src = "/// ```noir
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        let expected = "/// ```noir
+/// fn foo() {
+///     1
+/// }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 80);
+    }
+
+    #[test]
+    fn does_not_format_code_in_non_noir_tagged_fence() {
+        let src = "/// ```rust
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn leaves_unparseable_fence_content_verbatim() {
+        let src = "/// ```
+/// this is not valid Noir at all -- !!! ???
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn fence_snippet_respects_narrower_width_inside_doc_comment() {
+        let src = "/// ```
+/// fn foo() { call(aaa, bbb, ccc, ddd, eee, fff, ggg, hhh) }
+/// ```
+fn bar() {}
+";
+        // At max_width=50 the inner call would fit on a single line if the inner
+        // formatter saw the full 50-column budget. With the fix it sees
+        // max_width = 50 - 4 (for `/// `), forcing the call to wrap so the rendered
+        // doc-comment lines all stay within the configured 50 columns.
+        let expected = "/// ```
+/// fn foo() {
+///     call(
+///         aaa,
+///         bbb,
+///         ccc,
+///         ddd,
+///         eee,
+///         fff,
+///         ggg,
+///         hhh,
+///     )
+/// }
+/// ```
+fn bar() {}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
+            format_code_blocks: true,
+            max_width: 50,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn formats_noir_code_in_block_doc_comment_fence() {
+        let src = "/**
+ * ```
+ * fn   foo()   {  1  }
+ * ```
+ */
+fn bar() {}
+";
+        let expected = "/**
+ * ```
+ * fn foo() {
+ *     1
+ * }
+ * ```
+ */
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 80);
+    }
+
+    #[test]
+    fn reflows_doc_comment_paragraph_outside_fence() {
+        let src = "/// Hello world, I just realized that this
+/// is a long comment
+fn bar() {}
+";
+        let expected = "/// Hello world, I just realized
+/// that this is a long comment
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 35);
     }
 
     #[test]

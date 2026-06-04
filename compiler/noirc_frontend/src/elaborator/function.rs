@@ -134,11 +134,16 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+        function_sets: &mut Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
     ) {
         self.local_module = Some(local_module);
 
-        for (generics, _, function_set) in function_sets {
+        for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
             self.add_generics(generics);
@@ -358,6 +363,17 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
+
+        self.run_lint(|_| {
+            lints::databus_visibility_on_return(
+                func,
+                func.def.return_visibility,
+                func.def.return_visibility_location,
+                is_entry_point,
+            )
+            .map(Into::into)
+        });
+
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             let output = true;
@@ -488,10 +504,12 @@ impl Elaborator<'_> {
         }
     }
 
-    /// True if the `pub` keyword is allowed on parameters in this function
-    /// `pub` on function parameters is only allowed for entry point functions
+    /// True if the `pub` keyword is allowed on parameters in this function.
+    /// `pub` on function parameters is only allowed for entry point functions: a `#[fold]`
+    /// function is compiled to its own circuit but is only ever called internally, so its
+    /// inputs are not public inputs of the program.
     fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
-        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
+        func.is_entry_point(in_contract, is_crate_root)
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -541,7 +559,7 @@ impl Elaborator<'_> {
                 .map(Into::into)
             });
             self.run_lint(|_| {
-                lints::databus_on_non_entry_point(
+                lints::databus_visibility_on_parameter(
                     func,
                     visibility,
                     visibility_location,
@@ -621,8 +639,7 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
         self.run_lint(|_| {
-            let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
-            lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
+            lints::unnecessary_pub_return(func, modifiers, func.is_entry_point).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));

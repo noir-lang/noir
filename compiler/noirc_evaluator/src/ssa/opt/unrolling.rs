@@ -256,7 +256,7 @@ impl Function {
                 loops.callee_costs = callee_costs.clone();
 
                 let mut fallback_failed = HashSet::new();
-                let (fallback_unrolled, _, _fallback_errors) = self.try_unroll_loops_with_order(
+                let (fallback_unrolled, _, fallback_errors) = self.try_unroll_loops_with_order(
                     loops,
                     LoopOrder::OutsideIn,
                     &mut fallback_failed,
@@ -270,9 +270,13 @@ impl Function {
                     // OutsideIn made progress (unrolled outer loops, duplicating inner loops).
                     // The InsideOut errors referenced loop headers that were either inlined
                     // away by the outer-loop unroll or whose duplicates have constant bounds;
-                    // either way they are stale. Clear them so the next InsideOut pass starts
-                    // fresh and only reports loops that still genuinely fail.
-                    accumulated_errors.clear();
+                    // either way they are stale. The OutsideIn pass re-tried every current loop
+                    // from a fresh failed set, so `fallback_errors` already holds the genuine
+                    // failures (independent runtime-bound siblings that survive the unroll).
+                    // Replace the stale InsideOut errors with these so a sibling whose header is
+                    // now in `failed_to_unroll` — and thus skipped without erroring on the next
+                    // InsideOut pass — still has its `UnknownLoopBound` reported to the caller.
+                    accumulated_errors = fallback_errors;
                     continue;
                 }
                 // OutsideIn also made no progress — leave the InsideOut errors accumulated
@@ -2152,6 +2156,79 @@ mod tests {
         assert_eq!(errors.len(), 1, "Expected to fail to unroll loop");
     }
 
+    // A nested loop whose inner bound depends on the outer induction variable is only
+    // unrollable via the ACIR InsideOut→OutsideIn fallback. When such a loop coexists with
+    // an independent runtime-bound sibling loop, the fallback used to clear the sibling's
+    // genuine `UnknownLoopBound` error, returning success while leaving the sibling loop in
+    // the SSA (which later panics in `checks.rs`). The sibling error must survive the fallback.
+    #[test]
+    fn fallback_keeps_sibling_loop_bound_error() {
+        // fn main(n: u32, x: Field) {
+        //     for i in 0..2 {
+        //         for j in 0..i {
+        //             assert(j < 2);
+        //         }
+        //     }
+        //     for k in 0..n {
+        //         assert(x == x);
+        //         assert(k < n);
+        //     }
+        // }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: Field):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 2
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            jmp b4(u32 0)
+          b3():
+            jmp b7(u32 0)
+          b4(v3: u32):
+            v13 = lt v3, v2
+            jmpif v13 then: b5(), else: b6()
+          b5():
+            v15 = lt v3, u32 2
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b4(v16)
+          b6():
+            v14 = unchecked_add v2, u32 1
+            jmp b1(v14)
+          b7(v4: u32):
+            v8 = lt v4, v0
+            jmpif v8 then: b8(), else: b9()
+          b8():
+            v9 = lt v4, v0
+            constrain v9 == u1 1
+            v12 = unchecked_add v4, u32 1
+            jmp b7(v12)
+          b9():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(
+            errors.len(),
+            1,
+            "Expected the runtime-bound sibling loop to report its UnknownLoopBound error"
+        );
+        assert!(
+            matches!(errors[0], RuntimeError::UnknownLoopBound { .. }),
+            "Expected UnknownLoopBound, got {:?}",
+            errors[0]
+        );
+
+        // The nested fallback-resolvable loop unrolls; only the sibling runtime-bound loop remains.
+        assert!(
+            ssa.main().reachable_blocks().len() > 1,
+            "The runtime-bound sibling loop should still be present in the SSA"
+        );
+    }
+
     #[test]
     fn test_get_const_bounds() {
         let ssa = brillig_unroll_test_case();
@@ -2292,7 +2369,7 @@ mod tests {
     #[test]
     fn test_boilerplate_stats_const_zero_jump_condition() {
         let src = "
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -2991,7 +3068,7 @@ mod tests {
         //     println(i);
         // }
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -3054,7 +3131,7 @@ mod tests {
         //     while run { }
         // }
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0
@@ -3122,12 +3199,12 @@ mod tests {
     #[should_panic(expected = "has a JmpIf with a constant condition")]
     fn pre_check_rejects_const_condition_jmpif_in_loop_header() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0():
             call f1(u1 1)
             return
         }
-        brillig(inline) impure fn func f1 {
+        brillig(inline) predicate_pure fn func f1 {
           b0(v0: u1):
             v2 = not v0
             v3 = allocate -> &mut u1

@@ -190,6 +190,27 @@ fn type_alias_to_numeric_generic() {
 }
 
 #[test]
+fn numeric_type_alias_body_resolves_in_defining_module() {
+    let src = r#"
+    pub mod lib {
+        pub global N: u32 = 2;
+
+        // This N must refer to the N above, not the global N one.
+        // There was a bug around this.
+        pub type Size: u32 = N;
+    }
+
+    pub global N: u32 = 5;
+
+    fn main() {
+        comptime { assert_eq(lib::Size, 2); }
+        let _: [u32; lib::Size] = [0; lib::Size];
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn disallows_composing_numeric_type_aliases_as_type_syntax() {
     // Double<Double<N>> uses type syntax (Named with generics), not expression syntax.
     // try_into_expression rejects Named with non-empty generics.

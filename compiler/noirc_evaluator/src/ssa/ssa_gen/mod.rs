@@ -18,8 +18,6 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
-use acvm::acir::BlackBoxFunc;
-
 use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
@@ -35,6 +33,7 @@ use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
+use super::should_show_invalid_ssa;
 use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
@@ -45,8 +44,6 @@ use super::{
         value::ValueId,
     },
 };
-
-pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
@@ -153,7 +150,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+        if should_show_invalid_ssa() {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         }
 
@@ -1318,22 +1315,6 @@ impl FunctionContext<'_> {
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
-        // EC blackbox functions expect 3-field points (x, y, is_infinite) but the Noir types
-        // only have 2 fields (x, y). Expand the arguments and strip the result here so the
-        // rest of the SSA pipeline sees the 3-field representation.
-        if let Some(Intrinsic::BlackBox(bb_func)) = self.builder.get_intrinsic_from_value(function)
-        {
-            match bb_func {
-                BlackBoxFunc::MultiScalarMul => {
-                    return Ok(self.codegen_msm_call(function, arguments, call.location));
-                }
-                BlackBoxFunc::EmbeddedCurveAdd => {
-                    return Ok(self.codegen_ec_add_call(function, arguments, call.location));
-                }
-                _ => {}
-            }
-        }
-
         let result = self.insert_call(function, arguments, &call.return_type, call.location);
         self.codegen_intrinsic_inc_rc_results(function, &call.return_type, &result);
         Ok(result)
@@ -1382,129 +1363,6 @@ impl FunctionContext<'_> {
                 }
             }
         }
-    }
-
-    /// Generate SSA for a `multi_scalar_mul` blackbox call.
-    ///
-    /// Expands the 2-field points array `[(Field, Field); N]` to 3-field
-    /// `[(Field, Field, u1); N]` by computing `is_infinite = (x == 0) & (y == 0)`,
-    /// then strips `is_infinite` from the 3-field result.
-    fn codegen_msm_call(
-        &mut self,
-        function: ValueId,
-        arguments: Vec<ValueId>,
-        location: Location,
-    ) -> Values {
-        // arguments: [points_array, scalars_array, predicate]
-        // points_array is [(Field, Field); N] — we need [(Field, Field, u1); N]
-        let points_array = arguments[0];
-        let points_type = self.builder.current_function.dfg.type_of_value(points_array);
-
-        let n = match &*points_type {
-            Type::Array(_, len) => len.0,
-            _ => unreachable!("ICE: MSM points argument must be an array"),
-        };
-
-        let zero = self.builder.field_constant(0u128);
-
-        // Build expanded points array with is_infinite for each point
-        let mut expanded_elements = im::Vector::new();
-        for i in 0..n {
-            let idx_x = self.builder.length_constant(u128::from(i) * 2);
-            let idx_y = self.builder.length_constant(u128::from(i) * 2 + 1);
-            let x = self.builder.insert_array_get(points_array, idx_x, Type::field());
-            let y = self.builder.insert_array_get(points_array, idx_y, Type::field());
-
-            let x_is_zero = self.builder.insert_binary(x, BinaryOp::Eq, zero);
-            let y_is_zero = self.builder.insert_binary(y, BinaryOp::Eq, zero);
-            let is_infinite =
-                self.builder.insert_binary(x_is_zero, BinaryOp::Mul { unchecked: true }, y_is_zero);
-
-            expanded_elements.push_back(x);
-            expanded_elements.push_back(y);
-            expanded_elements.push_back(is_infinite);
-        }
-
-        let expanded_type = Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-            acvm::acir::brillig::lengths::SemanticLength(n),
-        );
-        let expanded_points = self.builder.insert_make_array(expanded_elements, expanded_type);
-
-        // Call with expanded points; result type is [(Field, Field, u1); 1]
-        let result_types = vec![Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        )];
-        let call_args = vec![expanded_points, arguments[1], arguments[2]];
-        let results =
-            self.builder.set_location(location).insert_call(function, call_args, result_types);
-        let result_with_inf = results[0];
-
-        // Extract x, y from the 3-field result and build a 2-field result
-        let idx_0 = self.builder.length_constant(0u128);
-        let idx_1 = self.builder.length_constant(1u128);
-        let result_x = self.builder.insert_array_get(result_with_inf, idx_0, Type::field());
-        let result_y = self.builder.insert_array_get(result_with_inf, idx_1, Type::field());
-
-        let result_type = Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        );
-        let result = self.builder.insert_make_array(im::vector![result_x, result_y], result_type);
-        result.into()
-    }
-
-    /// Generate SSA for an `embedded_curve_add` blackbox call.
-    ///
-    /// Expands from 5 arguments `(x1, y1, x2, y2, predicate)` to 7 arguments
-    /// `(x1, y1, is_inf1, x2, y2, is_inf2, predicate)` by computing `is_infinite`,
-    /// then strips `is_infinite` from the 3-field result.
-    fn codegen_ec_add_call(
-        &mut self,
-        function: ValueId,
-        arguments: Vec<ValueId>,
-        location: Location,
-    ) -> Values {
-        // arguments: [x1, y1, x2, y2, predicate]
-        let (x1, y1, x2, y2, predicate) =
-            (arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-
-        let zero = self.builder.field_constant(0u128);
-
-        // Compute is_infinite for each point
-        let x1_is_zero = self.builder.insert_binary(x1, BinaryOp::Eq, zero);
-        let y1_is_zero = self.builder.insert_binary(y1, BinaryOp::Eq, zero);
-        let is_inf1 =
-            self.builder.insert_binary(x1_is_zero, BinaryOp::Mul { unchecked: true }, y1_is_zero);
-
-        let x2_is_zero = self.builder.insert_binary(x2, BinaryOp::Eq, zero);
-        let y2_is_zero = self.builder.insert_binary(y2, BinaryOp::Eq, zero);
-        let is_inf2 =
-            self.builder.insert_binary(x2_is_zero, BinaryOp::Mul { unchecked: true }, y2_is_zero);
-
-        // Call with expanded arguments; result type is [(Field, Field, u1); 1]
-        let result_types = vec![Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        )];
-        let call_args = vec![x1, y1, is_inf1, x2, y2, is_inf2, predicate];
-        let results =
-            self.builder.set_location(location).insert_call(function, call_args, result_types);
-        let result_with_inf = results[0];
-
-        // Extract x, y from the 3-field result and build a 2-field result
-        let idx_0 = self.builder.length_constant(0u128);
-        let idx_1 = self.builder.length_constant(1u128);
-        let result_x = self.builder.insert_array_get(result_with_inf, idx_0, Type::field());
-        let result_y = self.builder.insert_array_get(result_with_inf, idx_1, Type::field());
-
-        let result_type = Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        );
-        let result = self.builder.insert_make_array(im::vector![result_x, result_y], result_type);
-        result.into()
     }
 
     fn codegen_intrinsic_call_checks(
@@ -1614,12 +1472,7 @@ impl FunctionContext<'_> {
             let selector = error_type.selector();
             let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
-            // Record custom types in the builder, outside of SSA instructions
-            // This is made to avoid having Hir types in the SSA code.
-            if !is_string_type {
-                self.builder.record_error_type(selector, assert_message_typ.clone());
-            }
-
+            self.builder.record_error_type(selector, assert_message_typ.clone());
             Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
         }
     }
@@ -1711,12 +1564,10 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function
-/// that does not modify its array inputs.
-///
-/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-/// when the reference count is 1. We must NOT skip clones for these operations.
+/// Return whether the expression refers to a builtin or low level function for
+/// which the ownership pass's `Clone` around an array argument can be safely
+/// elided: the callee must neither modify the input nor return an alias of it
+/// that a later Brillig mutation could observe.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1729,9 +1580,11 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
         return false;
     };
 
-    // Vector operations can modify their input array in Brillig when RC=1,
-    // so we must clone them to ensure that they are "pure".
-    if intrinsic.modifies_input_array_in_brillig() {
+    // Some intrinsics are technically pure but unsafe to elide clones around in
+    // Brillig: vector mutators mutate through the input pointer when RC=1, and
+    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
+    // alias of their input that a later mutation could corrupt.
+    if intrinsic.unsafe_for_clone_elision_in_brillig() {
         return false;
     }
 

@@ -61,6 +61,21 @@ A code comment must stand on its own when read against the post-change state of 
 
 Test: imagine cherry-picking this file into a fresh repository with no git history. If the comment would still make sense to that reader, keep it. If it only makes sense to someone who remembers the change that introduced it, move it to the commit message.
 
+## Design Decisions
+
+The `design/` directory records specific design decisions for the Noir language, compiler, and
+tooling (e.g. `design/comptime.md`, `design/oracles.md`). It is a record of why things work the
+way they do, not user-facing documentation (that lives in `docs/docs`).
+
+When changing a potentially niche or subtle part of the language, compiler, or tooling design:
+
+- **Consult `design/` first.** Check whether a relevant decision is already recorded before
+  changing behavior, the existing rationale may explain why the current design exists.
+- **Keep it in sync.** If a change alters or invalidates a recorded decision, update the
+  corresponding file in the same PR.
+- **Record new decisions.** If a change introduces a non-obvious design decision that isn't
+  captured anywhere, add it to the appropriate file in `design/` (or create a new one).
+
 ## Build & Development Commands
 
 The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.

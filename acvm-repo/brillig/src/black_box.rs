@@ -91,14 +91,10 @@ pub enum BlackBoxOp {
         #[tag(1)]
         input1_y: MemoryAddress,
         #[tag(2)]
-        input1_infinite: MemoryAddress,
-        #[tag(3)]
         input2_x: MemoryAddress,
-        #[tag(4)]
+        #[tag(3)]
         input2_y: MemoryAddress,
-        #[tag(5)]
-        input2_infinite: MemoryAddress,
-        #[tag(6)]
+        #[tag(4)]
         result: HeapArray,
     },
     /// Applies the Poseidon2 permutation function to the given state,
@@ -192,18 +188,10 @@ impl std::fmt::Display for BlackBoxOp {
                     "multi_scalar_mul(points: {points}, scalars: {scalars}, outputs: {outputs})"
                 )
             }
-            BlackBoxOp::EmbeddedCurveAdd {
-                input1_x,
-                input1_y,
-                input1_infinite,
-                input2_x,
-                input2_y,
-                input2_infinite,
-                result,
-            } => {
+            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
                 write!(
                     f,
-                    "embedded_curve_add(input1_x: {input1_x}, input1_y: {input1_y}, input1_infinite: {input1_infinite}, input2_x: {input2_x}, input2_y: {input2_y}, input2_infinite: {input2_infinite}, result: {result})"
+                    "embedded_curve_add(input1_x: {input1_x}, input1_y: {input1_y}, input2_x: {input2_x}, input2_y: {input2_y}, result: {result})"
                 )
             }
             BlackBoxOp::Poseidon2Permutation { message, output } => {
