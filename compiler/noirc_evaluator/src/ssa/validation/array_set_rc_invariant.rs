@@ -77,8 +77,14 @@
 //!      positions" if any chain link uses a dynamic index.
 //!
 //!    An `array_get` on a use-set member is a hazard iff its read index is
-//!    covered by `tainted_indices`. Non-`array_get` uses are always hazards.
-//!    An `inc_rc v` with `v ∈ use_set ∪ derived` lifts the storage's RC,
+//!    covered by `tainted_indices`. An `array_set` on a use-set member is
+//!    index-aware too: it produces a copy of the source with one index
+//!    overwritten, so it observes (copies forward) only the indices it does
+//!    *not* write — a hazard iff some `tainted_indices` position differs
+//!    from its write index (a same-index write overwrites the mutation and
+//!    is not a hazard; it instead extends the chain). All other uses are
+//!    always hazards. An `inc_rc v` with `v ∈ use_set ∪ derived` lifts the
+//!    storage's RC,
 //!    so chain writes after it run on fresh storage — `derived` is cleared
 //!    at that point. `tainted_indices` is *not* cleared: prior chain writes
 //!    have already mutated the source's storage.
@@ -658,8 +664,12 @@ impl<'f> Context<'f> {
     /// is a hazard iff `tainted_indices` covers `idx`. With both indices
     /// constant, that's a set-membership test; otherwise (either side
     /// dynamic, or `tainted_indices == None`) the verifier conservatively
-    /// flags. Non-`array_get` uses on a `use_set` member are always
-    /// flagged — the SSA-vs-runtime divergence isn't index-local for them.
+    /// flags. An `array_set v, idx, _` with `v ∈ use_set` is index-aware in
+    /// the same way: it copies forward every position except `idx`, so it
+    /// is a hazard iff some `tainted_indices` position differs from `idx`
+    /// (a same-index write overwrites the mutation and extends the chain
+    /// instead). All other uses on a `use_set` member are always flagged —
+    /// the SSA-vs-runtime divergence isn't index-local for them.
     ///
     /// **IncrementRc clears `derived`.** A program-point `inc_rc v` with
     /// `v ∈ use_set ∪ derived` lifts the storage's RC ≥ 2, so any
@@ -792,18 +802,39 @@ impl<'f> Context<'f> {
                     // skip if encountered.
                     Instruction::DecrementRc { .. } => {}
                     Instruction::ArraySet { array, index, value, .. } => {
-                        if state.use_set.contains(array) {
-                            return Some(AliasedUse { instruction: inst_id, value: *array });
+                        let array_in_use = state.use_set.contains(array);
+                        if array_in_use {
+                            // Index-aware, mirroring the `array_get` rule below.
+                            // `array_set v, i, x` produces a *copy* of `v` with
+                            // index `i` overwritten, so it only observes (copies
+                            // forward) the indices it does **not** write. It can
+                            // therefore surface the source's in-place mutation
+                            // only if it copies a tainted index — i.e. some
+                            // tainted index differs from this write index. A
+                            // write to the (sole) tainted index overwrites the
+                            // mutation and observes nothing. A dynamic write or
+                            // read index, or fully-tainted (`None`) storage, is
+                            // flagged conservatively.
+                            let write_idx = self.function.dfg.get_numeric_constant(*index);
+                            let observes_tainted = match (&state.tainted, write_idx) {
+                                (None, _) | (_, None) => true,
+                                (Some(t), Some(c)) => t.iter().any(|i| *i != c),
+                            };
+                            if observes_tainted {
+                                return Some(AliasedUse { instruction: inst_id, value: *array });
+                            }
                         }
                         if self.function.dfg.type_of_value(*value).contains_an_array()
                             && state.use_set.contains(value)
                         {
                             return Some(AliasedUse { instruction: inst_id, value: *value });
                         }
-                        // Chain extension: this array_set writes through a
-                        // value that may share the source's storage with
-                        // this iteration's earlier in-place mutations.
-                        if state.derived.contains(array) {
+                        // Chain extension: a write through a value that may
+                        // share the source's storage — a `derived` member, or a
+                        // `use_set` member whose write we just cleared as
+                        // non-observing — keeps mutating that storage, so record
+                        // its write index and track the result.
+                        if state.derived.contains(array) || array_in_use {
                             match (
                                 state.tainted.as_mut(),
                                 self.function.dfg.get_numeric_constant(*index),
@@ -1200,6 +1231,99 @@ mod tests {
             "expected ArraySetAliasViolation, got {err:?}",
         );
     }
+    /// A read value that carries its own `inc_rc` **and** is a loop
+    /// back-edge participant is **still a hazard** when it merely
+    /// *receives* the source's storage on a forward edge. Here `array_set s`
+    /// (b1) mutates `s` in place, then `p := s` (b1 → b2) and `p` is read by
+    /// the `call` in b2. `p` has an `inc_rc` and is a back-edge arg (b3 → b2),
+    /// but the `inc_rc` runs *after* the mutation and `p` flows *out of* the
+    /// source (`p ← s`), not into it — so the bump can't protect the
+    /// array_set. The read observes the in-place mutation; the verifier must
+    /// reject.
+    ///
+    /// This pins the soundness boundary of the protected-participant filter:
+    /// it excludes a value only when that value is in the *source's*
+    /// alias-set (flows *into* the source, so its `inc_rc` is loop-carried
+    /// before the mutation).
+    #[test]
+    fn end_to_end_forward_threaded_read_with_inc_rc_participant_is_rejected() {
+        let src = r#"
+            brillig(inline) fn f f0 {
+              b0(v0: u1, vs: [u32; 1]):
+                jmp b1(vs)
+              b1(s: [u32; 1]):
+                v1 = array_set s, index u32 0, value u32 9
+                jmp b2(s)
+              b2(p: [u32; 1]):
+                inc_rc p
+                v2 = call f0(v0, p) -> u1
+                jmpif v0 then: b3(), else: b4()
+              b3():
+                jmp b2(p)
+              b4():
+                jmp b1(v1)
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Inclusive-range (`..=`) peel, accepted by the index-aware
+    /// `array_set`-use rule. This is the SSA the frontend emits for
+    ///
+    /// ```ignore
+    /// for _ in 254_u8..=255_u8 { c4[0] = 9; c4 = c3; c3 = [b[0]]; }
+    /// ```
+    ///
+    /// An inclusive range lowers to an exclusive loop plus a duplicated
+    /// **peel** of the final iteration (see `codegen_for` in `ssa_gen`).
+    /// Here `b1`/`b2` are the loop and `b4` is the peel; the loop variable
+    /// `v29` (`c4`) is `array_set` in *both*, at the **same** constant
+    /// index `0`. The forward walk from the loop's `array_set v29` (`b2`)
+    /// reaches the peel's `array_set v29` (`b4`) — but that write
+    /// *overwrites* index `0`, the only tainted index, so it can't observe
+    /// the loop's in-place mutation. Index-aware handling of `array_set`
+    /// uses (the same `tainted`-index test the `array_get` rule uses)
+    /// therefore accepts it, matching the runtime: the program executes
+    /// identically under Brillig and comptime.
+    ///
+    /// This is *not* peel detection — there's no reliable post-`mem2reg`
+    /// marker for a peel block. It's a precise consequence of `array_set`
+    /// semantics (a write observes only the indices it doesn't overwrite),
+    /// so it also covers the corresponding `..` case and any other shape
+    /// where the aliased write hits the same index. A peel whose duplicated
+    /// body *reads* a tainted index some other way (e.g. an `array_get` or
+    /// a `call`) is still flagged.
+    #[test]
+    fn end_to_end_inclusive_range_peel_array_set_same_index_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u8 1] : [u8; 1]
+                v4 = make_array [u8 2] : [u8; 1]
+                v7 = make_array [u8 3] : [u8; 1]
+                jmp b1(u8 254, v1, v4)
+              b1(v10: u8, v28: [u8; 1], v29: [u8; 1]):
+                v13 = lt v10, u8 255
+                jmpif v13 then: b2(), else: b3()
+              b2():
+                v18 = array_set v29, index u32 0, value u8 9
+                v20 = make_array [u8 3] : [u8; 1]
+                v21 = unchecked_add v10, u8 1
+                jmp b1(v21, v20, v28)
+              b3():
+                jmpif u1 1 then: b4(), else: b5(v28, v29)
+              b4():
+                v25 = array_set v29, index u32 0, value u8 9
+                v27 = make_array [u8 3] : [u8; 1]
+                jmp b5(v27, v28)
+              b5(v30: [u8; 1], v31: [u8; 1]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the peel's array_set v29 (b4) overwrites index 0 — the only index the loop's \
+             array_set v29 (b2) tainted — so it observes no in-place mutation",
+        );
+    }
 
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
@@ -1360,11 +1484,14 @@ mod tests {
         assert_verifier_rejects(src);
     }
 
-    /// The index filter applies *only* to `array_get`. A non-`array_get`
-    /// use of the alias (here a second `array_set` on the same source
-    /// with a different constant index) is still flagged conservatively,
-    /// because the SSA-vs-runtime divergence isn't local to the read
-    /// index for those use kinds.
+    /// A second `array_set` on the alias at a **different** constant index
+    /// is a hazard: it produces a copy of the source, so it observes
+    /// (copies forward) the source's tainted index `0` at its non-written
+    /// positions. The index-aware `array_set`-use rule flags it precisely
+    /// because the write index `1` differs from the tainted index `0`.
+    /// (Compare
+    /// [`Self::end_to_end_inclusive_range_peel_array_set_same_index_is_accepted`],
+    /// where the write hits the same index and is accepted.)
     #[test]
     fn end_to_end_array_set_followed_by_another_array_set_on_alias_is_rejected() {
         let src = r#"
@@ -1376,6 +1503,29 @@ mod tests {
                 return v7
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// Counterpart to the different-index case: a second `array_set` on the
+    /// alias at the **same** constant index as the source overwrites the
+    /// only tainted index, so it observes none of the source's in-place
+    /// mutation and is accepted — the `array_set`-use analogue of the
+    /// disjoint-`array_get` rule. At runtime `v3`'s write to index 0 is
+    /// dead (overwritten by `v5`), and `v7` reads `v5`'s result.
+    #[test]
+    fn end_to_end_array_set_followed_by_another_array_set_same_index_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                v3 = array_set v0, index u32 0, value u32 99
+                v5 = array_set v0, index u32 0, value u32 88
+                v7 = array_get v5, index u32 0 -> u32
+                return v7
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the second array_set on v0 writes the same index 0 the first tainted, overwriting \
+             it rather than observing the in-place mutation",
+        );
     }
 
     /// Chain of `array_set`s on the same backing storage where the read
