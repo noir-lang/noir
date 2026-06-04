@@ -723,6 +723,12 @@ impl DefCollector {
             errors.push(DefCollectorErrorKind::PathResolutionError(error));
         }
 
+        // An item that resolved alongside a visible colliding item but is not itself visible:
+        // bring it into scope below, but remember that referencing it is a privacy error.
+        if let Some(module_def_id) = resolved_import.deferred_private {
+            current_def_map.index_mut(local_module_id).defer_private_import(module_def_id);
+        }
+
         // Populate module namespaces according to the imports used
         let visibility = collected_import.visibility;
         let is_prelude = collected_import.is_prelude;

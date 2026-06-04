@@ -534,7 +534,7 @@ mod tests {
         // regardless of purity. The EnableSideEffectsIf before a pure call must
         // be preserved so that ACIR gen receives the correct predicate.
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1, v1: Field):
             enable_side_effects v0
             v2 = call f1(v1) -> Field

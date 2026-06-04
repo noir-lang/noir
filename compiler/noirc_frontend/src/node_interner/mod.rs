@@ -1567,11 +1567,16 @@ impl NodeInterner {
             };
 
             let trait_id = trait_impl.borrow().trait_id;
+            let trait_generics = self.get_trait_generics_for_impl(*impl_id).ordered.clone();
 
-            // Check if typ implements the trait
-            // This handles instantiation and unification correctly for generic impls
             if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) = self
-                .try_lookup_trait_implementation(typ, trait_id, &[], &[], TraitLookupMode::Default)
+                .try_lookup_trait_implementation(
+                    typ,
+                    trait_id,
+                    &trait_generics,
+                    &[],
+                    TraitLookupMode::Default,
+                )
                 && found_impl_id == *impl_id
             {
                 results.push((*def_id, trait_id, *impl_id));

@@ -26,6 +26,8 @@ use acvm::{
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+#[cfg(debug_assertions)]
+pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
@@ -1233,11 +1235,13 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
 /// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
 /// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
 /// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
-/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// of those passes regresses we want this to fail at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
 #[cfg(debug_assertions)]
-pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<()> {
+    use crate::errors::RuntimeError;
+
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
             continue;
@@ -1245,20 +1249,22 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
         for block_id in func.reachable_blocks() {
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                assert!(
-                    !matches!(
-                        instruction,
-                        Instruction::Load { .. }
-                            | Instruction::Store { .. }
-                            | Instruction::Allocate
-                    ),
-                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
-                     pipeline; mem2reg + flatten_cfg should have removed it",
-                    func.name()
-                );
+                if matches!(
+                    instruction,
+                    Instruction::Load { .. } | Instruction::Store { .. } | Instruction::Allocate
+                ) {
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                         pipeline; mem2reg + flatten_cfg should have removed it",
+                        func.name()
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
     }
+    Ok(())
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1426,7 +1432,7 @@ mod tests {
     #[should_panic(expected = "Cannot use `lt` with field elements")]
     fn disallows_comparing_fields_with_lt() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v2 = lt Field 1, Field 2
             return
@@ -1612,7 +1618,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_in_range() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 42 as u8
             return v0
@@ -1624,7 +1630,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_out_of_range_with_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -1651,7 +1657,7 @@ mod tests {
     #[should_panic(expected = "Constant too large")]
     fn cast_from_field_constant_too_large() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 300 as u8
             return v0
@@ -1664,7 +1670,7 @@ mod tests {
     #[should_panic(expected = "Invalid cast from Field")]
     fn cast_from_raw_field() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = add Field 255, Field 1
             v1 = cast v0 as u8
@@ -1678,7 +1684,7 @@ mod tests {
     #[should_panic(expected = "assertion")]
     fn cast_after_unsafe_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8

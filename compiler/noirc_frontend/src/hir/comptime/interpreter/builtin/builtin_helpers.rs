@@ -446,6 +446,11 @@ fn gather_hir_pattern_tokens(
                 }
                 gather_hir_pattern_tokens(interner, pattern, tokens);
             }
+            // A singleton tuple `(x,)` requires a trailing comma to distinguish it from a
+            // parenthesized pattern `(x)`.
+            if patterns.len() == 1 {
+                tokens.push(Token::Comma);
+            }
             tokens.push(Token::RightParen);
         }
         HirPattern::Struct(typ, fields, _) => {

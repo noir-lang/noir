@@ -1,0 +1,7 @@
+[package]
+name = "midlib"
+type = "lib"
+authors = [""]
+
+[dependencies]
+leaflib = { path = "./leaflib" }

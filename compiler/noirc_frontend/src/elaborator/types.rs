@@ -1330,6 +1330,39 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Reduce an associated-type projection `<object_type as trait>::assoc_name` over a rigid
+    /// object type to the type defined by the matching impl. Assumed (`where` clause) impls are
+    /// ignored, so the answer is the single ground truth from the real impl. Returns `None` when
+    /// the object type contains unbound type variables (unification could still change which
+    /// impl matches) or no such impl/associated type is found - in particular for a bare generic
+    /// like `T`, which no real impl matches and only a `where` clause hypothesis can answer.
+    pub(super) fn normalize_rigid_associated_type(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        ordered: &[Type],
+        assoc_name: &str,
+    ) -> Option<Type> {
+        if object_type.contains_unbound_type_variable() {
+            return None;
+        }
+        let (impl_kind, instantiation_bindings) = self
+            .interner
+            .lookup_trait_implementation_ignoring_assumed(object_type, trait_id, ordered, &[])
+            .ok()?;
+        let associated_types = match impl_kind {
+            TraitImplKind::Assumed { .. } => unreachable!(
+                "lookup_trait_implementation_ignoring_assumed should ignore assumed impls"
+            ),
+            TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
+                self.interner.get_associated_types_for_impl(impl_id)
+            }
+        };
+        let typ =
+            associated_types.iter().find(|named| named.name.as_str() == assoc_name)?.typ.clone();
+        Some(typ.substitute(&instantiation_bindings).follow_bindings())
+    }
+
     /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete self_type)
     /// or inside a trait default method.
     ///

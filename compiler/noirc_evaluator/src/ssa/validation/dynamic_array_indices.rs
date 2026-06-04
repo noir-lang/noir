@@ -6,48 +6,44 @@ use crate::{
     },
 };
 
-impl Ssa {
-    /// Verifies there are no `array_get` or `array_set` instructions remaining
-    /// with dynamic indices where the element type may contain a reference type.
-    /// This effectively bans dynamic-indexing of arrays with reference elements
-    /// since we cannot guarantee we optimize references out of the program in that case.
-    ///
-    /// This pass expects to be run late in the Ssa pipeline such that all array indices
-    /// used are either constant or derived from an input to the program. E.g. we expect
-    /// optimizations from inlining, flattening, and mem2reg to already be complete.
-    pub(crate) fn verify_no_dynamic_indices_to_references(self) -> RtResult<Ssa> {
-        for function in self.functions.values() {
-            function.verify_no_dynamic_indices_to_references()?;
-        }
-        Ok(self)
+/// Verifies there are no `array_get` or `array_set` instructions remaining
+/// with dynamic indices where the element type may contain a reference type.
+/// This effectively bans dynamic-indexing of arrays with reference elements
+/// since we cannot guarantee we optimize references out of the program in that case.
+///
+/// This pass expects to be run late in the Ssa pipeline such that all array indices
+/// used are either constant or derived from an input to the program. E.g. we expect
+/// optimizations from inlining, flattening, and mem2reg to already be complete.
+pub(crate) fn verify_no_dynamic_indices_to_references(ssa: &Ssa) -> RtResult<()> {
+    for function in ssa.functions.values() {
+        verify_function(function)?;
     }
+    Ok(())
 }
 
-impl Function {
-    pub(crate) fn verify_no_dynamic_indices_to_references(&self) -> RtResult<()> {
-        if self.runtime().is_brillig() {
-            return Ok(());
-        }
+fn verify_function(function: &Function) -> RtResult<()> {
+    if function.runtime().is_brillig() {
+        return Ok(());
+    }
 
-        for block in self.reachable_blocks() {
-            for instruction in self.dfg[block].instructions() {
-                match &self.dfg[*instruction] {
-                    Instruction::ArrayGet { array, index, .. }
-                    | Instruction::ArraySet { array, index, .. } => {
-                        let array_type = self.dfg.type_of_value(*array);
-                        let contains_reference = array_type.contains_reference();
+    for block in function.reachable_blocks() {
+        for instruction in function.dfg[block].instructions() {
+            match &function.dfg[*instruction] {
+                Instruction::ArrayGet { array, index, .. }
+                | Instruction::ArraySet { array, index, .. } => {
+                    let array_type = function.dfg.type_of_value(*array);
+                    let contains_reference = array_type.contains_reference();
 
-                        if contains_reference && !is_non_dynamic(&self.dfg, *index) {
-                            let call_stack = self.dfg.get_instruction_call_stack(*instruction);
-                            return Err(RuntimeError::DynamicIndexingWithReference { call_stack });
-                        }
+                    if contains_reference && !is_non_dynamic(&function.dfg, *index) {
+                        let call_stack = function.dfg.get_instruction_call_stack(*instruction);
+                        return Err(RuntimeError::DynamicIndexingWithReference { call_stack });
                     }
-                    _ => (),
                 }
+                _ => (),
             }
         }
-        Ok(())
     }
+    Ok(())
 }
 
 /// Check if an value is a numeric constant, or a result of an instruction that only uses numeric constant inputs.
@@ -63,6 +59,8 @@ fn is_non_dynamic(dfg: &DataFlowGraph, value: ValueId) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::{errors::RuntimeError, ssa::ssa_gen::Ssa};
+
+    use super::verify_no_dynamic_indices_to_references;
 
     #[test]
     fn dynamic_array_of_2_mut_bools() {
@@ -86,7 +84,7 @@ mod tests {
             }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let result = ssa.verify_no_dynamic_indices_to_references();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
         assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
     }
 
@@ -111,7 +109,7 @@ mod tests {
             }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let result = ssa.verify_no_dynamic_indices_to_references();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
         assert!(result.is_ok());
     }
 
@@ -134,7 +132,7 @@ mod tests {
         }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let result = ssa.verify_no_dynamic_indices_to_references();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
         assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
     }
 }

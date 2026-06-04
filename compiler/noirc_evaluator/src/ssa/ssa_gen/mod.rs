@@ -33,6 +33,7 @@ use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
+use super::should_show_invalid_ssa;
 use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
@@ -43,8 +44,6 @@ use super::{
         value::ValueId,
     },
 };
-
-pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
@@ -151,7 +150,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+        if should_show_invalid_ssa() {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         }
 
@@ -551,10 +550,7 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
-                // except when the inner elements have no size, because the array access can be optimized out in that case.
-                // We then only need to inject it for brillig functions or for 'unit' elements.
-                if runtime.is_brillig() || type_size_usize == 0 {
+                if context::array_index_needs_explicit_oob_check(runtime, array_type) {
                     let len = self
                         .builder
                         .numeric_constant(u128::from(len.0), NumericType::length_type());
@@ -1473,12 +1469,7 @@ impl FunctionContext<'_> {
             let selector = error_type.selector();
             let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
-            // Record custom types in the builder, outside of SSA instructions
-            // This is made to avoid having Hir types in the SSA code.
-            if !is_string_type {
-                self.builder.record_error_type(selector, assert_message_typ.clone());
-            }
-
+            self.builder.record_error_type(selector, assert_message_typ.clone());
             Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
         }
     }
@@ -1570,12 +1561,10 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function
-/// that does not modify its array inputs.
-///
-/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-/// when the reference count is 1. We must NOT skip clones for these operations.
+/// Return whether the expression refers to a builtin or low level function for
+/// which the ownership pass's `Clone` around an array argument can be safely
+/// elided: the callee must neither modify the input nor return an alias of it
+/// that a later Brillig mutation could observe.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1588,9 +1577,11 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
         return false;
     };
 
-    // Vector operations can modify their input array in Brillig when RC=1,
-    // so we must clone them to ensure that they are "pure".
-    if intrinsic.modifies_input_array_in_brillig() {
+    // Some intrinsics are technically pure but unsafe to elide clones around in
+    // Brillig: vector mutators mutate through the input pointer when RC=1, and
+    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
+    // alias of their input that a later mutation could corrupt.
+    if intrinsic.unsafe_for_clone_elision_in_brillig() {
         return false;
     }
 

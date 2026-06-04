@@ -444,7 +444,8 @@ impl Elaborator<'_> {
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
-        let mut module_id = self.module_id();
+        let importing_module = self.module_id();
+        let mut starting_module = importing_module;
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain
@@ -459,7 +460,7 @@ impl Elaborator<'_> {
                 });
             }
 
-            module_id = datatype.id.module_id();
+            starting_module = datatype.id.module_id();
             path.segments.remove(0);
             intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
@@ -469,7 +470,14 @@ impl Elaborator<'_> {
             .last()
             .and_then(|segment| segment.generics.is_some().then(|| segment.turbofish_location()));
 
-        let result = self.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
+        let result = self.resolve_path_in_module(
+            path,
+            starting_module,
+            importing_module,
+            intermediate_item,
+            target,
+            mode,
+        );
         let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
             return result;
         };
@@ -506,13 +514,16 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Resolves a [TypedPath].
+    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
     ///
     /// `importing_module` is the module where the lookup originally started.
+    ///
+    /// This method first checks the path's kind and resolves it accordingly.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_in_module(
         &mut self,
         path: TypedPath,
+        starting_module: ModuleId,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
@@ -522,7 +533,7 @@ impl Elaborator<'_> {
             self.interner.is_in_lsp_mode().then(|| ReferencesTracker::new(self.interner));
 
         let res =
-            resolve_path_kind(path.clone(), importing_module, self.def_maps, references_tracker);
+            resolve_path_kind(path.clone(), starting_module, self.def_maps, references_tracker);
 
         match res {
             Ok((path, module_id, _)) => self.resolve_name_in_module(
@@ -548,6 +559,8 @@ impl Elaborator<'_> {
     /// Resolves a [TypedPath] assuming it is inside `starting_module`.
     ///
     /// `importing_module` is the module where the lookup originally started.
+    ///
+    /// This method does not check the path kind, it just checks its segments.
     ///
     /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
     /// Pushes errors if segments refer to private items.
@@ -838,6 +851,12 @@ impl Elaborator<'_> {
             errors.push(PathResolutionError::Private(name.clone()));
         }
 
+        // An item brought into scope by an import that is not visible from here (kept in scope only
+        // because a colliding item in the other namespace was visible) is private when referenced.
+        if self.get_module(current_module_id).is_private_import_deferred(module_def_id) {
+            errors.push(PathResolutionError::Private(name.clone()));
+        }
+
         // A trait method imported via `Type::method` must also be reachable through its trait's
         // visibility (e.g. a `pub(crate) trait` is not accessible from another crate, even if the
         // method's own visibility check above passes).
@@ -966,15 +985,46 @@ impl Elaborator<'_> {
                 Some(Ok(PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id)))
             }
             _ => {
-                // Multiple traits in scope have the same constant - ambiguous
-                let traits = vecmap(&in_scope, |(_, trait_id, _)| {
-                    let trait_ = self.interner.get_trait(*trait_id);
-                    self.fully_qualified_trait_path(trait_)
-                });
-                Some(Err(PathResolutionError::MultipleTraitsInScope {
-                    ident: ident.clone(),
-                    traits,
-                }))
+                // Multiple matching constants - ambiguous. If all candidates are from the
+                // same trait, this is multiple impls of one trait — report it with the
+                // specific impl signatures so the user can see what to disambiguate.
+                let first_trait_id = in_scope[0].1;
+                let same_trait =
+                    in_scope.iter().all(|(_, trait_id, _)| *trait_id == first_trait_id);
+                if same_trait {
+                    let trait_name =
+                        self.fully_qualified_trait_path(self.interner.get_trait(first_trait_id));
+                    let type_name = self_type.to_string();
+                    let impls = vecmap(&in_scope, |(_, _, impl_id)| {
+                        let ordered = &self.interner.get_trait_generics_for_impl(*impl_id).ordered;
+                        let signature = if ordered.is_empty() {
+                            trait_name.clone()
+                        } else {
+                            let args = vecmap(ordered, |t| t.to_string()).join(", ");
+                            format!("{trait_name}<{args}>")
+                        };
+                        let location =
+                            self.interner.get_trait_implementation(*impl_id).borrow().location;
+                        (signature, location)
+                    });
+                    Some(Err(PathResolutionError::MultipleApplicableImpls {
+                        ident: ident.clone(),
+                        trait_name,
+                        type_name,
+                        impls,
+                    }))
+                } else {
+                    let mut traits = vecmap(&in_scope, |(_, trait_id, _)| {
+                        let trait_ = self.interner.get_trait(*trait_id);
+                        self.fully_qualified_trait_path(trait_)
+                    });
+                    traits.sort();
+                    traits.dedup();
+                    Some(Err(PathResolutionError::MultipleTraitsInScope {
+                        ident: ident.clone(),
+                        traits,
+                    }))
+                }
             }
         }
     }
