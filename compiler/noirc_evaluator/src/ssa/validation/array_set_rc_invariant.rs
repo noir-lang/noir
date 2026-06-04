@@ -428,17 +428,13 @@ impl<'f> Context<'f> {
             }
         }
 
-        // A `make_array` is iteration-local iff its result reaches a loop
-        // back-edge — directly as a back-edge arg, or through forward
-        // block-parameter edges into one (membership in
-        // `back_edge_participants`). Either way it re-executes every
-        // iteration, so the storage a loop-header parameter receives from
-        // it is freshly allocated per iteration rather than the same
-        // storage an `array_set` may mutate in place. Such a result can't
-        // carry an `array_set` source's pre-mutation aliasing across
-        // iterations, so it is dropped from every alias-set.
+        // A `make_array` is iteration-local iff its result appears on a
+        // loop back-edge: that's the signal that it re-executes each
+        // iteration, so the storage the loop-header parameter receives
+        // through the back-edge is freshly allocated rather than the
+        // same storage the array_set may mutate in place.
         let iteration_local_make_arrays: HashSet<ValueId> =
-            make_array_values.intersection(&back_edge_participants).copied().collect();
+            make_array_values.intersection(&back_edge_args).copied().collect();
 
         Self {
             function,
