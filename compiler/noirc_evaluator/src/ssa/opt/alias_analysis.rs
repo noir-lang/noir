@@ -2841,4 +2841,34 @@ mod tests {
         let analysis = AliasAnalysis::analyze_single_function(ssa.main());
         assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
+
+    #[test]
+    fn allocation_site_propagates_to_loop_header_param_via_fixed_point() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            jmpif u1 0 then: b2(v1), else: b3()
+          b2(v2: &mut Field):
+            jmp b1(v2)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let allocs = collect_allocates(&ssa);
+        let loop_header = func.reachable_blocks().into_iter().find(|block| {
+            let params = func.dfg[*block].parameters();
+            params.len() == 1 && *block != func.entry_block()
+        });
+        let loop_param = func.dfg[loop_header.unwrap()].parameters()[0];
+
+        let mut analysis = analyze_main(&ssa);
+        let loop_param = GlobalValueId::new(func, loop_param);
+        assert!(analysis.may_alias(func, allocs[0], loop_param));
+        assert!(analysis.must_alias(allocs[0], loop_param));
+    }
 }
