@@ -613,12 +613,7 @@ pub fn compile_main(
         return Err(compilation_warnings);
     }
 
-    // Make sure we don't hide bugs, only warnings can be silenced.
-    warnings.extend(
-        compilation_warnings
-            .into_iter()
-            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
-    );
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
@@ -669,6 +664,10 @@ pub fn compile_contract(
             return Err(errors);
         }
     };
+
+    let compilation_warnings =
+        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+    errors.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if has_errors(&errors, options.deny_warnings) {
         Err(errors)
@@ -1058,6 +1057,18 @@ struct Contract {
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,
+}
+
+/// Removes warning diagnostics when `silence_warnings` is set, while always retaining bugs
+/// so that a `silence_warnings` flag cannot hide them.
+fn drop_silenced_warnings(
+    diagnostics: Vec<CustomDiagnostic>,
+    options: &CompileOptions,
+) -> Vec<CustomDiagnostic> {
+    diagnostics
+        .into_iter()
+        .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
+        .collect()
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
