@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780577938103,
+  "lastUpdate": 1780577953815,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7d7bcd5309902c81fd65add2a66f22cd18fb33c8",
-          "message": "fix: Add lint checks for databus visibility on parameters and return … (#12837)",
-          "timestamp": "2026-05-29T11:06:51Z",
-          "tree_id": "f4e411faf7569a6d5f62124b2ce19726d878365e",
-          "url": "https://github.com/noir-lang/noir/commit/7d7bcd5309902c81fd65add2a66f22cd18fb33c8"
-        },
-        "date": 1780054344965,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 160675,
-            "range": "± 2029",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 143093,
-            "range": "± 595",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2127122,
-            "range": "± 3285",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646524,
             "range": "± 3849",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29265c1627d4e6d2fb38840c816e475a0555c096",
+          "message": "fix(ssa): don't treat skipped equality-guarded loop bodies as executed (#12901)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-04T12:25:56Z",
+          "tree_id": "57a691555b87b02eacccc9f7ec770eea97255846",
+          "url": "https://github.com/noir-lang/noir/commit/29265c1627d4e6d2fb38840c816e475a0555c096"
+        },
+        "date": 1780577885269,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128409,
+            "range": "± 2511",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113515,
+            "range": "± 2757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043047,
+            "range": "± 15548",
             "unit": "ns/iter"
           }
         ]
