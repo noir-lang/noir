@@ -154,8 +154,12 @@ impl Function {
         #[cfg(debug_assertions)]
         unroll_loops_pre_check(self);
 
-        let (mut has_unrolled, mut unroll_errors) =
-            self.try_unroll_loops(max_unroll_iterations, force_unroll_threshold, callee_costs);
+        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(
+            max_unroll_iterations,
+            force_unroll_threshold,
+            callee_costs,
+            LoopOrder::InsideOut,
+        );
 
         match self.runtime() {
             RuntimeType::Acir(_) => {
@@ -171,6 +175,7 @@ impl Function {
                         max_unroll_iterations,
                         force_unroll_threshold,
                         callee_costs,
+                        LoopOrder::OutsideIn,
                     );
                     unroll_errors = new_errors;
                     has_unrolled |= new_unrolled;
@@ -187,6 +192,7 @@ impl Function {
                     max_unroll_iterations,
                     force_unroll_threshold,
                     callee_costs,
+                    LoopOrder::InsideOut,
                 );
                 has_unrolled |= unrolled;
                 if !unrolled {
@@ -221,9 +227,10 @@ impl Function {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
         callee_costs: &HashMap<FunctionId, usize>,
+        order: LoopOrder,
     ) -> (bool, Vec<RuntimeError>) {
-        let order =
-            if self.runtime().is_acir() { LoopOrder::OutsideIn } else { LoopOrder::InsideOut };
+        // let order =
+        //     if self.runtime().is_acir() { LoopOrder::OutsideIn } else { LoopOrder::InsideOut };
 
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
@@ -253,13 +260,12 @@ impl Function {
             has_unrolled |= unrolled;
             accumulated_errors.extend(errors);
 
-            // After unrolling a level of loops, simplify before evaluating the next:
-            // for Brillig this is needed for accurate cost estimates; for ACIR it helps
-            // resolve bounds that become constant after the enclosing loop is unrolled.
-            simplify_between_unrolls(self);
-
             if !refresh {
                 break;
+            }
+
+            if has_unrolled {
+                simplify_between_unrolls(self);
             }
         }
 
@@ -2020,12 +2026,18 @@ mod tests {
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
+            let order = if function.runtime().is_acir() {
+                LoopOrder::OutsideIn
+            } else {
+                LoopOrder::InsideOut
+            };
             errors.extend(
                 function
                     .try_unroll_loops(
                         MAX_UNROLL_ITERATIONS,
                         FORCE_UNROLL_THRESHOLD,
                         &HashMap::default(),
+                        order,
                     )
                     .1,
             );
