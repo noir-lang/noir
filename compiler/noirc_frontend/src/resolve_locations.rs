@@ -43,6 +43,14 @@ impl NodeInterner {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
                         location_candidate = Some((index, interned_location, typ));
+                    } else if interned_location.span == current_location.1.span {
+                        // Two types might exist in the same location, for example when the compiler auto-dereferences
+                        // an expression, or because of reference coercion.
+                        // In this case, keep the type of the expression that came first, as that's the original
+                        // type of the expression in that location.
+                        if index < current_location.0 {
+                            location_candidate = Some((index, interned_location, typ));
+                        }
                     }
                 } else {
                     location_candidate = Some((index, interned_location, typ));

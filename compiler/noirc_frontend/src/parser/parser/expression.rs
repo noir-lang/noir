@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    MAX_PARSER_RECURSION_DEPTH, Parser,
+    Parser,
     parse_many::{
         separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
         without_separator,
@@ -66,29 +66,9 @@ impl Parser<'_> {
     }
 
     fn parse_expression_impl(&mut self, allow_constructors: bool) -> Option<Expression> {
-        // Check recursion depth to prevent stack overflow
-        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
-            self.push_error(
-                ParserErrorReason::MaximumRecursionDepthExceeded,
-                self.current_token_location,
-            );
-            // Skip to a recovery point to avoid cascading errors
-            self.skip_to_recovery_point();
-            // Set flag to suppress cascading errors during stack unwinding
-            self.recovering_from_depth_overflow = true;
-            return None;
-        }
-
-        self.recursion_depth += 1;
-        let result = self.parse_equal_or_not_equal(allow_constructors);
-        self.recursion_depth -= 1;
-
-        // Clear recovery flag when we've fully unwound (back at top level)
-        if self.recursion_depth == 0 {
-            self.recovering_from_depth_overflow = false;
-        }
-
-        result
+        self.with_max_recursion_depth_guard(|this| {
+            this.parse_equal_or_not_equal(allow_constructors)
+        })
     }
 
     /// Term
@@ -114,6 +94,22 @@ impl Parser<'_> {
     ///    = UnaryOp* Atom
     fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
+
+        // `&&` (LogicalAnd) in unary context is two nested references: `&&x` is `&(&x)`,
+        // `&&mut x` is `&(&mut x)`. Same approach as `parse_reference_type` for `&&Type`.
+        if self.eat(Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
+                self.expected_label(ParsingRuleLabel::Expression);
+                return None;
+            };
+            let inner_kind = ExpressionKind::prefix(UnaryOp::Reference { mutable }, rhs);
+            let inner_location = self.location_since(start_location);
+            let inner = Expression { kind: inner_kind, location: inner_location };
+            let kind = ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, inner);
+            let location = self.location_since(start_location);
+            return Some(Expression { kind, location });
+        }
 
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_unary(allow_constructors) else {
@@ -965,9 +961,7 @@ impl Parser<'_> {
 
     /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !((self.at(Token::At) || self.at(Token::DeprecatedVectorStart))
-            && self.next_is(Token::LeftBracket))
-        {
+        if !(self.at(Token::At) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -1149,7 +1143,6 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
     use strum::IntoEnumIterator;
 
     use crate::{
@@ -1157,18 +1150,13 @@ mod tests {
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
             StatementKind, UnaryOp,
         },
-        lexer::errors::LexerErrorKind,
         parse_program_with_dummy_file,
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        signed_field::SignedField,
-        token::Token,
     };
+    use acvm::FieldElement;
 
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -1197,7 +1185,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, Some(U32))) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(42_u128));
+        assert_eq!(value, 42_u128.into());
     }
 
     #[test]
@@ -1207,7 +1195,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::negative(42_u128));
+        assert_eq!(value, -FieldElement::from(42u128));
     }
 
     #[test]
@@ -1228,7 +1216,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(42_u128));
+        assert_eq!(value, 42_u128.into());
     }
 
     #[test]
@@ -1283,13 +1271,13 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(1_u128));
+        assert_eq!(value, 1_u128.into());
 
         let expr = exprs.remove(0);
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(2_u128));
+        assert_eq!(value, 2_u128.into());
     }
 
     #[test]
@@ -1309,7 +1297,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(1_u128));
+        assert_eq!(value, 1_u128.into());
     }
 
     #[test]
@@ -1335,21 +1323,12 @@ mod tests {
         let src = "
         {
             1
+            ^ Expected a ; separating these two statements
             2
+            ^ Expected a ; separating these two statements
             3
         }";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.location.span.end() as usize, src.len());
-        assert_eq!(parser.errors.len(), 2);
-        assert!(matches!(
-            parser.errors[0].reason(),
-            Some(ParserErrorReason::MissingSeparatingSemi)
-        ));
-        assert!(matches!(
-            parser.errors[1].reason(),
-            Some(ParserErrorReason::MissingSeparatingSemi)
-        ));
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
         let ExpressionKind::Block(block) = expr.kind else {
             panic!("Expected block expression");
         };
@@ -1378,15 +1357,9 @@ mod tests {
     fn parses_block_expression_with_a_single_let() {
         let src = "
         { let x = 1 }
-                  ^
+                  ^ Expected a ; after `let` statement
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::MissingSemicolonAfterLet = reason else {
-            panic!("Expected a different error");
-        };
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
@@ -1421,30 +1394,18 @@ mod tests {
     fn parses_unclosed_parentheses() {
         let src = "
         (
-        ^
+        ^ Expected an expression but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an expression but found end of input");
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
     fn parses_missing_comma_in_tuple() {
         let src = "
         (1 2)
-           ^
+           ^ Expected a `,` separating these two expressions
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "expressions");
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
@@ -1487,19 +1448,9 @@ mod tests {
     fn parses_array_expression_with_two_elements_missing_comma() {
         let src = "
         [1 3]
-           ^
+           ^ Expected a `,` separating these two expressions
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.location.span.end() as usize, src.len());
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "expressions");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -1575,6 +1526,81 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref() {
+        let src = "&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref_mut() {
+        let src = "&&mut foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: true }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_triple_ref() {
+        // `&&&foo` is lexed as `& && foo` (Ampersand, LogicalAnd, Ident)
+        let src = "&&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(a) = expr.kind else { panic!("Expected prefix") };
+        assert!(matches!(a.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(b) = a.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(b.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(c) = b.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(c.operator, UnaryOp::Reference { mutable: false }));
+        assert!(matches!(c.rhs.kind, ExpressionKind::Variable(..)));
+    }
+
+    #[test]
+    fn parses_ref_and_ref() {
+        // `&x & &y` must parse as `(&x) & (&y)`, not as `(&x) && y`
+        let src = "&x & &y";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix) = expr.kind else {
+            panic!("Expected infix expression");
+        };
+        assert!(matches!(infix.operator.contents, BinaryOpKind::And));
+
+        let ExpressionKind::Prefix(lhs) = infix.lhs.kind else {
+            panic!("Expected prefix on lhs");
+        };
+        assert!(matches!(lhs.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(rhs) = infix.rhs.kind else {
+            panic!("Expected prefix on rhs");
+        };
+        assert!(matches!(rhs.operator, UnaryOp::Reference { mutable: false }));
     }
 
     #[test]
@@ -1662,18 +1688,9 @@ mod tests {
     fn parses_call_missing_comma() {
         let src = "
         foo(1 2)
-              ^
+              ^ Expected a `,` separating these two arguments
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.location.span.end() as usize, src.len());
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "arguments");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -1806,14 +1823,9 @@ mod tests {
     fn parses_constructor_with_fields_recovers_if_assign_instead_of_colon() {
         let src = "
         Foo { x = 1, y }
-                ^
+                ^ Expected a ':' but found '='
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ':' but found '='");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1834,14 +1846,9 @@ mod tests {
     fn parses_constructor_recovers_if_double_colon_instead_of_colon() {
         let src = "
         Foo { x: 1, y:: z }
-                     ^^
+                     ^^ Expected a ':' but found '::'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ':' but found '::'");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1862,11 +1869,9 @@ mod tests {
     fn parses_constructor_with_fields_recovers_if_not_an_identifier_1() {
         let src = "
         Foo { x: 1, 2 }
-                    ^
+                    ^ Expected an identifier but found '2'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1877,20 +1882,15 @@ mod tests {
         let (name, expr) = constructor.fields.remove(0);
         assert_eq!(name.to_string(), "x");
         assert_eq!(expr.to_string(), "1");
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found '2'");
     }
 
     #[test]
     fn parses_constructor_with_fields_recovers_if_not_an_identifier_2() {
         let src = "
         Foo { x: 1, 2, y: 2 }
-                    ^
+                    ^ Expected an identifier but found '2'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1905,9 +1905,6 @@ mod tests {
         let (name, expr) = constructor.fields.remove(0);
         assert_eq!(name.to_string(), "y");
         assert_eq!(expr.to_string(), "2");
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found '2'");
     }
 
     #[test]
@@ -2014,13 +2011,9 @@ mod tests {
     fn parses_cast_missing_type() {
         let src = "
         1 as
-           ^
+           ^ Expected a type but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a type but found end of input");
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
@@ -2122,15 +2115,10 @@ mod tests {
     fn errors_on_logical_and() {
         let src = "
         1 && 2
-          ^^
+          ^^ Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expression = parser.parse_expression_or_error();
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
         assert_eq!(expression.to_string(), "(1 & 2)");
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::LogicalAnd));
     }
 
     #[test]
@@ -2226,11 +2214,9 @@ mod tests {
     fn parses_type_path_with_empty_tuple_missing_angle_brackets() {
         let src = "
           ()::foo
-          ^^
+          ^^ Missing angle brackets surrounding type in associated item path
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::TypePath(type_path) = expr.kind else {
             panic!("Expected type_path");
@@ -2238,41 +2224,26 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "()");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_none());
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
     }
 
     #[test]
     fn parses_type_path_with_non_empty_tuple_missing_angle_brackets() {
         let src = "
           (Field, i32)::foo
-          ^^^^^^^^^^^^
+          ^^^^^^^^^^^^ Missing angle brackets surrounding type in associated item path
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
         assert!(matches!(expr.kind, ExpressionKind::Error));
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
     }
 
     #[test]
     fn parses_type_path_with_array_missing_angle_brackets() {
         let src = "
           [Field; 3]::foo
-          ^^^^^^^^^^
+          ^^^^^^^^^^ Missing angle brackets surrounding type in associated item path
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
         assert!(matches!(expr.kind, ExpressionKind::Error));
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
     }
 
     #[test]
@@ -2324,19 +2295,14 @@ mod tests {
     fn parses_constrain() {
         let src = "
         constrain 1
-        ^^^^^^^^^
+        ^^^^^^^^^ Use of deprecated keyword 'constrain'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expression = parser.parse_expression_or_error();
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
         let ExpressionKind::Constrain(constrain) = expression.kind else {
             panic!("Expected constrain expression");
         };
         assert_eq!(constrain.kind, ConstrainKind::Constrain);
         assert_eq!(constrain.arguments.len(), 1);
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
     }
 
     #[test]
@@ -2345,10 +2311,10 @@ mod tests {
         fn main()  {
             if true {
                 match c _ => {
-                    match d _ => 0,                     
+                    match d _ => 0,
                 }
             }
-        } } } 
+        } } }
         ";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
@@ -2358,43 +2324,28 @@ mod tests {
     fn parses_if_missing_condition() {
         let src = "
         if { 1 }
-        ^^
+        ^^ missing condition for `if` expression
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expression = parser.parse_expression_or_error();
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
         assert!(matches!(expression.kind, ExpressionKind::If(..)));
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
     }
 
     #[test]
     fn errors_on_struct_literal_used_in_if_condition() {
-        let src = "if MyStruct { field: true }.field {}";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let expression = parser.parse_expression_or_error();
-        assert_eq!(expression.location.span.end() as usize, src.len());
-
-        assert_eq!(parser.errors.len(), 1);
-        assert!(matches!(
-            parser.errors[0].reason(),
-            Some(ParserErrorReason::StructLiteralInIfCondition)
-        ));
+        let src = "
+        if MyStruct { field: true }.field {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^ Struct literals are not allowed in `if` conditions
+        ";
+        check_errors(src, |parser| parser.parse_expression_or_error());
     }
 
     #[test]
     fn errors_on_struct_literal_used_in_if_condition_with_block_argument() {
-        let src = "if MyStruct { field: true }.foo({ 1 }) {}";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let expression = parser.parse_expression_or_error();
-        assert_eq!(expression.location.span.end() as usize, src.len());
-
-        assert_eq!(parser.errors.len(), 1);
-        assert!(matches!(
-            parser.errors[0].reason(),
-            Some(ParserErrorReason::StructLiteralInIfCondition)
-        ));
+        let src = "
+        if MyStruct { field: true }.foo({ 1 }) {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^ Struct literals are not allowed in `if` conditions
+        ";
+        check_errors(src, |parser| parser.parse_expression_or_error());
     }
 
     /// When an integer is too large, the lexer will issue an error instead of an integer token.
@@ -2404,18 +2355,10 @@ mod tests {
         // The fifth integer here should overflow bn254
         let src = "
             @[0, 1, 23, 3444, 21888242871839275222246405745257275088548364400416034343698204186575808495617, 43, 2, 32, 4]
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Integer literal is too large
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expression = parser.parse_expression_or_error();
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
         assert!(matches!(expression.kind, ExpressionKind::Literal(Literal::Vector(_))));
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(
-            reason,
-            ParserErrorReason::Lexer(LexerErrorKind::IntegerLiteralTooLarge { .. })
-        ));
     }
 
     #[test]

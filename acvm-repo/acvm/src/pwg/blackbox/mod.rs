@@ -106,7 +106,7 @@ pub(crate) fn solve<F: AcirField>(
                 *it = lane.unwrap();
             }
             let output_state = keccakf1600(state)?;
-            for (output_witness, value) in outputs.iter().zip_eq(output_state.into_iter()) {
+            for (output_witness, value) in outputs.iter().zip_eq(output_state) {
                 insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
             }
             Ok(())

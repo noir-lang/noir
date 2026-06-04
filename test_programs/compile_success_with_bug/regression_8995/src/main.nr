@@ -1,5 +1,5 @@
 fn main() -> pub bool {
-    let b: [(bool, &mut u1); 2] = [(false, &mut 0), (true, &mut 1)];
+    let b: [(bool, &mut bool); 2] = [(false, &mut false), (true, &mut true)];
 
     let x: u32 = 0;
     let y: u32 = 1;

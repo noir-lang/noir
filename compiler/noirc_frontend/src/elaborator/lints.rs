@@ -158,7 +158,7 @@ pub(super) fn oracle_returns_multiple_vectors(
 
     fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Array(item, _) => vector_count(item, type_recursion_context.recur()),
             Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
             Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
             Type::Tuple(items) => items
@@ -211,7 +211,7 @@ pub(super) fn oracle_returns_multiple_vectors(
                 }
             }
             Type::Forall(_, _)
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
             | Type::Reference(_, _)
@@ -251,6 +251,24 @@ pub(super) fn oracle_returns_reference(
     } else {
         None
     }
+}
+
+/// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
+pub(super) fn pure_attribute_only_on_oracle(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let pure_attr = modifiers
+        .attributes
+        .secondary
+        .iter()
+        .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Pure))?;
+
+    let is_oracle = modifiers.attributes.function().is_some_and(|attr| attr.kind.is_oracle());
+    (!is_oracle).then(|| ResolverError::PureAttributeOnNonOracle {
+        ident: func_meta_name_ident(func, modifiers),
+        location: pure_attr.location,
+    })
 }
 
 /// Oracles cannot return vectors containing nested arrays because
@@ -314,7 +332,7 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } else if return_type.contains_function() {
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
-    } else if !return_type.is_valid_for_unconstrained_boundary() {
+    } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
@@ -396,28 +414,59 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
-/// call_data and return_data visibility modifiers are only allowed on entry point functions.
-pub(super) fn databus_on_non_entry_point(
+/// `call_data` marks a parameter and `return_data` a return, so only `call_data` is
+/// meaningful on a parameter, and only on an entry point function.
+pub(super) fn databus_visibility_on_parameter(
     func: &NoirFunction,
     visibility: Visibility,
     visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if is_entry_point {
-        return None;
-    }
-
     match visibility {
-        Visibility::CallData(_) | Visibility::ReturnData => {
-            let name = func.name().to_string();
-            let visibility = visibility.to_string();
-            Some(ResolverError::DataBusOnNonEntryPoint {
-                name,
-                location: visibility_location,
-                visibility,
-            })
+        Visibility::ReturnData => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "a parameter",
+            allowed: "the return value",
+            location: visibility_location,
+        }),
+        Visibility::CallData(_) if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
         }
         _ => None,
+    }
+}
+
+/// `return_data` marks a return and `call_data` a parameter, so only `return_data` is
+/// meaningful on a return value, and only on an entry point function.
+pub(super) fn databus_visibility_on_return(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    match visibility {
+        Visibility::CallData(_) => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "the return value",
+            allowed: "a parameter",
+            location: visibility_location,
+        }),
+        Visibility::ReturnData if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
+        }
+        _ => None,
+    }
+}
+
+fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+) -> ResolverError {
+    ResolverError::DataBusOnNonEntryPoint {
+        name: func.name().to_string(),
+        location: visibility_location,
+        visibility: visibility.to_string(),
     }
 }
 
@@ -459,7 +508,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = bit_size.into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.absolute_value() > max.into() || value.is_negative() {
+                if value > max.into() {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
                         ty: typ,
@@ -470,19 +519,22 @@ pub(crate) fn check_integer_literal_fits_its_type(
             }
             Type::Integer(Signedness::Signed, bit_count) => {
                 let bit_count: u32 = bit_count.into();
-                let min = 2u128.pow(bit_count - 1);
-                let max = 2u128.pow(bit_count - 1) - 1;
+                let modulus = 2u128.pow(bit_count - 1);
+                let max = modulus - 1;
 
-                let is_negative = value.is_negative();
-                let abs = value.absolute_value();
-
-                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
-                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
-                        expr: value,
-                        ty: typ,
-                        range: format!("-{min}..={max}"),
-                        location,
-                    });
+                if value > max.into() {
+                    // FieldElement negatives are very large values, to test if this is a negative
+                    // within range, add the bit modulus back to it and check if it is within range
+                    // now or not.
+                    let wrapped = value + modulus.into();
+                    if wrapped > max.into() {
+                        return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                            expr: value,
+                            ty: typ,
+                            range: format!("-{modulus}..={max}"),
+                            location,
+                        });
+                    }
                 }
             }
             _ => (),
@@ -532,6 +584,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
+            | HirStatement::TraitAssociatedConstant
             | HirStatement::Error => true,
         })
     };

@@ -318,7 +318,7 @@ impl Context {
         f: impl Fn(SemanticLength) -> SemanticLength,
     ) {
         // No need to store the capacity of arrays, only vectors.
-        if !matches!(dfg.type_of_value(new), Type::Vector(_)) {
+        if !matches!(*dfg.type_of_value(new), Type::Vector(_)) {
             return;
         }
         let capacity = self.get_or_find_capacity(dfg, old);
@@ -371,14 +371,11 @@ impl Context {
             }
             Intrinsic::Hint(Hint::BlackBox) => {
                 // Try to set the length of any vector argument to be that of the preceding constant.
-                let arguments_types =
-                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
-
                 for (i, argument) in arguments.iter().enumerate().skip(1) {
-                    if !matches!(arguments_types[i], Type::Vector(_)) {
+                    if !matches!(*dfg.type_of_value(*argument), Type::Vector(_)) {
                         continue;
                     }
-                    assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                    assert!(matches!(*dfg.type_of_value(arguments[i - 1]), Type::Numeric(_)));
                     if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
                         self.vector_sizes.insert(
                             *argument,
@@ -405,8 +402,8 @@ impl Context {
                 assert_eq!(results.len(), 2);
                 let old = arguments[1];
                 let new = results[1];
-                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Inc { old, new }
             }
 
@@ -418,8 +415,8 @@ impl Context {
                 // so the vector is the second result.
                 let old = arguments[1];
                 let new = results[1];
-                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Dec { old, new }
             }
 
@@ -430,8 +427,8 @@ impl Context {
                 // so the vector is the last result.
                 let old = arguments[1];
                 let new = results[results.len() - 1];
-                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Dec { old, new }
             }
 
@@ -440,26 +437,23 @@ impl Context {
                 assert_eq!(results.len(), 2);
                 let old = arguments[0];
                 let new = results[1];
-                assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Array(_, _)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::SetTo { old, new }
             }
 
             Intrinsic::Hint(Hint::BlackBox) => {
                 assert_eq!(arguments.len(), results.len());
-                let arguments_types =
-                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
-                let results_types =
-                    results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
-
-                assert_eq!(arguments_types, results_types);
+                for (arg, res) in arguments.iter().zip(results.iter()) {
+                    assert_eq!(*dfg.type_of_value(*arg), *dfg.type_of_value(*res),);
+                }
 
                 let mut changes = Vec::new();
                 for (i, argument) in arguments.iter().enumerate() {
                     if self.vector_sizes.contains_key(argument)
-                        && matches!(arguments_types[i], Type::Vector(_))
+                        && matches!(*dfg.type_of_value(*argument), Type::Vector(_))
                     {
-                        assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                        assert!(matches!(*dfg.type_of_value(arguments[i - 1]), Type::Numeric(_)));
                         let new = results[i];
                         changes.push(SizeChange::SetTo { old: *argument, new });
                     }
@@ -689,7 +683,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_push_back() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -712,8 +706,8 @@ mod tests {
         ssa = ssa.remove_if_else().unwrap();
 
         // Merge vectors v3 (empty) and v8 ([v2]) into v12, directly using v13 as the first element
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -741,7 +735,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_push_front() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -764,8 +758,8 @@ mod tests {
         ssa = ssa.remove_if_else().unwrap();
 
         // Here v14 is the result of the merge (keep `[v13]`)
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -793,7 +787,7 @@ mod tests {
         // Same as the previous test, but using `as_vector` to prove that vector length tracking
         // is working correctly.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v102 = make_array [] : [Field; 0]
             v103, v3 = call as_vector(v102) -> (u32, [Field])
@@ -817,8 +811,8 @@ mod tests {
         ssa = ssa.remove_if_else().unwrap();
 
         // Here v17 is the result of the merge (keep `[v16]`)
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field; 0]
             v5, v6 = call as_vector(v3) -> (u32, [Field])
@@ -845,7 +839,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_insert() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -868,8 +862,8 @@ mod tests {
         ssa = ssa.remove_if_else().unwrap();
 
         // Here v14 is the result of the merge (keep `[v13]`)
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [] : [Field]
             v4 = allocate -> &mut u32
@@ -895,7 +889,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_pop_back() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [Field 2, Field 3] : [Field]
             v4 = allocate -> &mut u32
@@ -919,8 +913,8 @@ mod tests {
 
         // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // with the other vector, where `v21` merges the two values.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v5 = make_array [Field 2, Field 3] : [Field]
             v6 = allocate -> &mut u32
@@ -951,7 +945,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_pop_front() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [Field 2, Field 3] : [Field]
             v4 = allocate -> &mut u32
@@ -975,8 +969,8 @@ mod tests {
 
         // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // where for v21 it's the merged value.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v5 = make_array [Field 2, Field 3] : [Field]
             v6 = allocate -> &mut u32
@@ -1007,7 +1001,7 @@ mod tests {
     #[test]
     fn merge_vector_with_vector_remove() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v3 = make_array [Field 2, Field 3] : [Field]
             v4 = allocate -> &mut u32
@@ -1031,8 +1025,8 @@ mod tests {
 
         // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)
         // where for v21 it's the merged value.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field, v2: Field):
             v5 = make_array [Field 2, Field 3] : [Field]
             v6 = allocate -> &mut u32
@@ -1063,7 +1057,7 @@ mod tests {
     #[test]
     fn can_handle_vector_with_zero_size_elements() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
             b0(v0: u32):
                 v3 = make_array [] : [()]
                 v4 = make_array [] : [()]
@@ -1080,8 +1074,8 @@ mod tests {
 
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.flatten_cfg().remove_if_else().unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v1 = make_array [] : [()]
             v2 = make_array [] : [()]

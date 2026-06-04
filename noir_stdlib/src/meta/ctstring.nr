@@ -87,6 +87,7 @@ comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
 comptime fn ctstring_hash(_string: CtString) -> Field {}
 
 mod test {
+    use super::Append as _;
     use super::AsCtString;
 
     #[test]
@@ -100,4 +101,21 @@ mod test {
             // docs:end:as_quoted_str_example
         }
     }
+
+    #[test]
+    fn empty() {
+        comptime {
+            assert_eq(CtString::empty(), CtString::new());
+        }
+    }
+
+    #[test]
+    fn append() {
+        comptime {
+            let hello = "hello ".as_ctstring();
+            let world = "world".as_ctstring();
+            assert_eq(hello.append(world), "hello world".as_ctstring());
+        }
+    }
+
 }

@@ -1,7 +1,6 @@
 ---
 name: noir-optimize-acir
 description: Workflow for measuring and optimizing the ACIR circuit size of a constrained Noir program. Use when asked to optimize a Noir program's gate count or circuit size.
-allowed-tools: Bash, Read, Grep, Glob
 ---
 
 # ACIR Optimization Loop

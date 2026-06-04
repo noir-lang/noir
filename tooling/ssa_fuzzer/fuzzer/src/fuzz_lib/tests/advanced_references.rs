@@ -60,7 +60,7 @@ fn test_other_function_mutates_reference() {
     };
     let func_function = FunctionData {
         input_types: vec![
-            Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+            Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
             Type::Numeric(NumericType::Field),
         ],
         commands: func_commands,
@@ -111,11 +111,11 @@ fn test_reference_to_reference() {
     let arg_1 = Argument { index: 1, value_type: Type::Numeric(NumericType::Field) };
     let typed_memory_0 = Argument {
         index: 0,
-        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
     };
     let typed_memory_1 = Argument {
         index: 1,
-        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
     };
     let add_to_memory_block = InstructionBlock {
         instructions: vec![
@@ -133,7 +133,7 @@ fn test_reference_to_reference() {
 
     let reference_arg_0 = Argument {
         index: 0,
-        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
     };
     let typed_memory_2 = Argument { index: 2, value_type: Type::Numeric(NumericType::Field) };
     let load_block = InstructionBlock {

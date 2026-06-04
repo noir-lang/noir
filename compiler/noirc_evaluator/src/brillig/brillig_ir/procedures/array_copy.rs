@@ -31,6 +31,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
+        debug_assert_eq!(
+            source_array.size, destination_array.size,
+            "ICE: source and destination arrays in copy must have the same size, but got {} and {}",
+            source_array.size, destination_array.size
+        );
         let [
             source_array_pointer_arg,
             source_array_memory_size_arg,
@@ -153,7 +158,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
 
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message_with_func_name = format!("Total arrays copied in {}: {{}}", &self.name());
+        let message_with_func_name = format!("Total arrays copied in {}: {{}}", self.name());
         let message = literal_string_to_value(&message_with_func_name, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());

@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn indexing_array_with_default_numeric_type_does_not_produce_an_error() {
@@ -121,11 +121,10 @@ fn array_length_overflow_during_monomorphization() {
     let src = r#"
     fn main() {
         let _array = [0; 4294967296];
-                     ^^^^^^^^^^^^^^^ Invalid array length
-                     ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `u32` which has a maximum size of `4294967295`
+                         ^^^^^^^^^^ The value `4294967296` cannot fit into `u32` which has range `0..=4294967295`
     }
     "#;
-    check_monomorphization_error(src);
+    check_errors(src);
 }
 
 #[test]
@@ -158,8 +157,7 @@ fn array_length_overflow_at_comptime() {
     fn main() {
         comptime {
             let _array = [0; 4294967296];
-                         ^^^^^^^^^^^^^^^ Invalid array length
-                         ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `u32` which has a maximum size of `4294967295`
+                             ^^^^^^^^^^ The value `4294967296` cannot fit into `u32` which has range `0..=4294967295`
         }
     }
     "#;

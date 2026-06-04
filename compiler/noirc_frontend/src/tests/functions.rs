@@ -228,6 +228,18 @@ fn errors_on_duplicate_parameter_name() {
 }
 
 #[test]
+fn errors_on_clashing_const_generic_and_parameter_name() {
+    let src = r#"
+    pub fn foo<let N: u32>(N: u32) -> u32 { N }
+                           ^ duplicate definitions of N found
+                           ~ second definition found here
+                   ~ first definition found here
+
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn non_entry_point_main() {
     let src = r#"
     mod moo {
@@ -451,4 +463,91 @@ fn errors_if_using_comptime_enum_in_fn() {
                   ^^^ Comptime-only type `Foo` cannot be used in non-comptime function
     "#;
     check_errors(src);
+}
+
+#[test]
+fn can_use_trait_associated_constant_in_main_signature() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+    }
+
+    unconstrained fn main(fields: [Field; <Field as Deserialize>::N]) -> pub Field {
+        fields[0]
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn rejects_tuple_pattern_in_main_param() {
+    let src = r#"
+    fn main((a, b): pub (Field, Field)) -> pub Field {
+            ^^^^^^ Entry point parameter must use a simple identifier pattern
+            ~~~~~~ Destructuring patterns are not allowed here; bind to a name and destructure inside the body
+        a + b
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn rejects_struct_pattern_in_main_param() {
+    let src = r#"
+    pub struct P { a: Field, b: Field }
+
+    fn main(P { a, b }: pub P) -> pub Field {
+            ^^^^^^^^^^ Entry point parameter must use a simple identifier pattern
+            ~~~~~~~~~~ Destructuring patterns are not allowed here; bind to a name and destructure inside the body
+        a + b
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn rejects_mutable_tuple_pattern_in_main_param() {
+    let src = r#"
+    fn main(mut (a, b): pub (Field, Field)) -> pub Field {
+            ^^^^^^^^^^ Entry point parameter must use a simple identifier pattern
+            ~~~~~~~~~~ Destructuring patterns are not allowed here; bind to a name and destructure inside the body
+        a + b
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn accepts_mutable_identifier_pattern_in_main_param() {
+    let src = r#"
+    fn main(mut x: pub Field) -> pub Field {
+        x = x + 1;
+        x
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_use_trait_associated_constant_via_global_in_main_signature() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+    }
+
+    global FIELD_N: u32 = <Field as Deserialize>::N;
+
+    unconstrained fn main(fields: [Field; FIELD_N]) -> pub Field {
+        fields[0]
+    }
+    "#;
+    assert_no_errors(src);
 }

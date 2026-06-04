@@ -17,7 +17,6 @@ pub enum IntegerTypeSuffix {
     I16,
     I32,
     I64,
-    U1,
     U8,
     U16,
     U32,
@@ -40,7 +39,6 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
             IntegerTypeSuffix::I32 => Integer(Signed, ThirtyTwo),
             IntegerTypeSuffix::I64 => Integer(Signed, SixtyFour),
-            IntegerTypeSuffix::U1 => Integer(Unsigned, One),
             IntegerTypeSuffix::U8 => Integer(Unsigned, Eight),
             IntegerTypeSuffix::U16 => Integer(Unsigned, Sixteen),
             IntegerTypeSuffix::U32 => Integer(Unsigned, ThirtyTwo),
@@ -112,8 +110,6 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// &
-    DeprecatedVectorStart,
     /// @
     At,
     /// ^
@@ -390,7 +386,6 @@ impl Display for Token {
             Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::DeprecatedVectorStart => write!(f, "&"),
             Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
@@ -431,7 +426,6 @@ impl Display for IntegerTypeSuffix {
             IntegerTypeSuffix::I16 => write!(f, "i16"),
             IntegerTypeSuffix::I32 => write!(f, "i32"),
             IntegerTypeSuffix::I64 => write!(f, "i64"),
-            IntegerTypeSuffix::U1 => write!(f, "u1"),
             IntegerTypeSuffix::U8 => write!(f, "u8"),
             IntegerTypeSuffix::U16 => write!(f, "u16"),
             IntegerTypeSuffix::U32 => write!(f, "u32"),
@@ -778,6 +772,11 @@ impl Attributes {
     pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
         self.secondary.iter().any(|attr| &attr.kind == kind)
     }
+
+    /// True if the function is marked with `#[pure]`.
+    pub fn is_pure(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttributeKind::Pure)
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -957,6 +956,13 @@ pub enum SecondaryAttributeKind {
     /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
     /// an optional message for the error.
     MustUse(Option<String>),
+
+    /// Asserts that an `#[oracle]` function is pure and that
+    /// the call has no observable side effects on the program.
+    ///
+    /// Only valid on `unconstrained` functions also marked `#[oracle(...)]`.
+    /// For other functions, purity is deduced from their implementation.
+    Pure,
 }
 
 impl SecondaryAttributeKind {
@@ -990,6 +996,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
             SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
             SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::Pure => "pure".to_string(),
         }
     }
 

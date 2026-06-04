@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn call_one(f: fn([u8; 1]) -> [u8; 32]) -> [u8; 32] {
+    f([1_u8])
+}
+
+fn call_two(f: fn([u8; 2]) -> [u8; 32]) -> [u8; 32] {
+    f([2_u8, 3_u8])
+}
+
+fn main() {
+    let a: [u8; 32] = call_one(std::hash::blake2s);
+    let b: [u8; 32] = call_two(std::hash::blake2s);
+    assert(a == std::hash::blake2s([1_u8]));
+    assert(b == std::hash::blake2s([2_u8, 3_u8]));
+}

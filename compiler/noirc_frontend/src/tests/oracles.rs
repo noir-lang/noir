@@ -1,4 +1,3 @@
-use crate::elaborator::UnstableFeature;
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
 };
@@ -134,7 +133,7 @@ fn errors_if_oracle_returns_reference_in_tuple() {
     pub unconstrained fn oracle_call() -> (Field, &Field) {}
                          ^^^^^^^^^^^ Oracle functions cannot return references
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -149,7 +148,7 @@ fn errors_if_oracle_returns_reference_in_struct() {
                          ^^^^^^^^^^^ Oracle functions cannot return references
     "#;
     //check_errors(src);
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -168,7 +167,7 @@ fn vector_with_nested_array_behind_generics_returned_from_oracle() {
     let src = r#"
     unconstrained fn main() {
         let _result: [[(u8, u8); 3]] = get_array();
-                                       ^^^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
+                                       ^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
     }
 
     #[oracle(get_array)]
@@ -187,6 +186,48 @@ fn errors_if_oracle_clashes_with_stdlib() {
 
     unconstrained fn main() {
         create_mock_oracle();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_pure_attribute_on_oracle() {
+    let src = r#"
+    #[pure]
+    #[oracle(foo)]
+    unconstrained fn foo(x: Field) -> Field {}
+
+    unconstrained fn main(x: Field) {
+        let _ = foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pure_attribute_on_non_oracle() {
+    let src = r#"
+    #[pure]
+    ^^^^^^^ The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`
+    pub unconstrained fn helper(x: Field) -> Field {
+                         ~~~~~~ `#[pure]` requires `unconstrained` and `#[oracle(...)]`
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_pure_attribute_on_constrained_function() {
+    // `#[pure]` requires `#[oracle(...)]`. The frontend reports the missing-oracle
+    // error rather than a separate "constrained" error, which is enough to reject the case.
+    let src = r#"
+    #[pure]
+    ^^^^^^^ The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`
+    pub fn helper(x: Field) -> Field {
+           ~~~~~~ `#[pure]` requires `unconstrained` and `#[oracle(...)]`
+        x
     }
     "#;
     check_errors(src);

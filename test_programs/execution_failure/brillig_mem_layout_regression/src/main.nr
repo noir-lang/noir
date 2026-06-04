@@ -10,7 +10,7 @@ unconstrained fn main(a: bool) -> pub i8 {
                 (
                     236405124039393412828585174085931355176,
                     &mut 65774936847330442457077268776944375055, 
-                    (0, false, 82),
+                    (false, false, 82),
                     (156445504860752486204982473135107977804, 208),
                     [
                         1769493254999817056,
@@ -36,7 +36,7 @@ unconstrained fn main(a: bool) -> pub i8 {
     }
 }
 unconstrained fn func_1(
-    mut b: (Field, &mut u128, (u1, bool, u8), (Field, u8), [i64; 4]),
+    mut b: (Field, &mut u128, (bool, bool, u8), (Field, u8), [i64; 4]),
     ctx_limit: &mut u32,
 ) -> bool {
     if ((*ctx_limit) == 0_u32) {

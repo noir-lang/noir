@@ -160,7 +160,7 @@ impl Function {
 
                             let array_get = Instruction::ArrayGet { array: new_array, index };
                             let [result] = context.dfg.instruction_result(instruction_id);
-                            let result_typ = context.dfg.type_of_value(result);
+                            let result_typ = context.dfg.type_of_value(result).into_owned();
                             let ctrl_typevars = Some(vec![result_typ]);
                             let new_result = context.insert_instruction(array_get, ctrl_typevars);
                             let new_result = new_result.first();

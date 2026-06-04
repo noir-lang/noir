@@ -15,7 +15,7 @@ use crate::mutations::{
     instructions::instruction_mutator::instruction_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, RngCore, rngs::StdRng};
+use rand::{Rng, RngExt, rngs::StdRng};
 
 fn generate_random_numeric_argument(rng: &mut StdRng) -> NumericArgument {
     let mut buf = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
@@ -147,6 +147,10 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 rng,
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
             ),
+        },
+        GenerateInstruction::Poseidon2Permutation => Instruction::Poseidon2Permutation {
+            field_indices: [rng.random_range(usize::MIN..usize::MAX); 4],
+            load_elements_of_array: rng.random_range(0..2) == 0,
         },
         GenerateInstruction::Aes128Encrypt => Instruction::Aes128Encrypt {
             input_idx: rng.random_range(usize::MIN..usize::MAX),

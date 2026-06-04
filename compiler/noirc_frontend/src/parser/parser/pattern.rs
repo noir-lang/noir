@@ -237,13 +237,11 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
 
-    use insta::assert_snapshot;
-
     use crate::{
         ast::Pattern,
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -358,14 +356,9 @@ mod tests {
     fn parses_struct_pattern_recovers_if_assign_instead_of_colon() {
         let src = "
         foo::Bar { x = one, y }
-                     ^
+                     ^ Expected a ':' but found '='
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let pattern = parser.parse_pattern_or_error();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ':' but found '='");
+        let pattern = check_errors(src, |parser| parser.parse_pattern_or_error());
 
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")

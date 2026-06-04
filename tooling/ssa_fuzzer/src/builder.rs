@@ -331,7 +331,7 @@ impl FuzzerBuilder {
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
         let memory_address = self.builder.insert_allocate(lhs.clone().type_of_variable.into());
         self.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable), true))
     }
 
     pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {
@@ -577,6 +577,41 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], return_type)
     }
 
+    /// Inserts a poseidon2 permutation intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of field values to permute
+    ///
+    /// # Returns
+    /// An array of field values representing the poseidon2 permutation
+    pub fn insert_poseidon2_permutation(&mut self, input: TypedValue) -> TypedValue {
+        match &input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(
+                    matches!(type_of_array[0], Type::Numeric(NumericType::Field)),
+                    "poseidon2_permutation requires an array of fields as input, but received {type_of_array:?}"
+                );
+                assert!(
+                    *array_size == 4,
+                    "poseidon2_permutation requires an array of 4 fields as input, but received {array_size}"
+                );
+            }
+            _ => unreachable!("poseidon2_permutation requires an array as input"),
+        }
+        let return_type = input.type_of_variable.clone();
+        let intrinsic = self
+            .builder
+            .import_intrinsic("poseidon2_permutation")
+            .expect("poseidon2_permutation intrinsic should be available");
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id],
+            vec![return_type.clone().into()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
     /// Inserts a aes128_encrypt intrinsic call
     ///
     /// # Arguments
@@ -751,15 +786,12 @@ impl FuzzerBuilder {
     ///
     /// # Arguments
     /// * `scalar` - The scalar value to multiply
-    /// * `is_infinite` - The boolean value indicating if the resulting point is on the curve (setting it by ourself)
     ///
     /// # Returns
-    /// [`Point`] corresponding to `value` * G with overwritten on_curve value
-    pub fn base_scalar_mul(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
+    /// [`Point`] corresponding to `value` * G
+    pub fn base_scalar_mul(&mut self, scalar: Scalar) -> Point {
         assert!(scalar.validate());
-        assert!(matches!(is_infinite.type_of_variable, Type::Numeric(NumericType::Boolean)));
         let field_type = Type::Numeric(NumericType::Field);
-        let boolean_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("multi_scalar_mul")
@@ -774,16 +806,11 @@ impl FuzzerBuilder {
             .unwrap(),
             NumericType::Field.into(),
         );
-        let is_infinite_g_id = self.builder.numeric_constant(0_u32, NumericType::Boolean.into());
-        let elements = vec![g_x_id, g_y_id, is_infinite_g_id].into_iter().collect();
+        let elements = vec![g_x_id, g_y_id].into_iter().collect();
         let basic_point = self.builder.insert_make_array(
             elements,
             SsaType::Array(
-                Arc::new(vec![
-                    field_type.clone().into(),
-                    field_type.clone().into(),
-                    boolean_type.clone().into(),
-                ]),
+                Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
                 SemanticLength(1),
             ),
         );
@@ -794,8 +821,7 @@ impl FuzzerBuilder {
                 SemanticLength(1),
             ),
         );
-        let return_type =
-            Type::Array(Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type]), 1);
+        let return_type = Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1);
         let predicate = self.builder.numeric_constant(1_u32, NumericType::Boolean.into());
         let result = self.builder.insert_call(
             intrinsic,
@@ -808,24 +834,18 @@ impl FuzzerBuilder {
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
         let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
         let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
-        Point {
-            x: TypedValue::new(x, field_type.clone()),
-            y: TypedValue::new(y, field_type),
-            is_infinite,
-        }
+        Point { x: TypedValue::new(x, field_type.clone()), y: TypedValue::new(y, field_type) }
     }
 
-    /// Creates a point from an affine x coordinate (scalar.lo, scalar.hi, is_infinite)
+    /// Creates a point from an affine x coordinate (scalar.lo, scalar.hi)
     /// Mostly invalid
     /// # Arguments
     /// * `scalar` - The scalar value to take coordinates from
-    /// * `is_infinite` - The boolean value indicating if the resulting point is on the curve (setting it by ourself)
     /// # Returns
-    /// Point (scalar.lo, scalar.hi, is_infinite)
-    pub fn create_point_from_scalar(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
+    /// Point (scalar.lo, scalar.hi)
+    pub fn create_point_from_scalar(&mut self, scalar: Scalar) -> Point {
         assert!(scalar.validate());
-        assert!(matches!(is_infinite.type_of_variable, Type::Numeric(NumericType::Boolean)));
-        Point { x: scalar.lo, y: scalar.hi, is_infinite }
+        Point { x: scalar.lo, y: scalar.hi }
     }
 
     pub fn multi_scalar_mul(
@@ -844,7 +864,6 @@ impl FuzzerBuilder {
         let predicate =
             self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let field_type = Type::Numeric(NumericType::Field);
-        let boolean_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("multi_scalar_mul")
@@ -854,11 +873,7 @@ impl FuzzerBuilder {
         let point_ids_array = self.builder.insert_make_array(
             point_ids.into_iter().collect(),
             SsaType::Array(
-                Arc::new(vec![
-                    field_type.clone().into(),
-                    field_type.clone().into(),
-                    boolean_type.clone().into(),
-                ]),
+                Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
                 SemanticLength(points.len() as u32),
             ),
         );
@@ -869,10 +884,7 @@ impl FuzzerBuilder {
                 SemanticLength(scalars.len() as u32),
             ),
         );
-        let return_type = Type::Array(
-            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
-            1,
-        );
+        let return_type = Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1);
         let result = self.builder.insert_call(
             intrinsic,
             vec![point_ids_array, scalar_ids_array, predicate],
@@ -882,23 +894,15 @@ impl FuzzerBuilder {
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
-        let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
         let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
         let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
-        let is_infinite =
-            self.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
-        Point {
-            x: TypedValue::new(x, field_type.clone()),
-            y: TypedValue::new(y, field_type),
-            is_infinite: TypedValue::new(is_infinite, boolean_type),
-        }
+        Point { x: TypedValue::new(x, field_type.clone()), y: TypedValue::new(y, field_type) }
     }
 
     pub fn point_add(&mut self, p1: Point, p2: Point, predicate: bool) -> Point {
         assert!(p1.validate());
         assert!(p2.validate());
         let field_type = Type::Numeric(NumericType::Field);
-        let boolean_type = Type::Numeric(NumericType::Boolean);
         let predicate =
             self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let intrinsic = self
@@ -907,25 +911,15 @@ impl FuzzerBuilder {
             .expect("embedded_curve_add intrinsic should be available");
         let mut arguments = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
         arguments.push(predicate);
-        let return_type = Type::Array(
-            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
-            1,
-        );
+        let return_type = Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1);
         let result = self.builder.insert_call(intrinsic, arguments, vec![return_type.into()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
         let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
-        let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
         let x = self.builder.insert_array_get(result, x_idx, field_type.clone().into());
         let y = self.builder.insert_array_get(result, y_idx, field_type.clone().into());
-        let is_infinite =
-            self.builder.insert_array_get(result, is_infinite_idx, boolean_type.clone().into());
-        Point {
-            x: TypedValue::new(x, field_type.clone()),
-            y: TypedValue::new(y, field_type),
-            is_infinite: TypedValue::new(is_infinite, boolean_type),
-        }
+        Point { x: TypedValue::new(x, field_type.clone()), y: TypedValue::new(y, field_type) }
     }
 
     fn bytes_to_ssa_array(&mut self, vec: Vec<u8>) -> TypedValue {

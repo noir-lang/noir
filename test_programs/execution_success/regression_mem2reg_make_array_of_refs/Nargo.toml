@@ -1,0 +1,6 @@
+[package]
+name = "regression_mem2reg_make_array_of_refs"
+type = "bin"
+authors = [""]
+
+[dependencies]

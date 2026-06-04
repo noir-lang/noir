@@ -427,3 +427,70 @@ fn allow_dead_code_on_unused_enum() {
     ";
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_on_unused_impl_function() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+           ^^^ unused function foo
+           ~~~ unused function
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_on_unused_impl_function() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = Foo::foo();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_on_used_impl_method() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {
+        Foo {}.foo();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        #[allow(dead_code)]
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}

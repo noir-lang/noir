@@ -75,7 +75,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             let span = get_main_function_location(context);
             let length = size
                 .evaluate_to_u32(span)
@@ -167,22 +167,21 @@ pub(super) fn compute_function_abi(
     (parameters, return_type)
 }
 
-/// Attempts to retrieve the name of this parameter. Returns None
-/// if this parameter is a tuple or struct pattern.
-fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
+/// Retrieves the parameter's bound name. Entry point parameters must use a simple identifier
+/// pattern (gated in the elaborator), so any other shape is a compiler bug here.
+fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> &'a str {
     match pattern {
-        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
+        HirPattern::Identifier(ident) => interner.definition_name(ident.id),
         HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::Tuple(_, _) => None,
-        HirPattern::Struct(_, _, _) => None,
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => {
+            unreachable!("destructuring patterns are rejected for entry point parameters")
+        }
     }
 }
 
 fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
     vecmap(params, |(pattern, typ, vis)| {
-        let param_name = get_param_name(&pattern, &context.def_interner)
-            .expect("Abi for tuple and struct parameters is unimplemented")
-            .to_owned();
+        let param_name = get_param_name(&pattern, &context.def_interner).to_owned();
         let as_abi = abi_type_from_hir_type(context, &typ);
         AbiParameter { name: param_name, typ: as_abi, visibility: to_abi_visibility(vis) }
     })
@@ -234,11 +233,17 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                 }
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
-            HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(value) => AbiValue::Integer {
-                value: value.absolute_value().to_hex(),
-                sign: value.is_negative(),
+            HirLiteral::Str(value) => match String::from_utf8(value) {
+                Ok(value) => AbiValue::String { value },
+                Err(error) => {
+                    let value = vecmap(error.into_bytes(), |byte| AbiValue::Integer {
+                        sign: false,
+                        value: format!("{byte:x}"),
+                    });
+                    AbiValue::Array { value }
+                }
             },
+            HirLiteral::Integer(value) => AbiValue::Integer { value: value.to_hex(), sign: false },
             _ => unreachable!("Literal cannot be used in the abi"),
         },
         _ => unreachable!("Type cannot be used in the abi {:?}", expression),

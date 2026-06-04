@@ -1,11 +1,6 @@
 use crate::option::Option;
 
 impl TypeDefinition {
-    #[builtin(type_def_add_attribute)]
-    // docs:start:add_attribute
-    pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
-    // docs:end:add_attribute
-
     #[builtin(type_def_add_abi)]
     // docs:start:add_abi
     pub comptime fn add_abi(self, abi_argument: CtString) {}
@@ -33,6 +28,15 @@ impl TypeDefinition {
     // docs:start:has_named_attribute
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
+
+    #[builtin(type_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+    #[builtin(type_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 
     /// Return (type, option<type>) pairs of each generic in this type definition.
     /// If a generic is numeric, the second element of the pair will contain the numeric type.

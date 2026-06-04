@@ -58,10 +58,12 @@ impl Parser<'_> {
         &mut self,
         allow_generics: bool,
     ) -> Option<UnresolvedType> {
-        let start_location = self.current_token_location;
-        let typ = self.parse_unresolved_type_data(allow_generics)?;
-        let location = self.location_since(start_location);
-        Some(UnresolvedType { typ, location })
+        self.with_max_recursion_depth_guard(|this| {
+            let start_location = this.current_token_location;
+            let typ = this.parse_unresolved_type_data(allow_generics)?;
+            let location = this.location_since(start_location);
+            Some(UnresolvedType { typ, location })
+        })
     }
 
     fn parse_unresolved_type_data(&mut self, allow_generics: bool) -> Option<UnresolvedTypeData> {
@@ -233,8 +235,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a vector start if this is an array or vector type
-        if self.eat(Token::Ampersand) || self.eat(Token::DeprecatedVectorStart) {
+        if self.eat(Token::Ampersand) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -314,13 +315,11 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -485,14 +484,10 @@ mod tests {
     #[test]
     fn errors_if_missing_right_bracket_after_vector_type() {
         let src = "
-        [Field 
-              ^
+        [Field
+             ^ Expected a ']' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_type();
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ']' but found end of input");
+        check_errors(src, |parser| parser.parse_type());
     }
 
     #[test]

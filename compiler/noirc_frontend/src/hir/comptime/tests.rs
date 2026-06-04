@@ -16,11 +16,11 @@ use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
-use crate::signed_field::SignedField;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
-/// The stdlib is not made available as a dependency.
+/// The given source is considered the root crate and also the stdlib, in case
+/// builtins need to be tested.
 pub(crate) fn with_interpreter<T>(
     src: &str,
     f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
@@ -43,7 +43,7 @@ pub(crate) fn with_interpreter<T>(
     let mut context = Context::new(file_manager, parsed_files);
     context.def_interner.populate_dummy_operator_traits();
 
-    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+    let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
     let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
@@ -78,7 +78,7 @@ pub(crate) fn with_interpreter<T>(
 
     let mut interpreter = elaborator.setup_interpreter();
 
-    f(&mut interpreter, main, &errors)
+    f(&mut interpreter, main, errors.as_ref())
 }
 
 /// Evaluate a code snippet by calling the `main` function.
@@ -104,7 +104,7 @@ pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::field(SignedField::positive(3u128)));
+    assert_eq!(result, Value::field(3u128.into()));
 }
 
 #[test]

@@ -402,6 +402,52 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+fn impl_generic_in_body_only_distinct_monomorphizations() {
+    // When an impl-level generic is referenced only in the method body (not
+    // in the signature, not in the method turbofish), the monomorphization
+    // cache must produce a distinct specialization per impl instantiation
+    // rather than aliasing all callsites to the first-queued body.
+    let src = r#"
+    trait Guard<let N: u32> {
+        fn check(x: Field);
+    }
+
+    struct S {}
+
+    impl<let N: u32> Guard<N> for S {
+        fn check(x: Field) {
+            for _ in 0..N {
+                assert(x == 0);
+            }
+        }
+    }
+
+    pub fn main(x: Field) {
+        <S as Guard<0>>::check(x);
+        <S as Guard<2>>::check(x);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @"
+    fn main$f0(x$l0: Field) -> () {
+        check$f1(x$l0);;
+        check$f2(x$l0);
+    }
+    fn check$f1(x$l1: Field) -> () {
+        for _$l2 in 0 .. 0 {
+            assert((x$l1 == 0));
+        }
+    }
+    fn check$f2(x$l3: Field) -> () {
+        for _$l4 in 0 .. 2 {
+            assert((x$l3 == 0));
+        }
+    }
+    ");
+}
+
+#[test]
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
@@ -558,7 +604,12 @@ fn unused_str_const_generic_in_enum_inferred() {
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
+    insta::assert_snapshot!(program, @"
+global B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());
+fn main$f0() -> () {
+    let _f$l0 = B$g0
+}
+");
 }
 
 #[test]
@@ -1057,6 +1108,49 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
+fn direct_unconstrained_closure_call_rejects_captured_mutable_ref() {
+    // A local closure that captures a `&mut` from constrained code, coerced to
+    // `unconstrained fn[Env](..)` and called directly under `unsafe`, must be rejected.
+    // The captured reference lives in the closure's environment, which monomorphization
+    // inserts as a synthetic first argument after the boundary check, so the environment
+    // type must be validated explicitly.
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        let xr = &mut x;
+        let f: unconstrained fn[(&mut u32,)](u32) -> () = |y| {
+            *xr = y;
+        };
+        // safety: test
+        unsafe { f(7); }
+                 ^ Cannot pass mutable reference `(&mut u32,)` from a constrained runtime to an unconstrained runtime
+        assert(x == 0);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn direct_unconstrained_closure_call_rejects_captured_immutable_ref() {
+    // Even a captured immutable reference is rejected: the closure environment is a
+    // container (a tuple), and only a direct immutable reference `&T` is supported across
+    // the boundary, not one embedded in a container.
+    let src = r#"
+    fn main() {
+        let x: u32 = 5;
+        let xr = &x;
+        let f: unconstrained fn[(&u32,)](u32) -> u32 = |y| {
+            *xr + y
+        };
+        // safety: test
+        let _z = unsafe { f(7) };
+                          ^ Cannot pass `(&u32,)` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
 fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {
@@ -1126,8 +1220,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
-                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
-                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                     ^^^^^ Reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1149,7 +1243,11 @@ fn evaluates_builtin_zeroed() {
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
-    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+    insta::assert_snapshot!(program, @"
+    fn main$f0() -> () {
+        let _a$l0 = [(0, \"\0\0\0\"); 2]
+    }
+    ");
 }
 
 #[test]
@@ -1167,10 +1265,10 @@ fn evaluates_builtin_zeroed_function() {
         let _f$l4 = (zeroed_lambda$f1, zeroed_lambda$f2)
     }
     fn zeroed_lambda$f1(_$l0: u32, _$l1: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     ");
 }
@@ -1257,8 +1355,8 @@ fn evaluates_builtin_modulus_functions() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let _$l0 = 254;
-        let _$l1 = @[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1];
-        let _$l2 = @[1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let _$l1 = @[true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, false, false, true, false, false, true, true, false, true, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, false, true, false, false, false, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, true, true, false, false, true, true, true, true, false, false, false, false, true, false, false, true, false, false, false, false, true, false, true, true, true, true, true, false, false, true, true, false, false, false, false, false, true, false, true, false, false, true, false, true, true, true, false, true, false, false, false, false, true, true, false, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, true, false, false, false, false, false, true, false, true, false, false, false, false, true, true, true, false, true, true, false, false, true, false, true, false, false, false, false, false, false, false, true, false, true, true, false, false, false, true, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, false, false, true, false, false, true, true, false, false, false, false, false, true, true];
+        let _$l2 = @[true, true, false, false, false, false, false, true, true, false, false, true, false, false, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, true, false, false, false, true, true, false, true, false, false, false, false, false, false, false, true, false, true, false, false, true, true, false, true, true, true, false, false, false, false, true, false, true, false, false, false, false, false, true, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, false, true, true, false, false, false, false, true, false, true, true, true, false, true, false, false, true, false, true, false, false, false, false, false, true, true, false, false, true, true, true, true, true, false, true, false, false, false, false, true, false, false, true, false, false, false, false, true, true, true, true, false, false, true, true, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, false, false, false, true, false, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, true, false, true, true, false, false, true, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true];
         let _$l3 = @[1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48];
         let _$l4 = @[48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 40, 51, 232, 72, 121, 185, 112, 145, 67, 225, 245, 147, 240, 0, 0, 1]
     }
@@ -1456,7 +1554,7 @@ fn main() {{
 fn deref_of_ref_is_simplified() {
     let src = "
         unconstrained fn main() {
-            let x: Field = 5;
+            let mut x: Field = 5;
             let y = *&mut x;
             assert(y == 5);
         }
@@ -1465,7 +1563,7 @@ fn deref_of_ref_is_simplified() {
     // `*&mut x` should be simplified to just `x` during elaboration
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
-        let x$l0 = 5;
+        let mut x$l0 = 5;
         let y$l1 = x$l0;
         assert((y$l1 == 5));
     }
@@ -1488,6 +1586,165 @@ fn deref_of_immutable_ref_is_simplified() {
         let x$l0 = 5;
         let y$l1 = x$l0;
         assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn outer_immref_to_brillig_is_accepted() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&x) };
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &Field) -> Field {
+            *x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn inner_immref_to_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&&x) };
+                                 ^^^ Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &&Field) -> Field {
+            **x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn outer_immref_from_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            // Safety:
+            let y = unsafe { foo(5) };
+                             ^^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                             ^^^^^^ Reference `&Field` cannot be returned from an unconstrained runtime to a constrained runtime
+            assert(*y == 5);
+        }
+
+        unconstrained fn foo(x: Field) -> &Field {
+            &x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+const STATIC_ASSERT_STDLIB: &str = "
+    #[builtin(static_assert)]
+    pub fn static_assert<T>(predicate: bool, message: T) {}
+";
+
+#[test]
+fn static_assert_used_as_value_in_let_is_rejected() {
+    let src = r#"
+    fn main() {
+        let f = static_assert;
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_passed_as_argument_is_rejected() {
+    let src = r#"
+    fn main() {
+        call_it(static_assert);
+    }
+
+    fn call_it(f: fn(bool, str<3>) -> ()) {
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_in_block_callee_is_rejected() {
+    // The block expression evaluates to the static_assert function value, which is then called.
+    // Even though the program "looks like" a direct call, the value form goes through monomorphization.
+    let src = r#"
+    fn main() {
+        ({ static_assert })(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn print_oracle_used_as_value_is_rejected() {
+    let src = r#"
+    fn main() {
+        // Safety: test
+        unsafe {
+            let p = print_oracle;
+            p(true, 1);
+        }
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "print"),
+        "expected CannotUseFunctionAsValue for print oracle, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_called_directly_still_works() {
+    let src = r#"
+    fn main() {
+        static_assert(true, "msg");
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
+        .expect("direct call to static_assert should still monomorphize");
+}
+
+const ZEROED_STDLIB: &str = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+";
+
+#[test]
+fn zeroed_array_of_references_does_not_alias() {
+    // Each slot of a zeroed `[&mut Field; N]` must get its own `allocate`. Wrapping a single
+    // `&mut 0` sub-expression in a repeated array literal would make every slot share one
+    // allocation, so a write through one slot would be visible through all the others.
+    let src = r#"
+    fn main() {
+        let _arr: [&mut Field; 3] = zeroed();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _arr$l0 = [(&mut 0), (&mut 0), (&mut 0)]
     }
     ");
 }

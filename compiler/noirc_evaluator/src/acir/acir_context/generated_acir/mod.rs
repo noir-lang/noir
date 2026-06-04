@@ -181,6 +181,16 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         fresh_witness
     }
+
+    /// Attaches an assertion payload to the last opcode in the ACIR.
+    pub(crate) fn attach_assertion_payload(
+        &mut self,
+        payload: AssertionPayload<F>,
+    ) -> OpcodeLocation {
+        let location = self.last_acir_opcode_location();
+        self.assertion_payloads.insert(location, payload);
+        location
+    }
 }
 
 impl<F: AcirField> GeneratedAcir<F> {
@@ -279,31 +289,40 @@ impl<F: AcirField> GeneratedAcir<F> {
             BlackBoxFunc::MultiScalarMul => {
                 let [points, scalars, predicate] = expect_into(function_inputs);
                 let [predicate] = expect_into(predicate);
-                let [output0, output1, output2] = expect_into(outputs);
+                let [output0, output1] = expect_into(outputs);
                 BlackBoxFuncCall::MultiScalarMul {
                     points,
                     scalars,
                     predicate,
-                    outputs: (output0, output1, output2),
+                    outputs: (output0, output1),
                 }
             }
 
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let [input1_0, input1_1, input1_2, input2_0, input2_1, input2_2, predicate] =
+                let [input1_0, input1_1, input2_0, input2_1, predicate] =
                     expect_into(function_inputs);
                 let [input1_0] = expect_into(input1_0);
                 let [input1_1] = expect_into(input1_1);
-                let [input1_2] = expect_into(input1_2);
                 let [input2_0] = expect_into(input2_0);
                 let [input2_1] = expect_into(input2_1);
-                let [input2_2] = expect_into(input2_2);
                 let [predicate] = expect_into(predicate);
-                let [output0, output1, output2] = expect_into(outputs);
+                let [output0, output1] = expect_into(outputs);
+                // Sanity Check: Ensure coordinates of a point are both constant or both witness.
+                assert_eq!(
+                    input1_0.is_constant(),
+                    input1_1.is_constant(),
+                    "EmbeddedCurveAdd: point 1 has mixed constant/witness coordinates"
+                );
+                assert_eq!(
+                    input2_0.is_constant(),
+                    input2_1.is_constant(),
+                    "EmbeddedCurveAdd: point 2 has mixed constant/witness coordinates"
+                );
                 BlackBoxFuncCall::EmbeddedCurveAdd {
-                    input1: Box::new([input1_0, input1_1, input1_2]),
-                    input2: Box::new([input2_0, input2_1, input2_2]),
+                    input1: Box::new([input1_0, input1_1]),
+                    input2: Box::new([input2_0, input2_1]),
                     predicate,
-                    outputs: (output0, output1, output2),
+                    outputs: (output0, output1),
                 }
             }
             BlackBoxFunc::Keccakf1600 => {
@@ -393,11 +412,18 @@ impl<F: AcirField> GeneratedAcir<F> {
             radix_pow *= &radix_big;
         }
 
-        self.assert_is_zero(input_expr - &composed_limbs);
-        let assertion_payload = self.generate_assertion_message_payload(format!(
-            "Field failed to decompose into specified {limb_count} limbs"
-        ));
-        self.assertion_payloads.insert(self.last_acir_opcode_location(), assertion_payload);
+        // With `limb_count == 0` there are no limbs to compose, so `composed_limbs` is the zero
+        // constant. When `input_expr` is also a known constant the difference folds away: a zero
+        // input yields a trivially-true `0 == 0` (which must not be emitted as an empty opcode),
+        // while a non-zero input yields an always-false constraint that fails at solve time.
+        let difference = input_expr - &composed_limbs;
+        if !difference.is_zero() {
+            self.assert_is_zero(difference);
+            let assertion_payload = self.generate_assertion_message_payload(format!(
+                "Field failed to decompose into specified {limb_count} limbs"
+            ));
+            self.attach_assertion_payload(assertion_payload);
+        }
 
         Ok(limb_witnesses)
     }
@@ -648,11 +674,11 @@ impl<F: AcirField> GeneratedAcir<F> {
                 .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
+        // Ensure every Brillig function we compile has a `brillig_locations`
+        // entry, even when it emits no per-opcode locations.
+        let brillig_locations = self.brillig_locations.entry(brillig_function_index).or_default();
         for (brillig_index, call_stack) in &generated_brillig.locations {
-            self.brillig_locations
-                .entry(brillig_function_index)
-                .or_default()
-                .insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
+            brillig_locations.insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
         }
     }
 
@@ -726,9 +752,9 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
 
-        // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
+        // Addition over the embedded curve: inputs are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
         // to add, plus a predicate to conditionally perform the addition.
-        BlackBoxFunc::EmbeddedCurveAdd => Some(7),
+        BlackBoxFunc::EmbeddedCurveAdd => Some(5),
     }
 }
 
@@ -755,11 +781,11 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
 
         // Output of operations over the embedded curve
-        // will be 3 field elements representing the point, i.e. (x,y,infinite)
-        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
+        // will be 2 field elements representing the point, i.e. (x,y)
+        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
 
-        // Recursive aggregation has a variable number of outputs
-        BlackBoxFunc::RecursiveAggregation => None,
+        // Recursive aggregation has no output
+        BlackBoxFunc::RecursiveAggregation => Some(0),
 
         // AES encryption returns a variable number of outputs
         BlackBoxFunc::AES128Encrypt => None,

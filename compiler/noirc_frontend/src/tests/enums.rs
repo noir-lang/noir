@@ -517,3 +517,49 @@ fn match_constructor_pattern_on_integer_gives_type_error() {
     ";
     check_errors_using_features(src, &[UnstableFeature::Enums]);
 }
+
+#[test]
+fn struct_pattern_on_enum_variant_errors() {
+    let src = "
+    enum E {
+        A,
+        B(u32),
+    }
+
+    fn foo(e: E) -> u32 {
+        match e {
+            E::A { x } => x,
+            ^^^^^^^^^^ Cannot use `{ }` pattern syntax on enum variant `E::A`
+            ~~~~~~~~~~ Use parentheses `()` for enum variants with fields, or no arguments for fieldless variants
+                          ^ cannot find `x` in this scope
+                          ~ not found in this scope
+            _ => 0,
+        }
+    }
+
+    fn main() {
+        let _ = foo(E::A);
+    }
+    ";
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+// Regression test: comptime enum variant without fields on a generic enum
+// should not crash follow_bindings with a Forall type.
+#[test]
+fn comptime_generic_enum_variant() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B,
+    }
+
+    fn main() {
+        comptime let fb: Foo<str<5>> = Foo::B;
+        foo(fb);
+    }
+
+    fn foo(_f: Foo<str<5>>) {}
+    "#;
+    assert_no_errors(src);
+}

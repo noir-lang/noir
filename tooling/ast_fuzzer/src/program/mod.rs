@@ -232,15 +232,21 @@ impl Context {
                 && self.functions.get(&Program::main_id()).is_some_and(|func| func.unconstrained))
             || bool::arbitrary(u)?;
 
-        // We could return a function as well.
-        let return_type = self.gen_type(
-            u,
-            self.config.max_depth,
-            false,
-            is_main || is_abi,
-            self.config.comptime_friendly,
-            true,
-        )?;
+        // Non-ABI functions can return `Unit`, so they can be called in statement
+        // position for their side effects (e.g. assertions). `gen_type` never
+        // picks `Unit`, so we choose it explicitly here.
+        let return_type = if !(is_main || is_abi) && u.ratio(1, 5)? {
+            Type::Unit
+        } else {
+            self.gen_type(
+                u,
+                self.config.max_depth,
+                false,
+                is_main || is_abi,
+                self.config.comptime_friendly,
+                true,
+            )?
+        };
 
         // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
@@ -319,16 +325,24 @@ impl Context {
             Visibility::Private
         };
 
+        let inline_type = if is_main {
+            InlineType::default()
+        } else {
+            // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
+            let choices = InlineType::iter()
+                .filter(|it| {
+                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                })
+                .collect::<Vec<_>>();
+            *u.choose(&choices)?
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             return_type,
             return_visibility,
-            inline_type: if is_main {
-                InlineType::default()
-            } else {
-                *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
-            },
+            inline_type,
             unconstrained,
         };
 
@@ -385,6 +399,7 @@ impl Context {
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         rewrite::remove_unreachable_functions(self);
         rewrite::add_recursion_limit(self, u)?;
+        rewrite::wrap_oracle_prints_in_functions(self);
         Ok(())
     }
 

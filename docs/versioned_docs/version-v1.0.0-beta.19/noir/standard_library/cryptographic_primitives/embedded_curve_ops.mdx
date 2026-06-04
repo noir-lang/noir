@@ -20,7 +20,7 @@ Performs multi scalar multiplication over the embedded curve.
 The function accepts arbitrary amount of point-scalar pairs on the input, it multiplies the individual pairs over
 the curve and returns a sum of the resulting points.
 
-Points represented as x and y coordinates [x1, y1, x2, y2, ...], scalars as low and high limbs [low1, high1, low2, high2, ...].
+Points are represented as `EmbeddedCurvePoint` structs with `x` and `y` coordinates and an `is_infinite` flag, scalars as `EmbeddedCurveScalar` structs with `lo` and `hi` limbs.
 
 ```rust title="multi_scalar_mul" showLineNumbers 
 pub fn multi_scalar_mul<let N: u32>(
@@ -34,9 +34,13 @@ pub fn multi_scalar_mul<let N: u32>(
 example
 
 ```rust
+use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+
 fn main(point_x: Field, point_y: Field, scalar_low: Field, scalar_high: Field) {
-    let point = std::embedded_curve_ops::multi_scalar_mul([point_x, point_y], [scalar_low, scalar_high]);
-    println(point);
+    let point = EmbeddedCurvePoint { x: point_x, y: point_y, is_infinite: false };
+    let scalar = EmbeddedCurveScalar { lo: scalar_low, hi: scalar_high };
+    let result = multi_scalar_mul([point], [scalar]);
+    println(result);
 }
 ```
 
@@ -54,8 +58,11 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 example
 
 ```rust
+use std::embedded_curve_ops::{EmbeddedCurveScalar, fixed_base_scalar_mul};
+
 fn main(scalar_low: Field, scalar_high: Field) {
-    let point = std::embedded_curve_ops::fixed_base_scalar_mul(scalar_low, scalar_high);
+    let scalar = EmbeddedCurveScalar { lo: scalar_low, hi: scalar_high };
+    let point = fixed_base_scalar_mul(scalar);
     println(point);
 }
 ```
@@ -84,11 +91,13 @@ pub fn embedded_curve_add(
 example
 
 ```rust
+use std::embedded_curve_ops::{EmbeddedCurvePoint, embedded_curve_add};
+
 fn main() {
-    let point1 = EmbeddedCurvePoint { x: 1, y: 2 };
-    let point2 = EmbeddedCurvePoint { x: 3, y: 4 };
-    let result = std::embedded_curve_ops::embedded_curve_add(point1, point2);
-    println!("Resulting Point: ({}, {})", result.x, result.y);
+    let point1 = EmbeddedCurvePoint { x: 1, y: 2, is_infinite: false };
+    let point2 = EmbeddedCurvePoint { x: 3, y: 4, is_infinite: false };
+    let result = embedded_curve_add(point1, point2);
+    println(f"Resulting Point: ({result.x}, {result.y})");
 }
 ```
 

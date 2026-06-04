@@ -190,6 +190,81 @@ fn generate_function_with_macros() {
     ");
 }
 
+// Regression for #11880: comptime attributes on impl methods used to be silently ignored.
+#[test]
+fn generate_function_with_macros_on_impl_method() {
+    let src = "
+    pub struct Spam {}
+
+    impl Spam {
+        #[foo]
+        pub fn struct_method() {}
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ";
+
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Spam {
+    }
+
+    impl Spam {
+        pub fn struct_method() {
+        }
+
+        pub fn bar(x: i32) -> i32 {
+            x + 1_i32
+        }
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ");
+}
+
+// Regression for asterite's review on #12649: when an attribute on an impl method
+// generates a new function, the impl's `where_clause` must be carried into the
+// synthetic impl so the generated function can use the bounded generics.
+#[test]
+fn generate_function_with_macros_on_impl_method_carries_where_clause() {
+    let src = "
+    pub trait MyDefault {
+        fn my_default() -> Self;
+    }
+
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> where T: MyDefault {
+        #[generate_bar]
+        pub fn foo() {}
+    }
+
+    pub comptime fn generate_bar(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar() -> T {
+                T::my_default()
+            }
+        }
+    }
+
+    fn main() {}
+    ";
+
+    assert_no_errors(src);
+}
+
 #[test]
 fn generate_function_with_macros_on_trait() {
     let src = "
@@ -608,6 +683,52 @@ fn attributes_run_in_textual_order_within_module() {
             let _ = first();
             let _ = second();
             let _ = third();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_and_free_function_attributes_run_in_source_order() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        #[assert_source_order(0)]
+        fn first_free() {}
+
+        pub struct S {}
+
+        impl S {
+            #[assert_source_order(1)]
+            fn m1() {}
+
+            #[assert_source_order(2)]
+            fn m2() {}
+        }
+
+        #[assert_source_order(3)]
+        fn middle_free() {}
+
+        impl S {
+            #[assert_source_order(4)]
+            fn m3() {}
+        }
+
+        #[assert_source_order(5)]
+        fn last_free() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = first_free();
+            let _ = S::m1();
+            let _ = S::m2();
+            let _ = middle_free();
+            let _ = S::m3();
+            let _ = last_free();
         }
     "#;
     assert_no_errors(src);
@@ -1190,6 +1311,26 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 }
 
 #[test]
+fn no_duplicate_comptime_type_error_for_self_type_variable() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+            self
+        }
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    // 2 uses of Quoted in non-comptime positions (the Self types) (with duplicates we were getting 4 diagnostics)
+    assert_eq!(errors.len(), 2);
+}
+
+#[test]
 fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
     let src = r#"
     trait Trait {
@@ -1222,6 +1363,25 @@ fn zeroed_comptime_type() {
     }
     "#;
     check_errors_with_stdlib(src, [stdlib_src::ZEROED, module_hash_str]);
+}
+
+#[test]
+fn zeroed_array_of_references_does_not_alias_in_comptime() {
+    // Each slot of a zeroed `[&mut Field; N]` must own its own allocation in the comptime
+    // interpreter. If the slots aliased, writing through one would be observable through the
+    // others and the comptime asserts below would fail during elaboration.
+    let src = r#"
+    fn main() {
+        comptime {
+            let arr: [&mut Field; 3] = zeroed();
+            *arr[1] = 7;
+            assert_eq(*arr[0], 0);
+            assert_eq(*arr[1], 7);
+            assert_eq(*arr[2], 0);
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED]);
 }
 
 #[test]
@@ -1563,4 +1723,363 @@ fn function_value_macro_call_in_comptime_block() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn match_in_comptime_errors_instead_of_panicking() {
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        comptime {
+            let foo = Foo::Bar;
+            match foo { Foo::Bar => {} }
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Match expressions in comptime code is currently unimplemented
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn runtime_variable_in_macro_gives_specific_error() {
+    let src = r#"
+    comptime fn ident(val: Quoted) -> Quoted {
+        val
+    }
+
+    comptime fn wrap_with_add(x: Field) -> Quoted {
+        quote { $x + 41 }
+    }
+
+    fn main() {
+        let x = 1;
+            ^ unused variable x
+            ~ unused variable
+        let _y: Field = wrap_with_add!(ident!(quote { x }));
+                                                      ^ variable `x` is a runtime variable and cannot be used in comptime code
+                                                      ~ this variable is not available in comptime
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_allow_constructing_struct_with_private_fields_with_macro_call() {
+    let src = r#"
+    mod victim_crate {
+        pub struct Account {
+            balance: Field,
+        }
+    }
+
+    use victim_crate::Account;
+
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    fn main() {
+        let _: Account = unquote!(quote { Account { balance: 0 }});
+                                                    ^^^^^^^ balance is private and not visible from the current module
+                                                    ~~~~~~~ balance is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn function_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    pub struct Marker {}
+
+    #[generate_function]
+    comptime fn generate_function(_: FunctionDefinition) -> Quoted {
+        quote {
+            fn run<T: Constraint>(_: T) {}
+        }
+    }
+
+    fn main() {
+        run(true);
+        ^^^ No matching impl found for `bool: Constraint`
+        ~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker {}
+
+    comptime fn generate_impl(_s: TypeDefinition) -> Quoted {
+        quote {
+            impl<T: Constraint> Wrapper<T> {
+                fn run(_self: Self) { 
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker {}
+
+    comptime fn generate_impl(_s: TypeDefinition) -> Quoted {
+        quote {
+            impl<T: Constraint> Target for Wrapper<T> {
+                fn run(_self: Self) { }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn inline_bound_on_quoted_generic_is_preserved() {
+    let stdlib = r#"
+        pub enum Option<T> { None, Some(T) }
+        impl TypeDefinition {
+            #[builtin(type_def_generics)]
+            pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
+        }
+    "#;
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target { fn run(self); }
+    pub struct Wrapper<T> { inner: T }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker<T> {}
+
+    comptime fn generate_impl(s: TypeDefinition) -> Quoted {
+        let t = s.generics()[0].0;
+        quote {
+            impl<$t: Constraint> Target for Wrapper<$t> {
+                fn run(_self: Self) { }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+#[test]
+fn reference_generated_struct_in_function_signature() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub fn bar(_: MyStruct) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_two_generated_structs_should_work() {
+    let src = r#"
+    #[gen_struct(quote { Foo })]
+    mod Foo {
+        #[super::gen_struct(quote { Bar })]
+        pub mod Bar {}
+    }
+
+    comptime fn gen_struct(_: Module, name: Quoted) -> Quoted {
+        quote {
+            pub struct $name {
+            }
+        }
+    }
+
+    pub fn use_struct(_: Foo::Foo) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl Bar {
+        pub fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_trait_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+    pub trait Trait {
+        fn bar(_: MyStruct);
+    }
+
+    impl Trait for Bar {
+        fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_another_struct_field() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {
+        s: MyStruct,
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_a_global() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub global s: MyStruct = MyStruct {};
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_generated_struct_in_an_enum_variant() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub enum Bar {
+        Variant(MyStruct),
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    crate::tests::assert_no_errors_using_features(src, &features);
+}
+
+// Regression for https://github.com/noir-lang/noir-claude/issues/1047:
+// `as_witness` is declared `fn(Field) -> ()`, so calling it as the final expression
+// of an inferred `comptime` block must produce a unit value, not the `Field` argument.
+#[test]
+fn comptime_as_witness_returns_unit() {
+    let stdlib = r#"
+        #[builtin(as_witness)]
+        pub fn as_witness(_x: Field) {}
+    "#;
+    let src = r#"
+    fn main() -> pub Field {
+                     ^^^^^ expected type Field, found type ()
+                     ~~~~~ expected Field because of return type
+        let x = comptime {
+            as_witness(1)
+        };
+        x
+        ~ () returned here
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
 }

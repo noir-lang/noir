@@ -24,23 +24,25 @@
 //!     As the SSA flattens all tuples, unused accesses on composite arrays can lead to potentially
 //!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
 //!     and only insert a single OOB check for an array get group.
-//!   - [Store][Instruction::Store] instructions can only be removed if the `flattened` flag is set.
 //!   - Instructions that create the value which is returned in the databus (if present) is not removed.
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
-//!   - [Store][Instruction::Store] instructions are never removed.
 //!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
+//! [Store][Instruction::Store] instructions are never removed by DIE in either runtime.
+//! Deciding when a store is dead requires reasoning about reference aliasing, which the
+//! reverse traversal cannot do soundly: an earlier instruction such as [IfElse][Instruction::IfElse],
+//! [MakeArray][Instruction::MakeArray]/[ArrayGet][Instruction::ArrayGet], or a call returning a
+//! reference argument may produce a value that aliases the address, and reads through that alias
+//! sit later in source order. Mem2reg, which has a proper alias-tracking model, is responsible
+//! for removing dead stores.
+//!
 //! ## Preconditions
-//! - ACIR: By default the pass must be run after [mem2reg][crate::ssa::opt::mem2reg] and [CFG flattening][crate::ssa::opt::flatten_cfg].
-//!   If the pass is run before these passes, it must be explicitly stated.
 //! - Must be run on the full [Ssa], not individual [Function]s, to avoid dangling
 //!   parameter references from dead parameter pruning.
 //!
 //! ## Post-conditions
-//! - If DIE was run after mem2reg and flattening, no unreachable
-//!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
 use acvm::{AcirField, FieldElement};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -67,28 +69,11 @@ mod prune_dead_parameters;
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
-    ///
-    /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(true)
-    }
-
-    /// The elimination of certain unused instructions assumes that the DIE pass runs after
-    /// the flattening of the CFG, but if that's not the case then we should not eliminate
-    /// them just yet.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination_pre_flattening(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(false)
-    }
-
-    fn dead_instruction_elimination_with_pruning(mut self, flattened: bool) -> Ssa {
-        #[cfg(debug_assertions)]
-        self.functions.values().for_each(|func| die_pre_check(func, flattened));
-
+    pub fn dead_instruction_elimination(mut self) -> Ssa {
         let mut previous_unused_params = None;
         loop {
-            let (new_ssa, result) = self.dead_instruction_elimination_inner(flattened);
+            let (new_ssa, result) = self.dead_instruction_elimination_inner();
 
             // Determine whether we have any unused variables
             let has_unused = result
@@ -114,12 +99,12 @@ impl Ssa {
         }
     }
 
-    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> (Ssa, DIEResult) {
+    fn dead_instruction_elimination_inner(mut self) -> (Ssa, DIEResult) {
         let result = self
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params = func.dead_instruction_elimination(true, flattened);
+                let unused_params = func.dead_instruction_elimination(true);
                 let mut result = DIEResult::default();
 
                 result.unused_parameters.insert(*id, unused_params);
@@ -132,19 +117,6 @@ impl Ssa {
             });
 
         (self, result)
-    }
-
-    /// Sanity check on the final SSA, panicking if the assumptions don't hold.
-    ///
-    /// Done as a separate step so that we can put it after other passes which provide
-    /// concrete feedback about where the problem with the Noir code might be, such as
-    /// dynamic indexing of arrays with references in ACIR. We can look up the callstack
-    /// of the offending instruction here as well, it's just not clear what error message
-    /// to return, besides the fact that mem2reg was unable to eliminate something.
-    #[cfg_attr(not(debug_assertions), allow(unused_variables))]
-    pub(crate) fn dead_instruction_elimination_post_check(&self, flattened: bool) {
-        #[cfg(debug_assertions)]
-        self.functions.values().for_each(|f| die_post_check(f, flattened));
     }
 }
 
@@ -169,9 +141,8 @@ impl Function {
     fn dead_instruction_elimination(
         &mut self,
         insert_out_of_bounds_checks: bool,
-        flattened: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        let mut context = Context { flattened, ..Default::default() };
+        let mut context = Context::new();
 
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
@@ -208,7 +179,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened);
+            return self.dead_instruction_elimination(false);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -222,7 +193,6 @@ struct DIEResult {
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.
-#[derive(Default)]
 struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
@@ -231,11 +201,6 @@ struct Context {
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
-
-    /// The elimination of certain unused instructions assumes that the DIE pass runs after
-    /// the flattening of the CFG, but if that's not the case then we should not eliminate
-    /// them just yet.
-    flattened: bool,
 
     /// A per-block list indicating which block parameters are still considered alive.
     ///
@@ -250,6 +215,15 @@ struct Context {
 }
 
 impl Context {
+    fn new() -> Self {
+        Self {
+            used_values: HashSet::default(),
+            instructions_to_remove: HashSet::default(),
+            rc_instructions: Vec::new(),
+            parameter_keep_list: HashMap::default(),
+        }
+    }
+
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
     /// in the set thus far.
@@ -347,7 +321,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, self.flattened, &self.used_values) && {
+        can_be_eliminated_if_unused(instruction, function, &self.used_values) && {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         }
@@ -440,7 +414,7 @@ impl Context {
             return match instruction {
                 MakeArray { .. } => true,
                 Call { func, .. } => {
-                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction { .. })
                 }
                 _ => false,
             };
@@ -452,7 +426,6 @@ impl Context {
 fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
-    flattened: bool,
     used_values: &HashSet<ValueId>,
 ) -> bool {
     use Instruction::*;
@@ -500,11 +473,8 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        Store { address, .. } => {
-            should_remove_store(function, flattened) && !used_values.contains(address)
-        }
-
-        Constrain(..)
+        Store { .. }
+        | Constrain(..)
         | ConstrainNotEqual(..)
         | EnableSideEffectsIf { .. }
         | IncrementRc { .. }
@@ -517,9 +487,8 @@ fn can_be_eliminated_if_unused(
             Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
             // All foreign functions are treated as having side effects.
-            // This is because they can be used to pass information
-            // from the ACVM to the external world during execution.
-            Value::ForeignFunction(_) => false,
+            // Even oracles marked as `pure` can potentially fail and have side-effects.
+            Value::ForeignFunction { .. } => false,
 
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.
@@ -535,59 +504,11 @@ fn can_be_eliminated_if_unused(
     }
 }
 
-/// Store instructions must be removed by DIE in acir code, any load
-/// instructions should already be unused by that point.
-///
-/// Note that this check assumes that it is being performed after the flattening
-/// pass and after the last mem2reg pass. This is currently the case for the DIE
-/// pass where this check is done, but does mean that we cannot perform mem2reg
-/// after the DIE pass.
-fn should_remove_store(func: &Function, flattened: bool) -> bool {
-    flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
-}
-
-/// Check pre-execution properties:
-/// * Passing `flattened = true` will confirm the CFG has already been flattened into a single block for ACIR functions
-#[cfg(debug_assertions)]
-fn die_pre_check(func: &Function, flattened: bool) {
-    if flattened && func.runtime().is_acir() {
-        // flatten_cfg must have run
-        super::checks::assert_cfg_is_flattened(func);
-    }
-}
-
-/// Check post-execution properties:
-/// * Store and Load instructions should be removed from ACIR after flattening.
-#[cfg(debug_assertions)]
-fn die_post_check(func: &Function, flattened: bool) {
-    if should_remove_store(func, flattened) {
-        // All Load/Store instructions should be removed
-        super::checks::for_each_instruction(func, |instruction, _dfg| {
-            super::checks::assert_not_load_or_store(instruction);
-        });
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use acvm::acir::brillig::lengths::SemanticLength;
-    use im::vector;
-    use noirc_frontend::monomorphization::ast::InlineType;
-
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            function_builder::FunctionBuilder,
-            ir::{
-                function::RuntimeType,
-                map::Id,
-                types::{NumericType, Type},
-            },
-            opt::assert_ssa_does_not_change,
-        },
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
     use test_case::test_case;
 
@@ -614,7 +535,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -692,55 +613,25 @@ mod tests {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
-        // brillig(inline) fn main f0 {
-        //     b0():
-        //       v1 = make_array [u32 0, u32 0]
-        //       v2 = allocate
-        //       inc_rc v1
-        //       store v1 at v2
-        //       inc_rc v1
-        //       jmp b1()
-        //     b1():
-        //       v3 = load v2
-        //       v5 = array_set v3, index u32 0, value u32 1
-        //       return v5
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(2));
-        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
-        let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(v1);
-        builder.insert_store(v2, v1);
-        builder.increment_array_reference_count(v1);
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![]);
-        builder.switch_to_block(b1);
-
-        let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        let mutable = false;
-        let v5 = builder.insert_array_set(v3, zero, one, mutable);
-        builder.terminate_with_return(vec![v5]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
-
-        // We expect the output to be unchanged
-        let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
+        // The two `inc_rc v1` instructions flank a `store v1 at v2` and so are not a
+        // removable paired pair: the store gives `v2` a borrow of `v1`, and the second
+        // `inc_rc` covers that borrow being read in the next block.
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u32 0, u32 0] : [u32; 2]
+                v2 = allocate -> &mut [u32; 2]
+                inc_rc v1
+                store v1 at v2
+                inc_rc v1
+                jmp b1()
+              b1():
+                v3 = load v2 -> [u32; 2]
+                v5 = array_set v3, index u32 0, value u32 1
+                return v5
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -817,8 +708,8 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
+        // Stores are kept: in f0, v2 escapes via call; in f1, v0 is a parameter (not a local allocate).
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -889,9 +780,11 @@ mod tests {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
-        // We expect the call to f1 in f0 to be removed
+        // The call to f1 in f0 is removed because f1 is pure. The body of f1 is
+        // left untouched: removing stores requires alias-aware reasoning that DIE does
+        // not perform — that cleanup is mem2reg's responsibility.
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) pure fn main f0 {
           b0():
@@ -923,7 +816,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         // We expect the program to be unchanged except that functions are labeled with purities now
         assert_ssa_snapshot!(ssa, @r#"
@@ -957,7 +850,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         // We expect the program to be unchanged except that functions are labeled with purities now
         assert_ssa_snapshot!(ssa, @r#"
@@ -1058,7 +951,7 @@ mod tests {
             return v3
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1218,9 +1111,75 @@ mod tests {
     }
 
     #[test]
-    fn keeps_unused_databus_return_value() {
+    fn does_not_collapse_independent_dynamic_composite_gets() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = array_get v2, index v1 -> Field
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = cast v0 as u64
+            v4 = lt v2, u64 4
+            constrain v4 == u1 1, "Index out of bounds"
+            v6 = cast v1 as u64
+            v7 = lt v6, u64 4
+            constrain v7 == u1 1, "Index out of bounds"
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn collapses_composite_group_when_first_read_is_used() {
+        // When the offset-0 read of a composite `array_get` survives (is used) but the
+        // trailing offset reads are unused, the trailing reads still belong to the same
+        // composite access (they share a common base index) and must collapse into a single
+        // out-of-bounds check rather than one check per read.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = add v0, u32 1
+            v5 = array_get v2, index v4 -> Field
+            v6 = add v0, u32 2
+            v7 = array_get v2, index v6 -> Field
+            constrain v3 == Field 1
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v8 = array_get v7, index v0 -> Field
+            v10 = add v0, u32 1
+            v11 = cast v10 as u64
+            v13 = lt v11, u64 6
+            constrain v13 == u1 1, "Index out of bounds"
+            v16 = add v0, u32 2
+            constrain v8 == Field 1
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn keeps_unused_databus_return_value() {
+        let src = r#"
+        acir(inline) pure fn main f0 {
           return_data: v0
           b0():
             v0 = make_array [Field 0] : [Field; 1]
@@ -1250,10 +1209,10 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
             b0(v0: Field, v1: Field, v2: Field):
-            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 1]
             v8 = make_array [v0, Field 0] : [(Field, Field); 1]
-            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field, u1); 1]
-            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -> [(Field, Field, u1); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field); 1]
+            v12 = call embedded_curve_add(v0, v1, v2, Field 3, u1 0) -> [(Field, Field); 1]
             return v12
         }
         "#;
@@ -1264,7 +1223,7 @@ mod tests {
     #[test]
     fn removes_unused_known_small_bit_shifts() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v1 = shl v0, u32 2
             v2 = shr v0, u32 3
@@ -1275,8 +1234,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             return
         }
@@ -1322,7 +1281,7 @@ mod tests {
             unreachable
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1345,7 +1304,7 @@ mod tests {
     #[test]
     fn does_not_remove_used_jmpif_arg() {
         let src = r#"
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [u8 1, u8 2] : [u8; 2]
             v2 = make_array [u8 3, u8 4] : [u8; 2]
@@ -1359,6 +1318,94 @@ mod tests {
         }
         "#;
 
-        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    /// DIE leaves an `allocate; store; return` triple alone even though no other
+    /// instruction references the address: deciding when a store is dead requires
+    /// alias-aware reasoning that DIE does not perform, and dead-store removal is
+    /// mem2reg's responsibility.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn trivial_dead_stores_not_removed(runtime: &str) {
+        let src = format!(
+            "
+            {runtime}(inline) fn main f0 {{
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 0 at v0
+                return
+            }}
+            "
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    /// A store must stay when its address is passed to a call: the callee can read or
+    /// retain a reference that aliases the local allocation.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn does_not_remove_store_if_address_escapes(runtime: &str) {
+        let src = format!(
+            r#"
+            {runtime}(inline) impure fn main f0 {{
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 42 at v0
+                v2 = call black_box(v0) -> &mut Field
+                return
+            }}
+            "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    /// Stores to a reference handed in as a function parameter must always be kept:
+    /// the address was not produced by a local `allocate`, so the caller can observe
+    /// the write even when the callee never loads from it.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn does_not_remove_store_to_param_reference(runtime: &str) {
+        let src = format!(
+            r#"
+            {runtime}(inline) impure fn main f0 {{
+              b0(v0: &mut Field):
+                store Field 42 at v0
+                return
+            }}
+            "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    /// A store must stay when its address is aliased by a later read through an
+    /// alias-establishing instruction. `v6 = if cond then v0 else v1` makes `v6`
+    /// alias `v0` (or `v1`), so `load v6` is effectively a load of the address being
+    /// stored to; removing the intervening `store at v0` would leave the load reading
+    /// uninitialized memory. The reverse traversal cannot detect this since the IfElse
+    /// has not been visited when DIE inspects the store, which is the core reason DIE
+    /// cannot soundly remove stores in general.
+    #[test]
+    fn store_to_address_aliased_by_if_else_not_removed() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = allocate -> &mut u1
+                v1 = allocate -> &mut u1
+                store u1 0 at v1
+                v4 = call f1() -> u1
+                v5 = not v4
+                v6 = if v4 then v0 else (if v5) v1
+                store u1 1 at v0
+                v8 = load v6 -> u1
+                constrain v8 == u1 1
+                return
+            }
+            brillig(inline_never) predicate_pure fn returns_true f1 {
+              b0():
+                return u1 1
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

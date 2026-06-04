@@ -102,6 +102,21 @@ fn deny_cyclic_type_aliases() {
 }
 
 #[test]
+fn cyclic_type_alias_usage_does_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+        fn main() {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn ensure_nested_type_aliases_type_check() {
     let src = r#"
         type A = B;
@@ -169,6 +184,27 @@ fn type_alias_to_numeric_generic() {
             a[i] = i;
         }
         a
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_body_resolves_in_defining_module() {
+    let src = r#"
+    pub mod lib {
+        pub global N: u32 = 2;
+
+        // This N must refer to the N above, not the global N one.
+        // There was a bug around this.
+        pub type Size: u32 = N;
+    }
+
+    pub global N: u32 = 5;
+
+    fn main() {
+        comptime { assert_eq(lib::Size, 2); }
+        let _: [u32; lib::Size] = [0; lib::Size];
     }
     "#;
     assert_no_errors(src);
@@ -500,13 +536,22 @@ fn regression_10352_slice() {
 #[test]
 fn regression_10352_trait_as_type() {
     let src = r#"
-    trait Foo<T> {}
+    struct Foo {
+        x: impl Bar,
+                ^^^ `impl Trait` is not allowed in struct field types
+                ~~~ Use a generic type parameter instead
+    }
 
-    type Alias = impl Foo<Alias>;
+    trait Bar {
+        fn bar(self);
+    }
+    impl Bar for Foo {
+        fn bar(self) {
+            self.x.bar();
+        }
+    }
 
-    fn main(_: Alias) {}
-               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
-               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    fn main(_a: Foo) {}
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
@@ -592,7 +637,7 @@ fn regression_10352_immutable_reference() {
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
                ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -714,7 +759,7 @@ fn regression_10763_immutable() {
         fn foo(self) { }
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -738,7 +783,7 @@ fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
     pub type X: u8 = 257u8;
-    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;
@@ -753,6 +798,8 @@ fn regression_10764_trait_as_type_with_empty_trait() {
     trait Foo { }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -799,6 +846,8 @@ fn regression_10764_trait_as_type() {
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -851,10 +900,14 @@ fn regression_10764_underscore() {
 fn regression_10764_trait_as_type_impl() {
     let src = r#"
     trait Foo {
+          ^^^ unused trait Foo
+          ~~~ unused trait
         fn foo(self);
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Bar {
          ^^^ Non-enum, non-struct type used in impl
@@ -1078,6 +1131,91 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
     let src = r#"
     pub type Alias = Quoted;
                      ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime type alias
+    "#;
+    check_errors(src);
+}
+
+/// Regression test: a type alias and a global with the same name
+#[test]
+fn type_alias_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        type Foo = u32;
+
+        fn main() {
+            let x: Foo = 20;
+            assert(x == 20);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_alias_as_closure_environment() {
+    let src = r#"
+    type Env = (u32,);
+
+    pub fn foo(_x: fn[Env](Field) -> Field) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// which can leak into subsequent elaboration phases.
+#[test]
+fn no_false_cycle_from_stale_current_item_after_type_alias() {
+    // `A` depends on `B` (real dependency).
+    // After the type-alias loop, `current_item` is left as `Alias(B)`.
+    // When `collect_traits` resolves the supertrait `Dummy<A>`, it should not
+    // record a dependency from `B` to `A` (which would create a false A↔B cycle).
+    let src = r#"
+        type A = B;
+        type B = Field;
+
+        trait Dummy<T> {}
+        trait Foo: Dummy<A> {}
+
+        fn main(_x: A) where A: Foo {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test: a pair of mutually-referencing type aliases used to overflow the stack.
+#[test]
+fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+
+        global G: u32 = f();
+
+        fn f() -> u32 {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+            1
+        }
+
+        fn main() {
+            let _ = G;
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_expression_result_correct_span() {
+    let src = r#"
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        Double::<1>;
+        ^^^^^^^^^^^ Unused expression result of type u32
+    }
     "#;
     check_errors(src);
 }
