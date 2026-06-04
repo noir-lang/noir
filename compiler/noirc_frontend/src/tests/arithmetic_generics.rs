@@ -7,7 +7,6 @@ use test_case::test_case;
 
 use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::test_utils::get_monomorphized;
 use crate::tests::{
@@ -193,20 +192,10 @@ fn arithmetic_generics_checked_cast_fails_to_evaluate_destination() {
         fn main() {
             let w_0: W<0> = W {};
             let _w = foo(w_0);
+                     ^^^ Modulo by zero: 0 % 0
         }
     "#;
-
-    let monomorphization_error = get_monomorphized(source).unwrap_err();
-
-    let MonomorphizationError::CheckedCastEvaluationFailed { ref err, .. } = monomorphization_error
-    else {
-        panic!("unexpected error: {monomorphization_error:?}");
-    };
-    let TypeCheckError::ModuloByZero { lhs, rhs, .. } = err else {
-        panic!("Expected ModuloByZero, but found: {err:?}");
-    };
-    assert_eq!(*lhs, Integer::U32(0));
-    assert_eq!(*rhs, Integer::U32(0));
+    check_monomorphization_error(source);
 }
 
 #[test]
@@ -223,20 +212,10 @@ fn arithmetic_generics_checked_cast_fails_to_evaluate_field_destination() {
         fn main() {
             let w_0: W<0Field> = W {};
             let _w = foo(w_0);
+                     ^^^ Modulo on Field elements: 0 % 0
         }
     "#;
-
-    let monomorphization_error = get_monomorphized(source).unwrap_err();
-
-    let MonomorphizationError::CheckedCastEvaluationFailed { ref err, .. } = monomorphization_error
-    else {
-        panic!("unexpected error: {monomorphization_error:?}");
-    };
-    let TypeCheckError::ModuloOnFields { lhs, rhs, .. } = err else {
-        panic!("Expected ModuloOnFields, but found: {err:?}");
-    };
-    assert_eq!(*lhs, FieldElement::zero());
-    assert_eq!(*rhs, FieldElement::zero());
+    check_monomorphization_error(source);
 }
 
 #[test]
