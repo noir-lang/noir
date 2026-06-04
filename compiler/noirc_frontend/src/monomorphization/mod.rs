@@ -849,6 +849,8 @@ impl<'interner> Monomorphizer<'interner> {
                 } else {
                     let lhs = Box::new(lhs);
                     let rhs = Box::new(rhs);
+                    // The result type is unused, but we convert it anyway to catch potential errors
+                    let _ = Self::convert_type(&self.interner.id_type(expr), location)?;
                     ast::Expression::Binary(ast::Binary { lhs, rhs, operator, location })
                 }
             }
