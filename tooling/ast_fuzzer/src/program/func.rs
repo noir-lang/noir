@@ -2392,8 +2392,9 @@ impl<'a> FunctionContext<'a> {
 #[cfg(test)]
 mod tests {
     use arbitrary::Unstructured;
-    use noirc_frontend::monomorphization::ast::FuncId;
+    use noirc_frontend::monomorphization::ast::{FuncId, LValue, LocalId, Type};
 
+    use super::FunctionDeclaration;
     use crate::program::{Context, FunctionContext};
 
     #[test]
@@ -2444,5 +2445,94 @@ mod tests {
                     .replace(" ", "")
             )
         );
+    }
+
+    /// The type an assignment writes through `lvalue`. Equals the assigned
+    /// value's type, which is what the frontend checks against.
+    fn lvalue_type(lvalue: &LValue) -> Type {
+        match lvalue {
+            LValue::Ident(ident) => (*ident.typ).clone(),
+            LValue::Index { element_type, .. } => element_type.clone(),
+            LValue::Dereference { element_type, .. } => element_type.clone(),
+            LValue::MemberAccess { object, field_index } => match lvalue_type(object) {
+                Type::Tuple(items) => items[*field_index].clone(),
+                other => other,
+            },
+            LValue::Clone(inner) => lvalue_type(inner),
+        }
+    }
+
+    /// In constrained code the frontend rejects assigning a value whose type
+    /// contains a reference (`Cannot assign to a mutable variable which
+    /// contains a reference internally`). The AST fuzzer builds the
+    /// monomorphized AST directly and bypasses that check, so `gen_assign`
+    /// itself must never produce such an assignment; otherwise SSA-gen later
+    /// fails with `Cannot return references from an if or match expression, ...`
+    /// while flattening tries to merge the reference.
+    #[test]
+    fn gen_assign_does_not_assign_reference_values_in_constrained_fn() {
+        use crate::program::types::contains_reference;
+        use noirc_frontend::monomorphization::ast::{Expression, InlineType, Type};
+        use noirc_frontend::monomorphization::visitor::visit_expr;
+        use noirc_frontend::shared::Visibility;
+        use std::rc::Rc;
+
+        // `r: &mut (&mut Field, Field)` — pointee contains a reference, so
+        // `*r = (&mut x, ..)` is the rejected construct. `s: &mut (Field, Field)`
+        // — pointee is reference-free, so deref-assign to it is valid and must
+        // still be generated (so the guard is not vacuously excluding work).
+        let r_type = Type::Reference(
+            Rc::new(Type::Tuple(vec![Type::Reference(Rc::new(Type::Field), true), Type::Field])),
+            true,
+        );
+        let s_type = Type::Reference(Rc::new(Type::Tuple(vec![Type::Field, Type::Field])), true);
+
+        let decl = FunctionDeclaration {
+            name: "main".to_string(),
+            params: vec![
+                (LocalId(0), false, "r".to_string(), Rc::new(r_type), Visibility::Private),
+                (LocalId(1), false, "s".to_string(), Rc::new(s_type), Visibility::Private),
+            ],
+            return_type: Type::Unit,
+            return_visibility: Visibility::Private,
+            inline_type: InlineType::Inline,
+            unconstrained: false,
+        };
+
+        let mut produced = 0usize;
+        for i in 0..3000u64 {
+            let mut ctx = Context::default();
+            ctx.set_function_decl(FuncId(0), decl.clone());
+
+            // A cheap xorshift fills a fresh byte buffer each iteration so the
+            // generator explores different lvalues and values deterministically.
+            let mut state = i.wrapping_mul(0x9E37_79B9_7F4A_7C15).wrapping_add(1);
+            let bytes: Vec<u8> = (0..512)
+                .map(|_| {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    (state >> 24) as u8
+                })
+                .collect();
+            let mut u = Unstructured::new(&bytes);
+
+            let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+            let Ok(Some(expr)) = function_ctx.gen_assign(&mut u) else { continue };
+
+            visit_expr(&expr, &mut |e| {
+                if let Expression::Assign(assign) = e {
+                    produced += 1;
+                    let typ = lvalue_type(&assign.lvalue);
+                    assert!(
+                        !contains_reference(&typ),
+                        "generated a constrained assignment of reference-containing type `{typ}`"
+                    );
+                }
+                true
+            });
+        }
+
+        assert!(produced > 0, "expected the generator to produce some deref-assignments");
     }
 }
