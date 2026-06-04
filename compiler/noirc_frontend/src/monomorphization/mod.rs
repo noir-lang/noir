@@ -75,7 +75,6 @@ use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use std::borrow::Cow;
 use std::rc::Rc;
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -744,19 +743,6 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
-        self.expr_with_target_type(expr, None)
-    }
-
-    /// Monomorphize an expression with a target type.
-    ///
-    /// This can be used when we have a type that contains bound type variables on the LHS,
-    /// and a type with unbound named generic on the RHS, and we don't want the unbound
-    /// types to be converted to default values.
-    fn expr_with_target_type(
-        &mut self,
-        expr: ExprId,
-        target_type: Option<&Type>,
-    ) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -948,10 +934,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Tuple(fields)
             }
             HirExpression::Constructor(constructor) => {
-                // target_type is most likely None here. We use `expr_or_target_type` defensively
-                // in case a global ever holds a struct with unbound `NamedGeneric`s in its field types.
-                let typ = self.expr_or_target_type(expr, target_type);
-                self.constructor(constructor, expr, typ.as_ref())?
+                let typ = self.interner.id_type(expr);
+                self.constructor(constructor, expr, &typ)?
             }
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
@@ -968,28 +952,12 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("unquote expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
-                let typ = self.expr_or_target_type(expr, target_type);
-                self.enum_constructor(constructor, expr, typ.as_ref())?
+                let typ = self.interner.id_type(expr);
+                self.enum_constructor(constructor, expr, &typ)?
             }
         };
 
         Ok(expr)
-    }
-
-    /// Return the target type if given, or the type of the expression if the target is empty.
-    ///
-    /// This is used in cases where the target type might have more bound generic type variables
-    /// than the expression, and unification is not feasible because the expression uses unbound
-    /// named generics, which don't get unified.
-    fn expr_or_target_type<'a>(
-        &self,
-        expr: ExprId,
-        target_type: Option<&'a Type>,
-    ) -> Cow<'a, HirType> {
-        match target_type {
-            Some(typ) => Cow::Borrowed(typ),
-            None => Cow::Owned(self.interner.id_type(expr)),
-        }
     }
 
     /// Monomorphize a "standard" array with all elements explicit, such as `[1, 5, 1, 3, 2]`.
@@ -1120,6 +1088,13 @@ impl<'interner> Monomorphizer<'interner> {
     /// so that a constrained caller dispatching via tuple slot `.0` still ends up running
     /// the unconstrained specialization — matching the source-level type of the destination
     /// slot. Same mechanism as the existing per-argument logic in `function_call`.
+    ///
+    /// Only call this from positions where the elaborator allows `fn` → `unconstrained fn`
+    /// coercion — let RHS, struct constructor field, assignment RHS, and function body
+    /// (function call arguments are handled inline by `function_call`). Tuple/array literal
+    /// elements and tuple-typed return values are *not* such positions: the elaborator
+    /// rejects the coercion there, so the bug cannot be expressed at the source level and
+    /// this helper would have nothing to do.
     fn expr_with_force_unconstrained_target(
         &mut self,
         expr: ExprId,
@@ -1463,7 +1438,21 @@ impl<'interner> Monomorphizer<'interner> {
                 )
             }
             DefinitionKind::Global(global_id) => {
-                self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)
+                // Push the use-site's instantiation bindings while monomorphizing the global so
+                // that any unbound `NamedGeneric`s in the global's polymorphic HIR (e.g. the
+                // synthesized variant constants of generic enums) resolve to the concrete
+                // instantiation type via `follow_bindings`. Same mechanism `process_next_job`
+                // uses for generic function calls.
+                let bindings = self.interner.try_get_instantiation_bindings(expr_id).cloned();
+                if let Some(bindings) = &bindings {
+                    perform_instantiation_bindings(bindings);
+                }
+                let result =
+                    self.global_ident(*global_id, definition.name.clone(), &typ, ident.location);
+                if let Some(bindings) = bindings {
+                    undo_instantiation_bindings(bindings);
+                }
+                result
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => Ok(expr),
@@ -1633,11 +1622,11 @@ impl<'interner> Monomorphizer<'interner> {
                 );
             };
 
-            // The type of the expression on the RHS itself might be a `Forall` and/or contain unbound `NamedGeneric`s,
-            // while the type of the type on the LHS has bound `TypeVariable` variables. We cannot bind them,
-            // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
-            // into expression specific to the LHS, so we are using it as the target type.
-            let expr = self.expr_with_target_type(expr, Some(&typ))?;
+            // The freshly-built HIR from `into_runtime_hir_expression` carries the global's
+            // polymorphic type. The caller pushed the use-site's instantiation bindings before
+            // entering this path, so `follow_bindings` on any `NamedGeneric` inside that type
+            // resolves to the concrete instantiation type when monomorphization walks it.
+            let expr = self.expr(expr)?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
