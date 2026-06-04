@@ -208,6 +208,7 @@
         "metas",
         "microcontroller",
         "minreq",
+        "miscompilation",
         "mktemp",
         "monomorphization",
         "monomorphize",
