@@ -3274,6 +3274,8 @@ impl BinaryTypeOperator {
             BinaryTypeOperator::Modulo => {
                 if let (Integer::Field(lhs), Integer::Field(rhs)) = (a, b) {
                     Err(TypeCheckError::ModuloOnFields { lhs, rhs, location })
+                } else if b.is_zero() {
+                    Err(TypeCheckError::ModuloByZero { lhs: a, rhs: b, location })
                 } else {
                     (a % b).ok_or_else(make_error)
                 }
