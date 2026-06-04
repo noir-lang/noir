@@ -139,6 +139,28 @@ pub(super) fn oracle_not_marked_unconstrained(
     }
 }
 
+/// Oracle definitions (functions with the `#[oracle]` attribute) cannot be marked as comptime.
+///
+/// An oracle is resolved at runtime by the external oracle handler, whereas a `comptime` function
+/// is evaluated at compile time, so the two are fundamentally incompatible.
+pub(super) fn oracle_marked_as_comptime(
+    modifiers: &FunctionModifiers,
+    func: &FuncMeta,
+) -> Option<ResolverError> {
+    if !modifiers.is_comptime {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_oracle() {
+        let ident = func_meta_name_ident(func, modifiers);
+        let location = attribute.location;
+        Some(ResolverError::OracleMarkedAsComptime { ident, location })
+    } else {
+        None
+    }
+}
+
 /// Oracle functions cannot return more than 1 vector in their output.
 ///
 /// This is currently a limitation with the AVM: to return multiple vectors
