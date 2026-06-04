@@ -10,7 +10,9 @@ use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::test_utils::get_monomorphized;
-use crate::tests::{assert_no_errors, check_errors, get_program_errors};
+use crate::tests::{
+    assert_no_errors, check_errors, check_monomorphization_error, get_program_errors,
+};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -77,24 +79,11 @@ fn arithmetic_generics_intermediate_underflow_simplified_out_of_to() {
 
         fn main() {
             let _x = intermediate_underflow::<0>();
+                     ^^^^^^^^^^^^^^^^^^^^^^ Invalid array length
+                     ~~~~~~~~~~~~~~~~~~~~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
         }
     "#;
-
-    let monomorphization_error = get_monomorphized(source).unwrap_err();
-
-    // Expect a (0 - 1) underflow failure
-    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
-        monomorphization_error
-    {
-        let TypeCheckError::OverflowingBinaryOp { op, lhs, rhs, .. } = err else {
-            panic!("Expected OverflowingBinaryOp, but found: {err:?}");
-        };
-        assert_eq!(op, &BinaryTypeOperator::Subtraction);
-        assert_eq!(*lhs, Integer::U32(0));
-        assert_eq!(*rhs, Integer::U32(1));
-    } else {
-        panic!("unexpected error: {monomorphization_error:?}");
-    }
+    check_monomorphization_error(source);
 }
 
 #[test]
@@ -112,8 +101,7 @@ fn arithmetic_generics_intermediate_expression_with_no_underflow() {
             let _x = intermediate_underflow::<5>();
         }
     "#;
-
-    assert!(get_monomorphized(source).is_ok());
+    check_monomorphization_error(source);
 }
 
 #[test]
