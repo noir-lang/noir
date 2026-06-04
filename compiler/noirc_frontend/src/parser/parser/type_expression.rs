@@ -410,12 +410,9 @@ mod tests {
         BinaryTypeOperator,
         ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        token::Token,
     };
 
     fn parse_type_expression_no_errors(src: &str) -> UnresolvedTypeExpression {
@@ -586,19 +583,9 @@ mod tests {
     fn parses_type_or_type_expression_tuple_type_missing_comma() {
         let src = "
         (Field bool)
-               ^^^^
+               ^^^^ Expected a `,` separating these two tuple items
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-
-        let typ = parser.parse_type_or_type_expression().unwrap();
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "tuple items");
+        let typ = check_errors(src, |parser| parser.parse_type_or_type_expression().unwrap());
 
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");

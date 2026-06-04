@@ -242,26 +242,22 @@ fn differing_merge_cost(
 
 /// Computes a cost estimate for flattening a basic block in a conditional.
 ///
-/// Returns `None` if the block contains instructions that cannot be safely
-/// flattened (side-effectful instructions like constraints, calls, memory ops,
-/// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
+/// Returns `None` if the block contains an instruction that cannot be safely
+/// flattened (side-effectful instructions like constraints, calls, reference-count
+/// ops, memory ops, div/mod, shifts — see `can_flatten_in_conditional`). Otherwise
+/// returns the estimated Brillig opcode cost.
 ///
-/// Memory management instructions (IncrementRc, DecrementRc, Allocate) are
-/// excluded from the cost — they are safe to flatten but represent overhead
-/// that shouldn't influence the flatten/not-flatten decision.
+/// `Allocate` and `Noop` are excluded from the cost — they are safe to execute
+/// unconditionally and represent overhead that shouldn't influence the
+/// flatten/not-flatten decision. (`Allocate` must be skipped before the
+/// `can_flatten_in_conditional` call, which treats reaching it as an ICE.)
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
-        // Skip memory management instructions — these are always allowed to flatten
-        // but don't represent meaningful compute that should affect the decision.
-        if matches!(
-            instruction,
-            Instruction::Allocate
-                | Instruction::IncrementRc { .. }
-                | Instruction::DecrementRc { .. }
-                | Instruction::Noop
-        ) {
+        // Skip memory management instructions that are safe to execute unconditionally —
+        // these don't represent meaningful compute that should affect the decision.
+        if matches!(instruction, Instruction::Allocate | Instruction::Noop) {
             continue;
         }
 
@@ -491,7 +487,12 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            ir::types::Type,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
 
     #[test]
@@ -755,6 +756,41 @@ mod tests {
             return v8
         }
         ");
+    }
+
+    /// A branch-local `inc_rc` must not be hoisted out of its branch when flattening.
+    ///
+    /// In Brillig, `array_set` mutates its array in place only when the runtime reference
+    /// count is 1, and `inc_rc` bumps that count. Flattening this diamond would move the
+    /// `then`-branch `inc_rc` into the unconditionally executed entry block, so it would run
+    /// even when the condition is false; the later `array_set` would then copy instead of
+    /// mutating in place. With `v0 = false` the `inc_rc` is skipped, `array_set` mutates `v1`
+    /// in place, and `array_get` observes `Field 7` — the pass must preserve that result.
+    #[test]
+    fn does_not_hoist_branch_local_inc_rc() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![
+            Value::bool(false),
+            Value::array(vec![Value::field(1_u128.into())], vec![Type::field()]),
+        ];
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, Ssa::flatten_basic_conditionals);
+        assert_eq!(result.unwrap(), vec![Value::field(7_u128.into())]);
     }
 
     /// Non-diamond (then-only) case with JmpIf arguments: the optimization must be

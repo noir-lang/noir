@@ -440,20 +440,8 @@ pub type Parameters =
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
-    EnumIter,
-)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+#[derive(Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -587,6 +575,22 @@ impl Type {
         match self {
             Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
+        }
+    }
+
+    /// Returns true if this type is, or transitively contains, a reference.
+    pub fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(..) => true,
+            Type::Array(_, element) | Type::Vector(element) => element.contains_reference(),
+            Type::Tuple(fields) => fields.iter().any(Type::contains_reference),
+            Type::FmtString(_, fields) => fields.contains_reference(),
+            Type::Field
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Function(..) => false,
         }
     }
 

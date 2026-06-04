@@ -458,20 +458,18 @@ pub(crate) mod tests {
             _scalars_lo: &[FieldElement],
             _scalars_hi: &[FieldElement],
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into()))
         }
 
         fn ec_add(
             &self,
             _input1_x: &FieldElement,
             _input1_y: &FieldElement,
-            _input1_infinite: &FieldElement,
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
-            _input2_infinite: &FieldElement,
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
 
@@ -1051,7 +1049,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 0, u32 0)
               b1(v3: u32, v35: u32, v36: u32):
@@ -1091,7 +1089,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move_swap() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 1, u32 0)
               b1(v0: u32, v1: u32, v2: u32):

@@ -257,13 +257,11 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
 
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{Path, PathKind},
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -383,15 +381,10 @@ mod tests {
     #[test]
     fn errors_on_crate_double_colons() {
         let src = "
-        crate:: 
-               ^
+        crate::
+              ^ Expected an identifier but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let path = parser.parse_path();
+        let path = check_errors(src, |parser| parser.parse_path());
         assert!(path.is_none());
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

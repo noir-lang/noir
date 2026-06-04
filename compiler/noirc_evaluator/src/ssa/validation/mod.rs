@@ -26,6 +26,8 @@ use acvm::{
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+#[cfg(debug_assertions)]
+pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
@@ -165,6 +167,32 @@ impl<'f> Validator<'f> {
         }
     }
 
+    /// `enable_side_effects` is only introduced once a function has been reduced to a
+    /// single block by `flatten_cfg`; encountering one alongside any branching control
+    /// flow indicates a malformed SSA.
+    fn validate_enable_side_effects_only_without_control_flow(&self) {
+        let reachable_blocks = self.function.reachable_blocks();
+        if reachable_blocks.len() <= 1 {
+            return;
+        }
+
+        for block in &reachable_blocks {
+            for instruction in self.function.dfg[*block].instructions() {
+                if matches!(
+                    self.function.dfg[*instruction],
+                    Instruction::EnableSideEffectsIf { .. }
+                ) {
+                    panic!(
+                        "Function {} contains an enable_side_effects instruction but has {} blocks; \
+                         enable_side_effects is only valid in functions with no control flow",
+                        self.function.id(),
+                        reachable_blocks.len(),
+                    );
+                }
+            }
+        }
+    }
+
     /// Validates that the instruction has the expected types associated with the values in each instruction
     fn type_check_instruction(&self, instruction: InstructionId) {
         let dfg = &self.function.dfg;
@@ -275,7 +303,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if &*element_type != expected_type {
+                    if !element_type.canonical_eq(expected_type) {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
@@ -289,7 +317,7 @@ impl<'f> Validator<'f> {
                 };
 
                 let value_type = dfg.type_of_value(*value);
-                if **address_value_type != *value_type {
+                if !address_value_type.canonical_eq(&value_type) {
                     panic!(
                         "Store address type {address_value_type} does not match value type {value_type}"
                     );
@@ -349,9 +377,7 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if *argument_type != parameter_type
-                        && !is_mut_ref_to_immutable_ref(&argument_type, &parameter_type)
-                    {
+                    if !argument_type.canonical_eq(&parameter_type) {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -374,7 +400,7 @@ impl<'f> Validator<'f> {
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
-                        if return_type != instruction_result_type {
+                        if !return_type.canonical_eq(&instruction_result_type) {
                             panic!(
                                 "Function call to {} expected return type {}, but got {} (at position {})",
                                 func_id,
@@ -783,14 +809,13 @@ impl<'f> Validator<'f> {
                 // struct EmbeddedCurvePoint {
                 //     x: Field,
                 //     y: Field,
-                //     is_infinite: bool,
                 // }
-                assert_arguments_length(arguments, 7, "embedded_curve_add");
+                assert_arguments_length(arguments, 5, "embedded_curve_add");
 
                 assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
-                assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
+                assert_embedded_curve_point(arguments, 2, dfg, "embedded_curve_add _point2");
 
-                let predicate_type = dfg.type_of_value(arguments[6]);
+                let predicate_type = dfg.type_of_value(arguments[4]);
                 assert_u1(&predicate_type, "embedded_curve_add _predicate");
 
                 let result_type = self.assert_one_result(instruction, "embedded_curve_add");
@@ -799,13 +824,12 @@ impl<'f> Validator<'f> {
                 assert_array_length(result_length, 1, "embedded_curve_add result length");
                 assert_eq!(
                     result_elements.len(),
-                    3,
-                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    2,
+                    "Expected embedded_curve_add result element types length to be 2, got: {}",
                     result_elements.len(),
                 );
                 assert_field(&result_elements[0], "embedded_curve_add result x");
                 assert_field(&result_elements[1], "embedded_curve_add result y");
-                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
             }
             BlackBoxFunc::Keccakf1600 => {
                 // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
@@ -832,13 +856,12 @@ impl<'f> Validator<'f> {
                     assert_array(&points_type, "multi_scalar_mul points");
                 assert_eq!(
                     points_elements.len(),
-                    3,
-                    "Expected multi_scalar_mul points element types length to be 3, got: {}",
+                    2,
+                    "Expected multi_scalar_mul points element types length to be 2, got: {}",
                     points_elements.len()
                 );
                 assert_field(&points_elements[0], "multi_scalar_mul points x");
                 assert_field(&points_elements[1], "multi_scalar_mul points y");
-                assert_u1(&points_elements[2], "multi_scalar_mul points is_infinite");
 
                 let (scalars_elements, scalars_length) =
                     assert_array(&scalars_type, "multi_scalar_mul scalars");
@@ -1136,7 +1159,7 @@ impl<'f> Validator<'f> {
             let argument_type = self.function.dfg.type_of_value(*argument);
             let parameter_type = self.function.dfg.type_of_value(*parameter);
             assert!(
-                types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
+                argument_type.canonical_eq(&parameter_type),
                 "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
             );
         }
@@ -1145,6 +1168,7 @@ impl<'f> Validator<'f> {
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
+        self.validate_enable_side_effects_only_without_control_flow();
 
         for block in PostOrder::with_function_from_entry(self.function).into_vec_reverse() {
             for instruction in self.function.dfg[block].instructions() {
@@ -1178,8 +1202,10 @@ impl<'f> Validator<'f> {
                 };
                 let result = dfg.instruction_results(instruction)[0];
                 let result_type = dfg.type_of_value(result);
-                if *result_type != *expected_type {
-                    panic!("load should return {expected_type}, not {result_type}");
+                if !result_type.canonical_eq(expected_type) {
+                    panic!(
+                        "load should return {expected_type}, not {result_type}; address = {address}, result = {result}"
+                    );
                 }
             }
             Instruction::Store { address, value } => {
@@ -1187,8 +1213,10 @@ impl<'f> Validator<'f> {
                     return;
                 };
                 let value_type = dfg.type_of_value(*value);
-                if *value_type != *expected_type {
-                    panic!("store value should have type {expected_type}, not {value_type}");
+                if !value_type.canonical_eq(expected_type) {
+                    panic!(
+                        "store value should have type {expected_type}, not {value_type}; address = {address}, value = {value}"
+                    );
                 }
             }
             _ => (),
@@ -1207,11 +1235,13 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
 /// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
 /// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
 /// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
-/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// of those passes regresses we want this to fail at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
 #[cfg(debug_assertions)]
-pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<()> {
+    use crate::errors::RuntimeError;
+
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
             continue;
@@ -1219,48 +1249,22 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
         for block_id in func.reachable_blocks() {
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                assert!(
-                    !matches!(
-                        instruction,
-                        Instruction::Load { .. }
-                            | Instruction::Store { .. }
-                            | Instruction::Allocate
-                    ),
-                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
-                     pipeline; mem2reg + flatten_cfg should have removed it",
-                    func.name()
-                );
+                if matches!(
+                    instruction,
+                    Instruction::Load { .. } | Instruction::Store { .. } | Instruction::Allocate
+                ) {
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                         pipeline; mem2reg + flatten_cfg should have removed it",
+                        func.name()
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
     }
-}
-
-/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
-/// A mutable reference is compatible with an immutable reference parameter.
-fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
-    matches!(
-        (arg, param),
-        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
-    )
-}
-
-/// Compares two types, treating mutable and immutable references as equivalent.
-fn types_equal_ignoring_reference_mutability(a: &Type, b: &Type) -> bool {
-    let all_eq = |a: &[Type], b: &[Type]| {
-        a.len() == b.len()
-            && a.iter().zip(b).all(|(a, b)| types_equal_ignoring_reference_mutability(a, b))
-    };
-
-    match (a, b) {
-        (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => {
-            types_equal_ignoring_reference_mutability(a_elem, b_elem)
-        }
-        (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
-            a_len == b_len && all_eq(a_elems, b_elems)
-        }
-        (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
-        _ => a == b,
-    }
+    Ok(())
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1388,7 +1392,6 @@ fn assert_embedded_curve_point(
     // struct EmbeddedCurvePoint {
     //     x: Field,
     //     y: Field,
-    //     is_infinite: bool,
     // }
     let point_x = arguments[index];
     let point_x_type = dfg.type_of_value(point_x);
@@ -1397,10 +1400,6 @@ fn assert_embedded_curve_point(
     let point_y = arguments[index + 1];
     let point_y_type = dfg.type_of_value(point_y);
     assert_field(&point_y_type, &format!("{object} y"));
-
-    let point_is_infinite = arguments[index + 2];
-    let point_is_infinite_type = dfg.type_of_value(point_is_infinite);
-    assert_u1(&point_is_infinite_type, &format!("{object} is_infinite"));
 }
 
 #[cfg(test)]
@@ -1433,7 +1432,7 @@ mod tests {
     #[should_panic(expected = "Cannot use `lt` with field elements")]
     fn disallows_comparing_fields_with_lt() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v2 = lt Field 1, Field 2
             return
@@ -1619,7 +1618,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_in_range() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 42 as u8
             return v0
@@ -1631,7 +1630,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_out_of_range_with_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -1658,7 +1657,7 @@ mod tests {
     #[should_panic(expected = "Constant too large")]
     fn cast_from_field_constant_too_large() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 300 as u8
             return v0
@@ -1671,7 +1670,7 @@ mod tests {
     #[should_panic(expected = "Invalid cast from Field")]
     fn cast_from_raw_field() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = add Field 255, Field 1
             v1 = cast v0 as u8
@@ -1685,7 +1684,7 @@ mod tests {
     #[should_panic(expected = "assertion")]
     fn cast_after_unsafe_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -1800,6 +1799,158 @@ mod tests {
     }
 
     #[test]
+    fn call_allows_argument_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` argument is accepted by a `&Field` parameter
+        // (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` argument is accepted by a `[&Field; 1]` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&Field; 1]):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` argument is accepted by a `&mut &Field` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a callee returning `&mut Field` satisfies a call instruction
+        // declaring `&Field` (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a callee returning `[&mut Field; 1]` satisfies a call declaring
+        // `[&Field; 1]`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&Field; 1]
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a callee returning `&mut &mut Field` satisfies a call declaring
+        // `&mut &Field`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Function f1 has multiple return blocks")]
     fn multiple_return_blocks() {
         let src = "
@@ -1894,6 +2045,124 @@ mod tests {
     }
 
     #[test]
+    fn make_array_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` element is accepted in a `&Field` composite
+        // slot (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` element is accepted in a `[&Field; 1]` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = make_array [v1] : [[&Field; 1]; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` element is accepted in a `&mut &Field` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v1] : [&mut &Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn store_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` value is accepted at a `&mut &Field` slot
+        // (and vice versa). The minimal SSA-gen pattern this guards is an
+        // assignment like `b.1 = &b.0` inside an unconstrained mutable tuple:
+        // the slot is allocated as `&mut &T` while the right-hand side carries
+        // `&mut T` because `b.0` itself lives in a mutable binding.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &Field
+            store v0 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn load_allows_reference_mutability_mismatch() {
+        // The Load path mirrors the Store path: when an Allocate's recorded
+        // element type only differs from the Load result type by reference
+        // mutability we must accept it.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &mut Field
+            v1 = load v0 -> &Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &Field
+            v1 = load v0 -> &mut Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "store value should have type u8, not Field")]
     fn store_has_incorrect_type() {
         let src = "
@@ -1947,12 +2216,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "multi_scalar_mul points is_infinite must be u1, not Field")]
+    #[should_panic(
+        expected = "Expected multi_scalar_mul points element types length to be 2, got: 3"
+    )]
     fn msm_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
-            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
+            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field); 1]
             return v3
         }
         ";
@@ -2288,6 +2559,75 @@ mod tests {
         acir(inline) pure fn main f0 {
           b0(v0: u32):
             enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn enable_side_effects_in_single_block_function_is_allowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "contains an enable_side_effects instruction but has 4 blocks; \
+                    enable_side_effects is only valid in functions with no control flow")]
+    fn enable_side_effects_in_function_with_control_flow_is_rejected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "contains an enable_side_effects instruction but has 4 blocks; \
+                    enable_side_effects is only valid in functions with no control flow")]
+    fn enable_side_effects_inside_non_entry_block_is_rejected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            enable_side_effects v0
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn multi_block_function_without_enable_side_effects_is_allowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
             return
         }
         ";

@@ -174,6 +174,26 @@ fn trait_method_numeric_generic_on_function() {
 }
 
 #[test]
+fn trait_method_numeric_generic_on_function_direct_dispatch() {
+    let src = r#"
+    trait Bar {
+        fn baz<let N: u32>() -> u32;
+    }
+
+    impl Bar for Field {
+        fn baz<let M: u32>() -> u32 {
+            M
+        }
+    }
+
+    fn main() {
+        let _ = <Field as Bar>::baz::<7>();
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
 fn check_trait_missing_implementation() {
     let src = "
     trait Default2 {

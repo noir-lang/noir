@@ -1123,12 +1123,17 @@ impl NodeInterner {
     }
 
     /// Looks up methods that apply to the given type but are defined in traits.
+    ///
+    /// The third tuple element is the impl's self type as it was recorded when the impl was
+    /// registered (see [Self::add_method]). This is the concrete type the impl applies to,
+    /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
+    /// for shared trait-method `FuncId`s (default methods inherited from the trait).
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let key = get_type_method_key(typ);
         if let Some(key) = key {
             self.methods
@@ -1175,13 +1180,15 @@ impl NodeInterner {
             .unwrap_or_default()
     }
 
-    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`
+    /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`.
+    ///
+    /// See [Self::lookup_trait_methods] for the meaning of the third tuple element.
     pub fn lookup_generic_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         self.methods
             .get(&TypeMethodKey::Generic)
             .and_then(|h| h.get(method_name))
@@ -1560,11 +1567,16 @@ impl NodeInterner {
             };
 
             let trait_id = trait_impl.borrow().trait_id;
+            let trait_generics = self.get_trait_generics_for_impl(*impl_id).ordered.clone();
 
-            // Check if typ implements the trait
-            // This handles instantiation and unification correctly for generic impls
             if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) = self
-                .try_lookup_trait_implementation(typ, trait_id, &[], &[], TraitLookupMode::Default)
+                .try_lookup_trait_implementation(
+                    typ,
+                    trait_id,
+                    &trait_generics,
+                    &[],
+                    TraitLookupMode::Default,
+                )
                 && found_impl_id == *impl_id
             {
                 results.push((*def_id, trait_id, *impl_id));

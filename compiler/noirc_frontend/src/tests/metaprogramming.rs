@@ -190,6 +190,81 @@ fn generate_function_with_macros() {
     ");
 }
 
+// Regression for #11880: comptime attributes on impl methods used to be silently ignored.
+#[test]
+fn generate_function_with_macros_on_impl_method() {
+    let src = "
+    pub struct Spam {}
+
+    impl Spam {
+        #[foo]
+        pub fn struct_method() {}
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ";
+
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Spam {
+    }
+
+    impl Spam {
+        pub fn struct_method() {
+        }
+
+        pub fn bar(x: i32) -> i32 {
+            x + 1_i32
+        }
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ");
+}
+
+// Regression for asterite's review on #12649: when an attribute on an impl method
+// generates a new function, the impl's `where_clause` must be carried into the
+// synthetic impl so the generated function can use the bounded generics.
+#[test]
+fn generate_function_with_macros_on_impl_method_carries_where_clause() {
+    let src = "
+    pub trait MyDefault {
+        fn my_default() -> Self;
+    }
+
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> where T: MyDefault {
+        #[generate_bar]
+        pub fn foo() {}
+    }
+
+    pub comptime fn generate_bar(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar() -> T {
+                T::my_default()
+            }
+        }
+    }
+
+    fn main() {}
+    ";
+
+    assert_no_errors(src);
+}
+
 #[test]
 fn generate_function_with_macros_on_trait() {
     let src = "
@@ -608,6 +683,52 @@ fn attributes_run_in_textual_order_within_module() {
             let _ = first();
             let _ = second();
             let _ = third();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_and_free_function_attributes_run_in_source_order() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        #[assert_source_order(0)]
+        fn first_free() {}
+
+        pub struct S {}
+
+        impl S {
+            #[assert_source_order(1)]
+            fn m1() {}
+
+            #[assert_source_order(2)]
+            fn m2() {}
+        }
+
+        #[assert_source_order(3)]
+        fn middle_free() {}
+
+        impl S {
+            #[assert_source_order(4)]
+            fn m3() {}
+        }
+
+        #[assert_source_order(5)]
+        fn last_free() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = first_free();
+            let _ = S::m1();
+            let _ = S::m2();
+            let _ = middle_free();
+            let _ = S::m3();
+            let _ = last_free();
         }
     "#;
     assert_no_errors(src);
@@ -1242,6 +1363,25 @@ fn zeroed_comptime_type() {
     }
     "#;
     check_errors_with_stdlib(src, [stdlib_src::ZEROED, module_hash_str]);
+}
+
+#[test]
+fn zeroed_array_of_references_does_not_alias_in_comptime() {
+    // Each slot of a zeroed `[&mut Field; N]` must own its own allocation in the comptime
+    // interpreter. If the slots aliased, writing through one would be observable through the
+    // others and the comptime asserts below would fail during elaboration.
+    let src = r#"
+    fn main() {
+        comptime {
+            let arr: [&mut Field; 3] = zeroed();
+            *arr[1] = 7;
+            assert_eq(*arr[0], 0);
+            assert_eq(*arr[1], 7);
+            assert_eq(*arr[2], 0);
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED]);
 }
 
 #[test]
@@ -1919,4 +2059,27 @@ fn reference_generated_struct_in_an_enum_variant() {
     "#;
     let features = vec![UnstableFeature::Enums];
     crate::tests::assert_no_errors_using_features(src, &features);
+}
+
+// Regression for https://github.com/noir-lang/noir-claude/issues/1047:
+// `as_witness` is declared `fn(Field) -> ()`, so calling it as the final expression
+// of an inferred `comptime` block must produce a unit value, not the `Field` argument.
+#[test]
+fn comptime_as_witness_returns_unit() {
+    let stdlib = r#"
+        #[builtin(as_witness)]
+        pub fn as_witness(_x: Field) {}
+    "#;
+    let src = r#"
+    fn main() -> pub Field {
+                     ^^^^^ expected type Field, found type ()
+                     ~~~~~ expected Field because of return type
+        let x = comptime {
+            as_witness(1)
+        };
+        x
+        ~ () returned here
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
 }
