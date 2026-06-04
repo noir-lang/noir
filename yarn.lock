@@ -1882,7 +1882,7 @@ __metadata:
     chai: "npm:^6.2.2"
     eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
-    mocha: "npm:^11.7.5"
+    mocha: "npm:^11.7.6"
     prettier: "npm:3.8.3"
     tsx: "npm:^4.21.0"
     typescript: "npm:^6.0.3"
@@ -1903,7 +1903,7 @@ __metadata:
     eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     glob: "npm:^13.0.6"
-    mocha: "npm:^11.7.5"
+    mocha: "npm:^11.7.6"
     prettier: "npm:3.8.3"
     ts-command-line-args: "npm:^2.5.1"
     tsx: "npm:^4.21.0"
@@ -1928,7 +1928,7 @@ __metadata:
     chai: "npm:^6.2.2"
     eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
-    mocha: "npm:^11.7.5"
+    mocha: "npm:^11.7.6"
     pako: "npm:^2.1.0"
     prettier: "npm:3.8.3"
     tsc-multi: "npm:^1.1.0"
@@ -1967,7 +1967,7 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.5.5"
     html-webpack-plugin: "npm:^5.6.7"
     memfs: "npm:^4.57.2"
-    mocha: "npm:^11.7.5"
+    mocha: "npm:^11.7.6"
     mocha-each: "npm:^2.0.1"
     pako: "npm:^2.1.0"
     path-browserify: "npm:^1.0.1"
@@ -1996,7 +1996,7 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     eslint: "npm:^10.4.0"
-    mocha: "npm:^11.7.5"
+    mocha: "npm:^11.7.6"
     tsx: "npm:^4.21.0"
   languageName: unknown
   linkType: soft
@@ -2013,7 +2013,7 @@ __metadata:
     eslint: "npm:^10.4.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     globals: "npm:^17.6.0"
-    mocha: "npm:^11.7.5"
+    mocha: "npm:^11.7.6"
     prettier: "npm:3.8.3"
     tsx: "npm:^4.21.0"
     typescript: "npm:^6.0.3"
@@ -2114,11 +2114,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-ethers-chai-matchers@npm:^3.0.8":
-  version: 3.0.8
-  resolution: "@nomicfoundation/hardhat-ethers-chai-matchers@npm:3.0.8"
+"@nomicfoundation/hardhat-errors@npm:^3.0.13, @nomicfoundation/hardhat-errors@npm:^3.0.14":
+  version: 3.0.14
+  resolution: "@nomicfoundation/hardhat-errors@npm:3.0.14"
   dependencies:
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.3"
+  checksum: 10/99a4b24c5da2652cc056b30d0a2af27fa1a557808dec2eff74357bd00430a7fea01425000c68127860e2e99476c54be4af6a8f090c2f9957288e8abc085a1ada
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/hardhat-ethers-chai-matchers@npm:^3.0.9":
+  version: 3.0.9
+  resolution: "@nomicfoundation/hardhat-ethers-chai-matchers@npm:3.0.9"
+  dependencies:
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
     "@types/chai-as-promised": "npm:^8.0.1"
     chai-as-promised: "npm:^8.0.0"
     deep-eql: "npm:^5.0.1"
@@ -2127,21 +2136,21 @@ __metadata:
     chai: ">=5.1.2 <7"
     ethers: ^6.14.0
     hardhat: ^3.4.0
-  checksum: 10/8b85cd54e855470ea4ea0615a5376926e9651c1ab71989fe3a96c903a3d4700b5daf354648a98dd7ba27771486c85400d281b32f2c579b7028f57faeaa036567
+  checksum: 10/2daedec796132f22104dc69887c9e2f0c0352777a6470211ed972c903185e4bab11fdfc1fc92ff7e8b29b07e0b588df6454f30ad86920439663614db0752c7cb
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-ethers@npm:^4.0.11":
-  version: 4.0.11
-  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.11"
+"@nomicfoundation/hardhat-ethers@npm:^4.0.12":
+  version: 4.0.12
+  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.12"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
     ethereum-cryptography: "npm:^2.2.1"
     ethers: "npm:^6.14.0"
   peerDependencies:
     hardhat: ^3.4.0
-  checksum: 10/127f7b86a271c9768081ff6416ea181ef41303d964254c8f86f6f83fab092200dff6b51860fd625be329fcbc8d1249f174179cc4893288c092f1d59ec86bc90d
+  checksum: 10/31615375fd16f389e2b305813916be5f9d40356d08345abdb3a009462f220ab468fea0c172ca33030f861449c1d47aa077c310231e0c2ad08fc36a8d508b464b
   languageName: node
   linkType: hard
 
@@ -2161,97 +2170,96 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-ignition@npm:^3.1.5":
-  version: 3.1.5
-  resolution: "@nomicfoundation/hardhat-ignition@npm:3.1.5"
+"@nomicfoundation/hardhat-ignition@npm:^3.1.6":
+  version: 3.1.6
+  resolution: "@nomicfoundation/hardhat-ignition@npm:3.1.6"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
-    "@nomicfoundation/ignition-core": "npm:^3.1.5"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
+    "@nomicfoundation/ignition-core": "npm:^3.1.6"
     "@nomicfoundation/ignition-ui": "npm:^3.1.2"
     json5: "npm:^2.2.3"
     prompts: "npm:^2.4.2"
   peerDependencies:
     "@nomicfoundation/hardhat-verify": ^3.0.0
     hardhat: ^3.4.0
-  checksum: 10/b5b561ac6d49af1b432f0844b663c3857253a730fa7d454e6f7e87120390d54edb9d133d40786357fbf90de1ad43c2d081468d641309848f37ee3ece82672154
+  checksum: 10/68b0cbe544d62e7d5e058e3292f9bdc6ccdd8aedb17b610972834db1979ee028ff896f22a957fb1f8694c3d5ac490fe4912618449d7ab13dfb56e4eea0fb56f6
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-keystore@npm:^3.0.9":
-  version: 3.0.9
-  resolution: "@nomicfoundation/hardhat-keystore@npm:3.0.9"
+"@nomicfoundation/hardhat-keystore@npm:^3.0.11":
+  version: 3.0.11
+  resolution: "@nomicfoundation/hardhat-keystore@npm:3.0.11"
   dependencies:
     "@noble/ciphers": "npm:1.2.1"
     "@noble/hashes": "npm:1.7.1"
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
-    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.4"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.14"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.3"
+    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     zod: "npm:^3.23.8"
   peerDependencies:
     hardhat: ^3.0.0
-  checksum: 10/ff5756504a9a70bd8f42fe83f4a7671062445275c842b1324a006c5912ca80bfc361b3a50fdf7b93c4534b81fbd2ce74f07aaabeec745b306f19f8ce6b50a605
+  checksum: 10/d71a8c5a97e663ea06a339b6b10a89ccec180342e1ec36b9d23fc3347555ddad1716d870e179de62282274de2cbad956b1b5d6f1d615ce57c44af6592a3d9cc1
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-mocha@npm:^3.0.19":
-  version: 3.0.19
-  resolution: "@nomicfoundation/hardhat-mocha@npm:3.0.19"
+"@nomicfoundation/hardhat-mocha@npm:^3.0.20":
+  version: 3.0.20
+  resolution: "@nomicfoundation/hardhat-mocha@npm:3.0.20"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
-    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.4"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
+    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     tsx: "npm:^4.19.3"
     zod: "npm:^3.23.8"
   peerDependencies:
     hardhat: ^3.4.0
     mocha: ^11.0.0
-  checksum: 10/b51b30b271476d87405154cdadf24fc7a4124924887db8d69a1672fbe66d797f59e2cc0d49224e6ed25857fc9d2a4f4a284fa3105ca072d3bae4ee4bcd86a65a
+  checksum: 10/22969e9bff3b4e3e44d8014a3decf4be144ded931afc50634af008b681c881a0f6074989e3feb2134aaab8dae5c942ed1333c9d484eafd363562039f1cc85e35
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-network-helpers@npm:^3.0.8":
-  version: 3.0.8
-  resolution: "@nomicfoundation/hardhat-network-helpers@npm:3.0.8"
+"@nomicfoundation/hardhat-network-helpers@npm:^3.0.9":
+  version: 3.0.9
+  resolution: "@nomicfoundation/hardhat-network-helpers@npm:3.0.9"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
   peerDependencies:
     hardhat: ^3.4.0
-  checksum: 10/69d460cb65bc12c3d255563687ff9d78acc37e9fccfb0ebb0cb195cc4022106013305b6b16414ad70ac33a34d55eed386ab78403a280393f73f875dbbc9fafe2
+  checksum: 10/e18fddb4234a42b8316256be532f43d57941559be25e33ff74f0618a3773a72a40cd0d69eba22bbdb9a31779d9b1f9524b9f3376316e86359a4fc5de45cda0e5
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-node-test-reporter@npm:^3.0.5":
-  version: 3.0.5
-  resolution: "@nomicfoundation/hardhat-node-test-reporter@npm:3.0.5"
+"@nomicfoundation/hardhat-node-test-reporter@npm:^3.0.7":
+  version: 3.0.7
+  resolution: "@nomicfoundation/hardhat-node-test-reporter@npm:3.0.7"
   dependencies:
     "@actions/core": "npm:^1.10.1"
-    chalk: "npm:^5.3.0"
     jest-diff: "npm:^29.7.0"
-  checksum: 10/2e19752753123732686dfe02514f18d21a8ad1caa9650ef5dced18dab34db40b7c2f3f697cd445b4d1fc50d4d26e7d2fffcda2fbe4ae23d613f0154ff65460af
+  checksum: 10/8e26d2b51bc55c510cb3f827b319cebc0ef9f133be6abf55a740976413855d440c5a737768aa2f6c7567a5c29e647564ae514f5de814687f2c62017e33396bb9
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-node-test-runner@npm:^3.0.15":
-  version: 3.0.15
-  resolution: "@nomicfoundation/hardhat-node-test-runner@npm:3.0.15"
+"@nomicfoundation/hardhat-node-test-runner@npm:^3.0.16":
+  version: 3.0.16
+  resolution: "@nomicfoundation/hardhat-node-test-runner@npm:3.0.16"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.11"
-    "@nomicfoundation/hardhat-node-test-reporter": "npm:^3.0.5"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
-    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.4"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-node-test-reporter": "npm:^3.0.7"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
+    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     tsx: "npm:^4.19.3"
     zod: "npm:^3.23.8"
   peerDependencies:
     hardhat: ^3.4.0
-  checksum: 10/122f547ba4795ecf1b7f9d27afc9974ffcde6759ea52712c63dab21475c344e7fa0cfd8c1d787bd36660862b7aa90aa08767c5a8f1c24d7e445310c3babeeba3
+  checksum: 10/0de234ccda3db1639bda7ffc0e844fa98ffa9b93cb053bca884940bb7ba255265b652f307c98e02321dc0eed12fd656f2e6d942c6e20ae38f6eabef0074533f2
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-toolbox-mocha-ethers@npm:^3.0.5":
-  version: 3.0.5
-  resolution: "@nomicfoundation/hardhat-toolbox-mocha-ethers@npm:3.0.5"
+"@nomicfoundation/hardhat-toolbox-mocha-ethers@npm:^3.0.6":
+  version: 3.0.6
+  resolution: "@nomicfoundation/hardhat-toolbox-mocha-ethers@npm:3.0.6"
   peerDependencies:
     "@nomicfoundation/hardhat-ethers": ^4.0.0
     "@nomicfoundation/hardhat-ethers-chai-matchers": ^3.0.0
@@ -2267,16 +2275,16 @@ __metadata:
     ethers: ^6.14.0
     hardhat: ^3.4.0
     mocha: ^11.0.0
-  checksum: 10/04139159705834068e53bba9d367d08ce76f26286cb8e021252c8d60fb67d12d66fb8f603b7ebd04d48402fa47cef0111a66969fae22c85dffc69164f3cec81b
+  checksum: 10/367060c0294d5f07c95d8414d3b026d444ebb3611a25182d27bd3fe4ffcaf7c8ed4a4818994cf2da642705a72bb35f311ff14a8f31bb5aa4d3d6c665d5246b1a
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-typechain@npm:^3.0.9":
-  version: 3.0.9
-  resolution: "@nomicfoundation/hardhat-typechain@npm:3.0.9"
+"@nomicfoundation/hardhat-typechain@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@nomicfoundation/hardhat-typechain@npm:3.1.0"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.14"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.3"
     "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.4"
     "@typechain/ethers-v6": "npm:^0.5.0"
     typechain: "npm:^8.3.1"
@@ -2284,8 +2292,8 @@ __metadata:
   peerDependencies:
     "@nomicfoundation/hardhat-ethers": ^4.0.0
     ethers: ^6.14.0
-    hardhat: ^3.4.0
-  checksum: 10/1122bfec8189542e2ca10dcfea9331c8bc74cbe7ad1583a026b82ed86cc3d49335f6b643ad8d196829527eaf9e9f55b3ac69616f6ab182b6a474736e1445b738
+    hardhat: ^3.6.0
+  checksum: 10/7d28d6d136af2b4b56cf6ea24095f06c97bccfad527ee664c4e45842d6ad655324c67e724af65a2c620c6cc2c85f6cd322db08643d95f17350423c6d02f99712
   languageName: node
   linkType: hard
 
@@ -2320,6 +2328,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nomicfoundation/hardhat-utils@npm:^4.1.2, @nomicfoundation/hardhat-utils@npm:^4.1.3":
+  version: 4.1.3
+  resolution: "@nomicfoundation/hardhat-utils@npm:4.1.3"
+  dependencies:
+    "@streamparser/json-node": "npm:^0.0.22"
+    env-paths: "npm:^2.2.0"
+    ethereum-cryptography: "npm:^2.2.1"
+    fast-equals: "npm:^5.4.0"
+    json-stream-stringify: "npm:^3.1.6"
+    rfdc: "npm:^1.3.1"
+    undici: "npm:^6.16.1"
+  checksum: 10/05ae3f62d17e6c2cfb14b6929b073e9e8d1973e2463f724b2d1d66ecc5d15cb89454d5e1337a8e762e6801dbdea0155469e73a999e574df5965cef6b47672b9b
+  languageName: node
+  linkType: hard
+
 "@nomicfoundation/hardhat-vendored@npm:^3.0.3":
   version: 3.0.3
   resolution: "@nomicfoundation/hardhat-vendored@npm:3.0.3"
@@ -2327,19 +2350,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-verify@npm:^3.0.17":
-  version: 3.0.17
-  resolution: "@nomicfoundation/hardhat-verify@npm:3.0.17"
+"@nomicfoundation/hardhat-verify@npm:^3.0.18":
+  version: 3.0.18
+  resolution: "@nomicfoundation/hardhat-verify@npm:3.0.18"
   dependencies:
     "@ethersproject/abi": "npm:^5.8.0"
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
-    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.4"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
+    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     cbor2: "npm:^1.9.0"
     zod: "npm:^3.23.8"
   peerDependencies:
     hardhat: ^3.4.0
-  checksum: 10/f599efc83a6b86f38c87a5becae2597c4d6c7d3cf6ae671a6bf8952951a81a468c047ce0d50ad58c96fac54b01121fc670fd82d2d71538d6259fcbbffb24e4f4
+  checksum: 10/23914b0b4873b4e2eed6db64305c4f013c0281b38d23cfd71d5f5648b8ab74b12cbd98ecf4debfe9d7eb1e78c8f3b10f76b4e07f0d61eeb9a0531038ad43286c
   languageName: node
   linkType: hard
 
@@ -2355,20 +2378,32 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/ignition-core@npm:^3.1.5":
-  version: 3.1.5
-  resolution: "@nomicfoundation/ignition-core@npm:3.1.5"
+"@nomicfoundation/hardhat-zod-utils@npm:^3.0.5":
+  version: 3.0.5
+  resolution: "@nomicfoundation/hardhat-zod-utils@npm:3.0.5"
+  dependencies:
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
+  peerDependencies:
+    zod: ^3.23.8
+  checksum: 10/7bedd8e61469d1918b99a51274128c7208b56768bb400de90f434bb243c523ef84b84c247b4ad93c5c73784dc1babae7dafa1f299fc1427d70fe179ceb002e0d
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/ignition-core@npm:^3.1.6":
+  version: 3.1.6
+  resolution: "@nomicfoundation/ignition-core@npm:3.1.6"
   dependencies:
     "@ethersproject/address": "npm:5.6.1"
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.12"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.1"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.13"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.2"
     "@nomicfoundation/solidity-analyzer": "npm:^0.1.1"
     cbor2: "npm:^1.9.0"
     ethers: "npm:^6.14.0"
     immer: "npm:10.0.2"
     lodash-es: "npm:4.17.21"
     ndjson: "npm:2.0.0"
-  checksum: 10/0c70396c1be97c9de79629ce623b3e15cc0aac83adbec3ed90a9dba9832c1102b6d83772c995a11fe6dd9094782eede00a5b2e937eec43c0c91c581e6c64caea
+  checksum: 10/4846130dcc632963d38510456682842990374897733c9a83142dc55a30e6c2bd8da8a5bc0872c2a0699a11225a331d868937cae73d804bd0a35a4ec1d15c27d4
   languageName: node
   linkType: hard
 
@@ -5140,7 +5175,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:^5.2.0, chalk@npm:^5.3.0, chalk@npm:^5.6.2":
+"chalk@npm:^5.2.0, chalk@npm:^5.6.2":
   version: 5.6.2
   resolution: "chalk@npm:5.6.2"
   checksum: 10/1b2f48f6fba1370670d5610f9cd54c391d6ede28f4b7062dd38244ea5768777af72e5be6b74fb6c6d54cb84c4a2dff3f3afa9b7cb5948f7f022cfd3d087989e0
@@ -7860,17 +7895,17 @@ __metadata:
     "@aztec/bb.js": "npm:5.0.0-nightly.20260522"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
-    "@nomicfoundation/hardhat-ethers": "npm:^4.0.11"
-    "@nomicfoundation/hardhat-ethers-chai-matchers": "npm:^3.0.8"
-    "@nomicfoundation/hardhat-ignition": "npm:^3.1.5"
+    "@nomicfoundation/hardhat-ethers": "npm:^4.0.12"
+    "@nomicfoundation/hardhat-ethers-chai-matchers": "npm:^3.0.9"
+    "@nomicfoundation/hardhat-ignition": "npm:^3.1.6"
     "@nomicfoundation/hardhat-ignition-ethers": "npm:^3.1.5"
-    "@nomicfoundation/hardhat-keystore": "npm:^3.0.9"
-    "@nomicfoundation/hardhat-mocha": "npm:^3.0.19"
-    "@nomicfoundation/hardhat-network-helpers": "npm:^3.0.8"
-    "@nomicfoundation/hardhat-node-test-runner": "npm:^3.0.15"
-    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "npm:^3.0.5"
-    "@nomicfoundation/hardhat-typechain": "npm:^3.0.9"
-    "@nomicfoundation/hardhat-verify": "npm:^3.0.17"
+    "@nomicfoundation/hardhat-keystore": "npm:^3.0.11"
+    "@nomicfoundation/hardhat-mocha": "npm:^3.0.20"
+    "@nomicfoundation/hardhat-network-helpers": "npm:^3.0.9"
+    "@nomicfoundation/hardhat-node-test-runner": "npm:^3.0.16"
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "npm:^3.0.6"
+    "@nomicfoundation/hardhat-typechain": "npm:^3.1.0"
+    "@nomicfoundation/hardhat-verify": "npm:^3.0.18"
     "@web/dev-server-esbuild": "npm:^1.0.5"
     "@web/dev-server-import-maps": "npm:^0.2.1"
     "@web/test-runner": "npm:^0.20.2"
@@ -9266,9 +9301,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mocha@npm:^11.7.5":
-  version: 11.7.5
-  resolution: "mocha@npm:11.7.5"
+"mocha@npm:^11.7.6":
+  version: 11.7.6
+  resolution: "mocha@npm:11.7.6"
   dependencies:
     browser-stdout: "npm:^1.3.1"
     chokidar: "npm:^4.0.1"
@@ -9294,7 +9329,7 @@ __metadata:
   bin:
     _mocha: bin/_mocha
     mocha: bin/mocha.js
-  checksum: 10/878fcec45d79dad3ec01b896ae75eabd0075b8f91866b338b81b2ef8a2279f1e70fb07fc89054108a46864fbc1e6f6898dc31e64c033ded585748c5fcbf7e704
+  checksum: 10/a083a65d4a2e74129ef06a77246088159e6dda09f3098e53b93edfd3df32a16d4c32a8ad37845da896365c29da44d1c0d5e6daa8062ad21dec2ebff71ce785c6
   languageName: node
   linkType: hard
 
