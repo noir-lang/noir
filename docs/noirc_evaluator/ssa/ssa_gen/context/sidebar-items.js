@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["LValue"],"fn":["convert_operator","operator_requires_not","operator_requires_swapped_operands"],"struct":["FunctionContext","Loop","SharedContext"],"type":["FunctionQueue"]};
+window.SIDEBAR_ITEMS = {"enum":["LValue"],"fn":["array_index_needs_explicit_oob_check","convert_operator","operator_requires_not","operator_requires_swapped_operands"],"struct":["FunctionContext","Loop","SharedContext"],"type":["FunctionQueue"]};

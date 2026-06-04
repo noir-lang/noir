@@ -674,11 +674,11 @@
 <a href=#674 id=674 data-nosnippet>674</a>                .insert(procedure_id.to_debug_id(), (<span class="kw-2">*</span>start_index, <span class="kw-2">*</span>end_index));
 <a href=#675 id=675 data-nosnippet>675</a>        }
 <a href=#676 id=676 data-nosnippet>676</a>
-<a href=#677 id=677 data-nosnippet>677</a>        <span class="kw">for </span>(brillig_index, call_stack) <span class="kw">in </span><span class="kw-2">&amp;</span>generated_brillig.locations {
-<a href=#678 id=678 data-nosnippet>678</a>            <span class="self">self</span>.brillig_locations
-<a href=#679 id=679 data-nosnippet>679</a>                .entry(brillig_function_index)
-<a href=#680 id=680 data-nosnippet>680</a>                .or_default()
-<a href=#681 id=681 data-nosnippet>681</a>                .insert(BrilligOpcodeLocation(<span class="kw-2">*</span>brillig_index), <span class="kw-2">*</span>call_stack);
+<a href=#677 id=677 data-nosnippet>677</a>        <span class="comment">// Ensure every Brillig function we compile has a `brillig_locations`
+<a href=#678 id=678 data-nosnippet>678</a>        // entry, even when it emits no per-opcode locations.
+<a href=#679 id=679 data-nosnippet>679</a>        </span><span class="kw">let </span>brillig_locations = <span class="self">self</span>.brillig_locations.entry(brillig_function_index).or_default();
+<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">for </span>(brillig_index, call_stack) <span class="kw">in </span><span class="kw-2">&amp;</span>generated_brillig.locations {
+<a href=#681 id=681 data-nosnippet>681</a>            brillig_locations.insert(BrilligOpcodeLocation(<span class="kw-2">*</span>brillig_index), <span class="kw-2">*</span>call_stack);
 <a href=#682 id=682 data-nosnippet>682</a>        }
 <a href=#683 id=683 data-nosnippet>683</a>    }
 <a href=#684 id=684 data-nosnippet>684</a>
