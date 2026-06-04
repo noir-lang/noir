@@ -2104,8 +2104,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Evaluate `from` without simplifications so that arithmetic errors in
         // intermediate steps are still caught.
         let run_simplifications = false;
-        let from_value =
-            from.evaluate_to_integer_helper(&to.kind(), location, run_simplifications);
+        let from_value = from.evaluate_to_integer_helper(&to.kind(), location, run_simplifications);
         if from_value.is_err() || from_value.unwrap() != to_value {
             return Err(MonomorphizationError::CheckedCastFailed {
                 actual: to_value.to_string(),

@@ -532,3 +532,29 @@ fn field_arithmetic_generic_large_value() {
     "#;
     assert_no_errors(src);
 }
+#[test]
+fn arithmetic_generics_modulo_by_zero_in_array_length() {
+    // With N = 0, the `N % N` subexpressions modulo by zero when the array
+    // length is evaluated at monomorphization.
+    let source = r#"
+        fn foo<let N: u32>() -> [Field; ((N % N) + 1) - (N % N)] {
+            let result: [Field; 1] = [0];
+            result
+        }
+
+        fn main() {
+            let _x = foo::<0>();
+        }
+    "#;
+
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
+
+    let MonomorphizationError::UnknownArrayLength { ref err, .. } = monomorphization_error else {
+        panic!("unexpected error: {monomorphization_error:?}");
+    };
+    let TypeCheckError::ModuloByZero { lhs, rhs, .. } = err else {
+        panic!("Expected ModuloByZero, but found: {err:?}");
+    };
+    assert_eq!(*lhs, Integer::U32(0));
+    assert_eq!(*rhs, Integer::U32(0));
+}

@@ -31,10 +31,19 @@ When a `CheckedCast` is evaluated to a constant (`Type::evaluate_to_integer_help
   evaluates subexpressions speculatively while variables are still unbound.
 
 The monomorphizer's `check_checked_cast` performs a similar (stricter) check for
-`CheckedCast`s it encounters structurally, but array/string lengths never reach it: length
-types are resolved directly via `evaluate_to_u32`, so the evaluation rules above are the
-mechanism that catches intermediate over/underflow in lengths. For the same reason,
-`convert_type`/`check_type` do not recurse structurally into `from`: evaluation already
-traverses it (including nested `CheckedCast`s introduced by generic substitution), and a
-structural `check_type` on `from` could falsely reject unbound variables that were legitimately
-simplified away.
+`CheckedCast`s it encounters structurally (e.g. in struct generic arguments), but array/string
+lengths never reach it: length types are resolved directly via `evaluate_to_u32`, so the
+evaluation rules above are the mechanism that catches intermediate over/underflow in lengths.
+For the same reason, `convert_type`/`check_type` do not recurse structurally into `from`:
+evaluation already traverses it (including nested `CheckedCast`s introduced by generic
+substitution), and a structural `check_type` on `from` could falsely reject unbound variables
+that were legitimately simplified away.
+
+In `check_checked_cast`, a failure to evaluate the `to` side is itself a hard error
+(`MonomorphizationError::CheckedCastEvaluationFailed`, rendered as the underlying type-check
+error such as "Modulo by zero"). Without this, a destination type whose value is undefined for
+the concrete generics (e.g. `W<(0 * N) / (N % N)>` at `N = 0`) would silently skip the
+from/to comparison and compile, as long as the value was never forced elsewhere (e.g. used as
+an array length or a runtime value). The single exception is `NonConstantEvaluated`: the `to`
+side may still contain an unbound-but-defaultable generic, which the surrounding
+`convert_type`/`check_type` recursion will default or reject with `NoDefaultType`.

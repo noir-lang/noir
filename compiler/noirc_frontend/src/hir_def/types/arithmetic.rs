@@ -512,6 +512,45 @@ mod tests {
         let expected_result = u32t(64);
         assert_eq!(infix_canonicalized, expected_result);
     }
+
+    #[test]
+    fn errors_from_binary_type_operator_function_are_constant_arithmetic_failures() {
+        // `TypeCheckError::is_constant_arithmetic_failure` documents itself as matching
+        // the closed set of errors producible by `BinaryTypeOperator::function`, so every
+        // failure case of `function` must be in that set. An error missing from the set
+        // would be silently tolerated when evaluating the `from` side of a `CheckedCast`
+        // (see `Type::evaluate_to_integer_helper`).
+        use crate::hir::comptime::Integer;
+        use noirc_errors::Location;
+
+        let location = Location::dummy();
+        let field_zero = Integer::Field(FieldElement::zero());
+
+        let failures = [
+            BinaryTypeOperator::Division.function(Integer::U32(1), Integer::U32(0), location),
+            BinaryTypeOperator::Modulo.function(Integer::U32(1), Integer::U32(0), location),
+            BinaryTypeOperator::Modulo.function(field_zero, field_zero, location),
+            BinaryTypeOperator::Subtraction.function(Integer::U32(0), Integer::U32(1), location),
+            BinaryTypeOperator::Addition.function(
+                Integer::U32(u32::MAX),
+                Integer::U32(1),
+                location,
+            ),
+            BinaryTypeOperator::Multiplication.function(
+                Integer::U32(u32::MAX),
+                Integer::U32(2),
+                location,
+            ),
+        ];
+
+        for failure in failures {
+            let err = failure.expect_err("operation should fail");
+            assert!(
+                err.is_constant_arithmetic_failure(),
+                "expected a constant arithmetic failure, but got: {err:?}"
+            );
+        }
+    }
 }
 
 #[cfg(test)]

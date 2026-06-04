@@ -328,6 +328,7 @@ impl TypeCheckError {
             TypeCheckError::OverflowingBinaryOp { .. }
                 | TypeCheckError::DivisionByZero { .. }
                 | TypeCheckError::ModuloOnFields { .. }
+                | TypeCheckError::ModuloByZero { .. }
         )
     }
 
