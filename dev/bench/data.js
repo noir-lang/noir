@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780589474893,
+  "lastUpdate": 1780594270480,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23125,48 +23125,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4d8ac145884458090d0f3be67ac8e382f5493038",
-          "message": "fix: unify inner types for mutable reference mismatches (#12002)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-05-29T16:29:45Z",
-          "tree_id": "90dec75eb7815001901cdf24866531db11909600",
-          "url": "https://github.com/noir-lang/noir/commit/4d8ac145884458090d0f3be67ac8e382f5493038"
-        },
-        "date": 1780073775693,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126446,
-            "range": "± 641",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112349,
-            "range": "± 2431",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041842,
-            "range": "± 14743",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "6f6c80f6e17b6266193c7f54a9d1e752222ed3cd",
           "message": "fix: simplify ref-deref respect mutability (#12840)",
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3044242,
             "range": "± 5257",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0f6faae9f8a0b89ced43e540660b64eca0def4f",
+          "message": "fix: check infix result type during monomorphization (#12917)",
+          "timestamp": "2026-06-04T17:05:08Z",
+          "tree_id": "32fa6fa22f8abfc2910efb021f6e300074212f2f",
+          "url": "https://github.com/noir-lang/noir/commit/e0f6faae9f8a0b89ced43e540660b64eca0def4f"
+        },
+        "date": 1780594201606,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167036,
+            "range": "± 426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136947,
+            "range": "± 743",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646495,
+            "range": "± 1214",
             "unit": "ns/iter"
           }
         ]
