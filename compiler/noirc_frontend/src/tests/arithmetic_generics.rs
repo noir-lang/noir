@@ -61,6 +61,62 @@ fn checked_casts_do_not_prevent_canonicalization() {
 }
 
 #[test]
+fn arithmetic_generics_intermediate_underflow_simplified_out_of_to() {
+    // The type expression `(N - 1) + 1` creates a CheckedCast where:
+    //   from = (N - 1) + 1   (unsimplified, preserves intermediate steps)
+    //   to   = N             (simplified via (X - M) + M -> X)
+    //
+    // With N = 0, the `(0 - 1)` subexpression of `from` underflows u32 even though
+    // the simplified `to` side evaluates to 0 without error. The underflow in the
+    // unsimplified expression must still be reported.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; (N - 1) + 1] {
+            let result: [Field; N] = [0; N];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<0>();
+        }
+    "#;
+
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
+
+    // Expect a (0 - 1) underflow failure
+    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
+        monomorphization_error
+    {
+        let TypeCheckError::OverflowingBinaryOp { op, lhs, rhs, .. } = err else {
+            panic!("Expected OverflowingBinaryOp, but found: {err:?}");
+        };
+        assert_eq!(op, &BinaryTypeOperator::Subtraction);
+        assert_eq!(*lhs, Integer::U32(0));
+        assert_eq!(*rhs, Integer::U32(1));
+    } else {
+        panic!("unexpected error: {monomorphization_error:?}");
+    }
+}
+
+#[test]
+fn arithmetic_generics_intermediate_expression_with_no_underflow() {
+    // Companion to `arithmetic_generics_intermediate_underflow_simplified_out_of_to`:
+    // with N = 5 no intermediate step of `(N - 1) + 1` over/underflows, so the
+    // program must compile.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; (N - 1) + 1] {
+            let result: [Field; N] = [0; N];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<5>();
+        }
+    "#;
+
+    assert!(get_monomorphized(source).is_ok());
+}
+
+#[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u32> {}

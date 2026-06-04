@@ -317,6 +317,18 @@ impl TypeCheckError {
         matches!(self, TypeCheckError::NonConstantEvaluated { .. })
     }
 
+    /// True for errors describing an arithmetic failure on constant operands
+    /// (the closed set of errors producible by [BinaryTypeOperator::function]),
+    /// as opposed to errors meaning an expression could not be reduced to a constant.
+    pub(crate) fn is_constant_arithmetic_failure(&self) -> bool {
+        matches!(
+            self,
+            TypeCheckError::OverflowingBinaryOp { .. }
+                | TypeCheckError::DivisionByZero { .. }
+                | TypeCheckError::ModuloOnFields { .. }
+        )
+    }
+
     pub fn location(&self) -> Location {
         match self {
             TypeCheckError::DivisionByZero { location, .. }

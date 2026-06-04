@@ -40,9 +40,9 @@ impl Type {
     /// Only simplify constants and drop/skip any CheckedCast's
     fn canonicalize_checked_helper(&self) -> Type {
         let found_checked_cast = true;
-        let skip_simplifications = false;
+        let run_simplifications = false;
         // We expect `self` to have already called `follow_bindings`
-        self.canonicalize_helper(found_checked_cast, skip_simplifications)
+        self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
     /// Run all simplifications and drop/skip any CheckedCast's
