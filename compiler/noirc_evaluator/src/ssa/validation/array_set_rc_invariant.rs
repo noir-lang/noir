@@ -39,12 +39,25 @@
 //!    alias-set member either RPO-precedes the array_set or sits on a
 //!    non-source alias that's also a loop back-edge arg, accept — the
 //!    frontend is deliberately managing iteration aliasing.
-//! 3. **Forward walk.** Otherwise, walk the CFG forward from the array_set with
-//!    the alias-set as the initial use-set. At each block-parameter crossing
-//!    we both **kill** params that the predecessor rebinds to a non-alias and
-//!    **add** params whose arg is still an alias (so alias propagation stays
-//!    accurate as the walk crosses joins and loops). The walk maintains two
-//!    additional pieces of state:
+//! 3. **Protected-participant filter.** Before the forward walk, drop from
+//!    the use-set every non-source alias that is both a loop back-edge
+//!    *participant* (it flows — directly or through forward edges — into a
+//!    back-edge arg position) and carries its own `inc_rc`. Such a value is
+//!    RC ≥ 2 whenever it equals the source's storage, so reads of it can't
+//!    observe an in-place mutation. The gate is **per value** on that
+//!    value's own `inc_rc`: a back-edge position fed by an `inc_rc`'d value
+//!    on one predecessor edge and an unprotected value on another drops only
+//!    the protected value, leaving the unprotected one for the walk to flag.
+//!    This is what lets the verifier accept the latch-block shape (an
+//!    `inc_rc v` placed before `v` is threaded *forward* into the latch that
+//!    then closes the loop) without the unsoundness of crediting a sibling's
+//!    `inc_rc` to an unprotected value.
+//! 4. **Forward walk.** Otherwise, walk the CFG forward from the array_set with
+//!    the (filtered) alias-set as the initial use-set. At each block-parameter
+//!    crossing we both **kill** params that the predecessor rebinds to a
+//!    non-alias and **add** params whose arg is still an alias (so alias
+//!    propagation stays accurate as the walk crosses joins and loops). The
+//!    walk maintains two additional pieces of state:
 //!
 //!    - **`derived`**, the set of values that may share the source's storage
 //!      through transitive in-place chain mutations. Seeded with the
@@ -162,6 +175,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
             // pre-mutation contents through an aliased name.
             if let Some(hit) = ctx.find_reachable_aliased_use(
                 &alias_set,
+                array,
                 *instruction_id,
                 block_id,
                 idx,
@@ -260,6 +274,30 @@ struct Context<'f> {
     /// set in the first place — so this signal only needs to cover
     /// loop back-edges.
     back_edge_args: HashSet<ValueId>,
+    /// The backward-alias closure of [`Context::back_edge_args`]: every
+    /// value that flows (directly or through forward block-parameter
+    /// edges) into a loop back-edge arg position. A value `v` is a
+    /// back-edge *participant* when its storage can become a loop-header
+    /// parameter's storage across a back-edge — even when `v` itself is
+    /// not the literal arg, but reaches one through a forward edge first
+    /// (e.g. `inc_rc v; jmp latch(v)` then `latch: jmp header(v)`, where
+    /// only the latch's param is the literal back-edge arg).
+    ///
+    /// Used by the **protected-participant filter** in
+    /// [`Context::find_reachable_aliased_use`]: a non-source alias that is
+    /// both a back-edge participant **and** carries its own `inc_rc` is
+    /// RC ≥ 2 whenever it equals the source's storage, so reads of it
+    /// can't observe an in-place mutation and it is dropped from the
+    /// forward walk's use-set.
+    ///
+    /// The filter is gated **per value** on that value's own `inc_rc`:
+    /// membership in this set alone never exonerates anything. This is
+    /// what keeps it sound where widening the relaxation to "some
+    /// participant has an `inc_rc`" would not — a back-edge position fed
+    /// by an `inc_rc`'d value on one predecessor edge and an unprotected
+    /// value on another only drops the protected value, leaving the
+    /// unprotected one for the forward walk to flag.
+    back_edge_participants: HashSet<ValueId>,
 }
 
 impl<'f> Context<'f> {
@@ -373,6 +411,21 @@ impl<'f> Context<'f> {
 
         let backward_aliases = compute_backward_aliases(function, &rpo, &incoming_edges);
 
+        // Backward-alias closure of the literal back-edge args: every
+        // value that can become a loop-header parameter's storage across
+        // a back-edge, including those that only reach the back-edge arg
+        // position through a forward edge first. A literal back-edge arg
+        // that is a block parameter contributes its whole backward set;
+        // an instruction result or function parameter contributes only
+        // itself (its backward set is the singleton).
+        let mut back_edge_participants: HashSet<ValueId> = HashSet::default();
+        for &arg in &back_edge_args {
+            back_edge_participants.insert(arg);
+            if let Some(arg_set) = backward_aliases.get(&arg) {
+                back_edge_participants.extend(arg_set.iter().copied());
+            }
+        }
+
         Self {
             function,
             dom_tree,
@@ -382,6 +435,7 @@ impl<'f> Context<'f> {
             iteration_local_make_arrays,
             inc_rc_locations,
             back_edge_args,
+            back_edge_participants,
         }
     }
 
@@ -613,6 +667,7 @@ impl<'f> Context<'f> {
     fn find_reachable_aliased_use(
         &self,
         alias_set: &im::HashSet<ValueId>,
+        source: ValueId,
         array_set_id: InstructionId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
@@ -620,9 +675,35 @@ impl<'f> Context<'f> {
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
+        // Protected-participant filter. Drop from the use-set every
+        // non-source alias that is both a loop back-edge participant
+        // ([`Context::back_edge_participants`]) and carries its own
+        // `inc_rc`: such a value is RC ≥ 2 whenever it equals `source`'s
+        // storage (the `inc_rc` runs before it crosses the back-edge into
+        // the loop-header parameter), so reads of it can't observe an
+        // in-place mutation. Removing it also lets the per-arg kill rule
+        // in [`Context::succ_use_set`] drop the loop-header parameter on
+        // the back-edge, since the value threaded back is this protected
+        // participant rather than a still-live alias.
+        //
+        // The gate is **per value** on that value's own `inc_rc` — a
+        // sibling's `inc_rc` never exonerates an unprotected value. A
+        // back-edge position fed by an `inc_rc`'d value on one
+        // predecessor edge and an unprotected value on another drops only
+        // the former; the latter stays for the walk to flag.
+        let use_set: im::HashSet<ValueId> = alias_set
+            .iter()
+            .copied()
+            .filter(|&v| {
+                v == source
+                    || !(self.inc_rc_locations.contains_key(&v)
+                        && self.back_edge_participants.contains(&v))
+            })
+            .collect();
+
         let array_set_result = self.function.dfg.instruction_results(array_set_id)[0];
         let initial_state = WalkState {
-            use_set: alias_set.clone(),
+            use_set,
             derived: im::HashSet::unit(array_set_result),
             tainted: write_index_const.map(im::HashSet::unit),
         };
@@ -1717,6 +1798,110 @@ mod tests {
         );
     }
 
+    /// End-to-end regression for an AST-fuzzer-discovered pattern where
+    /// the `inc_rc`'d value reaches the loop back-edge through a *latch*
+    /// block rather than as the literal back-edge arg. Source-level shape
+    /// (`func_1` from the minimized repro):
+    ///
+    /// ```ignore
+    /// for _ in 0..2 {
+    ///     c.0 = if a { c.0[0] = 40; b.3 } else { [50; 1] };
+    /// }
+    /// assert(b.3[0] == 10);
+    /// ```
+    ///
+    /// The loop variable `v28` (`c.0`) is path-dependent: on the first
+    /// iteration it is the forward seed `v6`, and the `array_set v28`
+    /// mutates that (dead-after) storage; on later iterations it is `v4`
+    /// (`b.3`), threaded back as `v4 → v23 → v28`. The frontend emits
+    /// `inc_rc v4` in `b4` right before threading `v4` forward into the
+    /// latch `b6`, so by the time `v4` re-enters as `v28` its `RC ≥ 2`
+    /// and the `array_set` copies — the post-loop `array_get v4` reads
+    /// pristine storage.
+    ///
+    /// The literal back-edge arg is `v23` (the latch param), not `v4`, so
+    /// the back-edge-participant relaxation in
+    /// [`Context::some_inc_rc_precedes`] does not fire. Acceptance comes
+    /// from the protected-participant filter in
+    /// [`Context::find_reachable_aliased_use`]: `v4` is a back-edge
+    /// participant (it flows into `v23` through the forward `b4 → b6`
+    /// edge) and carries its own `inc_rc`, so it is dropped from the
+    /// use-set; the per-arg kill rule then drops `v28` along the
+    /// back-edge and the `array_get v4` is never flagged.
+    #[test]
+    fn end_to_end_inc_rcd_value_reaches_back_edge_through_latch_is_accepted() {
+        let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: u1, v4: [i32; 1], v6: [i32; 1]):
+                jmp b1(u32 0, v6)
+              b1(v14: u32, v28: [i32; 1]):
+                v15 = lt v14, u32 2
+                jmpif v15 then: b2(), else: b3()
+              b2():
+                jmpif v0 then: b4(), else: b5()
+              b3():
+                v25 = array_get v4, index u32 0 -> i32
+                constrain v25 == i32 10, "HNJ"
+                return
+              b4():
+                v20 = array_set v28, index u32 0, value i32 40
+                inc_rc v4
+                jmp b6(v4, v20)
+              b5():
+                v22 = make_array [i32 50] : [i32; 1]
+                jmp b6(v22, v28)
+              b6(v23: [i32; 1], v29: [i32; 1]):
+                v24 = unchecked_add v14, u32 1
+                jmp b1(v24, v23)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v4 is a back-edge participant (flows into the latch param v23 via the forward b4->b6 edge) with its own inc_rc, so the protected-participant filter drops it and the array_get v4 is never flagged",
+        );
+    }
+
+    /// Soundness counterpart to
+    /// [`end_to_end_inc_rcd_value_reaches_back_edge_through_latch_is_accepted`]:
+    /// a latch `b6` joins two predecessors that feed the loop's back-edge
+    /// position, one carrying an `inc_rc`'d value (`v0`) and the other an
+    /// unprotected entry parameter (`v1`) with no `inc_rc`. On the path
+    /// through `b5` the loop variable becomes `v1`, and `array_set v4`
+    /// mutates `v1`'s storage in place (RC = 1); the post-loop
+    /// `array_get v1` then observes that mutation — a genuine hazard.
+    ///
+    /// The protected-participant filter must **not** be fooled into
+    /// exonerating `v1` because its *sibling* `v0` is protected: the
+    /// filter is gated per value on that value's own `inc_rc`. `v1` has
+    /// none, so it stays in the use-set and the walk flags the read.
+    /// (Widening the relaxation to "some back-edge participant has an
+    /// `inc_rc`" would wrongly accept this.)
+    #[test]
+    fn end_to_end_latch_join_with_unprotected_sibling_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [i32; 1], v1: [i32; 1], v2: u1):
+                jmp b1(u32 0, v0)
+              b1(v3: u32, v4: [i32; 1]):
+                v5 = lt v3, u32 2
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v6 = array_set v4, index u32 0, value i32 40
+                jmpif v2 then: b4(), else: b5()
+              b3():
+                v7 = array_get v1, index u32 0 -> i32
+                return
+              b4():
+                inc_rc v0
+                jmp b6(v0)
+              b5():
+                jmp b6(v1)
+              b6(v8: [i32; 1]):
+                v9 = unchecked_add v3, u32 1
+                jmp b1(v9, v8)
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
     /// End-to-end regression for an AST-fuzzer-discovered minimal shape:
     /// two array-typed function entry parameters flow into the same
     /// downstream block parameter via a *forward* if-else sibling join
@@ -2442,11 +2627,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             !has_use,
@@ -2479,11 +2672,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             has_use,
@@ -2524,11 +2725,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             !has_use,
@@ -2619,11 +2828,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             !has_use,
