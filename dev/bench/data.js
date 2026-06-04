@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780576002989,
+  "lastUpdate": 1780576864033,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4d0392685f8b9a4a9895d675d3ed730716559860",
-          "message": "chore: Add design directory (#12828)",
-          "timestamp": "2026-05-28T19:25:34Z",
-          "tree_id": "22df5f7a50bb1b823063f9249b30d3bb30dc4285",
-          "url": "https://github.com/noir-lang/noir/commit/4d0392685f8b9a4a9895d675d3ed730716559860"
-        },
-        "date": 1779997939059,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126518,
-            "range": "± 393",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112728,
-            "range": "± 1055",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041485,
-            "range": "± 4421",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042695,
             "range": "± 11522",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cd55ea96a2acd968da8edd8a1119e22f8050fb91",
+          "message": "fix: disallow unpacking in ABI (#12721)",
+          "timestamp": "2026-06-04T12:13:46Z",
+          "tree_id": "9d456c86574a3c508e094974d777a56da2bbc733",
+          "url": "https://github.com/noir-lang/noir/commit/cd55ea96a2acd968da8edd8a1119e22f8050fb91"
+        },
+        "date": 1780576797703,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167421,
+            "range": "± 400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137818,
+            "range": "± 3106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646524,
+            "range": "± 3849",
             "unit": "ns/iter"
           }
         ]
