@@ -260,11 +260,11 @@
 <a href=#260 id=260 data-nosnippet>260</a>            loop_context
 <a href=#261 id=261 data-nosnippet>261</a>                .get_current_induction_variable_bounds(<span class="kw-2">*</span>lhs)
 <a href=#262 id=262 data-nosnippet>262</a>                .filter(|<span class="kw">_</span>| !only_outer_induction)
-<a href=#263 id=263 data-nosnippet>263</a>                .or(<span class="self">self</span>.outer_induction_variables.get(lhs).copied()),
+<a href=#263 id=263 data-nosnippet>263</a>                .or(<span class="self">self</span>.outer_induction_variables.get(lhs).map(|b| (b.lower, b.upper))),
 <a href=#264 id=264 data-nosnippet>264</a>            loop_context
 <a href=#265 id=265 data-nosnippet>265</a>                .get_current_induction_variable_bounds(<span class="kw-2">*</span>rhs)
 <a href=#266 id=266 data-nosnippet>266</a>                .filter(|<span class="kw">_</span>| !only_outer_induction)
-<a href=#267 id=267 data-nosnippet>267</a>                .or(<span class="self">self</span>.outer_induction_variables.get(rhs).copied()),
+<a href=#267 id=267 data-nosnippet>267</a>                .or(<span class="self">self</span>.outer_induction_variables.get(rhs).map(|b| (b.lower, b.upper))),
 <a href=#268 id=268 data-nosnippet>268</a>        ) {
 <a href=#269 id=269 data-nosnippet>269</a>            <span class="comment">// LHS is a constant, RHS is the induction variable with a known lower and upper bound.
 <a href=#270 id=270 data-nosnippet>270</a>            </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>((lower_bound, upper_bound))) =&gt; {
