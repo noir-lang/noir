@@ -2088,9 +2088,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that the 'from' and to' sides of a `CheckedCast` unify and
-    /// that if the 'to' side evaluates to a field element, then the 'from' side
-    /// evaluates to the same field element as well.
+    /// Check that the 'from' and 'to' sides of a `CheckedCast` unify, that the 'to' side
+    /// evaluates to an integer without failing (e.g. with a division by zero), and that
+    /// the 'from' side evaluates to that same integer.
     fn check_checked_cast(
         from: &Type,
         to: &Type,
@@ -2103,18 +2103,29 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_integer(&to.kind(), location);
-        if let Ok(to_value) = to_value {
-            let skip_simplifications = false;
-            let from_value =
-                from.evaluate_to_integer_helper(&to.kind(), location, skip_simplifications);
-            if from_value.is_err() || from_value.unwrap() != to_value {
-                return Err(MonomorphizationError::CheckedCastFailed {
-                    actual: to_value.to_string(),
-                    expected: from.clone(),
-                    location,
-                });
+        let to_value = match to.evaluate_to_integer(&to.kind(), location) {
+            Ok(to_value) => to_value,
+            // A destination that is not yet a constant (it still contains an unbound,
+            // defaultable generic) is handled by the surrounding type conversion, which
+            // will either default the variable or error with `NoDefaultType`.
+            Err(err) if err.is_non_constant_evaluated() => return Ok(()),
+            // Any other failure (division by zero, modulo by zero, overflow, ...) means
+            // the destination type is invalid for the concrete generic values.
+            Err(err) => {
+                return Err(MonomorphizationError::CheckedCastEvaluationFailed { err, location });
             }
+        };
+
+        // Evaluate `from` without simplifications so that arithmetic errors in
+        // intermediate steps are still caught.
+        let run_simplifications = false;
+        let from_value = from.evaluate_to_integer_helper(&to.kind(), location, run_simplifications);
+        if from_value.is_err() || from_value.unwrap() != to_value {
+            return Err(MonomorphizationError::CheckedCastFailed {
+                actual: to_value.to_string(),
+                expected: from.clone(),
+                location,
+            });
         }
         Ok(())
     }
