@@ -456,6 +456,45 @@ pub(crate) struct Loop {
     pub(crate) blocks: BTreeSet<BasicBlockId>,
 }
 
+/// Describes how a loop's header guard relates the induction variable to the inferred upper
+/// bound, which is what determines, from a constant lower bound, whether the body runs at all.
+///
+/// The `[lower, upper)` interval alone is ambiguous: a `Lt` guard enters the body whenever
+/// `lower < upper`, but an `Eq`/`Not` guard with the body on the `then` branch only enters on
+/// the single induction value `upper - 1`. Without the kind, a skipped `while i == 4` (lower 0,
+/// upper 5) looks identical to an executed `for i in 0..5`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoopBoundKind {
+    /// `i < upper`: the body executes iff `lower < upper`.
+    LessThan,
+    /// `i == upper - 1` (an `Eq`/`Not` header with the body on the `then` branch):
+    /// the body executes iff `lower == upper - 1`.
+    Equal,
+}
+
+/// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
+/// how its guard decides, from the lower bound, whether the body executes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LoopBounds {
+    pub(crate) lower: IntegerConstant,
+    pub(crate) upper: IntegerConstant,
+    pub(crate) kind: LoopBoundKind,
+}
+
+impl LoopBounds {
+    /// Whether the loop body is guaranteed to execute at least once.
+    pub(super) fn loop_executes(self) -> bool {
+        match self.kind {
+            LoopBoundKind::LessThan => {
+                self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
+            }
+            // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
+            // maximum (where `inc` would overflow) correctly reads as "does not execute".
+            LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
+        }
+    }
+}
+
 /// Order in which loops should be processed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoopOrder {
@@ -702,7 +741,7 @@ impl Loop {
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
-    ) -> Option<IntegerConstant> {
+    ) -> Option<(IntegerConstant, LoopBoundKind)> {
         let header = &dfg[self.header];
 
         // If the header has no parameters then this must be a `loop` or `while`.
@@ -717,7 +756,11 @@ impl Loop {
             if self.has_const_zero_jump_condition(dfg) {
                 // There are cases where the upper bound jmpif degenerates into a constant `false`;
                 // in that case we can just return the `lower` to emulate a known empty loop.
-                return self.get_const_lower_bound(dfg, pre_header);
+                // `LessThan` makes `lower == upper` read as zero iterations, which is correct here.
+                return Some((
+                    self.get_const_lower_bound(dfg, pre_header)?,
+                    LoopBoundKind::LessThan,
+                ));
             } else {
                 return None;
             };
@@ -759,7 +802,11 @@ impl Loop {
                 if *lhs != induction_var {
                     return None;
                 }
-                if then_branch_is_body { dfg.get_integer_constant(*rhs) } else { None }
+                if then_branch_is_body {
+                    Some((dfg.get_integer_constant(*rhs)?, LoopBoundKind::LessThan))
+                } else {
+                    None
+                }
             }
             Instruction::Binary(Binary { lhs, operator: BinaryOp::Eq, rhs }) => {
                 if *lhs != induction_var {
@@ -770,10 +817,16 @@ impl Loop {
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
                 //
-                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
-                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
+                // If `b2` is the loop body: the body runs only on the single value `rhs`, so
+                // upper = rhs + 1 and the bound is `Equal` (it enters iff `lower == rhs`).
+                // If `b3` is the loop body: the body runs while `v != rhs` (i.e. `v < rhs` for an
+                // increasing induction variable), so upper = rhs and the bound is `LessThan`.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
-                if then_branch_is_body { const_rhs.inc() } else { Some(const_rhs) }
+                if then_branch_is_body {
+                    Some((const_rhs.inc()?, LoopBoundKind::Equal))
+                } else {
+                    Some((const_rhs, LoopBoundKind::LessThan))
+                }
             }
             Instruction::Not(operand) => {
                 if *operand != induction_var {
@@ -792,8 +845,14 @@ impl Loop {
                 //  b1(v0: u1):
                 //    v2 = not v0
                 //    jmpif v2 then: b2, else: b3
+                //
+                // `!v` is true only when `v == 0`, so this is the same point-bound shape as `Eq`:
+                // upper = 1 and the body enters iff `lower == 0 == upper - 1`.
                 if then_branch_is_body {
-                    Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                    Some((
+                        IntegerConstant::Unsigned { value: 1, bit_size: 1 },
+                        LoopBoundKind::Equal,
+                    ))
                 } else {
                     None
                 }
@@ -810,17 +869,17 @@ impl Loop {
         }
     }
 
-    /// Get the lower and upper bounds of the loop if both are constant numeric values.
+    /// Get the [`LoopBounds`] of the loop if both bounds are constant numeric values.
     /// See `get_const_upper_bound` for the role of `resolve_value`.
     pub(super) fn get_const_bounds(
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
-    ) -> Option<(IntegerConstant, IntegerConstant)> {
+    ) -> Option<LoopBounds> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let upper = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
-        Some((lower, upper))
+        let (upper, kind) = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
+        Some(LoopBounds { lower, upper, kind })
     }
 
     /// Unroll a single loop in the function.
@@ -1489,7 +1548,8 @@ impl Loop {
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
+        let LoopBounds { lower, upper, .. } =
+            self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
         let (refs, constant_initial_refs) = self.find_pre_header_reference_values(function, cfg)?;
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
@@ -2043,8 +2103,8 @@ mod tests {
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
-        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopOrder, Loops, MAX_UNROLL_ITERATIONS,
-        is_new_size_ok,
+        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopBounds, LoopOrder,
+        Loops, MAX_UNROLL_ITERATIONS, is_new_size_ok,
     };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
@@ -2239,12 +2299,13 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) = loop_
+        let LoopBounds { lower, upper, kind } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("bounds are numeric const");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
+        assert_eq!(kind, LoopBoundKind::LessThan);
     }
 
     #[test]
@@ -2272,12 +2333,13 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) = loop_
+        let LoopBounds { lower, upper, kind } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("should use the lower for upper");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, lower);
+        assert_eq!(kind, LoopBoundKind::LessThan);
     }
 
     #[test]
@@ -3185,7 +3247,7 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) = loop_
+        let LoopBounds { lower, upper, .. } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("bounds are numeric const");
         assert_eq!(lower, upper);
