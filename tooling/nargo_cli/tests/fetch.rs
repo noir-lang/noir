@@ -1,4 +1,4 @@
-//! Integration tests for `nargo install`, which resolves and downloads a package's
+//! Integration tests for `nargo fetch`, which resolves and downloads a package's
 //! declared dependencies without compiling, checking, or testing.
 
 use assert_cmd::prelude::*;
@@ -7,10 +7,10 @@ use std::process::Command;
 
 use assert_fs::prelude::{FileWriteStr, PathChild};
 
-/// A freshly created project has no dependencies, so `nargo install` should succeed
+/// A freshly created project has no dependencies, so `nargo fetch` should succeed
 /// without producing any output.
 #[test]
-fn install_with_no_dependencies() {
+fn fetch_with_no_dependencies() {
     let test_dir = assert_fs::TempDir::new().unwrap();
 
     let project_name = "no_deps";
@@ -23,14 +23,14 @@ fn install_with_no_dependencies() {
 
     #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.current_dir(&project_dir).arg("install");
+    cmd.current_dir(&project_dir).arg("fetch");
     cmd.assert().success().stdout(predicate::str::is_empty());
 }
 
-/// A local path dependency is used in place and requires no downloading, so `nargo install`
+/// A local path dependency is used in place and requires no downloading, so `nargo fetch`
 /// produces no output. The command must still succeed and be idempotent.
 #[test]
-fn install_with_local_dependency() {
+fn fetch_with_local_dependency() {
     let test_dir = assert_fs::TempDir::new().unwrap();
 
     // A library package the binary will depend on.
@@ -60,12 +60,12 @@ fn install_with_local_dependency() {
 
     #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.current_dir(&app_dir).arg("install");
+    cmd.current_dir(&app_dir).arg("fetch");
     cmd.assert().success().stdout(predicate::str::is_empty());
 
     // Running again is idempotent: it must still succeed.
     #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.current_dir(&app_dir).arg("install");
+    cmd.current_dir(&app_dir).arg("fetch");
     cmd.assert().success().stdout(predicate::str::is_empty());
 }

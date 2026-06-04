@@ -15,38 +15,36 @@ const MAX_DEPENDENCY_CACHE_DEPTH: usize = 4;
 /// `git clone` always creates. This is host-agnostic: it doesn't assume any particular server
 /// or a fixed `owner/name` nesting depth.
 pub fn list_cached_git_dependencies() -> BTreeSet<PathBuf> {
-    let cache_root = nargo_crates();
-    let mut found = BTreeSet::new();
-    collect_cached_git_dependencies(&cache_root, &cache_root, 0, &mut found);
-    found
+    collect_cached_git_dependencies(&nargo_crates())
 }
 
-/// Recursively walk `dir` (sitting `depth` components below `cache_root`), inserting the path
-/// (relative to `cache_root`) of every directory that contains a `.git` entry. Such a directory
-/// is a clone root, so we do not descend into it. Descent also stops at
-/// [`MAX_DEPENDENCY_CACHE_DEPTH`], which the contents of a clone never reach.
-fn collect_cached_git_dependencies(
-    cache_root: &Path,
-    dir: &Path,
-    depth: usize,
-    found: &mut BTreeSet<PathBuf>,
-) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        if path.join(".git").exists() {
-            if let Ok(relative) = path.strip_prefix(cache_root) {
-                found.insert(relative.to_path_buf());
+/// Walks the dependency cache rooted at `cache_root`, returning the path (relative to `cache_root`)
+/// of every directory that contains a `.git` entry. Such a directory is a clone root, so we do not
+/// descend into it. Descent also stops at [`MAX_DEPENDENCY_CACHE_DEPTH`], which the contents of a
+/// clone never reach.
+fn collect_cached_git_dependencies(cache_root: &Path) -> BTreeSet<PathBuf> {
+    fn go(cache_root: &Path, dir: &Path, depth: usize, found: &mut BTreeSet<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
             }
-        } else if depth + 1 < MAX_DEPENDENCY_CACHE_DEPTH {
-            collect_cached_git_dependencies(cache_root, &path, depth + 1, found);
+            if path.join(".git").exists() {
+                if let Ok(relative) = path.strip_prefix(cache_root) {
+                    found.insert(relative.to_path_buf());
+                }
+            } else if depth + 1 < MAX_DEPENDENCY_CACHE_DEPTH {
+                go(cache_root, &path, depth + 1, found);
+            }
         }
     }
+
+    let mut found = BTreeSet::new();
+    go(cache_root, cache_root, 0, &mut found);
+    found
 }
 
 /// Creates a unique folder name for a GitHub repo
@@ -155,8 +153,7 @@ mod tests {
         fs::write(cache_root.join(".package-cache"), "").unwrap();
         fs::create_dir_all(cache_root.join("github.com/noir-lang/not-downloaded-yet")).unwrap();
 
-        let mut found = BTreeSet::new();
-        collect_cached_git_dependencies(cache_root, cache_root, 0, &mut found);
+        let found = collect_cached_git_dependencies(cache_root);
 
         let expected: BTreeSet<PathBuf> = [
             PathBuf::from("github.com/noir-lang/keccak256/v0.1.2"),
@@ -177,8 +174,7 @@ mod tests {
         // Sits one level deeper than `MAX_DEPENDENCY_CACHE_DEPTH` allows, so it is not reported.
         make_clone_root(cache_root, "deep.org/group/subgroup/name/v1.0.0");
 
-        let mut found = BTreeSet::new();
-        collect_cached_git_dependencies(cache_root, cache_root, 0, &mut found);
+        let found = collect_cached_git_dependencies(cache_root);
 
         assert!(found.is_empty());
     }
@@ -188,8 +184,7 @@ mod tests {
         let cache = tempfile::tempdir().unwrap();
         let missing = cache.path().join("does-not-exist");
 
-        let mut found = BTreeSet::new();
-        collect_cached_git_dependencies(&missing, &missing, 0, &mut found);
+        let found = collect_cached_git_dependencies(&missing);
 
         assert!(found.is_empty());
     }

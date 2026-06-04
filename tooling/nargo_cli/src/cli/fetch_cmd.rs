@@ -8,14 +8,14 @@ use nargo_toml::{PackageSelection, list_cached_git_dependencies};
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
-/// Download and install the dependencies of a package
+/// Fetch the dependencies of a package from the network
 #[derive(Debug, Clone, Args)]
-pub(crate) struct InstallCommand {
+pub(crate) struct FetchCommand {
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 }
 
-impl WorkspaceCommand for InstallCommand {
+impl WorkspaceCommand for FetchCommand {
     fn package_selection(&self) -> PackageSelection {
         self.package_options.package_selection()
     }
@@ -29,23 +29,23 @@ impl WorkspaceCommand for InstallCommand {
     }
 }
 
-pub(crate) fn run(installed_before: BTreeSet<PathBuf>) -> Result<(), CliError> {
+pub(crate) fn run(fetched_before: BTreeSet<PathBuf>) -> Result<(), CliError> {
     // Resolving the workspace (which happens before this runs) downloads any missing git
     // dependencies into the global cache. Comparing the cache against the snapshot taken before
-    // resolution tells us exactly which dependencies were downloaded during this run; ones that
-    // were already cached are not reported.
-    let installed_after = list_cached_git_dependencies();
-    let newly_installed: Vec<_> = installed_after.difference(&installed_before).collect();
+    // resolution tells us exactly which dependencies were fetched during this run; ones that were
+    // already cached are not reported.
+    let fetched_after = list_cached_git_dependencies();
+    let newly_fetched: Vec<_> = fetched_after.difference(&fetched_before).collect();
 
-    if newly_installed.is_empty() {
+    if newly_fetched.is_empty() {
         return Ok(());
     }
 
-    let count = newly_installed.len();
+    let count = newly_fetched.len();
     let noun = if count == 1 { "dependency" } else { "dependencies" };
-    println!("Installed {count} {noun}:");
-    for dependency in newly_installed {
-        println!("  {}", dependency.display());
+    noirc_errors::println_to_stdout!("Fetched {count} {noun}:");
+    for dependency in newly_fetched {
+        noirc_errors::println_to_stdout!("  {}", dependency.display());
     }
 
     Ok(())

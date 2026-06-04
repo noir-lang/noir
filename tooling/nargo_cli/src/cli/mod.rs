@@ -26,12 +26,12 @@ mod doc_cmd;
 mod execute_cmd;
 mod expand_cmd;
 mod export_cmd;
+mod fetch_cmd;
 mod fmt_cmd;
 mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
-mod install_cmd;
 mod interpret_cmd;
 mod lsp_cmd;
 mod new_cmd;
@@ -108,7 +108,7 @@ enum NargoCommand {
     Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
-    Install(install_cmd::InstallCommand),
+    Fetch(fetch_cmd::FetchCommand),
     Execute(execute_cmd::ExecuteCommand),
     Export(export_cmd::ExportCommand),
     Debug(debug_cmd::DebugCommand),
@@ -151,13 +151,11 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
-        NargoCommand::Install(args) => {
+        NargoCommand::Fetch(args) => {
             // Snapshot the dependency cache before resolution downloads anything, so the command
-            // can report exactly what was installed during this run.
-            let installed_before = nargo_toml::list_cached_git_dependencies();
-            with_workspace(args, config, move |_args, _workspace| {
-                install_cmd::run(installed_before)
-            })
+            // can report exactly what was fetched during this run.
+            let fetched_before = nargo_toml::list_cached_git_dependencies();
+            with_workspace(args, config, move |_args, _workspace| fetch_cmd::run(fetched_before))
         }
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
