@@ -874,4 +874,24 @@ mod tests {
     fn fuzz_with_arbtest() {
         crate::targets::tests::fuzz_with_arbtest(super::fuzz, 10000);
     }
+
+    /// Regression for the generator emitting a constrained deref-assignment of
+    /// a reference-containing value: `*r = (&mut x, ..)` for an `r: &mut T`
+    /// whose pointee `T` itself contains a reference. The frontend forbids
+    /// this in constrained code, but the AST fuzzer builds the monomorphized
+    /// AST directly and bypasses that check, so SSA-gen failed with
+    /// "Cannot return references from an if or match expression, ..." while
+    /// flattening tried to merge the reference. These seeds reproduced the
+    /// failure on `master`.
+    #[test]
+    fn regression_no_constrained_reference_deref_assign() {
+        for seed in [0x50ffa96900100000_u64, 0x58bb5e1100100000_u64] {
+            arbtest::arbtest(|u| {
+                super::fuzz(u).unwrap();
+                Ok(())
+            })
+            .seed(seed)
+            .run();
+        }
+    }
 }
