@@ -167,86 +167,85 @@
 <a href=#167 id=167 data-nosnippet>167</a>    (parameters, return_type)
 <a href=#168 id=168 data-nosnippet>168</a>}
 <a href=#169 id=169 data-nosnippet>169</a>
-<a href=#170 id=170 data-nosnippet>170</a><span class="doccomment">/// Attempts to retrieve the name of this parameter. Returns None
-<a href=#171 id=171 data-nosnippet>171</a>/// if this parameter is a tuple or struct pattern.
-<a href=#172 id=172 data-nosnippet>172</a></span><span class="kw">fn </span>get_param_name&lt;<span class="lifetime">'a</span>&gt;(pattern: <span class="kw-2">&amp;</span>HirPattern, interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt; {
+<a href=#170 id=170 data-nosnippet>170</a><span class="doccomment">/// Retrieves the parameter's bound name. Entry point parameters must use a simple identifier
+<a href=#171 id=171 data-nosnippet>171</a>/// pattern (gated in the elaborator), so any other shape is a compiler bug here.
+<a href=#172 id=172 data-nosnippet>172</a></span><span class="kw">fn </span>get_param_name&lt;<span class="lifetime">'a</span>&gt;(pattern: <span class="kw-2">&amp;</span>HirPattern, interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str {
 <a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">match </span>pattern {
-<a href=#174 id=174 data-nosnippet>174</a>        HirPattern::Identifier(ident) =&gt; <span class="prelude-val">Some</span>(interner.definition_name(ident.id)),
+<a href=#174 id=174 data-nosnippet>174</a>        HirPattern::Identifier(ident) =&gt; interner.definition_name(ident.id),
 <a href=#175 id=175 data-nosnippet>175</a>        HirPattern::Mutable(pattern, <span class="kw">_</span>) =&gt; get_param_name(pattern, interner),
-<a href=#176 id=176 data-nosnippet>176</a>        HirPattern::Tuple(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-<a href=#177 id=177 data-nosnippet>177</a>        HirPattern::Struct(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-<a href=#178 id=178 data-nosnippet>178</a>    }
-<a href=#179 id=179 data-nosnippet>179</a>}
-<a href=#180 id=180 data-nosnippet>180</a>
-<a href=#181 id=181 data-nosnippet>181</a><span class="kw">fn </span>into_abi_params(context: <span class="kw-2">&amp;</span>Context, params: Vec&lt;Param&gt;) -&gt; Vec&lt;AbiParameter&gt; {
-<a href=#182 id=182 data-nosnippet>182</a>    vecmap(params, |(pattern, typ, vis)| {
-<a href=#183 id=183 data-nosnippet>183</a>        <span class="kw">let </span>param_name = get_param_name(<span class="kw-2">&amp;</span>pattern, <span class="kw-2">&amp;</span>context.def_interner)
-<a href=#184 id=184 data-nosnippet>184</a>            .expect(<span class="string">"Abi for tuple and struct parameters is unimplemented"</span>)
-<a href=#185 id=185 data-nosnippet>185</a>            .to_owned();
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">let </span>as_abi = abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ);
-<a href=#187 id=187 data-nosnippet>187</a>        AbiParameter { name: param_name, typ: as_abi, visibility: to_abi_visibility(vis) }
-<a href=#188 id=188 data-nosnippet>188</a>    })
-<a href=#189 id=189 data-nosnippet>189</a>}
-<a href=#190 id=190 data-nosnippet>190</a>
-<a href=#191 id=191 data-nosnippet>191</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>value_from_hir_expression(context: <span class="kw-2">&amp;</span>Context, expression: HirExpression) -&gt; AbiValue {
-<a href=#192 id=192 data-nosnippet>192</a>    <span class="kw">match </span>expression {
-<a href=#193 id=193 data-nosnippet>193</a>        HirExpression::Tuple(expr_ids) =&gt; {
-<a href=#194 id=194 data-nosnippet>194</a>            <span class="kw">let </span>fields = expr_ids
-<a href=#195 id=195 data-nosnippet>195</a>                .iter()
-<a href=#196 id=196 data-nosnippet>196</a>                .map(|expr_id| {
-<a href=#197 id=197 data-nosnippet>197</a>                    value_from_hir_expression(context, context.def_interner.expression(expr_id))
-<a href=#198 id=198 data-nosnippet>198</a>                })
-<a href=#199 id=199 data-nosnippet>199</a>                .collect();
-<a href=#200 id=200 data-nosnippet>200</a>            AbiValue::Tuple { fields }
-<a href=#201 id=201 data-nosnippet>201</a>        }
-<a href=#202 id=202 data-nosnippet>202</a>        HirExpression::Constructor(constructor) =&gt; {
-<a href=#203 id=203 data-nosnippet>203</a>            <span class="kw">let </span>fields = constructor
-<a href=#204 id=204 data-nosnippet>204</a>                .fields
-<a href=#205 id=205 data-nosnippet>205</a>                .iter()
-<a href=#206 id=206 data-nosnippet>206</a>                .map(|(ident, expr_id)| {
-<a href=#207 id=207 data-nosnippet>207</a>                    (
-<a href=#208 id=208 data-nosnippet>208</a>                        ident.to_string(),
-<a href=#209 id=209 data-nosnippet>209</a>                        value_from_hir_expression(
-<a href=#210 id=210 data-nosnippet>210</a>                            context,
-<a href=#211 id=211 data-nosnippet>211</a>                            context.def_interner.expression(expr_id),
-<a href=#212 id=212 data-nosnippet>212</a>                        ),
-<a href=#213 id=213 data-nosnippet>213</a>                    )
-<a href=#214 id=214 data-nosnippet>214</a>                })
-<a href=#215 id=215 data-nosnippet>215</a>                .collect();
-<a href=#216 id=216 data-nosnippet>216</a>            AbiValue::Struct { fields }
-<a href=#217 id=217 data-nosnippet>217</a>        }
-<a href=#218 id=218 data-nosnippet>218</a>        HirExpression::Literal(literal) =&gt; <span class="kw">match </span>literal {
-<a href=#219 id=219 data-nosnippet>219</a>            HirLiteral::Array(hir_array) =&gt; <span class="kw">match </span>hir_array {
-<a href=#220 id=220 data-nosnippet>220</a>                HirArrayLiteral::Standard(expr_ids) =&gt; {
-<a href=#221 id=221 data-nosnippet>221</a>                    <span class="kw">let </span>value = expr_ids
-<a href=#222 id=222 data-nosnippet>222</a>                        .iter()
-<a href=#223 id=223 data-nosnippet>223</a>                        .map(|expr_id| {
-<a href=#224 id=224 data-nosnippet>224</a>                            value_from_hir_expression(
-<a href=#225 id=225 data-nosnippet>225</a>                                context,
-<a href=#226 id=226 data-nosnippet>226</a>                                context.def_interner.expression(expr_id),
-<a href=#227 id=227 data-nosnippet>227</a>                            )
-<a href=#228 id=228 data-nosnippet>228</a>                        })
-<a href=#229 id=229 data-nosnippet>229</a>                        .collect();
-<a href=#230 id=230 data-nosnippet>230</a>                    AbiValue::Array { value }
-<a href=#231 id=231 data-nosnippet>231</a>                }
-<a href=#232 id=232 data-nosnippet>232</a>                HirArrayLiteral::Repeated { .. } =&gt; {
-<a href=#233 id=233 data-nosnippet>233</a>                    <span class="macro">unreachable!</span>(<span class="string">"Repeated arrays cannot be used in the abi"</span>)
-<a href=#234 id=234 data-nosnippet>234</a>                }
-<a href=#235 id=235 data-nosnippet>235</a>            },
-<a href=#236 id=236 data-nosnippet>236</a>            HirLiteral::Bool(value) =&gt; AbiValue::Boolean { value },
-<a href=#237 id=237 data-nosnippet>237</a>            HirLiteral::Str(value) =&gt; <span class="kw">match </span>String::from_utf8(value) {
-<a href=#238 id=238 data-nosnippet>238</a>                <span class="prelude-val">Ok</span>(value) =&gt; AbiValue::String { value },
-<a href=#239 id=239 data-nosnippet>239</a>                <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#240 id=240 data-nosnippet>240</a>                    <span class="kw">let </span>value = vecmap(error.into_bytes(), |byte| AbiValue::Integer {
-<a href=#241 id=241 data-nosnippet>241</a>                        sign: <span class="bool-val">false</span>,
-<a href=#242 id=242 data-nosnippet>242</a>                        value: <span class="macro">format!</span>(<span class="string">"{byte:x}"</span>),
-<a href=#243 id=243 data-nosnippet>243</a>                    });
-<a href=#244 id=244 data-nosnippet>244</a>                    AbiValue::Array { value }
-<a href=#245 id=245 data-nosnippet>245</a>                }
-<a href=#246 id=246 data-nosnippet>246</a>            },
-<a href=#247 id=247 data-nosnippet>247</a>            HirLiteral::Integer(value) =&gt; AbiValue::Integer { value: value.to_hex(), sign: <span class="bool-val">false </span>},
-<a href=#248 id=248 data-nosnippet>248</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Literal cannot be used in the abi"</span>),
-<a href=#249 id=249 data-nosnippet>249</a>        },
-<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Type cannot be used in the abi {:?}"</span>, expression),
-<a href=#251 id=251 data-nosnippet>251</a>    }
-<a href=#252 id=252 data-nosnippet>252</a>}</code></pre></div></section></main></body></html>
+<a href=#176 id=176 data-nosnippet>176</a>        HirPattern::Tuple(..) | HirPattern::Struct(..) =&gt; {
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="macro">unreachable!</span>(<span class="string">"destructuring patterns are rejected for entry point parameters"</span>)
+<a href=#178 id=178 data-nosnippet>178</a>        }
+<a href=#179 id=179 data-nosnippet>179</a>    }
+<a href=#180 id=180 data-nosnippet>180</a>}
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a><span class="kw">fn </span>into_abi_params(context: <span class="kw-2">&amp;</span>Context, params: Vec&lt;Param&gt;) -&gt; Vec&lt;AbiParameter&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>    vecmap(params, |(pattern, typ, vis)| {
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="kw">let </span>param_name = get_param_name(<span class="kw-2">&amp;</span>pattern, <span class="kw-2">&amp;</span>context.def_interner).to_owned();
+<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>as_abi = abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ);
+<a href=#186 id=186 data-nosnippet>186</a>        AbiParameter { name: param_name, typ: as_abi, visibility: to_abi_visibility(vis) }
+<a href=#187 id=187 data-nosnippet>187</a>    })
+<a href=#188 id=188 data-nosnippet>188</a>}
+<a href=#189 id=189 data-nosnippet>189</a>
+<a href=#190 id=190 data-nosnippet>190</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>value_from_hir_expression(context: <span class="kw-2">&amp;</span>Context, expression: HirExpression) -&gt; AbiValue {
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="kw">match </span>expression {
+<a href=#192 id=192 data-nosnippet>192</a>        HirExpression::Tuple(expr_ids) =&gt; {
+<a href=#193 id=193 data-nosnippet>193</a>            <span class="kw">let </span>fields = expr_ids
+<a href=#194 id=194 data-nosnippet>194</a>                .iter()
+<a href=#195 id=195 data-nosnippet>195</a>                .map(|expr_id| {
+<a href=#196 id=196 data-nosnippet>196</a>                    value_from_hir_expression(context, context.def_interner.expression(expr_id))
+<a href=#197 id=197 data-nosnippet>197</a>                })
+<a href=#198 id=198 data-nosnippet>198</a>                .collect();
+<a href=#199 id=199 data-nosnippet>199</a>            AbiValue::Tuple { fields }
+<a href=#200 id=200 data-nosnippet>200</a>        }
+<a href=#201 id=201 data-nosnippet>201</a>        HirExpression::Constructor(constructor) =&gt; {
+<a href=#202 id=202 data-nosnippet>202</a>            <span class="kw">let </span>fields = constructor
+<a href=#203 id=203 data-nosnippet>203</a>                .fields
+<a href=#204 id=204 data-nosnippet>204</a>                .iter()
+<a href=#205 id=205 data-nosnippet>205</a>                .map(|(ident, expr_id)| {
+<a href=#206 id=206 data-nosnippet>206</a>                    (
+<a href=#207 id=207 data-nosnippet>207</a>                        ident.to_string(),
+<a href=#208 id=208 data-nosnippet>208</a>                        value_from_hir_expression(
+<a href=#209 id=209 data-nosnippet>209</a>                            context,
+<a href=#210 id=210 data-nosnippet>210</a>                            context.def_interner.expression(expr_id),
+<a href=#211 id=211 data-nosnippet>211</a>                        ),
+<a href=#212 id=212 data-nosnippet>212</a>                    )
+<a href=#213 id=213 data-nosnippet>213</a>                })
+<a href=#214 id=214 data-nosnippet>214</a>                .collect();
+<a href=#215 id=215 data-nosnippet>215</a>            AbiValue::Struct { fields }
+<a href=#216 id=216 data-nosnippet>216</a>        }
+<a href=#217 id=217 data-nosnippet>217</a>        HirExpression::Literal(literal) =&gt; <span class="kw">match </span>literal {
+<a href=#218 id=218 data-nosnippet>218</a>            HirLiteral::Array(hir_array) =&gt; <span class="kw">match </span>hir_array {
+<a href=#219 id=219 data-nosnippet>219</a>                HirArrayLiteral::Standard(expr_ids) =&gt; {
+<a href=#220 id=220 data-nosnippet>220</a>                    <span class="kw">let </span>value = expr_ids
+<a href=#221 id=221 data-nosnippet>221</a>                        .iter()
+<a href=#222 id=222 data-nosnippet>222</a>                        .map(|expr_id| {
+<a href=#223 id=223 data-nosnippet>223</a>                            value_from_hir_expression(
+<a href=#224 id=224 data-nosnippet>224</a>                                context,
+<a href=#225 id=225 data-nosnippet>225</a>                                context.def_interner.expression(expr_id),
+<a href=#226 id=226 data-nosnippet>226</a>                            )
+<a href=#227 id=227 data-nosnippet>227</a>                        })
+<a href=#228 id=228 data-nosnippet>228</a>                        .collect();
+<a href=#229 id=229 data-nosnippet>229</a>                    AbiValue::Array { value }
+<a href=#230 id=230 data-nosnippet>230</a>                }
+<a href=#231 id=231 data-nosnippet>231</a>                HirArrayLiteral::Repeated { .. } =&gt; {
+<a href=#232 id=232 data-nosnippet>232</a>                    <span class="macro">unreachable!</span>(<span class="string">"Repeated arrays cannot be used in the abi"</span>)
+<a href=#233 id=233 data-nosnippet>233</a>                }
+<a href=#234 id=234 data-nosnippet>234</a>            },
+<a href=#235 id=235 data-nosnippet>235</a>            HirLiteral::Bool(value) =&gt; AbiValue::Boolean { value },
+<a href=#236 id=236 data-nosnippet>236</a>            HirLiteral::Str(value) =&gt; <span class="kw">match </span>String::from_utf8(value) {
+<a href=#237 id=237 data-nosnippet>237</a>                <span class="prelude-val">Ok</span>(value) =&gt; AbiValue::String { value },
+<a href=#238 id=238 data-nosnippet>238</a>                <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#239 id=239 data-nosnippet>239</a>                    <span class="kw">let </span>value = vecmap(error.into_bytes(), |byte| AbiValue::Integer {
+<a href=#240 id=240 data-nosnippet>240</a>                        sign: <span class="bool-val">false</span>,
+<a href=#241 id=241 data-nosnippet>241</a>                        value: <span class="macro">format!</span>(<span class="string">"{byte:x}"</span>),
+<a href=#242 id=242 data-nosnippet>242</a>                    });
+<a href=#243 id=243 data-nosnippet>243</a>                    AbiValue::Array { value }
+<a href=#244 id=244 data-nosnippet>244</a>                }
+<a href=#245 id=245 data-nosnippet>245</a>            },
+<a href=#246 id=246 data-nosnippet>246</a>            HirLiteral::Integer(value) =&gt; AbiValue::Integer { value: value.to_hex(), sign: <span class="bool-val">false </span>},
+<a href=#247 id=247 data-nosnippet>247</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Literal cannot be used in the abi"</span>),
+<a href=#248 id=248 data-nosnippet>248</a>        },
+<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Type cannot be used in the abi {:?}"</span>, expression),
+<a href=#250 id=250 data-nosnippet>250</a>    }
+<a href=#251 id=251 data-nosnippet>251</a>}</code></pre></div></section></main></body></html>
