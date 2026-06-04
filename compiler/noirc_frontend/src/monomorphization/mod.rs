@@ -568,6 +568,19 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    /// If `f` is a trait method, force-bind the trait's `Self` type variable to the impl's
+    /// self type and return a guard that unbinds it again when dropped.
+    ///
+    /// Returns `None` for functions that are not trait methods, in which case there is nothing
+    /// to bind or unbind.
+    fn bind_function_trait_self(&self, f: &node_interner::FuncId) -> Option<TraitSelfBindingGuard> {
+        let (self_type, trait_id) = self.interner.get_function_trait(f)?;
+        let self_type_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
+        let kind = self_type_typevar.kind();
+        self_type_typevar.force_bind(self_type);
+        Some(TraitSelfBindingGuard { self_type_typevar, kind })
+    }
+
     /// Monomorphizes the given function.
     ///
     /// Expects any generics to already be bound by their bindings at this function's call site.
@@ -584,10 +597,10 @@ impl<'interner> Monomorphizer<'interner> {
         id: FuncId,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
-            let the_trait = self.interner.get_trait(trait_id);
-            the_trait.self_type_typevar.force_bind(self_type);
-        }
+        // When monomorphizing a trait method we bind the trait's `Self` to the impl's self
+        // type so that references to `Self` in the function resolve.
+        // When this is dropped, the binding is removed.
+        let _self_type_guard = self.bind_function_trait_self(&f);
 
         let meta = self.interner.function_meta(&f).clone();
 
@@ -3170,6 +3183,19 @@ fn unwrap_enum_type(
             Ok(def.borrow().get_variants(&args).unwrap())
         }
         other => unreachable!("unwrap_enum_type: expected enum, found {:?}", other),
+    }
+}
+
+/// Unbinds a trait's `Self` type variable once a trait method is done being monomorphized,
+/// restoring the unbound state it had beforehand. See [Monomorphizer::bind_function_trait_self].
+struct TraitSelfBindingGuard {
+    self_type_typevar: TypeVariable,
+    kind: Kind,
+}
+
+impl Drop for TraitSelfBindingGuard {
+    fn drop(&mut self) {
+        self.self_type_typevar.unbind(self.self_type_typevar.id(), self.kind.clone());
     }
 }
 
