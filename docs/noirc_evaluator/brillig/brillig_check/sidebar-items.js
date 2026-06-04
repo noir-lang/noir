@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["OpcodeAdvisory"],"fn":["block_opcode_ranges","opcode_advisories","show_opcode_advisories"],"struct":["AdvisoryCollector","ReadCollector"],"trait":["OpcodeAddressVisitor"],"type":["OpcodeAdvisories"]};
+window.SIDEBAR_ITEMS = {"enum":["CallRegion","OpcodeAdvisory"],"fn":["black_box_op_to_acir_func","block_opcode_ranges","is_fallible_black_box_op","is_fallible_opcode","opcode_advisories","show_opcode_advisories"],"struct":["AdvisoryCollector","ReadCollector"],"trait":["OpcodeAddressVisitor"],"type":["Offset","OpcodeAdvisories"]};
