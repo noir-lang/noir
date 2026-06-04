@@ -1,20 +1,3 @@
-impl u1 {
-    /// Returns the maximum value representable by `u1`: 1.
-    pub fn max_value() -> u1 {
-        1
-    }
-
-    /// Returns the minimum value representable by `u1`: 0.
-    pub fn min_value() -> u1 {
-        0
-    }
-
-    /// Returns the number of bits in `u1`: 1.
-    pub fn bits() -> u32 {
-        1
-    }
-}
-
 impl u8 {
     /// Returns the maximum value representable by `u8`: 255.
     pub fn max_value() -> u8 {
@@ -152,13 +135,6 @@ impl i64 {
 }
 
 mod tests {
-    #[test]
-    fn test_u1_limits() {
-        assert_eq(u1::max_value(), 1);
-        assert_eq(u1::min_value(), 0);
-        assert_eq(u1::bits(), 1);
-    }
-
     #[test]
     fn test_u8_limits() {
         assert_eq(u8::max_value(), 255);
