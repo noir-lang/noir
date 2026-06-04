@@ -145,6 +145,20 @@ impl Function {
     ///
     /// The `force_unroll_threshold` overrides the default threshold for
     /// force-unrolling small Brillig loops.
+    ///
+    /// The processing order is depends on the runtime, after an initial innermost-first
+    /// (`InsideOut`) run, so that simple loops are handled first.
+    /// Doing this first pass has a positive impact on performance.
+    ///
+    /// - **ACIR** unrolls outermost-first (`OutsideIn`). Unrolling an outer loop substitutes its
+    ///   induction variable for a constant, so an inner loop whose bound depends on it (e.g.
+    ///   `for j in 0..i`) becomes constant-bounded and is unrolled on a subsequent pass. Since
+    ///   ACIR must fully unroll every loop, this resolves the dependent-bound case directly,
+    ///   rather than discovering it as a stuck inner loop.
+    /// - **Brillig** unrolls innermost-first (`InsideOut`). A loop that is too large to unroll (or
+    ///   uses break/continue) is kept as a runtime loop; processing inner loops first means such a
+    ///   kept loop is never duplicated by an enclosing unroll. The `failed_blocks` guard in
+    ///   `try_unroll_loops_with_order` relies on this ordering.
     pub(super) fn unroll_loops_iteratively(
         &mut self,
         max_unroll_iterations: usize,
@@ -207,21 +221,9 @@ impl Function {
         Ok(has_unrolled)
     }
 
-    /// Unroll all loops within the function.
+    /// Unroll all loops within the function, using the provided order.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
     /// Returns a flag indicating whether any blocks have been modified.
-    ///
-    /// The processing order is chosen by runtime:
-    ///
-    /// - **ACIR** unrolls outermost-first (`OutsideIn`). Unrolling an outer loop substitutes its
-    ///   induction variable as a constant, so an inner loop whose bound depends on it (e.g.
-    ///   `for j in 0..i`) becomes constant-bounded and is unrolled on a subsequent pass. Since
-    ///   ACIR must fully unroll every loop, this resolves the dependent-bound case directly,
-    ///   rather than discovering it as a stuck inner loop.
-    /// - **Brillig** unrolls innermost-first (`InsideOut`). A loop that is too large to unroll (or
-    ///   uses break/continue) is kept as a runtime loop; processing inner loops first means such a
-    ///   kept loop is never duplicated by an enclosing unroll. The `failed_blocks` guard in
-    ///   `try_unroll_loops_with_order` relies on this ordering.
     fn try_unroll_loops(
         &mut self,
         max_unroll_iterations: usize,
@@ -229,9 +231,6 @@ impl Function {
         callee_costs: &HashMap<FunctionId, usize>,
         order: LoopOrder,
     ) -> (bool, Vec<RuntimeError>) {
-        // let order =
-        //     if self.runtime().is_acir() { LoopOrder::OutsideIn } else { LoopOrder::InsideOut };
-
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
