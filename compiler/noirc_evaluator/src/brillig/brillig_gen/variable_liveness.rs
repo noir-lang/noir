@@ -28,6 +28,30 @@ type LastUses = HashMap<InstructionId, Variables>;
 /// Maps a loop (identified by its header and back-edge) to the blocks in the loop body.
 type LoopMap = HashMap<BackEdge, BTreeSet<BasicBlockId>>;
 
+/// Extra operands that a downstream consumer (e.g. memcpy codegen) needs to keep
+/// alive at a given instruction, beyond what the SSA's own operands express.
+///
+/// Liveness treats these as additional uses of the listed values at the keyed
+/// instruction. Each caller is responsible for what it puts in here; liveness
+/// applies the same `is_variable` filter it applies to natural operands.
+pub(crate) type SyntheticUses = HashMap<InstructionId, Vec<ValueId>>;
+
+/// Add any synthetic-use entries registered for `instruction_id` to `vars`.
+fn extend_with_synthetic_uses(
+    vars: &mut Variables,
+    instruction_id: InstructionId,
+    dfg: &DataFlowGraph,
+    synthetic_uses: &SyntheticUses,
+) {
+    if let Some(extras) = synthetic_uses.get(&instruction_id) {
+        for &v in extras {
+            if is_variable(v, dfg) {
+                vars.insert(v);
+            }
+        }
+    }
+}
+
 /// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct BackEdge {
@@ -83,13 +107,18 @@ fn variables_returned_by_instruction(
 /// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
-fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
+fn variables_used_in_block(
+    block: &BasicBlock,
+    dfg: &DataFlowGraph,
+    synthetic_uses: &SyntheticUses,
+) -> Variables {
     let mut used: Variables = block
         .instructions()
         .iter()
         .flat_map(|instruction_id| {
-            let instruction = &dfg[*instruction_id];
-            variables_used_in_instruction(instruction, dfg)
+            let mut vars = variables_used_in_instruction(&dfg[*instruction_id], dfg);
+            extend_with_synthetic_uses(&mut vars, *instruction_id, dfg, synthetic_uses);
+            vars
         })
         .collect();
 
@@ -129,7 +158,18 @@ pub(crate) struct VariableLiveness {
 
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
-    pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
+    ///
+    /// `synthetic_uses` lets callers register additional operands for an
+    /// instruction beyond what the SSA itself exposes. The memcpy lowering
+    /// uses this to keep the source array and base index alive at the
+    /// `MakeArray` they get folded into, even though neither is an SSA
+    /// operand of `MakeArray`. Liveness applies the same `is_variable`
+    /// filter to these as it does to natural operands.
+    pub(crate) fn from_function(
+        func: &Function,
+        constants: &ConstantAllocation,
+        synthetic_uses: &SyntheticUses,
+    ) -> Self {
         let loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
         let back_edges: LoopMap = loops
@@ -143,8 +183,8 @@ impl VariableLiveness {
 
         Self { cfg: loops.cfg, ..Default::default() }
             .compute_block_param_definitions(func, &loops.dom)
-            .compute_live_in_of_blocks(func, constants, back_edges)
-            .compute_last_uses(func)
+            .compute_live_in_of_blocks(func, constants, synthetic_uses, back_edges)
+            .compute_last_uses(func, synthetic_uses)
             .compute_max_live_count(func, constants)
     }
 
@@ -209,10 +249,11 @@ impl VariableLiveness {
         mut self,
         func: &Function,
         constants: &ConstantAllocation,
+        synthetic_uses: &SyntheticUses,
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in(func, constants, &back_edges);
+        self.compute_live_in(func, constants, synthetic_uses, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -235,6 +276,7 @@ impl VariableLiveness {
         &mut self,
         func: &Function,
         constants: &ConstantAllocation,
+        synthetic_uses: &SyntheticUses,
         back_edges: &LoopMap,
     ) {
         for block_id in PostOrder::with_function(func).as_slice().iter().copied() {
@@ -256,7 +298,7 @@ impl VariableLiveness {
                 );
             }
 
-            let used = variables_used_in_block(block, &func.dfg);
+            let used = variables_used_in_block(block, &func.dfg, synthetic_uses);
             let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
             let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
 
@@ -314,7 +356,7 @@ impl VariableLiveness {
     ///
     /// For each block, starting from the terminator than going backwards through the instructions,
     /// take note of the first (technically last) instruction the value is used in.
-    fn compute_last_uses(mut self, func: &Function) -> Self {
+    fn compute_last_uses(mut self, func: &Function, synthetic_uses: &SyntheticUses) -> Self {
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
             let live_out = self.get_live_out(&block_id);
@@ -337,11 +379,17 @@ impl VariableLiveness {
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
                 // Collect the variables which will be dead after this instruction.
-                let mut instruction_last_uses: HashSet<ValueId> =
-                    variables_used_in_instruction(instruction, &func.dfg)
-                        .into_iter()
-                        .filter(|id| !used_after.contains(id) && !live_out.contains(id))
-                        .collect();
+                let mut used_vars = variables_used_in_instruction(instruction, &func.dfg);
+                extend_with_synthetic_uses(
+                    &mut used_vars,
+                    *instruction_id,
+                    &func.dfg,
+                    synthetic_uses,
+                );
+                let mut instruction_last_uses: HashSet<ValueId> = used_vars
+                    .into_iter()
+                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                    .collect();
 
                 // Remember that we are using these variables.
                 used_after.extend(&instruction_last_uses);
@@ -528,7 +576,7 @@ mod tests {
         let ssa = builder.finish();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
         assert_eq!(
@@ -680,7 +728,7 @@ mod tests {
         let func = ssa.main();
 
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
         assert_eq!(
@@ -764,7 +812,7 @@ mod tests {
         let func = ssa.main();
 
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // Entry point defines its own params and also b3's params.
         assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v0, v1, v2]);
@@ -795,7 +843,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         let [b0, b1, b2, b3] = block_ids();
         let [_v0, _v1, v2, v3] = value_ids();
@@ -1053,7 +1101,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // The constant `Field 1` should be allocated in b0.
         let allocated_in_entry = constants.allocated_in_block(func.entry_block());
@@ -1139,7 +1187,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert_eq!(
             liveness.max_live_count, 6,
@@ -1165,7 +1213,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert_eq!(
             liveness.max_live_count, 3,
@@ -1199,7 +1247,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // Peak in b1 at `v3 = unchecked_add v2, u32 2`: v1 (carried for the later add),
         // v6 (b2's param pre-allocated via dominator b1), v2 (previous result), u32 2
@@ -1220,7 +1268,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
         // The elements are already in the live set as block params, but

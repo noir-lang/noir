@@ -726,8 +726,99 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
+        // Always initialize constants — they participate in liveness and must be materialized
+        // even if the consuming instruction is skipped by the memcpy optimization.
         self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
 
+        // If this instruction starts a load group (consecutive ArrayGets detected by
+        // MemcpyOptimizations), emit a single memcpy into consecutive registers.
+        // The subsequent array_gets in the group are in skip_instructions and will be
+        // skipped below — their liveness is handled by process_dead_variables.
+        if let Some(info) =
+            self.function_context.memcpy_opts.load_groups.get(&instruction_id).cloned()
+        {
+            if !self.codegen_load_group(&info, dfg) {
+                // Not enough consecutive register space — undo the skip so elements
+                // are codegen'd individually. The interleaved index `Binary::Add`s
+                // must also be un-skipped.:
+                for &id in info.array_get_ids.iter().chain(&info.skipped_index_ids) {
+                    self.function_context.memcpy_opts.skip_instructions.remove(&id);
+                }
+                // Codegen element 0 normally (the load_group branch intercepted it).
+                self.codegen_instruction(instruction_id, instruction, dfg);
+            }
+        } else if !self.function_context.memcpy_opts.skip_instructions.contains(&instruction_id) {
+            // Skip codegen for instructions eliminated by memcpy optimization
+            // (dead ArrayGets and their single-use index computations).
+            // Dead-variable cleanup still runs below so registers are freed.
+            self.codegen_instruction(instruction_id, instruction, dfg);
+        }
+
+        if !self.building_globals {
+            self.process_dead_variables(instruction_id, dfg);
+        }
+
+        // Clear the call stack; it only applied to this instruction.
+        self.brillig_context.set_call_stack(CallStackId::root());
+    }
+
+    /// Processes the dead variables for a given instruction, deallocating registers
+    /// that are no longer needed.
+    pub(super) fn process_dead_variables(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+    ) {
+        let empty = HashSet::default();
+        let dead_variables = self.last_uses.get(&instruction_id).unwrap_or(&empty);
+
+        for dead_variable in dead_variables {
+            // Globals are reserved throughout the entirety of the program
+            let is_global = dfg.is_global(*dead_variable);
+            let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
+            let not_global = !is_global && !is_hoisted_global;
+            if not_global {
+                if self.is_spilled(dead_variable) {
+                    // Spilled: register was already freed. Just clean up tracking.
+                    let sm = self.function_context.spill_manager.as_mut().unwrap();
+                    sm.remove_spill(dead_variable);
+                    sm.remove_from_lru(dead_variable);
+                    // Only remove from available_variables if it's actually there.
+                    // A permanently spilled value may have been filtered out at block
+                    // entry and never reloaded, so it was never in available_variables.
+                    if self.variables.is_allocated(dead_variable) {
+                        self.variables.mark_unavailable(dead_variable);
+                    }
+                } else if self
+                    .function_context
+                    .coalescing
+                    .has_live_partner(dead_variable, |v| self.variables.is_allocated(v))
+                {
+                    // This value shares a register with a coalescing partner that is
+                    // still alive. We must not deallocate the register yet; it will
+                    // be freed when the partner dies (or at block boundary cleanup).
+                    self.variables.remove_variable_without_dealloc(dead_variable);
+                } else if self.variables.is_allocated(dead_variable) {
+                    self.variables.remove_variable(
+                        dead_variable,
+                        self.function_context,
+                        self.brillig_context,
+                    );
+                    if let Some(sm) = self.function_context.spill_manager.as_mut() {
+                        sm.remove_from_lru(dead_variable);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Dispatches a single SSA instruction to the appropriate Brillig codegen method.
+    fn codegen_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        instruction: &Instruction,
+        dfg: &DataFlowGraph,
+    ) {
         match instruction {
             Instruction::Binary(binary) => {
                 self.codegen_binary(instruction_id, binary, dfg);
@@ -796,54 +887,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
             Instruction::Noop => (),
         }
-
-        if !self.building_globals {
-            // Instructions with no last uses are omitted from `last_uses` to save memory;
-            // a missing entry is equivalent to an empty set.
-            let dead_variables = self.last_uses.get(&instruction_id).into_iter().flatten();
-
-            for dead_variable in dead_variables {
-                // Globals are reserved throughout the entirety of the program
-                let is_global = dfg.is_global(*dead_variable);
-                let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                let not_global = !is_global && !is_hoisted_global;
-                if not_global {
-                    if self.is_spilled(dead_variable) {
-                        // Spilled: register was already freed. Just clean up tracking.
-                        let sm = self.function_context.spill_manager.as_mut().unwrap();
-                        sm.remove_spill(dead_variable);
-                        sm.remove_from_lru(dead_variable);
-                        // Only remove from available_variables if it's actually there.
-                        // A permanently spilled value may have been filtered out at block
-                        // entry and never reloaded, so it was never in available_variables.
-                        if self.variables.is_allocated(dead_variable) {
-                            self.variables.mark_unavailable(dead_variable);
-                        }
-                    } else if self
-                        .function_context
-                        .coalescing
-                        .has_live_partner(dead_variable, |v| self.variables.is_allocated(v))
-                    {
-                        // This value shares a register with a coalescing partner that is
-                        // still alive. We must not deallocate the register yet; it will
-                        // be freed when the partner dies (or at block boundary cleanup).
-                        self.variables.remove_variable_without_dealloc(dead_variable);
-                    } else {
-                        self.variables.remove_variable(
-                            dead_variable,
-                            self.function_context,
-                            self.brillig_context,
-                        );
-                        if let Some(sm) = self.function_context.spill_manager.as_mut() {
-                            sm.remove_from_lru(dead_variable);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Clear the call stack; it only applied to this instruction.
-        self.brillig_context.set_call_stack(CallStackId::root());
     }
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
