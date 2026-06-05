@@ -19,8 +19,13 @@ use std::{collections::BTreeMap, path::PathBuf};
 /// Optimizes the given SSA into ACIR
 pub fn optimize_ssa_into_acir(
     ssa: Ssa,
-    options: SsaEvaluatorOptions,
+    mut options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    // The SSA executor and the fuzzers built on top of it want to run programs whose constraints
+    // may be statically known to be false and compare their execution across passes/runtimes.
+    // Keep such constraints as a non-fatal `bug` warning (deferring the failure to execution time)
+    // instead of aborting ACIR generation, so the comparison stays meaningful.
+    options.fail_on_false_constraint = false;
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let hook_message = panic_message.clone();

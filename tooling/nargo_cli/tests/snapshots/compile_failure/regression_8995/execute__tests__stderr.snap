@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: attempt to subtract with overflow
+error: Assertion is always false: attempt to subtract with overflow
   ┌─ src/main.nr:8:9
   │
 8 │     b[((x - y) % z)].0
@@ -11,3 +11,5 @@ bug: Assertion is always false: attempt to subtract with overflow
   = Call stack:
     1: main
             at src/main.nr:8:9
+
+Aborting due to 1 previous error

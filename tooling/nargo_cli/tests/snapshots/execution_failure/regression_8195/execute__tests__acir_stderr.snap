@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: attempt to multiply with overflow
+error: Assertion is always false: attempt to multiply with overflow
   ┌─ src/main.nr:3:21
   │
 3 │     ((13834 - a) % (G_A * G_A))
@@ -12,14 +12,4 @@ bug: Assertion is always false: attempt to multiply with overflow
     1: main
             at src/main.nr:3:21
 
-error: Assertion failed: attempt to multiply with overflow
-  ┌─ src/main.nr:3:21
-  │
-3 │     ((13834 - a) % (G_A * G_A))
-  │                     ---------
-  │
-  = Call stack:
-    1: main
-            at src/main.nr:3:21
-
-Failed assertion
+Aborting due to 1 previous error

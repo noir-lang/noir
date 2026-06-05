@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: Index out of bounds
+error: Assertion is always false: Index out of bounds
   ┌─ src/main.nr:5:5
   │
 5 │     r[i]
@@ -11,3 +11,5 @@ bug: Assertion is always false: Index out of bounds
   = Call stack:
     1: main
             at src/main.nr:5:5
+
+Aborting due to 1 previous error

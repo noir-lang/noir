@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: attempt to divide by zero
+error: Assertion is always false: attempt to divide by zero
   ┌─ src/main.nr:2:20
   │
 2 │     let a: Field = x / 0;
@@ -12,14 +12,4 @@ bug: Assertion is always false: attempt to divide by zero
     1: main
             at src/main.nr:2:20
 
-error: Assertion failed: attempt to divide by zero
-  ┌─ src/main.nr:2:20
-  │
-2 │     let a: Field = x / 0;
-  │                    -----
-  │
-  = Call stack:
-    1: main
-            at src/main.nr:2:20
-
-Failed assertion
+Aborting due to 1 previous error

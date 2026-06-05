@@ -66,7 +66,7 @@ pub(crate) fn try_ssa_to_acir(
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
     let (acir_functions, brillig_functions, _) =
-        ssa.generate_entry_point_index().into_acir(&brillig, &BrilligOptions::default())?;
+        ssa.generate_entry_point_index().into_acir(&brillig, &BrilligOptions::default(), false)?;
 
     let artifacts =
         ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
@@ -237,6 +237,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
+        false,
     )
     .expect("Should compile manually written SSA into ACIR");
 
@@ -271,7 +272,7 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
     let (acir_functions, _brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default())
+        .into_acir(&brillig, &BrilligOptions::default(), false)
         .expect("Should compile manually written SSA into ACIR");
 
     assert_eq!(acir_functions.len(), 1);
@@ -335,6 +336,7 @@ fn properly_constrains_quotient_when_truncating_fields_to_u128() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
+        false,
     )
     .expect("Should compile manually written SSA into ACIR");
 
@@ -366,8 +368,37 @@ fn derive_pedersen_generators_requires_constant_input() {
 
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    ssa.into_acir(&brillig, &BrilligOptions::default())
+    ssa.into_acir(&brillig, &BrilligOptions::default(), false)
         .expect_err("Should fail with assert constant");
+}
+
+#[test]
+fn errors_on_constant_false_constraint() {
+    let src = r#"
+    acir(inline) fn main f0 {
+      b0():
+        constrain Field 1 == Field 0, "my message"
+        return
+    }
+    "#;
+
+    // When `fail_on_false_constraint` is set, a constraint that is statically known to be false
+    // aborts ACIR generation with a hard error carrying the assertion message.
+    let ssa = Ssa::from_str(src).unwrap();
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let error = ssa
+        .into_acir(&brillig, &BrilligOptions::default(), true)
+        .expect_err("Expected a constant false constraint to error");
+    assert!(matches!(
+        error,
+        RuntimeError::ConstraintIsAlwaysFalse { message: Some(message), .. } if message == "my message"
+    ));
+
+    // When it is not set, the same program compiles (the failure is deferred to execution time).
+    let ssa = Ssa::from_str(src).unwrap();
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    ssa.into_acir(&brillig, &BrilligOptions::default(), false)
+        .expect("Expected a constant false constraint to compile when not failing on it");
 }
 
 #[test]
@@ -453,7 +484,7 @@ pub(crate) fn execute_ssa(
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
     let (acir_functions, brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default())
+        .into_acir(&brillig, &BrilligOptions::default(), false)
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
@@ -734,7 +765,8 @@ fn zero_sized_parameters_should_generate_no_witnesses() {
 
 fn assert_no_witnesses(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
+    let (acir, _, _) =
+        ssa.into_acir(&Brillig::default(), &BrilligOptions::default(), false).unwrap();
     let acir = &acir[0];
 
     assert!(acir.current_witness_index().is_none());

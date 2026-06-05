@@ -64,16 +64,23 @@ pub(crate) struct AcirContext<F: AcirField> {
     pub(super) acir_ir: GeneratedAcir<F>,
 
     pub(super) warnings: Vec<SsaReport>,
+
+    /// When `true`, a constraint that is statically known to be false aborts ACIR generation
+    /// with a hard error instead of emitting a non-fatal `bug` warning. This is disabled when
+    /// compiling test or fuzzing harnesses, where a test may deliberately trigger an
+    /// always-failing assertion to observe the runtime failure.
+    fail_on_false_constraint: bool,
 }
 
 impl<F: AcirField> AcirContext<F> {
-    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>) -> Self {
+    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, fail_on_false_constraint: bool) -> Self {
         AcirContext {
             brillig_stdlib,
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
             warnings: Default::default(),
+            fail_on_false_constraint,
         }
     }
 
@@ -491,6 +498,9 @@ impl<F: AcirField> AcirContext<F> {
             // Constraint is always false
             let message = self.get_assertion_payload_message(assert_message.as_ref());
             let call_stack = self.get_call_stack();
+            if self.fail_on_false_constraint {
+                return Err(RuntimeError::ConstraintIsAlwaysFalse { message, call_stack });
+            }
             self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed { call_stack, message }));
         }
 
@@ -1599,7 +1609,7 @@ mod tests {
                 (any::<u128>(), any::<bool>())
             ]
         ) {
-            let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+            let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default(), false);
 
             let lhs = context.add_variable();
             let rhs = context.add_constant(limit);
@@ -1653,7 +1663,7 @@ mod tests {
 
     #[test]
     fn bound_constraint_with_offset_test() {
-        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default(), false);
 
         let limit = power_of_two::<FieldElement>(128);
 
@@ -1704,7 +1714,7 @@ mod tests {
     #[test]
     #[should_panic = "range check with bit size + 1 >= the prime field bit size is not implemented yet"]
     fn bound_constraint_shifted_path_rhs_const() {
-        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default(), false);
 
         let bits = 253;
 

@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false
+error: Assertion is always false
    ┌─ src/main.nr:45:5
    │
 45 │     assert_eq(magic, false);
@@ -12,14 +12,4 @@ bug: Assertion is always false
      1: main
              at src/main.nr:45:5
 
-error: Failed constraint
-   ┌─ src/main.nr:45:5
-   │
-45 │     assert_eq(magic, false);
-   │     -----------------------
-   │
-   = Call stack:
-     1: main
-             at src/main.nr:45:5
-
-Failed to solve program: 'Cannot satisfy constraint'
+Aborting due to 1 previous error

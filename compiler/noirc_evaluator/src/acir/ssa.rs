@@ -26,8 +26,15 @@ impl Ssa {
         self,
         brillig: &Brillig,
         brillig_options: &BrilligOptions,
+        fail_on_false_constraint: bool,
     ) -> Result<Artifacts, RuntimeError> {
-        codegen_acir(self, brillig, BrilligStdLib::default(), brillig_options)
+        codegen_acir(
+            self,
+            brillig,
+            BrilligStdLib::default(),
+            brillig_options,
+            fail_on_false_constraint,
+        )
     }
 }
 
@@ -36,6 +43,7 @@ pub(super) fn codegen_acir(
     brillig: &Brillig,
     brillig_stdlib: BrilligStdLib<FieldElement>,
     brillig_options: &BrilligOptions,
+    fail_on_false_constraint: bool,
 ) -> Result<Artifacts, RuntimeError> {
     let mut acirs = Vec::new();
 
@@ -45,8 +53,13 @@ pub(super) fn codegen_acir(
     let mut shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     for function in ssa.functions.values() {
-        let context =
-            Context::new(&mut shared_context, brillig, brillig_stdlib.clone(), brillig_options);
+        let context = Context::new(
+            &mut shared_context,
+            brillig,
+            brillig_stdlib.clone(),
+            brillig_options,
+            fail_on_false_constraint,
+        );
 
         if let Some(mut generated_acir) = context.convert_ssa_function(&ssa, function)? {
             // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).

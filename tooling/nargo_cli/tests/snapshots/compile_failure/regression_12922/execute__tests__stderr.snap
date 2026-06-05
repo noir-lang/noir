@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion is always false: constrained delivery requires a handshake origin
+  ┌─ src/main.nr:6:9
+  │
+6 │         assert(HANDSHAKE == 1, "constrained delivery requires a handshake origin");
+  │         -------------------------------------------------------------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:12:5
+    2: check
+            at src/main.nr:6:9
+
+Aborting due to 1 previous error

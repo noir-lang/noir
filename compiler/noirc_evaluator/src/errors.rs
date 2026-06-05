@@ -56,6 +56,8 @@ pub enum RuntimeError {
     StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
+    #[error("Assertion is always false")]
+    ConstraintIsAlwaysFalse { message: Option<String>, call_stack: CallStack },
     #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
     NestedVector { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
@@ -150,6 +152,7 @@ impl RuntimeError {
             | RuntimeError::StaticAssertDynamicMessage { call_stack }
             | RuntimeError::StaticAssertDynamicPredicate { call_stack, .. }
             | RuntimeError::StaticAssertFailed { call_stack, .. }
+            | RuntimeError::ConstraintIsAlwaysFalse { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedVector { call_stack, .. }
@@ -230,6 +233,18 @@ impl RuntimeError {
                     );
                 }
                 diagnostic
+            }
+            RuntimeError::ConstraintIsAlwaysFalse { ref message, .. } => {
+                let mut primary_message = "Assertion is always false".to_string();
+                if let Some(message) = message {
+                    primary_message.push_str(&format!(": {message}"));
+                }
+                let location = self.call_stack().last_or_dummy();
+                CustomDiagnostic::simple_error(
+                    primary_message,
+                    "As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(),
+                    location,
+                )
             }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();

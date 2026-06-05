@@ -124,8 +124,9 @@ impl<'a> Context<'a> {
         brillig: &'a Brillig,
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
+        fail_on_false_constraint: bool,
     ) -> Context<'a> {
-        let mut acir_context = AcirContext::new(brillig_stdlib);
+        let mut acir_context = AcirContext::new(brillig_stdlib, fail_on_false_constraint);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {

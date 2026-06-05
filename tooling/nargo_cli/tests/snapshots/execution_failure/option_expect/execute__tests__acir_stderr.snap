@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false
+error: Assertion is always false
    ┌─ std/option.nr:67:9
    │
 67 │         assert(self.is_some(), message);
@@ -14,16 +14,4 @@ bug: Assertion is always false
      2: Option<T>::expect
              at std/option.nr:67:9
 
-error: Assertion failed: Should have the value 0x03
-   ┌─ std/option.nr:67:9
-   │
-67 │         assert(self.is_some(), message);
-   │         -------------------------------
-   │
-   = Call stack:
-     1: main
-             at src/main.nr:7:12
-     2: Option<T>::expect
-             at std/option.nr:67:9
-
-Failed assertion
+Aborting due to 1 previous error

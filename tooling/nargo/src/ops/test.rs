@@ -33,6 +33,13 @@ use super::{
     FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, execute_program, run_fuzzing_harness,
 };
 
+/// Returns a copy of `config` that lets assertions which are statically known to be false
+/// compile (emitting a warning) instead of failing compilation. A test or fuzzing harness may
+/// deliberately trigger an always-failing assertion in order to observe the runtime failure.
+fn allow_constant_false_assertions(config: &CompileOptions) -> CompileOptions {
+    CompileOptions { allow_constant_false_assertions: true, ..config.clone() }
+}
+
 #[derive(Debug)]
 pub enum TestStatus {
     Pass,
@@ -106,6 +113,7 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
+    let config = &allow_constant_false_assertions(config);
     match compile_no_check(context, config, test_function.id, None, false) {
         Ok(compiled_program) => run_test_impl(
             blackbox_solver,
@@ -199,6 +207,7 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
 {
+    let config = &allow_constant_false_assertions(config);
     match compile_no_check(context, config, test_function.id, None, false) {
         Ok(_) => fuzz_test_impl::<B, F, E>(
             context,

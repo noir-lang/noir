@@ -163,6 +163,12 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+
+    /// When `true`, a constraint that is statically known to be false aborts compilation
+    /// with a hard error instead of emitting a non-fatal `bug` warning and a circuit that
+    /// is guaranteed to fail. This is disabled when compiling test or fuzzing harnesses,
+    /// where a test may deliberately trigger an always-failing assertion at runtime.
+    pub fail_on_false_constraint: bool,
 }
 
 /// Defaults used in tests.
@@ -187,6 +193,7 @@ impl Default for SsaEvaluatorOptions {
             specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
             max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             skip_passes: Vec::new(),
+            fail_on_false_constraint: false,
         }
     }
 }
@@ -493,7 +500,7 @@ pub fn optimize_ssa_builder_into_acir(
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options)
+        ssa.into_acir(&brillig, &options.brillig_options, options.fail_on_false_constraint)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))

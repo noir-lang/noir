@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: QPA
+error: Assertion is always false: QPA
    ┌─ src/main.nr:6:9
    │  
  6 │ ╭         assert(
@@ -18,20 +18,4 @@ bug: Assertion is always false: QPA
      1: main
              at src/main.nr:6:9
 
-error: Assertion failed: QPA
-   ┌─ src/main.nr:6:9
-   │  
- 6 │ ╭         assert(
- 7 │ │             (
- 8 │ │                 if b {
- 9 │ │                     // safety:
-   · │
-18 │ │             "QPA",
-19 │ │         );
-   │ ╰─────────'
-   │  
-   = Call stack:
-     1: main
-             at src/main.nr:6:9
-
-Failed assertion
+Aborting due to 1 previous error

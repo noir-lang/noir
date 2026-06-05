@@ -424,8 +424,13 @@ fn make_dynamic_array_value_types() {
     let mut shared_context = SharedContext::default();
     let brillig = Brillig::default();
     let brillig_options = BrilligOptions::default();
-    let mut context =
-        Context::new(&mut shared_context, &brillig, BrilligStdLib::default(), &brillig_options);
+    let mut context = Context::new(
+        &mut shared_context,
+        &brillig,
+        BrilligStdLib::default(),
+        &brillig_options,
+        false,
+    );
 
     // Make sure all the values are cached, following a bit of how `convert_acir_main` would do it.
     let entry_block = &main.dfg[main.entry_block()];

@@ -276,7 +276,7 @@ pub struct CompileOptions {
     /// contents of `main.nr` through STDIN.
     ///
     /// The implicit package structure is:
-    /// ```
+    /// ```text
     /// src/main.nr // STDIN
     /// Nargo.toml // fixed "bin" Nargo.toml
     /// ```
@@ -297,6 +297,13 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+
+    /// Allow assertions that are statically known to be false to compile, emitting a `bug`
+    /// warning instead of failing compilation. This is set when compiling test or fuzzing
+    /// harnesses so that a test can deliberately trigger an always-failing assertion and
+    /// observe the runtime failure, rather than failing to compile.
+    #[clap(skip)]
+    pub allow_constant_false_assertions: bool,
 }
 
 impl Default for CompileOptions {
@@ -344,6 +351,7 @@ impl Default for CompileOptions {
             unstable_features: Vec::new(),
             no_unstable_features: false,
             disable_comptime_printing: false,
+            allow_constant_false_assertions: false,
         }
     }
 }
@@ -387,6 +395,7 @@ impl CompileOptions {
             max_specializations_per_fn: self.max_specializations_per_fn,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
+            fail_on_false_constraint: !self.allow_constant_false_assertions,
         }
     }
 }
