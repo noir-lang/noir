@@ -140,8 +140,7 @@ fn list_harnesses_command(
 }
 
 /// Run the fuzzing harnesses for this program
-pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliError> {
-    let mut args = args;
+pub(crate) fn run(mut args: FuzzCommand, workspace: Workspace) -> Result<(), CliError> {
     args.compile_options.allow_constant_false_assertions = true;
 
     let mut file_manager = workspace.new_file_manager();
