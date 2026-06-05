@@ -69,7 +69,7 @@ impl FunctionContext {
     /// of the registers corresponding to SSA values.
     /// This allows use to estimate conservatively the maximum number of live registers,
     /// by using `max_live_count` with a margin.
-    /// `max_live_count` account for the SSA values, but also the additional ones 
+    /// `max_live_count` account for the SSA values, but also the additional ones
     /// required by various instructions.
     /// However some registers are not taken into account, such as parallel-move at block boundaries
     /// or on-demand constants. So `max_live_count` is a lower bound on actual Brillig register pressure.
