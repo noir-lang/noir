@@ -30,11 +30,15 @@
 //!    predecessor-arg edges backward to a fixed point. Only aliasing introduced
 //!    by the values that flow *into* `vX`'s binding is included. Filtered to
 //!    drop values that can't represent pre-mutation storage: `array_set` /
-//!    `Call` results (always fresh), iteration-local `MakeArray`s (back-edge
-//!    args), and instruction results defined in the array_set's own block at
-//!    an index after the array_set (they can land in the backward set
-//!    through a forward-then-back round-trip, but don't exist as storage
-//!    at the array_set's program point yet).
+//!    `Call` results (always fresh), iteration-local fresh results (`MakeArray`
+//!    or `Call` on back-edge args), instruction results defined in the
+//!    array_set's own block at an index after the array_set (they can land in
+//!    the backward set through a forward-then-back round-trip, but don't exist
+//!    as storage at the array_set's program point yet), and **swap-excluded
+//!    siblings** — when `vX` is a loop-header parameter swapped onto a sibling
+//!    parameter that is freshly re-allocated each iteration, the sibling is a
+//!    distinct per-iteration storage and is dropped (see
+//!    [`Context::swap_excluded_aliases`]).
 //! 2. **inc_rc precedence / back-edge-participant.** If some `inc_rc` on an
 //!    alias-set member either RPO-precedes the array_set or sits on a
 //!    non-source alias that's also a loop back-edge arg, accept — the
@@ -108,8 +112,8 @@
 //!   `end_to_end_sibling_args_across_jmp_is_false_negative` tests pin this
 //!   down as documented false negatives.
 //! - **Nested-array `MakeArray`**, **`IfElse` on arrays**, **non-inlined
-//!   `Call` returns**, **`Store`/`Load` on ineligible (nested-ref)
-//!   allocates** — same as before.
+//!   `Call` returns**, and **`Store`/`Load` on ineligible (nested-ref)
+//!   allocates** are likewise not tracked.
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
