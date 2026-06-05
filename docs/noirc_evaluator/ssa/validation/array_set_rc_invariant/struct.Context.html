@@ -1,12 +1,14 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Pre-computed indices over a Brillig function. The verifier’s per-array_set checks read from these structures rather than re-scanning the function."><title>Context in noirc_evaluator::ssa::validation::array_set_rc_invariant - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc struct"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.22</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Context</a></h2><h3><a href="#fields">Fields</a></h3><ul class="block structfield"><li><a href="#structfield.array_value_defs" title="array_value_defs">array_value_defs</a></li><li><a href="#structfield.back_edge_args" title="back_edge_args">back_edge_args</a></li><li><a href="#structfield.backward_aliases" title="backward_aliases">backward_aliases</a></li><li><a href="#structfield.dom_tree" title="dom_tree">dom_tree</a></li><li><a href="#structfield.function" title="function">function</a></li><li><a href="#structfield.inc_rc_locations" title="inc_rc_locations">inc_rc_locations</a></li><li><a href="#structfield.iteration_local_make_arrays" title="iteration_local_make_arrays">iteration_local_make_arrays</a></li><li><a href="#structfield.non_aliasing_array_values" title="non_aliasing_array_values">non_aliasing_array_values</a></li></ul><h3><a href="#implementations">Methods</a></h3><ul class="block method"><li><a href="#method.alias_set_for" title="alias_set_for">alias_set_for</a></li><li><a href="#method.find_reachable_aliased_use" title="find_reachable_aliased_use">find_reachable_aliased_use</a></li><li><a href="#method.new" title="new">new</a></li><li><a href="#method.some_inc_rc_precedes" title="some_inc_rc_precedes">some_inc_rc_precedes</a></li><li><a href="#method.succ_use_set" title="succ_use_set">succ_use_set</a></li><li><a href="#method.succ_walk_state" title="succ_walk_state">succ_walk_state</a></li></ul><h3><a href="#synthetic-implementations">Auto Trait Implementations</a></h3><ul class="block synthetic-implementation"><li><a href="#impl-Freeze-for-Context%3C'f%3E" title="Freeze">Freeze</a></li><li><a href="#impl-RefUnwindSafe-for-Context%3C'f%3E" title="RefUnwindSafe">RefUnwindSafe</a></li><li><a href="#impl-Send-for-Context%3C'f%3E" title="Send">Send</a></li><li><a href="#impl-Sync-for-Context%3C'f%3E" title="Sync">Sync</a></li><li><a href="#impl-Unpin-for-Context%3C'f%3E" title="Unpin">Unpin</a></li><li><a href="#impl-UnwindSafe-for-Context%3C'f%3E" title="UnwindSafe">UnwindSafe</a></li></ul><h3><a href="#blanket-implementations">Blanket Implementations</a></h3><ul class="block blanket-implementation"><li><a href="#impl-Any-for-T" title="Any">Any</a></li><li><a href="#impl-Borrow%3CT%3E-for-T" title="Borrow&#60;T&#62;">Borrow&#60;T&#62;</a></li><li><a href="#impl-BorrowMut%3CT%3E-for-T" title="BorrowMut&#60;T&#62;">BorrowMut&#60;T&#62;</a></li><li><a href="#impl-From%3CT%3E-for-T" title="From&#60;T&#62;">From&#60;T&#62;</a></li><li><a href="#impl-Instrument-for-T" title="Instrument">Instrument</a></li><li><a href="#impl-Into%3CU%3E-for-T" title="Into&#60;U&#62;">Into&#60;U&#62;</a></li><li><a href="#impl-IntoEither-for-T" title="IntoEither">IntoEither</a></li><li><a href="#impl-Pointable-for-T" title="Pointable">Pointable</a></li><li><a href="#impl-Same-for-T" title="Same">Same</a></li><li><a href="#impl-TryFrom%3CU%3E-for-T" title="TryFrom&#60;U&#62;">TryFrom&#60;U&#62;</a></li><li><a href="#impl-TryInto%3CU%3E-for-T" title="TryInto&#60;U&#62;">TryInto&#60;U&#62;</a></li><li><a href="#impl-VZip%3CV%3E-for-T" title="VZip&#60;V&#62;">VZip&#60;V&#62;</a></li><li><a href="#impl-WithSubscriber-for-T" title="WithSubscriber">WithSubscriber</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>validation::<wbr>array_<wbr>set_<wbr>rc_<wbr>invariant</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">validation</a>::<wbr><a href="index.html">array_set_rc_invariant</a></div><h1>Struct <span class="struct">Context</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#193-263">Source</a> </span></div><pre class="rust item-decl"><code>struct Context&lt;'f&gt; {
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Pre-computed indices over a Brillig function. The verifier’s per-array_set checks read from these structures rather than re-scanning the function."><title>Context in noirc_evaluator::ssa::validation::array_set_rc_invariant - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc struct"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.22</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Context</a></h2><h3><a href="#fields">Fields</a></h3><ul class="block structfield"><li><a href="#structfield.array_value_defs" title="array_value_defs">array_value_defs</a></li><li><a href="#structfield.back_edge_args" title="back_edge_args">back_edge_args</a></li><li><a href="#structfield.back_edge_participants" title="back_edge_participants">back_edge_participants</a></li><li><a href="#structfield.backward_aliases" title="backward_aliases">backward_aliases</a></li><li><a href="#structfield.dom_tree" title="dom_tree">dom_tree</a></li><li><a href="#structfield.function" title="function">function</a></li><li><a href="#structfield.inc_rc_locations" title="inc_rc_locations">inc_rc_locations</a></li><li><a href="#structfield.iteration_local_fresh" title="iteration_local_fresh">iteration_local_fresh</a></li><li><a href="#structfield.non_aliasing_array_values" title="non_aliasing_array_values">non_aliasing_array_values</a></li><li><a href="#structfield.swap_excluded_aliases" title="swap_excluded_aliases">swap_excluded_aliases</a></li></ul><h3><a href="#implementations">Methods</a></h3><ul class="block method"><li><a href="#method.alias_set_for" title="alias_set_for">alias_set_for</a></li><li><a href="#method.find_reachable_aliased_use" title="find_reachable_aliased_use">find_reachable_aliased_use</a></li><li><a href="#method.new" title="new">new</a></li><li><a href="#method.some_inc_rc_precedes" title="some_inc_rc_precedes">some_inc_rc_precedes</a></li><li><a href="#method.succ_use_set" title="succ_use_set">succ_use_set</a></li><li><a href="#method.succ_walk_state" title="succ_walk_state">succ_walk_state</a></li></ul><h3><a href="#synthetic-implementations">Auto Trait Implementations</a></h3><ul class="block synthetic-implementation"><li><a href="#impl-Freeze-for-Context%3C'f%3E" title="Freeze">Freeze</a></li><li><a href="#impl-RefUnwindSafe-for-Context%3C'f%3E" title="RefUnwindSafe">RefUnwindSafe</a></li><li><a href="#impl-Send-for-Context%3C'f%3E" title="Send">Send</a></li><li><a href="#impl-Sync-for-Context%3C'f%3E" title="Sync">Sync</a></li><li><a href="#impl-Unpin-for-Context%3C'f%3E" title="Unpin">Unpin</a></li><li><a href="#impl-UnwindSafe-for-Context%3C'f%3E" title="UnwindSafe">UnwindSafe</a></li></ul><h3><a href="#blanket-implementations">Blanket Implementations</a></h3><ul class="block blanket-implementation"><li><a href="#impl-Any-for-T" title="Any">Any</a></li><li><a href="#impl-Borrow%3CT%3E-for-T" title="Borrow&#60;T&#62;">Borrow&#60;T&#62;</a></li><li><a href="#impl-BorrowMut%3CT%3E-for-T" title="BorrowMut&#60;T&#62;">BorrowMut&#60;T&#62;</a></li><li><a href="#impl-From%3CT%3E-for-T" title="From&#60;T&#62;">From&#60;T&#62;</a></li><li><a href="#impl-Instrument-for-T" title="Instrument">Instrument</a></li><li><a href="#impl-Into%3CU%3E-for-T" title="Into&#60;U&#62;">Into&#60;U&#62;</a></li><li><a href="#impl-IntoEither-for-T" title="IntoEither">IntoEither</a></li><li><a href="#impl-Pointable-for-T" title="Pointable">Pointable</a></li><li><a href="#impl-Same-for-T" title="Same">Same</a></li><li><a href="#impl-TryFrom%3CU%3E-for-T" title="TryFrom&#60;U&#62;">TryFrom&#60;U&#62;</a></li><li><a href="#impl-TryInto%3CU%3E-for-T" title="TryInto&#60;U&#62;">TryInto&#60;U&#62;</a></li><li><a href="#impl-VZip%3CV%3E-for-T" title="VZip&#60;V&#62;">VZip&#60;V&#62;</a></li><li><a href="#impl-WithSubscriber-for-T" title="WithSubscriber">WithSubscriber</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>validation::<wbr>array_<wbr>set_<wbr>rc_<wbr>invariant</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">validation</a>::<wbr><a href="index.html">array_set_rc_invariant</a></div><h1>Struct <span class="struct">Context</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#225-353">Source</a> </span></div><pre class="rust item-decl"><code>struct Context&lt;'f&gt; {
     function: &amp;'f <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     dom_tree: <a class="struct" href="../../ir/dom/struct.DominatorTree.html" title="struct noirc_evaluator::ssa::ir::dom::DominatorTree">DominatorTree</a>,
     backward_aliases: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;,
     array_value_defs: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, (<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>)&gt;,
     non_aliasing_array_values: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    iteration_local_make_arrays: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
+    iteration_local_fresh: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     inc_rc_locations: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>)&gt;&gt;,
     back_edge_args: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
+    back_edge_participants: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
+    swap_excluded_aliases: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;,
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Pre-computed indices over a Brillig function. The verifier’s per-array_set
 checks read from these structures rather than re-scanning the function.</p>
 </div></details><h2 id="fields" class="fields section-header">Fields<a href="#fields" class="anchor">§</a></h2><span id="structfield.function" class="structfield section-header"><a href="#structfield.function" class="anchor field">§</a><code>function: &amp;'f <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a></code></span><span id="structfield.dom_tree" class="structfield section-header"><a href="#structfield.dom_tree" class="anchor field">§</a><code>dom_tree: <a class="struct" href="../../ir/dom/struct.DominatorTree.html" title="struct noirc_evaluator::ssa::ir::dom::DominatorTree">DominatorTree</a></code></span><div class="docblock"><p>Dominator tree. Mutable because <code>dominates</code> populates an internal cache.</p>
@@ -41,23 +43,30 @@ alias, and filtering would miss those cases; that’s a
 documented gap. In practice the frontend’s array-returning
 functions allocate fresh storage.</li>
 </ul>
-</div><span id="structfield.iteration_local_make_arrays" class="structfield section-header"><a href="#structfield.iteration_local_make_arrays" class="anchor field">§</a><code>iteration_local_make_arrays: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</code></span><div class="docblock"><p><code>MakeArray</code> results that appear as a jmp/jmpif arg on at least one
-loop back-edge. Such a <code>make_array</code> re-executes on every loop
-iteration and represents fresh storage per iteration, so any
-back-edge that puts it in a loop-header parameter’s class is
-conflating distinct runtime storages across iterations. Filtered
-out of the alias-set on lookup — see <a href="struct.Context.html#method.alias_set_for" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::alias_set_for"><code>Context::alias_set_for</code></a>.</p>
-<p><code>MakeArray</code> results that are <em>not</em> back-edge args are kept in the
-alias-set: they represent a one-time allocation whose storage
-the array_set may mutate in place.</p>
+</div><span id="structfield.iteration_local_fresh" class="structfield section-header"><a href="#structfield.iteration_local_fresh" class="anchor field">§</a><code>iteration_local_fresh: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</code></span><div class="docblock"><p>Back-edge args that re-allocate distinct storage every iteration:
+<code>MakeArray</code> results (re-executes each iteration) and <code>Call</code> results
+(the callee allocates fresh). <code>array_set</code> results are excluded —
+they may mutate in place, so they aren’t guaranteed-fresh. Two uses:</p>
+<ul>
+<li><a href="struct.Context.html#method.alias_set_for" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::alias_set_for"><code>Context::alias_set_for</code></a> drops such values from the alias-set:
+a back-edge that puts one in a loop-header parameter’s class is
+conflating distinct runtime storages across iterations. (<code>Call</code>
+results are also dropped there by
+<a href="struct.Context.html#structfield.non_aliasing_array_values" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::non_aliasing_array_values"><code>Context::non_aliasing_array_values</code></a>; the overlap is harmless.)</li>
+<li>the swap freshening guard in <a href="struct.Context.html#method.new" title="associated function noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::new"><code>Context::new</code></a> requires the
+swapped-out sibling to be one of these — see
+<a href="struct.Context.html#structfield.swap_excluded_aliases" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::swap_excluded_aliases"><code>Context::swap_excluded_aliases</code></a>.</li>
+</ul>
+<p>Values that are <em>not</em> back-edge args are kept in the alias-set:
+they represent a one-time allocation whose storage the array_set
+may mutate in place.</p>
 </div><span id="structfield.inc_rc_locations" class="structfield section-header"><a href="#structfield.inc_rc_locations" class="anchor field">§</a><code>inc_rc_locations: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>)&gt;&gt;</code></span><div class="docblock"><p><code>inc_rc value</code> instructions indexed by their operand. Each entry is
 the <code>(block, instruction-position-within-block)</code> of one <code>inc_rc</code>.</p>
 </div><span id="structfield.back_edge_args" class="structfield section-header"><a href="#structfield.back_edge_args" class="anchor field">§</a><code>back_edge_args: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</code></span><div class="docblock"><p>Values that appear at least once as a jmp/jmpif arg on a loop
 back-edge. Used by both:</p>
 <ul>
-<li><a href="struct.Context.html#structfield.iteration_local_make_arrays" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::iteration_local_make_arrays"><code>Context::iteration_local_make_arrays</code></a> (computed via the
-intersection <code>make_array_values ∩ back_edge_args</code> in
-<a href="struct.Context.html#method.new" title="associated function noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::new"><code>Context::new</code></a>); and</li>
+<li><a href="struct.Context.html#structfield.iteration_local_fresh" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::iteration_local_fresh"><code>Context::iteration_local_fresh</code></a> (the back-edge args that are
+<code>make_array</code> or <code>Call</code> results, computed in <a href="struct.Context.html#method.new" title="associated function noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::new"><code>Context::new</code></a>); and</li>
 <li>the <strong>back-edge-participant relaxation</strong> in
 <a href="struct.Context.html#method.some_inc_rc_precedes" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::some_inc_rc_precedes"><code>Context::some_inc_rc_precedes</code></a>: an <code>inc_rc</code> on a non-source
 alias that’s also a back-edge arg is taken as a codegen
@@ -69,7 +78,54 @@ non-loop branch) are handled precisely by <a href="struct.Context.html#structfie
 — the forward-edge value simply isn’t in the source’s backward
 set in the first place — so this signal only needs to cover
 loop back-edges.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#265-860">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#266-386">Source</a><h4 class="code-header">fn <a href="#method.new" class="fn">new</a>(function: &amp;'f <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.alias_set_for" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#437-469">Source</a><h4 class="code-header">fn <a href="#method.alias_set_for" class="fn">alias_set_for</a>(
+</div><span id="structfield.back_edge_participants" class="structfield section-header"><a href="#structfield.back_edge_participants" class="anchor field">§</a><code>back_edge_participants: FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</code></span><div class="docblock"><p>The backward-alias closure of <a href="struct.Context.html#structfield.back_edge_args" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::back_edge_args"><code>Context::back_edge_args</code></a>: every
+value that flows (directly or through forward block-parameter
+edges) into a loop back-edge arg position. A value <code>v</code> is a
+back-edge <em>participant</em> when its storage can become a loop-header
+parameter’s storage across a back-edge — even when <code>v</code> itself is
+not the literal arg, but reaches one through a forward edge first
+(e.g. <code>inc_rc v; jmp latch(v)</code> then <code>latch: jmp header(v)</code>, where
+only the latch’s param is the literal back-edge arg).</p>
+<p>Used by the <strong>protected-participant filter</strong> in
+<a href="struct.Context.html#method.find_reachable_aliased_use" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::find_reachable_aliased_use"><code>Context::find_reachable_aliased_use</code></a>: a value that is in the
+array_set source’s alias-set (so it flows <em>into</em> the source),
+is a back-edge participant, and carries its own <code>inc_rc</code> is
+RC ≥ 2 whenever it equals the source’s storage (the <code>inc_rc</code> is
+loop-carried — it runs before the value crosses the back-edge onto
+the source), so reads of it can’t observe an in-place mutation and
+it is dropped from the forward walk’s use-set.</p>
+<p>The filter is gated <strong>per value</strong> on that value’s own <code>inc_rc</code>:
+membership in this set alone never exonerates anything. This is
+what keeps it sound where widening the relaxation to “some
+participant has an <code>inc_rc</code>” would not — a back-edge position fed
+by an <code>inc_rc</code>’d value on one predecessor edge and an unprotected
+value on another only drops the protected value, leaving the
+unprotected one for the forward walk to flag.</p>
+</div><span id="structfield.swap_excluded_aliases" class="structfield section-header"><a href="#structfield.swap_excluded_aliases" class="anchor field">§</a><code>swap_excluded_aliases: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, FxHashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;</code></span><div class="docblock"><p><strong>Swap exclusions.</strong> For a loop-header parameter <code>P</code>, the set of
+sibling parameters <code>Q</code> that <code>P</code> is rebound to on the loop
+back-edge (<code>P ← Q</code>, the array-variable swap <code>c4 = c3</code>) while <code>Q</code>
+is simultaneously rebound to a freshly-allocated, iteration-local
+value — a <code>make_array</code> (<code>c3 = [..]</code>) or a <code>Call</code> result
+(<code>c3 = f()</code>), but never an <code>array_set</code> result (which may be an
+in-place mutation, not a fresh allocation). Such a <code>Q</code> is a <em>distinct
+per-iteration storage</em> that <code>P</code> only <em>becomes</em> in a later
+iteration — never the storage this iteration’s <code>array_set</code> on <code>P</code>
+mutates (the swap rotates a fresh allocation into <code>P</code> while the
+mutated storage is left behind, dead). <code>Q</code> is dropped from <code>P</code>’s
+alias-set in <a href="struct.Context.html#method.alias_set_for" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::alias_set_for"><code>Context::alias_set_for</code></a>, which makes the forward
+walk both <strong>kill</strong> <code>P</code> where the back-edge rebinds it to <code>Q</code> and
+decline to <strong>add</strong> a fresh alias of <code>Q</code> past any later edge (the
+inclusive-range <em>peel</em> re-runs the same swap on a <em>forward</em> exit
+edge — excluding <code>Q</code> at the seed covers that edge too, which a
+kill keyed on the back-edge alone could not).</p>
+<p>Guarded by a <strong>back-edge-only</strong> check: if <code>Q</code> also flows into <code>P</code>
+on a forward edge, <code>P</code> and <code>Q</code> can already alias <em>within</em> an
+iteration (the array_set would mutate <code>Q</code>’s live storage), so the
+exclusion would be unsound and is not recorded. The freshening
+requirement on <code>Q</code> is the second guard — a loop-invariant <code>Q</code>
+swapped into <code>P</code> would make <code>P_k = Q_{k-1} = Q_k</code> and genuinely
+alias.</p>
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#355-1141">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#356-583">Source</a><h4 class="code-header">fn <a href="#method.new" class="fn">new</a>(function: &amp;'f <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.alias_set_for" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#633-668">Source</a><h4 class="code-header">fn <a href="#method.alias_set_for" class="fn">alias_set_for</a>(
     &amp;self,
     source: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     array_set_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
@@ -95,16 +151,15 @@ This is a heuristic — a function that returns its input <em>would</em>
 create a real alias, and we’d miss that. In practice the
 frontend’s array-returning functions allocate fresh storage.</li>
 </ul>
-<p>Also drop <strong>iteration-local <code>MakeArray</code> results</strong> — those that
-appear on at least one loop back-edge
-(<a href="struct.Context.html#structfield.iteration_local_make_arrays" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::iteration_local_make_arrays"><code>Context::iteration_local_make_arrays</code></a>). A <code>make_array</code> on a
-back-edge re-executes each iteration and allocates fresh
-storage, so the loop-header parameter it feeds on the back-edge
-holds a <em>different</em> allocation in the next iteration than the
-one this iteration’s <code>array_set</code> may have mutated.
-<strong>Non-back-edge <code>MakeArray</code> results stay in the alias-set</strong> —
-they represent a one-time allocation whose storage the
-array_set can mutate in place.</p>
+<p>Also drop <strong>iteration-local fresh results</strong> — <code>MakeArray</code> (or
+<code>Call</code>) results that appear on at least one loop back-edge
+(<a href="struct.Context.html#structfield.iteration_local_fresh" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::iteration_local_fresh"><code>Context::iteration_local_fresh</code></a>). Such a value re-allocates
+fresh storage each iteration, so the loop-header parameter it
+feeds on the back-edge holds a <em>different</em> allocation in the next
+iteration than the one this iteration’s <code>array_set</code> may have
+mutated. <strong>Non-back-edge <code>MakeArray</code> results stay in the
+alias-set</strong> — they represent a one-time allocation whose storage
+the array_set can mutate in place.</p>
 <p><strong>Post-array_set-in-same-block filter.</strong> Drop instruction
 results whose defining position is in <code>array_set_block</code> at an
 index <em>greater than</em> <code>array_set_idx</code>. Such a value doesn’t exist
@@ -120,7 +175,7 @@ is <em>this</em> check’s source, so its forward uses are exactly what
 we want to look for. The post-array_set filter can’t fire on the
 source because the source must be defined before the array_set
 that uses it.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.some_inc_rc_precedes" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#524-558">Source</a><h4 class="code-header">fn <a href="#method.some_inc_rc_precedes" class="fn">some_inc_rc_precedes</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.some_inc_rc_precedes" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#723-757">Source</a><h4 class="code-header">fn <a href="#method.some_inc_rc_precedes" class="fn">some_inc_rc_precedes</a>(
     &amp;self,
     alias_set: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     source: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -173,9 +228,10 @@ first place.</p>
 <p>Well-formed SSA contains no <code>DecrementRc</code>, so we don’t need to
 worry about a <code>dec_rc</code> intervening between the <code>inc_rc</code> and the
 <code>array_set</code>.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.find_reachable_aliased_use" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#613-778">Source</a><h4 class="code-header">fn <a href="#method.find_reachable_aliased_use" class="fn">find_reachable_aliased_use</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.find_reachable_aliased_use" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#816-1051">Source</a><h4 class="code-header">fn <a href="#method.find_reachable_aliased_use" class="fn">find_reachable_aliased_use</a>(
     &amp;self,
     alias_set: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
+    source: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     array_set_id: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     array_set_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     array_set_idx: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
@@ -213,8 +269,12 @@ dynamic index.</li>
 is a hazard iff <code>tainted_indices</code> covers <code>idx</code>. With both indices
 constant, that’s a set-membership test; otherwise (either side
 dynamic, or <code>tainted_indices == None</code>) the verifier conservatively
-flags. Non-<code>array_get</code> uses on a <code>use_set</code> member are always
-flagged — the SSA-vs-runtime divergence isn’t index-local for them.</p>
+flags. An <code>array_set v, idx, _</code> with <code>v ∈ use_set</code> is index-aware in
+the same way: it copies forward every position except <code>idx</code>, so it
+is a hazard iff some <code>tainted_indices</code> position differs from <code>idx</code>
+(a same-index write overwrites the mutation and extends the chain
+instead). All other uses on a <code>use_set</code> member are always flagged —
+the SSA-vs-runtime divergence isn’t index-local for them.</p>
 <p><strong>IncrementRc clears <code>derived</code>.</strong> A program-point <code>inc_rc v</code> with
 <code>v ∈ use_set ∪ derived</code> lifts the storage’s RC ≥ 2, so any
 subsequent <code>array_set</code> on a chain participant runs on fresh
@@ -227,20 +287,22 @@ already explored adds no new information. Each component is
 unioned into the frontier on entry; for <code>tainted_indices</code>, <code>None</code>
 is the absorbing element (a previously-<code>None</code> frontier covers any
 re-entry).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_walk_state" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#784-795">Source</a><h4 class="code-header">fn <a href="#method.succ_walk_state" class="fn">succ_walk_state</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_walk_state" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1057-1069">Source</a><h4 class="code-header">fn <a href="#method.succ_walk_state" class="fn">succ_walk_state</a>(
     &amp;self,
     dest: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     arguments: &amp;[<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     state: &amp;<a class="struct" href="struct.WalkState.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState">WalkState</a>,
+    protected: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
 ) -&gt; <a class="struct" href="struct.WalkState.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState">WalkState</a></h4></section></summary><div class="docblock"><p>Propagate the walk state across a block-parameter edge. <code>use_set</code>
 and <code>derived</code> follow the same kill/add rules (<a href="struct.Context.html#method.succ_use_set" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::succ_use_set"><code>Context::succ_use_set</code></a>);
 <code>tainted</code> is carried unchanged, since it tracks storage positions
 (not SSA values).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_use_set" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#822-859">Source</a><h4 class="code-header">fn <a href="#method.succ_use_set" class="fn">succ_use_set</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_use_set" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1100-1140">Source</a><h4 class="code-header">fn <a href="#method.succ_use_set" class="fn">succ_use_set</a>(
     &amp;self,
     dest: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     arguments: &amp;[<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     use_set: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
+    protected: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
 ) -&gt; HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>Compute the use-set carried into <code>dest</code> when its predecessor jumps
 with <code>arguments</code>.</p>
 <p>Three rules apply, in order:</p>
@@ -255,9 +317,13 @@ array_set’s source (most commonly the array_set’s own
 result, excluded at lookup time): drop it.</li>
 <li><strong>Add.</strong> If the param is not in <code>use_set</code> but the arg is,
 this edge introduces a fresh alias: the param at <code>dest</code>’s
-entry shares storage with an alias-set member, so add it.
-This keeps alias propagation accurate at joins and loop
-back-edges.</li>
+entry shares storage with an alias-set member, so add it —
+<em>unless</em> the param is a protected back-edge participant
+(<a href="struct.Context.html#method.find_reachable_aliased_use" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::find_reachable_aliased_use"><code>Context::find_reachable_aliased_use</code></a>), which must stay out
+of the use-set for the whole walk (its own <code>inc_rc</code> keeps it
+RC ≥ 2). Without this exclusion a protected participant that
+is itself a loop-header parameter would be re-introduced the
+moment any in-use alias flowed into its position.</li>
 <li>Otherwise (both in or both out), no change.
 Only array-typed params participate.</li>
 </ul>
