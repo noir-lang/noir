@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::{Ident, UnresolvedGenerics},
+    ast::{Ident, UnresolvedGenerics, UnresolvedTraitConstraint},
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -326,6 +326,10 @@ pub struct Elaborator<'context> {
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
 
+    /// When set, visibility checks during path resolution use this module
+    /// instead of the default importing module.
+    pub(crate) caller_module: Option<ModuleId>,
+
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
 
@@ -383,6 +387,20 @@ pub struct Elaborator<'context> {
     /// constants don't depend on source order. Any entries left after lazy resolution
     /// has played out are drained at the end of [Self::elaborate_items].
     unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
+
+    /// Struct definitions whose fields have been *registered* but not yet *resolved*.
+    /// Mirrors [Self::unresolved_function_metas]: we register up-front (during
+    /// def-collection) and resolve lazily on first read, so that struct field types
+    /// may reference items produced by comptime attribute expansion. Any entries
+    /// left after lazy resolution are drained post-attributes.
+    unresolved_struct_fields: BTreeMap<TypeId, structs::UnresolvedStructFields>,
+
+    /// Enum definitions whose variants have been *registered* but not yet *resolved*.
+    /// Same posture as [Self::unresolved_struct_fields], for enum variants: variant
+    /// parameter types may reference items produced by comptime attribute expansion,
+    /// so we defer them. Any entries left after lazy resolution are drained
+    /// post-attributes.
+    unresolved_enum_variants: BTreeMap<TypeId, enums::UnresolvedEnumVariants>,
 
     /// Bookkeeping for trait-related work that has to wait until the
     /// post-attribute drain has resolved the involved metas. See
@@ -489,6 +507,7 @@ impl<'context> Elaborator<'context> {
             in_comptime_context: false,
             in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
+            caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
@@ -498,6 +517,8 @@ impl<'context> Elaborator<'context> {
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
             unresolved_function_metas: BTreeMap::default(),
+            unresolved_struct_fields: BTreeMap::default(),
+            unresolved_enum_variants: BTreeMap::default(),
             pending_trait_work: PendingTraitWork::default(),
         }
     }
@@ -569,8 +590,15 @@ impl<'context> Elaborator<'context> {
         // post-attribute drain. They stay in the map (so lazy resolution from
         // generated bodies can still pull them out on demand), we just don't
         // unconditionally resolve them here.
-        let outer_pending: HashSet<FuncId> =
+        // The same is true for struct fields, enum variants and globals.
+        let outer_pending_functions: HashSet<FuncId> =
             self.unresolved_function_metas.keys().copied().collect();
+        let outer_pending_struct_fields: HashSet<TypeId> =
+            self.unresolved_struct_fields.keys().copied().collect();
+        let outer_pending_enum_variants: HashSet<TypeId> =
+            self.unresolved_enum_variants.keys().copied().collect();
+        let outer_pending_globals: HashSet<GlobalId> =
+            self.unresolved_globals.keys().copied().collect();
 
         // Scope the pending trait-method bookkeeping to this call so that a
         // recursive `elaborate_items` (from a comptime attribute that generated
@@ -615,19 +643,13 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl(trait_impl);
         }
 
-        // In the case of the stdlib we eagerly resolve function metas as these are
-        // needed in some globals initializers regarding built-in trait methods
-        // like Add, Ord, etc. Trying to define these lazily is a lot of work compared
-        // to just not supporting it in the stdlib. The stdlib right now doesn't generate
-        // types that are used in other function signatures and we can always extend
-        // with the stdlib with this small restriction in place.
+        // The stdlib doesn't generate types at compile time so it's fine to eagerly resolve
+        // function metas and globals now. Not doing this leads to some dependency issues regarding
+        // trait functions. The stdlib is simple and will likely remain simple so this is fine.
         if self.crate_id.is_stdlib() {
-            self.resolve_unresolved_function_metas_skipping(&outer_pending);
+            self.resolve_unresolved_function_metas_skipping(&outer_pending_functions);
+            self.elaborate_remaining_globals();
         }
-
-        // We must wait to resolve non-literal globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to ensure they are valid.
-        self.elaborate_remaining_globals();
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
@@ -635,14 +657,39 @@ impl<'context> Elaborator<'context> {
             &items.traits,
             &items.structs,
             &items.functions,
+            &items.impls,
             &items.module_attributes,
         );
 
-        // Drain the remaining metas now that attributes have run. Items generated
-        // by attributes (such as new structs) are now in scope, so a signature
-        // like `fn bar(_: Generated)` can finally resolve. Outer-pending metas are
-        // still skipped — only this call's metas are drained.
-        self.resolve_unresolved_function_metas_skipping(&outer_pending);
+        // Drain struct fields *before* function metas: a function meta's
+        // signature-validity check (`Type::is_valid_for_program`, used inside
+        // `define_function_meta`) walks into struct fields and would
+        // misclassify a struct as an enum if its fields are still unresolved
+        // (`get_fields(...)` returns `None`). Struct field resolution itself
+        // doesn't depend on function metas, so this order is safe.
+        // Outer-pending struct fields are kept for the outer call.
+        self.resolve_unresolved_struct_fields_skipping(&outer_pending_struct_fields);
+
+        // Drain enum variants right after struct fields. Variant constructor
+        // registration (`define_enum_variant_function`/`_global`) populates the
+        // module def-map with the variant names, which path resolution in
+        // function bodies (elaborated below) needs to see. Outer-pending enum
+        // variants are kept for the outer call.
+        self.resolve_unresolved_enum_variants_skipping(&outer_pending_enum_variants);
+
+        // Drain remaining globals now that attribute-generated items are in
+        // scope. Cross-references with struct fields and function metas are
+        // handled by their respective lazy entry points, so the slot between
+        // the two drains is safe. Outer-pending globals are kept for the outer
+        // call.
+        self.resolve_unresolved_globals_skipping(&outer_pending_globals);
+
+        // Drain the remaining function metas now that attributes have run.
+        // Items generated by attributes (such as new structs) are now in
+        // scope, so a signature like `fn bar(_: Generated)` can finally
+        // resolve. Outer-pending metas are still skipped — only this call's
+        // metas are drained.
+        self.resolve_unresolved_function_metas_skipping(&outer_pending_functions);
 
         // Now that trait method metas are defined, fill in the stub
         // `TraitFunction` records on each trait, and run the empty-body /
@@ -651,6 +698,11 @@ impl<'context> Elaborator<'context> {
         self.populate_resolved_trait_method_records();
         self.elaborate_pending_no_body_trait_methods();
         self.run_pending_where_clause_checks();
+
+        // Run whole-program struct checks that need every struct's fields to
+        // be resolved. Held back from `collect_struct_definitions` (deferred
+        // path) so they don't fire on stub fields.
+        self.check_for_nested_vectors_in(&items.structs);
 
         // Check for dependency cycles before elaborating function bodies.
         // This breaks cyclic type aliases (replacing them with Type::Error) so that
@@ -797,6 +849,9 @@ impl<'context> Elaborator<'context> {
                             visited,
                         );
                     }
+                    // The struct's field might not be type-checked yet: do it now.
+                    let datatype_id = datatype.borrow().id;
+                    self.define_struct_fields_if_undefined(datatype_id);
                     if let Some(fields) = datatype.borrow().get_fields(generics) {
                         for (_, typ, _) in fields {
                             self.mark_type_as_used_helper(
@@ -863,6 +918,130 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Walk `typ` and lazy-resolve any [Type::DataType]'s struct fields or
+    /// enum variants encountered. Used at sites that ask whole-type questions
+    /// (`is_valid_for_unconstrained_boundary`, `contains_vector`, etc.) which
+    /// read fields/variants directly and would otherwise misinterpret a stub
+    /// `StructWithUnknownFields` body as an enum (or vice versa) when a
+    /// deferred struct/enum still hasn't been drained.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn define_deferred_data_types_in(&mut self, typ: &Type) {
+        self.define_deferred_data_types_in_helper(
+            typ,
+            TypeRecursionContext::default(),
+            &mut VisitedRefHashSet::new(),
+        );
+    }
+
+    fn define_deferred_data_types_in_helper(
+        &mut self,
+        typ: &Type,
+        mut type_recursion_context: TypeRecursionContext,
+        visited: &mut VisitedRefHashSet<Type>,
+    ) {
+        if !visited.insert(typ) {
+            return;
+        }
+        match typ {
+            Type::Array(elem, _) | Type::Vector(elem) | Type::Reference(elem, _) => {
+                self.define_deferred_data_types_in_helper(
+                    elem,
+                    type_recursion_context.recur(),
+                    visited,
+                );
+            }
+            Type::Tuple(types) => {
+                for t in types {
+                    self.define_deferred_data_types_in_helper(
+                        t,
+                        type_recursion_context.clone().recur(),
+                        visited,
+                    );
+                }
+            }
+            Type::DataType(datatype, generics) => {
+                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
+                    let datatype_id = datatype.borrow().id;
+                    self.define_struct_fields_if_undefined(datatype_id);
+                    self.define_enum_variants_if_undefined(datatype_id);
+                    for generic in generics {
+                        self.define_deferred_data_types_in_helper(
+                            generic,
+                            type_recursion_context.clone().recur(),
+                            visited,
+                        );
+                    }
+                    if let Some(fields) = datatype.borrow().get_fields(generics) {
+                        for (_, field_type, _) in fields {
+                            self.define_deferred_data_types_in_helper(
+                                &field_type,
+                                type_recursion_context.clone().recur(),
+                                visited,
+                            );
+                        }
+                    } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                        for (_, variant_types) in variants {
+                            for t in variant_types {
+                                self.define_deferred_data_types_in_helper(
+                                    &t,
+                                    type_recursion_context.clone().recur(),
+                                    visited,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
+                    self.define_deferred_data_types_in_helper(
+                        &alias_type.borrow().get_type(generics),
+                        type_recursion_context.recur(),
+                        visited,
+                    );
+                }
+            }
+            Type::CheckedCast { from, to } => {
+                self.define_deferred_data_types_in_helper(
+                    from,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.define_deferred_data_types_in_helper(
+                    to,
+                    type_recursion_context.recur(),
+                    visited,
+                );
+            }
+            Type::InfixExpr(left, _op, right, _) => {
+                self.define_deferred_data_types_in_helper(
+                    left,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.define_deferred_data_types_in_helper(
+                    right,
+                    type_recursion_context.recur(),
+                    visited,
+                );
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
+    }
+
     /// Returns `true` if the current module is a contract.
     ///
     /// This is usually determined by `self.module_id()`, but it can
@@ -889,8 +1068,16 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
-        for (_, _, functions) in impls {
+    fn elaborate_impls(
+        &mut self,
+        impls: Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
+    ) {
+        for (_, _, _, functions) in impls {
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
@@ -907,14 +1094,26 @@ impl<'context> Elaborator<'context> {
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
+        // Inherited defaults are typed once at the trait definition; their bodies match the
+        // declaration by construction and re-elaborating them per impl would duplicate
+        // diagnostics (and waste work).
         for (module, function, noir_function) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(function) {
+                continue;
+            }
             self.local_module = Some(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
             self.push_errors(errors);
         }
 
-        self.elaborate_functions(trait_impl.methods);
+        for (_, id, _) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(id) {
+                continue;
+            }
+            self.elaborate_function(*id);
+        }
+        self.generics.clear();
 
         self.self_type = None;
         self.current_trait_impl = None;

@@ -338,6 +338,32 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 }
 
 #[test]
+fn oracle_wrapper_with_mutating_arg_keeps_clone() {
+    let src = "
+    unconstrained fn main(seed: Field, idx: u32) -> pub Field {
+        let array: [Field; 3] = [seed, seed + 1, seed + 2];
+        mutating_print_wrapper(array);
+        array[idx]
+    }
+
+    unconstrained fn mutating_print_wrapper(mut array: [Field; 3]) {
+        println({
+            array[0] = 9;
+            array
+        });
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+
+    let results = ssa
+        .interpret(vec![InterpreterValue::field(FieldElement::one()), InterpreterValue::u32(0)])
+        .unwrap();
+    assert_eq!(results, vec![InterpreterValue::field(FieldElement::one())]);
+}
+
+#[test]
 fn for_loop_exclusive() {
     let assert_src = "
     fn main() -> pub u32 {
@@ -994,6 +1020,36 @@ fn can_reborrow_through_immutable_ref() {
         let mut f: u64 = 10;
         let p = &mut (*&f);
         *p = 15;
+        assert(f == 15);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u64
+        store u64 10 at v0
+        store u64 15 at v0
+        v3 = load v0 -> u64
+        v4 = eq v3, u64 15
+        constrain v3 == u64 15
+        return
+    }
+    ");
+}
+
+/// `&mut *p` where `p` is an immutable `&u64` bound to a variable must still reborrow
+/// as a writable reference aliasing the original location, just like the parenthesized
+/// `&mut (*p)` form. The re-borrow simplification must not collapse to `p` and inherit
+/// its immutable type, which previously rejected `*p1 = 15`.
+#[test]
+fn mut_reborrow_through_immutable_ref_variable() {
+    let src = "
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &f;
+        let p1 = &mut *p;
+        *p1 = 15;
         assert(f == 15);
     }
     ";

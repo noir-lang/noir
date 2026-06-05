@@ -13,7 +13,7 @@ use noirc_frontend::monomorphization::ast::Program;
 pub mod targets;
 
 fn bool_from_env(key: &str) -> bool {
-    std::env::var(key).map(|s| s == "1" || s == "true").unwrap_or_default()
+    std::env::var(key).map(|s| matches!(s.as_str(), "1" | "true" | "yes")).unwrap_or_default()
 }
 
 /// Show all SSA passes during compilation.
@@ -148,7 +148,7 @@ pub fn compare_results_comptime(
         eprintln!("{report:#}");
 
         // Showing the AST as Noir so we can easily create integration tests.
-        eprintln!("---\nComptime source:\n{}", &inputs.source);
+        eprintln!("---\nComptime source:\n{}", inputs.source);
         eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
 
         eprintln!("---\nCompile options:\n{:?}", inputs.ssa.options);

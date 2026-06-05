@@ -11,10 +11,6 @@ impl Hasher for DummyHasher {
         0_Field
     }
 
-    fn finish_ref(&self) -> Field {
-        (*self).finish()
-    }
-
     fn write(&mut self, _input: Field) {}
 }
 
@@ -24,7 +20,7 @@ impl Default for DummyHasher {
     }
 }
 
-fn main() {
+unconstrained fn main() {
     let map: UHashMap<u64, u64, BuildHasherDefault<DummyHasher>> =
         UHashMap::<u64, u64, BuildHasherDefault<DummyHasher>>::default();
     println(map == map);

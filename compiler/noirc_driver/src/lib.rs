@@ -12,7 +12,7 @@ use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -848,7 +848,7 @@ fn compile_contract_inner(
             .globals
             .iter()
             .map(|(tag, globals)| {
-                let globals: Vec<AbiValue> = globals
+                let globals: Vec<AbiNamedValue> = globals
                     .iter()
                     .map(|global_id| {
                         let GlobalValue::Resolved(value) =
@@ -858,7 +858,10 @@ fn compile_contract_inner(
                                 "Global with #[abi(tag)] must be resolved at comptime before ABI emission"
                             );
                         };
-                        value_to_abi_value(value)
+                        let global_info = context.def_interner.get_global(*global_id);
+                        let name = global_info.ident.to_string();
+                        let value = value_to_abi_value(value);
+                        AbiNamedValue { name, value }
                     })
                     .collect();
                 (tag.clone(), globals)
