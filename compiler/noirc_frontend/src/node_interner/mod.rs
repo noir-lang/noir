@@ -1122,6 +1122,16 @@ impl NodeInterner {
         methods.direct.iter().map(|m| m.typ.clone()).collect()
     }
 
+    /// Returns the `FuncId`s of all direct (inherent) methods already registered for
+    /// `method_name` on the given type's method key.
+    pub fn get_direct_method_ids(&self, typ: &Type, method_name: &str) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.method).collect()
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
