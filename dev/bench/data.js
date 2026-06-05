@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780605586955,
+  "lastUpdate": 1780661903506,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23116,48 +23116,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4952659d7e58d312a62589849abc2f136c928fda",
-          "message": "chore: bump external pinned commits (#12857)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-06-01T14:14:26Z",
-          "tree_id": "a8c5bf37596f2b1df00d1cbf16cf10ad198f357c",
-          "url": "https://github.com/noir-lang/noir/commit/4952659d7e58d312a62589849abc2f136c928fda"
-        },
-        "date": 1780324906629,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168209,
-            "range": "± 886",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136004,
-            "range": "± 867",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647116,
-            "range": "± 1379",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647788,
             "range": "± 2217",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "85425c706837bce404f87ad51cb5d571055376fa",
+          "message": "fix(frontend): force unconstrained when monomorphizing into unconstrained fn target (#12831)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-05T11:50:00Z",
+          "tree_id": "b094b4a026b6fcdc5878019d8e4396b6332b83a9",
+          "url": "https://github.com/noir-lang/noir/commit/85425c706837bce404f87ad51cb5d571055376fa"
+        },
+        "date": 1780661825233,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 163912,
+            "range": "± 197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 142194,
+            "range": "± 1591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2125354,
+            "range": "± 1108",
             "unit": "ns/iter"
           }
         ]
