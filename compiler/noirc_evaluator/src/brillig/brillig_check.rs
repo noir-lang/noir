@@ -4,6 +4,7 @@ use std::{collections::HashMap, fmt::Display, ops::Range};
 
 use acvm::{
     AcirField,
+    acir::BlackBoxFunc,
     acir::brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapArray, HeapVector, IntegerBitSize,
         MemoryAddress, Opcode, ValueOrArray,
@@ -26,6 +27,9 @@ use crate::{
     },
 };
 
+type Offset = usize;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum OpcodeAdvisory {
     /// A memory address is being written by the opcode that no other following opcode reads.
     NeverRead { addr: MemoryAddress },
@@ -185,48 +189,115 @@ pub(crate) fn show_opcode_advisories<F: Display>(
 
 /// Go through the labels in the [BrilligContext] and collect the opcode locations
 /// where each block starts and ends.
+///
+/// # Assumptions on the label set
+///
+/// This function operates on a per-function Brillig artifact, *before* linking.
+/// At that point the artifact's `labels` map is expected to only contain
+/// `LabelType::Function(_, _)` entries:
+///
+/// 1. All entries share a single `FunctionId` — the function this artifact
+///    belongs to.
+/// 2. When sorted by opcode location, labels for one `block_id` form a
+///    contiguous run. Section markers (`Label { section: Some(n), .. }`) sit
+///    between a block's primary label and the next block's first label.
+///    A given `block_id` never reappears after another block's labels.
+/// 3. No `Procedure`, `GlobalInit`, or `Entrypoint` labels appear here.
+///
+/// Function-entry labels (`Function(_, None)`) frequently share an opcode
+/// location with the first block label (both land at offset 0 when there is
+/// no `check_max_stack_depth` call and no spill prologue). They are not block
+/// boundaries — only block labels are — so we drop them up-front. Otherwise
+/// the non-deterministic iteration order of equal-location entries in the
+/// underlying `HashMap` could land a function-entry label between block
+/// labels of the same `block_id` and produce an empty or truncated range.
+///
+/// `debug_assert!`s catch regressions in invariants 1 and 3 directly, and the
+/// `close_block` helper catches a violation of invariant 2 by refusing to
+/// overwrite an existing range.
 fn block_opcode_ranges<F, R: RegisterAllocator>(
     brillig_context: &BrilligContext<F, R>,
 ) -> HashMap<BasicBlockId, Range<OpcodeLocation>> {
     let mut ranges = HashMap::new();
 
-    let mut labels = brillig_context.artifact().labels.iter().collect::<Vec<_>>();
-    labels.sort_by_key(|(_, location)| **location);
+    // Close out a block range. Debug-asserts that the block hasn't already
+    // been closed: this is how invariant 2 (contiguity) is enforced — a
+    // non-contiguous label sequence would close the same `block_id` twice.
+    let close_block = |ranges: &mut HashMap<BasicBlockId, Range<OpcodeLocation>>,
+                       block_id: BasicBlockId,
+                       range: Range<OpcodeLocation>| {
+        let previous = ranges.insert(block_id, range);
+        debug_assert!(
+            previous.is_none(),
+            "block_opcode_ranges: labels for block {block_id:?} are not contiguous when sorted \
+             by location"
+        );
+    };
 
-    let mut last_start = None;
-    for (label, location) in labels {
-        match (&label.label_type, last_start) {
-            (LabelType::Function(_, Some(block_id)), None) => {
-                last_start = Some((*block_id, *location));
+    // Used only by the debug assertion below: the artifact must contain labels
+    // for a single function.
+    let mut function_id = None;
+
+    // Project to (block_id, location) pairs, dropping non-block (function-entry)
+    // labels and asserting invariants 1 and 3.
+    let mut block_labels: Vec<(BasicBlockId, OpcodeLocation)> = brillig_context
+        .artifact()
+        .labels
+        .iter()
+        .filter_map(|(label, location)| match &label.label_type {
+            LabelType::Function(fid, block_id) => {
+                match function_id {
+                    None => function_id = Some(*fid),
+                    Some(expected) => debug_assert_eq!(
+                        *fid, expected,
+                        "block_opcode_ranges expects all labels to share one FunctionId"
+                    ),
+                }
+                block_id.map(|bid| (bid, *location))
             }
-            (LabelType::Function(_, Some(new_block_id)), Some((block_id, start))) => {
-                if *new_block_id != block_id {
-                    ranges.insert(block_id, Range { start, end: *location });
-                    last_start = Some((*new_block_id, *location));
+            other => {
+                debug_assert!(
+                    false,
+                    "block_opcode_ranges expects only Function labels in a per-function \
+                     artifact, found {other:?}"
+                );
+                None
+            }
+        })
+        .collect();
+    block_labels.sort_by_key(|(_, location)| *location);
+
+    let mut last_start: Option<(BasicBlockId, OpcodeLocation)> = None;
+    for (block_id, location) in block_labels {
+        match last_start {
+            None => last_start = Some((block_id, location)),
+            Some((current_block, start)) => {
+                if current_block != block_id {
+                    close_block(&mut ranges, current_block, Range { start, end: location });
+                    last_start = Some((block_id, location));
                 }
             }
-            (_, Some((block_id, start))) => {
-                ranges.insert(block_id, Range { start, end: *location });
-                last_start = None;
-            }
-            (_, None) => {}
         }
     }
     if let Some((block_id, start)) = last_start {
-        ranges.insert(block_id, Range { start, end: brillig_context.artifact().byte_code.len() });
+        close_block(
+            &mut ranges,
+            block_id,
+            Range { start, end: brillig_context.artifact().byte_code.len() },
+        );
     }
 
     ranges
 }
 
-/// Collect all the relative addresses read in a range.
+/// Collect all the relative addresses read in a range of relative address offsets.
 struct ReadCollector<'a> {
-    addr_range: &'a Range<OpcodeLocation>,
+    addr_range: &'a Range<Offset>,
     reads: im::HashSet<MemoryAddress>,
 }
 
 impl<'a> ReadCollector<'a> {
-    fn new(addr_range: &'a Range<usize>) -> Self {
+    fn new(addr_range: &'a Range<Offset>) -> Self {
         Self { addr_range, reads: im::HashSet::new() }
     }
 
@@ -255,7 +326,7 @@ impl OpcodeAddressVisitor for ReadCollector<'_> {
 ///
 /// Assumes that we are visiting the opcodes going backwards.
 struct AdvisoryCollector<'a> {
-    addr_range: &'a Range<OpcodeLocation>,
+    addr_range: &'a Range<Offset>,
     /// Addresses read in any of the descendants of the block.
     reads_in_descendants: &'a im::HashSet<MemoryAddress>,
     /// Last location the address was read from in this block.
@@ -264,21 +335,18 @@ struct AdvisoryCollector<'a> {
     writes: HashMap<MemoryAddress, OpcodeLocation>,
     /// Advisories collected in this block.
     advisories: OpcodeAdvisories,
-    /// Indicate that we are in a region where call parameters are being passed.
-    /// * 2 means we are in a call region
-    /// * 1 means we are 1 step before the start of the call region
-    /// * 0 means we are not in a call region
-    in_call_region: u8,
+    /// Position relative to a call's argument-passing region, walking backwards.
+    in_call_region: CallRegion,
     /// Indicate that we are in the region where we are passing out return parameters.
     in_return_region: bool,
-    /// Indicate whether the current opcode can fail, which means it needs to be kept
-    /// even if its value is unused.
+    /// Indicate whether the current opcode can fail or has side effects, which
+    /// means it needs to be kept even if its result is never read.
     is_fallible: bool,
 }
 
 impl<'a> AdvisoryCollector<'a> {
     fn new(
-        addr_range: &'a Range<usize>,
+        addr_range: &'a Range<Offset>,
         reads_in_descendants: &'a im::HashSet<MemoryAddress>,
     ) -> Self {
         Self {
@@ -287,7 +355,7 @@ impl<'a> AdvisoryCollector<'a> {
             reads: HashMap::new(),
             writes: HashMap::new(),
             advisories: HashMap::new(),
-            in_call_region: 0,
+            in_call_region: CallRegion::Outside,
             in_return_region: false,
             is_fallible: false,
         }
@@ -308,6 +376,8 @@ impl<'a> AdvisoryCollector<'a> {
 
 impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
     /// Maintain some contextual information about regions.
+    ///
+    /// This is assuming that we are visiting the opcodes in reverse.
     fn should_visit_opcode<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
         // The return instruction can be preceded by a number of moves from various parts of the stack
         // to the beginning, depending on the number of return values. They destinations can be shuffled.
@@ -317,15 +387,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
             self.in_return_region = false;
         }
 
-        // Add here anything where an unused result can be ignored, as the operation can fail the circuit.
-        self.is_fallible = match opcode {
-            Opcode::BinaryFieldOp {
-                op: BinaryFieldOp::Div | BinaryFieldOp::IntegerDiv, ..
-            }
-            | Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. } => true,
-            // I'm sure there are many others.
-            _ => false,
-        };
+        self.is_fallible = is_fallible_opcode(opcode);
 
         match opcode {
             // Handle the conventions of `codegen_call`: we are passing call arguments by coping them
@@ -337,13 +399,14 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                     && *source == MemoryAddress::relative(0)
                 {
                     // This is the restore of the stack pointer, the end of a call.
-                    self.in_call_region = 2;
+                    self.in_call_region = CallRegion::Inside;
                     false
-                } else if self.in_call_region == 2 && *source == ReservedRegisters::stack_pointer()
+                } else if self.in_call_region == CallRegion::Inside
+                    && *source == ReservedRegisters::stack_pointer()
                 {
                     // This is where we store the stack pointer in the first address of the next stack frame.
                     // The next opcode is a const that contains the current stack size.
-                    self.in_call_region = 1;
+                    self.in_call_region = CallRegion::AtStackSize;
                     false
                 } else {
                     // We can visit the Mov instructions that copy parameters and return values;
@@ -351,9 +414,9 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
                     true
                 }
             }
-            Opcode::Const { .. } if self.in_call_region == 1 => {
+            Opcode::Const { .. } if self.in_call_region == CallRegion::AtStackSize => {
                 // This is the instruction where we set the stack size at the beginning of the call.
-                self.in_call_region = 0;
+                self.in_call_region = CallRegion::Outside;
                 true
             }
             // A `constrain` of some arbitrary expression is usually broken up into an instruction with
@@ -386,7 +449,7 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
         if !self.addr_in_range(addr) {
             return;
         }
-        if self.in_call_region != 0 || self.in_return_region {
+        if self.in_call_region.is_active() || self.in_return_region {
             // Ignore the write, it's a parameter meant for another function.
             // The reads can be inspected, as they should consume data we have prepared.
             return;
@@ -525,10 +588,19 @@ trait OpcodeAddressVisitor {
     }
 
     fn write_heap_array(&mut self, array: &HeapArray, location: OpcodeLocation) {
+        // The pointer register is read by the VM to find the heap location
+        // it should write through. Marking it as read ensures upstream
+        // instructions that set up this pointer aren't mistakenly flagged
+        // as dead writes. The accompanying `write` tracks the
+        // heap-side effect for `OverwrittenBeforeRead` purposes.
+        self.read(&array.pointer, location);
         self.write(&array.pointer, location);
     }
 
     fn write_heap_vector(&mut self, vector: &HeapVector, location: OpcodeLocation) {
+        // Same reasoning as `write_heap_array`: the pointer is read by the
+        // VM, so mark it as both read and written.
+        self.read(&vector.pointer, location);
         self.write(&vector.pointer, location);
         self.write(&vector.size, location);
     }
@@ -641,4 +713,607 @@ pub(crate) fn max_relative_register<F: AcirField>(byte_code: &[Opcode<F>]) -> us
         visitor.visit_opcode(opcode, location);
     }
     visitor.0
+}
+
+/// Whether the opcode's result must be preserved even if it is never read.
+///
+/// True for opcodes that can trap on user input (division by zero) or have
+/// externally observable side effects (foreign calls, black-box ops). Opcodes
+/// whose only failure modes come from miscompilation (e.g. bit-size mismatches,
+/// non-boolean conditions in `JumpIf`/`ConditionalMov`) are not considered
+/// fallible here, because correctly generated bytecode cannot exercise them.
+///
+/// Notable opcodes deliberately *excluded*:
+/// * `Shl`/`Shr` — the Brillig VM saturates to zero on out-of-range shift
+///   counts rather than trapping. The user-facing range check is emitted as a
+///   separate `JumpIf` + `Trap` sequence whose result register is independent
+///   of the shift's destination.
+/// * `Add`/`Sub`/`Mul` — wrap in the VM; the overflow check is again a
+///   separate `JumpIf` + `Trap` sequence.
+/// * `Cast` — truncates and never traps.
+/// * `Trap`/`Stop`/`Call`/`Return`/`Jump`/`JumpIf` — control-flow opcodes that
+///   do not write to any tracked memory address, so this flag would not affect
+///   their handling either way.
+fn is_fallible_opcode<F>(opcode: &Opcode<F>) -> bool {
+    match opcode {
+        // Division by zero traps in the VM.
+        Opcode::BinaryFieldOp { op: BinaryFieldOp::Div | BinaryFieldOp::IntegerDiv, .. }
+        | Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. } => true,
+        // Mirror the classification used by ACIR's
+        // [`acvm::acir::BlackBoxFunc::has_side_effects`]: only black-box ops that
+        // validate inputs, alter circuit state, or produce constraint-relevant
+        // side effects are treated as fallible. Pure hashes and ciphers can be
+        // removed when their result is never observed.
+        Opcode::BlackBox(black_box_op) => is_fallible_black_box_op(black_box_op),
+        // Foreign calls invoke an oracle which is externally observable and
+        // may fail on bad inputs.
+        Opcode::ForeignCall { .. } => true,
+        _ => false,
+    }
+}
+
+/// Side-effecting / failing black-box ops. Delegates to ACIR's
+/// [`acvm::acir::BlackBoxFunc::has_side_effects`] for the ACIR-mapped
+/// variants (so any future change to that classification flows through here
+/// automatically), with [`BlackBoxOp::ToRadix`] handled explicitly because
+/// the brillig VM validates its `radix` argument against `[2, 256]` at
+/// runtime and ToRadix has no ACIR analog.
+fn is_fallible_black_box_op(op: &BlackBoxOp) -> bool {
+    if let Some(func) = black_box_op_to_acir_func(op) {
+        func.has_side_effects()
+    } else {
+        matches!(op, BlackBoxOp::ToRadix { .. })
+    }
+}
+
+/// Map a brillig [`BlackBoxOp`] to its ACIR [`BlackBoxFunc`] counterpart.
+/// `None` for brillig-only ops with no ACIR analog (currently
+/// [`BlackBoxOp::ToRadix`]).
+fn black_box_op_to_acir_func(op: &BlackBoxOp) -> Option<BlackBoxFunc> {
+    match op {
+        BlackBoxOp::AES128Encrypt { .. } => Some(BlackBoxFunc::AES128Encrypt),
+        BlackBoxOp::Blake2s { .. } => Some(BlackBoxFunc::Blake2s),
+        BlackBoxOp::Blake3 { .. } => Some(BlackBoxFunc::Blake3),
+        BlackBoxOp::Keccakf1600 { .. } => Some(BlackBoxFunc::Keccakf1600),
+        BlackBoxOp::EcdsaSecp256k1 { .. } => Some(BlackBoxFunc::EcdsaSecp256k1),
+        BlackBoxOp::EcdsaSecp256r1 { .. } => Some(BlackBoxFunc::EcdsaSecp256r1),
+        BlackBoxOp::MultiScalarMul { .. } => Some(BlackBoxFunc::MultiScalarMul),
+        BlackBoxOp::EmbeddedCurveAdd { .. } => Some(BlackBoxFunc::EmbeddedCurveAdd),
+        BlackBoxOp::Poseidon2Permutation { .. } => Some(BlackBoxFunc::Poseidon2Permutation),
+        BlackBoxOp::Sha256Compression { .. } => Some(BlackBoxFunc::Sha256Compression),
+        BlackBoxOp::ToRadix { .. } => None,
+    }
+}
+
+/// Position of the visitor relative to a call's argument-passing region while
+/// walking opcodes in reverse.
+///
+/// `codegen_call` emits a fixed prologue/epilogue around an external `Call`. Going
+/// backwards through the bytecode, the boundary opcodes are:
+///
+/// * `Mov { destination: stack_pointer, source: relative(0) }` — restores the
+///   caller's stack pointer (encountered first when walking backwards;
+///   marks the end of the call region).
+/// * `Mov { destination: <next-frame-slot-0>, source: stack_pointer }` — saves
+///   the caller's stack pointer into the next frame (encountered second).
+/// * `Const { .. }` — sets the stack-size register (encountered last;
+///   marks the start of the call region).
+///
+/// Writes inside this region target the *callee*'s stack frame, so the local
+/// advisory logic ignores them. Reads inside the region still count, since they
+/// consume values prepared by the current function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CallRegion {
+    /// Not in a call's argument-passing region.
+    Outside,
+    /// Inside the call region — between the stack-pointer-restore Mov and the
+    /// stack-pointer-save Mov, walking backwards.
+    Inside,
+    /// One opcode away from leaving the call region. The next visited opcode is
+    /// expected to be the Const that holds the saved stack size; once seen the
+    /// visitor transitions back to [`CallRegion::Outside`].
+    AtStackSize,
+}
+
+impl CallRegion {
+    /// Whether the visitor is currently traversing the argument-passing region
+    /// of a call (or its boundary opcodes).
+    fn is_active(self) -> bool {
+        !matches!(self, CallRegion::Outside)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use noirc_frontend::test_utils::get_monomorphized;
+    use rustc_hash::FxHashMap;
+
+    use crate::{
+        assert_artifact_snapshot,
+        brillig::{Brillig, BrilligOptions},
+        ssa::{minimal_passes, ssa_gen::Ssa, ssa_gen::generate_ssa},
+    };
+    use acvm::{
+        FieldElement,
+        acir::brillig::{BinaryIntOp, BlackBoxOp, MemoryAddress, Opcode},
+    };
+
+    use super::{BrilligArtifact, OpcodeAdvisories, OpcodeAdvisory, opcode_advisories};
+
+    /// Parse hand-crafted SSA, run brillig generation on `main`, and return
+    /// both the artifact and the advisories the post-codegen checks produce.
+    ///
+    /// We deliberately bypass `Ssa::to_brillig` here: it consumes the
+    /// `FunctionContext` and `BrilligContext` into the final artifact before
+    /// the advisor can see them, so calling it would give us a real Brillig
+    /// but no way to ask the advisor questions about it. Instead, we drive
+    /// `build_function_contexts` directly on `main` and run the advisor on
+    /// the resulting (still un-consumed) contexts.
+    ///
+    /// Globals are intentionally not supported in the test snippets passed
+    /// here — we always invoke `build_function_contexts` with empty
+    /// `globals` and `hoisted_global_constants`. If a future advisor test
+    /// needs a program that uses globals, take it through `noir_to_brillig_main`
+    /// from Noir source instead and add a variant that captures advisories
+    /// from the full `to_brillig` setup.
+    fn ssa_to_brillig_with_advisories(
+        src: &str,
+    ) -> (BrilligArtifact<FieldElement>, OpcodeAdvisories) {
+        let ssa = Ssa::from_str(src).expect("SSA source should parse");
+        let func = ssa.main();
+        let options = BrilligOptions::default();
+        let globals = FxHashMap::default();
+        let hoisted_global_constants = FxHashMap::default();
+
+        let mut brillig = Brillig::default();
+        let (function_context, brillig_context) = brillig.build_function_contexts(
+            func,
+            &options,
+            &globals,
+            &hoisted_global_constants,
+            /* is_entry_point */ true,
+            /* check_max_stack_depth */ false,
+        );
+
+        let advisories = opcode_advisories(func, &function_context, &brillig_context);
+        (brillig_context.into_artifact(), advisories)
+    }
+
+    /// Compile a Noir snippet through monomorphization → SSA (`minimal_passes`)
+    /// → Brillig and return the artifact of `main`.
+    ///
+    /// Running `minimal_passes` brings the initial SSA into the smallest shape
+    /// that can be lowered to Brillig (signed-check expansion, defunctionalization,
+    /// removal of unreachable functions, and `static_assert` evaluation) while
+    /// preserving the surface structure the test wants to observe.
+    fn noir_to_brillig_main(noir_src: &str) -> BrilligArtifact<FieldElement> {
+        let program = get_monomorphized(noir_src).expect("Noir source should compile");
+        let mut ssa = generate_ssa(program).expect("SSA generation should succeed");
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa).expect("minimal SSA pass should not fail");
+        }
+        let mut brillig = ssa.to_brillig(&BrilligOptions::default());
+        brillig.ssa_function_to_brillig.remove(&ssa.main_id).expect("main expected to be Brillig")
+    }
+
+    /// Extract the destination register of a binary opcode, if any.
+    fn binary_destination<F>(op: &Opcode<F>) -> Option<MemoryAddress> {
+        match op {
+            Opcode::BinaryIntOp { destination, .. } | Opcode::BinaryFieldOp { destination, .. } => {
+                Some(*destination)
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether the advisor produced any [`OpcodeAdvisory::NeverRead`] advisory.
+    fn has_never_read(advisories: &OpcodeAdvisories) -> bool {
+        advisories.values().flatten().any(|a| matches!(a, OpcodeAdvisory::NeverRead { .. }))
+    }
+
+    /// Whether the advisor produced any
+    /// [`OpcodeAdvisory::OverwrittenBeforeRead`] advisory.
+    fn has_overwritten_before_read(advisories: &OpcodeAdvisories) -> bool {
+        advisories
+            .values()
+            .flatten()
+            .any(|a| matches!(a, OpcodeAdvisory::OverwrittenBeforeRead { .. }))
+    }
+
+    /// Sanity check that `artifact`'s bytecode contains an opcode matching
+    /// `matcher`. A subsequent "no advisory was produced" assertion is only
+    /// meaningful if the opcode it's about actually made it into the bytecode,
+    /// so each fallibility test sandwiches its call between this helper and
+    /// the advisory check.
+    fn assert_bytecode_contains<F: std::fmt::Display>(
+        artifact: &BrilligArtifact<F>,
+        description: &str,
+        matcher: impl Fn(&Opcode<F>) -> bool,
+    ) {
+        assert!(
+            artifact.byte_code.iter().any(matcher),
+            "expected {description} in the bytecode, got: {artifact}"
+        );
+    }
+
+    /// Assert the canonical "predicate-gated trap" shape that brillig-gen emits
+    /// for runtime checks (bit-shift range check, arithmetic overflow check, …):
+    ///
+    /// * A `target` opcode produces a value (the operation being checked).
+    /// * A `predicate` opcode writes a boolean into a register that is
+    ///   *different* from the target's destination — proving the trap branch
+    ///   does not depend on the target's result register.
+    /// * A `JumpIf` reads the predicate register and skips over the trap. It
+    ///   appears *after* the predicate in opcode order.
+    /// * A `Call` (to the `ErrorWithString` procedure) or a `Trap` opcode
+    ///   provides the trap branch and appears *after* the gating `JumpIf`.
+    ///
+    /// Both shift and arithmetic-overflow checks share this shape; only the
+    /// concrete `target` / `predicate` opcodes differ (and whether the
+    /// predicate is computed before or after the target — that order is *not*
+    /// asserted here).
+    fn assert_predicate_gated_trap<F>(
+        bytecode: &[Opcode<F>],
+        target_kind: &str,
+        is_target: impl Fn(&Opcode<F>) -> bool,
+        is_predicate: impl Fn(&Opcode<F>) -> bool,
+    ) {
+        let target_dst = bytecode
+            .iter()
+            .find_map(|op| if is_target(op) { binary_destination(op) } else { None })
+            .unwrap_or_else(|| panic!("brillig should contain a {target_kind} opcode"));
+
+        let (predicate_idx, predicate_dst) = bytecode
+            .iter()
+            .enumerate()
+            .find_map(|(i, op)| {
+                if is_predicate(op) { binary_destination(op).map(|dst| (i, dst)) } else { None }
+            })
+            .unwrap_or_else(|| panic!("brillig should contain the predicate for {target_kind}"));
+
+        assert_ne!(
+            predicate_dst, target_dst,
+            "{target_kind} predicate register must differ from its target destination"
+        );
+
+        // The JumpIf reading the predicate's result must appear *after* the
+        // predicate; otherwise it would be gating on a stale value.
+        let jmpif_idx = bytecode
+            .iter()
+            .enumerate()
+            .find_map(|(i, op)| match op {
+                Opcode::JumpIf { condition, .. } if *condition == predicate_dst => Some(i),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected a JumpIf gating the trap for {target_kind}"));
+        assert!(
+            jmpif_idx > predicate_idx,
+            "{target_kind} JumpIf at {jmpif_idx} must follow the predicate at {predicate_idx}"
+        );
+
+        // The trap branch (Call to the error procedure or a direct Trap) must
+        // sit between the JumpIf and the next opcode the JumpIf skips to.
+        let trap_idx = bytecode
+            .iter()
+            .enumerate()
+            .skip(jmpif_idx + 1)
+            .find_map(|(i, op)| match op {
+                Opcode::Call { .. } | Opcode::Trap { .. } => Some(i),
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                panic!("expected a Trap or Call (ErrorWithString) for {target_kind}")
+            });
+        assert!(
+            trap_idx > jmpif_idx,
+            "{target_kind} trap at {trap_idx} must follow the gating JumpIf at {jmpif_idx}"
+        );
+    }
+
+    /// Evidence that the Brillig `Shr` is not intrinsically fallible: the
+    /// range check on the shift amount is emitted as an independent
+    /// `LessThan` + `JumpIf` + `Call`-to-error sequence before the shift
+    /// opcode, writing to a different register from the shift's destination.
+    ///
+    /// Reading the snapshot below:
+    /// * `0` allocates the bit-size constant.
+    /// * `1` is the predicate `lt(shift_amount, bit_size)`, writing to a fresh
+    ///   register (`sp[5]`).
+    /// * `2` jumps over the trap when the predicate holds.
+    /// * `3` is the trap branch (`call 0 // -> ErrorWithString`).
+    /// * `4` is the actual `shr`, with its destination (`sp[4]`) independent of
+    ///   the predicate register.
+    #[test]
+    fn shift_emits_range_check_independent_of_shift_destination() {
+        let noir_src = "
+            unconstrained fn main(x: u32, y: u32) -> pub u32 {
+                x >> y
+            }
+        ";
+        let artifact = noir_to_brillig_main(noir_src);
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[6] = const u32 32
+        1: sp[5] = u32 lt sp[3], sp[6]
+        2: jump if sp[5] to 0 // -> 4: f0/b0/1
+        3: call 0 // -> ErrorWithString
+        4: sp[4] = u32 shr sp[2], sp[3] // f0/b0/1
+        5: sp[2] = sp[4]
+        6: return
+        ");
+
+        assert_predicate_gated_trap(
+            &artifact.byte_code,
+            "Shr",
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Shr, .. }),
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThan, .. }),
+        );
+    }
+
+    /// Evidence that the Brillig `Add` is not intrinsically fallible either:
+    /// the overflow check is emitted *after* the `add` as a `LessThanEquals` on
+    /// the result, followed by `JumpIf` + `Call`-to-error. The `add` and the
+    /// predicate write to different registers, so the trap survives even if
+    /// the `add`'s destination is ever flagged as `NeverRead`.
+    #[test]
+    fn checked_add_emits_overflow_check_independent_of_add_destination() {
+        let noir_src = "
+            unconstrained fn main(x: u32, y: u32) -> pub u32 {
+                x + y
+            }
+        ";
+        let artifact = noir_to_brillig_main(noir_src);
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 add sp[2], sp[3]
+        1: sp[5] = u32 lt_eq sp[2], sp[4]
+        2: jump if sp[5] to 0 // -> 4: f0/b0/1
+        3: call 0 // -> ErrorWithString
+        4: sp[2] = sp[4] // f0/b0/1
+        5: return
+        ");
+
+        assert_predicate_gated_trap(
+            &artifact.byte_code,
+            "Add",
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Add, .. }),
+            |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThanEquals, .. }),
+        );
+    }
+
+    /// First exercise of the advisor: an `unchecked_add` whose destination is
+    /// never read anywhere afterwards. The advisor should flag exactly one
+    /// `NeverRead` for that destination register.
+    #[test]
+    fn never_read_advisory_for_dead_unchecked_add() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = unchecked_add v0, u32 1
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        // Bytecode snapshot for visual reference — the `add` at this location
+        // produces a value that is never consumed by a later opcode.
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[3] = const u32 1
+        1: sp[4] = u32 add sp[2], sp[3]
+        2: return
+        ");
+
+        assert!(
+            has_never_read(&advisories),
+            "expected a NeverRead advisory for the dead `unchecked_add` destination, got: {advisories:?}"
+        );
+    }
+
+    /// Sanity check: every SSA value is properly consumed, so the advisor
+    /// should not flag anything. This guards against accidental
+    /// over-reporting — e.g. the return-region heuristic not suppressing the
+    /// final `Mov` into the return register, or a dead-write false positive
+    /// on a value that is actually read.
+    #[test]
+    fn no_advisories_for_clean_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 add sp[2], sp[3]
+        1: sp[2] = sp[4]
+        2: return
+        ");
+
+        assert!(
+            advisories.is_empty(),
+            "expected no advisories for a clean function, got: {advisories:?}"
+        );
+    }
+
+    /// Counterpart to [`never_read_advisory_for_dead_unchecked_add`]: when
+    /// the dead write is a *fallible* operation (here `div`, which traps on
+    /// a zero divisor) the advisor must NOT emit a `NeverRead`, because
+    /// removing the opcode would silently drop the trap.
+    #[test]
+    fn fallible_div_with_unused_result_not_flagged() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = div v0, v1
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 div sp[2], sp[3]
+        1: return
+        ");
+
+        assert_bytecode_contains(&artifact, "an integer Div opcode", |op| {
+            matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Div, .. })
+        });
+
+        assert!(
+            !has_never_read(&advisories),
+            "expected no NeverRead advisory for fallible `div` whose result is unused, got: {advisories:?}"
+        );
+    }
+
+    /// Provoke an [`OpcodeAdvisory::OverwrittenBeforeRead`]: two SSA values
+    /// with non-overlapping lifetimes share a register through the
+    /// allocator, so the first write to that register is overwritten by the
+    /// second write before any opcode reads it.
+    #[test]
+    fn overwritten_before_read_advisory_for_register_reuse() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_mul v0, u32 2
+            return v3
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = u32 add sp[2], sp[3]
+        1: sp[3] = const u32 2
+        2: sp[4] = u32 mul sp[2], sp[3]
+        3: sp[2] = sp[4]
+        4: return
+        ");
+
+        assert!(
+            has_overwritten_before_read(&advisories),
+            "expected an OverwrittenBeforeRead advisory, got: {advisories:?}"
+        );
+    }
+
+    /// Exercise the [`CallRegion`] suppression: the `Mov` opcodes that
+    /// `codegen_call` emits to copy arguments into the *next* stack frame
+    /// would otherwise look like dead writes (the callee reads them, but
+    /// the advisor only sees the caller's bytecode). The boundary opcodes
+    /// — the stack-pointer save/restore and the `Const` carrying the
+    /// frame size — would also be flagged. The `CallRegion` walk ignores
+    /// writes inside the region, so a `main` whose only work is making
+    /// one call should produce zero advisories.
+    #[test]
+    fn no_advisories_for_call_argument_writes() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> u32
+            return v2
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: u32):
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[4] = const u32 5
+        1: sp[5] = @0
+        2: sp[7] = sp[2]
+        3: @0 = u32 add @0, sp[4]
+        4: call 0 // -> f1
+        5: @0 = sp[0]
+        6: sp[3] = sp[7]
+        7: sp[2] = sp[3]
+        8: return
+        ");
+
+        assert!(
+            advisories.is_empty(),
+            "expected no advisories — call-region writes target the next stack frame and should be suppressed, got: {advisories:?}"
+        );
+    }
+
+    /// Companion to [`fallible_div_with_unused_result_not_flagged`] for the
+    /// `BlackBox` branch of [`is_fallible_opcode`]: an ECDSA verify whose
+    /// boolean result is never consumed must not be flagged as `NeverRead`.
+    /// ECDSA verification is on the side-effecting side of
+    /// [`is_fallible_black_box_op`] (it mirrors ACIR's
+    /// `BlackBoxFunc::has_side_effects`), so the advisor must leave it alone.
+    #[test]
+    fn fallible_blackbox_with_unused_result_not_flagged() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[6] = const bool 1
+        1: sp[8] = u32 add sp[5], @2
+        2: sp[9] = u32 add sp[2], @2
+        3: sp[10] = u32 add sp[3], @2
+        4: sp[11] = u32 add sp[4], @2
+        5: ecdsa_secp256k1(hashed_msg: [sp[8]; 32], public_key_x: [sp[9]; 32], public_key_y: [sp[10]; 32], signature: [sp[11]; 64], result: sp[7])
+        6: return
+        ");
+
+        assert_bytecode_contains(&artifact, "an EcdsaSecp256k1 opcode", |op| {
+            matches!(op, Opcode::BlackBox(BlackBoxOp::EcdsaSecp256k1 { .. }))
+        });
+
+        assert!(
+            !has_never_read(&advisories),
+            "expected no NeverRead advisory for fallible `ecdsa_secp256k1` whose result is unused, got: {advisories:?}"
+        );
+    }
+
+    /// Companion to [`fallible_div_with_unused_result_not_flagged`] for the
+    /// `ForeignCall` branch of [`is_fallible_opcode`]: an oracle call whose
+    /// return value is never consumed must not be flagged as `NeverRead`,
+    /// since the oracle has externally observable effects and may fail on
+    /// bad inputs.
+    ///
+    /// The SSA parser treats any callee whose name contains `oracle` as a
+    /// foreign function (see `into_ssa.rs`), which is exactly what we need
+    /// to exercise the `ForeignCall` arm without going through Noir source.
+    #[test]
+    fn fallible_foreign_call_with_unused_result_not_flagged() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call my_oracle(v0) -> u32
+            return v0
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[3]: u32 = foreign call my_oracle(sp[2]: u32)
+        1: return
+        ");
+
+        assert_bytecode_contains(&artifact, "a ForeignCall opcode", |op| {
+            matches!(op, Opcode::ForeignCall { .. })
+        });
+
+        assert!(
+            !has_never_read(&advisories),
+            "expected no NeverRead advisory for fallible `my_oracle` whose result is unused, got: {advisories:?}"
+        );
+    }
 }

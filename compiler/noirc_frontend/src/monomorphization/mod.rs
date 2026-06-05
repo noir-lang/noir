@@ -568,6 +568,19 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
+    /// If `f` is a trait method, force-bind the trait's `Self` type variable to the impl's
+    /// self type and return a guard that unbinds it again when dropped.
+    ///
+    /// Returns `None` for functions that are not trait methods, in which case there is nothing
+    /// to bind or unbind.
+    fn bind_function_trait_self(&self, f: &node_interner::FuncId) -> Option<TraitSelfBindingGuard> {
+        let (self_type, trait_id) = self.interner.get_function_trait(f)?;
+        let self_type_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
+        let kind = self_type_typevar.kind();
+        self_type_typevar.force_bind(self_type);
+        Some(TraitSelfBindingGuard { self_type_typevar, kind })
+    }
+
     /// Monomorphizes the given function.
     ///
     /// Expects any generics to already be bound by their bindings at this function's call site.
@@ -584,10 +597,10 @@ impl<'interner> Monomorphizer<'interner> {
         id: FuncId,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
-            let the_trait = self.interner.get_trait(trait_id);
-            the_trait.self_type_typevar.force_bind(self_type);
-        }
+        // When monomorphizing a trait method we bind the trait's `Self` to the impl's self
+        // type so that references to `Self` in the function resolve.
+        // When this is dropped, the binding is removed.
+        let _self_type_guard = self.bind_function_trait_self(&f);
 
         let meta = self.interner.function_meta(&f).clone();
 
@@ -849,6 +862,8 @@ impl<'interner> Monomorphizer<'interner> {
                 } else {
                     let lhs = Box::new(lhs);
                     let rhs = Box::new(rhs);
+                    // The result type is unused, but we convert it anyway to catch potential errors
+                    let _ = Self::convert_type(&self.interner.id_type(expr), location)?;
                     ast::Expression::Binary(ast::Binary { lhs, rhs, operator, location })
                 }
             }
@@ -2073,9 +2088,9 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that the 'from' and to' sides of a `CheckedCast` unify and
-    /// that if the 'to' side evaluates to a field element, then the 'from' side
-    /// evaluates to the same field element as well.
+    /// Check that the 'from' and 'to' sides of a `CheckedCast` unify, that the 'to' side
+    /// evaluates to an integer without failing (e.g. with a division by zero), and that
+    /// the 'from' side evaluates to that same integer.
     fn check_checked_cast(
         from: &Type,
         to: &Type,
@@ -2088,18 +2103,29 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_integer(&to.kind(), location);
-        if let Ok(to_value) = to_value {
-            let skip_simplifications = false;
-            let from_value =
-                from.evaluate_to_integer_helper(&to.kind(), location, skip_simplifications);
-            if from_value.is_err() || from_value.unwrap() != to_value {
-                return Err(MonomorphizationError::CheckedCastFailed {
-                    actual: to_value.to_string(),
-                    expected: from.clone(),
-                    location,
-                });
+        let to_value = match to.evaluate_to_integer(&to.kind(), location) {
+            Ok(to_value) => to_value,
+            // A destination that is not yet a constant (it still contains an unbound,
+            // defaultable generic) is handled by the surrounding type conversion, which
+            // will either default the variable or error with `NoDefaultType`.
+            Err(err) if err.is_non_constant_evaluated() => return Ok(()),
+            // Any other failure (division by zero, modulo by zero, overflow, ...) means
+            // the destination type is invalid for the concrete generic values.
+            Err(err) => {
+                return Err(MonomorphizationError::CheckedCastEvaluationFailed { err, location });
             }
+        };
+
+        // Evaluate `from` without simplifications so that arithmetic errors in
+        // intermediate steps are still caught.
+        let run_simplifications = false;
+        let from_value = from.evaluate_to_integer_helper(&to.kind(), location, run_simplifications);
+        if from_value.is_err() || from_value.unwrap() != to_value {
+            return Err(MonomorphizationError::CheckedCastFailed {
+                actual: to_value.to_string(),
+                expected: from.clone(),
+                location,
+            });
         }
         Ok(())
     }
@@ -2517,7 +2543,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> FuncId {
         let location = self.interner.expr_location(&expr_id);
         let bindings = self.interner.get_instantiation_bindings(expr_id);
-        let bindings = self.follow_bindings(bindings);
+        let bindings = Self::follow_bindings(bindings);
         self.queue_function_with_bindings(
             id,
             location,
@@ -2564,12 +2590,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// Without this, a monomorphized type may fail to propagate passed more than 2
     /// function calls deep since it is possible for a previous link in the chain to
     /// unbind a type variable that was previously bound.
-    pub fn follow_bindings(&self, bindings: &TypeBindings) -> TypeBindings {
+    pub fn follow_bindings(bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()
             .map(|(id, (var, kind, binding))| {
-                let binding2 = binding.follow_bindings();
-                (*id, (var.clone(), kind.clone(), binding2))
+                (*id, (var.clone(), kind.follow_bindings(), binding.follow_bindings()))
             })
             .collect()
     }
@@ -3170,6 +3195,19 @@ fn unwrap_enum_type(
             Ok(def.borrow().get_variants(&args).unwrap())
         }
         other => unreachable!("unwrap_enum_type: expected enum, found {:?}", other),
+    }
+}
+
+/// Unbinds a trait's `Self` type variable once a trait method is done being monomorphized,
+/// restoring the unbound state it had beforehand. See [Monomorphizer::bind_function_trait_self].
+struct TraitSelfBindingGuard {
+    self_type_typevar: TypeVariable,
+    kind: Kind,
+}
+
+impl Drop for TraitSelfBindingGuard {
+    fn drop(&mut self) {
+        self.self_type_typevar.unbind(self.self_type_typevar.id(), self.kind.clone());
     }
 }
 
