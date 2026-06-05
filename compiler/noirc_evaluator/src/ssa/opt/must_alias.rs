@@ -675,22 +675,37 @@ impl MustAliasAnalysis {
 
     /// Mark `External` the `points_to_sites` entry of `value`'s class and of
     /// every class reachable by dereferencing it.
-    ///
-    /// `points_to_sites` is keyed by the *pointer's* class root: a load through
-    /// a pointer in class `K` reads `points_to_sites[K]`. So to make every load
-    /// through an entry-point parameter (and through anything loaded from it,
-    /// at any depth) yield `External`, we poison the parameter's own class and
-    /// then walk the may-alias points-to chain, poisoning each successive level.
     fn mark_pointees_external(
         &mut self,
         value: GlobalValueId,
         aliases: &AliasAnalysis,
         changes: &mut InterProceduralChanges,
     ) {
+        self.poison_pointee_chain(value, AllocationLattice::External, aliases, changes);
+    }
+
+    /// Join `site` into the `points_to_sites` entry of `value`'s class and of
+    /// every class reachable by dereferencing it.
+    ///
+    /// `points_to_sites` is keyed by the *pointer's* class root: a load through
+    /// a pointer in class `K` reads `points_to_sites[K]`. To poison every load
+    /// reachable from `value` at any depth (e.g. an entry-point parameter, or
+    /// an argument escaping into an opaque callee that may mutate any cell it
+    /// can reach), we poison `value`'s own class and then walk the may-alias
+    /// points-to chain, poisoning each successive level. Stopping at the first
+    /// level is unsound: a deeper pointee would keep a stale site even though
+    /// the callee could have overwritten it.
+    fn poison_pointee_chain(
+        &mut self,
+        value: GlobalValueId,
+        site: AllocationLattice,
+        aliases: &AliasAnalysis,
+        changes: &mut InterProceduralChanges,
+    ) {
         let mut current = aliases.class_root(value);
         let mut seen: HashSet<GlobalValueId> = HashSet::default();
         while seen.insert(current) {
-            self.join_into_pointee_site(current, AllocationLattice::External, changes);
+            self.join_into_pointee_site(current, site, changes);
             let Some(pointee) = aliases.pointee(current) else { break };
             current = aliases.class_root(pointee);
         }
@@ -784,10 +799,12 @@ impl MustAliasAnalysis {
                     if !function.dfg.type_of_value(arg.value_id()).contains_reference() {
                         continue;
                     }
-                    let class_root = aliases.class_root(arg);
-                    self.join_into_pointee_site(
-                        class_root,
+                    // Mark the argument as `NoAllocation`, but also any other reference
+                    // it may points-to, recursively.
+                    self.poison_pointee_chain(
+                        arg,
                         AllocationLattice::NoAllocation,
+                        aliases,
                         changes,
                     );
                 }
@@ -1514,6 +1531,42 @@ mod tests {
         // across iterations (here we only have one allocate ID, but the
         // lattice value is what later consumers see).
         assert_eq!(analysis.known_site(allocs[0]), None);
+    }
+
+    #[test]
+    fn unresolved_call_poisons_deep_pointee_chain() {
+        // An indirect (unresolved) call receives `v1: &mut &mut &mut Field`.
+        // Before the call, `**v1` is stored to a single-firing allocation
+        // `v3`, giving the level-2 pointee class `Known(v3)`. The opaque
+        // callee can mutate any cell reachable from `v1` at any depth — in
+        // particular it can overwrite `**v1`. So after the call a load of
+        // `**v1` (here `v5`) must NOT keep the `Known(v3)` site, otherwise a
+        // consumer such as `load_store_forwarding` would forward a stale
+        // value. Poisoning only the first pointee level (`*v1`) is unsound.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: function):
+            v1 = allocate -> &mut &mut &mut Field
+            v2 = load v1 -> &mut &mut Field
+            v3 = allocate -> &mut Field
+            store v3 at v2
+            call v0(v1)
+            v4 = load v1 -> &mut &mut Field
+            v5 = load v4 -> &mut Field
+            return
+        }
+        ";
+        let (ssa, analysis) = analyze_source(src);
+        let allocs = collect_allocates_main(&ssa);
+        let loads = collect_loads_main(&ssa);
+        // allocs[1] = v3 (the deep stored allocation); loads[2] = v5 (the
+        // load of `**v1` after the unresolved call).
+        assert_eq!(
+            analysis.known_site(loads[2]),
+            None,
+            "deep pointee site must be poisoned across an unresolved call",
+        );
+        assert!(!analysis.must_alias(allocs[1], loads[2]));
     }
 
     #[test]

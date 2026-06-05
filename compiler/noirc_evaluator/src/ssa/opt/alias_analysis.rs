@@ -433,13 +433,7 @@ impl AliasAnalysisContext {
     /// Process all instructions in a single block, updating the alias sets.
     /// `ignore_allocations_in_block` is  used to mark every `Allocate` defined in
     /// this block as `loop_allocate`, since the loop may fire it many times per invocation.
-    fn analyze_block(
-        &mut self,
-        function: &Function,
-        block_id: BasicBlockId,
-        scope: &Scope,
-        //  mut ignore_allocations_in_block: bool,
-    ) {
+    fn analyze_block(&mut self, function: &Function, block_id: BasicBlockId, scope: &Scope) {
         let block = &function.dfg[block_id];
 
         for instruction_id in block.instructions() {
@@ -457,7 +451,6 @@ impl AliasAnalysisContext {
                 Instruction::Store { address, value } => {
                     // Complex constraint type 2: *address = value
                     self.merge_reference(function, *value, *address);
-                    //  self.join_reference(function, *value, *address);
                 }
                 Instruction::Call { func: callee_id, arguments } => {
                     match (&function.dfg[*callee_id], scope) {
@@ -2560,7 +2553,6 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
-        // assert !may_alias(v1, v2)
         assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
 
