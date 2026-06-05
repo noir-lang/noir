@@ -7,6 +7,12 @@ struct Foo {
 // Printing references is not supported, because Oracles cannot handle 
 // references in parameters.
 // #9578 has been superseded by #12838
+// References to enums don't work at the moment,
+// because instead of the tag, we get the address of the tag,
+// and we can't tell how many fields follow.
+// enum Bar {
+//     Baz((u32, [u32; 2])),
+// }
 
 unconstrained fn main() {
     show(1, ());
