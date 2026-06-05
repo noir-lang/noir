@@ -256,26 +256,32 @@ struct Context<'f> {
     ///   documented gap. In practice the frontend's array-returning
     ///   functions allocate fresh storage.
     non_aliasing_array_values: HashSet<ValueId>,
-    /// `MakeArray` results that appear as a jmp/jmpif arg on at least one
-    /// loop back-edge. Such a `make_array` re-executes on every loop
-    /// iteration and represents fresh storage per iteration, so any
-    /// back-edge that puts it in a loop-header parameter's class is
-    /// conflating distinct runtime storages across iterations. Filtered
-    /// out of the alias-set on lookup — see [`Context::alias_set_for`].
+    /// Back-edge args that re-allocate distinct storage every iteration:
+    /// `MakeArray` results (re-executes each iteration) and `Call` results
+    /// (the callee allocates fresh). `array_set` results are excluded —
+    /// they may mutate in place, so they aren't guaranteed-fresh. Two uses:
     ///
-    /// `MakeArray` results that are *not* back-edge args are kept in the
-    /// alias-set: they represent a one-time allocation whose storage
-    /// the array_set may mutate in place.
-    iteration_local_make_arrays: HashSet<ValueId>,
+    /// - [`Context::alias_set_for`] drops such values from the alias-set:
+    ///   a back-edge that puts one in a loop-header parameter's class is
+    ///   conflating distinct runtime storages across iterations. (`Call`
+    ///   results are also dropped there by
+    ///   [`Context::non_aliasing_array_values`]; the overlap is harmless.)
+    /// - the swap freshening guard in [`Context::new`] requires the
+    ///   swapped-out sibling to be one of these — see
+    ///   [`Context::swap_excluded_aliases`].
+    ///
+    /// Values that are *not* back-edge args are kept in the alias-set:
+    /// they represent a one-time allocation whose storage the array_set
+    /// may mutate in place.
+    iteration_local_fresh: HashSet<ValueId>,
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
     inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
     /// Values that appear at least once as a jmp/jmpif arg on a loop
     /// back-edge. Used by both:
     ///
-    /// - [`Context::iteration_local_make_arrays`] (computed via the
-    ///   intersection `make_array_values ∩ back_edge_args` in
-    ///   [`Context::new`]); and
+    /// - [`Context::iteration_local_fresh`] (the back-edge args that are
+    ///   `make_array` or `Call` results, computed in [`Context::new`]); and
     /// - the **back-edge-participant relaxation** in
     ///   [`Context::some_inc_rc_precedes`]: an `inc_rc` on a non-source
     ///   alias that's also a back-edge arg is taken as a codegen
@@ -465,14 +471,6 @@ impl<'f> Context<'f> {
             }
         }
 
-        // A `make_array` is iteration-local iff its result appears on a
-        // loop back-edge: that's the signal that it re-executes each
-        // iteration, so the storage the loop-header parameter receives
-        // through the back-edge is freshly allocated rather than the
-        // same storage the array_set may mutate in place.
-        let iteration_local_make_arrays: HashSet<ValueId> =
-            make_array_values.intersection(&back_edge_args).copied().collect();
-
         // A back-edge arg is iteration-local *fresh* if it re-allocates
         // distinct storage every iteration: a `make_array` (re-executes)
         // or a `Call` result (the callee allocates fresh — the same
@@ -572,7 +570,7 @@ impl<'f> Context<'f> {
             backward_aliases,
             array_value_defs,
             non_aliasing_array_values,
-            iteration_local_make_arrays,
+            iteration_local_fresh,
             inc_rc_locations,
             back_edge_args,
             back_edge_participants,
@@ -601,16 +599,15 @@ impl<'f> Context<'f> {
     ///   create a real alias, and we'd miss that. In practice the
     ///   frontend's array-returning functions allocate fresh storage.
     ///
-    /// Also drop **iteration-local `MakeArray` results** — those that
-    /// appear on at least one loop back-edge
-    /// ([`Context::iteration_local_make_arrays`]). A `make_array` on a
-    /// back-edge re-executes each iteration and allocates fresh
-    /// storage, so the loop-header parameter it feeds on the back-edge
-    /// holds a *different* allocation in the next iteration than the
-    /// one this iteration's `array_set` may have mutated.
-    /// **Non-back-edge `MakeArray` results stay in the alias-set** —
-    /// they represent a one-time allocation whose storage the
-    /// array_set can mutate in place.
+    /// Also drop **iteration-local fresh results** — `MakeArray` (or
+    /// `Call`) results that appear on at least one loop back-edge
+    /// ([`Context::iteration_local_fresh`]). Such a value re-allocates
+    /// fresh storage each iteration, so the loop-header parameter it
+    /// feeds on the back-edge holds a *different* allocation in the next
+    /// iteration than the one this iteration's `array_set` may have
+    /// mutated. **Non-back-edge `MakeArray` results stay in the
+    /// alias-set** — they represent a one-time allocation whose storage
+    /// the array_set can mutate in place.
     ///
     /// **Post-array_set-in-same-block filter.** Drop instruction
     /// results whose defining position is in `array_set_block` at an
@@ -649,7 +646,7 @@ impl<'f> Context<'f> {
                 if self.non_aliasing_array_values.contains(&v) {
                     return false;
                 }
-                if self.iteration_local_make_arrays.contains(&v) {
+                if self.iteration_local_fresh.contains(&v) {
                     return false;
                 }
                 if self.swap_excluded_aliases.get(&source).is_some_and(|qs| qs.contains(&v)) {
@@ -2697,7 +2694,7 @@ mod tests {
     /// `make_array` defined in the same block as (and *after*) the
     /// `array_set`, whose result feeds the loop-header parameter on the
     /// loop's back-edge. The make_array is iteration-local (back-edge
-    /// arg), so the `iteration_local_make_arrays` filter drops it from
+    /// arg), so the `iteration_local_fresh` filter drops it from
     /// the alias-set: the per-arg kill at the back-edge then sees the
     /// arg ∉ use_set and correctly drops the loop-header parameter, so
     /// the walk terminates without flagging the loop-body reads.
@@ -2831,7 +2828,7 @@ mod tests {
     /// runtime the parameter is rebound to a fresh `make_array` on
     /// every back-edge crossing, so the iteration-aliasing is illusory.
     ///
-    /// The `iteration_local_make_arrays` filter drops a `make_array`
+    /// The `iteration_local_fresh` filter drops a `make_array`
     /// result that appears on a loop back-edge: the make_array always
     /// allocates fresh top-level storage, so it
     /// can't represent the pre-mutation storage of any array_set source.
@@ -3089,7 +3086,7 @@ mod tests {
     }
 
     /// Minimal SSA pinning down the **unique necessity** of the
-    /// [`Context::iteration_local_make_arrays`] filter. The other
+    /// [`Context::iteration_local_fresh`] filter. The other
     /// "value can't share storage at the array_set's program point"
     /// filters — `non_aliasing_array_values` (ArraySet/Call results),
     /// `post-array_set-in-same-block`, and the walk's `def-block-entry`
@@ -3122,7 +3119,7 @@ mod tests {
     ///   in use_set, the rule sees the arg as "still an alias" and
     ///   keeps `v1`. The subsequent `array_get v1` in `b1` then flags.
     ///
-    /// `iteration_local_make_arrays` filters `v4` at alias-set
+    /// `iteration_local_fresh` filters `v4` at alias-set
     /// construction time so it's never in the use_set in the first
     /// place. The kill rule on `b3 → b1` then correctly fires, `v1`
     /// is dropped, and the walk terminates without flagging.
@@ -3144,7 +3141,7 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v4 is a make_array on the b3 → b1 back-edge — iteration-local fresh storage. The iteration_local_make_arrays filter drops it from v1's alias-set, enabling the per-arg kill at the back-edge to correctly fire on v1. Without this filter, the walk would falsely flag the b1.array_get v1 on re-entry.",
+            "v4 is a make_array on the b3 → b1 back-edge — iteration-local fresh storage. The iteration_local_fresh filter drops it from v1's alias-set, enabling the per-arg kill at the back-edge to correctly fire on v1. Without this filter, the walk would falsely flag the b1.array_get v1 on re-entry.",
         );
     }
 
