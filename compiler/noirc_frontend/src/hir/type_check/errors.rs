@@ -41,6 +41,8 @@ pub enum TypeCheckError {
     DivisionByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    #[error("Modulo by zero: {lhs} % {rhs}")]
+    ModuloByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: FieldElement,
@@ -93,6 +95,13 @@ pub enum TypeCheckError {
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    #[error("Negative Field literal `{value}` cast to `{to}` evaluates to `{result}`")]
+    NegativeLiteralCastToInteger {
+        value: FieldElement,
+        result: String,
+        to: Type,
+        location: Location,
+    },
     #[error("Cannot cast `{typ}` as `bool`")]
     CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
@@ -224,6 +233,8 @@ pub enum TypeCheckError {
     NonConstantEvaluated { typ: Type, location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    #[error("Entry point parameter must use a simple identifier pattern")]
+    InvalidPatternForEntryPoint { location: Location },
     #[error("Mismatched number of parameters in trait implementation")]
     MismatchTraitImplNumParameters {
         actual_num_parameters: usize,
@@ -308,10 +319,24 @@ impl TypeCheckError {
         matches!(self, TypeCheckError::NonConstantEvaluated { .. })
     }
 
+    /// True for errors describing an arithmetic failure on constant operands
+    /// (the closed set of errors producible by [BinaryTypeOperator::function]),
+    /// as opposed to errors meaning an expression could not be reduced to a constant.
+    pub(crate) fn is_constant_arithmetic_failure(&self) -> bool {
+        matches!(
+            self,
+            TypeCheckError::OverflowingBinaryOp { .. }
+                | TypeCheckError::DivisionByZero { .. }
+                | TypeCheckError::ModuloOnFields { .. }
+                | TypeCheckError::ModuloByZero { .. }
+        )
+    }
+
     pub fn location(&self) -> Location {
         match self {
             TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
+            | TypeCheckError::ModuloByZero { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::OverflowingBinaryOp { location, .. }
@@ -323,6 +348,7 @@ impl TypeCheckError {
             | TypeCheckError::ArityMisMatch { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::NegativeLiteralCastToInteger { location, .. }
             | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
@@ -372,6 +398,7 @@ impl TypeCheckError {
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::InvalidTypeForEntryPoint { location, .. }
+            | TypeCheckError::InvalidPatternForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::MacroReturningNonExpr { location, .. }
@@ -561,6 +588,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::DownsizingCast { location, reason, .. } => {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
             }
+            TypeCheckError::NegativeLiteralCastToInteger { value, to, location, .. } => {
+                let secondary = format!(
+                    "If this isn't desired, try `{value}{to}` instead or bind to a variable first to silence this warning"
+                );
+                Diagnostic::simple_warning(error.to_string(), secondary, *location)
+            }
             TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
                 let secondary = "Compare with zero instead: ` != 0`".to_string();
                 Diagnostic::simple_error(error.to_string(), secondary, *location)
@@ -585,6 +618,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::OverflowingBinaryOp { location, .. }
+            | TypeCheckError::ModuloByZero { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
@@ -739,6 +773,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 diagnostic
+            },
+            TypeCheckError::InvalidPatternForEntryPoint { location } => {
+                let primary = "Entry point parameter must use a simple identifier pattern".to_string();
+                let secondary = "Destructuring patterns are not allowed here; bind to a name and destructure inside the body".to_string();
+                Diagnostic::simple_error(primary, secondary, *location)
             },
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,

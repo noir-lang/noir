@@ -138,7 +138,9 @@ fn forward_loads_and_stores_in_block(
                 instruction.for_each_value(|v| call_values.push(v));
                 for value in call_values {
                     let value = inserter.resolve(value);
-                    if !inserter.function.dfg.type_of_value(value).contains_reference() {
+                    // A call can only write through an argument that exposes a
+                    // mutable reference.
+                    if !inserter.function.dfg.type_of_value(value).contains_mutable_reference() {
                         continue;
                     }
                     let value = GlobalValueId::new(inserter.function, value);
@@ -1380,6 +1382,45 @@ mod tests {
             v4 = if v0 then v2 else (if v3) v1
             store Field 2 at v4
             return Field 2
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_immutable_reference_does_not_invalidate_cache() {
+        // A call that only receives an immutable reference cannot write through
+        // it, so cached values for that address must remain valid after the call.
+        // Currently the pass treats &T the same as &mut T in the call handler
+        // (is_simple_ref fires for both), so it incorrectly invalidates the
+        // cached load and fails to forward v2 to v1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The call only holds an immutable reference; it cannot modify v0's
+        // memory. The second load should be forwarded to v1.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            return v1
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
         }
         ");
     }

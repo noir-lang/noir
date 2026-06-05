@@ -21,7 +21,7 @@ use crate::{
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
-        comptime::Integer,
+        comptime::{Integer, Value, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
         resolution::{
@@ -1273,7 +1273,17 @@ impl Elaborator<'_> {
         let location = path.trait_path.location;
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
 
-        if !ordered.iter().all(|typ| matches!(typ, Type::NamedGeneric(_)))
+        let trait_generic_ids: Vec<_> =
+            vecmap(&self.interner.get_trait(current_trait).generics, |g| g.type_var.id());
+
+        if ordered.len() != trait_generic_ids.len() {
+            return None;
+        }
+        let ordered_match_trait_generics =
+            ordered.iter().zip_eq(&trait_generic_ids).all(|(typ, trait_gen_id)| {
+                matches!(typ, Type::NamedGeneric(ng) if ng.type_var.id() == *trait_gen_id)
+            });
+        if !ordered_match_trait_generics
             || !named.iter().all(|typ| matches!(typ.typ, Type::TypeVariable(_)))
         {
             return None;
@@ -1318,6 +1328,39 @@ impl Elaborator<'_> {
                 Type::Error
             }
         }
+    }
+
+    /// Reduce an associated-type projection `<object_type as trait>::assoc_name` over a rigid
+    /// object type to the type defined by the matching impl. Assumed (`where` clause) impls are
+    /// ignored, so the answer is the single ground truth from the real impl. Returns `None` when
+    /// the object type contains unbound type variables (unification could still change which
+    /// impl matches) or no such impl/associated type is found - in particular for a bare generic
+    /// like `T`, which no real impl matches and only a `where` clause hypothesis can answer.
+    pub(super) fn normalize_rigid_associated_type(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        ordered: &[Type],
+        assoc_name: &str,
+    ) -> Option<Type> {
+        if object_type.contains_unbound_type_variable() {
+            return None;
+        }
+        let (impl_kind, instantiation_bindings) = self
+            .interner
+            .lookup_trait_implementation_ignoring_assumed(object_type, trait_id, ordered, &[])
+            .ok()?;
+        let associated_types = match impl_kind {
+            TraitImplKind::Assumed { .. } => unreachable!(
+                "lookup_trait_implementation_ignoring_assumed should ignore assumed impls"
+            ),
+            TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
+                self.interner.get_associated_types_for_impl(impl_id)
+            }
+        };
+        let typ =
+            associated_types.iter().find(|named| named.name.as_str() == assoc_name)?.typ.clone();
+        Some(typ.substitute(&instantiation_bindings).follow_bindings())
     }
 
     /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete self_type)
@@ -2135,8 +2178,23 @@ impl Elaborator<'_> {
             }
         };
 
-        // TODO(https://github.com/noir-lang/noir/issues/6247):
-        // handle negative literals
+        // Warn if a user casts to an integer from a negative field literal.
+        // `-1 as i8 == 0`, not `-1` which can be confusing.
+        if let Some(value) = from_value_opt
+            && -value < value
+            && to.is_integer()
+            && (from_follow_bindings.is_field() || from_follow_bindings.is_bindable())
+            && let Ok(Value::Integer(result)) =
+                evaluate_cast_one_step(&to, location, Value::field(value))
+        {
+            self.push_err(TypeCheckError::NegativeLiteralCastToInteger {
+                value,
+                result: result.to_string(),
+                to: to.clone(),
+                location,
+            });
+        }
+
         // when casting a polymorphic value to a specifically sized type,
         // check that it fits or throw a warning
         if let (Some(from_value), Some(to_maximum_size)) =

@@ -1108,6 +1108,49 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
+fn direct_unconstrained_closure_call_rejects_captured_mutable_ref() {
+    // A local closure that captures a `&mut` from constrained code, coerced to
+    // `unconstrained fn[Env](..)` and called directly under `unsafe`, must be rejected.
+    // The captured reference lives in the closure's environment, which monomorphization
+    // inserts as a synthetic first argument after the boundary check, so the environment
+    // type must be validated explicitly.
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        let xr = &mut x;
+        let f: unconstrained fn[(&mut u32,)](u32) -> () = |y| {
+            *xr = y;
+        };
+        // safety: test
+        unsafe { f(7); }
+                 ^ Cannot pass mutable reference `(&mut u32,)` from a constrained runtime to an unconstrained runtime
+        assert(x == 0);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn direct_unconstrained_closure_call_rejects_captured_immutable_ref() {
+    // Even a captured immutable reference is rejected: the closure environment is a
+    // container (a tuple), and only a direct immutable reference `&T` is supported across
+    // the boundary, not one embedded in a container.
+    let src = r#"
+    fn main() {
+        let x: u32 = 5;
+        let xr = &x;
+        let f: unconstrained fn[(&u32,)](u32) -> u32 = |y| {
+            *xr + y
+        };
+        // safety: test
+        let _z = unsafe { f(7) };
+                          ^ Cannot pass `(&u32,)` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
 fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {
@@ -1681,4 +1724,27 @@ fn static_assert_called_directly_still_works() {
     "#;
     get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
         .expect("direct call to static_assert should still monomorphize");
+}
+
+const ZEROED_STDLIB: &str = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+";
+
+#[test]
+fn zeroed_array_of_references_does_not_alias() {
+    // Each slot of a zeroed `[&mut Field; N]` must get its own `allocate`. Wrapping a single
+    // `&mut 0` sub-expression in a repeated array literal would make every slot share one
+    // allocation, so a write through one slot would be visible through all the others.
+    let src = r#"
+    fn main() {
+        let _arr: [&mut Field; 3] = zeroed();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _arr$l0 = [(&mut 0), (&mut 0), (&mut 0)]
+    }
+    ");
 }

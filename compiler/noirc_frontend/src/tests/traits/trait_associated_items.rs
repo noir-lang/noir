@@ -764,6 +764,23 @@ fn associated_type_behind_self_as_trait_with_different_generics() {
 }
 
 #[test]
+fn associated_type_behind_self_as_trait_with_method_generic() {
+    // Regression test: `<Self as Foo<U>>::Bar` where `U` is a method-level generic
+    // (distinct from the trait's own type parameter `Baz`) must not be silently
+    // rewritten to `Self::Bar` (which would resolve to `<Self as Foo<Baz>>::Bar`).
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar<U>() -> <Self as Foo<U>>::Bar;
+                                ^^^ No matching impl found for `Self: Foo<U, Bar = _>`
+                                ~~~ No impl for `Self: Foo<U, Bar = _>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access() {
     let src = "
     trait MyTrait {
@@ -1865,11 +1882,9 @@ fn generic_fn_returning_tuple_with_associated_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11551): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11551
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_with_associated_type_used_in_other_method_signature() {
-    // Bug: Associated type from one trait method used in another's signature
     let src = r#"
     trait Mappable {
         type Target;
@@ -1907,6 +1922,233 @@ fn trait_with_associated_type_used_in_other_method_signature() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// A chained associated-type projection in a trait method signature normalizes to the concrete
+/// associated type for a concrete impl, so the impl may spell the return type out concretely.
+#[test]
+fn chained_associated_type_in_signature_normalizes_to_concrete() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> u32 where Self::Target: Mappable {
+            self.map_to().map_to()
+        }
+    }
+
+    fn main() {
+        let x: Field = 5;
+        let result: u32 = x.chain();
+        assert(result == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn chained_associated_type_in_signature_rejects_wrong_concrete_impl_return() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> bool where Self::Target: Mappable {
+                          ^^^^ Expected type u32, found type bool
+            self.map_to()
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12889
+///
+/// The projection `<Wrapper<T> as Mappable>::Target` has both a real generic impl and a
+/// `where Self: Mappable` assumed impl in scope. The real impl discharges the hypothesis,
+/// so no "multiple matching impls" ambiguity should be reported.
+#[test]
+fn partially_generic_associated_type_in_signature_subsumed_by_real_impl() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    trait Chainable {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable;
+    }
+
+    impl<T> Chainable for Wrapper<T> {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable {
+            self.map_to()
+        }
+    }
+
+    fn main() {
+        let w: Wrapper<u32> = Wrapper { val: 5 };
+        assert(w.chain() == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_generic_associated_type_rejects_wrong_impl_return() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    trait Chainable {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable;
+    }
+
+    impl<T> Chainable for Wrapper<T> {
+        fn chain(self) -> bool where Self: Mappable {
+                          ^^^^ Expected type T, found type bool
+                          ^^^^ expected type bool, found type T
+                          ~~~~ expected bool because of return type
+            self.map_to()
+            ~~~~~~~~~~~~~ T returned here
+        }
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+/// A fully generic object type (bare `T`) has no real impl matching it, so the projection
+/// must still resolve through the assumed `where` clause impl.
+#[test]
+fn fully_generic_object_projection_uses_assumed_impl() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    fn map_it<T>(x: T) -> <T as Mappable>::Target where T: Mappable {
+        x.map_to()
+    }
+
+    fn main() {
+        let w: Wrapper<u32> = Wrapper { val: 5 };
+        let r: u32 = map_it(w);
+        assert(r == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// When the object type still contains an unbound type variable, a real impl and an assumed
+/// impl that bind it differently are genuinely ambiguous: neither discharges the other.
+#[test]
+fn ambiguous_impl_with_unbound_type_variable_still_errors() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl Foo for Wrapper<u32> {
+        type Bar = u8;
+    }
+
+    pub fn f() where Wrapper<u16>: Foo {
+        let _x: <Wrapper<_> as Foo>::Bar = 0;
+                               ^^^ Multiple trait impls match the object type `Wrapper<_>`
+                               ~~~ Ambiguous impl
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
 }
 
 /// Regression test for https://github.com/noir-lang/noir/issues/11538
@@ -2223,6 +2465,53 @@ fn trait_associated_constant_duplicate_is_an_error() {
         let N: u8;
             ^ Duplicate definitions of trait associated item with name N found
             ~ Second trait associated item found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn resolves_associated_constant_shorthand_on_generic_trait() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+        let CONST: u32 = 8;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_impls() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+                     ~~~ candidate `Foo<u8>` defined here
+        let CONST: u32 = 8;
+    }
+
+    impl Foo<u16> for Bar {
+                      ~~~ candidate `Foo<u16>` defined here
+        let CONST: u32 = 16;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+                          ^^^^^ Multiple `impl`s of `Foo` apply to `Bar`
     }
     "#;
     check_errors(src);

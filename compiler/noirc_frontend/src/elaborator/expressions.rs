@@ -543,16 +543,6 @@ impl Elaborator<'_> {
             return (rhs, typ);
         }
 
-        // Simplify `&*x` and `&mut *x` to just `x`
-        if let UnaryOp::Reference { .. } = prefix.operator
-            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
-            && let UnaryOp::Dereference { .. } = inner.operator
-        {
-            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
-            let (rhs, typ) = self.elaborate_expression(inner.rhs);
-            return (rhs, typ);
-        }
-
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
@@ -566,6 +556,20 @@ impl Elaborator<'_> {
             let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
             (rhs, rhs_type, false)
         };
+
+        // Simplify `&*x` and `&mut *x` to just `x` when the reborrow preserves mutability:
+        // A reborrow that changes mutability (e.g. `&mut *x` where `x: &T`) is left
+        // as the full `&[mut] (*x)`
+        if let UnaryOp::Reference { mutable } = operator
+            && let HirExpression::Prefix(deref) = self.interner.expression(&rhs)
+            && let UnaryOp::Dereference { .. } = deref.operator
+        {
+            let inner_type = self.interner.id_type(deref.rhs);
+            if matches!(inner_type.follow_bindings(), Type::Reference(_, inner_mutable) if inner_mutable == mutable)
+            {
+                return (deref.rhs, inner_type);
+            }
+        }
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
@@ -966,8 +970,18 @@ impl Elaborator<'_> {
         // as a parameter. By unifying `self` with the first argument we'll potentially get more
         // concrete types in the arguments that are function types, which will later be passed as
         // lambda parameter hints.
+
         if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
-            let _ = first_arg_type.unify(&object_type);
+            if first_arg_type.unify(&object_type).is_err()
+                && let Type::Reference(inner_expected, _) = first_arg_type
+                && let Type::Reference(inner_actual, _) = &object_type
+            {
+                // If unification failed due to a reference mutability mismatch
+                // (e.g. `& self` method called on `&mut T`), unify the inner types
+                // to still bind generic type parameters.
+                let _ = inner_expected.unify(inner_actual);
+            }
+
             // For a shared trait-default method, also unify the impl's concrete self type
             // with the receiver. The first arg is the trait's `Self` type variable, so the
             // unify above only ties Self to the receiver (still polymorphic if the receiver
