@@ -318,7 +318,9 @@ struct Context<'f> {
     /// sibling parameters `Q` that `P` is rebound to on the loop
     /// back-edge (`P ← Q`, the array-variable swap `c4 = c3`) while `Q`
     /// is simultaneously rebound to a freshly-allocated, iteration-local
-    /// `make_array` (`c3 = [..]`). Such a `Q` is a *distinct
+    /// value — a `make_array` (`c3 = [..]`) or a `Call` result
+    /// (`c3 = f()`), but never an `array_set` result (which may be an
+    /// in-place mutation, not a fresh allocation). Such a `Q` is a *distinct
     /// per-iteration storage* that `P` only *becomes* in a later
     /// iteration — never the storage this iteration's `array_set` on `P`
     /// mutates (the swap rotates a fresh allocation into `P` while the
@@ -369,6 +371,7 @@ impl<'f> Context<'f> {
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut make_array_values: HashSet<ValueId> = HashSet::default();
+        let mut call_result_values: HashSet<ValueId> = HashSet::default();
         let mut back_edge_args: HashSet<ValueId> = HashSet::default();
         // For each destination block, the list of `(predecessor, args)`
         // pairs collected from terminators. Used to drive the backward
@@ -387,8 +390,9 @@ impl<'f> Context<'f> {
                     inc_rc_locations.entry(*value).or_default().push((block_id, idx));
                 }
 
+                let is_call = matches!(instruction, Instruction::Call { .. });
                 let is_non_aliasing =
-                    matches!(instruction, Instruction::ArraySet { .. } | Instruction::Call { .. });
+                    is_call || matches!(instruction, Instruction::ArraySet { .. });
                 let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
                 for &result in function.dfg.instruction_results(*instruction_id) {
                     if function.dfg.type_of_value(result).contains_an_array() {
@@ -398,6 +402,9 @@ impl<'f> Context<'f> {
                         }
                         if is_make_array {
                             make_array_values.insert(result);
+                        }
+                        if is_call {
+                            call_result_values.insert(result);
                         }
                     }
                 }
@@ -466,13 +473,28 @@ impl<'f> Context<'f> {
         let iteration_local_make_arrays: HashSet<ValueId> =
             make_array_values.intersection(&back_edge_args).copied().collect();
 
+        // A back-edge arg is iteration-local *fresh* if it re-allocates
+        // distinct storage every iteration: a `make_array` (re-executes)
+        // or a `Call` result (the callee allocates fresh — the same
+        // assumption [`Context::non_aliasing_array_values`] makes).
+        // `array_set` results are deliberately *excluded*: an `array_set`
+        // may mutate its source in place, so its result can be the *same*
+        // storage as a prior iteration's, breaking the distinct-generation
+        // guarantee the swap exclusion relies on.
+        let iteration_local_fresh: HashSet<ValueId> = back_edge_args
+            .iter()
+            .copied()
+            .filter(|v| make_array_values.contains(v) || call_result_values.contains(v))
+            .collect();
+
         // Swap exclusions. For every loop back-edge `be_start → header`,
-        // inspect each array-typed header parameter `p` at position `i`:
-        // if the back-edge rebinds it to a *sibling* header parameter
-        // `q` (`p ← q`) whose own back-edge arg is an iteration-local
-        // `make_array`, and `p` and `q` receive distinct storage on every
-        // forward edge into the header, record `q` as excluded from `p`'s
-        // alias-set. See [`Context::swap_excluded_aliases`].
+        // inspect each array-typed header parameter at `source_pos`: if
+        // the back-edge rebinds it to a *sibling* header parameter
+        // (`source ← sibling`) whose own back-edge arg is an
+        // iteration-local fresh allocation, and the source and sibling
+        // receive distinct storage on every forward edge into the header,
+        // record the sibling as excluded from the source's alias-set. See
+        // [`Context::swap_excluded_aliases`].
         let mut swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
         for &(be_start, header) in &back_edges {
             let Some(edges) = incoming_edges.get(&header) else { continue };
@@ -496,13 +518,10 @@ impl<'f> Context<'f> {
                 let Some(sibling_pos) = params.iter().position(|&pp| pp == sibling) else {
                     continue;
                 };
-                // The sibling's own back-edge arg must be a
-                // freshly-allocated, iteration-local `make_array` (the
-                // `c3 = [..]` half of the swap).
-                if !be_args
-                    .get(sibling_pos)
-                    .is_some_and(|a| iteration_local_make_arrays.contains(a))
-                {
+                // The sibling's own back-edge arg must be an
+                // iteration-local fresh allocation (the `c3 = [..]` or
+                // `c3 = f()` half of the swap).
+                if !be_args.get(sibling_pos).is_some_and(|a| iteration_local_fresh.contains(a)) {
                     continue;
                 }
                 // Loop-entry guard. On every *forward* edge into the
@@ -1604,6 +1623,86 @@ mod tests {
                 v9 = make_array [u8 3] : [u8; 1]
                 v18 = unchecked_add v10, u8 1
                 jmp b1(v18, v9, v2)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// The swap freshening accepts a `Call` result, not only a
+    /// `make_array`. Same shape as
+    /// [`Self::end_to_end_loop_swap_then_whole_array_read_is_accepted`],
+    /// but the sibling `v2` (`c3`) is freshened by `v20 = call f1()`
+    /// (`c3 = f()`) rather than a literal `make_array`. A `Call` result is
+    /// a fresh per-iteration allocation (the same assumption the
+    /// non-aliasing filter makes), so `v2` is dropped from `v3`'s
+    /// alias-set, the walk kills `v3` on the back-edge, and the loop-exit
+    /// `call f2(v3)` is not flagged.
+    #[test]
+    fn end_to_end_swap_freshened_by_call_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                v1 = make_array [u8 2] : [u8; 1]
+                jmp b1(u8 0, v0, v1)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v20 = call f1() -> [u8; 1]
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v20, v2)
+              b3():
+                call f2(v3)
+                return
+            }
+            brillig(inline) fn alloc f1 {
+              b0():
+                v0 = make_array [u8 7] : [u8; 1]
+                return v0
+            }
+            brillig(inline) fn observe f2 {
+              b0(v0: [u8; 1]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v2 is freshened on the back-edge by a Call result (v20), a fresh per-iteration \
+             allocation, so the swap exclusion drops v2 from v3's alias-set and the loop-exit \
+             read call f2(v3) is not flagged",
+        );
+    }
+
+    /// **Swap-exclusion soundness canary — `array_set` results are not
+    /// fresh.** The sibling `v2` (`c3`) is freshened on the back-edge by
+    /// `v20 = array_set v2, …` — an `array_set` result, which may be an
+    /// **in-place** mutation rather than a new allocation. So
+    /// `v2_k = v2_{k-1}`'s storage, and after the swap `v3` aliases it: the
+    /// in-loop `array_set v3` mutates the storage that `array_get v2` then
+    /// reads. The exclusion must **not** fire (an `array_set` result is
+    /// excluded from `iteration_local_fresh`), and the verifier must
+    /// reject. Guards against widening the freshening to all
+    /// non-aliasing results.
+    #[test]
+    fn end_to_end_swap_freshened_by_array_set_result_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                v1 = make_array [u8 2] : [u8; 1]
+                jmp b1(u8 0, v0, v1)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v17 = array_get v2, index u32 0 -> u8
+                constrain v17 == u8 1
+                v20 = array_set v2, index u32 0, value u8 5
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v20, v2)
               b3():
                 return
             }"#;
