@@ -263,9 +263,23 @@
 <a href=#263 id=263 data-nosnippet>263</a>        <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
 <a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
 <a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
-<a href=#267 id=267 data-nosnippet>267</a>                <span class="self">self</span>.push_err(error);
-<a href=#268 id=268 data-nosnippet>268</a>            }
-<a href=#269 id=269 data-nosnippet>269</a>        }
-<a href=#270 id=270 data-nosnippet>270</a>    }
-<a href=#271 id=271 data-nosnippet>271</a>}</code></pre></div></section></main></body></html>
+<a href=#266 id=266 data-nosnippet>266</a>            <span class="comment">// The overlap check in `add_method` reads the `FuncMeta` of the method being added
+<a href=#267 id=267 data-nosnippet>267</a>            // and of every existing method with the same name. Those metas are resolved lazily,
+<a href=#268 id=268 data-nosnippet>268</a>            // so resolve them here first — but only when an overlap check will actually run (i.e.
+<a href=#269 id=269 data-nosnippet>269</a>            // there's already a method with this name). Otherwise a lone method referencing a
+<a href=#270 id=270 data-nosnippet>270</a>            // comptime-generated type would be forced to resolve before the generating attribute
+<a href=#271 id=271 data-nosnippet>271</a>            // has run.
+<a href=#272 id=272 data-nosnippet>272</a>            </span><span class="kw">let </span>existing_method_ids = <span class="self">self</span>.interner.get_direct_method_ids(self_type, <span class="kw-2">&amp;</span>method_name);
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="kw">if </span>!existing_method_ids.is_empty() {
+<a href=#274 id=274 data-nosnippet>274</a>                <span class="self">self</span>.define_function_meta_if_undefined(<span class="kw-2">*</span>method_id);
+<a href=#275 id=275 data-nosnippet>275</a>                <span class="kw">for </span>existing_method_id <span class="kw">in </span>existing_method_ids {
+<a href=#276 id=276 data-nosnippet>276</a>                    <span class="self">self</span>.define_function_meta_if_undefined(existing_method_id);
+<a href=#277 id=277 data-nosnippet>277</a>                }
+<a href=#278 id=278 data-nosnippet>278</a>            }
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
+<a href=#281 id=281 data-nosnippet>281</a>                <span class="self">self</span>.push_err(error);
+<a href=#282 id=282 data-nosnippet>282</a>            }
+<a href=#283 id=283 data-nosnippet>283</a>        }
+<a href=#284 id=284 data-nosnippet>284</a>    }
+<a href=#285 id=285 data-nosnippet>285</a>}</code></pre></div></section></main></body></html>
