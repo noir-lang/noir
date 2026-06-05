@@ -198,8 +198,7 @@ impl CollectedItems {
 ///
 /// The keys are unresolved types, which are not `Ord`, so a `BTreeMap` cannot be used here.
 /// An `IndexMap` is used instead of a `HashMap` because iteration order is observable
-/// (attribute run order, method declaration order) and so must be deterministic: it follows
-/// insertion (source) order.
+/// (attribute run order, method declaration order). Using an `IndexMap` keeps source-order for evaluation.
 pub(crate) type ImplMap = IndexMap<
     (UnresolvedType, LocalModuleId),
     Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
