@@ -314,6 +314,30 @@ struct Context<'f> {
     /// value on another only drops the protected value, leaving the
     /// unprotected one for the forward walk to flag.
     back_edge_participants: HashSet<ValueId>,
+    /// **Swap exclusions.** For a loop-header parameter `P`, the set of
+    /// sibling parameters `Q` that `P` is rebound to on the loop
+    /// back-edge (`P ← Q`, the array-variable swap `c4 = c3`) while `Q`
+    /// is simultaneously rebound to a freshly-allocated, iteration-local
+    /// `make_array` (`c3 = [..]`). Such a `Q` is a *distinct
+    /// per-iteration storage* that `P` only *becomes* in a later
+    /// iteration — never the storage this iteration's `array_set` on `P`
+    /// mutates (the swap rotates a fresh allocation into `P` while the
+    /// mutated storage is left behind, dead). `Q` is dropped from `P`'s
+    /// alias-set in [`Context::alias_set_for`], which makes the forward
+    /// walk both **kill** `P` where the back-edge rebinds it to `Q` and
+    /// decline to **add** a fresh alias of `Q` past any later edge (the
+    /// inclusive-range *peel* re-runs the same swap on a *forward* exit
+    /// edge — excluding `Q` at the seed covers that edge too, which a
+    /// kill keyed on the back-edge alone could not).
+    ///
+    /// Guarded by a **back-edge-only** check: if `Q` also flows into `P`
+    /// on a forward edge, `P` and `Q` can already alias *within* an
+    /// iteration (the array_set would mutate `Q`'s live storage), so the
+    /// exclusion would be unsound and is not recorded. The freshening
+    /// requirement on `Q` is the second guard — a loop-invariant `Q`
+    /// swapped into `P` would make `P_k = Q_{k-1} = Q_k` and genuinely
+    /// alias.
+    swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>>,
 }
 
 impl<'f> Context<'f> {
@@ -442,6 +466,87 @@ impl<'f> Context<'f> {
         let iteration_local_make_arrays: HashSet<ValueId> =
             make_array_values.intersection(&back_edge_args).copied().collect();
 
+        // Swap exclusions. For every loop back-edge `be_start → header`,
+        // inspect each array-typed header parameter `p` at position `i`:
+        // if the back-edge rebinds it to a *sibling* header parameter
+        // `q` (`p ← q`) whose own back-edge arg is an iteration-local
+        // `make_array`, and `p` and `q` receive distinct storage on every
+        // forward edge into the header, record `q` as excluded from `p`'s
+        // alias-set. See [`Context::swap_excluded_aliases`].
+        let mut swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
+        for &(be_start, header) in &back_edges {
+            let Some(edges) = incoming_edges.get(&header) else { continue };
+            let Some(be_args) =
+                edges.iter().find(|(pred, _)| *pred == be_start).map(|(_, args)| args)
+            else {
+                continue;
+            };
+            let params = function.dfg.block_parameters(header);
+            for (source_pos, &source_param) in params.iter().enumerate() {
+                if !function.dfg.type_of_value(source_param).contains_an_array() {
+                    continue;
+                }
+                let Some(&sibling) = be_args.get(source_pos) else { continue };
+                // `source_param ← sibling` must be a genuine swap to a
+                // *different* sibling header parameter (not self-threading,
+                // not a result).
+                if sibling == source_param {
+                    continue;
+                }
+                let Some(sibling_pos) = params.iter().position(|&pp| pp == sibling) else {
+                    continue;
+                };
+                // The sibling's own back-edge arg must be a
+                // freshly-allocated, iteration-local `make_array` (the
+                // `c3 = [..]` half of the swap).
+                if !be_args
+                    .get(sibling_pos)
+                    .is_some_and(|a| iteration_local_make_arrays.contains(a))
+                {
+                    continue;
+                }
+                // Loop-entry guard. On every *forward* edge into the
+                // header, the source param and the sibling must receive
+                // **distinct** storage, or they can already alias at the
+                // array_set in the entry iteration (`source_0 = sibling_0`)
+                // and the exclusion would mask a real hazard. Two ways
+                // that can happen:
+                //
+                // - the sibling flows into the source's forward arg
+                //   (`sibling ∈ backward(source_forward_arg)`) — the
+                //   source *is* the sibling from the start.
+                // - the source's and sibling's forward args share a
+                //   backward-set member — e.g. `jmp header(v, v)` feeds the
+                //   same `v` to both, so they're runtime-equal even though
+                //   the directed backward walk keeps them in separate sets.
+                let backward_set = |v: ValueId| -> im::HashSet<ValueId> {
+                    backward_aliases.get(&v).cloned().unwrap_or_else(|| im::HashSet::unit(v))
+                };
+                let entry_aliased = edges
+                    .iter()
+                    .filter(|(pred, _)| !back_edges.contains(&(*pred, header)))
+                    .any(|(_, args)| {
+                        let Some(&source_forward_arg) = args.get(source_pos) else {
+                            return false;
+                        };
+                        let source_forward_aliases = backward_set(source_forward_arg);
+                        if source_forward_aliases.contains(&sibling) {
+                            return true;
+                        }
+                        args.get(sibling_pos).is_some_and(|&sibling_forward_arg| {
+                            let sibling_forward_aliases = backward_set(sibling_forward_arg);
+                            source_forward_aliases
+                                .iter()
+                                .any(|x| sibling_forward_aliases.contains(x))
+                        })
+                    });
+                if entry_aliased {
+                    continue;
+                }
+                swap_excluded_aliases.entry(source_param).or_default().insert(sibling);
+            }
+        }
+
         Self {
             function,
             dom_tree,
@@ -452,6 +557,7 @@ impl<'f> Context<'f> {
             inc_rc_locations,
             back_edge_args,
             back_edge_participants,
+            swap_excluded_aliases,
         }
     }
 
@@ -525,6 +631,9 @@ impl<'f> Context<'f> {
                     return false;
                 }
                 if self.iteration_local_make_arrays.contains(&v) {
+                    return false;
+                }
+                if self.swap_excluded_aliases.get(&source).is_some_and(|qs| qs.contains(&v)) {
                     return false;
                 }
                 if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&v)
@@ -1325,8 +1434,7 @@ mod tests {
         );
     }
 
-    /// **Known false positive — multi-index inclusive-range (`..=`) peel.**
-    ///
+    /// Multi-index inclusive-range (`..=`) peel with the swap `c4 = c3`.
     /// SSA for
     ///
     /// ```ignore
@@ -1335,23 +1443,20 @@ mod tests {
     ///
     /// Same peel shape as
     /// [`Self::end_to_end_inclusive_range_peel_array_set_same_index_is_accepted`],
-    /// but the loop body now writes **both** indices, so the source's chain
-    /// taints `{0, 1}`. The peel's `array_set v38` (`b4`) writes index `0`,
-    /// which overwrites tainted index `0` but still copies tainted index `1`
-    /// forward — so the index-aware `array_set`-use rule (correctly, for its
-    /// model) flags it: a single write can't overwrite both tainted indices.
-    ///
-    /// It is nonetheless a **false positive**: the program executes
-    /// identically under Brillig and comptime. The real reason is invisible
-    /// to the validator — the loop body mutates one storage (`v6`) while the
-    /// peel mutates a *different* one (the old `c3`), and both writes are
-    /// dead; `backward(v38)` conflates the two per-iteration storages into a
-    /// single alias-set. The same-index case happens to be rescued by the
-    /// overwrite rule; the multi-index case is the residual limitation,
-    /// pinned here. (Replacing `..=` with `..` removes the peel and the
-    /// flag.)
+    /// but the loop body writes **both** indices, so the index-aware
+    /// `array_set`-use rule alone can't rescue it (the peel's single-index
+    /// write copies the other tainted index forward). It is accepted by the
+    /// **swap exclusion** instead: on the back-edge `jmp b1(v28, v27, v37)`
+    /// the source param `v38` (`c4`) is rebound to its sibling `v37` (`c3`),
+    /// whose own back-edge arg `v27` is an iteration-local `make_array` — so
+    /// `v37` is a distinct per-iteration storage and is dropped from
+    /// `backward(v38)`. With `v37` gone, the walk kills `v38` on the
+    /// back-edge, and the peel's `array_set v38` (`b4`) — which sources the
+    /// same header param — never sees it in the use-set. The loop body
+    /// mutates one storage while the peel mutates a different one and both
+    /// writes are dead; Brillig and comptime agree.
     #[test]
-    fn end_to_end_multi_index_inclusive_range_peel_is_a_known_false_positive() {
+    fn end_to_end_multi_index_inclusive_range_peel_swap_is_accepted() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0():
@@ -1378,39 +1483,37 @@ mod tests {
               b5(v39: [u8; 2], v40: [u8; 2]):
                 return
             }"#;
-        assert_verifier_rejects(src);
+        assert_verifier_accepts_because(
+            src,
+            "the back-edge swap v38 ← v37 with v37 freshened by the iteration-local \
+             make_array v27 drops v37 from v38's alias-set, so the walk kills v38 on the \
+             back-edge and the peel's array_set v38 (b4) — sourcing the same header param — \
+             is not flagged",
+        );
     }
 
-    /// **Known false positive — the general form (no peel).** SSA for
+    /// The general form (no peel): a swap `c4 = c3` followed by a
+    /// whole-array read. SSA for
     ///
     /// ```ignore
     /// for _ in 253_u8..255_u8 { c4[0] = 9; c4[1] = 19; c4 = c3; c3 = [b[0], b[1]]; }
     /// println(c4);
     /// ```
     ///
-    /// This is an **exclusive** (`..`) loop — *no peel* — yet it's still
-    /// rejected, which shows the false positive isn't peel-specific. The
-    /// shared root is the swap `c4 = c3`: it threads `v30` (`c3`) into
-    /// `v31` (`c4`) on the back-edge (`jmp b1(.., v26, v30)`), so `v30`
-    /// joins `backward(v31)`. The loop's `array_set v31` (`b2`) mutates
-    /// `c4`'s storage, but its result (`v24`) is **discarded** and `v31` is
-    /// rebound to `v30` — so the mutated storage is dead. At the loop exit
-    /// `v31` holds a fresh `c3`-derived array (`v26`), distinct from any
-    /// mutated storage, and `call f1(v31)` (the `println`) reads it. Because
-    /// a `call` observes the *whole* array, the index-aware `array_set` rule
-    /// doesn't apply, and there's no `inc_rc` (the frontend correctly
-    /// omitted it — the storages are genuinely distinct), so no relaxation
-    /// applies either.
-    ///
-    /// It is a **false positive** (Brillig == comptime). The alias-set
-    /// conflates the loop variable's distinct per-iteration storages across
-    /// the swap; the inclusive-range peel
-    /// ([`Self::end_to_end_multi_index_inclusive_range_peel_is_a_known_false_positive`])
-    /// is just one way to reach such a forward read. A sound fix needs
-    /// per-iteration storage/liveness disambiguation (recognizing the
-    /// mutated storage is dead after the swap), not anything peel-specific.
+    /// This is an **exclusive** (`..`) loop — *no peel* — exercising the
+    /// swap exclusion directly. On the back-edge `jmp b1(v27, v26, v30)`
+    /// the source param `v31` (`c4`) is rebound to its sibling `v30` (`c3`),
+    /// whose own back-edge arg `v26` is an iteration-local `make_array`, so
+    /// `v30` is dropped from `backward(v31)`. The walk then kills `v31` on
+    /// the back-edge, and the loop-exit `call f1(v31)` (`b3`, the `println`)
+    /// reads a value no longer in the use-set. The loop's `array_set v31`
+    /// mutates `c4`'s storage, but its result is discarded and `v31` is
+    /// rebound to a fresh `c3`-derived array — the mutated storage is dead,
+    /// and a whole-array read of the swapped-in value observes nothing.
+    /// There is no `inc_rc` (the frontend correctly omitted it — the
+    /// storages are genuinely distinct); Brillig and comptime agree.
     #[test]
-    fn end_to_end_loop_swap_then_whole_array_read_is_a_known_false_positive() {
+    fn end_to_end_loop_swap_then_whole_array_read_is_accepted() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0():
@@ -1432,6 +1535,76 @@ mod tests {
             }
             brillig(inline) fn observe f1 {
               b0(v0: [u8; 2]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the back-edge swap v31 ← v30 with v30 freshened by the iteration-local \
+             make_array v26 drops v30 from v31's alias-set, so the walk kills v31 on the \
+             back-edge and the loop-exit whole-array read call f1(v31) is not flagged",
+        );
+    }
+
+    /// **Swap-exclusion soundness canary — freshening guard.** The swap
+    /// `v3 ← v2` (`P ← Q`) is present on the back-edge, but `v2`'s own
+    /// back-edge arg is `v2` itself (loop-**invariant** `c3`, not a fresh
+    /// `make_array`). Then `P_k = Q_{k-1} = Q_0 = Q_k`, so `P` and `Q`
+    /// genuinely share storage from the first swap on: the in-loop
+    /// `array_set v3` mutates it and `array_get v2` observes the mutation.
+    /// The exclusion must **not** fire (its freshening precondition fails),
+    /// and the verifier must reject. Guards against dropping `v2` purely
+    /// because it's swapped into the source.
+    #[test]
+    fn end_to_end_swap_with_loop_invariant_sibling_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                v1 = make_array [u8 2] : [u8; 1]
+                jmp b1(u8 0, v0, v1)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v17 = array_get v2, index u32 0 -> u8
+                constrain v17 == u8 1
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v2, v2)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// **Swap-exclusion soundness canary — loop-entry guard.** The swap
+    /// `v3 ← v2` with `v2` freshened by an iteration-local `make_array`
+    /// (`v9`) *does* satisfy the freshening precondition, but the
+    /// pre-header feeds the **same** array `v0` to both header params
+    /// (`jmp b1(.., v0, v0)`), so `P_0 = Q_0 = v0`: at the entry
+    /// iteration the `array_set v3` mutates the storage that `array_get
+    /// v2` then reads. The directed backward walk keeps `v2` and `v3` in
+    /// separate sets, so without the loop-entry guard the exclusion would
+    /// fire and mask this hazard. It must **not** fire; the verifier must
+    /// reject.
+    #[test]
+    fn end_to_end_swap_with_sibling_same_value_entry_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                jmp b1(u8 0, v0, v0)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v17 = array_get v2, index u32 0 -> u8
+                constrain v17 == u8 1
+                v9 = make_array [u8 3] : [u8; 1]
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v9, v2)
+              b3():
                 return
             }"#;
         assert_verifier_rejects(src);
