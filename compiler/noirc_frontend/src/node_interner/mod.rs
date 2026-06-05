@@ -1066,7 +1066,7 @@ impl NodeInterner {
                     && let Some(existing_methods) =
                         self.methods.get(&key).and_then(|m| m.get(&method_name))
                     && let Some((existing_method, existing_type)) =
-                        existing_methods.find_overlapping_method(&typ, self)
+                        existing_methods.find_overlapping_method(&method_id, &typ, self)
                 {
                     let prev_location = self.function_ident(&existing_method).location();
                     let location = self.function_ident(&method_id).location();
@@ -1120,6 +1120,16 @@ impl NodeInterner {
             return Vec::new();
         };
         methods.direct.iter().map(|m| m.typ.clone()).collect()
+    }
+
+    /// Returns the `FuncId`s of all direct (inherent) methods already registered for
+    /// `method_name` on the given type's method key.
+    pub fn get_direct_method_ids(&self, typ: &Type, method_name: &str) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.method).collect()
     }
 
     /// Looks up methods that apply to the given type but are defined in traits.

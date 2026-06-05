@@ -263,6 +263,20 @@ impl Elaborator<'_> {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
 
+            // The overlap check in `add_method` reads the `FuncMeta` of the method being added
+            // and of every existing method with the same name. Those metas are resolved lazily,
+            // so resolve them here first — but only when an overlap check will actually run (i.e.
+            // there's already a method with this name). Otherwise a lone method referencing a
+            // comptime-generated type would be forced to resolve before the generating attribute
+            // has run.
+            let existing_method_ids = self.interner.get_direct_method_ids(self_type, &method_name);
+            if !existing_method_ids.is_empty() {
+                self.define_function_meta_if_undefined(*method_id);
+                for existing_method_id in existing_method_ids {
+                    self.define_function_meta_if_undefined(existing_method_id);
+                }
+            }
+
             if let Err(error) = self.interner.add_method(self_type, method_name, *method_id, None) {
                 self.push_err(error);
             }
