@@ -28,7 +28,7 @@
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Converts this [Integer] to a [FieldElement]. Any negative values are
 <a href=#29 id=29 data-nosnippet>29</a>    /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
 <a href=#30 id=30 data-nosnippet>30</a>    /// In other words, the resulting field is not in two's complement form.
-<a href=#31 id=31 data-nosnippet>31</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_field(<span class="self">self</span>) -&gt; FieldElement {
+<a href=#31 id=31 data-nosnippet>31</a>    </span><span class="kw">pub fn </span>as_field(<span class="self">self</span>) -&gt; FieldElement {
 <a href=#32 id=32 data-nosnippet>32</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#33 id=33 data-nosnippet>33</a>            Integer::Field(value) =&gt; value,
 <a href=#34 id=34 data-nosnippet>34</a>            Integer::I8(value) =&gt; value.into(),
