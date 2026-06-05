@@ -36,6 +36,7 @@ rangemap.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 rustc-hash.workspace = true
+siphasher.workspace = true
 
 [dev-dependencies]
 base64.workspace = true

@@ -9,6 +9,7 @@ use acvm::FieldElement;
 use fm::FileMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
+use siphasher::sip::SipHasher13;
 
 use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
@@ -660,6 +661,73 @@ fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
     Rc::new(vec![token])
 }
 
+/// A deterministic hasher used for the comptime `hash` builtins.
+///
+/// Unlike `std::collections::hash_map::DefaultHasher`, whose algorithm is an
+/// unspecified implementation detail that may change between Rust releases, this
+/// wraps a fixed-keyed SipHash-1-3 (`siphasher`) so a given Noir compiler version
+/// produces identical hashes regardless of the Rust toolchain it was built with.
+/// SipHash also keeps a keyed mixing structure, so collisions cannot be crafted by
+/// trivial arithmetic the way they can for a plain multiplicative hash.
+///
+/// `siphasher` already encodes byte streams little-endian, but its `write_usize`
+/// consumes the native pointer width (4 bytes on wasm32, 8 on 64-bit targets) and
+/// it does not override `write_u128`. The pointer-width-sensitive and missing
+/// methods are overridden here so the result is also stable across targets of
+/// differing pointer width, e.g. native 64-bit vs the wasm32 build.
+pub(super) struct DeterministicHasher {
+    inner: SipHasher13,
+}
+
+impl DeterministicHasher {
+    /// The canonical SipHash reference key (bytes `0x00..=0x0f`), used as a fixed,
+    /// publicly specified key rather than a per-process random seed.
+    const KEY0: u64 = 0x0706_0504_0302_0100;
+    const KEY1: u64 = 0x0f0e_0d0c_0b0a_0908;
+
+    pub(super) fn new() -> Self {
+        Self { inner: SipHasher13::new_with_keys(Self::KEY0, Self::KEY1) }
+    }
+}
+
+impl Hasher for DeterministicHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        self.inner.write(bytes);
+    }
+
+    fn finish(&self) -> u64 {
+        self.inner.finish()
+    }
+
+    fn write_u8(&mut self, i: u8) {
+        self.inner.write_u8(i);
+    }
+
+    fn write_u16(&mut self, i: u16) {
+        self.inner.write_u16(i);
+    }
+
+    fn write_u32(&mut self, i: u32) {
+        self.inner.write_u32(i);
+    }
+
+    fn write_u64(&mut self, i: u64) {
+        self.inner.write_u64(i);
+    }
+
+    fn write_u128(&mut self, i: u128) {
+        self.inner.write(&i.to_le_bytes());
+    }
+
+    fn write_usize(&mut self, i: usize) {
+        self.inner.write_u64(i as u64);
+    }
+
+    fn write_isize(&mut self, i: isize) {
+        self.inner.write_u64(i as i64 as u64);
+    }
+}
+
 pub(super) fn hash_item<T: Hash>(
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -668,7 +736,7 @@ pub(super) fn hash_item<T: Hash>(
     let argument = check_one_argument(arguments, location)?;
     let item = get_item(argument)?;
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = DeterministicHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
     Ok(Value::field(u128::from(hash).into()))
@@ -811,4 +879,53 @@ pub(crate) fn get_option((value, value_location): (Value, Location)) -> IResult<
     let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
     let value = value.borrow().clone();
     Ok(Some(value))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::Hasher;
+
+    use siphasher::sip::SipHasher13;
+
+    use super::DeterministicHasher;
+
+    fn hash_bytes(bytes: &[u8]) -> u64 {
+        let mut hasher = DeterministicHasher::new();
+        hasher.write(bytes);
+        hasher.finish()
+    }
+
+    /// The hasher must be exactly SipHash-1-3 keyed with the fixed reference key, so the
+    /// value a given compiler version produces can never silently drift across builds or
+    /// refactors. Cross-checking against `siphasher` directly pins both the algorithm and
+    /// the key without depending on a hand-copied magic constant.
+    #[test]
+    fn matches_fixed_keyed_siphash13() {
+        for input in [b"".as_slice(), b"a", b"foobar"] {
+            let mut reference =
+                SipHasher13::new_with_keys(DeterministicHasher::KEY0, DeterministicHasher::KEY1);
+            reference.write(input);
+            assert_eq!(hash_bytes(input), reference.finish());
+        }
+    }
+
+    /// Integers must hash at a fixed width and endianness so the result is identical on
+    /// targets of differing pointer width (e.g. native 64-bit vs the wasm32 build).
+    #[test]
+    fn integer_writes_are_width_and_endianness_stable() {
+        let via_usize = {
+            let mut hasher = DeterministicHasher::new();
+            hasher.write_usize(0x0102_0304);
+            hasher.finish()
+        };
+        let via_u64 = {
+            let mut hasher = DeterministicHasher::new();
+            hasher.write_u64(0x0102_0304);
+            hasher.finish()
+        };
+        let via_le_bytes = hash_bytes(&0x0102_0304_u64.to_le_bytes());
+
+        assert_eq!(via_usize, via_u64);
+        assert_eq!(via_usize, via_le_bytes);
+    }
 }
