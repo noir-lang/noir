@@ -673,9 +673,26 @@ impl DataFlowGraph {
 
     /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
     pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
+        self.try_get_vector_capacity_inner(value).map(|(capacity, _uniform)| capacity)
+    }
+
+    /// Like [`Self::try_get_vector_capacity`] but only returns a capacity when every index
+    /// below it is guaranteed to be present at runtime regardless of control flow.
+    ///
+    /// An `IfElse` merge of two vectors with unequal branch capacities yields a vector whose
+    /// runtime length equals the selected branch's length, so no single capacity is safe to
+    /// read in full; for such a value this returns `None`.
+    pub(crate) fn try_get_uniform_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
+        let (capacity, uniform) = self.try_get_vector_capacity_inner(value)?;
+        uniform.then_some(capacity)
+    }
+
+    /// Returns the vector capacity together with whether every index below it is guaranteed to
+    /// be present at runtime (`true`) or only present in some control-flow branch (`false`).
+    fn try_get_vector_capacity_inner(&self, value: ValueId) -> Option<(SemanticLength, bool)> {
         // For arrays we know the size statically
         if let Some(length) = self.try_get_array_length(value) {
-            return Some(length);
+            return Some((length, true));
         }
 
         match self.get_local_or_global_instruction(value)? {
@@ -688,10 +705,10 @@ impl DataFlowGraph {
                 } else {
                     SemiFlattenedLength(assert_u32(array.len())) / elements_size
                 };
-                Some(length)
+                Some((length, true))
             }
             Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
-                self.try_get_vector_capacity(*array)
+                self.try_get_vector_capacity_inner(*array)
             }
             Instruction::Call { func, arguments } => {
                 // Handle vector intrinsics that return vectors with known capacities
@@ -706,22 +723,23 @@ impl DataFlowGraph {
                     let length = self
                         .get_numeric_constant(arguments[0])
                         .map(|length| length.to_u128() as u32)
-                        .map(SemanticLength);
+                        .map(|length| (SemanticLength(length), true));
                     // Otherwise fall back to the physical capacity.
-                    let length = length.or_else(|| self.try_get_vector_capacity(arguments[1]));
+                    let length =
+                        length.or_else(|| self.try_get_vector_capacity_inner(arguments[1]));
                     // Then adjust it. Note that this handling of PushBack assumes that even if
                     // the dynamic semantic length was less than the capacity, we will grow the vector.
-                    if let Some(base) = length {
+                    if let Some((base, uniform)) = length {
                         match intrinsic {
                             Intrinsic::VectorPopFront
                             | Intrinsic::VectorPopBack
                             | Intrinsic::VectorRemove => {
-                                Some(SemanticLength(base.0.saturating_sub(1)))
+                                Some((SemanticLength(base.0.saturating_sub(1)), uniform))
                             }
                             Intrinsic::VectorPushBack
                             | Intrinsic::VectorPushFront
                             | Intrinsic::VectorInsert => {
-                                Some(SemanticLength(base.0.saturating_add(1)))
+                                Some((SemanticLength(base.0.saturating_add(1)), uniform))
                             }
                             _ => None,
                         }
@@ -733,10 +751,15 @@ impl DataFlowGraph {
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
-                // The capacity is the longer of the two after merging.
-                let then_capacity = self.try_get_vector_capacity(*then_value)?;
-                let else_capacity = self.try_get_vector_capacity(*else_value)?;
-                Some(SemanticLength(std::cmp::max(then_capacity.0, else_capacity.0)))
+                let (then_capacity, then_uniform) =
+                    self.try_get_vector_capacity_inner(*then_value)?;
+                let (else_capacity, else_uniform) =
+                    self.try_get_vector_capacity_inner(*else_value)?;
+                // The merged vector's runtime length is whichever branch is selected, so the
+                // capacity is only uniform when both branches agree (and are themselves uniform).
+                let capacity = std::cmp::max(then_capacity.0, else_capacity.0);
+                let uniform = then_uniform && else_uniform && then_capacity.0 == else_capacity.0;
+                Some((SemanticLength(capacity), uniform))
             }
             _ => None,
         }
