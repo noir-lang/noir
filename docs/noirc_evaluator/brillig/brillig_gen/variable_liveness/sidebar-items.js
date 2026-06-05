@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["is_variable","variables_returned_by_instruction","variables_used_in_block","variables_used_in_instruction"],"struct":["BackEdge","VariableLiveness"],"type":["LastUses","LoopMap","Variables"]};
+window.SIDEBAR_ITEMS = {"constant":["SIGNED_DIVISION_SCRATCH"],"fn":["binary_op_scratch_demand","instruction_scratch_demand","is_variable","variables_returned_by_instruction","variables_used_in_block","variables_used_in_instruction"],"struct":["BackEdge","VariableLiveness"],"type":["LastUses","LoopMap","Variables"]};
