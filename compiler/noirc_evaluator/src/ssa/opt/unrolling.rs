@@ -1138,13 +1138,10 @@ impl Loop {
         function: &Function,
         cfg: &ControlFlowGraph,
     ) -> Option<(HashSet<ValueId>, HashSet<ValueId>)> {
-        // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let function_entry = function.entry_block();
 
-        // The algorithm in `find_blocks_in_loop` expects to collect the blocks between the header and the back-edge of the loop,
-        // but technically works the same if we go from the pre-header up to the function entry as well.
-        let blocks = Self::find_blocks_in_loop(function_entry, pre_header, cfg).blocks;
+        // Blocks that may execute before the loop is entered.
+        let blocks = self.blocks_before_loop(pre_header, cfg);
 
         // Collect allocations in all blocks above the header.
         let allocations = blocks.iter().flat_map(|block| {
@@ -1164,15 +1161,9 @@ impl Loop {
         // Find refs whose pre-header stores all have constant values.
         // A ref is "constant initial" if it has at least one store in the pre-header blocks
         // AND every such store has a constant value.
-        //
-        // We must exclude the loop's own blocks from this scan: for nested loops,
-        // `find_blocks_in_loop(entry, pre_header)` traverses backward through the
-        // outer loop's back-edge and re-enters the inner loop blocks. Without this
-        // filter, stores *inside* the loop body (which are not initial values) would
-        // incorrectly prevent the ref from being recognized as constant-initial.
         let mut has_store: HashSet<ValueId> = HashSet::default();
         let mut has_non_constant_store: HashSet<ValueId> = HashSet::default();
-        for block in blocks.iter().filter(|b| !self.blocks.contains(b)) {
+        for block in &blocks {
             for instruction_id in function.dfg[*block].instructions() {
                 if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
                     && refs.contains(address)
@@ -1200,6 +1191,28 @@ impl Loop {
             has_store.difference(&has_non_constant_store).copied().collect();
 
         Some((refs, constant_initial_refs))
+    }
+
+    /// Collect the blocks that may execute before this loop is entered: every block from
+    /// which the pre-header is reachable without passing through the loop itself.
+    fn blocks_before_loop(
+        &self,
+        pre_header: BasicBlockId,
+        cfg: &ControlFlowGraph,
+    ) -> HashSet<BasicBlockId> {
+        let mut blocks: HashSet<BasicBlockId> = HashSet::default();
+        blocks.insert(pre_header);
+
+        let mut stack = vec![pre_header];
+        while let Some(block) = stack.pop() {
+            for predecessor in cfg.predecessors(block) {
+                if !self.blocks.contains(&predecessor) && blocks.insert(predecessor) {
+                    stack.push(predecessor);
+                }
+            }
+        }
+
+        blocks
     }
 
     /// Count the number of load and store instructions of specific variables in the loop.
@@ -2612,6 +2625,62 @@ mod tests {
             !constant_initial_refs.contains(&v4),
             "v4 should NOT be constant-initial (aliased via block param)"
         );
+    }
+
+    /// An allocation made *inside* the inner loop body must not be treated as a
+    /// pre-header reference value of that loop.
+    ///
+    /// The in-loop allocation in b4 is a fresh address every iteration; its
+    /// load/store is NOT eliminable by unrolling and must not be counted as a gain.
+    #[test]
+    fn test_find_pre_header_reference_values_nested_loop_in_body_allocation() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v3 = lt v1, u32 4
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            jmp b3(u32 0)
+          b3(v4: u32):
+            v6 = lt v4, u32 35
+            jmpif v6 then: b4(), else: b6()
+          b4():
+            v8 = allocate -> &mut Field
+            store Field 7 at v8
+            v10 = load v8 -> Field
+            v11 = load v0 -> Field
+            v12 = add v11, v10
+            store v12 at v0
+            v13 = unchecked_add v4, u32 1
+            jmp b3(v13)
+          b6():
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14)
+          b5():
+            v15 = load v0 -> Field
+            return v15
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn puts the outer loop last; remove(0) gets the inner loop.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+        let inner = loops.yet_to_unroll.remove(0);
+
+        let (refs, _) = inner.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        // Only v0 is a genuine pre-header reference. The allocation in b4 (the inner
+        // loop body) must not be collected.
+        assert_eq!(refs.len(), 1, "the in-loop allocation in b4 must not be a pre-header ref");
+
+        // The inner loop performs exactly one load and one store through the genuine
+        // pre-header ref v0. The in-loop allocation's own load/store must not be counted.
+        let (loads, stores) = inner.count_loads_and_stores(function, &refs);
+        assert_eq!(loads, 1, "only v0's load should count, not the in-loop allocation's");
+        assert_eq!(stores, 1, "only v0's store should count, not the in-loop allocation's");
     }
 
     /// Test that we can unroll a small loop.
