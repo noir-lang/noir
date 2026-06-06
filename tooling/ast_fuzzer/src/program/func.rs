@@ -1325,9 +1325,18 @@ impl<'a> FunctionContext<'a> {
             .filter(|(_, (mutable, _, typ))| {
                 // We banned reassigning variables which contain mutable references in ACIR (#8790)
                 *mutable && (self.unconstrained() || !types::contains_reference(typ))
-                // We can always assign to &mut references via deref,
-                // even if they are not themselves mutable.
-                || matches!(typ, Type::Reference(_, true))
+                // We can deref-assign to `&mut` references even if they are not
+                // themselves mutable, but only when the pointee does not itself
+                // contain a reference. In constrained code the frontend rejects
+                // assigning a reference-containing value (`*r = (&mut x, ..)`),
+                // and the AST fuzzer bypasses that check, so SSA-gen would fail
+                // while flattening tries to merge the reference.
+                || match typ {
+                    Type::Reference(inner, true) => {
+                        self.unconstrained() || !types::contains_reference(inner)
+                    }
+                    _ => false,
+                }
             })
             .filter(|(id, (_, _, typ))| {
                 // Preserve the non-dynamic state of references.

@@ -154,6 +154,31 @@ contract Foo {
 }
 
 #[test]
+fn abi_global_with_non_literal_initializer_is_evaluated_at_comptime() {
+    // Regression test for https://github.com/noir-lang/noir/issues/12695.
+    // An `#[abi]` global initialized with a non-literal expression (here `2 + 3`) used
+    // to ICE during ABI emission because the driver inspected the raw HIR expression
+    // instead of the comptime-evaluated value.
+    let source = "
+contract Probe {
+    #[abi(t)]
+    pub global G: Field = 2 + 3;
+}";
+
+    let contract = compile_contract_source(source);
+
+    let t_globals = contract.outputs.globals.get("t").expect("expected 't' tag in globals");
+    assert_eq!(t_globals.len(), 1);
+    match &t_globals[0].value {
+        AbiValue::Integer { value, sign } => {
+            assert!(!sign, "expected positive integer");
+            assert_eq!(value, "0000000000000000000000000000000000000000000000000000000000000005");
+        }
+        other => panic!("expected AbiValue::Integer for Field = 5, got: {other:?}"),
+    }
+}
+
+#[test]
 fn abi_tag_preserves_global_names_under_same_tag() {
     let source = "
 contract Foo {

@@ -550,10 +550,7 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
-                // except when the inner elements have no size, because the array access can be optimized out in that case.
-                // We then only need to inject it for brillig functions or for 'unit' elements.
-                if runtime.is_brillig() || type_size_usize == 0 {
+                if context::array_index_needs_explicit_oob_check(runtime, array_type) {
                     let len = self
                         .builder
                         .numeric_constant(u128::from(len.0), NumericType::length_type());
@@ -713,7 +710,13 @@ impl FunctionContext<'_> {
             };
             let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
-            if end_constant.into_numeric_constant().0.to_u128() < max_value {
+            // Compare against the type's maximum using the *signed-aware* value: a negative
+            // signed `end` round-tripped through `to_u128` would look huge and wrongly fail
+            // this check, forcing an unnecessary final-iteration peel. `max_value` is the
+            // type's max (`2^(bit_size-1) - 1` for signed), which always fits in `i128`.
+            let end_below_max = end_constant
+                .apply(|signed| signed < max_value as i128, |unsigned| unsigned < max_value);
+            if end_below_max {
                 let end_constant_plus_one = end_constant.inc().expect(
                     "Expected to be able to increment end_constant as it's less than max_value",
                 );

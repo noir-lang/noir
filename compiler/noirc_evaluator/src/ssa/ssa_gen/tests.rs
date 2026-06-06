@@ -487,6 +487,47 @@ fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
 }
 
 #[test]
+fn for_loop_inclusive_signed_negative_end_is_not_a_maximum() {
+    // Regression test for the peel-avoidance check using a *signed-aware* comparison.
+    // A negative signed `end` is below the type's maximum, so the inclusive loop should
+    // lower to an exclusive loop up to `end + 1` (here `-3..=-1` becomes `-3..0`) rather
+    // than peeling a final iteration. Round-tripping `end` through `to_u128` would make a
+    // negative value look huge and wrongly force the peel.
+    let assert_src = "
+    fn main() -> pub i16 {
+        let mut sum = 0;
+        for i in -3..=-1_i16 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(assert_src).unwrap();
+
+    // We end up generating an exclusive for loop up to 0 (no peeled final iteration).
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut i16
+        store i16 0 at v1
+        jmp b1(i16 -3)
+      b1(v0: i16):
+        v4 = lt v0, i16 0
+        jmpif v4 then: b2(), else: b3()
+      b2():
+        v6 = load v1 -> i16
+        v7 = add v6, v0
+        store v7 at v1
+        v9 = unchecked_add v0, i16 1
+        jmp b1(v9)
+      b3():
+        v5 = load v1 -> i16
+        return v5
+    }
+    ");
+}
+
+#[test]
 fn for_loop_inclusive_max_value_with_break() {
     let assert_src = "
     unconstrained fn main(cond: bool) -> pub u8 {
