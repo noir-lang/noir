@@ -2370,20 +2370,7 @@ impl<'interner> Monomorphizer<'interner> {
             if let Definition::Oracle { name, .. } = &ident.definition
                 && let Some(ForeignCall::Print) = ForeignCall::lookup(name)
             {
-                // Because Oracle functions do not support references, we need to dereference
-                // the reference arguments of the `print` oracle
-                let printed_type = match &hir_arguments[1] {
-                    HirExpression::Ident(ident, _) => self.interner.definition_type(ident.id),
-                    other => unreachable!("logging expr {other:?} is not supported"),
-                };
-                let value = std::mem::replace(
-                    &mut arguments[1],
-                    ast::Expression::Literal(ast::Literal::Unit),
-                );
-                arguments[1] = Self::dereference_print_value(value, &printed_type, location)?;
-                // The metadata keeps the references (unlike the value and the oracle signature), so
-                // print can annotate reference values.
-                append_printable_type_info_for_type(printed_type, &mut arguments);
+                self.append_print_oracle_arguments(&hir_arguments, &mut arguments, location)?;
             }
             if let Definition::Builtin(name) = &ident.definition
                 && name.as_str() == "static_assert"
@@ -2563,6 +2550,30 @@ impl<'interner> Monomorphizer<'interner> {
             });
         }
 
+        Ok(())
+    }
+
+    /// Rewrite the arguments of a `print` oracle call so the oracle receives a reference-free value.
+    ///
+    /// The printed value (always an identifier) is dereferenced in-circuit with
+    /// [`Self::dereference_print_value`], and the printable type metadata for the original,
+    /// reference-keeping type is appended for proper printing.
+    fn append_print_oracle_arguments(
+        &self,
+        hir_arguments: &[HirExpression],
+        arguments: &mut Vec<ast::Expression>,
+        location: Location,
+    ) -> Result<(), MonomorphizationError> {
+        let printed_type = match &hir_arguments[1] {
+            HirExpression::Ident(ident, _) => self.interner.definition_type(ident.id),
+            other => unreachable!("logging expr {other:?} is not supported"),
+        };
+        let value =
+            std::mem::replace(&mut arguments[1], ast::Expression::Literal(ast::Literal::Unit));
+        arguments[1] = Self::dereference_print_value(value, &printed_type, location)?;
+        // The metadata keeps the references (unlike the value and the oracle signature), so print
+        // can annotate reference values.
+        append_printable_type_info_for_type(printed_type, arguments);
         Ok(())
     }
 
