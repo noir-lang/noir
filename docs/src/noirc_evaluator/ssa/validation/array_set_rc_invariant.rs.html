@@ -3470,46 +3470,121 @@
 <a href=#3470 id=3470 data-nosnippet>3470</a>        </span>);
 <a href=#3471 id=3471 data-nosnippet>3471</a>    }
 <a href=#3472 id=3472 data-nosnippet>3472</a>
-<a href=#3473 id=3473 data-nosnippet>3473</a>    <span class="doccomment">/// A located `array_set` plus everything the per-array_set verifier
-<a href=#3474 id=3474 data-nosnippet>3474</a>    /// checks would need. Returned by [`find_array_sets`] / [`first_array_set`]
-<a href=#3475 id=3475 data-nosnippet>3475</a>    /// / [`last_array_set`] so each test reads one struct rather than a
-<a href=#3476 id=3476 data-nosnippet>3476</a>    /// six-element tuple.
-<a href=#3477 id=3477 data-nosnippet>3477</a>    </span><span class="kw">struct </span>ArraySetSite {
-<a href=#3478 id=3478 data-nosnippet>3478</a>        block: <span class="kw">super</span>::BasicBlockId,
-<a href=#3479 id=3479 data-nosnippet>3479</a>        idx: usize,
-<a href=#3480 id=3480 data-nosnippet>3480</a>        instruction_id: <span class="kw">super</span>::InstructionId,
-<a href=#3481 id=3481 data-nosnippet>3481</a>        source: ValueId,
-<a href=#3482 id=3482 data-nosnippet>3482</a>        alias_set: im::HashSet&lt;ValueId&gt;,
-<a href=#3483 id=3483 data-nosnippet>3483</a>        <span class="doccomment">/// The `array_set`'s index when it is a numeric constant. `None`
-<a href=#3484 id=3484 data-nosnippet>3484</a>        /// indicates a dynamic index, in which case the verifier
-<a href=#3485 id=3485 data-nosnippet>3485</a>        /// conservatively flags every aliased use.
-<a href=#3486 id=3486 data-nosnippet>3486</a>        </span>write_index_const: <span class="prelude-ty">Option</span>&lt;<span class="kw">super</span>::FieldElement&gt;,
-<a href=#3487 id=3487 data-nosnippet>3487</a>    }
-<a href=#3488 id=3488 data-nosnippet>3488</a>
-<a href=#3489 id=3489 data-nosnippet>3489</a>    <span class="kw">fn </span>find_array_sets(function: <span class="kw-2">&amp;</span>Function, ctx: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; Vec&lt;ArraySetSite&gt; {
-<a href=#3490 id=3490 data-nosnippet>3490</a>        <span class="kw">let </span><span class="kw-2">mut </span>out = Vec::new();
-<a href=#3491 id=3491 data-nosnippet>3491</a>        <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
-<a href=#3492 id=3492 data-nosnippet>3492</a>            <span class="kw">for </span>(idx, instruction_id) <span class="kw">in </span>function.dfg[block_id].instructions().iter().enumerate() {
-<a href=#3493 id=3493 data-nosnippet>3493</a>                <span class="kw">if let </span>Instruction::ArraySet { array, index, .. } = function.dfg[<span class="kw-2">*</span>instruction_id] {
-<a href=#3494 id=3494 data-nosnippet>3494</a>                    out.push(ArraySetSite {
-<a href=#3495 id=3495 data-nosnippet>3495</a>                        block: block_id,
-<a href=#3496 id=3496 data-nosnippet>3496</a>                        idx,
-<a href=#3497 id=3497 data-nosnippet>3497</a>                        instruction_id: <span class="kw-2">*</span>instruction_id,
-<a href=#3498 id=3498 data-nosnippet>3498</a>                        source: array,
-<a href=#3499 id=3499 data-nosnippet>3499</a>                        alias_set: ctx.alias_set_for(array, block_id, idx),
-<a href=#3500 id=3500 data-nosnippet>3500</a>                        write_index_const: function.dfg.get_numeric_constant(index),
-<a href=#3501 id=3501 data-nosnippet>3501</a>                    });
-<a href=#3502 id=3502 data-nosnippet>3502</a>                }
-<a href=#3503 id=3503 data-nosnippet>3503</a>            }
-<a href=#3504 id=3504 data-nosnippet>3504</a>        }
-<a href=#3505 id=3505 data-nosnippet>3505</a>        out
-<a href=#3506 id=3506 data-nosnippet>3506</a>    }
-<a href=#3507 id=3507 data-nosnippet>3507</a>
-<a href=#3508 id=3508 data-nosnippet>3508</a>    <span class="kw">fn </span>first_array_set(function: <span class="kw-2">&amp;</span>Function, ctx: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;ArraySetSite&gt; {
-<a href=#3509 id=3509 data-nosnippet>3509</a>        find_array_sets(function, ctx).into_iter().next()
-<a href=#3510 id=3510 data-nosnippet>3510</a>    }
-<a href=#3511 id=3511 data-nosnippet>3511</a>
-<a href=#3512 id=3512 data-nosnippet>3512</a>    <span class="kw">fn </span>last_array_set(function: <span class="kw-2">&amp;</span>Function, ctx: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;ArraySetSite&gt; {
-<a href=#3513 id=3513 data-nosnippet>3513</a>        find_array_sets(function, ctx).into_iter().last()
-<a href=#3514 id=3514 data-nosnippet>3514</a>    }
-<a href=#3515 id=3515 data-nosnippet>3515</a>}</code></pre></div></section></main></body></html>
+<a href=#3473 id=3473 data-nosnippet>3473</a>    <span class="doccomment">/// The `array_set` mutates the loop-invariant function parameter `v0`
+<a href=#3474 id=3474 data-nosnippet>3474</a>    /// **directly** and discards its result (`v6` is unused); the aliased
+<a href=#3475 id=3475 data-nosnippet>3475</a>    /// `array_get v0` (b2) is reachable from the `array_set` (b5) only by
+<a href=#3476 id=3476 data-nosnippet>3476</a>    /// crossing the loop back-edge `b5 → b1 → b2` into the next iteration.
+<a href=#3477 id=3477 data-nosnippet>3477</a>    /// The alias-set is therefore the singleton `{v0}`, and the hazard is
+<a href=#3478 id=3478 data-nosnippet>3478</a>    /// surfaced purely by the forward walk returning to a read of the same
+<a href=#3479 id=3479 data-nosnippet>3479</a>    /// un-threaded value — no block-parameter threading is involved, unlike
+<a href=#3480 id=3480 data-nosnippet>3480</a>    /// `end_to_end_pr_12671_repro_is_rejected`, whose `array_set` is on a
+<a href=#3481 id=3481 data-nosnippet>3481</a>    /// loop-carried copy and whose result is threaded back.
+<a href=#3482 id=3482 data-nosnippet>3482</a>    ///
+<a href=#3483 id=3483 data-nosnippet>3483</a>    /// The write index is dynamic (`v1`), so `tainted == None` and every
+<a href=#3484 id=3484 data-nosnippet>3484</a>    /// aliased read is flagged. This is the loop/back-edge analogue of the
+<a href=#3485 id=3485 data-nosnippet>3485</a>    /// straight-line `end_to_end_array_set_dynamic_index_with_array_get_is_rejected`.
+<a href=#3486 id=3486 data-nosnippet>3486</a>    </span><span class="attr">#[test]
+<a href=#3487 id=3487 data-nosnippet>3487</a>    </span><span class="kw">fn </span>end_to_end_array_set_dynamic_index_across_back_edge_is_rejected() {
+<a href=#3488 id=3488 data-nosnippet>3488</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#3489 id=3489 data-nosnippet>3489</a>            brillig(inline) fn main f0 {
+<a href=#3490 id=3490 data-nosnippet>3490</a>              b0(v0: [u32; 2]):
+<a href=#3491 id=3491 data-nosnippet>3491</a>                jmp b1(u32 0)
+<a href=#3492 id=3492 data-nosnippet>3492</a>              b1(v1: u32):
+<a href=#3493 id=3493 data-nosnippet>3493</a>                v2 = lt v1, u32 2
+<a href=#3494 id=3494 data-nosnippet>3494</a>                jmpif v2 then: b2(), else: b3()
+<a href=#3495 id=3495 data-nosnippet>3495</a>              b2():
+<a href=#3496 id=3496 data-nosnippet>3496</a>                v3 = array_get v0, index u32 0 -&gt; u32
+<a href=#3497 id=3497 data-nosnippet>3497</a>                v4 = eq v1, u32 1
+<a href=#3498 id=3498 data-nosnippet>3498</a>                jmpif v4 then: b4(), else: b5()
+<a href=#3499 id=3499 data-nosnippet>3499</a>              b4():
+<a href=#3500 id=3500 data-nosnippet>3500</a>                v5 = array_get v0, index u32 1 -&gt; u32
+<a href=#3501 id=3501 data-nosnippet>3501</a>                constrain v3 == v5, "iter 1 v0[0] should equal v0[1]=99 after mutation"
+<a href=#3502 id=3502 data-nosnippet>3502</a>                jmp b5()
+<a href=#3503 id=3503 data-nosnippet>3503</a>              b5():
+<a href=#3504 id=3504 data-nosnippet>3504</a>                v6 = array_set v0, index v1, value u32 99
+<a href=#3505 id=3505 data-nosnippet>3505</a>                v7 = unchecked_add v1, u32 1
+<a href=#3506 id=3506 data-nosnippet>3506</a>                jmp b1(v7)
+<a href=#3507 id=3507 data-nosnippet>3507</a>              b3():
+<a href=#3508 id=3508 data-nosnippet>3508</a>                return
+<a href=#3509 id=3509 data-nosnippet>3509</a>            }"#</span>;
+<a href=#3510 id=3510 data-nosnippet>3510</a>        assert_verifier_rejects(src);
+<a href=#3511 id=3511 data-nosnippet>3511</a>    }
+<a href=#3512 id=3512 data-nosnippet>3512</a>
+<a href=#3513 id=3513 data-nosnippet>3513</a>    <span class="doccomment">/// Same direct-on-parameter, result-discarded loop shape as
+<a href=#3514 id=3514 data-nosnippet>3514</a>    /// `end_to_end_array_set_dynamic_index_across_back_edge_is_rejected`.
+<a href=#3515 id=3515 data-nosnippet>3515</a>    /// Here the `array_set v0` (b5) writes a **constant** index `0` and the
+<a href=#3516 id=3516 data-nosnippet>3516</a>    /// back-edge-reachable `array_get v0` (b2) reads that same index `0`.
+<a href=#3517 id=3517 data-nosnippet>3517</a>    /// The read's index is covered by the mutation's `tainted` set, so it
+<a href=#3518 id=3518 data-nosnippet>3518</a>    /// is flagged. This is the loop/back-edge analogue of the straight-line
+<a href=#3519 id=3519 data-nosnippet>3519</a>    /// `end_to_end_array_set_array_get_matching_constant_indices_is_rejected`,
+<a href=#3520 id=3520 data-nosnippet>3520</a>    /// confirming the index-aware `tainted`-set check fires across a loop
+<a href=#3521 id=3521 data-nosnippet>3521</a>    /// back-edge and not only within a single block.
+<a href=#3522 id=3522 data-nosnippet>3522</a>    </span><span class="attr">#[test]
+<a href=#3523 id=3523 data-nosnippet>3523</a>    </span><span class="kw">fn </span>end_to_end_array_set_matching_constant_index_across_back_edge_is_rejected() {
+<a href=#3524 id=3524 data-nosnippet>3524</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#3525 id=3525 data-nosnippet>3525</a>            brillig(inline) fn main f0 {
+<a href=#3526 id=3526 data-nosnippet>3526</a>              b0(v0: [u32; 2]):
+<a href=#3527 id=3527 data-nosnippet>3527</a>                jmp b1(u32 0)
+<a href=#3528 id=3528 data-nosnippet>3528</a>              b1(v1: u32):
+<a href=#3529 id=3529 data-nosnippet>3529</a>                v2 = lt v1, u32 2
+<a href=#3530 id=3530 data-nosnippet>3530</a>                jmpif v2 then: b2(), else: b3()
+<a href=#3531 id=3531 data-nosnippet>3531</a>              b2():
+<a href=#3532 id=3532 data-nosnippet>3532</a>                v3 = array_get v0, index u32 0 -&gt; u32
+<a href=#3533 id=3533 data-nosnippet>3533</a>                v4 = eq v1, u32 1
+<a href=#3534 id=3534 data-nosnippet>3534</a>                jmpif v4 then: b4(), else: b5()
+<a href=#3535 id=3535 data-nosnippet>3535</a>              b4():
+<a href=#3536 id=3536 data-nosnippet>3536</a>                constrain v3 == u32 99, "iter 1 v0[0] should be 99 after iter 0 mutated it in-place"
+<a href=#3537 id=3537 data-nosnippet>3537</a>                jmp b5()
+<a href=#3538 id=3538 data-nosnippet>3538</a>              b5():
+<a href=#3539 id=3539 data-nosnippet>3539</a>                v6 = array_set v0, index u32 0, value u32 99
+<a href=#3540 id=3540 data-nosnippet>3540</a>                v7 = unchecked_add v1, u32 1
+<a href=#3541 id=3541 data-nosnippet>3541</a>                jmp b1(v7)
+<a href=#3542 id=3542 data-nosnippet>3542</a>              b3():
+<a href=#3543 id=3543 data-nosnippet>3543</a>                return
+<a href=#3544 id=3544 data-nosnippet>3544</a>            }"#</span>;
+<a href=#3545 id=3545 data-nosnippet>3545</a>        assert_verifier_rejects(src);
+<a href=#3546 id=3546 data-nosnippet>3546</a>    }
+<a href=#3547 id=3547 data-nosnippet>3547</a>
+<a href=#3548 id=3548 data-nosnippet>3548</a>    <span class="doccomment">/// A located `array_set` plus everything the per-array_set verifier
+<a href=#3549 id=3549 data-nosnippet>3549</a>    /// checks would need. Returned by [`find_array_sets`] / [`first_array_set`]
+<a href=#3550 id=3550 data-nosnippet>3550</a>    /// / [`last_array_set`] so each test reads one struct rather than a
+<a href=#3551 id=3551 data-nosnippet>3551</a>    /// six-element tuple.
+<a href=#3552 id=3552 data-nosnippet>3552</a>    </span><span class="kw">struct </span>ArraySetSite {
+<a href=#3553 id=3553 data-nosnippet>3553</a>        block: <span class="kw">super</span>::BasicBlockId,
+<a href=#3554 id=3554 data-nosnippet>3554</a>        idx: usize,
+<a href=#3555 id=3555 data-nosnippet>3555</a>        instruction_id: <span class="kw">super</span>::InstructionId,
+<a href=#3556 id=3556 data-nosnippet>3556</a>        source: ValueId,
+<a href=#3557 id=3557 data-nosnippet>3557</a>        alias_set: im::HashSet&lt;ValueId&gt;,
+<a href=#3558 id=3558 data-nosnippet>3558</a>        <span class="doccomment">/// The `array_set`'s index when it is a numeric constant. `None`
+<a href=#3559 id=3559 data-nosnippet>3559</a>        /// indicates a dynamic index, in which case the verifier
+<a href=#3560 id=3560 data-nosnippet>3560</a>        /// conservatively flags every aliased use.
+<a href=#3561 id=3561 data-nosnippet>3561</a>        </span>write_index_const: <span class="prelude-ty">Option</span>&lt;<span class="kw">super</span>::FieldElement&gt;,
+<a href=#3562 id=3562 data-nosnippet>3562</a>    }
+<a href=#3563 id=3563 data-nosnippet>3563</a>
+<a href=#3564 id=3564 data-nosnippet>3564</a>    <span class="kw">fn </span>find_array_sets(function: <span class="kw-2">&amp;</span>Function, ctx: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; Vec&lt;ArraySetSite&gt; {
+<a href=#3565 id=3565 data-nosnippet>3565</a>        <span class="kw">let </span><span class="kw-2">mut </span>out = Vec::new();
+<a href=#3566 id=3566 data-nosnippet>3566</a>        <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
+<a href=#3567 id=3567 data-nosnippet>3567</a>            <span class="kw">for </span>(idx, instruction_id) <span class="kw">in </span>function.dfg[block_id].instructions().iter().enumerate() {
+<a href=#3568 id=3568 data-nosnippet>3568</a>                <span class="kw">if let </span>Instruction::ArraySet { array, index, .. } = function.dfg[<span class="kw-2">*</span>instruction_id] {
+<a href=#3569 id=3569 data-nosnippet>3569</a>                    out.push(ArraySetSite {
+<a href=#3570 id=3570 data-nosnippet>3570</a>                        block: block_id,
+<a href=#3571 id=3571 data-nosnippet>3571</a>                        idx,
+<a href=#3572 id=3572 data-nosnippet>3572</a>                        instruction_id: <span class="kw-2">*</span>instruction_id,
+<a href=#3573 id=3573 data-nosnippet>3573</a>                        source: array,
+<a href=#3574 id=3574 data-nosnippet>3574</a>                        alias_set: ctx.alias_set_for(array, block_id, idx),
+<a href=#3575 id=3575 data-nosnippet>3575</a>                        write_index_const: function.dfg.get_numeric_constant(index),
+<a href=#3576 id=3576 data-nosnippet>3576</a>                    });
+<a href=#3577 id=3577 data-nosnippet>3577</a>                }
+<a href=#3578 id=3578 data-nosnippet>3578</a>            }
+<a href=#3579 id=3579 data-nosnippet>3579</a>        }
+<a href=#3580 id=3580 data-nosnippet>3580</a>        out
+<a href=#3581 id=3581 data-nosnippet>3581</a>    }
+<a href=#3582 id=3582 data-nosnippet>3582</a>
+<a href=#3583 id=3583 data-nosnippet>3583</a>    <span class="kw">fn </span>first_array_set(function: <span class="kw-2">&amp;</span>Function, ctx: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;ArraySetSite&gt; {
+<a href=#3584 id=3584 data-nosnippet>3584</a>        find_array_sets(function, ctx).into_iter().next()
+<a href=#3585 id=3585 data-nosnippet>3585</a>    }
+<a href=#3586 id=3586 data-nosnippet>3586</a>
+<a href=#3587 id=3587 data-nosnippet>3587</a>    <span class="kw">fn </span>last_array_set(function: <span class="kw-2">&amp;</span>Function, ctx: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;ArraySetSite&gt; {
+<a href=#3588 id=3588 data-nosnippet>3588</a>        find_array_sets(function, ctx).into_iter().last()
+<a href=#3589 id=3589 data-nosnippet>3589</a>    }
+<a href=#3590 id=3590 data-nosnippet>3590</a>}</code></pre></div></section></main></body></html>
