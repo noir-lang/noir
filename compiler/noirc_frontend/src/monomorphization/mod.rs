@@ -1837,30 +1837,10 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::convert_type_helper(to, location, seen_types)?
             }
 
-            HirType::TypeVariable(binding) => {
-                let type_var_kind = match &*binding.borrow() {
-                    // `convert_type_helper` resolves its input with `follow_bindings_shallow`,
-                    // which substitutes bound type variables before we reach this match, so any
-                    // type variable that gets here is necessarily unbound.
-                    TypeBinding::Bound(_) => {
-                        unreachable!("Bound type variables are resolved by follow_bindings_shallow")
-                    }
-                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
-                };
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                let Some(default) = type_var_kind.default_type() else {
-                    return Err(MonomorphizationError::NoDefaultType { location });
-                };
-
-                let monomorphized_default =
-                    Self::convert_type_helper(&default, location, seen_types)?;
-
-                binding.bind(default);
-
-                monomorphized_default
+            HirType::TypeVariable(_) => {
+                unreachable!(
+                    "All type variables should already be bound at this point, and the follow_bindings_shallow call above should have went through them."
+                )
             }
 
             HirType::DataType(def, args) => {
