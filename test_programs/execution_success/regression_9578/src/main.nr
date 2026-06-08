@@ -10,9 +10,10 @@ struct Foo {
 // of the tag, which is why this used to be unsupported).
 //
 // References are loaded through tuples, structs and fixed-size arrays, so a reference nested inside
-// any of those can also be printed. References nested inside an enum variant or a vector are still
-// not supported: the compiler cannot load them ahead of the call without knowing the active variant
-// or a dynamic length.
+// any of those can also be printed. A vector whose elements contain references is shown as a
+// placeholder (`@[<<ref>>...]`): its dynamic length means the references cannot be loaded ahead of
+// the call, so it is sent to the oracle as an empty, reference-free vector. References nested inside
+// an enum variant are still unsupported: the compiler cannot load them without the active variant.
 enum Bar {
     Baz((u32, [u32; 2])),
 }
@@ -40,6 +41,7 @@ unconstrained fn main() {
     let mut y = 13;
     show(14, WithRef { a: &mut x, b: 15 });
     show(16, [&mut x, &mut y]);
+    show(17, @[&mut x, &mut y]);
 }
 
 unconstrained fn show<T>(case: u32, mut value: T) {

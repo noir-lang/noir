@@ -37,6 +37,7 @@ unconstrained fn main() {
     let mut y: u32 = 13_u32;
     show(14_u32, WithRef { a: &mut x, b: 15_u32 });
     show(16_u32, [&mut x, &mut y]);
+    show(17_u32, @[&mut x, &mut y]);
 }
 
 unconstrained fn show<T>(case: u32, mut value: T) {

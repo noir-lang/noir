@@ -245,10 +245,12 @@ fn errors_if_oracle_has_reference_parameter_nested_in_container_behind_generics(
     check_monomorphization_error(src);
 }
 
-// The `print` oracle is exempt from the reference-parameter rule: the compiler loads any
-// reference in the printed value before the call, so the oracle is monomorphized with a
-// reference-free type. References at the top level and nested in tuples are supported;
-// references inside data types, arrays, vectors, etc. are not yet supported.
+// The `print` oracle does not receive references: the compiler loads any reference in the printed
+// value before the call, so the oracle is monomorphized with a reference-free type. References at
+// the top level and nested inside tuples, structs and fixed-size arrays are loaded and printed.
+// - Vector whose elements contain references is sent as an empty, reference-free vector
+// and shown as a placeholder.
+// - References nested inside an enum variant are not supported and produce an error.
 
 #[test]
 fn prints_mutable_reference() {
@@ -322,7 +324,7 @@ fn prints_reference_nested_in_struct() {
 }
 
 #[test]
-fn errors_when_printing_reference_nested_in_vector() {
+fn prints_reference_nested_in_vector() {
     let src = r#"
     unconstrained fn main() {
         let mut x = 1;
@@ -330,12 +332,10 @@ fn errors_when_printing_reference_nested_in_vector() {
         println(@[&mut x, &mut y]);
     }
     "#;
-    let error = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
-        .expect_err("printing a vector of references is not supported");
-    assert!(
-        matches!(error, MonomorphizationError::ReferenceParameterToOracle { .. }),
-        "unexpected error: {error:?}"
-    );
+    // A vector whose elements contain references is sent to the oracle as an empty, reference-free
+    // vector and shown as a placeholder.
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing a vector of references should compile");
 }
 
 #[test]

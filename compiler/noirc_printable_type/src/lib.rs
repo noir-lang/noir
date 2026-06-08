@@ -209,21 +209,29 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             let PrintableValue::Vec { array_elements, is_vector } = value else {
                 return None;
             };
-            if *is_vector {
-                output.push('@');
-            }
-            output.push('[');
-            let mut values = array_elements.iter().peekable();
-            while let Some(value) = values.next() {
-                output.push_str(&format!(
-                    "{}",
-                    PrintableValueDisplay::Plain(value.clone(), *typ.clone())
-                ));
-                if values.peek().is_some() {
-                    output.push_str(", ");
+            if *is_vector && array_elements.is_empty() && contains_reference(typ) {
+                // A vector whose elements contain references is sent to the oracle as an empty,
+                // reference-free vector (see `dereference_print_value`). We display a placeholder.
+                // The debugger keeps the references as addresses and decodes the real elements, so
+                // a non-empty vector still renders each element below.
+                output.push_str("@[<<ref>>...]");
+            } else {
+                if *is_vector {
+                    output.push('@');
                 }
+                output.push('[');
+                let mut values = array_elements.iter().peekable();
+                while let Some(value) = values.next() {
+                    output.push_str(&format!(
+                        "{}",
+                        PrintableValueDisplay::Plain(value.clone(), *typ.clone())
+                    ));
+                    if values.peek().is_some() {
+                        output.push_str(", ");
+                    }
+                }
+                output.push(']');
             }
-            output.push(']');
         }
         PrintableType::String { .. } => {
             let PrintableValue::String(s) = value else {
@@ -633,6 +641,30 @@ fn fetch_printable_type<F: AcirField>(
     match printable_type {
         Ok(printable_type) => Ok(printable_type),
         Err(err) => Err(TryFromParamsError::ParsingError(err)),
+    }
+}
+
+/// Whether a type contains a reference anywhere in its structure.
+fn contains_reference(typ: &PrintableType) -> bool {
+    match typ {
+        PrintableType::Reference { .. } => true,
+        PrintableType::Array { typ, .. }
+        | PrintableType::Vector { typ }
+        | PrintableType::FmtString { typ, .. } => contains_reference(typ),
+        PrintableType::Tuple { types } => types.iter().any(contains_reference),
+        PrintableType::Struct { fields, .. } => {
+            fields.iter().any(|(_, typ)| contains_reference(typ))
+        }
+        PrintableType::Enum { variants, .. } => {
+            variants.iter().flat_map(|(_, types)| types).any(contains_reference)
+        }
+        PrintableType::Function { env, .. } => contains_reference(env),
+        PrintableType::Field
+        | PrintableType::UnsignedInteger { .. }
+        | PrintableType::SignedInteger { .. }
+        | PrintableType::Boolean
+        | PrintableType::String { .. }
+        | PrintableType::Unit => false,
     }
 }
 

@@ -16,3 +16,4 @@ expression: stdout
 (11, &mut Bar::Baz((1, [2, 3])), Bar::Baz((1, [2, 3])))
 (14, &mut WithRef { a: &mut 12, b: 15 }, WithRef { a: &mut 12, b: 15 })
 (16, &mut [&mut 12, &mut 13], [&mut 12, &mut 13])
+(17, &mut @[<<ref>>...], @[<<ref>>...])

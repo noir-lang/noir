@@ -2569,8 +2569,10 @@ impl<'interner> Monomorphizer<'interner> {
     /// Remove references from a type printed by the `print` oracle: `&T` and `&mut T` become `T`,
     /// A struct becomes a tuple of its (stripped) field types, like [`Self::convert_type`].
     ///
-    /// References nested inside vectors, enums, functions or format strings are not supported and
-    /// produce an error.
+    /// A vector whose elements contain references is replaced by an empty, reference-free vector.
+    ///
+    /// References nested inside enums, functions or format strings are not supported and produce an
+    /// error.
     fn strip_references(typ: &Type, location: Location) -> Result<Type, MonomorphizationError> {
         if !typ.contains_reference() {
             return Ok(typ.clone());
@@ -2592,6 +2594,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let element = Self::strip_references(&element, location)?;
                 Ok(Type::Array(Box::new(element), length))
             }
+            Type::Vector(_) => Ok(Type::Vector(Box::new(Type::Unit))),
             other => Err(MonomorphizationError::ReferenceParameterToOracle {
                 typ: other.to_string(),
                 location,
@@ -2652,6 +2655,16 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = ast::Type::Array(length, Rc::new(stripped));
                 Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents,
+                    typ,
+                })))
+            }
+            Type::Vector(_) => {
+                // The original vector whose elements contain references is sent to the oracle as an empty
+                // vector shown as a placeholder. We cannot load the references like we do for the array
+                // because we do not know the vector length at this point.
+                let typ = ast::Type::Vector(Rc::new(ast::Type::Unit));
+                Ok(ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral {
+                    contents: vec![],
                     typ,
                 })))
             }
