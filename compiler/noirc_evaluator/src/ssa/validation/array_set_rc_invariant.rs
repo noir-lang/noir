@@ -3470,6 +3470,81 @@ mod tests {
         );
     }
 
+    /// The `array_set` mutates the loop-invariant function parameter `v0`
+    /// **directly** and discards its result (`v6` is unused); the aliased
+    /// `array_get v0` (b2) is reachable from the `array_set` (b5) only by
+    /// crossing the loop back-edge `b5 → b1 → b2` into the next iteration.
+    /// The alias-set is therefore the singleton `{v0}`, and the hazard is
+    /// surfaced purely by the forward walk returning to a read of the same
+    /// un-threaded value — no block-parameter threading is involved, unlike
+    /// `end_to_end_pr_12671_repro_is_rejected`, whose `array_set` is on a
+    /// loop-carried copy and whose result is threaded back.
+    ///
+    /// The write index is dynamic (`v1`), so `tainted == None` and every
+    /// aliased read is flagged. This is the loop/back-edge analogue of the
+    /// straight-line `end_to_end_array_set_dynamic_index_with_array_get_is_rejected`.
+    #[test]
+    fn end_to_end_nrsec_829_repro_v3_dynamic_write_index_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                jmp b1(u32 0)
+              b1(v1: u32):
+                v2 = lt v1, u32 2
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                v3 = array_get v0, index u32 0 -> u32
+                v4 = eq v1, u32 1
+                jmpif v4 then: b4(), else: b5()
+              b4():
+                v5 = array_get v0, index u32 1 -> u32
+                constrain v3 == v5, "iter 1 v0[0] should equal v0[1]=99 after mutation"
+                jmp b5()
+              b5():
+                v6 = array_set v0, index v1, value u32 99
+                v7 = unchecked_add v1, u32 1
+                jmp b1(v7)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Same direct-on-parameter, result-discarded loop shape as
+    /// `end_to_end_nrsec_829_repro_v3_dynamic_write_index_is_rejected`, but
+    /// the `array_set v0` (b5) writes a **constant** index `0` and the
+    /// back-edge-reachable `array_get v0` (b2) reads that same index `0`.
+    /// The read's index is covered by the mutation's `tainted` set, so it
+    /// is flagged. This is the loop/back-edge analogue of the straight-line
+    /// `end_to_end_array_set_array_get_matching_constant_indices_is_rejected`,
+    /// confirming the index-aware `tainted`-set check fires across a loop
+    /// back-edge and not only within a single block.
+    #[test]
+    fn end_to_end_nrsec_829_repro_v4_constant_write_index_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                jmp b1(u32 0)
+              b1(v1: u32):
+                v2 = lt v1, u32 2
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                v3 = array_get v0, index u32 0 -> u32
+                v4 = eq v1, u32 1
+                jmpif v4 then: b4(), else: b5()
+              b4():
+                constrain v3 == u32 99, "iter 1 v0[0] should be 99 after iter 0 mutated it in-place"
+                jmp b5()
+              b5():
+                v6 = array_set v0, index u32 0, value u32 99
+                v7 = unchecked_add v1, u32 1
+                jmp b1(v7)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
     /// A located `array_set` plus everything the per-array_set verifier
     /// checks would need. Returned by [`find_array_sets`] / [`first_array_set`]
     /// / [`last_array_set`] so each test reads one struct rather than a
