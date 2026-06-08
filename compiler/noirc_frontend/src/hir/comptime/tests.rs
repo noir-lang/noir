@@ -80,11 +80,13 @@ pub(crate) fn with_interpreter<T>(
     // of the function being run, rather than relying on whatever module the elaborator
     // happened to leave set after elaborating the program.
     let source_module = elaborator.interner.function_meta(&main).source_module;
-    elaborator.replace_module(ModuleId { krate, local_id: source_module });
+    let old_module = elaborator.replace_module(ModuleId { krate, local_id: source_module });
 
     let mut interpreter = elaborator.setup_interpreter();
 
-    f(&mut interpreter, main, errors.as_ref())
+    let result = f(&mut interpreter, main, errors.as_ref());
+    elaborator.restore_module(old_module);
+    result
 }
 
 /// Evaluate a code snippet by calling the `main` function.

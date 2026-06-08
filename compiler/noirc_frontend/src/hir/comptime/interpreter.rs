@@ -365,11 +365,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
-        let Some(old_module) = old_module else {
-            // The module should always be set by the time we're interpreting comptime code
-            panic!("ICE: Expected local_module to be set when calling a closure");
-        };
-        self.elaborator.replace_module(old_module);
+        self.elaborator.restore_module(old_module);
         result
     }
 
@@ -1981,10 +1977,12 @@ impl Context<'_, '_> {
         let module_id = ModuleId { krate: crate_id, local_id };
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
-        elaborator.replace_module(module_id);
+        let old_module = elaborator.replace_module(module_id);
 
         let mut interpreter = elaborator.setup_interpreter();
         let instantiation_bindings = TypeBindings::default();
-        interpreter.call_function(main_id, args, instantiation_bindings, location)
+        let result = interpreter.call_function(main_id, args, instantiation_bindings, location);
+        elaborator.restore_module(old_module);
+        result
     }
 }

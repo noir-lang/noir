@@ -3,6 +3,7 @@
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
 use crate::elaborator::patterns::Variable;
+use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::ScopeTree as GenericScopeTree;
@@ -28,18 +29,27 @@ pub(crate) enum ItemAsValue {
     TypeAlias(TypeAliasId),
 }
 
+pub(crate) struct ReplacedModule(CrateId, Option<LocalModuleId>);
+
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
         ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
+    #[must_use]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn replace_module(&mut self, new_module: ModuleId) -> Option<ModuleId> {
-        let current_module =
-            self.local_module.map(|local_id| ModuleId { krate: self.crate_id, local_id });
+    pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {
+        let old_crate_id = self.crate_id;
+        let old_local_module = self.local_module;
         self.crate_id = new_module.krate;
         self.local_module = Some(new_module.local_id);
-        current_module
+        ReplacedModule(old_crate_id, old_local_module)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn restore_module(&mut self, replaced_module: ReplacedModule) {
+        self.crate_id = replaced_module.0;
+        self.local_module = replaced_module.1;
     }
 
     /// Runs `f` with `self.local_module` set to `module`, restoring the previous value

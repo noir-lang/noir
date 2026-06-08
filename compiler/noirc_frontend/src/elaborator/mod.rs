@@ -1428,7 +1428,7 @@ pub mod test_utils {
         // Mirror `Context::interpret_function`: enter the interpreter with the module of the
         // function being run rather than relying on the module the elaborator happened to leave set.
         let source_module = elaborator.interner.function_meta(&main).source_module;
-        elaborator.replace_module(ModuleId { krate, local_id: source_module });
+        let old_module = elaborator.replace_module(ModuleId { krate, local_id: source_module });
 
         let mut interpreter = elaborator.setup_interpreter();
 
@@ -1453,6 +1453,8 @@ pub mod test_utils {
                 }
             }
         };
+
+        elaborator.restore_module(old_module);
 
         let mut monomorphizer = Monomorphizer::new(
             elaborator.interner,
