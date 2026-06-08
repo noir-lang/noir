@@ -1838,12 +1838,6 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::TypeVariable(binding) => {
-                let input_type = typ.as_ref().clone();
-                if !seen_types.insert(input_type.clone()) {
-                    let typ = input_type;
-                    return Err(MonomorphizationError::RecursiveType { typ, location });
-                }
-
                 let type_var_kind = match &*binding.borrow() {
                     // `convert_type_helper` resolves its input with `follow_bindings_shallow`,
                     // which substitutes bound type variables before we reach this match, so any
