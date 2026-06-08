@@ -4017,6 +4017,7 @@ dependencies = [
  "cfg-if",
  "fm",
  "im",
+ "indexmap 2.14.0",
  "insta",
  "iter-extended",
  "itertools 0.14.0",

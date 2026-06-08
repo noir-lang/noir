@@ -382,13 +382,13 @@ fn overlapping_inherent_impls() {
 
         impl<T> Foo<T> {
             pub fn method(_self: Self) {}
-                   ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-                   ~~~~~~ Overlapping impl
+                   ~~~~~~ Previous impl defined here
         }
 
         impl Foo<i32> {
             pub fn method(_self: Self) {}
-                   ~~~~~~ Previous impl defined here
+                   ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
         }
 
         fn main() {
@@ -527,8 +527,7 @@ fn trait_as_type_overlapping() {
 
         impl<T> Foo<T> {
             pub fn method(_self: Self) -> impl MyTrait<T> {
-                   ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-                   ~~~~~~ Overlapping impl
+                   ~~~~~~ Previous impl defined here
                 // This return type is TraitAsType with NamedGeneric inside
                 MyImpl { _x: _self._x }
             }
@@ -536,7 +535,8 @@ fn trait_as_type_overlapping() {
 
         impl Foo<i32> {
             pub fn method(_self: Self) -> impl MyTrait<i32> {
-                   ~~~~~~ Previous impl defined here
+                   ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
                 MyImpl { _x: _self._x }
             }
         }
