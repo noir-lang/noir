@@ -69,6 +69,24 @@ fn macro_result_type_mismatch() {
 }
 
 #[test]
+fn method_macro_call_elaborates_quoted_argument_in_comptime_context() {
+    let src = r#"
+    pub struct Foo {}
+
+    impl Foo {
+        pub comptime fn second(_self: Self, q: Quoted) -> Quoted {
+            q
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}.second!(quote { 1 + 2 });
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn unquoted_integer_as_integer_token() {
     let src = r#"
     trait Serialize<let N: u32> {
