@@ -643,9 +643,21 @@ impl AssignOpKind {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
     Path(Path),
-    MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
-    Index { array: Box<LValue>, index: Expression, location: Location },
-    Dereference(Box<LValue>, Location),
+    MemberAccess {
+        object: Box<LValue>,
+        field_name: Ident,
+        location: Location,
+    },
+    Index {
+        array: Box<LValue>,
+        index: Expression,
+        location: Location,
+    },
+    /// The operand of a dereference is a value expression that evaluates to a reference, mirroring
+    /// the place-expression rules in Rust. This is what allows `*(&mut x) = ...` (and any other
+    /// reference-producing expression) on the left-hand side of an assignment, not just chains of
+    /// places like `*x`.
+    Dereference(Box<Expression>, Location),
     Interned(InternedExpressionKind, Location),
 }
 
@@ -733,10 +745,10 @@ impl LValue {
                     index: index.clone(),
                 }))
             }
-            LValue::Dereference(lvalue, _span) => {
+            LValue::Dereference(expr, _span) => {
                 ExpressionKind::Prefix(Box::new(crate::ast::PrefixExpression {
                     operator: crate::ast::UnaryOp::Dereference { implicitly_added: false },
-                    rhs: lvalue.as_expression(),
+                    rhs: expr.as_ref().clone(),
                 }))
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
@@ -766,10 +778,10 @@ impl LValue {
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    Some(LValue::Dereference(
-                        Box::new(LValue::from_expression(prefix.rhs)?),
-                        location,
-                    ))
+                    // The operand of a dereference is kept as a value expression rather than being
+                    // recursively required to be a place. Whether it actually evaluates to a
+                    // (mutable) reference is checked during elaboration.
+                    Some(LValue::Dereference(Box::new(prefix.rhs), location))
                 } else {
                     None
                 }
