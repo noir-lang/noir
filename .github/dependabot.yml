@@ -7,6 +7,11 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    ignore:
+      # actions-netlify v4 runs on node24 and fails the Netlify deploy with
+      # "Error: Not Found" (see #12940). Stay on v3 until upstream is fixed.
+      - dependency-name: "nwtgck/actions-netlify"
+        versions: [ ">=4.0.0" ]
     groups:
       # group updates for core GitHub Actions
       core-actions:
