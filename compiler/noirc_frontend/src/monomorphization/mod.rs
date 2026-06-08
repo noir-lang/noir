@@ -75,6 +75,7 @@ use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::borrow::Cow;
 use std::rc::Rc;
 use std::{
     collections::{BTreeMap, VecDeque},
