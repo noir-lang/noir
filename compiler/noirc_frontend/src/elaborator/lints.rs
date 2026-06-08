@@ -346,6 +346,8 @@ pub(super) fn unconstrained_function_args(
 /// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
+/// * cannot return enums: their tag is an unconstrained `Field` witness, so a malicious prover
+///   could supply an out-of-range tag and force the wrong match arm in the constrained caller.
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
@@ -356,6 +358,8 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
+    } else if return_type.contains_enum() {
+        Some(TypeCheckError::UnconstrainedEnumReturnToConstrained { location })
     } else {
         None
     }
