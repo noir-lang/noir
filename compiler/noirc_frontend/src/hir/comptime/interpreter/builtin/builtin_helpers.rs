@@ -720,11 +720,13 @@ impl Hasher for DeterministicHasher {
     }
 
     fn write_usize(&mut self, i: usize) {
-        self.inner.write_u64(i as u64);
+        let i = u64::try_from(i).expect("usize must fit in u64 for a stable hash");
+        self.inner.write_u64(i);
     }
 
     fn write_isize(&mut self, i: isize) {
-        self.inner.write_u64(i as i64 as u64);
+        let i = i64::try_from(i).expect("isize must fit in i64 for a stable hash");
+        self.inner.write_u64(i as u64);
     }
 }
 
