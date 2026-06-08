@@ -135,8 +135,13 @@ jobs:
       - name: Deploy preview to Netlify
         id: netlify
         run: |
+          # Run from a directory outside the repository so netlify-cli does not
+          # treat noir's package.json workspaces as a monorepo and prompt for a
+          # project to deploy. The prebuilt docs are passed via an absolute --dir.
+          cd "$(mktemp -d)"
           npx --yes netlify-cli@26.1.0 deploy \
-            --dir ./docs/build \
+            --dir "$GITHUB_WORKSPACE/docs/build" \
+            --no-build \
             --message "Deploy preview for PR ${{ github.event.number }}" \
             --json > netlify-deploy.json
           echo "deploy-url=$(jq -r '.deploy_url' netlify-deploy.json)" >> "$GITHUB_OUTPUT"

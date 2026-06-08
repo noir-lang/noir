@@ -43,8 +43,13 @@ jobs:
 
       - name: Deploy to Netlify
         run: |
+          # Run from a directory outside the repository so netlify-cli does not
+          # treat noir's package.json workspaces as a monorepo and prompt for a
+          # project to deploy. The prebuilt docs are passed via an absolute --dir.
+          cd "$(mktemp -d)"
           npx --yes netlify-cli@26.1.0 deploy \
-            --dir ./docs/build \
+            --dir "$GITHUB_WORKSPACE/docs/build" \
+            --no-build \
             --prod \
             --message "Deploy from GitHub Actions for ${{ github.sha }}"
         env:
