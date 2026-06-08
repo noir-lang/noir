@@ -481,18 +481,7 @@ fn create_apply_functions(
         // function to dispatch constrains that we have an expected ID.
 
         let pre_runtime_filter_len = variants.len();
-        let variants: Vec<(FunctionId, RuntimeType)> = variants
-            .into_iter()
-            .filter(|(_, callee_runtime)| {
-                // Note that the Inline property is ignored.
-                caller_runtime.is_brillig() && callee_runtime.is_brillig()
-                    || caller_runtime.is_acir() && callee_runtime.is_acir()
-                    || caller_runtime.is_acir()
-                        && callee_runtime.is_brillig()
-                        && is_valid_across_boundaries(&signature)
-            })
-            .collect();
-
+        let variants = filter_apply_function_variants(&signature, caller_runtime, &variants);
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // This will be the same signature but with each function type replaced with
@@ -543,6 +532,26 @@ fn create_apply_functions(
     }
 
     Ok((apply_functions, purities))
+}
+
+/// Collect the function variants that can be called from a given runtime.
+fn filter_apply_function_variants(
+    signature: &Signature,
+    caller_runtime: RuntimeType,
+    variants: &[(FunctionId, RuntimeType)],
+) -> Vec<(FunctionId, RuntimeType)> {
+    variants
+        .iter()
+        .filter(|(_, callee_runtime)| {
+            // Note that the Inline property is ignored.
+            caller_runtime.is_brillig() && callee_runtime.is_brillig()
+                || caller_runtime.is_acir() && callee_runtime.is_acir()
+                || caller_runtime.is_acir()
+                    && callee_runtime.is_brillig()
+                    && is_valid_across_boundaries(signature)
+        })
+        .copied()
+        .collect()
 }
 
 /// Transforms a [FunctionId] into a [FieldElement]
@@ -888,6 +897,8 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
 
 #[cfg(test)]
 mod tests {
+    use noirc_frontend::test_utils::{GetProgramOptions, get_monomorphized_with_options};
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -897,7 +908,11 @@ mod tests {
                 value::{NumericValue, Value},
             },
             ir::function::FunctionId,
-            opt::{assert_pass_does_not_affect_execution, defunctionalize::create_apply_functions},
+            opt::{
+                assert_pass_does_not_affect_execution,
+                defunctionalize::{create_apply_functions, filter_apply_function_variants},
+            },
+            ssa_gen::generate_ssa,
         },
     };
 
@@ -2600,5 +2615,66 @@ mod tests {
 
         let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn foreign_and_oracle_function_value_proxies() {
+        let src = r#"
+        mod std {
+            pub mod hash {
+                #[foreign(blake2s)]
+                pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32] {}
+            }
+        }
+
+        unconstrained fn encrypt_me(encryption_fn: unconstrained fn([u8; 4]) -> [u8; 32], input: [u8; 4]) -> [u8; 32] {
+            encryption_fn(input)
+        }
+
+        #[oracle(oracle_hash)]
+        unconstrained fn oracle_hash(input: [u8; 4]) -> [u8; 32] {}
+
+        unconstrained fn another_hash(_input: [u8; 4]) -> [u8; 32] { [0; 32] }
+
+        fn assert_output(output: [u8; 32]) {
+            for i in 0..32 {
+                assert(output[i] < 255);
+            }
+        }
+
+        pub fn main(input: pub [u8; 4]) -> pub [u8; 32] {
+            // Safety: calling unconstrained functions.
+            unsafe {
+                let output = encrypt_me(std::hash::blake2s, input);
+                assert_output(output);
+                let output = encrypt_me(oracle_hash, input);
+                assert_output(output);
+                let output = encrypt_me(another_hash, input);
+                assert_output(output);
+                output
+            }
+        }
+        "#;
+
+        let program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+        )
+        .unwrap();
+        let ssa = generate_ssa(program).unwrap();
+
+        let mut ssa_variants = find_variants(&ssa);
+        let ((signature, caller_runtime), variants) = ssa_variants.pop_last().unwrap();
+        assert!(
+            ssa_variants.is_empty(),
+            "should have only one set of variants for one apply function"
+        );
+
+        assert!(caller_runtime.is_brillig());
+        assert_eq!(variants.len(), 4); // blake2s_proxy (acir + brillig) + oracle_hash_proxy + another_hash
+
+        let variants = filter_apply_function_variants(&signature, caller_runtime, &variants);
+        assert_eq!(variants.len(), 3); // blake2s_proxy + oracle_hash_proxy + another_hash
+        assert!(variants.iter().all(|(_, runtime)| runtime.is_brillig()));
     }
 }
