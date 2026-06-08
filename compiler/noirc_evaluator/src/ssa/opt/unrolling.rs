@@ -491,6 +491,9 @@ impl Loops {
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
+    /// Because loops are consumed via `pop`, the vector is sorted in reverse of the processing order:
+    /// - `OutsideIn`, `yet_to_unroll[0]` is the smallest/innermost
+    /// - `InsideOut`, `yet_to_unroll[0]` is the largest/outermost
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
