@@ -3511,9 +3511,8 @@ mod tests {
     }
 
     /// Same direct-on-parameter, result-discarded loop shape as
-    /// `end_to_end_loop_invariant_param_array_set_dynamic_index_read_across_back_edge_is_rejected`,
-    /// but
-    /// the `array_set v0` (b5) writes a **constant** index `0` and the
+    /// `end_to_end_loop_invariant_param_array_set_dynamic_index_read_across_back_edge_is_rejected`.
+    /// Here the `array_set v0` (b5) writes a **constant** index `0` and the
     /// back-edge-reachable `array_get v0` (b2) reads that same index `0`.
     /// The read's index is covered by the mutation's `tainted` set, so it
     /// is flagged. This is the loop/back-edge analogue of the straight-line
