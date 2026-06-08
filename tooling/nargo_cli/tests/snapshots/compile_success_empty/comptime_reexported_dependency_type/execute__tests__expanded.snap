@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use mylib::PublicBox;
+
+comptime fn emit_reexported_type_api(_f: FunctionDefinition) -> Quoted {
+    let typ: Type = quote { PublicBox }.as_type();
+    let (def, generics): (TypeDefinition, [Type]) = typ.as_data_type().unwrap();
+    let fields: [(Quoted, Type, Quoted)] = def.fields(generics);
+    let reexported_type: Type = fields[0_u32].1;
+    quote {
+        pub fn reexported_type_api() -> Option<$reexported_type> {
+            Option::none()
+        }
+        pub struct ReexportedPublicField {
+            pub value: Option<$reexported_type>,
+        }
+    }
+}
+
+pub fn reexported_type_api() -> Option<mylib::Secret> {
+    Option::<mylib::Secret>::none()
+}
+
+pub struct ReexportedPublicField {
+    pub value: Option<mylib::Secret>,
+}
+
+fn main() {}

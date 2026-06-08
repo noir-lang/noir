@@ -5,12 +5,16 @@ use noirc_errors::{Located, Location};
 use crate::{
     DataType, StructField, Type,
     ast::{Ident, ItemVisibility, NoirStruct},
-    hir::resolution::{
-        errors::ResolverError,
-        import::PathResolutionError,
-        visibility::{method_call_is_visible, struct_member_is_visible},
+    hir::{
+        def_map::ModuleDefId,
+        resolution::{
+            errors::ResolverError,
+            import::PathResolutionError,
+            visibility::{method_call_is_visible, struct_member_is_visible},
+        },
     },
     hir_def::function::FuncMeta,
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{FuncId, FunctionModifiers},
 };
 
@@ -99,6 +103,44 @@ impl Elaborator<'_> {
         visibility
     }
 
+    /// Whether a foreign data type can be named from the current module: directly, via a
+    /// `pub use` re-export of the type itself, or via a re-export of one of its ancestor
+    /// modules. This mirrors what naming the type by hand would require, so a macro-spliced
+    /// resolved type cannot expose a dependency-private type that hand-written code could not.
+    fn foreign_type_is_visible(&self, struct_type: &DataType) -> bool {
+        let module_def_id = ModuleDefId::TypeId(struct_type.id);
+        let visibility = struct_type.visibility;
+        let dependencies = &self.crate_graph[self.crate_id].dependencies;
+
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id(),
+            visibility,
+            None,
+            self.interner,
+            self.def_maps,
+            dependencies,
+        ) || self.interner.get_reexports(module_def_id).iter().any(|reexport| {
+            module_def_id_is_visible(
+                module_def_id,
+                self.module_id(),
+                reexport.visibility,
+                Some(reexport.module_id),
+                self.interner,
+                self.def_maps,
+                dependencies,
+            )
+        }) || get_ancestor_module_reexport(
+            module_def_id,
+            visibility,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+            dependencies,
+        )
+        .is_some()
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_function_visibility(
         &mut self,
@@ -167,9 +209,6 @@ impl Elaborator<'_> {
                 let struct_type = struct_type.borrow();
                 let struct_module_id = struct_type.id.module_id();
 
-                // We only check this in types in the same crate. If it's in a different crate
-                // then it's either accessible (all good) or it's not, in which case a different
-                // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
                     let aliased_visibility = self.find_struct_visibility(&struct_type);
                     if aliased_visibility < visibility {
@@ -179,6 +218,15 @@ impl Elaborator<'_> {
                             location,
                         });
                     }
+                } else if !self.foreign_type_is_visible(&struct_type) {
+                    // A foreign type written by hand would be rejected by the path resolver if it
+                    // weren't accessible. A macro can splice in a resolved type that never goes
+                    // through path resolution, so the same accessibility check is enforced here.
+                    self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                        typ: struct_type.name.to_string(),
+                        item: name.to_string(),
+                        location,
+                    });
                 }
 
                 for generic in generics {

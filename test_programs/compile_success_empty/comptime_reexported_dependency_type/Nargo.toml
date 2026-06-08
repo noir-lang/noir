@@ -1,0 +1,7 @@
+[package]
+name = "comptime_reexported_dependency_type"
+type = "bin"
+authors = [""]
+
+[dependencies]
+mylib = { path = "./mylib" }

@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Type `Secret` is more private than item `LeakedPublicField::value`
+   ┌─ src/main.nr:18:17
+   │
+18 │             pub value: Option<$private_type>,
+   │                 -----
+   ·
+23 │ #[emit_private_type_api]
+   │ ------------------------ While running this function attribute
+   │
+
+error: Type `Secret` is more private than item `leaked_private_type_api`
+   ┌─ src/main.nr:13:16
+   │
+13 │         pub fn leaked_private_type_api() -> Option<$private_type> {
+   │                -----------------------
+   ·
+23 │ #[emit_private_type_api]
+   │ ------------------------ While running this function attribute
+   │
+
+Aborting due to 2 previous errors
