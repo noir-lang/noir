@@ -2479,27 +2479,26 @@ impl Type {
             Type::CheckedCast { from, to } => {
                 let to_value = to.evaluate_to_integer(target_kind, location)?;
 
-                // if both 'to' and 'from' evaluate to a constant,
-                // return None unless they match
-                let skip_simplifications = false;
-                if let Ok(from_value) =
-                    from.evaluate_to_integer_helper(target_kind, location, skip_simplifications)
-                {
-                    if to_value == from_value {
-                        Ok(to_value)
-                    } else {
-                        let to = *to;
-                        let from = *from;
-                        Err(TypeCheckError::TypeCanonicalizationMismatch {
-                            to,
-                            from,
-                            to_value,
-                            from_value,
-                            location,
-                        })
-                    }
-                } else {
-                    Ok(to_value)
+                // Evaluate `from` without simplifications so that arithmetic errors in
+                // intermediate steps (which simplification may have removed from `to`)
+                // are still caught.
+                let run_simplifications = false;
+                match from.evaluate_to_integer_helper(target_kind, location, run_simplifications) {
+                    // If both `to` and `from` evaluate to a constant they must match
+                    Ok(from_value) if from_value == to_value => Ok(to_value),
+                    Ok(from_value) => Err(TypeCheckError::TypeCanonicalizationMismatch {
+                        to: *to,
+                        from: *from,
+                        to_value,
+                        from_value,
+                        location,
+                    }),
+                    // A definite arithmetic failure (e.g. underflow) in the unsimplified
+                    // expression must be reported even though `to` evaluated successfully.
+                    Err(err) if err.is_constant_arithmetic_failure() => Err(err),
+                    // `from` may contain type variables that were simplified out of `to`,
+                    // in which case it cannot be evaluated to a constant - that is fine.
+                    Err(_) => Ok(to_value),
                 }
             }
             other => Err(TypeCheckError::NonConstantEvaluated { typ: other, location }),
@@ -3275,6 +3274,8 @@ impl BinaryTypeOperator {
             BinaryTypeOperator::Modulo => {
                 if let (Integer::Field(lhs), Integer::Field(rhs)) = (a, b) {
                     Err(TypeCheckError::ModuloOnFields { lhs, rhs, location })
+                } else if b.is_zero() {
+                    Err(TypeCheckError::ModuloByZero { lhs: a, rhs: b, location })
                 } else {
                     (a % b).ok_or_else(make_error)
                 }

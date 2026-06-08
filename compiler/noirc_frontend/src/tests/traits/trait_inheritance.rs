@@ -489,12 +489,11 @@ fn supertrait_associated_type_in_impl() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11548): remove should_panic once fixed
+/// A trait may access associated types defined on any of its ancestor traits
+/// (parent, grandparent, ...), and a generic function bounded by such a trait
+/// can call methods whose signatures reference those inherited associated types.
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_inheritance_chain_with_associated_types() {
-    // Bug: Self::A from grandparent trait Level1 not accessible in Level3 impl.
-    // Self::B from parent trait Level2 also not accessible.
     let src = r#"
     trait Level1 {
         type A;
@@ -533,6 +532,87 @@ fn trait_inheritance_chain_with_associated_types() {
 
     fn main() {
         let d = Data { a: 42, b: true };
+        assert(process(d) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A method whose return type references the trait's own associated type can be called through
+/// a grandchild bound, even when none of the intervening traits add associated types of their
+/// own. The inherited associated type must still resolve via the grandchild's bound.
+#[test]
+fn grandparent_trait_method_returning_own_associated_type() {
+    let src = r#"
+    trait Level1 {
+        type A;
+        fn get_a(self) -> Self::A;
+    }
+
+    trait Level2: Level1 {}
+    trait Level3: Level2 {}
+
+    struct Data {
+        a: Field,
+    }
+
+    impl Level1 for Data {
+        type A = Field;
+        fn get_a(self) -> Self::A { self.a }
+    }
+
+    impl Level2 for Data {}
+    impl Level3 for Data {}
+
+    fn process<T>(t: T) -> Field where T: Level3 {
+        t.get_a()
+    }
+
+    fn main() {
+        let d = Data { a: 42 };
+        assert(process(d) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// The inherited associated type resolves across an arbitrarily deep inheritance chain, not just
+/// a single grandparent hop.
+#[test]
+fn trait_inheritance_chain_with_associated_types_four_levels() {
+    let src = r#"
+    trait Level1 { type A; }
+    trait Level2: Level1 {
+        type B;
+        fn get_a(self) -> Self::A;
+    }
+    trait Level3: Level2 { type C; }
+    trait Level4: Level3 {
+        fn get_c(self) -> Self::C;
+    }
+
+    struct Data {
+        a: Field,
+        b: bool,
+        c: u32,
+    }
+
+    impl Level1 for Data { type A = Field; }
+    impl Level2 for Data {
+        type B = bool;
+        fn get_a(self) -> Self::A { self.a }
+    }
+    impl Level3 for Data { type C = u32; }
+    impl Level4 for Data {
+        fn get_c(self) -> Self::C { self.c }
+    }
+
+    fn process<T>(t: T) -> Field where T: Level4 {
+        t.get_a()
+    }
+
+    fn main() {
+        let d = Data { a: 42, b: true, c: 7 };
         assert(process(d) == 42);
     }
     "#;
