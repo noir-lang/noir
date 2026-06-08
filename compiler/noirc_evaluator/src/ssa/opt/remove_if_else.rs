@@ -530,6 +530,8 @@ fn remove_if_else_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
+    use acvm::{AcirField, FieldElement};
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -1163,6 +1165,71 @@ mod tests {
             return v26, v28, v18
         }
         "#);
+    }
+
+    // Regression test for an over-read of a `vector_pop_back` result after merging two vectors
+    // of unequal capacity. The source program is:
+    // ```
+    // fn main(choose: bool, do_pop: bool) -> pub Field {
+    //     let mut v: [Field] = if choose { [1].as_vector() } else { [2, 3].as_vector() };
+    //     if do_pop {
+    //         let (new_v, _) = v.pop_back();
+    //         v = new_v;
+    //     }
+    //     if v.len() == 0 { 0 } else { v[0] }
+    // }
+    // ```
+    // With `choose = true` the merged vector has semantic length 1 but backing capacity 2, so
+    // popping it yields an empty vector. The merge of the pop result must not over-read it.
+    #[test]
+    fn merge_vector_pop_back_with_smaller_semantic_length_than_capacity() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v3 = make_array [Field 1] : [Field]
+            v4 = not v0
+            enable_side_effects v4
+            v7 = make_array [Field 2, Field 3] : [Field]
+            enable_side_effects u1 1
+            v9 = cast v0 as u32
+            v10 = cast v4 as u32
+            v12 = unchecked_mul v10, u32 2
+            v13 = unchecked_add v9, v12
+            v14 = if v0 then v3 else (if v4) v7
+            enable_side_effects v1
+            v16, v17, v18 = call vector_pop_back(v13, v14) -> (u32, [Field], Field)
+            v19 = not v1
+            enable_side_effects u1 1
+            v20 = cast v1 as u32
+            v21 = cast v19 as u32
+            v22 = unchecked_mul v20, v16
+            v23 = unchecked_mul v21, v13
+            v24 = unchecked_add v22, v23
+            v25 = if v1 then v17 else (if v19) v14
+            v27 = eq v24, u32 0
+            enable_side_effects v27
+            v28 = not v27
+            enable_side_effects v28
+            v29 = unchecked_mul v27, v28
+            constrain v29 == u1 0, "Index out of bounds"
+            v31 = array_get v25, index u32 0 -> Field
+            enable_side_effects u1 1
+            v32 = cast v27 as Field
+            v33 = cast v28 as Field
+            v34 = mul v33, v31
+            return v34
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_if_else().unwrap();
+
+        // choose = true, do_pop = true: the merged vector is `[1]` (length 1), popping it leaves an
+        // empty vector, so `v.len() == 0` holds and the result is `0`. This must not fail with an
+        // out-of-bounds read on the popped vector.
+        let args = vec![Value::bool(true), Value::bool(true)];
+        let result = ssa.interpret(args).unwrap();
+        assert_eq!(result, vec![Value::field(FieldElement::zero())]);
     }
 
     // Regression test for https://github.com/noir-lang/noir/issues/10978

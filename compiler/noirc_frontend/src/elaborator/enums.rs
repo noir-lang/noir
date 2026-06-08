@@ -726,43 +726,58 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch(&typ, expected_type, expr_location);
 
-        let Some((struct_name, mut expected_field_types)) =
+        let Some((struct_name, expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
         else {
             return Pattern::Error;
         };
 
-        let mut fields = BTreeMap::default();
+        // `Pattern::Constructor` args must be ordered to match the struct's field
+        // declaration order: `compile_rows` produces the branch variables for a
+        // struct in declaration order and `compile_constructor_cases` pairs them
+        // with these args by index. Collect each pattern into its declaration-order
+        // slot rather than by field name, so a struct whose fields are not declared
+        // alphabetically still pairs each pattern with the correct branch variable.
+        let mut field_patterns: Vec<Option<Pattern>> = vec![None; expected_field_types.len()];
+
         for (field_name, field) in constructor.fields {
             let Some(field_index) =
                 expected_field_types.iter().position(|(name, _, _)| *name == field_name.as_str())
             else {
-                let error = if fields.contains_key(field_name.as_str()) {
-                    ResolverError::DuplicateField { field: field_name }
-                } else {
-                    let struct_definition = struct_name.clone();
-                    ResolverError::NoSuchField { field: field_name, struct_definition }
-                };
-                self.push_err(error);
+                let struct_definition = struct_name.clone();
+                self.push_err(ResolverError::NoSuchField { field: field_name, struct_definition });
                 continue;
             };
 
-            let (field_name, expected_field_type, _) =
-                expected_field_types.swap_remove(field_index);
+            if field_patterns[field_index].is_some() {
+                self.push_err(ResolverError::DuplicateField { field: field_name });
+                continue;
+            }
+
+            let expected_field_type = expected_field_types[field_index].1.clone();
             let pattern =
                 self.expression_to_pattern(field, &expected_field_type, variables_defined);
-            fields.insert(field_name, pattern);
+            field_patterns[field_index] = Some(pattern);
         }
 
-        if !expected_field_types.is_empty() {
+        let missing_fields = expected_field_types
+            .iter()
+            .zip(&field_patterns)
+            .filter(|(_, pattern)| pattern.is_none())
+            .map(|((name, _, _), _)| name.clone())
+            .collect::<Vec<_>>();
+        if !missing_fields.is_empty() {
             let struct_definition = struct_name;
-            let missing_fields = vecmap(expected_field_types, |(name, _, _)| name);
             let error =
                 ResolverError::MissingFields { location, missing_fields, struct_definition };
             self.push_err(error);
         }
 
-        let args = vecmap(fields, |(_name, field)| field);
+        // A `None` slot is a field that produced an error above (missing or unknown).
+        // Pushing any of those errors makes the caller skip `elaborate_match_rows`, so
+        // these `Pattern::Error` placeholders are never matched on; filling the slots
+        // only keeps `args` at the struct's full field arity in declaration order.
+        let args = vecmap(field_patterns, |pattern| pattern.unwrap_or(Pattern::Error));
         Pattern::Constructor(Constructor::Variant(typ, 0), args)
     }
 

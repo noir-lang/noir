@@ -650,6 +650,7 @@ impl Elaborator<'_> {
             lints::unnecessary_pub_return(func, modifiers, func.is_entry_point).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_marked_as_comptime(modifiers, func).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
         self.run_lint(|_| {
