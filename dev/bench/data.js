@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780943455747,
+  "lastUpdate": 1780943457575,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4967,105 +4967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "359f1624ab73b63c9c0fc96f29b8448cf08f5af6",
-          "message": "fix(ssa): keep sibling loop-bound error through ACIR unroll fallback (#12873)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-03T13:27:39Z",
-          "tree_id": "4200cefabf10da28762c8f3cd109747bc8f38547",
-          "url": "https://github.com/noir-lang/noir/commit/359f1624ab73b63c9c0fc96f29b8448cf08f5af6"
-        },
-        "date": 1780495481582,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.726,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 11.46,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 3.654,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.07,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.23,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.038,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 292,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 274,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.232,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 21.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 89.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.046,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.016,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.836,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "780d409ac52667c860a5e91b78e8702c8ab12800",
           "message": "fix: zeroed array of references must not share one allocation (#12869)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
@@ -9896,6 +9797,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.48,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a876c8409c858f77dbbb749d7180ab13adc7da6f",
+          "message": "chore: disable benchmark regression PR comments and drop @TomAFrench cc (#12948)",
+          "timestamp": "2026-06-08T17:50:15Z",
+          "tree_id": "2900e6012633512087b9b39ec7bc1c13799684a9",
+          "url": "https://github.com/noir-lang/noir/commit/a876c8409c858f77dbbb749d7180ab13adc7da6f"
+        },
+        "date": 1780943384917,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 5.996,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 19.28,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 3.844,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.23,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 252,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 287,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.246,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 21.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 100.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.106,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.2,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.756,
             "unit": "s"
           }
         ]
