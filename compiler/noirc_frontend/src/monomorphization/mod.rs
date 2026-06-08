@@ -1773,8 +1773,7 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
-        let typ = typ.follow_bindings_shallow();
-        Ok(match typ.as_ref() {
+        Ok(match typ {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
@@ -1837,10 +1836,11 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::convert_type_helper(to, location, seen_types)?
             }
 
-            HirType::TypeVariable(_) => {
-                unreachable!(
-                    "All type variables should already be bound at this point, and the follow_bindings_shallow call above should have went through them."
-                )
+            HirType::TypeVariable(type_var) => {
+                let TypeBinding::Bound(binding) = &*type_var.borrow() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
+                };
+                return Self::convert_type_helper(binding, location, seen_types);
             }
 
             HirType::DataType(def, args) => {
@@ -1850,7 +1850,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                let input_type = typ.as_ref().clone();
+                let input_type = typ.clone();
                 if !seen_types.insert(input_type.clone()) {
                     let typ = input_type;
                     return Err(MonomorphizationError::RecursiveType { typ, location });
