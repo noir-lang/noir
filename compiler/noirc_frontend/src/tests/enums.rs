@@ -1,7 +1,8 @@
 use crate::elaborator::UnstableFeature;
 
 use crate::tests::{
-    assert_no_errors, check_errors, check_errors_using_features, get_program_using_features,
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
+    get_program_using_features,
 };
 
 #[test]
@@ -605,6 +606,111 @@ fn regression_7651() {
 
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
+}
+
+#[test]
+fn cannot_return_enum_from_unconstrained_to_constrained() {
+    // An enum's tag is an unconstrained `Field` witness when it crosses from an
+    // unconstrained runtime into a constrained one. Mirrors the entry-point rule
+    // (`regression_7651`) so a prover cannot supply an out-of-range tag and force
+    // the wrong match arm in the constrained caller.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    fn main() {
+        // safety:
+        unsafe {
+            let _foo = make_foo();
+                       ^^^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_foo() -> Foo {
+        Foo::Bar
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn cannot_return_enum_nested_in_struct_from_unconstrained_to_constrained() {
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    pub struct Wrapper {
+        foo: Foo,
+    }
+
+    fn main() {
+        // safety:
+        unsafe {
+            let _w = make_wrapper();
+                     ^^^^^^^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_wrapper() -> Wrapper {
+        Wrapper { foo: Foo::Bar }
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn can_pass_enum_from_constrained_to_unconstrained() {
+    // The reverse direction is fine: the enum is built in the constrained caller, so its tag
+    // is already valid by construction. Only returning an enum the other way is rejected.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    unconstrained fn consume(_foo: Foo) {}
+
+    fn main() {
+        // safety:
+        unsafe {
+            consume(Foo::Bar);
+        }
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn can_return_enum_from_unconstrained_to_unconstrained() {
+    // Returning an enum is only rejected when crossing into a constrained runtime.
+    // A purely unconstrained call chain has no constraints to subvert.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    unconstrained fn make_foo() -> Foo {
+        Foo::Bar
+    }
+
+    unconstrained fn main() {
+        let _foo = make_foo();
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
 }
 
 #[test]
