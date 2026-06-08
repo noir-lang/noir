@@ -2232,6 +2232,81 @@ impl Type {
         }
     }
 
+    /// Returns true if this type is, or contains anywhere in its structure, an enum.
+    pub(crate) fn contains_enum(&self) -> bool {
+        self.contains_enum_helper(TypeRecursionContext::default())
+    }
+
+    fn contains_enum_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Quoted(_)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Function(..)
+            | Type::Error => false,
+
+            Type::Reference(typ, _) => typ.contains_enum_helper(type_recursion_context.recur()),
+            Type::Array(typ, length) => {
+                length.contains_enum_helper(type_recursion_context.clone().recur())
+                    || typ.contains_enum_helper(type_recursion_context.recur())
+            }
+            Type::Vector(typ) => typ.contains_enum_helper(type_recursion_context.recur()),
+            Type::FmtString(length, typ) => {
+                length.contains_enum_helper(type_recursion_context.clone().recur())
+                    || typ.contains_enum_helper(type_recursion_context.recur())
+            }
+            Type::Tuple(types) => types
+                .iter()
+                .any(|typ| typ.contains_enum_helper(type_recursion_context.clone().recur())),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if typ.is_enum() {
+                    return true;
+                }
+                if type_recursion_context.insert_data_type(typ.id, generics.clone())
+                    && let Some(fields) = typ.get_fields(generics)
+                {
+                    return fields.iter().any(|(_, field, _)| {
+                        field.contains_enum_helper(type_recursion_context.clone().recur())
+                    });
+                }
+                false
+            }
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .contains_enum_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        binding.contains_enum_helper(type_recursion_context.recur())
+                    }
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => {
+                to.contains_enum_helper(type_recursion_context.recur())
+            }
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.contains_enum_helper(type_recursion_context.clone().recur())
+                    || rhs.contains_enum_helper(type_recursion_context.recur())
+            }
+        }
+    }
+
     pub(crate) fn contains_type_variable(&self) -> bool {
         self.contains_type_variable_helper(true)
     }
