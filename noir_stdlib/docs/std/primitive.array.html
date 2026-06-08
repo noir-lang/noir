@@ -126,26 +126,6 @@ the given array is interpreted as-is as a string.</p>
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
 
-<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(&mut self: &Self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
-<div class="where-clause">where
-    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns a new sorted array by sorting it with a custom comparison function.
-The original array remains untouched.
-The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
-<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
-<p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
-    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
-    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
-
-    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
-    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
-}</code></pre></div>
-</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
-
 <div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -292,6 +272,26 @@ sort any type, you should use the <a href="../std/primitive.array.html#sort_via"
     <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
     <span class="kw">let</span> sorted = arr.sort();
     <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
+}</code></pre></div>
+</div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; [T; N]</code></h3>
+
+<div class="padded-methods"><code id="sort_via" class="code-header">pub fn <a href="#sort_via"><span class="fn">sort_via</span></a>&lt;Env&gt;(&mut self: &Self, ordering: fn[Env](T, T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self
+<div class="where-clause">where
+    T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a new sorted array by sorting it with a custom comparison function.
+The original array remains untouched.
+The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
+<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
+    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
+    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
+
+    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
+    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
 }</code></pre></div>
 </div></div></main>
 </span>
