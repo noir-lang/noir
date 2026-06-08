@@ -646,10 +646,10 @@ pub enum LValue {
     Path(Path),
     /// `object.field_name`
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
-    /// array[index]
+    /// `array[index]`
     Index { array: Box<LValue>, index: Expression, location: Location },
-    /// A dereference target can be any expression. However, during elaboration
-    /// we check that its type is a mutable reference.
+    /// A dereference `*expression`. Its target can be any expression.
+    /// However, during elaboration we check that its type is a mutable reference.
     Dereference(Box<Expression>, Location),
     /// An LValue wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
