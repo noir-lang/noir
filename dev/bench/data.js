@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780941531246,
+  "lastUpdate": 1780942269112,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "62ec6ebe65f70095404160b83427b1647369f388",
-          "message": "fix(comptime): copy vector pop/remove temporaries to avoid aliasing source (#12887)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-03T12:23:56Z",
-          "tree_id": "f5b19236bd3f7813cc5da34fabc866c8700f8a9b",
-          "url": "https://github.com/noir-lang/noir/commit/62ec6ebe65f70095404160b83427b1647369f388"
-        },
-        "date": 1780491067884,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127930,
-            "range": "± 586",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113862,
-            "range": "± 2506",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3046279,
-            "range": "± 21483",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "359f1624ab73b63c9c0fc96f29b8448cf08f5af6",
           "message": "fix(ssa): keep sibling loop-bound error through ACIR unroll fallback (#12873)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
           "timestamp": "2026-06-03T13:27:39Z",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2641421,
             "range": "± 16789",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "95276223+TanayK07@users.noreply.github.com",
+            "name": "Tanay Kedia",
+            "username": "TanayK07"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "41259e33a3951252a2c68c73caa488de6abbbd7d",
+          "message": "feat: add max(), min(), and bits() methods for all integer types (#11741)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-06-08T17:43:50Z",
+          "tree_id": "681caf0768ac44ea65571124c596e0ee6dafdc6c",
+          "url": "https://github.com/noir-lang/noir/commit/41259e33a3951252a2c68c73caa488de6abbbd7d"
+        },
+        "date": 1780942191374,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 162404,
+            "range": "± 362",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145320,
+            "range": "± 209",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2129259,
+            "range": "± 1095",
             "unit": "ns/iter"
           }
         ]
