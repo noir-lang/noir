@@ -525,8 +525,7 @@ impl Context {
         }
 
         if !is_main && !is_global && u.ratio(1, 5)? {
-            // Read-only references require the experimental "ownership" feature.
-            typ = types::ref_mut(typ);
+            typ = types::ref_with_mut(typ, bool::arbitrary(u)?);
         }
 
         self.types.insert(typ.clone());

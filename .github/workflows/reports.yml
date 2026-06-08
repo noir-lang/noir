@@ -22,7 +22,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -42,6 +42,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store ACVM benchmarks result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "ACVM Benchmarks"
@@ -69,7 +71,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Build list of projects
         id: get_bench_projects
@@ -91,7 +93,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -127,7 +129,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -164,7 +166,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Install `bb`
         run: |
@@ -211,7 +213,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -265,7 +267,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -319,7 +321,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -367,7 +369,7 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           sparse-checkout: |
             .github/actions/download-binary/action.yml
@@ -376,7 +378,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -492,7 +494,7 @@ jobs:
 
     name: External repo memory report - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           # Note that we are checking them out under `scripts`, including the github action.
           path: scripts
@@ -508,7 +510,7 @@ jobs:
           name: nargo
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -608,7 +610,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -624,6 +626,8 @@ jobs:
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Compilation Time"
@@ -655,7 +659,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -671,6 +675,8 @@ jobs:
           jq --slurp 'map(.elaboration_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Elaboration Time"
@@ -702,7 +708,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -718,6 +724,8 @@ jobs:
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Execution Time"
@@ -749,7 +757,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -765,6 +773,8 @@ jobs:
           jq --slurp 'map(.artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Artifact Size"
@@ -796,7 +806,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -812,6 +822,8 @@ jobs:
           jq --slurp 'map(.num_opcodes | select(.))' ./reports/* | tee num_opcodes.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Opcode count"
@@ -843,7 +855,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -859,6 +871,8 @@ jobs:
           jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Brillig Compilation Time"
@@ -890,7 +904,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -906,6 +920,8 @@ jobs:
           jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Brillig Execution Time"
@@ -937,7 +953,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -953,6 +969,8 @@ jobs:
           jq --slurp 'map(.brillig_artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Brillig Artifact Size"
@@ -984,7 +1002,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download initial memory report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1005,6 +1023,8 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Compilation Memory"
@@ -1036,7 +1056,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download initial memory report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1057,6 +1077,8 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Execution Memory"

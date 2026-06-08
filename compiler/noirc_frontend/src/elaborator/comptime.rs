@@ -202,10 +202,19 @@ impl<'context> Elaborator<'context> {
     /// When elaborating code generated at comptime, we need to make all comptime
     /// variables available in the runtime scope. We iterate from global to local
     /// scope so that more local definitions naturally shadow outer ones.
+    ///
+    /// Within a single scope, bindings are registered in ascending
+    /// [crate::node_interner::DefinitionId] order. `DefinitionId`s are minted monotonically
+    /// as definitions are collected, so this matches source order: when a name is shadowed
+    /// within a comptime block (`let x = ...; let x = ...;`) the last `let` is registered
+    /// last and wins, just as it does at runtime. Iterating the scope's `FxHashMap`
+    /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
         for scope in &self.interner.comptime_scopes {
-            for definition_id in scope.keys() {
+            let mut definition_ids: Vec<_> = scope.keys().copied().collect();
+            definition_ids.sort();
+            for definition_id in &definition_ids {
                 let definition = self.interner.definition(*definition_id);
                 let name = definition.name.clone();
                 let location = definition.location;

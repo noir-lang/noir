@@ -32,7 +32,7 @@ impl ReferenceId {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct DefinitionId(pub(super) usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
