@@ -674,11 +674,11 @@ impl<F: AcirField> GeneratedAcir<F> {
                 .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
+        // Ensure every Brillig function we compile has a `brillig_locations`
+        // entry, even when it emits no per-opcode locations.
+        let brillig_locations = self.brillig_locations.entry(brillig_function_index).or_default();
         for (brillig_index, call_stack) in &generated_brillig.locations {
-            self.brillig_locations
-                .entry(brillig_function_index)
-                .or_default()
-                .insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
+            brillig_locations.insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
         }
     }
 

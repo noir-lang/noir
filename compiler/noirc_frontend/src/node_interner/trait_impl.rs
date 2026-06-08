@@ -95,6 +95,21 @@ impl NodeInterner {
         match existing {
             Err(ImplSearchErrorKind::NoMatching(_))
             | Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
+                // The incoming bound may describe an associated type inherited from a parent (or
+                // grandparent) trait, supplied as a fresh variable that does not unify with the
+                // rigid `<T as Trait>::Assoc` placeholder already stored on an existing assumed
+                // entry (hence the lookup found no match). Rather than register a second,
+                // divergent impl for the same object type, reconcile the associated types into
+                // the existing entry. Only entries with matching ordered generics are merged, so
+                // genuinely distinct bounds are never collapsed.
+                if self.merge_named_generics_into_assumed_impl(
+                    trait_id,
+                    &object_type,
+                    Some(&trait_generics.ordered),
+                    &trait_generics.named,
+                ) {
+                    return Ok(true);
+                }
                 let entries = self.trait_implementation_map.entry(trait_id).or_default();
                 entries.push((
                     object_type.clone(),
@@ -103,32 +118,18 @@ impl NodeInterner {
                 Ok(true)
             }
             Ok(_) => {
-                // When a parent trait constraint provides fresh type variables for
-                // associated types, replace the existing type variables
-                // with the new ones so they share the same binding.
-                if !trait_generics.named.is_empty()
-                    && let Some(entries) = self.trait_implementation_map.get_mut(&trait_id)
-                {
-                    for (_, impl_kind) in entries.iter_mut() {
-                        if let TraitImplKind::Assumed {
-                            object_type: existing_obj,
-                            trait_generics: existing_generics,
-                        } = impl_kind
-                            && *existing_obj == object_type
-                        {
-                            // Replace existing named generics with new ones by name
-                            for new_named in &trait_generics.named {
-                                for existing_named in &mut existing_generics.named {
-                                    if existing_named.name.as_str() == new_named.name.as_str() {
-                                        existing_named.typ = new_named.typ.clone();
-                                    }
-                                }
-                            }
-                            return Ok(true);
-                        }
-                    }
+                // A parent trait constraint may provide fresh variables for associated types we
+                // already have an assumed entry for; reconcile them so both share one binding.
+                if self.merge_named_generics_into_assumed_impl(
+                    trait_id,
+                    &object_type,
+                    None,
+                    &trait_generics.named,
+                ) {
+                    Ok(true)
+                } else {
+                    Ok(false)
                 }
-                Ok(false)
             }
             Err(
                 error @ (ImplSearchErrorKind::NoImplFound(_)
@@ -136,6 +137,69 @@ impl NodeInterner {
                 | ImplSearchErrorKind::RecursionLimitReached),
             ) => Err(error),
         }
+    }
+
+    /// Reconcile fresh associated-type bindings with an existing assumed impl entry for
+    /// `trait_id` whose object type equals `object_type`, so that a single assumed impl is kept
+    /// per object type and trait. This keeps the fresh per-function variables used to resolve
+    /// `T::Assoc` syntax in sync with the variables stored in the assumed impl used during
+    /// method-call resolution.
+    ///
+    /// For each associated type, the incoming binding overwrites the existing one *unless* doing
+    /// so would replace a usable binding with a rigid `<T as Trait>::Assoc` placeholder — such a
+    /// placeholder carries no extra information and would otherwise leave the associated type
+    /// unresolvable. This keeps the most-resolved binding regardless of registration order.
+    ///
+    /// When `require_matching_ordered` is `Some`, only an entry whose ordered generics equal it
+    /// is merged, so genuinely distinct bounds are not collapsed.
+    ///
+    /// Returns true if such an entry was found and reconciled; the caller then avoids registering
+    /// a duplicate entry.
+    fn merge_named_generics_into_assumed_impl(
+        &mut self,
+        trait_id: TraitId,
+        object_type: &Type,
+        require_matching_ordered: Option<&[Type]>,
+        named: &[NamedType],
+    ) -> bool {
+        if named.is_empty() {
+            return false;
+        }
+        let Some(entries) = self.trait_implementation_map.get_mut(&trait_id) else {
+            return false;
+        };
+        for (_, impl_kind) in entries.iter_mut() {
+            if let TraitImplKind::Assumed {
+                object_type: existing_obj,
+                trait_generics: existing_generics,
+            } = impl_kind
+                && *existing_obj == *object_type
+            {
+                if let Some(ordered) = require_matching_ordered
+                    && existing_generics.ordered.as_slice() != ordered
+                {
+                    // A genuinely distinct bound (different ordered generics) — keep looking
+                    // rather than collapsing it into this entry.
+                    continue;
+                }
+
+                for new_named in named {
+                    for existing_named in &mut existing_generics.named {
+                        if existing_named.name.as_str() != new_named.name.as_str() {
+                            continue;
+                        }
+                        let would_downgrade_to_placeholder =
+                            matches!(new_named.typ, Type::NamedGeneric(_))
+                                && !matches!(existing_named.typ, Type::NamedGeneric(_));
+                        if !would_downgrade_to_placeholder {
+                            existing_named.typ = new_named.typ.clone();
+                        }
+                    }
+                }
+                return true;
+            }
+        }
+        false
     }
 
     /// Replace each generic with a fresh type variable.

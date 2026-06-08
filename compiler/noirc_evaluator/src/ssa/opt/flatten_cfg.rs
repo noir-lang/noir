@@ -803,34 +803,35 @@ impl<'f> Context<'f> {
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
-        // When JmpIf's else_destination is the exit block, the else_arguments were stored
-        // in jmpif_else_arguments since there is no separate else block to read them from.
-        let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
-            args
-        } else if let Some(else_branch) = &cond_context.else_branch {
-            let last_else = else_branch.last_block.unwrap();
-            self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
-        } else {
-            Vec::new()
-        };
-
         let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
-
         let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());
+        // When JmpIf's else_destination is the exit block, the else_arguments were stored
+        // in jmpif_else_arguments since there is no separate else block to read them from.
+        let (else_args, else_branch) =
+            match (cond_context.jmpif_else_arguments, cond_context.else_branch) {
+                (Some(args), Some(else_branch)) => (args, else_branch),
+                (None, Some(else_branch)) => {
+                    let last_else = else_branch.last_block.unwrap();
+                    let args =
+                        self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
+                    (args, else_branch)
+                }
+                (Some(args), None) => {
+                    assert!(args.is_empty() && params.is_empty(), "malformed branch");
+                    return;
+                }
+                (None, None) => {
+                    assert!(params.is_empty(), "malformed branch");
+                    return;
+                }
+            };
         assert_eq!(params.len(), else_args.len());
-
-        if params.is_empty() {
-            return;
-        }
 
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let Some(else_branch) = cond_context.else_branch else {
-            unreachable!("malformed branch");
-        };
         let block = self.target_block;
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
