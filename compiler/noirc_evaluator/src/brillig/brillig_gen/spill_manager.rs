@@ -266,7 +266,7 @@ impl SpillManager {
         }
     }
 
-    /// Get the spill record for a value if it is currently spilled.
+    /// Get the spill record for a value if it is currently spilled and is not in a register.
     pub(crate) fn get_spill(&self, value_id: &ValueId) -> Option<&SpillRecord> {
         self.records.get(value_id).filter(|r| r.status.is_spilled())
     }
