@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780915303689,
+  "lastUpdate": 1780917589601,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a463a9b02788a2cf3e6447da40113d481af41d59",
-          "message": "chore: add regression test for PR 11654 (#12822)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-06-02T11:11:43Z",
-          "tree_id": "ceea7f35e504292d48ec33046e05d5913312c05d",
-          "url": "https://github.com/noir-lang/noir/commit/a463a9b02788a2cf3e6447da40113d481af41d59"
-        },
-        "date": 1780400073912,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167316,
-            "range": "± 485",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136209,
-            "range": "± 472",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647873,
-            "range": "± 36069",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040651,
             "range": "± 7225",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00b49d47625ac77e83b3c7c9d86b0ff830a9c9a0",
+          "message": "chore: regression test for ABI global struct field order (#12939)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-08T10:47:37Z",
+          "tree_id": "7a886292af9c8745d71e99d75b5644e00c763d0f",
+          "url": "https://github.com/noir-lang/noir/commit/00b49d47625ac77e83b3c7c9d86b0ff830a9c9a0"
+        },
+        "date": 1780917518606,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 170128,
+            "range": "± 734",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137063,
+            "range": "± 1432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642792,
+            "range": "± 2326",
             "unit": "ns/iter"
           }
         ]
