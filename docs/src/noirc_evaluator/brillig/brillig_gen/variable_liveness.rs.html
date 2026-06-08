@@ -349,7 +349,7 @@
 <a href=#349 id=349 data-nosnippet>349</a>
 <a href=#350 id=350 data-nosnippet>350</a>                <span class="comment">// Check results as well: if they are not used by anything after,
 <a href=#351 id=351 data-nosnippet>351</a>                // they can be deallocated. DIE should remove these, but in isolated
-<a href=#352 id=352 data-nosnippet>352</a>                // unit tests they can be expected to be removed.
+<a href=#352 id=352 data-nosnippet>352</a>                // unit tests they may not be removed.
 <a href=#353 id=353 data-nosnippet>353</a>                </span><span class="kw">let </span>unused_instruction_results =
 <a href=#354 id=354 data-nosnippet>354</a>                    variables_returned_by_instruction(<span class="kw-2">*</span>instruction_id, <span class="kw-2">&amp;</span>func.dfg)
 <a href=#355 id=355 data-nosnippet>355</a>                        .into_iter()
