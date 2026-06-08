@@ -16,7 +16,7 @@ fn bounded_recursive_type_errors() {
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
-                                              ^^^^^^^^^^^^ Type `Tree<Tree<()>>` is recursive
+                                              ^^^^^^^^^^^^ Type `Tree<()>` is recursive
                                               ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
@@ -65,6 +65,33 @@ fn recursive_type_with_alias_errors() {
         ";
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features, false);
+}
+
+#[test]
+fn recursive_type_behind_unused_generic_errors() {
+    // A recursive type used only as an *unused* generic argument reaches monomorphization
+    // through `check_type` rather than `convert_type` (the argument is never lowered to a
+    // field). `check_type` must still detect the recursion, exactly as `convert_type` does for
+    // a used position. Recursive types cannot be declared (the resolver rejects them with a
+    // dependency-cycle error), so we let monomorphization run past that error to exercise the
+    // `check_type` path directly.
+    let src = r#"
+    struct Phantom<T> { x: Field }
+    struct A { b: B }
+    struct B { a: A }
+    fn main() {
+        let _p: Phantom<A> = Phantom { x: 1 };
+    }
+    "#;
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::RecursiveType { .. }),
+        "expected RecursiveType, got: {err:?}"
+    );
 }
 
 #[test]
