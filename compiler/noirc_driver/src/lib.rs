@@ -613,12 +613,7 @@ pub fn compile_main(
         return Err(compilation_warnings);
     }
 
-    // Make sure we don't hide bugs, only warnings can be silenced.
-    warnings.extend(
-        compilation_warnings
-            .into_iter()
-            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
-    );
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
@@ -635,7 +630,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
     let mut contracts = def_map.get_all_contracts();
@@ -660,18 +655,21 @@ pub fn compile_contract(
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
     let contract = read_contract(context, module_id, name);
 
-    let mut errors = warnings;
-
     let compiled_contract = match compile_contract_inner(context, contract, options) {
         Ok(contract) => contract,
         Err(mut more_errors) => {
+            let mut errors = warnings;
             errors.append(&mut more_errors);
             return Err(errors);
         }
     };
 
-    if has_errors(&errors, options.deny_warnings) {
-        Err(errors)
+    let compilation_warnings =
+        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
+
+    if options.deny_warnings && !warnings.is_empty() {
+        Err(warnings)
     } else {
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
@@ -687,8 +685,7 @@ pub fn compile_contract(
                 println!("{}", contract_function.bytecode);
             }
         }
-        // errors here is either empty or contains only warnings
-        Ok((compiled_contract, errors))
+        Ok((compiled_contract, warnings))
     }
 }
 
@@ -1061,6 +1058,18 @@ struct Contract {
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,
+}
+
+/// Removes warning diagnostics when `silence_warnings` is set, while always retaining bugs
+/// so that a `silence_warnings` flag cannot hide them.
+fn drop_silenced_warnings(
+    diagnostics: Vec<CustomDiagnostic>,
+    options: &CompileOptions,
+) -> Vec<CustomDiagnostic> {
+    diagnostics
+        .into_iter()
+        .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
+        .collect()
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {

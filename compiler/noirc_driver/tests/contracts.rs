@@ -44,6 +44,28 @@ contract Bar {}";
     Ok(())
 }
 
+fn compile_contract_with_warnings(
+    source: &str,
+) -> (noirc_artifacts::contract::CompiledContract, Vec<CustomDiagnostic>) {
+    let root = Path::new("");
+    let file_name = Path::new("main.nr");
+    let mut file_manager = file_manager_with_stdlib(root);
+    file_manager.add_file_with_source(file_name, source.to_owned()).expect(
+        "Adding source buffer to file manager should never fail when file manager is empty",
+    );
+    let parsed_files = file_manager
+        .as_file_map()
+        .all_file_ids()
+        .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))
+        .collect();
+
+    let mut context = Context::new(file_manager, parsed_files);
+    let root_crate_id = prepare_crate(&mut context, file_name);
+
+    noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
+        .expect("contract should compile successfully")
+}
+
 fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledContract {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
@@ -64,6 +86,30 @@ fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledC
         noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
             .expect("contract should compile successfully");
     contract
+}
+
+#[test]
+fn reports_always_false_assertion_for_contracts() {
+    let source = "
+fn check<let CONSTRAINED: u32, let HANDSHAKE: u32>(x: Field) -> Field {
+    if CONSTRAINED == 1 {
+        assert(HANDSHAKE == 1, \"constrained delivery requires a handshake origin\");
+    }
+    x
+}
+
+contract VanillaContract {
+    pub fn entrypoint(x: pub Field) -> pub Field {
+        crate::check::<1, 0>(x)
+    }
+}";
+
+    let (_contract, warnings) = compile_contract_with_warnings(source);
+
+    assert!(
+        warnings.iter().any(|warning| warning.message.contains("Assertion is always false")),
+        "expected an 'Assertion is always false' diagnostic, got: {warnings:?}"
+    );
 }
 
 #[test]
