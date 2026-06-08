@@ -30,6 +30,24 @@ fn errors_if_oracle_declaration_has_function_body() {
 }
 
 #[test]
+fn deny_oracle_attribute_on_comptime() {
+    let src = r#"
+        #[oracle(foo)]
+        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is not allowed on comptime functions
+        pub unconstrained comptime fn foo(x: Field, y: Field) {}
+                                      ~~~ Oracle functions cannot be marked `comptime`
+
+        fn main() {
+            // safety: test
+            unsafe {
+                foo(1, 2);
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_oracle_returns_multiple_vectors() {
     let src = r#"
     #[oracle(oracle_call)]

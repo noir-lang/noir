@@ -400,6 +400,38 @@ fn error_if_calling_private_struct_function_from_extension() {
 }
 
 #[test]
+fn error_if_calling_private_struct_function_via_self_from_extension() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        impl Foo {
+            fn secret() -> u32 {
+                42
+            }
+        }
+    }
+
+    mod ext {
+        use super::foo::Foo;
+
+        impl Foo {
+            pub fn calls_secret_via_self() -> u32 {
+                Self::secret()
+                      ^^^^^^ secret is private and not visible from the current module
+                      ~~~~~~ secret is private
+            }
+        }
+    }
+
+    fn main() {
+        let _ = foo::Foo::calls_secret_via_self();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn does_not_error_when_accessing_private_module_through_super() {
     let src = r#"
     mod foo {
@@ -857,6 +889,40 @@ fn unnecessary_pub_on_argument() {
     pub fn foo(_: pub u32) {
                   ^^^ unnecessary pub keyword on parameter for function foo
                   ~~~ unnecessary pub parameter
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_fold_function_parameter() {
+    let src = "
+    fn main(x: Field) -> pub Field {
+        foo(x)
+    }
+
+    #[fold]
+    fn foo(x: pub Field) -> Field {
+              ^^^ unnecessary pub keyword on parameter for function foo
+              ~~~ unnecessary pub parameter
+        x + 1
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_fold_function_return_type() {
+    let src = "
+    fn main(x: Field) -> pub Field {
+        foo(x)
+    }
+
+    #[fold]
+    fn foo(x: Field) -> pub Field {
+                        ^^^ unnecessary pub keyword on return type for function foo
+                        ~~~ unnecessary pub return type
+        x + 1
     }
     ";
     check_errors(src);

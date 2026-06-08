@@ -60,7 +60,7 @@ pub use brillig_function_specialization::{
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;
 pub use unrolling::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
-pub(crate) use unrolling::{LoopOrder, Loops};
+pub(crate) use unrolling::{LoopBounds, LoopOrder, Loops};
 
 #[cfg(test)]
 use crate::ssa::{

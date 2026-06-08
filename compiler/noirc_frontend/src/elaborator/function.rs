@@ -504,10 +504,12 @@ impl Elaborator<'_> {
         }
     }
 
-    /// True if the `pub` keyword is allowed on parameters in this function
-    /// `pub` on function parameters is only allowed for entry point functions
+    /// True if the `pub` keyword is allowed on parameters in this function.
+    /// `pub` on function parameters is only allowed for entry point functions: a `#[fold]`
+    /// function is compiled to its own circuit but is only ever called internally, so its
+    /// inputs are not public inputs of the program.
     fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
-        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
+        func.is_entry_point(in_contract, is_crate_root)
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -600,6 +602,12 @@ impl Elaborator<'_> {
                 &mut parameter_names_in_list,
             );
 
+            if is_entry_point && !is_identifier_pattern(&pattern) {
+                self.push_err(TypeCheckError::InvalidPatternForEntryPoint {
+                    location: pattern.location(),
+                });
+            }
+
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
@@ -637,10 +645,10 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
         self.run_lint(|_| {
-            let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
-            lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
+            lints::unnecessary_pub_return(func, modifiers, func.is_entry_point).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_marked_as_comptime(modifiers, func).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_parameter_is_reference(func, modifiers).map(Into::into));
@@ -800,5 +808,15 @@ impl Elaborator<'_> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+    }
+}
+
+/// Whether a pattern binds the whole value to a single name. ABI generation requires this for
+/// entry point parameters since each parameter is keyed by a single name.
+fn is_identifier_pattern(pattern: &HirPattern) -> bool {
+    match pattern {
+        HirPattern::Identifier(_) => true,
+        HirPattern::Mutable(inner, _) => is_identifier_pattern(inner),
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }

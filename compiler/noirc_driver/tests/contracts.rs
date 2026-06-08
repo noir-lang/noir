@@ -97,7 +97,8 @@ contract Foo {
     // Check global output
     let foo_globals = contract.outputs.globals.get("foo").expect("expected 'foo' tag in globals");
     assert_eq!(foo_globals.len(), 1);
-    match &foo_globals[0] {
+    assert_eq!(foo_globals[0].name, "my_global");
+    match &foo_globals[0].value {
         AbiValue::Integer { value, sign } => {
             assert!(!sign, "expected positive integer");
             assert_eq!(value, "000000000000000000000000000000000000000000000000000000000000002a");
@@ -150,4 +151,77 @@ contract Foo {
 
     assert!(found_a, "struct A not found in 'things' tag");
     assert!(found_b, "struct B not found in 'things' tag");
+}
+
+#[test]
+fn abi_global_with_non_literal_initializer_is_evaluated_at_comptime() {
+    // Regression test for https://github.com/noir-lang/noir/issues/12695.
+    // An `#[abi]` global initialized with a non-literal expression (here `2 + 3`) used
+    // to ICE during ABI emission because the driver inspected the raw HIR expression
+    // instead of the comptime-evaluated value.
+    let source = "
+contract Probe {
+    #[abi(t)]
+    pub global G: Field = 2 + 3;
+}";
+
+    let contract = compile_contract_source(source);
+
+    let t_globals = contract.outputs.globals.get("t").expect("expected 't' tag in globals");
+    assert_eq!(t_globals.len(), 1);
+    match &t_globals[0].value {
+        AbiValue::Integer { value, sign } => {
+            assert!(!sign, "expected positive integer");
+            assert_eq!(value, "0000000000000000000000000000000000000000000000000000000000000005");
+        }
+        other => panic!("expected AbiValue::Integer for Field = 5, got: {other:?}"),
+    }
+}
+
+#[test]
+fn abi_tag_preserves_global_names_under_same_tag() {
+    let source = "
+contract Foo {
+    #[abi(constants)]
+    pub global PURPOSE_AUTHORIZE: str<27> = \"Authorize Aztec Transaction\";
+
+    #[abi(constants)]
+    pub global FEE_AMOUNT: Field = 100;
+
+    #[abi(error_codes)]
+    pub global ERR_NOT_FOUND: Field = 1;
+
+    #[abi(error_codes)]
+    pub global ERR_FORBIDDEN: Field = 2;
+}";
+
+    let contract = compile_contract_source(source);
+
+    let constants =
+        contract.outputs.globals.get("constants").expect("expected 'constants' tag in globals");
+    assert_eq!(constants.len(), 2);
+
+    let purpose = constants
+        .iter()
+        .find(|g| g.name == "PURPOSE_AUTHORIZE")
+        .expect("PURPOSE_AUTHORIZE not found");
+    match &purpose.value {
+        AbiValue::String { value } => assert_eq!(value, "Authorize Aztec Transaction"),
+        other => panic!("expected AbiValue::String for PURPOSE_AUTHORIZE, got: {other:?}"),
+    }
+
+    let fee = constants.iter().find(|g| g.name == "FEE_AMOUNT").expect("FEE_AMOUNT not found");
+    match &fee.value {
+        AbiValue::Integer { value, sign } => {
+            assert!(!sign);
+            assert_eq!(value, "0000000000000000000000000000000000000000000000000000000000000064");
+        }
+        other => panic!("expected AbiValue::Integer for FEE_AMOUNT, got: {other:?}"),
+    }
+
+    let error_codes =
+        contract.outputs.globals.get("error_codes").expect("expected 'error_codes' tag in globals");
+    assert_eq!(error_codes.len(), 2);
+    assert!(error_codes.iter().any(|g| g.name == "ERR_NOT_FOUND"));
+    assert!(error_codes.iter().any(|g| g.name == "ERR_FORBIDDEN"));
 }

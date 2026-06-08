@@ -1574,8 +1574,15 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat_n(element, length as usize).collect();
+                let array = if elem.contains_reference() {
+                    // A reference becomes a fresh `Value::Pointer`. Cloning one shares its
+                    // underlying cell, so build an independent zeroed value per slot instead
+                    // of repeating a single element, matching the `Tuple` arm below.
+                    (0..length).map(|_| zeroed(elem.as_ref().clone(), location)).collect()
+                } else {
+                    let element = zeroed(elem.as_ref().clone(), location);
+                    std::iter::repeat_n(element, length as usize).collect()
+                };
                 Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later

@@ -188,13 +188,26 @@ impl Monomorphizer<'_> {
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type, location);
-                ast::Expression::Literal(ast::Literal::Repeated {
-                    element: Box::new(element),
-                    length: *length,
-                    is_vector: false,
-                    typ: ast::Type::Array(*length, element_type.clone()),
-                })
+                let typ = ast::Type::Array(*length, element_type.clone());
+                if element_type.contains_reference() {
+                    // A reference lowers to a single `allocate`, so a repeated array literal would
+                    // make every slot share one allocation. Author N independent elements instead
+                    // so each slot gets its own cell, matching the `Tuple` arm below.
+                    let contents =
+                        vecmap(0..*length, |_| self.zeroed_value_of_type(element_type, location));
+                    ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                        contents,
+                        typ,
+                    }))
+                } else {
+                    let element = self.zeroed_value_of_type(element_type, location);
+                    ast::Expression::Literal(ast::Literal::Repeated {
+                        element: Box::new(element),
+                        length: *length,
+                        is_vector: false,
+                        typ,
+                    })
+                }
             }
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str(vec![0; *length as usize]))

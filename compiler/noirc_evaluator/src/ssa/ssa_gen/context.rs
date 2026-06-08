@@ -112,6 +112,23 @@ pub(super) struct Loop {
 /// The queue of functions remaining to compile
 type FunctionQueue = Vec<(FuncId, IrFunctionId)>;
 
+/// True if `array[i]` requires an explicit SSA out-of-bounds check rather
+/// than relying on ACIR's implicit OOB check on the underlying memory op.
+///
+/// ACIR derives the implicit check from the memory op emitted for
+/// `array_get` / `array_set`. When the array's element flattens to zero
+/// ACIR cells (e.g. `[(); N]`), no memory op is laid down — for `array_get`
+/// the access can be optimized away, and for `array_set` the value to
+/// store has zero cells to write — so the implicit check is missing and an
+/// explicit one must be emitted. Brillig has no implicit check at all and
+/// always needs the explicit one. `array_type` must be a `Type::Array`.
+pub(super) fn array_index_needs_explicit_oob_check(
+    runtime: RuntimeType,
+    array_type: &Type,
+) -> bool {
+    runtime.is_brillig() || array_type.element_size().0 == 0
+}
+
 impl<'a> FunctionContext<'a> {
     /// Create a new FunctionContext to compile the first function in the shared_context's
     /// function queue.
@@ -861,16 +878,16 @@ impl<'a> FunctionContext<'a> {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
                 let array_type = &self.builder.type_of_value(array);
+                let runtime = self.builder.current_function.runtime();
 
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
-                        // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-                        // We then only need to inject it for brillig functions.
-                        if self.builder.current_function.runtime().is_brillig() {
+                        if array_index_needs_explicit_oob_check(runtime, array_type) {
                             let len = self
                                 .builder
                                 .numeric_constant(u128::from(len.0), NumericType::length_type());
+                            self.builder.set_location(location);
                             self.codegen_access_check(index, len);
                         }
                     }
