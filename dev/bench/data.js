@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780739901631,
+  "lastUpdate": 1780913829075,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23170,48 +23170,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "6b06b8a2bb64c297c61c285d4cdc2d2a06929a29",
-          "message": "chore(docs): Generalize ECDSA doc page for all signatures (#12874)",
-          "timestamp": "2026-06-01T21:37:22Z",
-          "tree_id": "7d97e59598d34146acf8c20eb2c380bc940a31f9",
-          "url": "https://github.com/noir-lang/noir/commit/6b06b8a2bb64c297c61c285d4cdc2d2a06929a29"
-        },
-        "date": 1780351963316,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167417,
-            "range": "± 490",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136499,
-            "range": "± 4864",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646458,
-            "range": "± 6665",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "1767124ec35c63f075c45e7723c6342b1bcf8678",
           "message": "chore(docs): Add links to BigNum, BigCurve, and Base64 in docs (#12871)",
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2653733,
             "range": "± 23954",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "48a92be208e037fe339d2220c62d79f44f5e8259",
+          "message": "chore(deps): bump nwtgck/actions-netlify from 3.0.0 to 4.0.0 (#12940)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-08T09:52:01Z",
+          "tree_id": "487f312326bab40d19ffe4fa64f4fff0f03cb685",
+          "url": "https://github.com/noir-lang/noir/commit/48a92be208e037fe339d2220c62d79f44f5e8259"
+        },
+        "date": 1780913761268,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166120,
+            "range": "± 778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 134768,
+            "range": "± 1824",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652194,
+            "range": "± 12241",
             "unit": "ns/iter"
           }
         ]
