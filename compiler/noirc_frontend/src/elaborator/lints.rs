@@ -288,14 +288,10 @@ pub(super) fn oracle_parameter_is_reference(
         return None;
     }
 
-    let has_reference_parameter =
-        func.parameters.iter().any(|(_, typ, _)| typ.contains_reference());
-    if has_reference_parameter {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleParameterIsReference { location: ident.location() })
-    } else {
-        None
-    }
+    let reference_parameter = func.parameters.iter().find(|(_, typ, _)| typ.contains_reference());
+    reference_parameter.map(|(pattern, _, _)| ResolverError::OracleParameterIsReference {
+        location: pattern.location(),
+    })
 }
 
 /// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`

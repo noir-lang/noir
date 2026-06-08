@@ -176,7 +176,7 @@ fn errors_if_oracle_has_mutable_reference_parameter() {
     let src = r#"
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call(x: &mut Field) {}
-                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+                                     ^ Oracle functions cannot accept references as parameters
     "#;
     check_errors(src);
 }
@@ -186,7 +186,7 @@ fn errors_if_oracle_has_immutable_reference_parameter() {
     let src = r#"
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call(x: &Field) {}
-                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+                                     ^ Oracle functions cannot accept references as parameters
     "#;
     check_errors_using_features(src, &[]);
 }
@@ -196,7 +196,7 @@ fn errors_if_oracle_has_reference_parameter_in_tuple() {
     let src = r#"
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call(x: (Field, &Field)) {}
-                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+                                     ^ Oracle functions cannot accept references as parameters
     "#;
     check_errors_using_features(src, &[]);
 }
@@ -210,7 +210,7 @@ fn errors_if_oracle_has_reference_parameter_in_struct() {
 
     #[oracle(oracle_call)]
     pub unconstrained fn oracle_call(x: Foo) {}
-                         ^^^^^^^^^^^ Oracle functions cannot accept references as parameters
+                                     ^ Oracle functions cannot accept references as parameters
     "#;
     check_errors_using_features(src, &[]);
 }
