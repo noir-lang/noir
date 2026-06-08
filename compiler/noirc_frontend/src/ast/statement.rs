@@ -642,22 +642,16 @@ impl AssignOpKind {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
+    /// A path like `foo::bar`
     Path(Path),
-    MemberAccess {
-        object: Box<LValue>,
-        field_name: Ident,
-        location: Location,
-    },
-    Index {
-        array: Box<LValue>,
-        index: Expression,
-        location: Location,
-    },
-    /// The operand of a dereference is a value expression that evaluates to a reference, mirroring
-    /// the place-expression rules in Rust. This is what allows `*(&mut x) = ...` (and any other
-    /// reference-producing expression) on the left-hand side of an assignment, not just chains of
-    /// places like `*x`.
+    /// `object.field_name`
+    MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
+    /// array[index]
+    Index { array: Box<LValue>, index: Expression, location: Location },
+    /// A dereference target can be any expression. However, during elaboration
+    /// we check that its type is a mutable reference.
     Dereference(Box<Expression>, Location),
+    /// An LValue wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
 }
 
@@ -778,9 +772,6 @@ impl LValue {
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    // The operand of a dereference is kept as a value expression rather than being
-                    // recursively required to be a place. Whether it actually evaluates to a
-                    // (mutable) reference is checked during elaboration.
                     Some(LValue::Dereference(Box::new(prefix.rhs), location))
                 } else {
                     None
