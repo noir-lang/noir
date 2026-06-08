@@ -1,13 +1,19 @@
 use crate::{
     errors::{RtResult, RuntimeError},
     ssa::{
-        ir::{dfg::DataFlowGraph, function::Function, instruction::Instruction, value::ValueId},
+        ir::{
+            dfg::DataFlowGraph,
+            function::Function,
+            instruction::{Instruction, Intrinsic},
+            value::{Value, ValueId},
+        },
         ssa_gen::Ssa,
     },
 };
 
-/// Verifies there are no `array_get` or `array_set` instructions remaining
-/// with dynamic indices where the element type may contain a reference type.
+/// Verifies there are no `array_get`, `array_set`, or dynamically-indexed vector
+/// intrinsics remaining with dynamic indices where the element type may contain a
+/// reference type.
 /// This effectively bans dynamic-indexing of arrays with reference elements
 /// since we cannot guarantee we optimize references out of the program in that case.
 ///
@@ -35,6 +41,29 @@ fn verify_function(function: &Function) -> RtResult<()> {
                     let contains_reference = array_type.contains_reference();
 
                     if contains_reference && !is_non_dynamic(&function.dfg, *index) {
+                        let call_stack = function.dfg.get_instruction_call_stack(*instruction);
+                        return Err(RuntimeError::DynamicIndexingWithReference { call_stack });
+                    }
+                }
+                // These vector intrinsics return an element of the vector. If the length or index
+                // they select with is dynamic, the returned reference is dynamic too, so we error.
+                Instruction::Call { func, arguments } => {
+                    let Value::Intrinsic(intrinsic) = function.dfg[*func] else {
+                        continue;
+                    };
+                    let selectors: &[ValueId] = match intrinsic {
+                        Intrinsic::VectorRemove => &[arguments[0], arguments[2]],
+                        Intrinsic::VectorInsert => &[arguments[2]],
+                        Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => &[arguments[0]],
+                        _ => continue,
+                    };
+
+                    let vector_type = function.dfg.type_of_value(arguments[1]);
+                    let contains_reference = vector_type.contains_reference();
+                    let is_dynamic =
+                        selectors.iter().any(|value| !is_non_dynamic(&function.dfg, *value));
+
+                    if contains_reference && is_dynamic {
                         let call_stack = function.dfg.get_instruction_call_stack(*instruction);
                         return Err(RuntimeError::DynamicIndexingWithReference { call_stack });
                     }
@@ -134,5 +163,140 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let result = verify_no_dynamic_indices_to_references(&ssa);
         assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
+    }
+
+    #[test]
+    fn dynamic_vector_remove_of_references() {
+        // https://github.com/noir-lang/noir-claude/issues/1363
+        // fn main(i: u32) -> pub Field {
+        //     let mut x = 10;
+        //     let mut y = 20;
+        //     let v: [&mut Field] = [&mut x, &mut y].as_vector();
+        //     let (_v2, removed) = v.remove(i);
+        //     y = 77;
+        //     *removed
+        // }
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 10 at v1
+            store Field 20 at v2
+            v3 = make_array [v1, v2] : [&mut Field]
+            v4, v5, v6 = call vector_remove(u32 2, v3, v0) -> (u32, [&mut Field], &mut Field)
+            store Field 77 at v2
+            v7 = load v6 -> Field
+            return v7
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
+    }
+
+    #[test]
+    fn dynamic_vector_insert_of_references() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 10 at v1
+            store Field 20 at v2
+            v3 = make_array [v1, v2] : [&mut Field]
+            v4, v5 = call vector_insert(u32 2, v3, v0, v1) -> (u32, [&mut Field])
+            return u1 0
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
+    }
+
+    #[test]
+    fn dynamic_length_vector_pop_back_of_references() {
+        // A `pop_back` reads element `length - 1`; a dynamic length is therefore a dynamic
+        // reference selection even though the popped position is "the last element".
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 10 at v1
+            store Field 20 at v2
+            v3 = make_array [v1, v2] : [&mut Field]
+            v4, v5, v6 = call vector_pop_back(v0, v3) -> (u32, [&mut Field], &mut Field)
+            v7 = load v6 -> Field
+            return v7
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
+    }
+
+    #[test]
+    fn dynamic_length_vector_pop_front_of_references() {
+        // A `pop_front` reads element `0`, but cannot be resolved without a constant length,
+        // so a dynamic length is rejected here too.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 10 at v1
+            store Field 20 at v2
+            v3 = make_array [v1, v2] : [&mut Field]
+            v6, v4, v5 = call vector_pop_front(v0, v3) -> (&mut Field, u32, [&mut Field])
+            v7 = load v6 -> Field
+            return v7
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
+    }
+
+    #[test]
+    fn constant_length_vector_pop_back_of_references_is_allowed() {
+        // A constant length can be resolved by simplification, so it must not be rejected.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 10 at v1
+            store Field 20 at v2
+            v3 = make_array [v1, v2] : [&mut Field]
+            v4, v5, v6 = call vector_pop_back(u32 2, v3) -> (u32, [&mut Field], &mut Field)
+            v7 = load v6 -> Field
+            return v7
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn constant_vector_remove_of_references_is_allowed() {
+        // A constant remove index can be resolved by mem2reg, so it must not be rejected.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 10 at v1
+            store Field 20 at v2
+            v3 = make_array [v1, v2] : [&mut Field]
+            v4, v5, v6 = call vector_remove(u32 2, v3, u32 1) -> (u32, [&mut Field], &mut Field)
+            v7 = load v6 -> Field
+            return v7
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(result.is_ok());
     }
 }
