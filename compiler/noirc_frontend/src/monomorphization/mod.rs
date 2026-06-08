@@ -1857,10 +1857,9 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let monomorphized_default =
                     Self::convert_type_helper(&default, location, seen_types)?;
+
                 binding.bind(default);
 
-                // No need to remove `input_type` from `seen_types`: the type variable is now bound,
-                // so `follow_bindings_shallow` substitutes it away and it is never traversed here again.
                 monomorphized_default
             }
 
