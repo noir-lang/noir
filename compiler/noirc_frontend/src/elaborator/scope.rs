@@ -53,10 +53,15 @@ impl Elaborator<'_> {
         module: LocalModuleId,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let previous = self.local_module.replace(module);
+        let previous = self.replace_local_module(module);
         let result = f(self);
         self.local_module = previous;
         result
+    }
+
+    #[must_use]
+    pub(super) fn replace_local_module(&mut self, module: LocalModuleId) -> Option<LocalModuleId> {
+        self.local_module.replace(module)
     }
 
     pub(super) fn get_type(&self, type_id: TypeId) -> Shared<DataType> {

@@ -141,7 +141,7 @@ impl Elaborator<'_> {
             UnresolvedFunctions,
         )>,
     ) {
-        let previous_local_module = self.local_module.replace(local_module);
+        let previous_local_module = self.replace_local_module(local_module);
 
         for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
@@ -692,7 +692,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        let previous_local_module = self.local_module.replace(func_meta.source_module);
+        let previous_local_module = self.replace_local_module(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
         self.current_trait = func_meta.trait_id;

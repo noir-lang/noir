@@ -117,7 +117,7 @@ impl Elaborator<'_> {
         )],
         self_type: &UnresolvedType,
     ) {
-        let previous_local_module = self.local_module.replace(module);
+        let previous_local_module = self.replace_local_module(module);
 
         for (generics, _, location, unresolved) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
