@@ -4033,6 +4033,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "siphasher",
  "small-ord-set",
  "smol_str",
  "strum",
