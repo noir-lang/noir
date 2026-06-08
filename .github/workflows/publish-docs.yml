@@ -42,16 +42,12 @@ jobs:
         run: yarn build
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@d22a32a27c918fe470bbc562e984f80ec48c2668 # v4.0.0
-        with:
-          publish-dir: "./docs/build"
-          production-branch: master
-          production-deploy: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.noir-ref }}"
-          enable-commit-comment: false
+        run: |
+          npx --yes netlify-cli@26.1.0 deploy \
+            --dir ./docs/build \
+            --prod \
+            --message "Deploy from GitHub Actions for ${{ github.sha }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
+        timeout-minutes: 15
