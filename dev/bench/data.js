@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780930240337,
+  "lastUpdate": 1780933860640,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e108bab2cb087795c8c4f6cd33177748aaca3410",
-          "message": "fix(frontend): keep singleton tuple arity in comptime pattern reflection (#12879)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-02T20:12:29Z",
-          "tree_id": "ba8062b7a73d747335c572ccaa679e1be58e111f",
-          "url": "https://github.com/noir-lang/noir/commit/e108bab2cb087795c8c4f6cd33177748aaca3410"
-        },
-        "date": 1780432894185,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128115,
-            "range": "± 417",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113391,
-            "range": "± 2823",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041587,
-            "range": "± 5590",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041980,
             "range": "± 3449",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6eaa74ecd6942d550c995a93bb3669303d2678b8",
+          "message": "chore(docs): use a neutral voice in web app and oracles guides (#12941)",
+          "timestamp": "2026-06-08T16:46:35+01:00",
+          "tree_id": "85c81a25ad1e5fa75402e307d4f05ad5ccdecee5",
+          "url": "https://github.com/noir-lang/noir/commit/6eaa74ecd6942d550c995a93bb3669303d2678b8"
+        },
+        "date": 1780933790529,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 132308,
+            "range": "± 351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 115779,
+            "range": "± 2155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3044566,
+            "range": "± 1601",
             "unit": "ns/iter"
           }
         ]
