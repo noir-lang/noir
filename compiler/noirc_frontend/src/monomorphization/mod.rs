@@ -1823,24 +1823,17 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
+            HirType::NamedGeneric(NamedGeneric { type_var, .. })
+            | HirType::TypeVariable(type_var) => {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
-                // This used to default to Field, but doing so could result in an invalid SSA.
                 return Err(MonomorphizationError::NoDefaultType { location });
             }
 
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
                 Self::convert_type_helper(to, location, seen_types)?
-            }
-
-            HirType::TypeVariable(type_var) => {
-                let TypeBinding::Bound(binding) = &*type_var.borrow() else {
-                    return Err(MonomorphizationError::NoDefaultType { location });
-                };
-                return Self::convert_type_helper(binding, location, seen_types);
             }
 
             HirType::DataType(def, args) => {
