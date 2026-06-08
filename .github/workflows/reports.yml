@@ -53,10 +53,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   benchmark-projects-list:
@@ -637,10 +636,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_elaboration_reports:
@@ -686,10 +684,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_execution_reports:
@@ -735,10 +732,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_artifact_reports:
@@ -784,10 +780,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_opcode_reports:
@@ -833,10 +828,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "110%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_brillig_compilation_reports:
@@ -882,10 +876,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_brillig_execution_reports:
@@ -931,10 +924,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_brillig_artifact_reports:
@@ -980,10 +972,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_compilation_memory_report:
@@ -1034,10 +1025,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_execution_memory_report:
@@ -1088,10 +1078,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   # This is a job which depends on all test jobs and reports the overall status.
