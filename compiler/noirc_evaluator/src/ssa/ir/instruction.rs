@@ -199,13 +199,14 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             // These imply a check that the vector is non-empty and should fail otherwise.
-            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
+            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsVector
             | Intrinsic::VectorPushBack
             | Intrinsic::VectorPushFront
+            | Intrinsic::VectorInsert
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators

@@ -15,66 +15,88 @@ pub enum InvalidType {
 
 impl InvalidType {
     pub(crate) fn add_to_diagnostic(&self, location: Location, diagnostic: &mut CustomDiagnostic) {
+        self.add_to_diagnostic_in_context(location, diagnostic, "entry point");
+    }
+
+    pub(crate) fn add_to_abi_diagnostic(
+        &self,
+        location: Location,
+        diagnostic: &mut CustomDiagnostic,
+    ) {
+        self.add_to_diagnostic_in_context(location, diagnostic, "ABI");
+    }
+
+    fn add_to_diagnostic_in_context(
+        &self,
+        location: Location,
+        diagnostic: &mut CustomDiagnostic,
+        context: &str,
+    ) {
         match self {
             InvalidType::Primitive(typ) => match typ {
-                // Use a slightly better message for common types that might be used as entry point types
                 Type::Unit => {
-                    diagnostic.add_secondary(
-                        "Unit is not a valid entry point type".to_string(),
-                        location,
-                    );
+                    diagnostic
+                        .add_secondary(format!("Unit is not a valid {context} type"), location);
                 }
                 Type::Reference(..) => {
                     diagnostic.add_secondary(
-                        format!("Reference is not a valid entry point type. Found: {typ}"),
+                        format!("Reference is not a valid {context} type. Found: {typ}"),
                         location,
                     );
                 }
                 Type::Vector(..) => {
                     diagnostic.add_secondary(
-                        format!("Vector is not a valid entry point type. Found: {typ}"),
+                        format!("Vector is not a valid {context} type. Found: {typ}"),
                         location,
                     );
                 }
                 _ => {
-                    diagnostic.add_secondary(format!("Invalid entry point type: {typ}"), location);
+                    diagnostic.add_secondary(format!("Invalid {context} type: {typ}"), location);
                 }
             },
             InvalidType::Enum(typ) => {
                 diagnostic.add_secondary(
-                    format!("Enum is not yet allowed as an entry point type. Found: {typ}"),
+                    format!("Enum is not yet allowed as an {context} type. Found: {typ}"),
                     location,
                 );
             }
             InvalidType::EmptyArray(typ) => {
                 diagnostic.add_secondary(
-                    format!("Empty array is not a valid entry point type. Found: {typ}"),
+                    format!("Empty array is not a valid {context} type. Found: {typ}"),
                     location,
                 );
             }
             InvalidType::EmptyString(typ) => {
                 diagnostic.add_secondary(
-                    format!("Empty string is not a valid entry point type. Found: {typ}"),
+                    format!("Empty string is not a valid {context} type. Found: {typ}"),
                     location,
                 );
             }
             InvalidType::StructField { struct_name, field_name, invalid_type } => {
                 diagnostic.add_secondary(
-                    format!("Struct {struct_name} has an invalid entry point type"),
+                    format!("Struct {struct_name} has an invalid {context} type"),
                     struct_name.location(),
                 );
                 diagnostic.add_secondary(
-                    format!("Field {field_name} has an invalid entry point type"),
+                    format!("Field {field_name} has an invalid {context} type"),
                     field_name.location(),
                 );
-                invalid_type.add_to_diagnostic(field_name.location(), diagnostic);
+                invalid_type.add_to_diagnostic_in_context(
+                    field_name.location(),
+                    diagnostic,
+                    context,
+                );
             }
             InvalidType::Alias { alias_name, invalid_type } => {
                 diagnostic.add_secondary(
-                    format!("Alias {alias_name} has an invalid entry point type"),
+                    format!("Alias {alias_name} has an invalid {context} type"),
                     alias_name.location(),
                 );
-                invalid_type.add_to_diagnostic(alias_name.location(), diagnostic);
+                invalid_type.add_to_diagnostic_in_context(
+                    alias_name.location(),
+                    diagnostic,
+                    context,
+                );
             }
         }
     }

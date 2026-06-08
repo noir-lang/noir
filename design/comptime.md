@@ -24,3 +24,11 @@ to further comptime errors elsewhere.
 
 Comptime functions mutating existing items in the source code should generally be avoided
 due to security concerns. These can make auditing code more difficult in particular.
+
+# Hashing of comptime items
+
+The comptime `hash` builtins (`Type::hash`, `Quoted::hash`, etc.) make no guarantee that an
+item hashes to the same value from one compiler version to the next. They do guarantee that a
+single compiler version produces the same hash in every build environment: the hash does not
+depend on the Rust toolchain the compiler was built with or the target it runs on, so Noir
+code compiles identically across platforms.
