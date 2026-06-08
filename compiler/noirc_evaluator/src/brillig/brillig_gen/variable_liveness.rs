@@ -349,7 +349,7 @@ impl VariableLiveness {
 
                 // Check results as well: if they are not used by anything after,
                 // they can be deallocated. DIE should remove these, but in isolated
-                // unit tests they can be expected to be removed.
+                // unit tests they may not be removed.
                 let unused_instruction_results =
                     variables_returned_by_instruction(*instruction_id, &func.dfg)
                         .into_iter()
