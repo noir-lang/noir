@@ -667,6 +667,30 @@ fn cannot_return_enum_nested_in_struct_from_unconstrained_to_constrained() {
 }
 
 #[test]
+fn can_pass_enum_from_constrained_to_unconstrained() {
+    // The reverse direction is fine: the enum is built in the constrained caller, so its tag
+    // is already valid by construction. Only returning an enum the other way is rejected.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    unconstrained fn consume(_foo: Foo) {}
+
+    fn main() {
+        // safety:
+        unsafe {
+            consume(Foo::Bar);
+        }
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
 fn can_return_enum_from_unconstrained_to_unconstrained() {
     // Returning an enum is only rejected when crossing into a constrained runtime.
     // A purely unconstrained call chain has no constraints to subvert.
