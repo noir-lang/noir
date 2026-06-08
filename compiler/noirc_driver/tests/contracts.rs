@@ -179,6 +179,61 @@ contract Probe {
 }
 
 #[test]
+fn abi_global_struct_value_uses_declared_field_order() {
+    // Regression test for https://github.com/noir-lang/noir-claude/issues/1375.
+    // A struct global written with constructor fields out of declaration order used to
+    // emit `AbiValue::Struct.fields` in source-constructor order instead of the struct's
+    // declared field order, leaving downstream consumers that index fields by position
+    // with semantically misplaced values.
+    let source = "
+contract Foo {
+    pub struct Pair {
+        first: Field,
+        second: Field,
+    }
+
+    #[abi(g)]
+    pub global REVERSED: Pair = Pair { second: 2, first: 1 };
+
+    #[abi(g)]
+    pub global NORMAL: Pair = Pair { first: 1, second: 2 };
+}";
+
+    let contract = compile_contract_source(source);
+
+    let globals = contract.outputs.globals.get("g").expect("expected 'g' tag in globals");
+
+    let expected = [
+        ("first", "0000000000000000000000000000000000000000000000000000000000000001"),
+        ("second", "0000000000000000000000000000000000000000000000000000000000000002"),
+    ];
+
+    // Both globals are semantically `Pair { first: 1, second: 2 }` and must serialize
+    // with the same declared field order regardless of how the constructor was written.
+    for name in ["REVERSED", "NORMAL"] {
+        let global = globals.iter().find(|g| g.name == name).expect("global not found");
+        match &global.value {
+            AbiValue::Struct { fields } => {
+                assert_eq!(fields.len(), 2, "{name} should have two fields");
+                for ((field_name, field_value), (expected_name, expected_value)) in
+                    fields.iter().zip(expected)
+                {
+                    assert_eq!(field_name, expected_name, "{name} field name out of order");
+                    match field_value {
+                        AbiValue::Integer { value, sign } => {
+                            assert!(!sign, "{name}.{field_name} should be positive");
+                            assert_eq!(value, expected_value, "{name}.{field_name} value mismatch");
+                        }
+                        other => panic!("expected AbiValue::Integer, got: {other:?}"),
+                    }
+                }
+            }
+            other => panic!("expected AbiValue::Struct for {name}, got: {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn abi_tag_preserves_global_names_under_same_tag() {
     let source = "
 contract Foo {
