@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780913829075,
+  "lastUpdate": 1780914068336,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "1767124ec35c63f075c45e7723c6342b1bcf8678",
-          "message": "chore(docs): Add links to BigNum, BigCurve, and Base64 in docs (#12871)",
-          "timestamp": "2026-06-01T21:38:24Z",
-          "tree_id": "ed71da47f703fc80e98d47e3c502a836a59dcdaf",
-          "url": "https://github.com/noir-lang/noir/commit/1767124ec35c63f075c45e7723c6342b1bcf8678"
-        },
-        "date": 1780352171178,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169139,
-            "range": "± 486",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138079,
-            "range": "± 2803",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648310,
-            "range": "± 2680",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "ce45b7f55e4785c974a4212b1597d34b9b7f610c",
           "message": "chore(docs): Update MCP server links (#12875)",
           "timestamp": "2026-06-02T03:09:28Z",
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2652194,
             "range": "± 12241",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3b78c15ecc876c752d30bce7f8567ad002da6fa5",
+          "message": "chore(deps): bump log from 0.4.30 to 0.4.31 (#12904)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-08T09:52:33Z",
+          "tree_id": "605055a20c10c1bdc4bd297b8984023dfd5693a4",
+          "url": "https://github.com/noir-lang/noir/commit/3b78c15ecc876c752d30bce7f8567ad002da6fa5"
+        },
+        "date": 1780913990024,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 161849,
+            "range": "± 384",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144475,
+            "range": "± 256",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2127317,
+            "range": "± 2192",
             "unit": "ns/iter"
           }
         ]
