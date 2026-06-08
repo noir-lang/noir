@@ -226,18 +226,20 @@ fn evaluate_static_assert(
         return Ok(false);
     }
 
-    let message = match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params)
-    {
-        Ok(display_values) => display_values.to_string(),
-        Err(err) => match err {
-            TryFromParamsError::MissingForeignCallInputs => {
-                panic!("ICE: missing foreign call inputs")
-            }
-            TryFromParamsError::ParsingError(error) => {
-                panic!("ICE: could not decode printable type {error:?}")
-            }
-        },
-    };
+    // `static_assert` does not dereference references in its message, so a reference is decoded
+    // from its address (rendered as `<<ref>>`).
+    let message =
+        match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params, false) {
+            Ok(display_values) => display_values.to_string(),
+            Err(err) => match err {
+                TryFromParamsError::MissingForeignCallInputs => {
+                    panic!("ICE: missing foreign call inputs")
+                }
+                TryFromParamsError::ParsingError(error) => {
+                    panic!("ICE: could not decode printable type {error:?}")
+                }
+            },
+        };
 
     let call_stack = function.dfg.get_instruction_call_stack(instruction);
     if !function.dfg.is_constant(arguments[0]) {

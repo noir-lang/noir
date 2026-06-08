@@ -66,11 +66,10 @@ impl<F: AcirField> DebugVars<F> {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
         let printable_type = self.types.get(type_id).unwrap();
 
-        self.frames
-            .last_mut()
-            .expect("unexpected empty stack frames")
-            .1
-            .insert(var_id, decode_printable_value(&mut values.iter().copied(), printable_type));
+        self.frames.last_mut().expect("unexpected empty stack frames").1.insert(
+            var_id,
+            decode_printable_value(&mut values.iter().copied(), printable_type, false),
+        );
     }
 
     pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[F]) {
@@ -141,7 +140,7 @@ impl<F: AcirField> DebugVars<F> {
                 }
             };
         }
-        *cursor = decode_printable_value(&mut values.iter().copied(), cursor_type);
+        *cursor = decode_printable_value(&mut values.iter().copied(), cursor_type, false);
     }
 
     pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[F]) {

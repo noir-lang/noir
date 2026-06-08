@@ -712,7 +712,7 @@ impl<W: Write> Interpreter<'_, W> {
             let mut fragments = Vec::new();
             for i in 0..num_values {
                 let printable_type = value_to_printable_type(&args[meta_idx + i])?;
-                let printable_value = decode_printable_value(field_iterator, &printable_type);
+                let printable_value = decode_printable_value(field_iterator, &printable_type, true);
                 fragments.push((printable_value, printable_type));
             }
             PrintableValueDisplay::FmtString(message, fragments)
@@ -721,7 +721,7 @@ impl<W: Write> Interpreter<'_, W> {
             let input_as_fields = values_to_fields(&args[1..meta_idx]);
             let printable_type = value_to_printable_type(&args[meta_idx])?;
             let printable_value =
-                decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+                decode_printable_value(&mut input_as_fields.into_iter(), &printable_type, true);
             PrintableValueDisplay::Plain(printable_value, printable_type)
         };
 
