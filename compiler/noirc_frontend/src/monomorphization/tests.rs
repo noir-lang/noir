@@ -95,6 +95,31 @@ fn recursive_type_behind_unused_generic_errors() {
 }
 
 #[test]
+fn numeric_generic_checked_cast_in_instantiation_bindings() {
+    // Chaining calls that return arithmetic-sized arrays instantiates a numeric generic to a
+    // `CheckedCast` over an `InfixExpr` (e.g. `M -> 3 + 1`). That binding is validated through
+    // `check_type`, which must not hand a type-level numeric value to `convert_type` — doing so
+    // hits `convert_type`'s `unreachable!` for non-value types. This is a valid program and must
+    // monomorphize successfully.
+    let src = r#"
+    fn make<let N: u32>(x: [Field; N]) -> [Field; N + 1] {
+        let mut r = [0; N + 1];
+        for i in 0..N {
+            r[i] = x[i];
+        }
+        r
+    }
+    fn use_it<let M: u32>(x: [Field; M]) -> [Field; M + 2] {
+        make(make(x))
+    }
+    fn main() {
+        let _ = use_it([1, 2, 3]);
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
+}
+
+#[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
     fn main(y: call_data(0) Field) -> pub Field {

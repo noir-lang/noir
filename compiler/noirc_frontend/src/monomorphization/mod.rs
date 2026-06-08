@@ -2013,12 +2013,25 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
+            // `convert_type` cannot lower these: it panics on `Forall`/`TraitAsType` and emits
+            // dedicated errors for `Error`/`Quoted`. `check_type` runs in contexts that
+            // legitimately see them (e.g. unresolved placeholders), so tolerate them here.
             HirType::Forall(..)
-            | HirType::Constant(..)
-            | HirType::InfixExpr(..)
             | HirType::TraitAsType(..)
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
+            // A `CheckedCast` over numeric generics must still have its cast validated, but its
+            // `to` side is a type-level numeric value that `convert_type` cannot lower, so check
+            // it rather than convert it.
+            HirType::CheckedCast { from, to } => {
+                Self::check_checked_cast(from, to, location)?;
+                Self::check_type_helper(to, location, seen_types)
+            }
+            // Type-level numeric values — a `Constant`, an `InfixExpr`, or a numeric generic —
+            // are not lowerable runtime value types and would hit `convert_type`'s
+            // `unreachable!`. They reach `check_type` through numeric generic bindings, so
+            // tolerate them here rather than delegating.
+            _ if matches!(typ.kind(), Kind::Numeric(..)) => Ok(()),
             _ => Self::convert_type_helper(typ.as_ref(), location, seen_types).map(|_| ()),
         }
     }
