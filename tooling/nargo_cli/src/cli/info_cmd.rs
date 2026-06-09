@@ -32,6 +32,12 @@ pub(crate) struct InfoCommand {
     #[clap(long, hide = true)]
     json: bool,
 
+    /// Compile and execute the program in the Brillig VM, reporting the number of Brillig opcodes
+    /// executed at runtime rather than the static opcode count of the compiled circuit.
+    /// Useful for analyzing the runtime cost of unconstrained functions and identifying execution
+    /// bottlenecks. It implies `--force-brillig`: a constrained circuit has fully flattened control
+    /// flow (e.g. loops and conditionals), so execution profiling is only meaningful for
+    /// unconstrained code.
     #[clap(long)]
     profile_execution: bool,
 
