@@ -55,7 +55,7 @@ impl UsageTracker {
         visibility: ItemVisibility,
     ) {
         // Empty spans could come from implicitly injected imports, and we don't want to track those
-        if visibility != ItemVisibility::Public && name.span().start() < name.span().end() {
+        if visibility != ItemVisibility::Public && !name.span().is_empty() {
             // Two items can share a name within a module (e.g. a global and a function),
             // which is a duplicate-definition error reported elsewhere. `HashMap::insert`
             // keeps the existing key but swaps the value, leaving the recorded location and
@@ -97,7 +97,7 @@ impl UsageTracker {
         name: Ident,
         visibility: ItemVisibility,
     ) {
-        if visibility != ItemVisibility::Public && name.span().start() < name.span().end() {
+        if visibility != ItemVisibility::Public && !name.span().is_empty() {
             self.unused_impl_functions.insert(func_id, name);
         }
     }
