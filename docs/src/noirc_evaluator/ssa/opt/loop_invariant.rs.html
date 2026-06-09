@@ -4555,4 +4555,50 @@
 <a href=#4555 id=4555 data-nosnippet>4555</a>        "#</span>;
 <a href=#4556 id=4556 data-nosnippet>4556</a>        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
 <a href=#4557 id=4557 data-nosnippet>4557</a>    }
-<a href=#4558 id=4558 data-nosnippet>4558</a>}</code></pre></div></section></main></body></html>
+<a href=#4558 id=4558 data-nosnippet>4558</a>
+<a href=#4559 id=4559 data-nosnippet>4559</a>    <span class="attr">#[test]
+<a href=#4560 id=4560 data-nosnippet>4560</a>    </span><span class="kw">fn </span>does_not_hoist_div_with_descending_outer_loop_bounds() {
+<a href=#4561 id=4561 data-nosnippet>4561</a>        <span class="comment">// Outer header `b1(v1: u32, v2: u32)`: v1 is the first block parameter and is
+<a href=#4562 id=4562 data-nosnippet>4562</a>        // therefore misidentified as the induction variable. The header exits via
+<a href=#4563 id=4563 data-nosnippet>4563</a>        // `eq v1, u32 2`, so `get_const_upper_bound` returns 2 while the pre-header
+<a href=#4564 id=4564 data-nosnippet>4564</a>        // supplies 5 as the lower bound — an inverted range (5, 2).
+<a href=#4565 id=4565 data-nosnippet>4565</a>        //
+<a href=#4566 id=4566 data-nosnippet>4566</a>        // `can_evaluate_binary_op`'s Div/Mod arm proves the divisor is non-zero from the
+<a href=#4567 id=4567 data-nosnippet>4567</a>        // induction-variable bounds. With an inverted range neither bound is zero, so the
+<a href=#4568 id=4568 data-nosnippet>4568</a>        // misidentified `v1` is wrongly declared provably non-zero and `u32 10 / v1` is
+<a href=#4569 id=4569 data-nosnippet>4569</a>        // hoisted out of its control-dependent block. The bounds are bogus — they do not
+<a href=#4570 id=4570 data-nosnippet>4570</a>        // constrain the runtime value of `v1`, which may be 0 — so the divide must stay put.
+<a href=#4571 id=4571 data-nosnippet>4571</a>        //
+<a href=#4572 id=4572 data-nosnippet>4572</a>        // The `div` sits behind a runtime predicate `v0` so that, absent the spurious
+<a href=#4573 id=4573 data-nosnippet>4573</a>        // non-zero proof, the control-dependence gate would correctly refuse to hoist it.
+<a href=#4574 id=4574 data-nosnippet>4574</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#4575 id=4575 data-nosnippet>4575</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#4576 id=4576 data-nosnippet>4576</a>          b0(v0: u1):
+<a href=#4577 id=4577 data-nosnippet>4577</a>            jmp b1(u32 5, u32 0)
+<a href=#4578 id=4578 data-nosnippet>4578</a>          b1(v1: u32, v2: u32):
+<a href=#4579 id=4579 data-nosnippet>4579</a>            v4 = eq v1, u32 2
+<a href=#4580 id=4580 data-nosnippet>4580</a>            jmpif v4 then: b2(), else: b3()
+<a href=#4581 id=4581 data-nosnippet>4581</a>          b2():
+<a href=#4582 id=4582 data-nosnippet>4582</a>            return
+<a href=#4583 id=4583 data-nosnippet>4583</a>          b3():
+<a href=#4584 id=4584 data-nosnippet>4584</a>            jmp b4(u32 0)
+<a href=#4585 id=4585 data-nosnippet>4585</a>          b4(v3: u32):
+<a href=#4586 id=4586 data-nosnippet>4586</a>            v6 = lt v3, u32 4
+<a href=#4587 id=4587 data-nosnippet>4587</a>            jmpif v6 then: b5(), else: b6()
+<a href=#4588 id=4588 data-nosnippet>4588</a>          b5():
+<a href=#4589 id=4589 data-nosnippet>4589</a>            jmpif v0 then: b7(), else: b8()
+<a href=#4590 id=4590 data-nosnippet>4590</a>          b6():
+<a href=#4591 id=4591 data-nosnippet>4591</a>            v8 = unchecked_add v2, u32 1
+<a href=#4592 id=4592 data-nosnippet>4592</a>            jmp b1(v1, v8)
+<a href=#4593 id=4593 data-nosnippet>4593</a>          b7():
+<a href=#4594 id=4594 data-nosnippet>4594</a>            v10 = div u32 10, v1
+<a href=#4595 id=4595 data-nosnippet>4595</a>            constrain v10 == u32 2
+<a href=#4596 id=4596 data-nosnippet>4596</a>            jmp b8()
+<a href=#4597 id=4597 data-nosnippet>4597</a>          b8():
+<a href=#4598 id=4598 data-nosnippet>4598</a>            v12 = unchecked_add v3, u32 1
+<a href=#4599 id=4599 data-nosnippet>4599</a>            jmp b4(v12)
+<a href=#4600 id=4600 data-nosnippet>4600</a>        }
+<a href=#4601 id=4601 data-nosnippet>4601</a>        "#</span>;
+<a href=#4602 id=4602 data-nosnippet>4602</a>        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+<a href=#4603 id=4603 data-nosnippet>4603</a>    }
+<a href=#4604 id=4604 data-nosnippet>4604</a>}</code></pre></div></section></main></body></html>
