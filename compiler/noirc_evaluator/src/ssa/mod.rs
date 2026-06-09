@@ -392,6 +392,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::remove_redundant_inc_rc, "Remove Redundant Inc Rc").and_then_validate(
+            |#[allow(unused)] ssa| {
+                #[cfg(debug_assertions)]
+                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                Ok(())
+            },
+        ),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions)
