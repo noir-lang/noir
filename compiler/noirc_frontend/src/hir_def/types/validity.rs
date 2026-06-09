@@ -434,17 +434,25 @@ impl Type {
                 )
             }),
             Type::DataType(definition, generics) => {
-                if type_recursion_context.insert_data_type(definition.borrow().id, generics.clone())
-                {
-                    if let Some(fields) = definition.borrow().get_fields(generics) {
+                let definition = definition.borrow();
+                if type_recursion_context.insert_data_type(definition.id, generics.clone()) {
+                    if let Some(fields) = definition.get_fields(generics) {
                         fields.into_iter().all(|(_, field, _)| {
                             field.is_valid_for_unconstrained_boundary_helper(
                                 type_recursion_context.clone().recur(),
                             )
                         })
+                    } else if let Some(variants) = definition.get_variants(generics) {
+                        // An enum can be passed into an unconstrained function: it was built in
+                        // the constrained caller so its tag is already valid. Returning one the
+                        // other way is rejected separately (see `unconstrained_function_return`).
+                        variants.into_iter().flat_map(|(_, args)| args).all(|typ| {
+                            typ.is_valid_for_unconstrained_boundary_helper(
+                                type_recursion_context.clone().recur(),
+                            )
+                        })
                     } else {
-                        // enum (unimplemented)
-                        false
+                        true
                     }
                 } else {
                     true

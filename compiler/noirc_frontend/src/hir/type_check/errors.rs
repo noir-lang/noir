@@ -223,6 +223,8 @@ pub enum TypeCheckError {
     UnconstrainedVectorReturnToConstrained { location: Location },
     #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedFunctionReturnToConstrained { location: Location },
+    #[error("Enums cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedEnumReturnToConstrained { location: Location },
     #[error(
         "Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
@@ -394,6 +396,7 @@ impl TypeCheckError {
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedEnumReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
@@ -625,6 +628,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedEnumReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location }

@@ -69,6 +69,24 @@ fn macro_result_type_mismatch() {
 }
 
 #[test]
+fn method_macro_call_elaborates_quoted_argument_in_comptime_context() {
+    let src = r#"
+    pub struct Foo {}
+
+    impl Foo {
+        pub comptime fn second(_self: Self, q: Quoted) -> Quoted {
+            q
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}.second!(quote { 1 + 2 });
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn unquoted_integer_as_integer_token() {
     let src = r#"
     trait Serialize<let N: u32> {
@@ -763,6 +781,68 @@ fn sibling_modules_run_in_textual_order() {
               let _ = parent();
           }
       "#;
+    assert_no_errors(src);
+}
+
+/// Attributes on methods of macro-generated impl blocks all share the source location
+/// of the quoted fragment they were generated from, so the `(module, span)` run-order
+/// sort cannot order them. Their run order must then follow generation order — which
+/// requires the collection that holds the impls to iterate in insertion order.
+#[test]
+fn macro_generated_impl_attributes_run_in_generation_order() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        pub struct A {}
+        pub struct B {}
+        pub struct C {}
+        pub struct D {}
+        pub struct E {}
+        pub struct F {}
+        pub struct G {}
+        pub struct H {}
+
+        #[gen_impls]
+        fn dummy() {}
+
+        comptime fn gen_impls(_: FunctionDefinition) -> Quoted {
+            let types: [(Quoted, Quoted); 8] = [
+                (quote { A }, quote { 0 }),
+                (quote { B }, quote { 1 }),
+                (quote { C }, quote { 2 }),
+                (quote { D }, quote { 3 }),
+                (quote { E }, quote { 4 }),
+                (quote { F }, quote { 5 }),
+                (quote { G }, quote { 6 }),
+                (quote { H }, quote { 7 }),
+            ];
+            let mut result = quote {};
+            for index in 0..8 {
+                let (typ, i) = types[index];
+                result = quote { $result
+                    impl $typ { #[assert_gen_order($i)] fn method(_self: Self) {} }
+                };
+            }
+            result
+        }
+
+        comptime fn assert_gen_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            dummy();
+            let _ = A {}.method();
+            let _ = B {}.method();
+            let _ = C {}.method();
+            let _ = D {}.method();
+            let _ = E {}.method();
+            let _ = F {}.method();
+            let _ = G {}.method();
+            let _ = H {}.method();
+        }
+    "#;
     assert_no_errors(src);
 }
 
