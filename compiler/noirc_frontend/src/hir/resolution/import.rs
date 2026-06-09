@@ -266,7 +266,7 @@ impl PathResolutionTargetResolver<'_, '_> {
             PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
             PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
             PathKind::Absolute => self.resolve_absolute_path(path),
-            PathKind::Super(count) => self.resolve_super_path(path, count),
+            PathKind::Super(extras) => self.resolve_super_path(path, extras),
             PathKind::Resolved(crate_id) => self.resolve_crate_path(path, crate_id),
         }
     }
@@ -338,15 +338,15 @@ impl PathResolutionTargetResolver<'_, '_> {
     }
 
     /// Resolve a path such as `super::foo::bar` or `super::super::foo::bar`:
-    /// * walk up `count` parents of the current importing module (one per `super`)
+    /// * walk up `extras + 1` parents of the current importing module (one per `super`)
     /// * return the path still with [PathKind::Super], paired up with the ancestor module
     fn resolve_super_path(
         &self,
         path: TypedPath,
-        count: usize,
+        extras: usize,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         let mut current_module = self.importing_module;
-        for _ in 0..count {
+        for _ in 0..=extras {
             let Some(parent_module_id) = get_module(self.def_maps, current_module).parent else {
                 return Err(PathResolutionError::NoSuper(path.kind_location));
             };

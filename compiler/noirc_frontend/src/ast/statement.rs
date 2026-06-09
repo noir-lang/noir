@@ -339,8 +339,9 @@ pub enum PathKind {
     Crate,
     Absolute,
     Plain,
-    /// One or more stacked `super` qualifiers, e.g. `super::` (depth 1) or `super::super::`
-    /// (depth 2). The depth is always at least 1.
+    /// One or more stacked `super` qualifiers. The payload is the number of *extra* `super`s
+    /// beyond the first, so `super::` is `Super(0)` and `super::super::` is `Super(1)`. Every
+    /// `usize` is therefore a valid value.
     Super(usize),
     /// This path is a Crate or Dep path which always points to the given crate.
     /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
@@ -1046,8 +1047,8 @@ impl Display for PathKind {
         match self {
             PathKind::Crate => write!(f, "crate"),
             PathKind::Absolute => write!(f, ""),
-            PathKind::Super(count) => {
-                for i in 0..*count {
+            PathKind::Super(extras) => {
+                for i in 0..=*extras {
                     if i > 0 {
                         write!(f, "::")?;
                     }

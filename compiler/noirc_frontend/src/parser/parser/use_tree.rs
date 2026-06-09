@@ -236,7 +236,7 @@ mod tests {
         let src = "use super::foo;";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
-        assert_eq!(use_tree.prefix.kind, PathKind::Super(1));
+        assert_eq!(use_tree.prefix.kind, PathKind::Super(0));
         assert_eq!("super::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
@@ -250,7 +250,7 @@ mod tests {
         let src = "use super::super::foo;";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
-        assert_eq!(use_tree.prefix.kind, PathKind::Super(2));
+        assert_eq!(use_tree.prefix.kind, PathKind::Super(1));
         assert_eq!("super::super::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");

@@ -190,7 +190,7 @@ impl Parser<'_> {
         } else if self.eat_keyword(Keyword::Crate) {
             PathKind::Crate
         } else if self.eat_keyword(Keyword::Super) {
-            PathKind::Super(1)
+            PathKind::Super(0)
         } else if let Token::InternedCrate(crate_id) = self.token.token() {
             let crate_id = *crate_id;
             self.bump();
@@ -202,11 +202,12 @@ impl Parser<'_> {
             self.eat_or_error(Token::DoubleColon);
         }
 
-        // Accept stacked `super` qualifiers such as `super::super::foo`.
-        if let PathKind::Super(count) = &mut kind {
+        // Accept stacked `super` qualifiers such as `super::super::foo`, counting each one
+        // beyond the first as an "extra".
+        if let PathKind::Super(extras) = &mut kind {
             while self.eat_keyword(Keyword::Super) {
                 self.eat_or_error(Token::DoubleColon);
-                *count += 1;
+                *extras += 1;
             }
         }
 
@@ -318,7 +319,7 @@ mod tests {
     fn parses_super_two_segments() {
         let src = "super::foo::bar";
         let path = parse_path_no_errors(src);
-        assert_eq!(path.kind, PathKind::Super(1));
+        assert_eq!(path.kind, PathKind::Super(0));
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert!(path.segments[0].generics.is_none());
@@ -330,7 +331,7 @@ mod tests {
     fn parses_stacked_super_two_segments() {
         let src = "super::super::foo::bar";
         let path = parse_path_no_errors(src);
-        assert_eq!(path.kind, PathKind::Super(2));
+        assert_eq!(path.kind, PathKind::Super(1));
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert_eq!(path.segments[1].ident.to_string(), "bar");

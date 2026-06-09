@@ -915,8 +915,8 @@ impl<'a> NodeFinder<'a> {
                     module_data = root_module_data;
                     skip_prelude_items = true;
                 }
-                PathKind::Super(count) => {
-                    for _ in 0..count {
+                PathKind::Super(extras) => {
+                    for _ in 0..=extras {
                         let Some(parent) = module_data.parent else {
                             return;
                         };

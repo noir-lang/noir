@@ -265,9 +265,9 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
     for import in imports {
         let mut tree = match import.prefix.kind {
             PathKind::Crate => tree.insert(Segment::Crate),
-            PathKind::Super(count) => {
+            PathKind::Super(extras) => {
                 let mut subtree = tree.insert(Segment::Super);
-                for _ in 1..count {
+                for _ in 0..extras {
                     subtree = subtree.insert(Segment::Super);
                 }
                 subtree
