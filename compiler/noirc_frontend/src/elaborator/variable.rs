@@ -155,9 +155,7 @@ impl Elaborator<'_> {
                     // not the caller's. Mirrors `define_type_alias` in mod.rs.
                     let previous_module = self.replace_module(alias_module_id);
                     let (id, typ) = self.elaborate_expression(var_expr);
-                    if let Some(previous_module) = previous_module {
-                        self.replace_module(previous_module);
-                    }
+                    self.restore_module(previous_module);
                     self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 

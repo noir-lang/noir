@@ -87,7 +87,7 @@ impl UseSegmentPositions {
     fn gather_use_tree_segments(&mut self, use_tree: &UseTree, mut prefix: String) {
         let kind_string = match use_tree.prefix.kind {
             PathKind::Crate => Some("crate".to_string()),
-            PathKind::Super => Some("super".to_string()),
+            PathKind::Super(extras) => Some(vec!["super"; extras + 1].join("::")),
             PathKind::Absolute | PathKind::Plain => None,
             PathKind::Resolved(_) => Some("$crate".to_string()),
         };
