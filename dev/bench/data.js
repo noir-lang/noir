@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781032017598,
+  "lastUpdate": 1781032500044,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e0f6faae9f8a0b89ced43e540660b64eca0def4f",
-          "message": "fix: check infix result type during monomorphization (#12917)",
-          "timestamp": "2026-06-04T17:05:08Z",
-          "tree_id": "32fa6fa22f8abfc2910efb021f6e300074212f2f",
-          "url": "https://github.com/noir-lang/noir/commit/e0f6faae9f8a0b89ced43e540660b64eca0def4f"
-        },
-        "date": 1780594201606,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167036,
-            "range": "± 426",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136947,
-            "range": "± 743",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646495,
-            "range": "± 1214",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655417,
             "range": "± 2684",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c5911bfc300b5c97e10de5d02952e65ed863c1d4",
+          "message": "fix(frontend): reject enum returns across the unconstrained boundary in monomorphization too (#12976)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-06-09T18:47:58Z",
+          "tree_id": "69b71187f71c5607094310bd04e0bf6ec5d58f70",
+          "url": "https://github.com/noir-lang/noir/commit/c5911bfc300b5c97e10de5d02952e65ed863c1d4"
+        },
+        "date": 1781032429070,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126735,
+            "range": "± 289",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112833,
+            "range": "± 2007",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043329,
+            "range": "± 1568",
             "unit": "ns/iter"
           }
         ]
