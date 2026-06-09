@@ -1145,6 +1145,83 @@ fn private_inherent_impl_method_accessible_from_nested_child_of_impl_module() {
 }
 
 #[test]
+fn does_not_error_calling_private_no_self_method_from_nested_extension_module() {
+    // A private associated function (no `self`) defined in an extension `impl` in module
+    // `inner` is callable, via a qualified path, from another extension `impl` in `inner2`,
+    // because `inner2` is a descendant of `inner`. This matches Rust: a descendant module can
+    // see its ancestors' private associated items regardless of which `impl` block holds them.
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        mod inner {
+            use crate::foo::Foo;
+
+            impl Foo {
+                fn inner_x() -> u32 {
+                    0
+                }
+            }
+
+            mod inner2 {
+                use crate::foo::Foo;
+
+                impl Foo {
+                    pub fn x() -> u32 {
+                        Foo::inner_x()
+                    }
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let _ = foo::Foo::x();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_calling_private_no_self_method_from_sibling_extension_module() {
+    // Mirror of the descendant case: when the calling extension `impl` is in `inner2`, a
+    // sibling of `inner` rather than a descendant, the private associated function is not
+    // visible. This confirms the no-`self` qualified-path call is visibility-checked.
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        mod inner {
+            use crate::foo::Foo;
+
+            impl Foo {
+                fn inner_x() -> u32 {
+                    0
+                }
+            }
+        }
+
+        mod inner2 {
+            use crate::foo::Foo;
+
+            impl Foo {
+                pub fn x() -> u32 {
+                    Foo::inner_x()
+                         ^^^^^^^ inner_x is private and not visible from the current module
+                         ~~~~~~~ inner_x is private
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let _ = foo::Foo::x();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_when_using_private_type_imported_via_value_name_collision() {
     // A module has a private type and a public value sharing the same name.
     // Importing the name is allowed (the public value is visible), but using
