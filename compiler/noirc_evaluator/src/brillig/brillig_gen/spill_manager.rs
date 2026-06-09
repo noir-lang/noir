@@ -76,6 +76,13 @@ pub(crate) enum SpillStatus {
     PermanentReloaded,
 }
 
+impl SpillStatus {
+    /// Whether the value is currently in memory rather than a register.
+    fn is_spilled(self) -> bool {
+        matches!(self, SpillStatus::Transient | SpillStatus::Permanent)
+    }
+}
+
 /// Tracks register values that have been spilled to the spill region in heap memory.
 ///
 /// See the [module docs][self] for an overview of when and how the spill manager is used.
@@ -136,10 +143,7 @@ impl SpillManager {
 
     /// Check if a value is currently spilled (in memory, not in a register).
     pub(crate) fn is_spilled(&self, value_id: &ValueId) -> bool {
-        matches!(
-            self.records.get(value_id),
-            Some(r) if matches!(r.status, SpillStatus::Transient | SpillStatus::Permanent)
-        )
+        self.get_spill(value_id).is_some()
     }
 
     /// Check if a value was transiently spilled and has since been reloaded into a register.
@@ -262,11 +266,9 @@ impl SpillManager {
         }
     }
 
-    /// Get the spill record for a value if it is currently spilled.
+    /// Get the spill record for a value if it is currently spilled and is not in a register.
     pub(crate) fn get_spill(&self, value_id: &ValueId) -> Option<&SpillRecord> {
-        self.records
-            .get(value_id)
-            .filter(|r| matches!(r.status, SpillStatus::Transient | SpillStatus::Permanent))
+        self.records.get(value_id).filter(|r| r.status.is_spilled())
     }
 
     /// Reset the LRU for a new block, retaining ordering from the previous block.
@@ -277,12 +279,7 @@ impl SpillManager {
     /// determinism.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
         let records = &self.records;
-        let is_spilled = |v: &ValueId| {
-            matches!(
-                records.get(v),
-                Some(r) if matches!(r.status, SpillStatus::Transient | SpillStatus::Permanent)
-            )
-        };
+        let is_spilled = |v: &ValueId| records.get(v).is_some_and(|r| r.status.is_spilled());
 
         // Retain existing entries that are still live-in and not spilled.
         self.lru_order.retain(|v| live_in.contains(v) && !is_spilled(v));

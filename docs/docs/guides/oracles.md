@@ -10,13 +10,9 @@ keywords:
   - Blockchain Programming
 ---
 
-If you've seen "The Matrix" you may recall "The Oracle" as Gloria Foster smoking cigarettes and baking cookies. While she appears to "know things", she is actually providing a calculation of a pre-determined future. Noir Oracles are similar, in a way. They don't calculate the future (yet), but they allow you to use outside calculations in your programs.
-
-![matrix oracle prediction](@site/static/img/memes/matrix_oracle.jpeg)
-
 A Noir program is usually self-contained. You can pass certain inputs to it, and it will generate a deterministic output for those inputs. But what if you wanted to defer some calculation to an outside process or source?
 
-Oracles are functions that provide this feature.
+Oracles let you do exactly that: they allow a Noir program to use the result of a calculation performed outside of it.
 
 ## Use cases
 
@@ -28,7 +24,7 @@ In short, anything that can be constrained in a Noir program but needs to be fet
 
 ## Constraining oracles
 
-Just like in The Matrix, Oracles are powerful. But with great power, comes great responsibility. Just because you're using them in a Noir program doesn't mean they're true. Noir has no superpowers. If you want to prove that Portugal won the Euro Cup 2016, you're still relying on potentially untrusted information.
+Oracles are powerful, but using one in a Noir program does not make its output true. The value an oracle returns is only as trustworthy as its source, so any claim that depends on external data still relies on potentially untrusted information.
 
 To give a concrete example, Alice wants to login to the [NounsDAO](https://nouns.wtf/) forum with her username "noir_nouner" by proving she owns a noun without revealing her ethereum address. Her Noir program could have an oracle call like this:
 

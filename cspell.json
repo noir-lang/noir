@@ -350,6 +350,7 @@
         "underflows",
         "ungzip",
         "uninstantiated",
+        "unioned",
         "unnormalized",
         "unoptimized",
         "unref",
