@@ -26,9 +26,12 @@
 //! only increments of the *same* value — a loop-invariant value, a parameter, or a value
 //! defined in a common dominator — are removed.
 //!
-//! Functions that read a reference count directly via the `array_refcount` /
-//! `vector_refcount` intrinsics are skipped, since removing increments would change the
-//! value they observe.
+//! The exact reference count is observable only through the `array_refcount` /
+//! `vector_refcount` intrinsics; every other use only distinguishes 1 from greater, which
+//! is preserved because removal keeps the count at least 2. Since an array is shared by
+//! pointer across calls, such an intrinsic in one function can observe a count incremented
+//! in another, so the pass is skipped entirely for any program in which some function
+//! reads a reference count.
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHashSet};
 
@@ -50,6 +53,17 @@ impl Ssa {
     /// value in the same or a dominating block.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_redundant_inc_rc(mut self) -> Ssa {
+        // Removing an increment lowers the reference count observed from that point on.
+        // Only the `array_refcount` / `vector_refcount` intrinsics observe the exact
+        // count (every other use only distinguishes 1 from greater, which is preserved
+        // since the count stays at least 2 — see the module comment). Such an intrinsic
+        // can read the count of an array that was incremented in a *different* function
+        // (arrays are shared by pointer across calls), so a per-function check is not
+        // enough: if any function reads a reference count, skip the whole program.
+        if self.functions.values().any(observes_reference_count) {
+            return self;
+        }
+
         for function in self.functions.values_mut() {
             function.remove_redundant_inc_rc();
         }
@@ -57,18 +71,17 @@ impl Ssa {
     }
 }
 
+/// Whether the function reads a reference count via the `array_refcount` /
+/// `vector_refcount` intrinsics.
+fn observes_reference_count(function: &Function) -> bool {
+    function.dfg.get_intrinsic(Intrinsic::ArrayRefCount).is_some()
+        || function.dfg.get_intrinsic(Intrinsic::VectorRefCount).is_some()
+}
+
 impl Function {
     fn remove_redundant_inc_rc(&mut self) {
         if !self.runtime().is_brillig() {
             // inc_rc only has an effect in Brillig.
-            return;
-        }
-
-        // A program that observes reference counts directly relies on their exact
-        // value, so we must not remove increments in such functions.
-        if self.dfg.get_intrinsic(Intrinsic::ArrayRefCount).is_some()
-            || self.dfg.get_intrinsic(Intrinsic::VectorRefCount).is_some()
-        {
             return;
         }
 
@@ -245,6 +258,27 @@ mod tests {
           b3():
             inc_rc v0
             return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_redundant_inc_rc);
+    }
+
+    #[test]
+    fn does_not_run_when_any_function_reads_reference_count() {
+        // f0 has a removable `inc_rc v0`, but f1 reads a reference count, so the whole
+        // program is left untouched.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            inc_rc v0
+            v2 = call f1(v0) -> u32
+            return v0
+        }
+        brillig(inline) fn refcount f1 {
+          b0(v0: [Field; 2]):
+            v1 = call array_refcount(v0) -> u32
+            return v1
         }
         ";
         assert_ssa_does_not_change(src, Ssa::remove_redundant_inc_rc);
