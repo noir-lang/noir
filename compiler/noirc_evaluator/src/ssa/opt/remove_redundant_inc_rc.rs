@@ -1,4 +1,5 @@
-//! This pass removes redundant `inc_rc` instructions within a block.
+//! This pass removes `inc_rc` instructions made redundant by an earlier `inc_rc` of the
+//! same value.
 //!
 //! `inc_rc` only has a runtime effect in Brillig, where it bumps an array/vector's
 //! reference count so that a later `array_set` copies instead of mutating in place.
@@ -11,21 +12,34 @@
 //! is disabled (see `codegen_decrement_rc`). A reference count is therefore monotonically
 //! non-decreasing, so once an `inc_rc v` has executed the count of `v` stays at least 2
 //! for the rest of the function — regardless of any `array_set`, `call`, or other
-//! instruction that follows. Any later `inc_rc v` in the same block is thus redundant.
+//! instruction that follows.
 //!
-//! This stays within a single block so that the earlier `inc_rc` is guaranteed to precede
-//! the later one at runtime without any dominance analysis.
+//! An `inc_rc v` is thus redundant whenever another `inc_rc v` is guaranteed to have
+//! already executed. Within a block that is any earlier `inc_rc v`; across blocks it is
+//! an `inc_rc v` in a *dominating* block, since every path reaching the current block
+//! runs the dominator's straight-line body in full first. We therefore walk blocks in
+//! reverse post-order and seed each block with the set of already-incremented values from
+//! its immediate dominator.
+//!
+//! The pass keys on the exact `ValueId`, so a loop-carried value (a block parameter, i.e.
+//! a distinct value each iteration) is never merged with an increment outside the loop;
+//! only increments of the *same* value — a loop-invariant value, a parameter, or a value
+//! defined in a common dominator — are removed.
 //!
 //! Functions that read a reference count directly via the `array_refcount` /
 //! `vector_refcount` intrinsics are skipped, since removing increments would change the
 //! value they observe.
 
-use rustc_hash::{FxHashSet as HashSet, FxHashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHashSet};
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        dom::DominatorTree,
         function::Function,
         instruction::{Instruction, InstructionId, Intrinsic},
+        post_order::PostOrder,
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -33,7 +47,7 @@ use crate::ssa::{
 
 impl Ssa {
     /// Remove `inc_rc` instructions made redundant by an earlier `inc_rc` of the same
-    /// value in the same block.
+    /// value in the same or a dominating block.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_redundant_inc_rc(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -70,14 +84,25 @@ impl Function {
         }
     }
 
-    /// Within each block, find every `inc_rc` of a value that was already incremented
-    /// earlier in the same block.
+    /// Find every `inc_rc` of a value that was already incremented earlier in the same
+    /// block or in a dominating block.
     fn find_redundant_inc_rcs(&self) -> FxHashSet<InstructionId> {
-        let mut to_remove = HashSet::default();
+        let cfg = ControlFlowGraph::with_function(self);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
-        for block in self.reachable_blocks() {
-            // Values whose reference count is currently known to be at least 2.
-            let mut incremented: HashSet<ValueId> = HashSet::default();
+        let mut to_remove = HashSet::default();
+        // Per block, the set of values whose reference count is known to be at least 2 on
+        // exit from the block (including everything inherited from its dominators).
+        let mut incremented_on_exit: HashMap<BasicBlockId, HashSet<ValueId>> = HashMap::default();
+
+        // Reverse post-order visits a block only after all of its dominators, so the
+        // immediate dominator's exit set is always available when we reach a block.
+        for block in post_order.into_vec_reverse() {
+            let mut incremented = match dom_tree.immediate_dominator(block) {
+                Some(idom) => incremented_on_exit[&idom].clone(),
+                None => HashSet::default(),
+            };
             for instruction in self.dfg[block].instructions() {
                 match &self.dfg[*instruction] {
                     Instruction::IncrementRc { value } => {
@@ -94,6 +119,7 @@ impl Function {
                     _ => {}
                 }
             }
+            incremented_on_exit.insert(block, incremented);
         }
 
         to_remove
@@ -178,13 +204,45 @@ mod tests {
     }
 
     #[test]
-    fn does_not_remove_inc_rc_across_blocks() {
+    fn removes_inc_rc_in_dominated_block() {
+        // b0 dominates b1, so b1's `inc_rc v0` is redundant.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field; 2]):
             inc_rc v0
             jmp b1()
           b1():
+            inc_rc v0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_inc_rc();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1()
+          b1():
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_inc_rc_when_predecessor_does_not_dominate() {
+        // b3 is reachable from both b1 and b2, so the `inc_rc v0` in b1 does not dominate
+        // b3 and the `inc_rc v0` in b3 must be kept.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            inc_rc v0
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
             inc_rc v0
             return v0
         }
