@@ -17,6 +17,25 @@
 //! for example if two consecutive [Instruction::EnableSideEffectsIf] instructions have the same
 //! condition.
 //!
+//! ## Dropping `EnableSideEffectsIf` instructions which have no effect
+//!
+//! An [Instruction::EnableSideEffectsIf] only influences the generated circuit through the
+//! instructions which read the side-effects predicate during ACIR generation: those for which
+//! [`requires_acir_gen_predicate`][crate::ssa::ir::instruction::Instruction::requires_acir_gen_predicate]
+//! returns `true`, along with [Instruction::Constrain].
+//!
+//! When a deferred [Instruction::EnableSideEffectsIf] (one whose condition is not the constant
+//! `u1 1`) is not followed by any such instruction before the end of the block — or before another
+//! [Instruction::EnableSideEffectsIf] supersedes it — then it is dropped entirely rather than
+//! re-inserted. This is expected behaviour and is safe: if no instruction is affected by an
+//! `enable_side_effects` instruction then removing it does not change the behaviour of the circuit.
+//! In particular a trailing `enable_side_effects` sitting immediately before the `return`
+//! terminator is always removed, as `return` does not consume the side-effects predicate.
+//!
+//! This safety relies on the precondition below that ACIR functions consist of a single block after
+//! flattening, so there is no successor block whose instructions could observe the dropped
+//! predicate.
+//!
 //! This pass doesn't run in Brillig functions as [Instruction::EnableSideEffectsIf] is not allowed
 //! in Brillig functions.
 //!
