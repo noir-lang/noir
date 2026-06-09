@@ -34,6 +34,13 @@ impl LoopInvariantContext<'_> {
                     return false;
                 };
 
+                // An inverted range means the variable is not a proper ascending induction
+                // variable, so these bounds are bogus and cannot prove the divisor is non-zero.
+                // Mirrors the guard in `simplify_induction_variable_in_binary`.
+                if lower > upper {
+                    return false;
+                }
+
                 if left {
                     // If the induction variable is on the LHS, we're dividing with a constant.
                     if !value.is_zero() && !value.is_minus_one() {
