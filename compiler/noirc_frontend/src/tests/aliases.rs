@@ -4,10 +4,10 @@ use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors
 fn duplicate_type_aliases_report_type_definition() {
     let src = r#"
     type Foo = u32;
-         ~~~ First type definition found here
+         ~~~ First definition found here
     type Foo = u8;
          ^^^ Duplicate definitions of type definition with name Foo found
-         ~~~ Second type definition found here
+         ~~~ Second definition found here
 
     fn main() {
         let _: Foo = 0;

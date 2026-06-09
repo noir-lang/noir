@@ -59,15 +59,17 @@ fn unused_global_clashing_with_function_is_reported_as_global() {
     // The global and the function share the `values` namespace, so collecting the
     // function clashes with the already-collected global. The unused warning must
     // still describe the surviving item (the global) and point at its location,
-    // rather than borrowing the function's kind.
+    // rather than borrowing the function's kind. The duplicate-definition secondaries
+    // stay kind-neutral ("First/Second definition found here") so they don't mislabel
+    // the global as a function the way the primary's `typ` does.
     let src = r#"
     global N: u32 = 10;
            ^ unused global N
            ~ unused global
-           ~ First function found here
+           ~ First definition found here
     fn N() {}
        ^ Duplicate definitions of function with name N found
-       ~ Second function found here
+       ~ Second definition found here
     fn main() {}
     "#;
     check_errors(src);
