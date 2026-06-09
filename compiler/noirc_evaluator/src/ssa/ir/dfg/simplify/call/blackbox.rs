@@ -243,8 +243,10 @@ pub(super) fn simplify_sha256_compression(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    // Canonical argument order: `arguments[0]` is the input message block `[u32; 16]`,
+    // `arguments[1]` is the state `[u32; 8]` (see the stdlib signature and `ssa::validation`).
     match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
-        (Some((state, _)), Some((msg_blocks, _)))
+        (Some((msg_blocks, _)), Some((state, _)))
             if array_is_constant(dfg, &state) && array_is_constant(dfg, &msg_blocks) =>
         {
             let state: Option<Vec<u32>> = state
@@ -547,8 +549,8 @@ mod sha256_compression {
           b0():
             v16 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
             v25 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
-            v27 = call sha256_compression(v16, v25) -> [u32; 8]
-            return v27
+            v34 = make_array [u32 2921910434, u32 4262928279, u32 911433216, u32 1248638655, u32 2918467959, u32 1459819522, u32 1329522001, u32 3116489287] : [u32; 8]
+            return v34
         }
         ");
     }
