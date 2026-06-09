@@ -1,0 +1,38 @@
+{"run_id":"1781024630-386492620","line":731,"new":{"module_name":"noirc_evaluator__ssa__opt__die__tests","snapshot_name":"remove_unused_array_set_in_acir","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/die.rs","assertion_line":731,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v2 = array_get v0, index u32 0 -> Field\n    return v2\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__die__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v3 = array_get v0, index u32 0 -> Field\n    return v3\n}"}}
+{"run_id":"1781024633-798387032","line":731,"new":{"module_name":"noirc_evaluator__ssa__opt__die__tests","snapshot_name":"remove_unused_array_set_in_acir","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/die.rs","assertion_line":731,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v2 = array_get v0, index u32 0 -> Field\n    return v2\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__die__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v3 = array_get v0, index u32 0 -> Field\n    return v3\n}"}}
+{"run_id":"1781024637-73311908","line":731,"new":{"module_name":"noirc_evaluator__ssa__opt__die__tests","snapshot_name":"remove_unused_array_set_in_acir","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/die.rs","assertion_line":731,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v2 = array_get v0, index u32 0 -> Field\n    return v2\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__die__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v3 = array_get v0, index u32 0 -> Field\n    return v3\n}"}}
+{"run_id":"1781024640-114869512","line":731,"new":{"module_name":"noirc_evaluator__ssa__opt__die__tests","snapshot_name":"remove_unused_array_set_in_acir","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/die.rs","assertion_line":731,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v2 = array_get v0, index u32 0 -> Field\n    return v2\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__die__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0(v0: [Field; 1]):\n    v3 = array_get v0, index u32 0 -> Field\n    return v3\n}"}}
+{"run_id":"1781024659-775455262","line":1217,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":1024,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":604,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":731,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":552,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":1181,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":583,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":968,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":1065,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":1291,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":805,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":1155,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":990,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":876,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":842,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":910,"new":null,"old":null}
+{"run_id":"1781024659-775455262","line":768,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":1065,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":1217,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":552,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":583,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":805,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":876,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":768,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":910,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":1181,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":731,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":604,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":1024,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":968,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":990,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":842,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":1155,"new":null,"old":null}
+{"run_id":"1781024712-907294723","line":1291,"new":null,"old":null}

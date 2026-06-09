@@ -28,6 +28,11 @@
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
+//!   - An [ArraySet][Instruction::ArraySet] is never removed even when its result is unused: with a
+//!     reference count of 1 it mutates its input array in place, so the write is observable through
+//!     any later read of the input array. The reverse traversal inspects the `array_set` before it
+//!     has necessarily seen those reads, so it cannot soundly prove the write is unobserved. In ACIR
+//!     an `array_set` always copies, so an unused one is removed as dead.
 //!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! [Store][Instruction::Store] instructions are never removed by DIE in either runtime.
@@ -464,14 +469,21 @@ fn can_be_eliminated_if_unused(
         | Allocate
         | Load { .. }
         | IfElse { .. }
-        // Arrays are not side-effectual in Brillig where OOB checks are laid down explicitly in SSA.
-        // However, arrays are side-effectual in ACIR (array OOB checks).
-        // We mark them available for deletion, but it is expected that this pass will insert
-        // back the relevant side effects for array access in ACIR that can possible fail (e.g., index OOB or dynamic index).
+        // An `ArrayGet` only reads, so an unused one is dead in both runtimes. In ACIR removing it
+        // can drop an implicit OOB check, but this pass re-inserts the relevant check separately.
         | ArrayGet { .. }
-        | ArraySet { .. }
         | Noop
         | MakeArray { .. } => true,
+
+        // In ACIR an `array_set` always produces a fresh array and never mutates its input, so an
+        // unused result makes it dead (any implicit OOB side effect is re-inserted later in this
+        // pass). In Brillig an `array_set` whose reference count is 1 mutates its input array in
+        // place, so the write is observable through any later read of the input array even when the
+        // `array_set`'s own result is unused. The reverse DIE traversal inspects the `array_set`
+        // before it has necessarily seen those later reads, so it cannot soundly prove the write is
+        // unobserved; removing it in Brillig would be unsound. Dead `array_set`s in Brillig are left
+        // for other passes, mirroring how `Store` is handled.
+        ArraySet { .. } => function.runtime().is_acir(),
 
         Store { .. }
         | Constrain(..)
@@ -681,6 +693,48 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn do_not_remove_unused_array_set_in_brillig() {
+        // In Brillig an `array_set` whose reference count is 1 mutates its input array in place.
+        // That write is observable through any later read of the input array, even when the
+        // `array_set`'s own result is never used. Here `v1` (the array_set result) is unused but
+        // the input `v0` is read afterwards, so removing the `array_set` would change the value
+        // returned by the `array_get`. DIE must keep it.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            v3 = array_set v0, index u32 0, value Field 7
+            v4 = array_get v0, index u32 0 -> Field
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    #[test]
+    fn remove_unused_array_set_in_acir() {
+        // In ACIR an `array_set` always produces a fresh array and never mutates its input, so an
+        // `array_set` with an unused result is dead and is removed (the constant in-bounds index
+        // needs no OOB check). This is the counterpart to `do_not_remove_unused_array_set_in_brillig`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            v3 = array_set v0, index u32 0, value Field 7
+            v4 = array_get v0, index u32 0 -> Field
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        ");
     }
 
     #[test]
