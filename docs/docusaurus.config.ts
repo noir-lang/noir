@@ -166,6 +166,9 @@ export default {
           const { writeFileSync } = await import('fs');
           const { join } = await import('path');
           const redirectsContent = `# Netlify redirects for /docs/ routing
+# Oracle docs merged into language/oracles (noir-lang/noir#12986)
+/docs/dev/guides/oracles /docs/dev/language/oracles 301
+/docs/dev/guides/how_to_use_oracles /docs/dev/language/oracles 301
 /docs/assets/* /assets/:splat 200
 /docs/img/* /img/:splat 200
 /docs/* /:splat 200`;
