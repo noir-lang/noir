@@ -1428,33 +1428,23 @@ pub mod test_utils {
         // Mirror `Context::interpret_function`: enter the interpreter with the module of the
         // function being run rather than relying on the module the elaborator happened to leave set.
         let source_module = elaborator.interner.function_meta(&main).source_module;
-        let old_module = elaborator.replace_module(ModuleId { krate, local_id: source_module });
-
-        let mut interpreter = elaborator.setup_interpreter();
+        let module = ModuleId { krate, local_id: source_module };
 
         // The most straightforward way to convert the interpreter result into
         // an acceptable monomorphized AST expression seems to be converting it
         // into HIR first and then processing it with the monomorphizer
-        let expr_id = match interpreter.call_function(
-            main,
-            Vec::new(),
-            Default::default(),
-            Location::dummy(),
-        ) {
-            Err(e) => return Err(ElaboratorError::Interpret(e)),
-            Ok(value) => {
-                match value.into_runtime_hir_expression(
-                    elaborator.interner,
-                    elaborator.files,
+        let expr_id = elaborator.setup_interpreter_for(module, |interpreter| match interpreter
+            .call_function(main, Vec::new(), Default::default(), Location::dummy())
+        {
+            Err(e) => Err(ElaboratorError::Interpret(e)),
+            Ok(value) => value
+                .into_runtime_hir_expression(
+                    interpreter.elaborator.interner,
+                    interpreter.elaborator.files,
                     Location::dummy(),
-                ) {
-                    Err(e) => return Err(ElaboratorError::HIRConvert(e)),
-                    Ok(expr_id) => expr_id,
-                }
-            }
-        };
-
-        elaborator.restore_module(old_module);
+                )
+                .map_err(ElaboratorError::HIRConvert),
+        })?;
 
         let mut monomorphizer = Monomorphizer::new(
             elaborator.interner,

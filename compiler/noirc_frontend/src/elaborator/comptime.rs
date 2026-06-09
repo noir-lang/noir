@@ -840,6 +840,20 @@ impl<'context> Elaborator<'context> {
         Interpreter::new(self, current_function)
     }
 
+    /// Runs `f` with an interpreter set up in the context of `module`, restoring the
+    /// elaborator's previous module afterwards (on every exit path).
+    pub(crate) fn setup_interpreter_for<T>(
+        &mut self,
+        module: ModuleId,
+        f: impl FnOnce(&mut Interpreter) -> T,
+    ) -> T {
+        let old_module = self.replace_module(module);
+        let mut interpreter = self.setup_interpreter();
+        let result = f(&mut interpreter);
+        self.restore_module(old_module);
+        result
+    }
+
     /// Debug helper to print comptime evaluation results.
     ///
     /// When `--debug-comptime` is enabled for a specific file, this will emit
