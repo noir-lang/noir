@@ -244,7 +244,7 @@ pub(crate) fn first_segment_is_always_visible(
     starting_module: ModuleId,
 ) -> bool {
     match path.kind {
-        PathKind::Crate | PathKind::Super => true,
+        PathKind::Crate | PathKind::Super(_) => true,
         PathKind::Plain => importing_module == starting_module,
         PathKind::Resolved(_) => false,
         PathKind::Absolute => {
@@ -266,7 +266,7 @@ impl PathResolutionTargetResolver<'_, '_> {
             PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
             PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
             PathKind::Absolute => self.resolve_absolute_path(path),
-            PathKind::Super => self.resolve_super_path(path),
+            PathKind::Super(count) => self.resolve_super_path(path, count),
             PathKind::Resolved(crate_id) => self.resolve_crate_path(path, crate_id),
         }
     }
@@ -337,19 +337,22 @@ impl PathResolutionTargetResolver<'_, '_> {
         Ok((path, *dep_module))
     }
 
-    /// Resolve a path such as `super::foo::bar`:
-    /// * get the parent of the current importing module
-    /// * return the path still with [PathKind::Super], paired up with the parent module
+    /// Resolve a path such as `super::foo::bar` or `super::super::foo::bar`:
+    /// * walk up `count` parents of the current importing module (one per `super`)
+    /// * return the path still with [PathKind::Super], paired up with the ancestor module
     fn resolve_super_path(
         &self,
         path: TypedPath,
+        count: usize,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
-        let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
-            return Err(PathResolutionError::NoSuper(path.kind_location));
-        };
-
-        let current_module =
-            ModuleId { krate: self.importing_module.krate, local_id: parent_module_id };
+        let mut current_module = self.importing_module;
+        for _ in 0..count {
+            let Some(parent_module_id) = get_module(self.def_maps, current_module).parent else {
+                return Err(PathResolutionError::NoSuper(path.kind_location));
+            };
+            current_module =
+                ModuleId { krate: self.importing_module.krate, local_id: parent_module_id };
+        }
         Ok((path, current_module))
     }
 }

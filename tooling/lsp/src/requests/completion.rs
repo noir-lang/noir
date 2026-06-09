@@ -915,14 +915,16 @@ impl<'a> NodeFinder<'a> {
                     module_data = root_module_data;
                     skip_prelude_items = true;
                 }
-                PathKind::Super => {
-                    let Some(parent) = module_data.parent else {
-                        return;
-                    };
-                    let Some(parent_module_data) = def_map.get(parent) else {
-                        return;
-                    };
-                    module_data = parent_module_data;
+                PathKind::Super(count) => {
+                    for _ in 0..count {
+                        let Some(parent) = module_data.parent else {
+                            return;
+                        };
+                        let Some(parent_module_data) = def_map.get(parent) else {
+                            return;
+                        };
+                        module_data = parent_module_data;
+                    }
                     skip_prelude_items = true;
                 }
                 PathKind::Absolute => (),
