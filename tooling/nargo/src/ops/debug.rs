@@ -3,8 +3,10 @@ use std::path::Path;
 use fm::FileManager;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
+    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, has_blocking_diagnostics,
+    link_to_debug_crate, ssa_reports_to_custom_diagnostics,
 };
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     debug::DebugInstrumenter,
     hir::{Context, FunctionNameMatch, ParsedFiles, def_map::TestFunction},
@@ -68,9 +70,14 @@ pub fn compile_test_fn_for_debugging(
     test_def: &TestDefinition,
     context: &mut Context,
     compile_options: CompileOptions,
-) -> Result<CompiledProgram, noirc_driver::CompileError> {
+) -> Result<CompiledProgram, Vec<CustomDiagnostic>> {
     let compiled_program =
-        compile_no_check(context, &compile_options, test_def.function.id, None, false)?;
+        compile_no_check(context, &compile_options, test_def.function.id, None, false)
+            .map_err(|error| vec![CustomDiagnostic::from(error)])?;
+    let diagnostics = ssa_reports_to_custom_diagnostics(compiled_program.warnings.clone());
+    if has_blocking_diagnostics(&diagnostics, compile_options.deny_warnings) {
+        return Err(diagnostics);
+    }
     let compiled_program = optimize_program(compiled_program);
     Ok(compiled_program)
 }

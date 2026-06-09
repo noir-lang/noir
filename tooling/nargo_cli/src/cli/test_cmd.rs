@@ -756,7 +756,22 @@ impl<'a> TestRunner<'a> {
                 None,
                 false,
             ) {
-                Ok(_) => TestStatus::Skipped,
+                Ok(compiled_program) => {
+                    let diagnostics = noirc_driver::ssa_reports_to_custom_diagnostics(
+                        compiled_program.warnings.clone(),
+                    );
+                    if noirc_driver::has_blocking_diagnostics(
+                        &diagnostics,
+                        self.args.compile_options.deny_warnings,
+                    ) {
+                        nargo::ops::test_status_program_compile_diagnostics_fail(
+                            diagnostics,
+                            test_function,
+                        )
+                    } else {
+                        TestStatus::Skipped
+                    }
+                }
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
             return (status, String::new(), None);

@@ -10,7 +10,10 @@ use acvm::{
 };
 use noirc_abi::{Abi, input_parser::json::serialize_to_json};
 use noirc_artifacts::{debug::DebugInfo, program::CompiledProgram};
-use noirc_driver::{CompileError, CompileOptions, compile_no_check};
+use noirc_driver::{
+    CompileError, CompileOptions, compile_no_check, has_blocking_diagnostics,
+    ssa_reports_to_custom_diagnostics,
+};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
@@ -38,7 +41,7 @@ pub enum TestStatus {
     Pass,
     Fail { message: String, error_diagnostic: Option<CustomDiagnostic> },
     Skipped,
-    CompileError(CustomDiagnostic),
+    CompileError(Vec<CustomDiagnostic>),
 }
 
 impl TestStatus {
@@ -107,13 +110,23 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     match compile_no_check(context, config, test_function.id, None, false) {
-        Ok(compiled_program) => run_test_impl(
-            blackbox_solver,
-            compiled_program,
-            test_function,
-            output,
-            build_foreign_call_executor,
-        ),
+        Ok(compiled_program) => {
+            if let Some(status) = test_status_for_compiled_program_diagnostics(
+                &compiled_program,
+                config,
+                test_function,
+            ) {
+                status
+            } else {
+                run_test_impl(
+                    blackbox_solver,
+                    compiled_program,
+                    test_function,
+                    output,
+                    build_foreign_call_executor,
+                )
+            }
+        }
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
@@ -200,14 +213,24 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     match compile_no_check(context, config, test_function.id, None, false) {
-        Ok(_) => fuzz_test_impl::<B, F, E>(
-            context,
-            test_function,
-            package_name,
-            config,
-            fuzz_config,
-            build_foreign_call_executor,
-        ),
+        Ok(compiled_program) => {
+            if let Some(status) = test_status_for_compiled_program_diagnostics(
+                &compiled_program,
+                config,
+                test_function,
+            ) {
+                status
+            } else {
+                fuzz_test_impl::<B, F, E>(
+                    context,
+                    test_function,
+                    package_name,
+                    config,
+                    fuzz_config,
+                    build_foreign_call_executor,
+                )
+            }
+        }
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
@@ -302,10 +325,20 @@ where
             let message = format!("Foreign call failed: {message}");
             TestStatus::Fail { message, error_diagnostic: None }
         }
-        FuzzingRunStatus::CompileError(custom_diagnostic) => {
-            TestStatus::CompileError(custom_diagnostic)
+        FuzzingRunStatus::CompileError(custom_diagnostics) => {
+            TestStatus::CompileError(custom_diagnostics)
         }
     }
+}
+
+fn test_status_for_compiled_program_diagnostics(
+    compiled_program: &CompiledProgram,
+    config: &CompileOptions,
+    test_function: &TestFunction,
+) -> Option<TestStatus> {
+    let diagnostics = ssa_reports_to_custom_diagnostics(compiled_program.warnings.clone());
+    has_blocking_diagnostics(&diagnostics, config.deny_warnings)
+        .then(|| test_status_program_compile_diagnostics_fail(diagnostics, test_function))
 }
 
 /// Test function failed to compile
@@ -318,12 +351,19 @@ pub fn test_status_program_compile_fail(
     err: CompileError,
     test_function: &TestFunction,
 ) -> TestStatus {
+    test_status_program_compile_diagnostics_fail(vec![err.into()], test_function)
+}
+
+pub fn test_status_program_compile_diagnostics_fail(
+    diagnostics: Vec<CustomDiagnostic>,
+    test_function: &TestFunction,
+) -> TestStatus {
     // The test has failed compilation, but it should never fail. Report error.
     if !test_function.should_fail() {
-        return TestStatus::CompileError(err.into());
+        return TestStatus::CompileError(diagnostics);
     }
 
-    check_expected_failure_message(test_function, None, Some(err.into()))
+    check_expected_failure_message(test_function, None, diagnostics.into_iter().next())
 }
 
 /// The test function compiled successfully.
@@ -380,7 +420,7 @@ pub fn test_status_comptime_interpret_result(
             TestStatus::Skipped
         }
         Err(error) if !test_function.should_fail() => {
-            TestStatus::CompileError(CustomDiagnostic::from(&error))
+            TestStatus::CompileError(vec![CustomDiagnostic::from(&error)])
         }
         Err(error) => check_expected_failure_message(
             test_function,

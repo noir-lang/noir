@@ -491,14 +491,16 @@ fn display_fuzzing_report_and_store(
                 );
             }
         }
-        FuzzingRunStatus::CompileError(err) => {
-            report_one(
-                err,
-                file_manager,
-                parsed_files,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            );
+        FuzzingRunStatus::CompileError(errors) => {
+            for err in errors {
+                report_one(
+                    err,
+                    file_manager,
+                    parsed_files,
+                    compile_options.deny_warnings,
+                    compile_options.silence_warnings,
+                );
+            }
         }
     }
     writer.reset().expect("Failed to reset writer");

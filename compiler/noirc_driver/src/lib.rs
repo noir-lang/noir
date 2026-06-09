@@ -401,6 +401,63 @@ impl CompileOptions {
     }
 }
 
+#[derive(Hash)]
+struct CompileCacheOptions<'a> {
+    instrument_debug: bool,
+    with_ssa_locations: bool,
+    force_brillig: bool,
+    minimal_ssa: bool,
+    skip_underconstrained_check: bool,
+    skip_brillig_constraints_check: bool,
+    brillig_constraints_check_max_array_output_length: u32,
+    brillig_constraints_check_max_ancestor_distance: u32,
+    enable_brillig_debug_assertions: bool,
+    count_array_copies: bool,
+    inliner_aggressiveness: i64,
+    constant_folding_max_iter: usize,
+    small_function_max_instructions: usize,
+    max_bytecode_increase_percent: Option<i32>,
+    max_unroll_iterations: usize,
+    force_unroll_threshold: usize,
+    specialization_threshold: usize,
+    max_specializations_per_fn: usize,
+    max_stack_frame_size: usize,
+    num_stack_frames: usize,
+    max_scratch_space: usize,
+    skip_ssa_pass: &'a [String],
+}
+
+impl<'a> From<&'a CompileOptions> for CompileCacheOptions<'a> {
+    fn from(options: &'a CompileOptions) -> Self {
+        Self {
+            instrument_debug: options.instrument_debug,
+            with_ssa_locations: options.with_ssa_locations,
+            force_brillig: options.force_brillig,
+            minimal_ssa: options.minimal_ssa,
+            skip_underconstrained_check: options.skip_underconstrained_check,
+            skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+            brillig_constraints_check_max_array_output_length: options
+                .brillig_constraints_check_max_array_output_length,
+            brillig_constraints_check_max_ancestor_distance: options
+                .brillig_constraints_check_max_ancestor_distance,
+            enable_brillig_debug_assertions: options.enable_brillig_debug_assertions,
+            count_array_copies: options.count_array_copies,
+            inliner_aggressiveness: options.inliner_aggressiveness,
+            constant_folding_max_iter: options.constant_folding_max_iter,
+            small_function_max_instructions: options.small_function_max_instructions,
+            max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+            max_unroll_iterations: options.max_unroll_iterations,
+            force_unroll_threshold: options.force_unroll_threshold,
+            specialization_threshold: options.specialization_threshold,
+            max_specializations_per_fn: options.max_specializations_per_fn,
+            max_stack_frame_size: options.max_stack_frame_size,
+            num_stack_frames: options.num_stack_frames,
+            max_scratch_space: options.max_scratch_space,
+            skip_ssa_pass: &options.skip_ssa_pass,
+        }
+    }
+}
+
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum CompileError {
@@ -606,10 +663,9 @@ pub fn compile_main(
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
-    let compilation_warnings =
-        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
+    let compilation_warnings = ssa_reports_to_custom_diagnostics(compiled_program.warnings.clone());
 
-    if options.deny_warnings && !compilation_warnings.is_empty() {
+    if has_errors(&compilation_warnings, options.deny_warnings) {
         return Err(compilation_warnings);
     }
 
@@ -665,10 +721,10 @@ pub fn compile_contract(
     };
 
     let compilation_warnings =
-        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+        ssa_reports_to_custom_diagnostics(compiled_contract.warnings.clone());
     warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
-    if options.deny_warnings && !warnings.is_empty() {
+    if has_errors(&warnings, options.deny_warnings) {
         Err(warnings)
     } else {
         if options.print_acir {
@@ -737,7 +793,15 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
 
 /// True if there are (non-warning) errors present and we should halt compilation
 fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
-    if deny_warnings { !errors.is_empty() } else { errors.iter().any(|error| error.is_error()) }
+    if deny_warnings {
+        !errors.is_empty()
+    } else {
+        errors.iter().any(|error| error.is_error() || error.is_bug())
+    }
+}
+
+pub fn has_blocking_diagnostics(diagnostics: &[CustomDiagnostic], deny_warnings: bool) -> bool {
+    has_errors(diagnostics, deny_warnings)
 }
 
 /// Compile all of the functions associated with a Noir contract.
@@ -948,9 +1012,10 @@ pub fn filter_relevant_files(
 /// already been applied.
 ///
 /// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
-/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
-/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
+/// That comparison is based on [CompiledProgram::hash] which is a persisted version of the hash of
+/// the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program] and the relevant
+/// compile options, whereas the output [`circuit::Program`][acvm::acir::circuit::Program] contains
+/// the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
@@ -989,6 +1054,7 @@ pub fn compile_no_check(
     let force_compile = force_compile
         || options.print_acir
         || options.show_brillig
+        || options.show_brillig_opcode_advisories
         || options.force_brillig
         || options.count_array_copies
         || options.show_ssa
@@ -997,7 +1063,8 @@ pub fn compile_no_check(
         || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
+    let cache_options = CompileCacheOptions::from(options);
+    let hash = rustc_hash::FxBuildHasher.hash_one((&program, cache_options));
 
     if let Some(cached_program) = cached_program
         && !force_compile
@@ -1070,6 +1137,10 @@ fn drop_silenced_warnings(
         .into_iter()
         .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
         .collect()
+}
+
+pub fn ssa_reports_to_custom_diagnostics(reports: Vec<SsaReport>) -> Vec<CustomDiagnostic> {
+    vecmap(reports, ssa_report_to_custom_diagnostic)
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {

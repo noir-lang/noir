@@ -13,7 +13,7 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompileOptions, compile_no_check};
+use noirc_driver::{CompileOptions, compile_no_check, ssa_reports_to_custom_diagnostics};
 
 use clap::Args;
 
@@ -85,7 +85,10 @@ fn compile_exported_functions(
                 .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
-                program.map(|program| (program, Vec::new())),
+                program.map(|program| {
+                    let warnings = ssa_reports_to_custom_diagnostics(program.warnings.clone());
+                    (program, warnings)
+                }),
                 &context.file_manager,
                 &context.parsed_files,
                 compile_options.deny_warnings,

@@ -9,7 +9,9 @@ use noir_greybox_fuzzer::{
     FuzzedExecutorFolderConfiguration, WitnessAndCoverage,
 };
 use noirc_abi::{Abi, InputMap};
-use noirc_driver::{CompileOptions, compile_no_check};
+use noirc_driver::{
+    CompileOptions, compile_no_check, has_blocking_diagnostics, ssa_reports_to_custom_diagnostics,
+};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
 
@@ -63,7 +65,7 @@ pub enum FuzzingRunStatus {
     ForeignCallFailure {
         message: String,
     },
-    CompileError(CustomDiagnostic),
+    CompileError(Vec<CustomDiagnostic>),
 }
 
 impl FuzzingRunStatus {
@@ -104,6 +106,17 @@ where
 
     let acir_program = compile_no_check(context, &acir_config, fuzzing_harness.id, None, false);
 
+    let brillig_program =
+        compile_no_check(context, &brillig_config, fuzzing_harness.id, None, false);
+
+    if let (Ok(acir_program), Ok(brillig_program)) = (&acir_program, &brillig_program) {
+        let mut diagnostics = ssa_reports_to_custom_diagnostics(acir_program.warnings.clone());
+        diagnostics.extend(ssa_reports_to_custom_diagnostics(brillig_program.warnings.clone()));
+        if has_blocking_diagnostics(&diagnostics, compile_config.deny_warnings) {
+            return FuzzingRunStatus::CompileError(diagnostics);
+        }
+    }
+
     // We need to clone the acir program because it will be moved into the fuzzer
     // and we need to keep the original program for the error message and callstack
     let acir_program_copy = if let Ok(acir_program_internal) = &acir_program {
@@ -111,8 +124,6 @@ where
     } else {
         None
     };
-    let brillig_program =
-        compile_no_check(context, &brillig_config, fuzzing_harness.id, None, false);
     let brillig_program_copy = if let Ok(brillig_program_internal) = &brillig_program {
         Some(brillig_program_internal.clone())
     } else {
@@ -329,7 +340,7 @@ where
         }
         (Err(err), ..) | (.., Err(err)) => {
             // For now just return the error
-            FuzzingRunStatus::CompileError(err.into())
+            FuzzingRunStatus::CompileError(vec![err.into()])
         }
     }
 }

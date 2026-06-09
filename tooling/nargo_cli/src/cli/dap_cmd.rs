@@ -293,7 +293,7 @@ fn analyze_test_result<R: Read, W: Write>(
                 None => basic_message,
             }
         }
-        TestStatus::CompileError(diagnostic) => format!("x Test failed.\n{diagnostic:#?}"),
+        TestStatus::CompileError(diagnostics) => format!("x Test failed.\n{diagnostics:#?}"),
         TestStatus::Skipped => "* Test skipped".into(),
     };
 

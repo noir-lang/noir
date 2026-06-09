@@ -115,10 +115,16 @@ fn on_test_run_request_inner(
                     result: "skipped".to_string(),
                     message: None,
                 },
-                TestStatus::CompileError(diag) => NargoTestRunResult {
+                TestStatus::CompileError(diagnostics) => NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
-                    message: Some(diag.message),
+                    message: Some(
+                        diagnostics
+                            .into_iter()
+                            .map(|diagnostic| diagnostic.message)
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ),
                 },
             };
             Ok(result)
