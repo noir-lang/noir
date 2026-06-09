@@ -436,14 +436,22 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let array_or_vector = self.convert_ssa_value(value, dfg);
         let array_register = array_or_vector.extract_register();
 
-        let rc_register = self.brillig_context.codegen_read_rc(array_register);
+        // The reference count is a "unique / shared" boolean and only ever moves towards
+        // shared, so this is a single store with no read-modify-write.
+        self.brillig_context.codegen_mark_rc_shared(array_register);
+    }
 
-        // Ensure we're not incrementing from 0 back to 1
-        if self.brillig_context.enable_debug_assertions() {
-            self.codegen_assert_rc_neq_zero(rc_register.address);
-        }
-
-        self.brillig_context.codegen_increment_rc(array_register, rc_register.address);
+    /// Load the `u1` "unique / shared" reference-count flag of `array` and widen it into
+    /// `destination`, the integer type returned by the `array_refcount` / `vector_refcount`
+    /// intrinsics.
+    pub(crate) fn codegen_load_rc_flag(
+        &mut self,
+        destination: SingleAddrVariable,
+        array: MemoryAddress,
+    ) {
+        let flag = self.brillig_context.allocate_single_addr_bool();
+        self.brillig_context.load_instruction(flag.address, array);
+        self.brillig_context.cast_instruction(destination, *flag);
     }
     pub(crate) fn codegen_decrement_rc(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let array_or_vector = self.convert_ssa_value(value, dfg);

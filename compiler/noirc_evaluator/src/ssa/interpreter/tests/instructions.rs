@@ -1036,8 +1036,10 @@ fn array_set_with_offset() {
     let v0 = values[0].as_array_or_vector().unwrap();
     let v1 = values[1].as_array_or_vector().unwrap();
 
-    assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
-    assert_eq!(*v1.rc.borrow(), 1);
+    // The reference count is a "unique (1) / shared (0)" flag: `inc_rc` marked v0 as shared,
+    // and the copy made for v1 leaves v0 shared while v1 is a fresh, uniquely-owned array.
+    assert_eq!(*v0.rc.borrow(), 0, "v0 stays shared");
+    assert_eq!(*v1.rc.borrow(), 1, "v1 is uniquely owned");
 
     let one = from_constant(1u32.into(), NumericType::NativeField);
     let two = from_constant(2u32.into(), NumericType::NativeField);
@@ -1062,7 +1064,9 @@ fn increment_rc() {
     ",
     );
     let array = value.as_array_or_vector().unwrap();
-    assert_eq!(*array.rc.borrow(), 4);
+    // The reference count is a "unique (1) / shared (0)" flag rather than a count, so any number
+    // of `inc_rc` instructions just leave the array marked as shared.
+    assert_eq!(*array.rc.borrow(), 0);
 }
 
 #[test]

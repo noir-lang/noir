@@ -15,6 +15,7 @@ use crate::brillig::{
     brillig_ir::{
         BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
+        codegen_memory::RC_UNIQUE,
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
     },
@@ -61,13 +62,13 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     let [source_array_pointer_arg, source_array_memory_size_arg, destination_array_pointer_return] =
         brillig_context.allocate_scratch_registers();
 
+    // The reference-count slot is a "unique / shared" boolean, so we can branch on it
+    // directly: unique (truthy) means we can mutate in place, shared (falsy) means copy.
     let rc = brillig_context.codegen_read_rc(source_array_pointer_arg);
 
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
-
-    brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
-        if cond {
-            // Reference count is 1, we can mutate the array directly
+    brillig_context.codegen_branch(rc.address, |ctx, is_unique| {
+        if is_unique {
+            // Uniquely owned, we can mutate the array directly.
             ctx.mov_instruction(destination_array_pointer_return, source_array_pointer_arg);
         } else {
             // We need to copy the array; allocate the required space on the heap.
@@ -83,13 +84,8 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
                 destination_array_pointer_return,
                 SingleAddrVariable::new_usize(source_array_memory_size_arg),
             );
-            // Then set the new RC to 1.
-            ctx.codegen_initialize_rc(destination_array_pointer_return, 1);
-
-            // Decrease the original ref count now that this copy is no longer pointing to it.
-            // Copying an array is a potential implicit side effect of setting an item by index through a mutable variable;
-            // we won't end up with two handles to the array, so we can split the RC between the old and the new.
-            ctx.codegen_decrement_rc(source_array_pointer_arg, rc.address);
+            // The fresh copy is uniquely owned. The source stays marked as shared.
+            ctx.codegen_initialize_rc(destination_array_pointer_return, RC_UNIQUE);
 
             // Increase our array copy counter if that flag is set
             if ctx.count_arrays_copied {

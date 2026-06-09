@@ -386,19 +386,17 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = self.convert_ssa_value(arguments[0], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.define_variable(result, dfg);
-                        let destination = destination.extract_register();
+                        let destination = self.define_variable(result, dfg).extract_single_addr();
                         let array = array.extract_register();
-                        self.brillig_context.load_instruction(destination, array);
+                        self.codegen_load_rc_flag(destination, array);
                     }
                     Intrinsic::VectorRefCount => {
                         let array = self.convert_ssa_value(arguments[1], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.define_variable(result, dfg);
-                        let destination = destination.extract_register();
+                        let destination = self.define_variable(result, dfg).extract_single_addr();
                         let array = array.extract_register();
-                        self.brillig_context.load_instruction(destination, array);
+                        self.codegen_load_rc_flag(destination, array);
                     }
                     Intrinsic::ApplyRangeConstraint => {
                         unreachable!(

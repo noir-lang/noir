@@ -1285,12 +1285,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn interpret_inc_rc(&self, value_id: ValueId) -> IResult<()> {
         if self.in_unconstrained_context() {
             let array = self.lookup_array_or_vector(value_id, "inc_rc")?;
-            let mut rc = array.rc.borrow_mut();
-            if *rc == 0 {
-                let value = array.to_string();
-                return Err(InterpreterError::IncRcRevive { value_id, value });
-            }
-            *rc += 1;
+            // The reference count is a "unique (1) / shared (0)" boolean rather than a
+            // count: `inc_rc` marks the array/vector as shared so a later `array_set`
+            // copies instead of mutating in place. It never has to be incremented.
+            *array.rc.borrow_mut() = 0;
         }
         Ok(())
     }

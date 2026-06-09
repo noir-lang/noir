@@ -6,6 +6,7 @@ use crate::brillig::{
     brillig_ir::{
         BrilligBinaryOp, BrilligContext,
         brillig_variable::BrilligVector,
+        codegen_memory::RC_UNIQUE,
         debug_show::DebugToString,
         registers::{RegisterAllocator, ScratchSpace},
     },
@@ -42,13 +43,13 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
 
+    // The reference-count slot is a "unique / shared" boolean, so we can branch on it
+    // directly: unique (truthy) means we can mutate in place, shared (falsy) means copy.
     let rc = brillig_context.codegen_read_vector_rc(source_vector);
 
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
-
-    brillig_context.codegen_branch(is_rc_one.address, |ctx, cond| {
-        if cond {
-            // Reference count is 1, we can mutate the vector directly; just the the destination to equal the source.
+    brillig_context.codegen_branch(rc.address, |ctx, is_unique| {
+        if is_unique {
+            // Uniquely owned, we can mutate the vector directly; just set the destination to equal the source.
             ctx.mov_instruction(target_vector.pointer, source_vector.pointer);
         } else {
             // Allocate the memory for the new vector.
@@ -63,13 +64,8 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             // Copy the entire source vector, including metadata and items.
             ctx.codegen_mem_copy(source_vector.pointer, target_vector.pointer, *allocation_size);
 
-            // Then reset the new RC to 1.
-            ctx.codegen_initialize_rc(target_vector.pointer, 1);
-
-            // Decrease the original ref count now that this copy is no longer pointing to it.
-            // Copying a vector this way is an implicit side effect of setting an item by index through a mutable variable;
-            // unlike with pop and push, we won't end up with a new vector handle, so we can split the RC between the old and the new.
-            ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
+            // The fresh copy is uniquely owned. The source stays marked as shared.
+            ctx.codegen_initialize_rc(target_vector.pointer, RC_UNIQUE);
 
             // Increase our array copy counter if that flag is set
             if ctx.count_arrays_copied {

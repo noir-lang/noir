@@ -73,10 +73,9 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*source_rc);
-
-    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-        if is_rc_one {
+    // The reference-count slot is a "unique / shared" boolean, so we branch on it directly.
+    brillig_context.codegen_branch(source_rc.address, |brillig_context, is_unique| {
+        if is_unique {
             // We reuse the source vector, moving the metadata to the right (decreasing capacity)
             // Set the target vector pointer to be the source plus the number of popped items.
             brillig_context.memory_op_instruction(

@@ -16,6 +16,18 @@ use super::{
     registers::RegisterAllocator,
 };
 
+/// The reference-count slot of an array or vector holds a boolean rather than a count:
+/// the value only ever distinguishes "uniquely owned" from "shared", which is all the
+/// copy-on-write decision needs. Because no `dec_rc` is ever emitted, the slot only moves
+/// from [`RC_UNIQUE`] to [`RC_SHARED`] (via `inc_rc`) and back to [`RC_UNIQUE`] when a fresh
+/// copy is made — it never has to be incremented or compared against a count.
+///
+/// [`RC_UNIQUE`] is `1` and [`RC_SHARED`] is `0` so that copy-on-write can branch on the slot
+/// directly: a unique array/vector is "truthy" and may be mutated in place, a shared one is
+/// "falsy" and must be copied.
+pub(crate) const RC_UNIQUE: usize = 1;
+pub(crate) const RC_SHARED: usize = 0;
+
 pub(crate) struct VectorMetaData<Registers: RegisterAllocator> {
     pub(crate) rc: Allocated<SingleAddrVariable, Registers>,
     pub(crate) size: Allocated<SingleAddrVariable, Registers>,
@@ -331,12 +343,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    /// Returns a variable holding the ref-count of a given array or vector.
+    /// Returns a variable holding the `u1` "unique / shared" reference-count flag of a given
+    /// array or vector.
     pub(crate) fn codegen_read_rc(
         &mut self,
         pointer: MemoryAddress,
     ) -> Allocated<SingleAddrVariable, Registers> {
-        let result = self.allocate_single_addr_usize();
+        let result = self.allocate_single_addr_bool();
         self.load_instruction(result.address, pointer);
         result
     }
@@ -449,7 +462,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         vector: BrilligVector,
         semantic_length_and_item_size: Option<(MemoryAddress, MemoryAddress)>,
     ) -> VectorMetaData<Registers> {
-        let rc = self.allocate_single_addr_usize();
+        // The reference-count slot holds a `u1` "unique / shared" flag, not a count.
+        let rc = self.allocate_single_addr_bool();
         let size = self.allocate_single_addr_usize();
         let capacity = self.allocate_single_addr_usize();
         let items_pointer = self.allocate_single_addr_usize();
@@ -549,15 +563,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             .checked_add(offsets::ARRAY_META_COUNT)
             .expect("Array size overflow: array is too large to be allocated in Brillig");
         self.codegen_allocate_immediate_mem(array.pointer, assert_usize(size));
-        self.codegen_initialize_rc(array.pointer, 1);
+        self.codegen_initialize_rc(array.pointer, RC_UNIQUE);
     }
 
-    /// Initialize the reference counter for an array or vector.
+    /// Initialize the reference-count slot for an array or vector.
     /// This should only be used internally in the array and vector initialization methods.
     ///
-    /// The RC is in the 0th slot of the memory allocated for the array or vector.
+    /// The slot is in the 0th position of the memory allocated for the array or vector. It holds
+    /// a `u1` "unique / shared" flag rather than a count (see [`RC_UNIQUE`] / [`RC_SHARED`]) so
+    /// that the copy-on-write decision can branch on it directly without a comparison.
     pub(crate) fn codegen_initialize_rc(&mut self, pointer: MemoryAddress, rc: usize) {
-        self.indirect_const_instruction(pointer, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, rc.into());
+        self.indirect_const_instruction(pointer, 1, rc.into());
     }
 
     /// Decrement the ref-count by 1.
@@ -578,37 +594,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // self.store_instruction(pointer, rc);
     }
 
-    /// Increment the ref-count by 1.
+    /// Mark an array or vector as shared so that a subsequent `array_set` copies it
+    /// rather than mutating it in place.
     ///
-    /// The inputs are:
-    /// * the `pointer` to the array/vector
-    /// * the `rc` address of the vector where we have the current RC loaded already
-    ///
-    /// # Safety
-    ///
-    /// ### RC Overflow Limitation
-    ///
-    /// This operation uses wrapping arithmetic and does not check for overflow.
-    /// If the reference count were to reach `u32::MAX` (4,294,967,295) and be
-    /// incremented, it would wrap to 0. A subsequent increment would make it 1,
-    /// which would cause the copy-on-write logic (`rc == 1`) to incorrectly
-    /// treat a shared array/vector as uniquely owned, leading to in-place
-    /// mutation of shared data (memory corruption / unsoundness).
-    ///
-    /// This is an accepted theoretical limitation because:
-    /// - Triggering overflow requires 2^32 (~4.3 billion) RC increments on a
-    ///   single array/vector, which is practically unreachable in any realistic
-    ///   Noir program.
-    /// - Unlike free memory pointer (FMP) updates (which are checked in the VM), RC values are stored
-    ///   at arbitrary heap addresses, and the incremented result is written back to that address.
-    ///   They are not operating on the [FMP][ReservedRegisters::free_memory_pointer()].
-    /// - Adding runtime overflow checks would require ~3 extra opcodes per RC
-    ///   increment, which is unacceptable overhead for a theoretical issue.
-    pub(crate) fn codegen_increment_rc(&mut self, pointer: MemoryAddress, rc: MemoryAddress) {
-        // Modify the RC (it's on the stack, or scratch space).
-        self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, 1);
-        // Write it back onto the heap.
-        self.store_instruction(pointer, rc);
+    /// The reference-count slot holds a boolean (see [`RC_UNIQUE`] / [`RC_SHARED`]), and
+    /// because no `dec_rc` is ever emitted the slot only moves from unique to shared. So
+    /// marking it shared is an unconditional store of a constant — no read, no arithmetic.
+    pub(crate) fn codegen_mark_rc_shared(&mut self, pointer: MemoryAddress) {
+        self.codegen_initialize_rc(pointer, RC_SHARED);
     }
 
     /// Initializes a vector, allocating memory on the heap to store its representation and initializing the reference counter, size and capacity.
@@ -651,7 +644,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         capacity: SingleAddrVariable,
     ) {
         // Write RC
-        self.codegen_initialize_rc(vector.pointer, 1);
+        self.codegen_initialize_rc(vector.pointer, RC_UNIQUE);
 
         // Write size
         let write_pointer = self.allocate_register();

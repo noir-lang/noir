@@ -175,11 +175,10 @@ pub(crate) fn reallocate_vector_for_insertion<
         does_capacity_fit.address,
         |brillig_context, does_capacity_fit| {
             if does_capacity_fit {
-                // We can only reuse the source vector if the ref-count is 1.
-                let is_rc_one = brillig_context.codegen_usize_equals_one(source_rc);
-
-                brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-                    if is_rc_one {
+                // We can only reuse the source vector if it is uniquely owned. The
+                // reference-count slot is a "unique / shared" boolean, so we branch on it directly.
+                brillig_context.codegen_branch(source_rc.address, |brillig_context, is_unique| {
+                    if is_unique {
                         // We can insert in place, so we can just move the source pointer to the destination pointer and update the length
                         brillig_context
                             .mov_instruction(target_vector.pointer, source_vector.pointer);
