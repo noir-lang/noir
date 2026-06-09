@@ -531,22 +531,24 @@ mod sha256_compression {
 
     #[test]
     fn is_optimized_out_with_constant_arguments() {
+        // Canonical argument order: input `[u32; 16]` first, state `[u32; 8]` second, matching
+        // the stdlib signature and `ssa::validation`.
         let src = r#"
             acir(inline) fn main f0 {
               b0():
-                v0 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 8]
-                v1 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 16]
+                v0 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
+                v1 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
                 v2 = call sha256_compression(v0, v1) -> [u32; 8]
                 return v2
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0():
-            v1 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 8]
-            v2 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 16]
-            v11 = make_array [u32 2091193876, u32 1113340840, u32 3461668143, u32 3254913767, u32 3068490961, u32 2551409935, u32 2927503052, u32 3205228454] : [u32; 8]
-            return v11
+            v16 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
+            v25 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
+            v27 = call sha256_compression(v16, v25) -> [u32; 8]
+            return v27
         }
         ");
     }
