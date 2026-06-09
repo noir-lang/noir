@@ -1,6 +1,22 @@
 use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
+fn duplicate_type_aliases_report_type_definition() {
+    let src = r#"
+    type Foo = u32;
+         ~~~ First type definition found here
+    type Foo = u8;
+         ^^^ Duplicate definitions of type definition with name Foo found
+         ~~~ Second type definition found here
+
+    fn main() {
+        let _: Foo = 0;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allows_usage_of_type_alias_as_argument_type() {
     let src = r#"
     type Foo = Field;
