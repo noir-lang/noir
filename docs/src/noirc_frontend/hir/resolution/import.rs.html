@@ -244,7 +244,7 @@
 <a href=#244 id=244 data-nosnippet>244</a>    starting_module: ModuleId,
 <a href=#245 id=245 data-nosnippet>245</a>) -&gt; bool {
 <a href=#246 id=246 data-nosnippet>246</a>    <span class="kw">match </span>path.kind {
-<a href=#247 id=247 data-nosnippet>247</a>        PathKind::Crate | PathKind::Super =&gt; <span class="bool-val">true</span>,
+<a href=#247 id=247 data-nosnippet>247</a>        PathKind::Crate | PathKind::Super(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 <a href=#248 id=248 data-nosnippet>248</a>        PathKind::Plain =&gt; importing_module == starting_module,
 <a href=#249 id=249 data-nosnippet>249</a>        PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
 <a href=#250 id=250 data-nosnippet>250</a>        PathKind::Absolute =&gt; {
@@ -266,7 +266,7 @@
 <a href=#266 id=266 data-nosnippet>266</a>            PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path, <span class="self">self</span>.importing_module.krate),
 <a href=#267 id=267 data-nosnippet>267</a>            PathKind::Plain =&gt; <span class="self">self</span>.resolve_plain_path(path, <span class="self">self</span>.importing_module),
 <a href=#268 id=268 data-nosnippet>268</a>            PathKind::Absolute =&gt; <span class="self">self</span>.resolve_absolute_path(path),
-<a href=#269 id=269 data-nosnippet>269</a>            PathKind::Super =&gt; <span class="self">self</span>.resolve_super_path(path),
+<a href=#269 id=269 data-nosnippet>269</a>            PathKind::Super(extras) =&gt; <span class="self">self</span>.resolve_super_path(path, extras),
 <a href=#270 id=270 data-nosnippet>270</a>            PathKind::Resolved(crate_id) =&gt; <span class="self">self</span>.resolve_crate_path(path, crate_id),
 <a href=#271 id=271 data-nosnippet>271</a>        }
 <a href=#272 id=272 data-nosnippet>272</a>    }
@@ -337,183 +337,186 @@
 <a href=#337 id=337 data-nosnippet>337</a>        <span class="prelude-val">Ok</span>((path, <span class="kw-2">*</span>dep_module))
 <a href=#338 id=338 data-nosnippet>338</a>    }
 <a href=#339 id=339 data-nosnippet>339</a>
-<a href=#340 id=340 data-nosnippet>340</a>    <span class="doccomment">/// Resolve a path such as `super::foo::bar`:
-<a href=#341 id=341 data-nosnippet>341</a>    /// * get the parent of the current importing module
-<a href=#342 id=342 data-nosnippet>342</a>    /// * return the path still with [PathKind::Super], paired up with the parent module
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="doccomment">/// Resolve a path such as `super::foo::bar` or `super::super::foo::bar`:
+<a href=#341 id=341 data-nosnippet>341</a>    /// * walk up `extras + 1` parents of the current importing module (one per `super`)
+<a href=#342 id=342 data-nosnippet>342</a>    /// * return the path still with [PathKind::Super], paired up with the ancestor module
 <a href=#343 id=343 data-nosnippet>343</a>    </span><span class="kw">fn </span>resolve_super_path(
 <a href=#344 id=344 data-nosnippet>344</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#345 id=345 data-nosnippet>345</a>        path: TypedPath,
-<a href=#346 id=346 data-nosnippet>346</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(parent_module_id) = get_module(<span class="self">self</span>.def_maps, <span class="self">self</span>.importing_module).parent <span class="kw">else </span>{
-<a href=#348 id=348 data-nosnippet>348</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NoSuper(path.kind_location));
-<a href=#349 id=349 data-nosnippet>349</a>        };
-<a href=#350 id=350 data-nosnippet>350</a>
-<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>current_module =
-<a href=#352 id=352 data-nosnippet>352</a>            ModuleId { krate: <span class="self">self</span>.importing_module.krate, local_id: parent_module_id };
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="prelude-val">Ok</span>((path, current_module))
-<a href=#354 id=354 data-nosnippet>354</a>    }
-<a href=#355 id=355 data-nosnippet>355</a>}
-<a href=#356 id=356 data-nosnippet>356</a>
-<a href=#357 id=357 data-nosnippet>357</a><span class="kw">struct </span>ImportSolver&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'usage_tracker</span>, <span class="lifetime">'references_tracker</span>&gt; {
-<a href=#358 id=358 data-nosnippet>358</a>    importing_module: ModuleId,
-<a href=#359 id=359 data-nosnippet>359</a>    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_maps </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
-<a href=#360 id=360 data-nosnippet>360</a>    usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'usage_tracker </span><span class="kw-2">mut </span>UsageTracker,
-<a href=#361 id=361 data-nosnippet>361</a>    references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'references_tracker</span>&gt;&gt;,
-<a href=#362 id=362 data-nosnippet>362</a>}
-<a href=#363 id=363 data-nosnippet>363</a>
-<a href=#364 id=364 data-nosnippet>364</a><span class="kw">impl</span>&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'usage_tracker</span>, <span class="lifetime">'references_tracker</span>&gt;
-<a href=#365 id=365 data-nosnippet>365</a>    ImportSolver&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'usage_tracker</span>, <span class="lifetime">'references_tracker</span>&gt;
-<a href=#366 id=366 data-nosnippet>366</a>{
-<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">fn </span>new(
-<a href=#368 id=368 data-nosnippet>368</a>        importing_module: ModuleId,
-<a href=#369 id=369 data-nosnippet>369</a>        def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_maps </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
-<a href=#370 id=370 data-nosnippet>370</a>        usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'usage_tracker </span><span class="kw-2">mut </span>UsageTracker,
-<a href=#371 id=371 data-nosnippet>371</a>        references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'references_tracker</span>&gt;&gt;,
-<a href=#372 id=372 data-nosnippet>372</a>    ) -&gt; <span class="self">Self </span>{
-<a href=#373 id=373 data-nosnippet>373</a>        <span class="self">Self </span>{ importing_module, def_maps, usage_tracker, references_tracker }
-<a href=#374 id=374 data-nosnippet>374</a>    }
-<a href=#375 id=375 data-nosnippet>375</a>
-<a href=#376 id=376 data-nosnippet>376</a>    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
-<a href=#377 id=377 data-nosnippet>377</a>    ///
-<a href=#378 id=378 data-nosnippet>378</a>    /// This is very similar to `Elaborator::resolve_name_in_module`.
-<a href=#379 id=379 data-nosnippet>379</a>    </span><span class="kw">fn </span>resolve_name_in_module(
-<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#381 id=381 data-nosnippet>381</a>        path: TypedPath,
-<a href=#382 id=382 data-nosnippet>382</a>        starting_module: ModuleId,
-<a href=#383 id=383 data-nosnippet>383</a>    ) -&gt; ImportResolutionResult {
-<a href=#384 id=384 data-nosnippet>384</a>        <span class="comment">// There is a possibility that the import path is empty. In that case, early return.
-<a href=#385 id=385 data-nosnippet>385</a>        </span><span class="kw">if </span>path.segments.is_empty() {
-<a href=#386 id=386 data-nosnippet>386</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(ResolvedImport {
-<a href=#387 id=387 data-nosnippet>387</a>                namespace: PerNs::types(starting_module.into()),
-<a href=#388 id=388 data-nosnippet>388</a>                deferred_private: <span class="prelude-val">None</span>,
-<a href=#389 id=389 data-nosnippet>389</a>                errors: Vec::new(),
-<a href=#390 id=390 data-nosnippet>390</a>            });
-<a href=#391 id=391 data-nosnippet>391</a>        }
-<a href=#392 id=392 data-nosnippet>392</a>
-<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>first_segment_is_always_visible =
-<a href=#394 id=394 data-nosnippet>394</a>            first_segment_is_always_visible(<span class="kw-2">&amp;</span>path, <span class="self">self</span>.importing_module, starting_module);
+<a href=#346 id=346 data-nosnippet>346</a>        extras: usize,
+<a href=#347 id=347 data-nosnippet>347</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span><span class="kw-2">mut </span>current_module = <span class="self">self</span>.importing_module;
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">for _ in </span><span class="number">0</span>..=extras {
+<a href=#350 id=350 data-nosnippet>350</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(parent_module_id) = get_module(<span class="self">self</span>.def_maps, current_module).parent <span class="kw">else </span>{
+<a href=#351 id=351 data-nosnippet>351</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NoSuper(path.kind_location));
+<a href=#352 id=352 data-nosnippet>352</a>            };
+<a href=#353 id=353 data-nosnippet>353</a>            current_module =
+<a href=#354 id=354 data-nosnippet>354</a>                ModuleId { krate: <span class="self">self</span>.importing_module.krate, local_id: parent_module_id };
+<a href=#355 id=355 data-nosnippet>355</a>        }
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="prelude-val">Ok</span>((path, current_module))
+<a href=#357 id=357 data-nosnippet>357</a>    }
+<a href=#358 id=358 data-nosnippet>358</a>}
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a><span class="kw">struct </span>ImportSolver&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'usage_tracker</span>, <span class="lifetime">'references_tracker</span>&gt; {
+<a href=#361 id=361 data-nosnippet>361</a>    importing_module: ModuleId,
+<a href=#362 id=362 data-nosnippet>362</a>    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_maps </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+<a href=#363 id=363 data-nosnippet>363</a>    usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'usage_tracker </span><span class="kw-2">mut </span>UsageTracker,
+<a href=#364 id=364 data-nosnippet>364</a>    references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'references_tracker</span>&gt;&gt;,
+<a href=#365 id=365 data-nosnippet>365</a>}
+<a href=#366 id=366 data-nosnippet>366</a>
+<a href=#367 id=367 data-nosnippet>367</a><span class="kw">impl</span>&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'usage_tracker</span>, <span class="lifetime">'references_tracker</span>&gt;
+<a href=#368 id=368 data-nosnippet>368</a>    ImportSolver&lt;<span class="lifetime">'def_maps</span>, <span class="lifetime">'usage_tracker</span>, <span class="lifetime">'references_tracker</span>&gt;
+<a href=#369 id=369 data-nosnippet>369</a>{
+<a href=#370 id=370 data-nosnippet>370</a>    <span class="kw">fn </span>new(
+<a href=#371 id=371 data-nosnippet>371</a>        importing_module: ModuleId,
+<a href=#372 id=372 data-nosnippet>372</a>        def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_maps </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+<a href=#373 id=373 data-nosnippet>373</a>        usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'usage_tracker </span><span class="kw-2">mut </span>UsageTracker,
+<a href=#374 id=374 data-nosnippet>374</a>        references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'references_tracker</span>&gt;&gt;,
+<a href=#375 id=375 data-nosnippet>375</a>    ) -&gt; <span class="self">Self </span>{
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="self">Self </span>{ importing_module, def_maps, usage_tracker, references_tracker }
+<a href=#377 id=377 data-nosnippet>377</a>    }
+<a href=#378 id=378 data-nosnippet>378</a>
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
+<a href=#380 id=380 data-nosnippet>380</a>    ///
+<a href=#381 id=381 data-nosnippet>381</a>    /// This is very similar to `Elaborator::resolve_name_in_module`.
+<a href=#382 id=382 data-nosnippet>382</a>    </span><span class="kw">fn </span>resolve_name_in_module(
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#384 id=384 data-nosnippet>384</a>        path: TypedPath,
+<a href=#385 id=385 data-nosnippet>385</a>        starting_module: ModuleId,
+<a href=#386 id=386 data-nosnippet>386</a>    ) -&gt; ImportResolutionResult {
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="comment">// There is a possibility that the import path is empty. In that case, early return.
+<a href=#388 id=388 data-nosnippet>388</a>        </span><span class="kw">if </span>path.segments.is_empty() {
+<a href=#389 id=389 data-nosnippet>389</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(ResolvedImport {
+<a href=#390 id=390 data-nosnippet>390</a>                namespace: PerNs::types(starting_module.into()),
+<a href=#391 id=391 data-nosnippet>391</a>                deferred_private: <span class="prelude-val">None</span>,
+<a href=#392 id=392 data-nosnippet>392</a>                errors: Vec::new(),
+<a href=#393 id=393 data-nosnippet>393</a>            });
+<a href=#394 id=394 data-nosnippet>394</a>        }
 <a href=#395 id=395 data-nosnippet>395</a>
-<a href=#396 id=396 data-nosnippet>396</a>        <span class="comment">// The current module and module ID as we resolve path segments
-<a href=#397 id=397 data-nosnippet>397</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>current_module_id = starting_module;
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span><span class="kw-2">mut </span>current_module = get_module(<span class="self">self</span>.def_maps, starting_module);
-<a href=#399 id=399 data-nosnippet>399</a>
-<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span>first_segment =
-<a href=#401 id=401 data-nosnippet>401</a>            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ICE: could not fetch first segment"</span>).ident;
-<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span><span class="kw-2">mut </span>current_ns = current_module.find_name(first_segment);
-<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">if </span>current_ns.is_none() {
-<a href=#404 id=404 data-nosnippet>404</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(first_segment.clone()));
-<a href=#405 id=405 data-nosnippet>405</a>        }
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>        <span class="self">self</span>.usage_tracker.mark_as_referenced(current_module_id, first_segment);
-<a href=#408 id=408 data-nosnippet>408</a>
-<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">for </span>(index, (last_segment, current_segment)) <span class="kw">in
-<a href=#411 id=411 data-nosnippet>411</a>            </span>path.segments.iter().tuple_windows().enumerate()
-<a href=#412 id=412 data-nosnippet>412</a>        {
-<a href=#413 id=413 data-nosnippet>413</a>            <span class="kw">let </span>last_ident = <span class="kw-2">&amp;</span>last_segment.ident;
-<a href=#414 id=414 data-nosnippet>414</a>            <span class="kw">let </span>current_ident = <span class="kw-2">&amp;</span>current_segment.ident;
-<a href=#415 id=415 data-nosnippet>415</a>
-<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let </span>(typ, visibility) = <span class="kw">match </span>current_ns.types {
-<a href=#417 id=417 data-nosnippet>417</a>                <span class="prelude-val">None </span>=&gt; {
-<a href=#418 id=418 data-nosnippet>418</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(last_ident.clone()));
-<a href=#419 id=419 data-nosnippet>419</a>                }
-<a href=#420 id=420 data-nosnippet>420</a>                <span class="prelude-val">Some</span>((typ, visibility, <span class="kw">_</span>)) =&gt; (typ, visibility),
-<a href=#421 id=421 data-nosnippet>421</a>            };
-<a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a>            <span class="self">self</span>.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
-<a href=#424 id=424 data-nosnippet>424</a>
-<a href=#425 id=425 data-nosnippet>425</a>            <span class="comment">// In the type namespace, only Mod can be used in a path.
-<a href=#426 id=426 data-nosnippet>426</a>            </span>current_module_id = <span class="kw">match </span>typ {
-<a href=#427 id=427 data-nosnippet>427</a>                ModuleDefId::ModuleId(id) =&gt; id,
-<a href=#428 id=428 data-nosnippet>428</a>                ModuleDefId::TypeId(id) =&gt; id.module_id(),
-<a href=#429 id=429 data-nosnippet>429</a>                ModuleDefId::TypeAliasId(..) =&gt; {
-<a href=#430 id=430 data-nosnippet>430</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NotAModule {
-<a href=#431 id=431 data-nosnippet>431</a>                        ident: last_segment.ident.clone(),
-<a href=#432 id=432 data-nosnippet>432</a>                        kind: <span class="string">"type alias"</span>,
-<a href=#433 id=433 data-nosnippet>433</a>                    });
-<a href=#434 id=434 data-nosnippet>434</a>                }
-<a href=#435 id=435 data-nosnippet>435</a>                ModuleDefId::TraitAssociatedTypeId(..) =&gt; {
-<a href=#436 id=436 data-nosnippet>436</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NotAModule {
-<a href=#437 id=437 data-nosnippet>437</a>                        ident: last_segment.ident.clone(),
-<a href=#438 id=438 data-nosnippet>438</a>                        kind: <span class="string">"associated type"</span>,
-<a href=#439 id=439 data-nosnippet>439</a>                    });
-<a href=#440 id=440 data-nosnippet>440</a>                }
-<a href=#441 id=441 data-nosnippet>441</a>                ModuleDefId::TraitId(id) =&gt; id.<span class="number">0</span>,
-<a href=#442 id=442 data-nosnippet>442</a>                ModuleDefId::FunctionId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"functions cannot be in the type namespace"</span>),
-<a href=#443 id=443 data-nosnippet>443</a>                ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"globals cannot be in the type namespace"</span>),
-<a href=#444 id=444 data-nosnippet>444</a>            };
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a>            <span class="kw">if </span>!((first_segment_is_always_visible &amp;&amp; index == <span class="number">0</span>)
-<a href=#447 id=447 data-nosnippet>447</a>                || <span class="self">self</span>.item_in_module_is_visible(current_module_id, visibility))
-<a href=#448 id=448 data-nosnippet>448</a>            {
-<a href=#449 id=449 data-nosnippet>449</a>                errors.push(PathResolutionError::Private(last_ident.clone()));
-<a href=#450 id=450 data-nosnippet>450</a>            }
-<a href=#451 id=451 data-nosnippet>451</a>
-<a href=#452 id=452 data-nosnippet>452</a>            current_module = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span>current_module_id.krate][current_module_id.local_id];
-<a href=#453 id=453 data-nosnippet>453</a>
-<a href=#454 id=454 data-nosnippet>454</a>            <span class="comment">// Check if namespace
-<a href=#455 id=455 data-nosnippet>455</a>            </span><span class="kw">let </span>found_ns = current_module.find_name(current_ident);
-<a href=#456 id=456 data-nosnippet>456</a>            <span class="kw">if </span>found_ns.is_none() {
-<a href=#457 id=457 data-nosnippet>457</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
-<a href=#458 id=458 data-nosnippet>458</a>            }
-<a href=#459 id=459 data-nosnippet>459</a>
-<a href=#460 id=460 data-nosnippet>460</a>            <span class="self">self</span>.usage_tracker.mark_as_referenced(current_module_id, current_ident);
-<a href=#461 id=461 data-nosnippet>461</a>
-<a href=#462 id=462 data-nosnippet>462</a>            current_ns = found_ns;
-<a href=#463 id=463 data-nosnippet>463</a>        }
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">let </span>first_segment_is_always_visible =
+<a href=#397 id=397 data-nosnippet>397</a>            first_segment_is_always_visible(<span class="kw-2">&amp;</span>path, <span class="self">self</span>.importing_module, starting_module);
+<a href=#398 id=398 data-nosnippet>398</a>
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="comment">// The current module and module ID as we resolve path segments
+<a href=#400 id=400 data-nosnippet>400</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>current_module_id = starting_module;
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span><span class="kw-2">mut </span>current_module = get_module(<span class="self">self</span>.def_maps, starting_module);
+<a href=#402 id=402 data-nosnippet>402</a>
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>first_segment =
+<a href=#404 id=404 data-nosnippet>404</a>            <span class="kw-2">&amp;</span>path.segments.first().expect(<span class="string">"ICE: could not fetch first segment"</span>).ident;
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="kw">let </span><span class="kw-2">mut </span>current_ns = current_module.find_name(first_segment);
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="kw">if </span>current_ns.is_none() {
+<a href=#407 id=407 data-nosnippet>407</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(first_segment.clone()));
+<a href=#408 id=408 data-nosnippet>408</a>        }
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="self">self</span>.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+<a href=#411 id=411 data-nosnippet>411</a>
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+<a href=#413 id=413 data-nosnippet>413</a>        <span class="kw">for </span>(index, (last_segment, current_segment)) <span class="kw">in
+<a href=#414 id=414 data-nosnippet>414</a>            </span>path.segments.iter().tuple_windows().enumerate()
+<a href=#415 id=415 data-nosnippet>415</a>        {
+<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let </span>last_ident = <span class="kw-2">&amp;</span>last_segment.ident;
+<a href=#417 id=417 data-nosnippet>417</a>            <span class="kw">let </span>current_ident = <span class="kw-2">&amp;</span>current_segment.ident;
+<a href=#418 id=418 data-nosnippet>418</a>
+<a href=#419 id=419 data-nosnippet>419</a>            <span class="kw">let </span>(typ, visibility) = <span class="kw">match </span>current_ns.types {
+<a href=#420 id=420 data-nosnippet>420</a>                <span class="prelude-val">None </span>=&gt; {
+<a href=#421 id=421 data-nosnippet>421</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(last_ident.clone()));
+<a href=#422 id=422 data-nosnippet>422</a>                }
+<a href=#423 id=423 data-nosnippet>423</a>                <span class="prelude-val">Some</span>((typ, visibility, <span class="kw">_</span>)) =&gt; (typ, visibility),
+<a href=#424 id=424 data-nosnippet>424</a>            };
+<a href=#425 id=425 data-nosnippet>425</a>
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="self">self</span>.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a>            <span class="comment">// In the type namespace, only Mod can be used in a path.
+<a href=#429 id=429 data-nosnippet>429</a>            </span>current_module_id = <span class="kw">match </span>typ {
+<a href=#430 id=430 data-nosnippet>430</a>                ModuleDefId::ModuleId(id) =&gt; id,
+<a href=#431 id=431 data-nosnippet>431</a>                ModuleDefId::TypeId(id) =&gt; id.module_id(),
+<a href=#432 id=432 data-nosnippet>432</a>                ModuleDefId::TypeAliasId(..) =&gt; {
+<a href=#433 id=433 data-nosnippet>433</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NotAModule {
+<a href=#434 id=434 data-nosnippet>434</a>                        ident: last_segment.ident.clone(),
+<a href=#435 id=435 data-nosnippet>435</a>                        kind: <span class="string">"type alias"</span>,
+<a href=#436 id=436 data-nosnippet>436</a>                    });
+<a href=#437 id=437 data-nosnippet>437</a>                }
+<a href=#438 id=438 data-nosnippet>438</a>                ModuleDefId::TraitAssociatedTypeId(..) =&gt; {
+<a href=#439 id=439 data-nosnippet>439</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NotAModule {
+<a href=#440 id=440 data-nosnippet>440</a>                        ident: last_segment.ident.clone(),
+<a href=#441 id=441 data-nosnippet>441</a>                        kind: <span class="string">"associated type"</span>,
+<a href=#442 id=442 data-nosnippet>442</a>                    });
+<a href=#443 id=443 data-nosnippet>443</a>                }
+<a href=#444 id=444 data-nosnippet>444</a>                ModuleDefId::TraitId(id) =&gt; id.<span class="number">0</span>,
+<a href=#445 id=445 data-nosnippet>445</a>                ModuleDefId::FunctionId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"functions cannot be in the type namespace"</span>),
+<a href=#446 id=446 data-nosnippet>446</a>                ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"globals cannot be in the type namespace"</span>),
+<a href=#447 id=447 data-nosnippet>447</a>            };
+<a href=#448 id=448 data-nosnippet>448</a>
+<a href=#449 id=449 data-nosnippet>449</a>            <span class="kw">if </span>!((first_segment_is_always_visible &amp;&amp; index == <span class="number">0</span>)
+<a href=#450 id=450 data-nosnippet>450</a>                || <span class="self">self</span>.item_in_module_is_visible(current_module_id, visibility))
+<a href=#451 id=451 data-nosnippet>451</a>            {
+<a href=#452 id=452 data-nosnippet>452</a>                errors.push(PathResolutionError::Private(last_ident.clone()));
+<a href=#453 id=453 data-nosnippet>453</a>            }
+<a href=#454 id=454 data-nosnippet>454</a>
+<a href=#455 id=455 data-nosnippet>455</a>            current_module = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span>current_module_id.krate][current_module_id.local_id];
+<a href=#456 id=456 data-nosnippet>456</a>
+<a href=#457 id=457 data-nosnippet>457</a>            <span class="comment">// Check if namespace
+<a href=#458 id=458 data-nosnippet>458</a>            </span><span class="kw">let </span>found_ns = current_module.find_name(current_ident);
+<a href=#459 id=459 data-nosnippet>459</a>            <span class="kw">if </span>found_ns.is_none() {
+<a href=#460 id=460 data-nosnippet>460</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
+<a href=#461 id=461 data-nosnippet>461</a>            }
+<a href=#462 id=462 data-nosnippet>462</a>
+<a href=#463 id=463 data-nosnippet>463</a>            <span class="self">self</span>.usage_tracker.mark_as_referenced(current_module_id, current_ident);
 <a href=#464 id=464 data-nosnippet>464</a>
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>(module_def_id, <span class="kw">_</span>, <span class="kw">_</span>) =
-<a href=#466 id=466 data-nosnippet>466</a>            current_ns.values.or(current_ns.types).expect(<span class="string">"Found empty namespace"</span>);
+<a href=#465 id=465 data-nosnippet>465</a>            current_ns = found_ns;
+<a href=#466 id=466 data-nosnippet>466</a>        }
 <a href=#467 id=467 data-nosnippet>467</a>
-<a href=#468 id=468 data-nosnippet>468</a>        <span class="self">self</span>.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), <span class="bool-val">false</span>);
-<a href=#469 id=469 data-nosnippet>469</a>
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="comment">// The final segment resolves to at most one item in the type namespace and one in the value
-<a href=#471 id=471 data-nosnippet>471</a>        // namespace. Evaluate the visibility of each occupied slot independently.
-<a href=#472 id=472 data-nosnippet>472</a>        </span><span class="kw">let </span>type_item = current_ns
-<a href=#473 id=473 data-nosnippet>473</a>            .types
-<a href=#474 id=474 data-nosnippet>474</a>            .map(|(id, vis, <span class="kw">_</span>)| (id, <span class="self">self</span>.item_in_module_is_visible(current_module_id, vis)));
-<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">let </span>value_item = current_ns
-<a href=#476 id=476 data-nosnippet>476</a>            .values
+<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">let </span>(module_def_id, <span class="kw">_</span>, <span class="kw">_</span>) =
+<a href=#469 id=469 data-nosnippet>469</a>            current_ns.values.or(current_ns.types).expect(<span class="string">"Found empty namespace"</span>);
+<a href=#470 id=470 data-nosnippet>470</a>
+<a href=#471 id=471 data-nosnippet>471</a>        <span class="self">self</span>.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), <span class="bool-val">false</span>);
+<a href=#472 id=472 data-nosnippet>472</a>
+<a href=#473 id=473 data-nosnippet>473</a>        <span class="comment">// The final segment resolves to at most one item in the type namespace and one in the value
+<a href=#474 id=474 data-nosnippet>474</a>        // namespace. Evaluate the visibility of each occupied slot independently.
+<a href=#475 id=475 data-nosnippet>475</a>        </span><span class="kw">let </span>type_item = current_ns
+<a href=#476 id=476 data-nosnippet>476</a>            .types
 <a href=#477 id=477 data-nosnippet>477</a>            .map(|(id, vis, <span class="kw">_</span>)| (id, <span class="self">self</span>.item_in_module_is_visible(current_module_id, vis)));
-<a href=#478 id=478 data-nosnippet>478</a>
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">let </span>both_namespaces_occupied = type_item.is_some() &amp;&amp; value_item.is_some();
-<a href=#480 id=480 data-nosnippet>480</a>        <span class="kw">let </span>any_visible = [type_item, value_item].into_iter().flatten().any(|(<span class="kw">_</span>, visible)| visible);
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span>value_item = current_ns
+<a href=#479 id=479 data-nosnippet>479</a>            .values
+<a href=#480 id=480 data-nosnippet>480</a>            .map(|(id, vis, <span class="kw">_</span>)| (id, <span class="self">self</span>.item_in_module_is_visible(current_module_id, vis)));
 <a href=#481 id=481 data-nosnippet>481</a>
-<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span><span class="kw-2">mut </span>deferred_private = <span class="prelude-val">None</span>;
-<a href=#483 id=483 data-nosnippet>483</a>        <span class="kw">if </span>both_namespaces_occupied &amp;&amp; any_visible {
-<a href=#484 id=484 data-nosnippet>484</a>            <span class="comment">// A name collision where at least one item is visible, so the import itself is legal.
-<a href=#485 id=485 data-nosnippet>485</a>            // The other item, if it is private, is still brought into scope; referencing it is
-<a href=#486 id=486 data-nosnippet>486</a>            // reported as a privacy error at the use site rather than here. Since at most one of the
-<a href=#487 id=487 data-nosnippet>487</a>            // two slots can be invisible in this branch, there is at most one such item.
-<a href=#488 id=488 data-nosnippet>488</a>            </span>deferred_private = [type_item, value_item]
-<a href=#489 id=489 data-nosnippet>489</a>                .into_iter()
-<a href=#490 id=490 data-nosnippet>490</a>                .flatten()
-<a href=#491 id=491 data-nosnippet>491</a>                .find_map(|(id, visible)| (!visible).then_some(id));
-<a href=#492 id=492 data-nosnippet>492</a>        } <span class="kw">else if </span>!any_visible {
-<a href=#493 id=493 data-nosnippet>493</a>            <span class="comment">// A single private item, or a collision where both items are private: report it here.
-<a href=#494 id=494 data-nosnippet>494</a>            </span>errors.push(PathResolutionError::Private(path.last_ident()));
-<a href=#495 id=495 data-nosnippet>495</a>        }
-<a href=#496 id=496 data-nosnippet>496</a>
-<a href=#497 id=497 data-nosnippet>497</a>        <span class="prelude-val">Ok</span>(ResolvedImport { namespace: current_ns, deferred_private, errors })
-<a href=#498 id=498 data-nosnippet>498</a>    }
+<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>both_namespaces_occupied = type_item.is_some() &amp;&amp; value_item.is_some();
+<a href=#483 id=483 data-nosnippet>483</a>        <span class="kw">let </span>any_visible = [type_item, value_item].into_iter().flatten().any(|(<span class="kw">_</span>, visible)| visible);
+<a href=#484 id=484 data-nosnippet>484</a>
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="kw">let </span><span class="kw-2">mut </span>deferred_private = <span class="prelude-val">None</span>;
+<a href=#486 id=486 data-nosnippet>486</a>        <span class="kw">if </span>both_namespaces_occupied &amp;&amp; any_visible {
+<a href=#487 id=487 data-nosnippet>487</a>            <span class="comment">// A name collision where at least one item is visible, so the import itself is legal.
+<a href=#488 id=488 data-nosnippet>488</a>            // The other item, if it is private, is still brought into scope; referencing it is
+<a href=#489 id=489 data-nosnippet>489</a>            // reported as a privacy error at the use site rather than here. Since at most one of the
+<a href=#490 id=490 data-nosnippet>490</a>            // two slots can be invisible in this branch, there is at most one such item.
+<a href=#491 id=491 data-nosnippet>491</a>            </span>deferred_private = [type_item, value_item]
+<a href=#492 id=492 data-nosnippet>492</a>                .into_iter()
+<a href=#493 id=493 data-nosnippet>493</a>                .flatten()
+<a href=#494 id=494 data-nosnippet>494</a>                .find_map(|(id, visible)| (!visible).then_some(id));
+<a href=#495 id=495 data-nosnippet>495</a>        } <span class="kw">else if </span>!any_visible {
+<a href=#496 id=496 data-nosnippet>496</a>            <span class="comment">// A single private item, or a collision where both items are private: report it here.
+<a href=#497 id=497 data-nosnippet>497</a>            </span>errors.push(PathResolutionError::Private(path.last_ident()));
+<a href=#498 id=498 data-nosnippet>498</a>        }
 <a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a>    <span class="kw">fn </span>add_reference(
-<a href=#501 id=501 data-nosnippet>501</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#502 id=502 data-nosnippet>502</a>        reference_id: ModuleDefId,
-<a href=#503 id=503 data-nosnippet>503</a>        location: Location,
-<a href=#504 id=504 data-nosnippet>504</a>        is_self_type_name: bool,
-<a href=#505 id=505 data-nosnippet>505</a>    ) {
-<a href=#506 id=506 data-nosnippet>506</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(references_tracker) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.references_tracker {
-<a href=#507 id=507 data-nosnippet>507</a>            references_tracker.add_reference(reference_id, location, is_self_type_name);
-<a href=#508 id=508 data-nosnippet>508</a>        }
-<a href=#509 id=509 data-nosnippet>509</a>    }
-<a href=#510 id=510 data-nosnippet>510</a>
-<a href=#511 id=511 data-nosnippet>511</a>    <span class="kw">fn </span>item_in_module_is_visible(<span class="kw-2">&amp;</span><span class="self">self</span>, module: ModuleId, visibility: ItemVisibility) -&gt; bool {
-<a href=#512 id=512 data-nosnippet>512</a>        item_in_module_is_visible(<span class="self">self</span>.def_maps, <span class="self">self</span>.importing_module, module, visibility)
-<a href=#513 id=513 data-nosnippet>513</a>    }
-<a href=#514 id=514 data-nosnippet>514</a>}
-<a href=#515 id=515 data-nosnippet>515</a>
-<a href=#516 id=516 data-nosnippet>516</a><span class="kw">fn </span>get_module(def_maps: <span class="kw-2">&amp;</span>DefMaps, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
-<a href=#517 id=517 data-nosnippet>517</a>    <span class="kw">let </span>message = <span class="string">"A crate should always be present for a given crate id"</span>;
-<a href=#518 id=518 data-nosnippet>518</a>    <span class="kw-2">&amp;</span>def_maps.get(<span class="kw-2">&amp;</span>module.krate).expect(message)[module.local_id]
-<a href=#519 id=519 data-nosnippet>519</a>}</code></pre></div></section></main></body></html>
+<a href=#500 id=500 data-nosnippet>500</a>        <span class="prelude-val">Ok</span>(ResolvedImport { namespace: current_ns, deferred_private, errors })
+<a href=#501 id=501 data-nosnippet>501</a>    }
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="kw">fn </span>add_reference(
+<a href=#504 id=504 data-nosnippet>504</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#505 id=505 data-nosnippet>505</a>        reference_id: ModuleDefId,
+<a href=#506 id=506 data-nosnippet>506</a>        location: Location,
+<a href=#507 id=507 data-nosnippet>507</a>        is_self_type_name: bool,
+<a href=#508 id=508 data-nosnippet>508</a>    ) {
+<a href=#509 id=509 data-nosnippet>509</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(references_tracker) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.references_tracker {
+<a href=#510 id=510 data-nosnippet>510</a>            references_tracker.add_reference(reference_id, location, is_self_type_name);
+<a href=#511 id=511 data-nosnippet>511</a>        }
+<a href=#512 id=512 data-nosnippet>512</a>    }
+<a href=#513 id=513 data-nosnippet>513</a>
+<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">fn </span>item_in_module_is_visible(<span class="kw-2">&amp;</span><span class="self">self</span>, module: ModuleId, visibility: ItemVisibility) -&gt; bool {
+<a href=#515 id=515 data-nosnippet>515</a>        item_in_module_is_visible(<span class="self">self</span>.def_maps, <span class="self">self</span>.importing_module, module, visibility)
+<a href=#516 id=516 data-nosnippet>516</a>    }
+<a href=#517 id=517 data-nosnippet>517</a>}
+<a href=#518 id=518 data-nosnippet>518</a>
+<a href=#519 id=519 data-nosnippet>519</a><span class="kw">fn </span>get_module(def_maps: <span class="kw-2">&amp;</span>DefMaps, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
+<a href=#520 id=520 data-nosnippet>520</a>    <span class="kw">let </span>message = <span class="string">"A crate should always be present for a given crate id"</span>;
+<a href=#521 id=521 data-nosnippet>521</a>    <span class="kw-2">&amp;</span>def_maps.get(<span class="kw-2">&amp;</span>module.krate).expect(message)[module.local_id]
+<a href=#522 id=522 data-nosnippet>522</a>}</code></pre></div></section></main></body></html>
