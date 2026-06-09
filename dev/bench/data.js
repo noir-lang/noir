@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781027284557,
+  "lastUpdate": 1781030668819,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "1012df57d13acab87c489a2a39d6574b0a108938",
-          "message": "feat: add `nargo fetch` command (#12897)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-04T13:25:10Z",
-          "tree_id": "1e0c0ba235f79cb32203c13b40a497cdd106f410",
-          "url": "https://github.com/noir-lang/noir/commit/1012df57d13acab87c489a2a39d6574b0a108938"
-        },
-        "date": 1780581073449,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167593,
-            "range": "± 286",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137201,
-            "range": "± 3762",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646076,
-            "range": "± 3347",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "a0738c3507611813c460726ab6037681f9330c45",
           "message": "fix: properly check visibility in `Self::method` paths (#12747)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-06-04T13:45:14Z",
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3038844,
             "range": "± 8234",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0b6f6e95b6a1d2e33d7aee39d99f9cef2adc3e1a",
+          "message": "fix(expand): make it work in the stdlib (#12772)",
+          "timestamp": "2026-06-09T18:15:06Z",
+          "tree_id": "35a383cd8f9d99e9ac4aa0269524696b73786efa",
+          "url": "https://github.com/noir-lang/noir/commit/0b6f6e95b6a1d2e33d7aee39d99f9cef2adc3e1a"
+        },
+        "date": 1781030600269,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168069,
+            "range": "± 2549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137012,
+            "range": "± 801",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2656975,
+            "range": "± 26620",
             "unit": "ns/iter"
           }
         ]
