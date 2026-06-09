@@ -2136,7 +2136,11 @@ mod tests {
     use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
-    use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
+    use crate::ssa::{
+        Ssa,
+        ir::value::ValueId,
+        opt::{assert_normalized_ssa_equals, assert_pass_does_not_affect_execution},
+    };
 
     use super::{
         BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopBounds, LoopOrder,
@@ -3965,70 +3969,75 @@ mod tests {
         ");
     }
 
-    /// Regression for noir-claude#1381: a constant-folded `JmpIf` whose chosen destination
-    /// is a shared join block — reachable from another, independent predecessor carrying a
-    /// different edge argument — must not specialize the join's block parameter to this edge's
-    /// argument. Specializing it (and copying the join body only once) silently drops the join
-    /// body's constraint on the other edge.
+    /// Regression for noir-claude#1381: a constant-folded `JmpIf` whose chosen destination is a
+    /// shared join block — reachable from another, independent predecessor carrying a different
+    /// edge argument — must not specialize the join's block parameter to one edge's argument and
+    /// copy the join body only once. Doing so collapses the join value, so the other edge observes
+    /// the wrong value (in the audit's framing, a path-specific constraint is dropped).
+    ///
+    /// The join value is surfaced through the loop into the return value: `v0 = 1` takes the
+    /// independent `b3` edge (`Field 1`) and `v0 = 0` takes the folded `b4` edge (`Field 2`). The
+    /// bug made the `b3` path also observe `Field 2`. `assert_pass_does_not_affect_execution`
+    /// checks that unrolling preserves each result.
     #[test]
-    fn unroll_constant_jmpif_into_shared_join_preserves_constraint() {
+    fn unroll_constant_jmpif_into_shared_join_preserves_per_edge_values() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v2 = lt v1, u32 1
-            jmpif v2 then: b2(), else: b7()
+            jmp b1(u32 0, Field 0)
+          b1(v1: u32, v2: Field):
+            v3 = lt v1, u32 1
+            jmpif v3 then: b2(), else: b7()
           b2():
             jmpif v0 then: b3(), else: b4()
           b3():
             jmp b6(Field 1)
           b4():
-            v3 = eq v1, u32 0
-            jmpif v3 then: b6(Field 2), else: b6(Field 3)
-          b6(v4: Field):
-            constrain v4 == Field 2
-            v5 = unchecked_add v1, u32 1
-            jmp b1(v5)
+            v4 = eq v1, u32 0
+            jmpif v4 then: b6(Field 2), else: b6(Field 3)
+          b6(v5: Field):
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6, v5)
           b7():
-            return
+            return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let run_unroll = |ssa: Ssa| -> Ssa {
+            let (ssa, errors) = try_unroll_loops(ssa);
+            assert_eq!(errors.len(), 0, "Unroll should have no errors");
+            ssa
+        };
 
-        // Baseline: with `v0 = 1` the `b3` edge reaches the join with `Field 1`, failing
-        // `constrain Field 1 == Field 2`.
-        assert!(
-            ssa.interpret(vec![Value::bool(true)]).is_err(),
-            "baseline should fail the join constraint with v0 = 1"
+        // `v0 = 1` reaches the join via the independent `b3` edge (`Field 1`); the bug instead
+        // collapsed the join to the folded `b4` edge's `Field 2`.
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(true)],
+            run_unroll,
         );
+        assert_eq!(result, Ok(vec![Value::field(1_u128.into())]), "v0 = 1 observes the b3 edge");
 
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert_eq!(errors.len(), 0, "Unroll should have no errors");
-
-        // The join constraint must survive unrolling: `v0 = 1` must still fail, and the
-        // `v0 = 0` path (reaching the join with `Field 2`) must still succeed.
-        assert!(
-            ssa.interpret(vec![Value::bool(true)]).is_err(),
-            "join constraint must be preserved after unrolling for v0 = 1"
+        // `v0 = 0` takes the folded `b4` edge (`Field 2`).
+        let (_, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(false)],
+            run_unroll,
         );
-        assert!(
-            ssa.interpret(vec![Value::bool(false)]).is_ok(),
-            "v0 = 0 should satisfy the join constraint after unrolling"
-        );
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]), "v0 = 0 observes the b4 edge");
 
+        // The join keeps its parameter and the return surfaces it per edge, rather than the join
+        // body being specialized to a single edge.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
             jmpif v0 then: b2(), else: b3()
           b1():
-            return
+            return v1
           b2():
             jmp b4(Field 1)
           b3():
             jmp b4(Field 2)
           b4(v1: Field):
-            constrain v1 == Field 2
             jmp b1()
         }
         ");
@@ -4064,15 +4073,15 @@ mod tests {
         ";
         let u32_ty = crate::ssa::ir::types::NumericType::unsigned(32);
         let input = vec![Value::from_constant(1_u128.into(), u32_ty).unwrap()];
+
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), input, |ssa| {
+                let (ssa, errors) = try_unroll_loops(ssa);
+                assert_eq!(errors.len(), 0, "Unroll should have no errors");
+                ssa
+            });
         // `1 * 10 + 1 * 20 == 30` over the two unrolled iterations.
-        let expected = Ok(vec![Value::from_constant(30_u128.into(), u32_ty).unwrap()]);
-
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_eq!(ssa.interpret(input.clone()), expected, "baseline interpretation");
-
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert_eq!(errors.len(), 0, "Unroll should have no errors");
-        assert_eq!(ssa.interpret(input), expected, "unrolling must preserve the result");
+        assert_eq!(result, Ok(vec![Value::from_constant(30_u128.into(), u32_ty).unwrap()]));
 
         // The dominated join is specialized: the accumulating `add` reads the per-edge
         // multiplications directly (`v4`, `v8`) rather than a preserved join block parameter.
