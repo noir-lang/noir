@@ -95,7 +95,7 @@
 <a href=#95 id=95 data-nosnippet>95</a>        module_id: LocalModuleId,
 <a href=#96 id=96 data-nosnippet>96</a>        struct_def: <span class="kw-2">&amp;</span>NoirStruct,
 <a href=#97 id=97 data-nosnippet>97</a>    ) {
-<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.local_module.replace(module_id);
+<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.replace_local_module(module_id);
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>previous_current_item = <span class="self">self</span>.current_item.take();
 <a href=#100 id=100 data-nosnippet>100</a>        <span class="self">self</span>.current_item = <span class="prelude-val">Some</span>(DependencyId::DataType(type_id));
 <a href=#101 id=101 data-nosnippet>101</a>

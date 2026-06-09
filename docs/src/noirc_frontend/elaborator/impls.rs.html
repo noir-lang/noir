@@ -117,7 +117,7 @@
 <a href=#117 id=117 data-nosnippet>117</a>        )],
 <a href=#118 id=118 data-nosnippet>118</a>        self_type: <span class="kw-2">&amp;</span>UnresolvedType,
 <a href=#119 id=119 data-nosnippet>119</a>    ) {
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(module);
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.replace_local_module(module);
 <a href=#121 id=121 data-nosnippet>121</a>
 <a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">for </span>(generics, <span class="kw">_</span>, location, unresolved) <span class="kw">in </span>impls {
 <a href=#123 id=123 data-nosnippet>123</a>            <span class="self">self</span>.check_generics_appear_in_types(generics, <span class="kw-2">&amp;</span>[self_type], <span class="kw-2">&amp;</span>[]);
@@ -127,159 +127,161 @@
 <a href=#127 id=127 data-nosnippet>127</a>                this.declare_methods_on_data_type(no_trait_id, unresolved, <span class="kw-2">*</span>location);
 <a href=#128 id=128 data-nosnippet>128</a>            });
 <a href=#129 id=129 data-nosnippet>129</a>        }
-<a href=#130 id=130 data-nosnippet>130</a>    }
-<a href=#131 id=131 data-nosnippet>131</a>
-<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// Declares methods in the appropriate module and registers them in the interner.
-<a href=#133 id=133 data-nosnippet>133</a>    ///
-<a href=#134 id=134 data-nosnippet>134</a>    /// This handles the cross-module strategy: methods are declared in the data type's module
-<a href=#135 id=135 data-nosnippet>135</a>    /// (for qualified calls) but will be resolved in the impl's module (for name resolution).
-<a href=#136 id=136 data-nosnippet>136</a>    ///
-<a href=#137 id=137 data-nosnippet>137</a>    /// # Parameters
-<a href=#138 id=138 data-nosnippet>138</a>    /// - `trait_id`: `Some(trait_id)` if this is a trait impl, `None` for inherent impls
-<a href=#139 id=139 data-nosnippet>139</a>    /// - `functions`: The functions/methods to declare (self_type must already be resolved)
-<a href=#140 id=140 data-nosnippet>140</a>    /// - `location`: Location of the impl block for error reporting
-<a href=#141 id=141 data-nosnippet>141</a>    ///
-<a href=#142 id=142 data-nosnippet>142</a>    /// # Error Cases
-<a href=#143 id=143 data-nosnippet>143</a>    /// - Foreign impl: Attempting to impl a type from another crate
-<a href=#144 id=144 data-nosnippet>144</a>    /// - Duplicate methods: Multiple methods with the same name (handled via shadowing)
-<a href=#145 id=145 data-nosnippet>145</a>    /// - Primitive impl: Non-stdlib code trying to impl methods on primitive types
-<a href=#146 id=146 data-nosnippet>146</a>    ///
-<a href=#147 id=147 data-nosnippet>147</a>    /// # Panics
-<a href=#148 id=148 data-nosnippet>148</a>    /// If the self_type is not already resolved in each impl's function set.
-<a href=#149 id=149 data-nosnippet>149</a>    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
-<a href=#150 id=150 data-nosnippet>150</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>declare_methods_on_data_type(
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#153 id=153 data-nosnippet>153</a>        trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
-<a href=#154 id=154 data-nosnippet>154</a>        functions: <span class="kw-2">&amp;</span>UnresolvedFunctions,
-<a href=#155 id=155 data-nosnippet>155</a>        location: Location,
-<a href=#156 id=156 data-nosnippet>156</a>    ) {
-<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">let </span>self_type = functions.self_type.as_ref();
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>self_type = self_type
-<a href=#159 id=159 data-nosnippet>159</a>            .expect(<span class="string">"Expected data type's self type to be set before declare_methods_on_data_type"</span>);
-<a href=#160 id=160 data-nosnippet>160</a>
-<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span>function_ids = functions.function_ids();
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="self">self</span>.local_module = previous_local_module;
+<a href=#132 id=132 data-nosnippet>132</a>    }
+<a href=#133 id=133 data-nosnippet>133</a>
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="doccomment">/// Declares methods in the appropriate module and registers them in the interner.
+<a href=#135 id=135 data-nosnippet>135</a>    ///
+<a href=#136 id=136 data-nosnippet>136</a>    /// This handles the cross-module strategy: methods are declared in the data type's module
+<a href=#137 id=137 data-nosnippet>137</a>    /// (for qualified calls) but will be resolved in the impl's module (for name resolution).
+<a href=#138 id=138 data-nosnippet>138</a>    ///
+<a href=#139 id=139 data-nosnippet>139</a>    /// # Parameters
+<a href=#140 id=140 data-nosnippet>140</a>    /// - `trait_id`: `Some(trait_id)` if this is a trait impl, `None` for inherent impls
+<a href=#141 id=141 data-nosnippet>141</a>    /// - `functions`: The functions/methods to declare (self_type must already be resolved)
+<a href=#142 id=142 data-nosnippet>142</a>    /// - `location`: Location of the impl block for error reporting
+<a href=#143 id=143 data-nosnippet>143</a>    ///
+<a href=#144 id=144 data-nosnippet>144</a>    /// # Error Cases
+<a href=#145 id=145 data-nosnippet>145</a>    /// - Foreign impl: Attempting to impl a type from another crate
+<a href=#146 id=146 data-nosnippet>146</a>    /// - Duplicate methods: Multiple methods with the same name (handled via shadowing)
+<a href=#147 id=147 data-nosnippet>147</a>    /// - Primitive impl: Non-stdlib code trying to impl methods on primitive types
+<a href=#148 id=148 data-nosnippet>148</a>    ///
+<a href=#149 id=149 data-nosnippet>149</a>    /// # Panics
+<a href=#150 id=150 data-nosnippet>150</a>    /// If the self_type is not already resolved in each impl's function set.
+<a href=#151 id=151 data-nosnippet>151</a>    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+<a href=#152 id=152 data-nosnippet>152</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#153 id=153 data-nosnippet>153</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>declare_methods_on_data_type(
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#155 id=155 data-nosnippet>155</a>        trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
+<a href=#156 id=156 data-nosnippet>156</a>        functions: <span class="kw-2">&amp;</span>UnresolvedFunctions,
+<a href=#157 id=157 data-nosnippet>157</a>        location: Location,
+<a href=#158 id=158 data-nosnippet>158</a>    ) {
+<a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">let </span>self_type = functions.self_type.as_ref();
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let </span>self_type = self_type
+<a href=#161 id=161 data-nosnippet>161</a>            .expect(<span class="string">"Expected data type's self type to be set before declare_methods_on_data_type"</span>);
 <a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">if let </span>Type::DataType(data_type, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>self_type.follow_bindings() {
-<a href=#164 id=164 data-nosnippet>164</a>            <span class="kw">let </span>data_ref = data_type.borrow();
-<a href=#165 id=165 data-nosnippet>165</a>
-<a href=#166 id=166 data-nosnippet>166</a>            <span class="comment">// `impl`s are only allowed on types defined within the current crate
-<a href=#167 id=167 data-nosnippet>167</a>            </span><span class="kw">if </span>trait_id.is_none() &amp;&amp; data_ref.id.krate() != <span class="self">self</span>.crate_id {
-<a href=#168 id=168 data-nosnippet>168</a>                <span class="kw">let </span>type_name = data_ref.name.to_string();
-<a href=#169 id=169 data-nosnippet>169</a>                <span class="self">self</span>.push_err(DefCollectorErrorKind::ForeignImpl { location, type_name });
-<a href=#170 id=170 data-nosnippet>170</a>                <span class="kw">return</span>;
-<a href=#171 id=171 data-nosnippet>171</a>            }
-<a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>            <span class="kw">let </span>module_id = data_ref.id.module_id();
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">let </span>function_ids = functions.function_ids();
+<a href=#164 id=164 data-nosnippet>164</a>
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">if let </span>Type::DataType(data_type, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>self_type.follow_bindings() {
+<a href=#166 id=166 data-nosnippet>166</a>            <span class="kw">let </span>data_ref = data_type.borrow();
+<a href=#167 id=167 data-nosnippet>167</a>
+<a href=#168 id=168 data-nosnippet>168</a>            <span class="comment">// `impl`s are only allowed on types defined within the current crate
+<a href=#169 id=169 data-nosnippet>169</a>            </span><span class="kw">if </span>trait_id.is_none() &amp;&amp; data_ref.id.krate() != <span class="self">self</span>.crate_id {
+<a href=#170 id=170 data-nosnippet>170</a>                <span class="kw">let </span>type_name = data_ref.name.to_string();
+<a href=#171 id=171 data-nosnippet>171</a>                <span class="self">self</span>.push_err(DefCollectorErrorKind::ForeignImpl { location, type_name });
+<a href=#172 id=172 data-nosnippet>172</a>                <span class="kw">return</span>;
+<a href=#173 id=173 data-nosnippet>173</a>            }
 <a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>            <span class="comment">// Declare each method in the data type's module for qualified access (TypeName::method).
-<a href=#176 id=176 data-nosnippet>176</a>            // Conflicts are resolved in two steps so we don't hold a `&amp;mut def_maps` borrow when
-<a href=#177 id=177 data-nosnippet>177</a>            // we ask the elaborator whether the existing method is a trait-impl method.
-<a href=#178 id=178 data-nosnippet>178</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>conflicts = Vec::new();
-<a href=#179 id=179 data-nosnippet>179</a>            {
-<a href=#180 id=180 data-nosnippet>180</a>                <span class="kw">let </span>module = <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, module_id);
-<a href=#181 id=181 data-nosnippet>181</a>                <span class="kw">for </span>(<span class="kw">_</span>, method_id, method) <span class="kw">in </span><span class="kw-2">&amp;</span>functions.functions {
-<a href=#182 id=182 data-nosnippet>182</a>                    <span class="kw">let </span>name = method.name_ident().clone();
-<a href=#183 id=183 data-nosnippet>183</a>                    <span class="kw">let </span>result = <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_id {
-<a href=#184 id=184 data-nosnippet>184</a>                        module.declare_trait_function(name, <span class="kw-2">*</span>method_id, trait_id)
-<a href=#185 id=185 data-nosnippet>185</a>                    } <span class="kw">else </span>{
-<a href=#186 id=186 data-nosnippet>186</a>                        module.declare_function(name, method.def.visibility, <span class="kw-2">*</span>method_id)
-<a href=#187 id=187 data-nosnippet>187</a>                    };
-<a href=#188 id=188 data-nosnippet>188</a>
-<a href=#189 id=189 data-nosnippet>189</a>                    <span class="kw">if </span>result.is_err()
-<a href=#190 id=190 data-nosnippet>190</a>                        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(existing) = module.find_func_with_name(method.name_ident())
-<a href=#191 id=191 data-nosnippet>191</a>                    {
-<a href=#192 id=192 data-nosnippet>192</a>                        conflicts.push((existing, method.name_ident().clone()));
-<a href=#193 id=193 data-nosnippet>193</a>                    }
-<a href=#194 id=194 data-nosnippet>194</a>                }
-<a href=#195 id=195 data-nosnippet>195</a>            }
-<a href=#196 id=196 data-nosnippet>196</a>
-<a href=#197 id=197 data-nosnippet>197</a>            <span class="kw">for </span>(existing, name) <span class="kw">in </span>conflicts {
-<a href=#198 id=198 data-nosnippet>198</a>                <span class="comment">// Inherent impls take precedence over trait impls for qualified calls.
-<a href=#199 id=199 data-nosnippet>199</a>                // If the existing method is from a trait impl, remove it from module scope
-<a href=#200 id=200 data-nosnippet>200</a>                // so that `TypeName::method` resolves to the inherent impl version.
-<a href=#201 id=201 data-nosnippet>201</a>                //
-<a href=#202 id=202 data-nosnippet>202</a>                // For trait-impl vs trait-impl duplicates, we also remove the existing
-<a href=#203 id=203 data-nosnippet>203</a>                // method to prevent qualified access. This allows specialization (e.g.,
-<a href=#204 id=204 data-nosnippet>204</a>                // `impl Trait&lt;A&gt; for Foo` and `impl Trait&lt;B&gt; for Foo` can coexist).
-<a href=#205 id=205 data-nosnippet>205</a>                // Checking whether the object types in each method overlap (which will be rejected)
-<a href=#206 id=206 data-nosnippet>206</a>                // happens later during trait resolution.
-<a href=#207 id=207 data-nosnippet>207</a>                </span><span class="kw">if </span><span class="self">self</span>.function_is_trait_impl_method(existing) {
-<a href=#208 id=208 data-nosnippet>208</a>                    <span class="kw">let </span>module = <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, module_id);
-<a href=#209 id=209 data-nosnippet>209</a>                    module.remove_function(<span class="kw-2">&amp;</span>name);
-<a href=#210 id=210 data-nosnippet>210</a>                }
-<a href=#211 id=211 data-nosnippet>211</a>            }
-<a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>            <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
-<a href=#214 id=214 data-nosnippet>214</a>            </span><span class="kw">if </span>trait_id.is_none() {
-<a href=#215 id=215 data-nosnippet>215</a>                <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>                <span class="kw">for </span>(<span class="kw">_</span>, method_id, method) <span class="kw">in </span><span class="kw-2">&amp;</span>functions.functions {
-<a href=#218 id=218 data-nosnippet>218</a>                    <span class="kw">if </span>!method.def.attributes.has_allow(<span class="string">"dead_code"</span>) {
-<a href=#219 id=219 data-nosnippet>219</a>                        <span class="kw">let </span>name = method.name_ident().clone();
-<a href=#220 id=220 data-nosnippet>220</a>                        <span class="self">self</span>.usage_tracker.add_unused_impl_function(
-<a href=#221 id=221 data-nosnippet>221</a>                            <span class="kw-2">*</span>method_id,
-<a href=#222 id=222 data-nosnippet>222</a>                            name,
-<a href=#223 id=223 data-nosnippet>223</a>                            method.def.visibility,
-<a href=#224 id=224 data-nosnippet>224</a>                        );
-<a href=#225 id=225 data-nosnippet>225</a>                    }
-<a href=#226 id=226 data-nosnippet>226</a>                }
-<a href=#227 id=227 data-nosnippet>227</a>            }
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="comment">// We can define methods on primitive types only if we're in the stdlib
-<a href=#229 id=229 data-nosnippet>229</a>        </span>} <span class="kw">else if </span>trait_id.is_none() &amp;&amp; <span class="kw-2">*</span>self_type != Type::Error {
-<a href=#230 id=230 data-nosnippet>230</a>            <span class="kw">if </span><span class="self">self</span>.crate_id.is_stdlib() {
-<a href=#231 id=231 data-nosnippet>231</a>                <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
-<a href=#232 id=232 data-nosnippet>232</a>                </span><span class="kw">if </span>trait_id.is_none() {
-<a href=#233 id=233 data-nosnippet>233</a>                    <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
-<a href=#234 id=234 data-nosnippet>234</a>                }
-<a href=#235 id=235 data-nosnippet>235</a>            } <span class="kw">else </span>{
-<a href=#236 id=236 data-nosnippet>236</a>                <span class="kw">let </span>is_primitive = self_type.is_primitive();
-<a href=#237 id=237 data-nosnippet>237</a>                <span class="self">self</span>.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
-<a href=#238 id=238 data-nosnippet>238</a>                    location,
-<a href=#239 id=239 data-nosnippet>239</a>                    is_primitive,
-<a href=#240 id=240 data-nosnippet>240</a>                });
-<a href=#241 id=241 data-nosnippet>241</a>            }
-<a href=#242 id=242 data-nosnippet>242</a>        }
-<a href=#243 id=243 data-nosnippet>243</a>    }
-<a href=#244 id=244 data-nosnippet>244</a>
-<a href=#245 id=245 data-nosnippet>245</a>    <span class="doccomment">/// Registers methods in the interner's method table for dynamic dispatch.
-<a href=#246 id=246 data-nosnippet>246</a>    ///
-<a href=#247 id=247 data-nosnippet>247</a>    /// This associates each method with its self type, enabling method call resolution.
-<a href=#248 id=248 data-nosnippet>248</a>    /// Unlike module declaration (which enables `TypeName::method` syntax), this registration
-<a href=#249 id=249 data-nosnippet>249</a>    /// is required for method calls via the dot syntax (e.g., `value.method()`).
-<a href=#250 id=250 data-nosnippet>250</a>    ///
-<a href=#251 id=251 data-nosnippet>251</a>    /// Trait impl methods are registered separately in `NodeInterner::add_trait_implementation`,
-<a href=#252 id=252 data-nosnippet>252</a>    /// so this is only called for inherent impls.
-<a href=#253 id=253 data-nosnippet>253</a>    ///
-<a href=#254 id=254 data-nosnippet>254</a>    /// # Returns
-<a href=#255 id=255 data-nosnippet>255</a>    /// Errors if a method with the same name is already registered for this type in the interner.
-<a href=#256 id=256 data-nosnippet>256</a>    /// This indicates a true duplicate (not specialization), such as:
-<a href=#257 id=257 data-nosnippet>257</a>    /// ```noir
-<a href=#258 id=258 data-nosnippet>258</a>    /// impl Foo { fn bar(self) {} }
-<a href=#259 id=259 data-nosnippet>259</a>    /// impl Foo { fn bar(self) {} }  // Error: duplicate definition
-<a href=#260 id=260 data-nosnippet>260</a>    /// ```
-<a href=#261 id=261 data-nosnippet>261</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="kw">fn </span>declare_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, self_type: <span class="kw-2">&amp;</span>Type, function_ids: <span class="kw-2">&amp;</span>[FuncId]) {
-<a href=#263 id=263 data-nosnippet>263</a>        <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
-<a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
-<a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>            <span class="comment">// The overlap check in `add_method` reads the `FuncMeta` of the method being added
-<a href=#267 id=267 data-nosnippet>267</a>            // and of every existing method with the same name. Those metas are resolved lazily,
-<a href=#268 id=268 data-nosnippet>268</a>            // so resolve them here first — but only when an overlap check will actually run (i.e.
-<a href=#269 id=269 data-nosnippet>269</a>            // there's already a method with this name). Otherwise a lone method referencing a
-<a href=#270 id=270 data-nosnippet>270</a>            // comptime-generated type would be forced to resolve before the generating attribute
-<a href=#271 id=271 data-nosnippet>271</a>            // has run.
-<a href=#272 id=272 data-nosnippet>272</a>            </span><span class="kw">let </span>existing_method_ids = <span class="self">self</span>.interner.get_direct_method_ids(self_type, <span class="kw-2">&amp;</span>method_name);
-<a href=#273 id=273 data-nosnippet>273</a>            <span class="kw">if </span>!existing_method_ids.is_empty() {
-<a href=#274 id=274 data-nosnippet>274</a>                <span class="self">self</span>.define_function_meta_if_undefined(<span class="kw-2">*</span>method_id);
-<a href=#275 id=275 data-nosnippet>275</a>                <span class="kw">for </span>existing_method_id <span class="kw">in </span>existing_method_ids {
-<a href=#276 id=276 data-nosnippet>276</a>                    <span class="self">self</span>.define_function_meta_if_undefined(existing_method_id);
-<a href=#277 id=277 data-nosnippet>277</a>                }
-<a href=#278 id=278 data-nosnippet>278</a>            }
-<a href=#279 id=279 data-nosnippet>279</a>
-<a href=#280 id=280 data-nosnippet>280</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
-<a href=#281 id=281 data-nosnippet>281</a>                <span class="self">self</span>.push_err(error);
-<a href=#282 id=282 data-nosnippet>282</a>            }
-<a href=#283 id=283 data-nosnippet>283</a>        }
-<a href=#284 id=284 data-nosnippet>284</a>    }
-<a href=#285 id=285 data-nosnippet>285</a>}</code></pre></div></section></main></body></html>
+<a href=#175 id=175 data-nosnippet>175</a>            <span class="kw">let </span>module_id = data_ref.id.module_id();
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="comment">// Declare each method in the data type's module for qualified access (TypeName::method).
+<a href=#178 id=178 data-nosnippet>178</a>            // Conflicts are resolved in two steps so we don't hold a `&amp;mut def_maps` borrow when
+<a href=#179 id=179 data-nosnippet>179</a>            // we ask the elaborator whether the existing method is a trait-impl method.
+<a href=#180 id=180 data-nosnippet>180</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>conflicts = Vec::new();
+<a href=#181 id=181 data-nosnippet>181</a>            {
+<a href=#182 id=182 data-nosnippet>182</a>                <span class="kw">let </span>module = <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, module_id);
+<a href=#183 id=183 data-nosnippet>183</a>                <span class="kw">for </span>(<span class="kw">_</span>, method_id, method) <span class="kw">in </span><span class="kw-2">&amp;</span>functions.functions {
+<a href=#184 id=184 data-nosnippet>184</a>                    <span class="kw">let </span>name = method.name_ident().clone();
+<a href=#185 id=185 data-nosnippet>185</a>                    <span class="kw">let </span>result = <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_id {
+<a href=#186 id=186 data-nosnippet>186</a>                        module.declare_trait_function(name, <span class="kw-2">*</span>method_id, trait_id)
+<a href=#187 id=187 data-nosnippet>187</a>                    } <span class="kw">else </span>{
+<a href=#188 id=188 data-nosnippet>188</a>                        module.declare_function(name, method.def.visibility, <span class="kw-2">*</span>method_id)
+<a href=#189 id=189 data-nosnippet>189</a>                    };
+<a href=#190 id=190 data-nosnippet>190</a>
+<a href=#191 id=191 data-nosnippet>191</a>                    <span class="kw">if </span>result.is_err()
+<a href=#192 id=192 data-nosnippet>192</a>                        &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(existing) = module.find_func_with_name(method.name_ident())
+<a href=#193 id=193 data-nosnippet>193</a>                    {
+<a href=#194 id=194 data-nosnippet>194</a>                        conflicts.push((existing, method.name_ident().clone()));
+<a href=#195 id=195 data-nosnippet>195</a>                    }
+<a href=#196 id=196 data-nosnippet>196</a>                }
+<a href=#197 id=197 data-nosnippet>197</a>            }
+<a href=#198 id=198 data-nosnippet>198</a>
+<a href=#199 id=199 data-nosnippet>199</a>            <span class="kw">for </span>(existing, name) <span class="kw">in </span>conflicts {
+<a href=#200 id=200 data-nosnippet>200</a>                <span class="comment">// Inherent impls take precedence over trait impls for qualified calls.
+<a href=#201 id=201 data-nosnippet>201</a>                // If the existing method is from a trait impl, remove it from module scope
+<a href=#202 id=202 data-nosnippet>202</a>                // so that `TypeName::method` resolves to the inherent impl version.
+<a href=#203 id=203 data-nosnippet>203</a>                //
+<a href=#204 id=204 data-nosnippet>204</a>                // For trait-impl vs trait-impl duplicates, we also remove the existing
+<a href=#205 id=205 data-nosnippet>205</a>                // method to prevent qualified access. This allows specialization (e.g.,
+<a href=#206 id=206 data-nosnippet>206</a>                // `impl Trait&lt;A&gt; for Foo` and `impl Trait&lt;B&gt; for Foo` can coexist).
+<a href=#207 id=207 data-nosnippet>207</a>                // Checking whether the object types in each method overlap (which will be rejected)
+<a href=#208 id=208 data-nosnippet>208</a>                // happens later during trait resolution.
+<a href=#209 id=209 data-nosnippet>209</a>                </span><span class="kw">if </span><span class="self">self</span>.function_is_trait_impl_method(existing) {
+<a href=#210 id=210 data-nosnippet>210</a>                    <span class="kw">let </span>module = <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, module_id);
+<a href=#211 id=211 data-nosnippet>211</a>                    module.remove_function(<span class="kw-2">&amp;</span>name);
+<a href=#212 id=212 data-nosnippet>212</a>                }
+<a href=#213 id=213 data-nosnippet>213</a>            }
+<a href=#214 id=214 data-nosnippet>214</a>
+<a href=#215 id=215 data-nosnippet>215</a>            <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
+<a href=#216 id=216 data-nosnippet>216</a>            </span><span class="kw">if </span>trait_id.is_none() {
+<a href=#217 id=217 data-nosnippet>217</a>                <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
+<a href=#218 id=218 data-nosnippet>218</a>
+<a href=#219 id=219 data-nosnippet>219</a>                <span class="kw">for </span>(<span class="kw">_</span>, method_id, method) <span class="kw">in </span><span class="kw-2">&amp;</span>functions.functions {
+<a href=#220 id=220 data-nosnippet>220</a>                    <span class="kw">if </span>!method.def.attributes.has_allow(<span class="string">"dead_code"</span>) {
+<a href=#221 id=221 data-nosnippet>221</a>                        <span class="kw">let </span>name = method.name_ident().clone();
+<a href=#222 id=222 data-nosnippet>222</a>                        <span class="self">self</span>.usage_tracker.add_unused_impl_function(
+<a href=#223 id=223 data-nosnippet>223</a>                            <span class="kw-2">*</span>method_id,
+<a href=#224 id=224 data-nosnippet>224</a>                            name,
+<a href=#225 id=225 data-nosnippet>225</a>                            method.def.visibility,
+<a href=#226 id=226 data-nosnippet>226</a>                        );
+<a href=#227 id=227 data-nosnippet>227</a>                    }
+<a href=#228 id=228 data-nosnippet>228</a>                }
+<a href=#229 id=229 data-nosnippet>229</a>            }
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="comment">// We can define methods on primitive types only if we're in the stdlib
+<a href=#231 id=231 data-nosnippet>231</a>        </span>} <span class="kw">else if </span>trait_id.is_none() &amp;&amp; <span class="kw-2">*</span>self_type != Type::Error {
+<a href=#232 id=232 data-nosnippet>232</a>            <span class="kw">if </span><span class="self">self</span>.crate_id.is_stdlib() {
+<a href=#233 id=233 data-nosnippet>233</a>                <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
+<a href=#234 id=234 data-nosnippet>234</a>                </span><span class="kw">if </span>trait_id.is_none() {
+<a href=#235 id=235 data-nosnippet>235</a>                    <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
+<a href=#236 id=236 data-nosnippet>236</a>                }
+<a href=#237 id=237 data-nosnippet>237</a>            } <span class="kw">else </span>{
+<a href=#238 id=238 data-nosnippet>238</a>                <span class="kw">let </span>is_primitive = self_type.is_primitive();
+<a href=#239 id=239 data-nosnippet>239</a>                <span class="self">self</span>.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
+<a href=#240 id=240 data-nosnippet>240</a>                    location,
+<a href=#241 id=241 data-nosnippet>241</a>                    is_primitive,
+<a href=#242 id=242 data-nosnippet>242</a>                });
+<a href=#243 id=243 data-nosnippet>243</a>            }
+<a href=#244 id=244 data-nosnippet>244</a>        }
+<a href=#245 id=245 data-nosnippet>245</a>    }
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a>    <span class="doccomment">/// Registers methods in the interner's method table for dynamic dispatch.
+<a href=#248 id=248 data-nosnippet>248</a>    ///
+<a href=#249 id=249 data-nosnippet>249</a>    /// This associates each method with its self type, enabling method call resolution.
+<a href=#250 id=250 data-nosnippet>250</a>    /// Unlike module declaration (which enables `TypeName::method` syntax), this registration
+<a href=#251 id=251 data-nosnippet>251</a>    /// is required for method calls via the dot syntax (e.g., `value.method()`).
+<a href=#252 id=252 data-nosnippet>252</a>    ///
+<a href=#253 id=253 data-nosnippet>253</a>    /// Trait impl methods are registered separately in `NodeInterner::add_trait_implementation`,
+<a href=#254 id=254 data-nosnippet>254</a>    /// so this is only called for inherent impls.
+<a href=#255 id=255 data-nosnippet>255</a>    ///
+<a href=#256 id=256 data-nosnippet>256</a>    /// # Returns
+<a href=#257 id=257 data-nosnippet>257</a>    /// Errors if a method with the same name is already registered for this type in the interner.
+<a href=#258 id=258 data-nosnippet>258</a>    /// This indicates a true duplicate (not specialization), such as:
+<a href=#259 id=259 data-nosnippet>259</a>    /// ```noir
+<a href=#260 id=260 data-nosnippet>260</a>    /// impl Foo { fn bar(self) {} }
+<a href=#261 id=261 data-nosnippet>261</a>    /// impl Foo { fn bar(self) {} }  // Error: duplicate definition
+<a href=#262 id=262 data-nosnippet>262</a>    /// ```
+<a href=#263 id=263 data-nosnippet>263</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#264 id=264 data-nosnippet>264</a>    </span><span class="kw">fn </span>declare_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, self_type: <span class="kw-2">&amp;</span>Type, function_ids: <span class="kw-2">&amp;</span>[FuncId]) {
+<a href=#265 id=265 data-nosnippet>265</a>        <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
+<a href=#266 id=266 data-nosnippet>266</a>            <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>            <span class="comment">// The overlap check in `add_method` reads the `FuncMeta` of the method being added
+<a href=#269 id=269 data-nosnippet>269</a>            // and of every existing method with the same name. Those metas are resolved lazily,
+<a href=#270 id=270 data-nosnippet>270</a>            // so resolve them here first — but only when an overlap check will actually run (i.e.
+<a href=#271 id=271 data-nosnippet>271</a>            // there's already a method with this name). Otherwise a lone method referencing a
+<a href=#272 id=272 data-nosnippet>272</a>            // comptime-generated type would be forced to resolve before the generating attribute
+<a href=#273 id=273 data-nosnippet>273</a>            // has run.
+<a href=#274 id=274 data-nosnippet>274</a>            </span><span class="kw">let </span>existing_method_ids = <span class="self">self</span>.interner.get_direct_method_ids(self_type, <span class="kw-2">&amp;</span>method_name);
+<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">if </span>!existing_method_ids.is_empty() {
+<a href=#276 id=276 data-nosnippet>276</a>                <span class="self">self</span>.define_function_meta_if_undefined(<span class="kw-2">*</span>method_id);
+<a href=#277 id=277 data-nosnippet>277</a>                <span class="kw">for </span>existing_method_id <span class="kw">in </span>existing_method_ids {
+<a href=#278 id=278 data-nosnippet>278</a>                    <span class="self">self</span>.define_function_meta_if_undefined(existing_method_id);
+<a href=#279 id=279 data-nosnippet>279</a>                }
+<a href=#280 id=280 data-nosnippet>280</a>            }
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
+<a href=#283 id=283 data-nosnippet>283</a>                <span class="self">self</span>.push_err(error);
+<a href=#284 id=284 data-nosnippet>284</a>            }
+<a href=#285 id=285 data-nosnippet>285</a>        }
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>}</code></pre></div></section></main></body></html>

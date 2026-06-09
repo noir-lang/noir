@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">fn </span>elaborate_global(<span class="kw-2">&amp;mut </span><span class="self">self</span>, global: UnresolvedGlobal) {
 <a href=#70 id=70 data-nosnippet>70</a>        <span class="comment">// Set up the elaboration context for this global. We need to ensure that name resolution
 <a href=#71 id=71 data-nosnippet>71</a>        // happens in the module where the global was defined, not where it's being referenced.
-<a href=#72 id=72 data-nosnippet>72</a>        </span><span class="kw">let </span>old_module = <span class="self">self</span>.local_module.replace(global.module_id);
+<a href=#72 id=72 data-nosnippet>72</a>        </span><span class="kw">let </span>old_module = <span class="self">self</span>.replace_local_module(global.module_id);
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">let </span>old_item = <span class="self">self</span>.current_item.take();
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">let </span>global_id = global.global_id;
