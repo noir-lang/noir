@@ -352,17 +352,25 @@ pub(super) fn simplify_signature(
             // The predicate is statically true here, so the output equals the verifier result
             // directly (a false predicate forces `true` and is handled above; a witness predicate
             // would make the output depend on the witness, so it is left unsimplified).
-            let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let public_key_y: [u8; 32] = to_u8_vec(dfg, public_key_y)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let signature: [u8; 64] =
-                to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: [u8; 32] = to_u8_vec(dfg, hashed_message)
-                .try_into()
-                .expect("ECDSA message hashes are 32 bytes");
+            //
+            // The argument arrays are only well-sized for genuine ECDSA calls; SSA built directly
+            // (e.g. by the fuzzer) may carry differently-sized arrays, so a length mismatch declines
+            // to simplify rather than panicking.
+            let Ok(public_key_x): Result<[u8; 32], _> = to_u8_vec(dfg, public_key_x).try_into()
+            else {
+                return SimplifyResult::None;
+            };
+            let Ok(public_key_y): Result<[u8; 32], _> = to_u8_vec(dfg, public_key_y).try_into()
+            else {
+                return SimplifyResult::None;
+            };
+            let Ok(signature): Result<[u8; 64], _> = to_u8_vec(dfg, signature).try_into() else {
+                return SimplifyResult::None;
+            };
+            let Ok(hashed_message): Result<[u8; 32], _> = to_u8_vec(dfg, hashed_message).try_into()
+            else {
+                return SimplifyResult::None;
+            };
 
             let valid_signature =
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
