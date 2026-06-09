@@ -38,16 +38,16 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn module_def_id(&self) -> ModuleDefId {
-        match self {
+    pub fn module_def_id(&self) -> Option<ModuleDefId> {
+        Some(match self {
             Item::Module(module) => ModuleDefId::ModuleId(module.id),
             Item::DataType(data_type) => ModuleDefId::TypeId(data_type.id),
             Item::Trait(trait_) => ModuleDefId::TraitId(trait_.id),
             Item::TypeAlias(type_alias_id) => ModuleDefId::TypeAliasId(*type_alias_id),
-            Item::PrimitiveType(_) => panic!("No ModuleDefId for PrimitiveType"),
+            Item::PrimitiveType(_) => return None,
             Item::Global(global_id) => ModuleDefId::GlobalId(*global_id),
             Item::Function(func_id) => ModuleDefId::FunctionId(*func_id),
-        }
+        })
     }
 }
 
