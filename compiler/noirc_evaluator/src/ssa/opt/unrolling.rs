@@ -928,8 +928,13 @@ impl Loop {
         // replace those references with the final iteration's values.
         let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
+        // Precompute, for every `JmpIf` edge in the original loop body, whether the source
+        // block dominates the target. This drives the parameter-specialization decision when a
+        // constant `JmpIf` is folded during unrolling (see `LoopIteration::handle_jmpif`).
+        let dominates_jmpif_target = self.compute_jmpif_target_dominance(function, cfg);
+
         while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args)?
+            self.unroll_header(function, unroll_into, &header_args, &dominates_jmpif_target)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
         }
@@ -942,6 +947,33 @@ impl Loop {
         }
 
         Ok(mapping)
+    }
+
+    /// For every `JmpIf` terminator of a block in the loop body, record whether that block
+    /// dominates each of its destinations. Computed once on the original (pre-unroll) function;
+    /// the loop's blocks and edges are unchanged by unrolling, so these facts stay valid for the
+    /// original block ids that `handle_jmpif` queries.
+    fn compute_jmpif_target_dominance(
+        &self,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+    ) -> HashMap<(BasicBlockId, BasicBlockId), bool> {
+        let post_order = PostOrder::with_cfg(cfg);
+        let mut dom = DominatorTree::with_cfg_and_post_order(cfg, &post_order);
+        let mut dominance = HashMap::default();
+        for block in &self.blocks {
+            if let Some(TerminatorInstruction::JmpIf {
+                then_destination, else_destination, ..
+            }) = function.dfg[*block].terminator()
+            {
+                for target in [*then_destination, *else_destination] {
+                    dominance
+                        .entry((*block, target))
+                        .or_insert_with(|| dom.dominates(*block, target));
+                }
+            }
+        }
+        dominance
     }
 
     /// The loop pre-header is the block that comes before the loop begins. Generally a header block
@@ -976,13 +1008,15 @@ impl Loop {
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
+        dominates_jmpif_target: &'a HashMap<(BasicBlockId, BasicBlockId), bool>,
     ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
-        let mut context = LoopIteration::new(function, self, fresh_block, self.header);
+        let mut context =
+            LoopIteration::new(function, self, fresh_block, self.header, dominates_jmpif_target);
         let loop_header_id = context.source_block;
 
         // Collect all header parameters before mutably borrowing context.
@@ -1779,10 +1813,12 @@ struct LoopIteration<'f> {
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
 
-    /// Number of predecessor edges each original loop block has, computed from the loop body
-    /// before unrolling. A constant-`JmpIf` destination with more than one predecessor is a
-    /// shared join block whose parameters must be preserved (see [`Self::handle_jmpif`]).
-    original_predecessor_counts: HashMap<BasicBlockId, usize>,
+    /// For each `(block, jmpif_target)` edge in the original loop body, whether `block`
+    /// dominates `jmpif_target`. When a constant-`JmpIf` is folded, its destination's block
+    /// parameters can only be specialized to the taken edge if the folding block dominates
+    /// the destination; otherwise the destination is a join reachable from an independent
+    /// predecessor and its parameters must be preserved (see [`Self::handle_jmpif`]).
+    dominates_jmpif_target: &'f HashMap<(BasicBlockId, BasicBlockId), bool>,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1791,17 +1827,8 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
+        dominates_jmpif_target: &'f HashMap<(BasicBlockId, BasicBlockId), bool>,
     ) -> Self {
-        // Count predecessor edges of each loop block from the original loop body. A `JmpIf`
-        // that folds to a constant whose destination has multiple predecessors is a shared
-        // join block, and its block parameters must not be specialized to a single edge.
-        let mut original_predecessor_counts: HashMap<BasicBlockId, usize> = HashMap::default();
-        for block in &loop_.blocks {
-            for successor in function.dfg[*block].successors() {
-                *original_predecessor_counts.entry(successor).or_default() += 1;
-            }
-        }
-
         Self {
             inserter: FunctionInserter::new(function),
             loop_,
@@ -1813,7 +1840,7 @@ impl<'f> LoopIteration<'f> {
             encountered_loop_header: false,
 
             induction_value: None,
-            original_predecessor_counts,
+            dominates_jmpif_target,
         }
     }
 
@@ -1942,6 +1969,10 @@ impl<'f> LoopIteration<'f> {
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
+        // The block whose `JmpIf` we are folding. Captured before `source_block` is
+        // reassigned to the chosen destination below.
+        let folding_block = self.source_block;
+
         match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
                 let (destination, arguments) = if constant.is_zero() {
@@ -1950,7 +1981,8 @@ impl<'f> LoopIteration<'f> {
                     (then_destination, then_arguments)
                 };
 
-                self.source_block = self.get_original_block(destination);
+                let original_destination = self.get_original_block(destination);
+                self.source_block = original_destination;
 
                 // The body block's instructions will be inlined directly into the
                 // current insert_block, not into the fresh destination block created
@@ -1958,17 +1990,18 @@ impl<'f> LoopIteration<'f> {
                 // jmp arguments so that inlined instructions resolve to the actual
                 // values rather than the fresh block's (now unreachable) params.
                 //
-                // This specialization is only sound when the destination has a single
-                // predecessor. For a shared join block reachable from other predecessors
-                // (with different edge arguments), the parameters must be preserved so the
-                // join body runs once over the merged parameter; otherwise the body would be
-                // specialized to this edge's arguments and dropped for the other edges.
-                let original_destination = self.get_original_block(destination);
-                let single_predecessor = self
-                    .original_predecessor_counts
-                    .get(&original_destination)
-                    .is_none_or(|count| *count <= 1);
-                if single_predecessor {
+                // This specialization is only sound when the folding block dominates the
+                // destination, i.e. every path to the destination passes through this folded
+                // `JmpIf`. Otherwise the destination is a join also reachable from an
+                // independent predecessor carrying a different argument, and its parameters
+                // must be preserved so the join body runs once over the merged parameter;
+                // specializing would copy the body for this edge and drop it for the others.
+                let folding_block_dominates_destination = self
+                    .dominates_jmpif_target
+                    .get(&(folding_block, original_destination))
+                    .copied()
+                    .unwrap_or(false);
+                if folding_block_dominates_destination {
                     let destination_params = self.dfg().block_parameters(destination).to_vec();
                     for (param, arg) in destination_params.iter().zip(&arguments) {
                         self.inserter.map_value(*param, *arg);
@@ -3527,22 +3560,22 @@ mod tests {
           b1():
             v33 = array_get v32, index u32 6 -> Field
             constrain v33 == Field 27
-            v34 = array_get v9, index u32 6 -> Field
+            v34 = array_get v5, index u32 6 -> Field
             v35 = eq v34, Field 27
             constrain v35 == u1 0
             return
           b2(v0: [Field; 10]):
             v14 = array_set v11, index u32 0, value Field 27
-            jmp b3(v0)
+            jmp b3(v11)
           b3(v1: [Field; 10]):
             v16 = array_set v14, index u32 1, value Field 27
-            jmp b4(v1)
+            jmp b4(v11)
           b4(v2: [Field; 10]):
             v18 = array_set v16, index u32 2, value Field 27
-            jmp b5(v2)
+            jmp b5(v11)
           b5(v3: [Field; 10]):
             v20 = array_set v18, index u32 3, value Field 27
-            jmp b6(v3)
+            jmp b6(v11)
           b6(v4: [Field; 10]):
             v22 = array_set v20, index u32 4, value Field 27
             jmp b7()
@@ -3554,13 +3587,13 @@ mod tests {
             jmp b9(v5)
           b9(v6: [Field; 10]):
             v26 = array_set v24, index u32 6, value Field 27
-            jmp b10(v6)
+            jmp b10(v5)
           b10(v7: [Field; 10]):
             v28 = array_set v26, index u32 7, value Field 27
-            jmp b11(v7)
+            jmp b11(v5)
           b11(v8: [Field; 10]):
             v30 = array_set v28, index u32 8, value Field 27
-            jmp b12(v8)
+            jmp b12(v5)
           b12(v9: [Field; 10]):
             v32 = array_set v30, index u32 9, value Field 27
             jmp b1()
