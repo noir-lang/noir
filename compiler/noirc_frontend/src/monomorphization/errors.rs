@@ -183,7 +183,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 )
             }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
-                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+                format!("Reference `{typ}` cannot be returned from an oracle function")
             }
             MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
                 format!("Reference `{typ}` cannot be passed to an oracle function")
