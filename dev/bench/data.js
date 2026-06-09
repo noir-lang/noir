@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781012640796,
+  "lastUpdate": 1781012719450,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9c428b60df5207d7e7fd7f7c49541f7b61d8e589",
-          "message": "chore(deps): bump actions/checkout from 6.0.2 to 6.0.3 in the core-actions group (#12907)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-04T09:45:13Z",
-          "tree_id": "9a659f3c0ac796c725400d436d2ccf9a98d722f2",
-          "url": "https://github.com/noir-lang/noir/commit/9c428b60df5207d7e7fd7f7c49541f7b61d8e589"
-        },
-        "date": 1780568207561,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167923,
-            "range": "± 1107",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136271,
-            "range": "± 5470",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646968,
-            "range": "± 2809",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "264165ece51f8b2db7feb20a88741852725a5873",
           "message": "chore(deps-dev): bump mocha from 11.7.5 to 11.7.6 in the testing group across 1 directory (#12909)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-06-04T11:40:48Z",
@@ -25219,6 +25177,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2122695,
             "range": "± 6166",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "be3771288e1c00f92e134e89585d2fc5e7408c8f",
+          "message": "fix(licm): guard Div/Mod hoist against inverted induction-variable bounds (#12969)",
+          "timestamp": "2026-06-09T13:14:51Z",
+          "tree_id": "8bc71529b88bd8550df8120ffa143c7bab66096f",
+          "url": "https://github.com/noir-lang/noir/commit/be3771288e1c00f92e134e89585d2fc5e7408c8f"
+        },
+        "date": 1781012669626,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 124131,
+            "range": "± 893",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 96649,
+            "range": "± 586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1720790,
+            "range": "± 1691",
             "unit": "ns/iter"
           }
         ]
