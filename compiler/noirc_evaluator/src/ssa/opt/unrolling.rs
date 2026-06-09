@@ -4034,6 +4034,67 @@ mod tests {
         ");
     }
 
+    /// Counterpart to [`Self::unroll_constant_jmpif_into_shared_join_preserves_constraint`]:
+    /// when the folding block *dominates* the constant-`JmpIf` destination, that destination is
+    /// reached only through this folded edge, so its block parameters are safely specialized to
+    /// the taken edge's arguments. This must NOT preserve the join parameters: doing so leaves
+    /// redundant block parameters that `flatten_cfg` later turns into predicate multiplications,
+    /// inflating circuit size (the regression observed in `regression_5252`).
+    #[test]
+    fn unroll_constant_jmpif_into_dominated_join_specializes_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v3 = lt v1, u32 2
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            v4 = eq v1, u32 0
+            v5 = mul v0, u32 10
+            v6 = mul v0, u32 20
+            jmpif v4 then: b3(v5), else: b3(v6)
+          b3(v7: u32):
+            v8 = add v2, v7
+            v9 = unchecked_add v1, u32 1
+            jmp b1(v9, v8)
+          b5():
+            return v2
+        }
+        ";
+        let u32_ty = crate::ssa::ir::types::NumericType::unsigned(32);
+        let input = vec![Value::from_constant(1_u128.into(), u32_ty).unwrap()];
+        // `1 * 10 + 1 * 20 == 30` over the two unrolled iterations.
+        let expected = Ok(vec![Value::from_constant(30_u128.into(), u32_ty).unwrap()]);
+
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.interpret(input.clone()), expected, "baseline interpretation");
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_eq!(ssa.interpret(input), expected, "unrolling must preserve the result");
+
+        // The dominated join is specialized: the accumulating `add` reads the per-edge
+        // multiplications directly (`v4`, `v8`) rather than a preserved join block parameter.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = mul v0, u32 10
+            v6 = mul v0, u32 20
+            jmp b2(v4)
+          b1():
+            return v9
+          b2(v1: u32):
+            v7 = mul v0, u32 10
+            v8 = mul v0, u32 20
+            jmp b3(v8)
+          b3(v2: u32):
+            v9 = add v4, v8
+            jmp b1()
+        }
+        ");
+    }
+
     /// Documents that loop unrolling does NOT propagate instruction results defined
     /// in the loop header (only block parameters) to exit blocks.
     ///
