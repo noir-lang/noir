@@ -400,6 +400,29 @@ mod tests {
     }
 
     #[test]
+    fn does_not_drop_checked_overflow_on_add_zero_identity() {
+        // A checked `add v, 0` range-constrains its result to the type's bit width. When `v` is an
+        // unfit value (here produced by an unchecked overflowing add), simplifying the identity away
+        // would drop that overflow check and let an out-of-range value flow on.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v2 = unchecked_add u8 255, u8 1
+            v4 = add v2, u8 0
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          b0():
+            v2 = unchecked_add u8 255, u8 1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
     fn does_not_simplify_signed_integer_or_max() {
         let src = "
         acir(inline) fn main f0 {
