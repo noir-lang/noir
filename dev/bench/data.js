@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781030727514,
+  "lastUpdate": 1781030852331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7438ffef0fdfcea193b52bd6127de8846cf2f321",
-          "message": "fix: allow reference parameters when dispatching brillig functions (#12882)",
-          "timestamp": "2026-06-04T15:25:40Z",
-          "tree_id": "61a312cb2cc789b371a76911938dc9f860fabf69",
-          "url": "https://github.com/noir-lang/noir/commit/7438ffef0fdfcea193b52bd6127de8846cf2f321"
-        },
-        "date": 1780588301028,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128224,
-            "range": "± 575",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113976,
-            "range": "± 864",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3044242,
-            "range": "± 5257",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3039757,
             "range": "± 2187",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "59e73fe67b0be50a718048cfa774cfde4eaebbc6",
+          "message": "chore(test): More oracle proxy tests (#12946)",
+          "timestamp": "2026-06-09T18:18:13Z",
+          "tree_id": "58499c4d1a26c4bf1e5a02ba59d597ddc29f1cbe",
+          "url": "https://github.com/noir-lang/noir/commit/59e73fe67b0be50a718048cfa774cfde4eaebbc6"
+        },
+        "date": 1781030783142,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166984,
+            "range": "± 310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135932,
+            "range": "± 5597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655417,
+            "range": "± 2684",
             "unit": "ns/iter"
           }
         ]
