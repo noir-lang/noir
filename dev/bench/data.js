@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781031637733,
+  "lastUpdate": 1781031640880,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49498,105 +49498,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7438ffef0fdfcea193b52bd6127de8846cf2f321",
-          "message": "fix: allow reference parameters when dispatching brillig functions (#12882)",
-          "timestamp": "2026-06-04T15:25:40Z",
-          "tree_id": "61a312cb2cc789b371a76911938dc9f860fabf69",
-          "url": "https://github.com/noir-lang/noir/commit/7438ffef0fdfcea193b52bd6127de8846cf2f321"
-        },
-        "date": 1780589107845,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.11,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.154,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.054,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.75,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.674,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1.75,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.708,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.814,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.718,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.195,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.216,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -54436,6 +54337,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.262,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "59e73fe67b0be50a718048cfa774cfde4eaebbc6",
+          "message": "chore(test): More oracle proxy tests (#12946)",
+          "timestamp": "2026-06-09T18:18:13Z",
+          "tree_id": "58499c4d1a26c4bf1e5a02ba59d597ddc29f1cbe",
+          "url": "https://github.com/noir-lang/noir/commit/59e73fe67b0be50a718048cfa774cfde4eaebbc6"
+        },
+        "date": 1781031560851,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.29,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.202,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.268,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.772,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.91,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.856,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.762,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.774,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.818,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.944,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.271,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.256,
             "unit": "s"
           }
         ]
