@@ -1274,6 +1274,34 @@ fn evaluates_builtin_zeroed_function() {
 }
 
 #[test]
+fn evaluates_builtin_zeroed_closure_type() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    ");
+}
+
+#[test]
 fn evaluates_builtin_checked_transmute() {
     let src = r#"
     fn main() {
