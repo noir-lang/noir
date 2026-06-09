@@ -1233,6 +1233,33 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
 }
 
 #[test]
+fn return_enum_from_unconstrained_to_constrained() {
+    // The elaborator rejects this first (see tests/enums.rs); this asserts the
+    // monomorphization defense-in-depth check also rejects an enum return, so the gap
+    // cannot reappear through a boundary-crossing call the elaborator did not lint.
+    let src = r#"
+    enum E {
+        A,
+        B,
+    }
+
+    fn main() {
+        // safety: test
+        unsafe {
+            let _e = choose();
+                     ^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^^^^ Enum `E` cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn choose() -> E {
+        E::A
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[UnstableFeature::Enums], true);
+}
+
+#[test]
 fn evaluates_builtin_zeroed() {
     let src = r#"
     fn main() {

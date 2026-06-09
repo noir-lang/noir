@@ -29,6 +29,7 @@ pub enum MonomorphizationError {
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
+    UnconstrainedEnumReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
@@ -65,6 +66,7 @@ impl MonomorphizationError {
             | MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
                 location, ..
             }
+            | MonomorphizationError::UnconstrainedEnumReturnToConstrained { location, .. }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
@@ -178,6 +180,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::UnconstrainedFunctionReturnToConstrained { typ, .. } => {
                 format!(
                     "Function `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedEnumReturnToConstrained { typ, .. } => {
+                format!(
+                    "Enum `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
