@@ -1778,6 +1778,11 @@ struct LoopIteration<'f> {
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
+
+    /// Number of predecessor edges each original loop block has, computed from the loop body
+    /// before unrolling. A constant-`JmpIf` destination with more than one predecessor is a
+    /// shared join block whose parameters must be preserved (see [`Self::handle_jmpif`]).
+    original_predecessor_counts: HashMap<BasicBlockId, usize>,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1787,6 +1792,16 @@ impl<'f> LoopIteration<'f> {
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
     ) -> Self {
+        // Count predecessor edges of each loop block from the original loop body. A `JmpIf`
+        // that folds to a constant whose destination has multiple predecessors is a shared
+        // join block, and its block parameters must not be specialized to a single edge.
+        let mut original_predecessor_counts: HashMap<BasicBlockId, usize> = HashMap::default();
+        for block in &loop_.blocks {
+            for successor in function.dfg[*block].successors() {
+                *original_predecessor_counts.entry(successor).or_default() += 1;
+            }
+        }
+
         Self {
             inserter: FunctionInserter::new(function),
             loop_,
@@ -1798,6 +1813,7 @@ impl<'f> LoopIteration<'f> {
             encountered_loop_header: false,
 
             induction_value: None,
+            original_predecessor_counts,
         }
     }
 
@@ -1941,9 +1957,22 @@ impl<'f> LoopIteration<'f> {
                 // by `get_or_insert_block`. Map the destination's block params to the
                 // jmp arguments so that inlined instructions resolve to the actual
                 // values rather than the fresh block's (now unreachable) params.
-                let destination_params = self.dfg().block_parameters(destination).to_vec();
-                for (param, arg) in destination_params.iter().zip(&arguments) {
-                    self.inserter.map_value(*param, *arg);
+                //
+                // This specialization is only sound when the destination has a single
+                // predecessor. For a shared join block reachable from other predecessors
+                // (with different edge arguments), the parameters must be preserved so the
+                // join body runs once over the merged parameter; otherwise the body would be
+                // specialized to this edge's arguments and dropped for the other edges.
+                let original_destination = self.get_original_block(destination);
+                let single_predecessor = self
+                    .original_predecessor_counts
+                    .get(&original_destination)
+                    .is_none_or(|count| *count <= 1);
+                if single_predecessor {
+                    let destination_params = self.dfg().block_parameters(destination).to_vec();
+                    for (param, arg) in destination_params.iter().zip(&arguments) {
+                        self.inserter.map_value(*param, *arg);
+                    }
                 }
 
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
@@ -3498,22 +3527,22 @@ mod tests {
           b1():
             v33 = array_get v32, index u32 6 -> Field
             constrain v33 == Field 27
-            v34 = array_get v5, index u32 6 -> Field
+            v34 = array_get v9, index u32 6 -> Field
             v35 = eq v34, Field 27
             constrain v35 == u1 0
             return
           b2(v0: [Field; 10]):
             v14 = array_set v11, index u32 0, value Field 27
-            jmp b3(v11)
+            jmp b3(v0)
           b3(v1: [Field; 10]):
             v16 = array_set v14, index u32 1, value Field 27
-            jmp b4(v11)
+            jmp b4(v1)
           b4(v2: [Field; 10]):
             v18 = array_set v16, index u32 2, value Field 27
-            jmp b5(v11)
+            jmp b5(v2)
           b5(v3: [Field; 10]):
             v20 = array_set v18, index u32 3, value Field 27
-            jmp b6(v11)
+            jmp b6(v3)
           b6(v4: [Field; 10]):
             v22 = array_set v20, index u32 4, value Field 27
             jmp b7()
@@ -3525,13 +3554,13 @@ mod tests {
             jmp b9(v5)
           b9(v6: [Field; 10]):
             v26 = array_set v24, index u32 6, value Field 27
-            jmp b10(v5)
+            jmp b10(v6)
           b10(v7: [Field; 10]):
             v28 = array_set v26, index u32 7, value Field 27
-            jmp b11(v5)
+            jmp b11(v7)
           b11(v8: [Field; 10]):
             v30 = array_set v28, index u32 8, value Field 27
-            jmp b12(v5)
+            jmp b12(v8)
           b12(v9: [Field; 10]):
             v32 = array_set v30, index u32 9, value Field 27
             jmp b1()
@@ -3899,6 +3928,75 @@ mod tests {
             jmp b1(u32 50)
           b1(v1: u32):
             return v1
+        }
+        ");
+    }
+
+    /// Regression for noir-claude#1381: a constant-folded `JmpIf` whose chosen destination
+    /// is a shared join block — reachable from another, independent predecessor carrying a
+    /// different edge argument — must not specialize the join's block parameter to this edge's
+    /// argument. Specializing it (and copying the join body only once) silently drops the join
+    /// body's constraint on the other edge.
+    #[test]
+    fn unroll_constant_jmpif_into_shared_join_preserves_constraint() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b2(), else: b7()
+          b2():
+            jmpif v0 then: b3(), else: b4()
+          b3():
+            jmp b6(Field 1)
+          b4():
+            v3 = eq v1, u32 0
+            jmpif v3 then: b6(Field 2), else: b6(Field 3)
+          b6(v4: Field):
+            constrain v4 == Field 2
+            v5 = unchecked_add v1, u32 1
+            jmp b1(v5)
+          b7():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Baseline: with `v0 = 1` the `b3` edge reaches the join with `Field 1`, failing
+        // `constrain Field 1 == Field 2`.
+        assert!(
+            ssa.interpret(vec![Value::bool(true)]).is_err(),
+            "baseline should fail the join constraint with v0 = 1"
+        );
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+
+        // The join constraint must survive unrolling: `v0 = 1` must still fail, and the
+        // `v0 = 0` path (reaching the join with `Field 2`) must still succeed.
+        assert!(
+            ssa.interpret(vec![Value::bool(true)]).is_err(),
+            "join constraint must be preserved after unrolling for v0 = 1"
+        );
+        assert!(
+            ssa.interpret(vec![Value::bool(false)]).is_ok(),
+            "v0 = 0 should satisfy the join constraint after unrolling"
+        );
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2(), else: b3()
+          b1():
+            return
+          b2():
+            jmp b4(Field 1)
+          b3():
+            jmp b4(Field 2)
+          b4(v1: Field):
+            constrain v1 == Field 2
+            jmp b1()
         }
         ");
     }
