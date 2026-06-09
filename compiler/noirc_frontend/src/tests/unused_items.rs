@@ -55,6 +55,25 @@ fn errors_on_unused_pub_crate_import() {
 }
 
 #[test]
+fn unused_global_clashing_with_function_is_reported_as_global() {
+    // The global and the function share the `values` namespace, so collecting the
+    // function clashes with the already-collected global. The unused warning must
+    // still describe the surviving item (the global) and point at its location,
+    // rather than borrowing the function's kind.
+    let src = r#"
+    global N: u32 = 10;
+           ^ unused global N
+           ~ unused global
+           ~ First function found here
+    fn N() {}
+       ^ Duplicate definitions of function with name N found
+       ~ Second function found here
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_unused_function() {
     let src = r#"
     contract some_contract {
