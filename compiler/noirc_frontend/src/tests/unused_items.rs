@@ -74,6 +74,28 @@ fn unused_global_clashing_with_function_is_reported_as_global() {
 }
 
 #[test]
+fn cross_namespace_name_clash_misses_unused_warning_but_is_not_an_error() {
+    // A type-namespace item (`struct N`) and a value-namespace item (`fn N`) may legally
+    // share a name within a module, so this is *not* a duplicate-definition error and the
+    // program compiles. The usage tracker keys unused items by name only, so the struct and
+    // the function share one slot: constructing the struct clears it, and the genuinely
+    // unused `fn N` produces no "unused function" warning.
+    //
+    // The absence below is a missing *warning*, not a missing *error*: unused warnings live
+    // in the same diagnostics vec that `assert_no_errors` inspects, so this assertion passing
+    // is itself the proof that the warning was dropped. Were the tracker namespace-aware we'd
+    // expect an "unused function N" warning here and this would become a `check_errors` test.
+    let src = r#"
+    struct N {}
+    fn N() {}
+    fn main() {
+        let _ = N {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_on_unused_function() {
     let src = r#"
     contract some_contract {
