@@ -19,6 +19,7 @@ noirc_errors.workspace = true
 noirc_artifacts.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
+indexmap.workspace = true
 iter-extended.workspace = true
 itertools.workspace = true
 thiserror.workspace = true
