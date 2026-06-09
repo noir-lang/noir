@@ -632,7 +632,7 @@
 <a href=#632 id=632 data-nosnippet>632</a>    <span class="kw">if let </span><span class="prelude-val">Ok</span>(uri) = Url::from_file_path(path) {
 <a href=#633 id=633 data-nosnippet>633</a>        <span class="prelude-val">Some</span>(uri)
 <a href=#634 id=634 data-nosnippet>634</a>    } <span class="kw">else if </span>path.starts_with(<span class="string">"std"</span>) {
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="prelude-val">Some</span>(Url::parse(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"noir-std://{}"</span>, path.to_string_lossy())).unwrap())
+<a href=#635 id=635 data-nosnippet>635</a>        <span class="prelude-val">Some</span>(<span class="kw">crate</span>::requests::stdlib_path_to_uri(<span class="kw-2">&amp;</span>path.to_string_lossy()))
 <a href=#636 id=636 data-nosnippet>636</a>    } <span class="kw">else </span>{
 <a href=#637 id=637 data-nosnippet>637</a>        <span class="prelude-val">None
 <a href=#638 id=638 data-nosnippet>638</a>    </span>}
