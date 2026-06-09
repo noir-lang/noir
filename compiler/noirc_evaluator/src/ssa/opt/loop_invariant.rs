@@ -318,7 +318,12 @@ impl LoopContext {
         }
         let induction = get_induction_var_bounds(inserter, loop_, pre_header);
         let does_loop_execute = does_loop_execute(induction.map(|(_, bounds, _)| bounds));
+        // `does_loop_execute` is sound for any step, but the `[lower, upper)` interval only bounds
+        // the induction variable's visited values for some step/guard combinations. Only record it
+        // as a value range when it actually over-approximates those values, otherwise simplifying
+        // from the bounds (e.g. folding a comparison) would be unsound.
         let (induction_variable, induction_step) = induction
+            .filter(|(_, bounds, step)| bounds.over_approximates_visited_values(*step))
             .map(|(var, bounds, step)| ((var, (bounds.lower, bounds.upper)), step))
             .unzip();
 
@@ -507,8 +512,12 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
-        if let Some((induction_variable, bounds, _)) =
+        // Only record bounds that over-approximate the visited values: the outer-bound consumers
+        // (array-access hoisting, `match_induction_and_constant`) use the interval as a value
+        // range, which a non-unit-step `!=`-guarded loop would violate.
+        if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
+            && bounds.over_approximates_visited_values(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }
@@ -3771,6 +3780,77 @@ mod control_dependence {
             jmp b1(v5)
           b3():
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn neq_guarded_loop_non_unit_step_does_not_use_bounds() {
+        // Regression for noir-lang/noir-claude#102: a `while i != 4` loop lowers to an `Eq`
+        // header with the body on the *else* branch, which `get_const_upper_bound` records as
+        // `[0, 4)`. That interval only bounds the induction variable when the step lands it
+        // exactly on `4`. Here the step is `3`, so `i` runs `0, 3, 6, 9, ...` and skips the
+        // guard value entirely, escaping `[0, 4)`. LICM must therefore not use those bounds to
+        // fold `i < 5` to `true` (deleting the constraint) nor to rewrite the checked add to
+        // `unchecked_add` — both would accept executions that should fail at `i == 6`.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = eq v0, u8 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = lt v0, u8 5
+            constrain v5 == u1 1
+            v8 = add v0, u8 3
+            jmp b1(v8)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn neq_guarded_loop_unit_step_still_uses_bounds() {
+        // Counterpart to `neq_guarded_loop_non_unit_step_does_not_use_bounds`: with a unit step the
+        // `while i != 4` loop visits exactly `0, 1, 2, 3` and stays within `[0, 4)`, so the bounds
+        // remain a sound value range. LICM must still fold `i < 4` to `true` and rewrite the
+        // checked add to `unchecked_add`, otherwise the `NotEqual` fix would needlessly disable
+        // simplification for ordinary unit-step `!=`-guarded loops.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = eq v0, u8 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = lt v0, u8 4
+            constrain v5 == u1 1
+            v8 = add v0, u8 1
+            jmp b1(v8)
+          b3():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = eq v0, u8 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = unchecked_add v0, u8 1
+            jmp b1(v5)
+          b3():
+            return
         }
         ");
     }

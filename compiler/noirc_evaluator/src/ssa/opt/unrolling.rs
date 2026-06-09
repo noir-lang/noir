@@ -440,11 +440,19 @@ pub(crate) struct Loop {
 /// upper 5) looks identical to an executed `for i in 0..5`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoopBoundKind {
-    /// `i < upper`: the body executes iff `lower < upper`.
+    /// `i < upper`: the body executes iff `lower < upper`. The guard caps every visited value
+    /// below `upper`, so `[lower, upper)` over-approximates the visited values for any step.
     LessThan,
     /// `i == upper - 1` (an `Eq`/`Not` header with the body on the `then` branch):
-    /// the body executes iff `lower == upper - 1`.
+    /// the body executes iff `lower == upper - 1`. The body only ever runs on the single value
+    /// `upper - 1`, so `[lower, upper)` over-approximates the visited values for any step.
     Equal,
+    /// `i != upper` (an `Eq` header with the body on the *else* branch): the body executes iff
+    /// `lower != upper`. Unlike `LessThan`, the guard only stops the loop when the induction
+    /// variable lands *exactly* on `upper`; a non-unit step can skip over `upper` and run the
+    /// body on values past it, so `[lower, upper)` over-approximates the visited values only when
+    /// the step is `0` or `1`.
+    NotEqual,
 }
 
 /// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
@@ -460,12 +468,31 @@ impl LoopBounds {
     /// Whether the loop body is guaranteed to execute at least once.
     pub(super) fn loop_executes(self) -> bool {
         match self.kind {
-            LoopBoundKind::LessThan => {
+            // `lower < upper` for `LessThan`, and `lower != upper` for `NotEqual`; for an
+            // ascending induction variable starting at or below `upper` these coincide, so both
+            // reduce to `upper > lower`.
+            LoopBoundKind::LessThan | LoopBoundKind::NotEqual => {
                 self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
             }
             // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
             // maximum (where `inc` would overflow) correctly reads as "does not execute".
             LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
+        }
+    }
+
+    /// Whether the `[lower, upper)` interval over-approximates the values the induction variable
+    /// actually visits, given its per-iteration `step`. This is what makes it sound to use the
+    /// bounds for value-range reasoning (e.g. proving a comparison or that an arithmetic operation
+    /// cannot overflow).
+    ///
+    /// A `NotEqual` guard only stops the loop when the induction variable lands exactly on
+    /// `upper`; a non-unit step can step over `upper` and visit larger values, so the interval is
+    /// only an over-approximation when the step is `0` (constant induction variable) or `1`. The
+    /// other guard kinds bound the visited values for any step (see [`LoopBoundKind`]).
+    pub(super) fn over_approximates_visited_values(self, step: IntegerConstant) -> bool {
+        match self.kind {
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
+            LoopBoundKind::NotEqual => step.is_zero() || step.is_one(),
         }
     }
 }
@@ -793,13 +820,15 @@ impl Loop {
                 //
                 // If `b2` is the loop body: the body runs only on the single value `rhs`, so
                 // upper = rhs + 1 and the bound is `Equal` (it enters iff `lower == rhs`).
-                // If `b3` is the loop body: the body runs while `v != rhs` (i.e. `v < rhs` for an
-                // increasing induction variable), so upper = rhs and the bound is `LessThan`.
+                // If `b3` is the loop body: the body runs while `v != rhs`, so upper = rhs and the
+                // bound is `NotEqual`. For a unit step this matches `v < rhs`, but a non-unit step
+                // can skip over `rhs` and run the body on larger values, which `NotEqual` records
+                // so later value-range reasoning does not assume `v < rhs`.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
                 if then_branch_is_body {
                     Some((const_rhs.inc()?, LoopBoundKind::Equal))
                 } else {
-                    Some((const_rhs, LoopBoundKind::LessThan))
+                    Some((const_rhs, LoopBoundKind::NotEqual))
                 }
             }
             Instruction::Not(operand) => {
