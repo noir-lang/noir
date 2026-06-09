@@ -21,7 +21,7 @@ fn brillig_blake2s() {
     0: sp[3] = @1
     1: sp[4] = const u32 33
     2: @1 = u32 add @1, sp[4]
-    3: sp[3] = indirect const u32 1
+    3: sp[3] = indirect const bool 1
     4: sp[4] = u32 add sp[2], @2
     5: sp[5] = u32 add sp[3], @2
     6: blake2s(message: [sp[4]; 10], output: [sp[5]; 32])
@@ -47,7 +47,7 @@ fn brillig_blake3() {
     0: sp[3] = @1
     1: sp[4] = const u32 33
     2: @1 = u32 add @1, sp[4]
-    3: sp[3] = indirect const u32 1
+    3: sp[3] = indirect const bool 1
     4: sp[4] = u32 add sp[2], @2
     5: sp[5] = u32 add sp[3], @2
     6: blake3(message: [sp[4]; 10], output: [sp[5]; 32])
@@ -74,7 +74,7 @@ fn brillig_keccakf1600() {
     0: sp[3] = @1
     1: sp[4] = const u32 26
     2: @1 = u32 add @1, sp[4]
-    3: sp[3] = indirect const u32 1
+    3: sp[3] = indirect const bool 1
     4: sp[4] = u32 add sp[2], @2
     5: sp[5] = u32 add sp[3], @2
     6: keccakf1600(input: [sp[4]; 25], output: [sp[5]; 25])
@@ -154,7 +154,7 @@ fn brillig_multi_scalar_mul() {
      1: sp[5] = @1
      2: sp[6] = const u32 3
      3: @1 = u32 add @1, sp[6]
-     4: sp[5] = indirect const u32 1
+     4: sp[5] = indirect const bool 1
      5: sp[6] = u32 add sp[2], @2
      6: sp[7] = u32 add sp[3], @2
      7: sp[8] = u32 add sp[5], @2
@@ -183,7 +183,7 @@ fn brillig_embedded_curve_add() {
     1: sp[7] = @1
     2: sp[8] = const u32 3
     3: @1 = u32 add @1, sp[8]
-    4: sp[7] = indirect const u32 1
+    4: sp[7] = indirect const bool 1
     5: sp[8] = u32 add sp[7], @2
     6: embedded_curve_add(input1_x: sp[2], input1_y: sp[3], input2_x: sp[4], input2_y: sp[5], result: [sp[8]; 2])
     7: sp[2] = sp[7]
@@ -209,7 +209,7 @@ fn brillig_poseidon2_permutation() {
     0: sp[3] = @1
     1: sp[4] = const u32 5
     2: @1 = u32 add @1, sp[4]
-    3: sp[3] = indirect const u32 1
+    3: sp[3] = indirect const bool 1
     4: sp[4] = u32 add sp[2], @2
     5: sp[5] = u32 add sp[3], @2
     6: poseidon2_permutation(message: [sp[4]; 4], output: [sp[5]; 4])
@@ -235,7 +235,7 @@ fn brillig_sha256_compression() {
      0: sp[4] = @1
      1: sp[5] = const u32 9
      2: @1 = u32 add @1, sp[5]
-     3: sp[4] = indirect const u32 1
+     3: sp[4] = indirect const bool 1
      4: sp[5] = u32 add sp[2], @2
      5: sp[6] = u32 add sp[3], @2
      6: sp[7] = u32 add sp[4], @2
@@ -263,7 +263,7 @@ fn brillig_aes128_encrypt() {
      0: sp[5] = @1
      1: sp[6] = const u32 17
      2: @1 = u32 add @1, sp[6]
-     3: sp[5] = indirect const u32 1
+     3: sp[5] = indirect const bool 1
      4: sp[6] = u32 add sp[2], @2
      5: sp[7] = u32 add sp[3], @2
      6: sp[8] = u32 add sp[4], @2

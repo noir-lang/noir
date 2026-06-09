@@ -1,6 +1,6 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
-use crate::brillig::brillig_ir::{brillig_variable::SingleAddrVariable, registers::Allocated};
+use crate::brillig::brillig_ir::brillig_variable::SingleAddrVariable;
 
 use super::{
     BrilligContext, ReservedRegisters, debug_show::DebugToString, instructions::BrilligBinaryOp,
@@ -32,16 +32,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let const_register = self.make_usize_constant_instruction(F::from(constant));
             self.memory_op_instruction(operand, const_register.address, destination, op);
         }
-    }
-
-    /// Utility method to check if the value at a memory address equals one.
-    pub(crate) fn codegen_usize_equals_one(
-        &mut self,
-        operand: SingleAddrVariable,
-    ) -> Allocated<SingleAddrVariable, Registers> {
-        let is_one = self.allocate_single_addr_bool();
-        self.codegen_usize_op(operand.address, is_one.address, BrilligBinaryOp::Equals, 1);
-        is_one
     }
 
     /// Emit overflow check for addition: traps if `lhs > result` (i.e., overflow occurred).

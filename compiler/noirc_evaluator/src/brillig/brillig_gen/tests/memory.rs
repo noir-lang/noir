@@ -25,7 +25,7 @@ fn brillig_array_get() {
      3: sp[6] = @1
      4: sp[7] = const u32 4
      5: @1 = u32 add @1, sp[7]
-     6: sp[6] = indirect const u32 1
+     6: sp[6] = indirect const bool 1
      7: sp[7] = u32 add sp[6], @2
      8: sp[8] = sp[7]
      9: store sp[3] at sp[8]
@@ -64,7 +64,7 @@ fn brillig_array_set() {
      3: sp[6] = @1
      4: sp[7] = const u32 4
      5: @1 = u32 add @1, sp[7]
-     6: sp[6] = indirect const u32 1
+     6: sp[6] = indirect const bool 1
      7: sp[7] = u32 add sp[6], @2
      8: sp[8] = sp[7]
      9: store sp[3] at sp[8]
@@ -112,7 +112,7 @@ fn brillig_array_with_rc_ops() {
      3: sp[5] = @1
      4: sp[6] = const u32 4
      5: @1 = u32 add @1, sp[6]
-     6: sp[5] = indirect const u32 1
+     6: sp[5] = indirect const bool 1
      7: sp[6] = u32 add sp[5], @2
      8: sp[7] = sp[6]
      9: store sp[2] at sp[7]
@@ -120,23 +120,21 @@ fn brillig_array_with_rc_ops() {
     11: store sp[3] at sp[7]
     12: sp[7] = u32 add sp[7], @2
     13: store sp[4] at sp[7]
-    14: sp[2] = load sp[5]
-    15: sp[2] = u32 add sp[2], @2
-    16: store sp[2] at sp[5]
-    17: sp[2] = const u32 0
-    18: sp[3] = const u32 99
-    19: @3 = sp[5]
-    20: @4 = const u32 4
-    21: call 0 // -> ArrayCopy
-    22: sp[4] = @5
-    23: sp[6] = u32 add sp[4], @2
-    24: sp[7] = u32 add sp[6], sp[2]
-    25: store sp[3] at sp[7]
-    26: sp[5] = u32 add sp[4], @2
-    27: sp[3] = u32 add sp[5], sp[2]
-    28: sp[3] = load sp[3]
-    29: sp[2] = sp[3]
-    30: return
+    14: sp[5] = indirect const bool 0
+    15: sp[2] = const u32 0
+    16: sp[3] = const u32 99
+    17: @3 = sp[5]
+    18: @4 = const u32 4
+    19: call 0 // -> ArrayCopy
+    20: sp[4] = @5
+    21: sp[6] = u32 add sp[4], @2
+    22: sp[7] = u32 add sp[6], sp[2]
+    23: store sp[3] at sp[7]
+    24: sp[5] = u32 add sp[4], @2
+    25: sp[3] = u32 add sp[5], sp[2]
+    26: sp[3] = load sp[3]
+    27: sp[2] = sp[3]
+    28: return
     ");
 }
 
