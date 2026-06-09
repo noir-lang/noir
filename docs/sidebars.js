@@ -86,7 +86,22 @@ export default {
         },
         {
           type: 'link',
-          label: 'Ecosystem Libraries',
+          label: 'BigNum',
+          href: 'https://github.com/noir-lang/noir-bignum',
+        },
+        {
+          type: 'link',
+          label: 'BigCurve',
+          href: 'https://github.com/noir-lang/noir_bigcurve',
+        },
+        {
+          type: 'link',
+          label: 'Base64',
+          href: 'https://github.com/noir-lang/noir_base64',
+        },
+        {
+          type: 'link',
+          label: 'More Libraries',
           href: 'https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#libraries',
         },
       ],

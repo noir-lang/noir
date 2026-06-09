@@ -412,11 +412,18 @@ impl<F: AcirField> GeneratedAcir<F> {
             radix_pow *= &radix_big;
         }
 
-        self.assert_is_zero(input_expr - &composed_limbs);
-        let assertion_payload = self.generate_assertion_message_payload(format!(
-            "Field failed to decompose into specified {limb_count} limbs"
-        ));
-        self.attach_assertion_payload(assertion_payload);
+        // With `limb_count == 0` there are no limbs to compose, so `composed_limbs` is the zero
+        // constant. When `input_expr` is also a known constant the difference folds away: a zero
+        // input yields a trivially-true `0 == 0` (which must not be emitted as an empty opcode),
+        // while a non-zero input yields an always-false constraint that fails at solve time.
+        let difference = input_expr - &composed_limbs;
+        if !difference.is_zero() {
+            self.assert_is_zero(difference);
+            let assertion_payload = self.generate_assertion_message_payload(format!(
+                "Field failed to decompose into specified {limb_count} limbs"
+            ));
+            self.attach_assertion_payload(assertion_payload);
+        }
 
         Ok(limb_witnesses)
     }
@@ -667,11 +674,11 @@ impl<F: AcirField> GeneratedAcir<F> {
                 .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
+        // Ensure every Brillig function we compile has a `brillig_locations`
+        // entry, even when it emits no per-opcode locations.
+        let brillig_locations = self.brillig_locations.entry(brillig_function_index).or_default();
         for (brillig_index, call_stack) in &generated_brillig.locations {
-            self.brillig_locations
-                .entry(brillig_function_index)
-                .or_default()
-                .insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
+            brillig_locations.insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
         }
     }
 

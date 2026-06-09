@@ -83,6 +83,34 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    /// Elaborate a call (or method call) argument against its expected type.
+    ///
+    /// For a macro call the argument is elaborated in a comptime context so that
+    /// `quote { ... }` arguments type-check as `Quoted` before the macro is executed.
+    ///
+    /// The resulting type is then unified against the expected type so that a potential
+    /// lambda following this argument can have more concrete types.
+    fn elaborate_call_argument(
+        &mut self,
+        arg: Expression,
+        expected_type: Option<&Type>,
+        is_macro_call: bool,
+    ) -> (ExprId, Type) {
+        let (arg, typ) = if is_macro_call {
+            self.elaborate_in_comptime_context(|this| {
+                this.elaborate_expression_with_target_type(arg, expected_type)
+            })
+        } else {
+            self.elaborate_expression_with_target_type(arg, expected_type)
+        };
+
+        if let Some(expected_type) = expected_type {
+            let _ = typ.unify(expected_type);
+        }
+
+        (arg, typ)
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_expression_inner(
         &mut self,
@@ -824,19 +852,7 @@ impl Elaborator<'_> {
             let location = arg.location;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            let (arg, typ) = if is_macro_call {
-                self.elaborate_in_comptime_context(|this| {
-                    this.elaborate_expression_with_target_type(arg, expected_type)
-                })
-            } else {
-                self.elaborate_expression_with_target_type(arg, expected_type)
-            };
-
-            // Try to unify this argument type against the function's argument type
-            // so that a potential lambda following this argument can have more concrete types.
-            if let Some(expected_type) = expected_type {
-                let _ = typ.unify(expected_type);
-            }
+            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
 
             arguments.push(arg);
             (typ, arg, location)
@@ -999,25 +1015,21 @@ impl Elaborator<'_> {
 
         function_args.push((object_type.clone(), object, object_location));
 
+        let is_macro_call = method_call.is_macro_call;
+
         for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
             let location = arg.location;
             // The argument types also contain the object type as the first argument.
             // Thus, we need to add one when indexing the argument types to match them up with method arguments.
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
-            let (arg, typ) = self.elaborate_expression_with_target_type(arg, expected_type);
 
-            // Try to unify this argument type against the function's argument type
-            // so that a potential lambda following this argument can have more concrete types.
-            if let Some(expected_type) = expected_type {
-                let _ = expected_type.unify(&typ);
-            }
+            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
 
             arguments.push(arg);
             function_args.push((typ, arg, location));
         }
 
         let method = method_call.method_name;
-        let is_macro_call = method_call.is_macro_call;
         let method_call = HirMethodCallExpression { method, object, arguments, location, generics };
 
         self.check_method_call_visibility(func_id, &object_type, &method_call.method);

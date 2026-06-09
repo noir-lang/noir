@@ -28,7 +28,7 @@ impl Integer {
     /// Converts this [Integer] to a [FieldElement]. Any negative values are
     /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
     /// In other words, the resulting field is not in two's complement form.
-    pub(crate) fn as_field(self) -> FieldElement {
+    pub fn as_field(self) -> FieldElement {
         match self {
             Integer::Field(value) => value,
             Integer::I8(value) => value.into(),

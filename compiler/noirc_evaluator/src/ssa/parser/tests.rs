@@ -5,7 +5,9 @@ use crate::{
     trim_leading_whitespace_from_lines,
 };
 
-use super::SsaError;
+use super::{ParserError, SsaError};
+
+use test_case::test_case;
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
@@ -683,6 +685,78 @@ fn test_negative() {
         }
         ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_out_of_range_signed_constant_roundtrips() {
+    // A signed constant whose field value lies outside the type's range (here `256`
+    // for an `i8`, requiring more than 8 bits) is printed verbatim as a positive
+    // literal. The parser must store it verbatim rather than mistaking it for a
+    // field-negated negative literal and adding `2^bit_size` (which would yield 512).
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return i8 256
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_out_of_range_unsigned_constant_roundtrips() {
+    // The printer emits an unsigned constant as its raw field value, so a value larger
+    // than the type's range (here `256` for a `u8`) is printed verbatim as `u8 256`.
+    // Parsing must store that field value as-is rather than rejecting or rewrapping it.
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return u8 256
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+// `-1` and the most negative value of each signed type are printed with a leading `-`;
+// the parser reconstructs the two's-complement field value as the exact inverse of the
+// printer, so each boundary round-trips. (The IR's signed types are i8/i16/i32/i64.)
+#[test_case("i8 -1")]
+#[test_case("i8 -128")]
+#[test_case("i16 -1")]
+#[test_case("i16 -32768")]
+#[test_case("i32 -1")]
+#[test_case("i32 -2147483648")]
+#[test_case("i64 -1")]
+#[test_case("i64 -9223372036854775808")]
+fn signed_negative_boundary_constant_roundtrips(literal: &str) {
+    let src = format!(
+        "
+        acir(inline) fn main f0 {{
+          b0():
+            return {literal}
+        }}
+        "
+    );
+    assert_ssa_roundtrip(&src);
+}
+
+#[test]
+fn parser_rejects_negative_unsigned_literal() {
+    // The printer never emits a `-` for an unsigned type (it prints the raw field
+    // value), so a negative unsigned literal is not valid SSA and must be rejected
+    // rather than silently field-negated into an out-of-range value.
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return u8 -1
+        }
+        ";
+    let Err(err) = Ssa::from_str(src) else {
+        panic!("parser must reject a negative unsigned literal");
+    };
+    assert!(
+        matches!(&err.error, SsaError::ParserError(ParserError::NegativeUnsignedLiteral { .. })),
+        "unexpected error: {err:?}",
+    );
 }
 
 #[test]

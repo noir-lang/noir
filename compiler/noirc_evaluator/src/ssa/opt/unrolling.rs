@@ -145,6 +145,20 @@ impl Function {
     ///
     /// The `force_unroll_threshold` overrides the default threshold for
     /// force-unrolling small Brillig loops.
+    ///
+    /// The processing order is depends on the runtime, after an initial innermost-first
+    /// (`InsideOut`) run, so that simple loops are handled first.
+    /// Doing this first pass has a positive impact on performance.
+    ///
+    /// - **ACIR** unrolls outermost-first (`OutsideIn`). Unrolling an outer loop substitutes its
+    ///   induction variable for a constant, so an inner loop whose bound depends on it (e.g.
+    ///   `for j in 0..i`) becomes constant-bounded and is unrolled on a subsequent pass. Since
+    ///   ACIR must fully unroll every loop, this resolves the dependent-bound case directly,
+    ///   rather than discovering it as a stuck inner loop.
+    /// - **Brillig** unrolls innermost-first (`InsideOut`). A loop that is too large to unroll (or
+    ///   uses break/continue) is kept as a runtime loop; processing inner loops first means such a
+    ///   kept loop is never duplicated by an enclosing unroll. The `failed_blocks` guard in
+    ///   `try_unroll_loops_with_order` relies on this ordering.
     pub(super) fn unroll_loops_iteratively(
         &mut self,
         max_unroll_iterations: usize,
@@ -154,8 +168,12 @@ impl Function {
         #[cfg(debug_assertions)]
         unroll_loops_pre_check(self);
 
-        let (mut has_unrolled, mut unroll_errors) =
-            self.try_unroll_loops(max_unroll_iterations, force_unroll_threshold, callee_costs);
+        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(
+            max_unroll_iterations,
+            force_unroll_threshold,
+            callee_costs,
+            LoopOrder::InsideOut,
+        );
 
         match self.runtime() {
             RuntimeType::Acir(_) => {
@@ -171,6 +189,7 @@ impl Function {
                         max_unroll_iterations,
                         force_unroll_threshold,
                         callee_costs,
+                        LoopOrder::OutsideIn,
                     );
                     unroll_errors = new_errors;
                     has_unrolled |= new_unrolled;
@@ -187,6 +206,7 @@ impl Function {
                     max_unroll_iterations,
                     force_unroll_threshold,
                     callee_costs,
+                    LoopOrder::InsideOut,
                 );
                 has_unrolled |= unrolled;
                 if !unrolled {
@@ -201,21 +221,15 @@ impl Function {
         Ok(has_unrolled)
     }
 
-    /// Unroll all loops within the function.
+    /// Unroll all loops within the function, using the provided order.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
     /// Returns a flag indicating whether any blocks have been modified.
-    ///
-    /// For both ACIR and Brillig, we prefer InsideOut ordering: inner loops are unrolled
-    /// first, producing simpler outer loop bodies and reducing the total amount of
-    /// duplicated code. For ACIR, if InsideOut makes no progress (because inner loop
-    /// bounds depend on outer induction variables), we fall back to OutsideIn ordering
-    /// which unrolls the outer loop first, duplicating the inner loops with now-constant
-    /// bounds that can be resolved in subsequent passes.
     fn try_unroll_loops(
         &mut self,
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
         callee_costs: &HashMap<FunctionId, usize>,
+        order: LoopOrder,
     ) -> (bool, Vec<RuntimeError>) {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
@@ -228,65 +242,30 @@ impl Function {
         // an un-unrolled loop in ACIR SSA, panicking in a later pass.
         let mut accumulated_errors: Vec<RuntimeError> = Vec::new();
 
-        // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
+        // Repeatedly find all loops: unrolling a loop may expose loops nested within it,
+        // which the next iteration discovers and unrolls.
         loop {
-            let mut loops = Loops::find_all(self, LoopOrder::InsideOut);
+            let mut loops = Loops::find_all(self, order);
             loops.callee_costs = callee_costs.clone();
 
             let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
                 loops,
-                LoopOrder::InsideOut,
+                order,
                 &mut failed_to_unroll,
                 max_unroll_iterations,
                 force_unroll_threshold,
             );
 
             has_unrolled |= unrolled;
-            let had_errors = !errors.is_empty();
             accumulated_errors.extend(errors);
-
-            // For ACIR: if InsideOut made no progress but there are failed loops
-            // (inner loops whose bounds depend on outer induction variables),
-            // fall back to OutsideIn to unroll the outer loops first.
-            // We use a fresh failed set so the OutsideIn pass can try outer loops
-            // that were skipped due to failed_blocks poisoning in InsideOut.
-            if !unrolled && had_errors && self.runtime().is_acir() {
-                // TODO: we can save the `Loops` calculated above and reorder it instead of recomputing it.
-                let mut loops = Loops::find_all(self, LoopOrder::OutsideIn);
-                loops.callee_costs = callee_costs.clone();
-
-                let mut fallback_failed = HashSet::new();
-                let (fallback_unrolled, _, _fallback_errors) = self.try_unroll_loops_with_order(
-                    loops,
-                    LoopOrder::OutsideIn,
-                    &mut fallback_failed,
-                    max_unroll_iterations,
-                    force_unroll_threshold,
-                );
-                has_unrolled |= fallback_unrolled;
-                failed_to_unroll.extend(fallback_failed);
-
-                if fallback_unrolled {
-                    // OutsideIn made progress (unrolled outer loops, duplicating inner loops).
-                    // The InsideOut errors referenced loop headers that were either inlined
-                    // away by the outer-loop unroll or whose duplicates have constant bounds;
-                    // either way they are stale. Clear them so the next InsideOut pass starts
-                    // fresh and only reports loops that still genuinely fail.
-                    accumulated_errors.clear();
-                    continue;
-                }
-                // OutsideIn also made no progress — leave the InsideOut errors accumulated
-                // so the caller's retry-and-simplify loop can react to them.
-            }
 
             if !refresh {
                 break;
             }
 
-            // After unrolling inner loops, simplify before evaluating outer loops.
-            // For Brillig this is needed for accurate cost estimates; for ACIR this
-            // helps resolve bounds that become constant after inner loop unrolling.
-            simplify_between_unrolls(self);
+            if has_unrolled {
+                simplify_between_unrolls(self);
+            }
         }
 
         (has_unrolled, accumulated_errors)
@@ -452,16 +431,55 @@ pub(crate) struct Loop {
     pub(crate) blocks: BTreeSet<BasicBlockId>,
 }
 
+/// Describes how a loop's header guard relates the induction variable to the inferred upper
+/// bound, which is what determines, from a constant lower bound, whether the body runs at all.
+///
+/// The `[lower, upper)` interval alone is ambiguous: a `Lt` guard enters the body whenever
+/// `lower < upper`, but an `Eq`/`Not` guard with the body on the `then` branch only enters on
+/// the single induction value `upper - 1`. Without the kind, a skipped `while i == 4` (lower 0,
+/// upper 5) looks identical to an executed `for i in 0..5`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LoopBoundKind {
+    /// `i < upper`: the body executes iff `lower < upper`.
+    LessThan,
+    /// `i == upper - 1` (an `Eq`/`Not` header with the body on the `then` branch):
+    /// the body executes iff `lower == upper - 1`.
+    Equal,
+}
+
+/// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
+/// how its guard decides, from the lower bound, whether the body executes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LoopBounds {
+    pub(crate) lower: IntegerConstant,
+    pub(crate) upper: IntegerConstant,
+    pub(crate) kind: LoopBoundKind,
+}
+
+impl LoopBounds {
+    /// Whether the loop body is guaranteed to execute at least once.
+    pub(super) fn loop_executes(self) -> bool {
+        match self.kind {
+            LoopBoundKind::LessThan => {
+                self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
+            }
+            // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
+            // maximum (where `inc` would overflow) correctly reads as "does not execute".
+            LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
+        }
+    }
+}
+
 /// Order in which loops should be processed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoopOrder {
     /// Process inner (smaller) loops first, then outer loops.
-    /// Preferred for both ACIR and Brillig: unrolling inner loops first produces
-    /// simpler outer loop bodies and avoids duplicating inner loop code N times.
+    /// Used by Brillig unrolling: a loop kept as a runtime loop (too large to unroll, or
+    /// containing break/continue) is never duplicated by an enclosing unroll.
     InsideOut,
     /// Process outer (larger) loops first, then inner loops.
-    /// Used as a fallback for ACIR when inner loop bounds depend on outer induction
-    /// variables and cannot be resolved until the outer loop is unrolled.
+    /// Used by ACIR unrolling: unrolling an outer loop turns an inner bound that depends on the
+    /// outer induction variable into a constant, so the inner loop can be unrolled on a later pass.
     OutsideIn,
 }
 
@@ -512,6 +530,9 @@ impl Loops {
     ///
     /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
     /// which we can use to check whether we were able to unroll all blocks.
+    /// Because loops are consumed via `pop`, the vector is sorted in reverse of the processing order:
+    /// - `OutsideIn`, `yet_to_unroll[0]` is the smallest/innermost
+    /// - `InsideOut`, `yet_to_unroll[0]` is the largest/outermost
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
@@ -532,17 +553,13 @@ impl Loops {
 
         match order {
             LoopOrder::InsideOut => {
-                // Sort by block size descending so we pop and unroll smaller, inner loops first.
-                // Inner loops with constant bounds are unrolled first, producing simpler outer
-                // loop bodies and reducing code duplication. If inner loop bounds depend on an
-                // outer induction variable, the unroll will fail and the failed_blocks mechanism
-                // prevents corrupting the outer loop. For ACIR, try_unroll_loops then falls
-                // back to OutsideIn for those cases. For Brillig, the loop is simply skipped.
+                // Sort by block size descending so `pop` yields smaller, inner loops first.
+                // If an inner loop cannot be unrolled, the `failed_blocks` mechanism prevents
+                // corrupting an enclosing loop that still contains it.
                 loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
             }
             LoopOrder::OutsideIn => {
-                // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
-                // Used as a fallback when inner loops depend on outer induction variables.
+                // Sort by block size ascending so `pop` yields larger, outer loops first.
                 loops.sort_by_key(|loop_| loop_.blocks.len());
             }
         }
@@ -698,7 +715,7 @@ impl Loop {
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
-    ) -> Option<IntegerConstant> {
+    ) -> Option<(IntegerConstant, LoopBoundKind)> {
         let header = &dfg[self.header];
 
         // If the header has no parameters then this must be a `loop` or `while`.
@@ -713,7 +730,11 @@ impl Loop {
             if self.has_const_zero_jump_condition(dfg) {
                 // There are cases where the upper bound jmpif degenerates into a constant `false`;
                 // in that case we can just return the `lower` to emulate a known empty loop.
-                return self.get_const_lower_bound(dfg, pre_header);
+                // `LessThan` makes `lower == upper` read as zero iterations, which is correct here.
+                return Some((
+                    self.get_const_lower_bound(dfg, pre_header)?,
+                    LoopBoundKind::LessThan,
+                ));
             } else {
                 return None;
             };
@@ -755,7 +776,11 @@ impl Loop {
                 if *lhs != induction_var {
                     return None;
                 }
-                if then_branch_is_body { dfg.get_integer_constant(*rhs) } else { None }
+                if then_branch_is_body {
+                    Some((dfg.get_integer_constant(*rhs)?, LoopBoundKind::LessThan))
+                } else {
+                    None
+                }
             }
             Instruction::Binary(Binary { lhs, operator: BinaryOp::Eq, rhs }) => {
                 if *lhs != induction_var {
@@ -766,10 +791,16 @@ impl Loop {
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
                 //
-                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
-                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
+                // If `b2` is the loop body: the body runs only on the single value `rhs`, so
+                // upper = rhs + 1 and the bound is `Equal` (it enters iff `lower == rhs`).
+                // If `b3` is the loop body: the body runs while `v != rhs` (i.e. `v < rhs` for an
+                // increasing induction variable), so upper = rhs and the bound is `LessThan`.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
-                if then_branch_is_body { const_rhs.inc() } else { Some(const_rhs) }
+                if then_branch_is_body {
+                    Some((const_rhs.inc()?, LoopBoundKind::Equal))
+                } else {
+                    Some((const_rhs, LoopBoundKind::LessThan))
+                }
             }
             Instruction::Not(operand) => {
                 if *operand != induction_var {
@@ -788,8 +819,14 @@ impl Loop {
                 //  b1(v0: u1):
                 //    v2 = not v0
                 //    jmpif v2 then: b2, else: b3
+                //
+                // `!v` is true only when `v == 0`, so this is the same point-bound shape as `Eq`:
+                // upper = 1 and the body enters iff `lower == 0 == upper - 1`.
                 if then_branch_is_body {
-                    Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                    Some((
+                        IntegerConstant::Unsigned { value: 1, bit_size: 1 },
+                        LoopBoundKind::Equal,
+                    ))
                 } else {
                     None
                 }
@@ -806,17 +843,17 @@ impl Loop {
         }
     }
 
-    /// Get the lower and upper bounds of the loop if both are constant numeric values.
+    /// Get the [`LoopBounds`] of the loop if both bounds are constant numeric values.
     /// See `get_const_upper_bound` for the role of `resolve_value`.
     pub(super) fn get_const_bounds(
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
-    ) -> Option<(IntegerConstant, IntegerConstant)> {
+    ) -> Option<LoopBounds> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let upper = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
-        Some((lower, upper))
+        let (upper, kind) = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
+        Some(LoopBounds { lower, upper, kind })
     }
 
     /// Unroll a single loop in the function.
@@ -1485,7 +1522,8 @@ impl Loop {
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
+        let LoopBounds { lower, upper, .. } =
+            self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
         let (refs, constant_initial_refs) = self.find_pre_header_reference_values(function, cfg)?;
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
@@ -2039,8 +2077,8 @@ mod tests {
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
-        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopOrder, Loops, MAX_UNROLL_ITERATIONS,
-        is_new_size_ok,
+        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopBounds, LoopOrder,
+        Loops, MAX_UNROLL_ITERATIONS, is_new_size_ok,
     };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
@@ -2050,12 +2088,18 @@ mod tests {
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
+            let order = if function.runtime().is_acir() {
+                LoopOrder::OutsideIn
+            } else {
+                LoopOrder::InsideOut
+            };
             errors.extend(
                 function
                     .try_unroll_loops(
                         MAX_UNROLL_ITERATIONS,
                         FORCE_UNROLL_THRESHOLD,
                         &HashMap::default(),
+                        order,
                     )
                     .1,
             );
@@ -2101,7 +2145,7 @@ mod tests {
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
-        assert_eq!(ssa.main().reachable_blocks().len(), 2);
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2110,16 +2154,20 @@ mod tests {
             constrain u1 0 == u1 1
             constrain u1 0 == u1 1
             constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
             jmp b1()
           b1():
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            jmp b2()
+          b2():
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            jmp b3()
+          b3():
             return u32 0
         }
         ");
@@ -2152,6 +2200,80 @@ mod tests {
         assert_eq!(errors.len(), 1, "Expected to fail to unroll loop");
     }
 
+    // A nested loop whose inner bound depends on the outer induction variable is unrolled by
+    // ACIR's outermost-first (`OutsideIn`) order: unrolling the outer loop makes the inner
+    // bound constant on a later pass. When such a loop coexists with an independent
+    // runtime-bound sibling loop, the sibling's genuine `UnknownLoopBound` error must still be
+    // reported to the caller (rather than being lost while the nested loop unrolls), otherwise
+    // the un-unrollable sibling is left in the SSA and later panics in `checks.rs`.
+    #[test]
+    fn outside_in_keeps_sibling_loop_bound_error() {
+        // fn main(n: u32, x: Field) {
+        //     for i in 0..2 {
+        //         for j in 0..i {
+        //             assert(j < 2);
+        //         }
+        //     }
+        //     for k in 0..n {
+        //         assert(x == x);
+        //         assert(k < n);
+        //     }
+        // }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: Field):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 2
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            jmp b4(u32 0)
+          b3():
+            jmp b7(u32 0)
+          b4(v3: u32):
+            v13 = lt v3, v2
+            jmpif v13 then: b5(), else: b6()
+          b5():
+            v15 = lt v3, u32 2
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b4(v16)
+          b6():
+            v14 = unchecked_add v2, u32 1
+            jmp b1(v14)
+          b7(v4: u32):
+            v8 = lt v4, v0
+            jmpif v8 then: b8(), else: b9()
+          b8():
+            v9 = lt v4, v0
+            constrain v9 == u1 1
+            v12 = unchecked_add v4, u32 1
+            jmp b7(v12)
+          b9():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(
+            errors.len(),
+            1,
+            "Expected the runtime-bound sibling loop to report its UnknownLoopBound error"
+        );
+        assert!(
+            matches!(errors[0], RuntimeError::UnknownLoopBound { .. }),
+            "Expected UnknownLoopBound, got {:?}",
+            errors[0]
+        );
+
+        // The nested fallback-resolvable loop unrolls; only the sibling runtime-bound loop remains.
+        assert!(
+            ssa.main().reachable_blocks().len() > 1,
+            "The runtime-bound sibling loop should still be present in the SSA"
+        );
+    }
+
     #[test]
     fn test_get_const_bounds() {
         let ssa = brillig_unroll_test_case();
@@ -2162,12 +2284,13 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) = loop_
+        let LoopBounds { lower, upper, kind } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("bounds are numeric const");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
+        assert_eq!(kind, LoopBoundKind::LessThan);
     }
 
     #[test]
@@ -2195,12 +2318,13 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) = loop_
+        let LoopBounds { lower, upper, kind } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("should use the lower for upper");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, lower);
+        assert_eq!(kind, LoopBoundKind::LessThan);
     }
 
     #[test]
@@ -3108,7 +3232,7 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) = loop_
+        let LoopBounds { lower, upper, .. } = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("bounds are numeric const");
         assert_eq!(lower, upper);

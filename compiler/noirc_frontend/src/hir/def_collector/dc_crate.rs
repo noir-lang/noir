@@ -34,7 +34,9 @@ use crate::parser::{ParserError, SortedModule};
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
+use indexmap::IndexMap;
 use iter_extended::vecmap;
+use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
@@ -194,12 +196,13 @@ impl CollectedItems {
 /// impl along with the generics declared on the impl itself. This also contains the Span
 /// of the object_type of the impl, used to issue an error if the object type fails to resolve.
 ///
-/// Note that because these are keyed by unresolved types, the impl map is one of the few instances
-/// of HashMap rather than BTreeMap. For this reason, we should be careful not to iterate over it
-/// since it would be non-deterministic.
-pub(crate) type ImplMap = HashMap<
+/// The keys are unresolved types, which are not `Ord`, so a `BTreeMap` cannot be used here.
+/// An `IndexMap` is used instead of a `HashMap` because iteration order is observable
+/// (attribute run order, method declaration order). Using an `IndexMap` keeps source-order for evaluation.
+pub(crate) type ImplMap = IndexMap<
     (UnresolvedType, LocalModuleId),
     Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
+    FxBuildHasher,
 >;
 
 /// Wraps a list of compilation errors.
@@ -395,7 +398,7 @@ impl DefCollector {
                 enums: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
                 traits: BTreeMap::new(),
-                impls: HashMap::default(),
+                impls: ImplMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
                 module_attributes: vec![],
@@ -721,6 +724,12 @@ impl DefCollector {
         let has_path_resolution_error = !resolved_import.errors.is_empty();
         for error in resolved_import.errors {
             errors.push(DefCollectorErrorKind::PathResolutionError(error));
+        }
+
+        // An item that resolved alongside a visible colliding item but is not itself visible:
+        // bring it into scope below, but remember that referencing it is a privacy error.
+        if let Some(module_def_id) = resolved_import.deferred_private {
+            current_def_map.index_mut(local_module_id).defer_private_import(module_def_id);
         }
 
         // Populate module namespaces according to the imports used

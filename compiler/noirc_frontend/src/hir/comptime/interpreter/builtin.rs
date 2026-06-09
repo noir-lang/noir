@@ -59,7 +59,9 @@ use crate::{
     token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
+use self::builtin_helpers::{
+    DeterministicHasher, eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex,
+};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -371,7 +373,8 @@ fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
 }
 
 fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    Ok(check_one_argument(arguments, location)?.0)
+    check_one_argument(arguments, location)?;
+    Ok(Value::Unit)
 }
 
 fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -803,7 +806,10 @@ fn vector_remove(
         return failing_constraint(message, location, call_stack);
     }
 
-    let element = Shared::new(values.remove(index));
+    // The removed element is returned by value, so it must not keep sharing interior
+    // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the temporary
+    // would write back through to the original vector).
+    let element = Shared::new(values.remove(index).move_struct());
     Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), element]))
 }
 
@@ -825,6 +831,10 @@ fn vector_pop_front(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_front() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
         None => failing_constraint(
@@ -845,6 +855,10 @@ fn vector_pop_back(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_back() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
         None => failing_constraint(
@@ -1092,6 +1106,14 @@ fn to_le_radix(
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
+
+    // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make
+    // a zero value appear to require one limb. Decomposing zero requires no significant limbs,
+    // matching the runtime black box solvers, so report an empty decomposition instead.
+    if field.is_zero() {
+        return Vec::new();
+    }
+
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.
@@ -1554,8 +1576,15 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat_n(element, length as usize).collect();
+                let array = if elem.contains_reference() {
+                    // A reference becomes a fresh `Value::Pointer`. Cloning one shares its
+                    // underlying cell, so build an independent zeroed value per slot instead
+                    // of repeating a single element, matching the `Tuple` arm below.
+                    (0..length).map(|_| zeroed(elem.as_ref().clone(), location)).collect()
+                } else {
+                    let element = zeroed(elem.as_ref().clone(), location);
+                    std::iter::repeat_n(element, length as usize).collect()
+                };
                 Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later
@@ -2587,6 +2616,39 @@ fn function_def_as_typed_expr(
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+
+        // A trait method is reachable through `as_typed_expr` only if the type the trait is
+        // implemented for is visible from the caller's module. Otherwise a private type's trait
+        // methods could be called from another crate by recovering the type via metaprogramming.
+        if let Type::DataType(data_type, _) = trait_impl.typ.follow_bindings() {
+            let (type_id, visibility) = {
+                let data_type = data_type.borrow();
+                (data_type.id, data_type.visibility)
+            };
+            let caller_module = interpreter.elaborator.module_id();
+            let type_module = type_id.parent_module_id(interpreter.elaborator.def_maps);
+            if !item_in_module_is_visible(
+                interpreter.elaborator.def_maps,
+                caller_module,
+                type_module,
+                visibility,
+            ) {
+                let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+                let defining_module = interpreter.elaborator.interner.function_module(func_id);
+                let defining_module = fully_qualified_module_path(
+                    interpreter.elaborator.def_maps,
+                    interpreter.elaborator.crate_graph,
+                    &caller_module.krate,
+                    defining_module,
+                );
+                return Err(InterpreterError::FunctionNotVisible {
+                    name,
+                    defining_module,
+                    location,
+                });
+            }
+        }
+
         let trait_generics =
             interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =
@@ -3037,7 +3099,7 @@ fn quoted_hash(
     // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
     let tokens_string = tokens_to_string(&tokens, interner, files);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = DeterministicHasher::new();
     tokens_string.hash(&mut hasher);
     Ok(Value::field(hasher.finish().into()))
 }

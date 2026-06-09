@@ -329,9 +329,14 @@ pub fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Typ
     }
 }
 
-/// Reference an expression into a target type
+/// Mutable reference with a target type.
 pub fn ref_mut(typ: Type) -> Type {
-    Type::Reference(Rc::new(typ), true)
+    ref_with_mut(typ, true)
+}
+
+/// Reference an expression into a target type
+pub fn ref_with_mut(typ: Type, mutable: bool) -> Type {
+    Type::Reference(Rc::new(typ), mutable)
 }
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).

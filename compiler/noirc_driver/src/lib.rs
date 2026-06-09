@@ -6,13 +6,13 @@ use insta as _;
 
 use std::hash::BuildHasher;
 
-use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use abi_gen::{abi_type_from_hir_type, value_to_abi_value};
 use acvm::AcirField;
 use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -42,7 +42,7 @@ use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
+use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -613,12 +613,7 @@ pub fn compile_main(
         return Err(compilation_warnings);
     }
 
-    // Make sure we don't hide bugs, only warnings can be silenced.
-    warnings.extend(
-        compilation_warnings
-            .into_iter()
-            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
-    );
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
@@ -635,7 +630,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
     let mut contracts = def_map.get_all_contracts();
@@ -660,18 +655,21 @@ pub fn compile_contract(
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
     let contract = read_contract(context, module_id, name);
 
-    let mut errors = warnings;
-
     let compiled_contract = match compile_contract_inner(context, contract, options) {
         Ok(contract) => contract,
         Err(mut more_errors) => {
+            let mut errors = warnings;
             errors.append(&mut more_errors);
             return Err(errors);
         }
     };
 
-    if has_errors(&errors, options.deny_warnings) {
-        Err(errors)
+    let compilation_warnings =
+        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
+
+    if options.deny_warnings && !warnings.is_empty() {
+        Err(warnings)
     } else {
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
@@ -687,8 +685,7 @@ pub fn compile_contract(
                 println!("{}", contract_function.bytecode);
             }
         }
-        // errors here is either empty or contains only warnings
-        Ok((compiled_contract, errors))
+        Ok((compiled_contract, warnings))
     }
 }
 
@@ -848,14 +845,20 @@ fn compile_contract_inner(
             .globals
             .iter()
             .map(|(tag, globals)| {
-                let globals: Vec<AbiValue> = globals
+                let globals: Vec<AbiNamedValue> = globals
                     .iter()
                     .map(|global_id| {
-                        let let_statement =
-                            context.def_interner.get_global_let_statement(*global_id).unwrap();
-                        let hir_expression =
-                            context.def_interner.expression(&let_statement.expression);
-                        value_from_hir_expression(context, hir_expression)
+                        let GlobalValue::Resolved(value) =
+                            &context.def_interner.get_global(*global_id).value
+                        else {
+                            unreachable!(
+                                "Global with #[abi(tag)] must be resolved at comptime before ABI emission"
+                            );
+                        };
+                        let global_info = context.def_interner.get_global(*global_id);
+                        let name = global_info.ident.to_string();
+                        let value = value_to_abi_value(value);
+                        AbiNamedValue { name, value }
                     })
                     .collect();
                 (tag.clone(), globals)
@@ -1055,6 +1058,18 @@ struct Contract {
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,
+}
+
+/// Removes warning diagnostics when `silence_warnings` is set, while always retaining bugs
+/// so that a `silence_warnings` flag cannot hide them.
+fn drop_silenced_warnings(
+    diagnostics: Vec<CustomDiagnostic>,
+    options: &CompileOptions,
+) -> Vec<CustomDiagnostic> {
+    diagnostics
+        .into_iter()
+        .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
+        .collect()
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {

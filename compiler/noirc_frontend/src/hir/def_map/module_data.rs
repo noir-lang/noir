@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use noirc_errors::Location;
 
@@ -33,6 +33,12 @@ pub struct ModuleData {
     /// This is stored separately from `scope` to quickly check if a trait is in scope.
     traits_in_scope: HashMap<TraitId, Ident>,
 
+    /// Items brought into `scope` by an import that are not actually visible from this module.
+    /// This happens when a `use` resolves to a name that exists in both the type and value
+    /// namespaces and only some of those items are visible: the visible item makes the import
+    /// legal, while the invisible one is kept here so that referencing it reports a privacy error.
+    deferred_private_imports: HashSet<ModuleDefId>,
+
     pub location: Location,
 
     /// True if this module is a `contract Foo { ... }` module containing contract functions
@@ -65,6 +71,7 @@ impl ModuleData {
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
             traits_in_scope: HashMap::new(),
+            deferred_private_imports: HashSet::new(),
             location,
             is_contract,
             is_type,
@@ -78,6 +85,17 @@ impl ModuleData {
 
     pub fn definitions(&self) -> &ItemScope {
         &self.definitions
+    }
+
+    /// Records that `id` was imported into this module but is not visible from here, so that
+    /// referencing it can be reported as a privacy error at the use site rather than at the import.
+    pub fn defer_private_import(&mut self, id: ModuleDefId) {
+        self.deferred_private_imports.insert(id);
+    }
+
+    /// Returns `true` if `id` was imported into this module without being visible from here.
+    pub fn is_private_import_deferred(&self, id: ModuleDefId) -> bool {
+        self.deferred_private_imports.contains(&id)
     }
 
     fn declare(
@@ -226,5 +244,6 @@ impl ModuleData {
     pub fn clear(&mut self) {
         self.scope.clear();
         self.definitions.clear();
+        self.deferred_private_imports.clear();
     }
 }

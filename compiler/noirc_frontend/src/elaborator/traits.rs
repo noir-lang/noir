@@ -1274,6 +1274,38 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
+        // A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
+        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
+        // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
+        // `<Self::Target as Mappable>::Target` has a single answer via the real impl
+        // (`<bool as Mappable>::Target = u32`). Bind each such implicit generic to that answer so
+        // the trait method's signature matches the impl method's already-normalized signature.
+        // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
+        // assumes the projection's object is `Self` rather than a further associated type.
+        for constraint in &trait_fn_meta.trait_constraints {
+            let object_type = constraint.typ.substitute(&bindings);
+            let trait_bound = &constraint.trait_bound;
+            let ordered = vecmap(&trait_bound.trait_generics.ordered, |generic| {
+                generic.substitute(&bindings)
+            });
+            for named_arg in &trait_bound.trait_generics.named {
+                let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named_arg.typ else {
+                    continue;
+                };
+                if bindings.contains_key(&type_var.id()) {
+                    continue;
+                }
+                if let Some(normalized) = elaborator.normalize_rigid_associated_type(
+                    &object_type,
+                    trait_bound.trait_id,
+                    &ordered,
+                    named_arg.name.as_str(),
+                ) {
+                    bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), normalized));
+                }
+            }
+        }
+
         // There is special handling expected for parent traits. Say we have code like this:
         //
         //    trait Foo { type Bar; }                                       // `Bar`     becomes `Bar'1`
