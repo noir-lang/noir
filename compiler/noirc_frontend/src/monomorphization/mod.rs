@@ -1828,6 +1828,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
+                // This used to default to Field, but doing so could result in an invalid SSA.
                 return Err(MonomorphizationError::NoDefaultType { location });
             }
 
