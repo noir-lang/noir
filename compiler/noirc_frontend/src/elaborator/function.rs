@@ -653,6 +653,7 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::oracle_marked_as_comptime(modifiers, func).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_parameter_is_reference(func, modifiers).map(Into::into));
         self.run_lint(|_| {
             lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
         });
