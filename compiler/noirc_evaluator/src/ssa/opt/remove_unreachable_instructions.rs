@@ -122,16 +122,20 @@
 //! ```
 //!
 //! ## Preconditions:
-//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`]. Flattening folds the
-//!   active branch predicate into the operands of every guarded `constrain`
-//!   (`constrain lhs == rhs` becomes `constrain cond * lhs == cond * rhs`) and materializes
-//!   the predicate as [`Instruction::EnableSideEffectsIf`]. As a consequence, a `constrain`
-//!   that still has two mismatched constant operands can only fail unconditionally, so it is
-//!   sound to treat the rest of the block as unreachable. Before flattening, that same
-//!   `constrain c1 == c2` might be guarded by a branch that is not always taken, and removing
-//!   the instructions after it would drop code that does execute when the branch is skipped.
-//!   This precondition is checked at runtime when deciding that a `constrain` makes a block
-//!   unreachable (see the assertions in [`Function::remove_unreachable_instructions`]).
+//! - in ACIR, this pass must run *after* [flatten_cfg][`super::flatten_cfg`]. Treating a
+//!   failing `constrain` as making the block unreachable is only sound when that `constrain`
+//!   fails *unconditionally*. In ACIR there is no control flow: a `constrain` under a
+//!   non-constant `enable_side_effects v0` predicate is only enforced when `v0` is one, so for
+//!   witnesses where `v0` is zero the surrounding instructions still execute and contribute to
+//!   the output. Flattening folds the active predicate into the operands of every guarded
+//!   `constrain` (`constrain lhs == rhs` becomes `constrain cond * lhs == cond * rhs`), so a
+//!   guarded constraint becomes `constrain 0 == v0` (a non-constant operand the pass skips).
+//!   A `constrain c1 == c2` that still has two mismatched constant operands is therefore
+//!   genuinely unconditional, and treating the rest of the circuit as unreachable is sound.
+//!   (In Brillig there are no predicates and a failing `constrain` is a real abort, so its
+//!   successors are genuinely unreachable regardless.) This precondition is checked at runtime
+//!   when deciding that a `constrain` makes a block unreachable (see the assertions in
+//!   [`Function::remove_unreachable_instructions`]).
 //! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
