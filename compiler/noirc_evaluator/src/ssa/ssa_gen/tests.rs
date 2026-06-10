@@ -6,7 +6,8 @@ use crate::{
     assert_ssa_snapshot,
     errors::RuntimeError,
     ssa::{
-        interpreter::value::Value as InterpreterValue, ir::types::NumericType,
+        interpreter::value::Value as InterpreterValue,
+        ir::types::{NumericType, Type},
         opt::assert_normalized_ssa_equals,
     },
 };
@@ -15,8 +16,64 @@ use super::{Ssa, generate_ssa};
 
 use noirc_frontend::test_utils::{
     GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
-    get_monomorphized_with_stdlib, stdlib_src,
+    get_monomorphized_with_stdlib, get_program, stdlib_src,
 };
+
+#[test]
+fn zeroed_closure_type_arity() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+    insta::assert_snapshot!(program.to_string(), @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    ");
+
+    let _ = generate_ssa(program).unwrap();
+}
+
+#[test]
+fn zeroed_closure_type_no_args() {
+    let src = r#"
+    fn main() {
+        let f: fn[(Field,)]() -> Field = zeroed();
+        let _ = f();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+    insta::assert_snapshot!(program.to_string(), @r"
+    fn main$f0() -> () {
+        let f$l2 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l4 = {
+            let tmp$l3 = f$l2.0;
+            tmp$l3.1(tmp$l3.0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l0: (Field,)) -> Field {
+        0
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l1: (Field,)) -> Field {
+        0
+    }
+    ");
+
+    let _ = generate_ssa(program).unwrap();
+}
 
 fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
     let program = match get_monomorphized(src) {
@@ -1145,4 +1202,89 @@ fn mutable_tuple_self_assign_loads_before_stores() {
         return v5
     }
     ");
+}
+
+/// Soundness tripwire for noir-claude issue #754.
+///
+/// An enum's tag is lowered to an unconstrained `Field` and `codegen_match` skips the final
+/// variant's tag comparison (the last-case optimization), so if a prover can choose the tag it
+/// can set it out of range (e.g. 99) to make every `tag == i` comparison false and force the
+/// last match arm to run while all other arms are predicated out — bypassing their constraints.
+///
+/// Today this is unreachable: enums are rejected as entry-point types, so a prover cannot supply
+/// one. This test guarantees that stays true *or* gets fixed: the moment enums are allowed on the
+/// circuit interface, it stops short-circuiting and actually runs a malicious prover — an
+/// out-of-range tag — through the generated circuit and asserts the circuit rejects it. It is
+/// representation-agnostic: it reads `main`'s parameters from the compiled SSA and forges the
+/// leading one (the enum tag), so it keeps working regardless of how the enum interface is
+/// eventually encoded, and it passes once the tag is constrained to a valid variant index
+/// (`assert(tag < num_variants)`, a `RangeCheck`, or a sized-integer tag).
+#[test]
+fn enum_on_circuit_interface_rejects_malicious_tag_issue_754() {
+    let src = "
+    enum Action {
+        Withdraw(u64),
+        Deposit(u64),
+        Query,
+    }
+
+    fn main(action: Action, balance: u64) -> pub u64 {
+        match action {
+            Action::Withdraw(amount) => {
+                assert(balance >= amount);
+                balance - amount
+            }
+            Action::Deposit(amount) => { balance + amount }
+            Action::Query => { balance }
+        }
+    }
+    ";
+
+    // Phase 1: is an enum even allowed on the circuit interface?
+    let (_, _, errors) = get_program(src);
+    let rejected_at_entry_point =
+        errors.iter().any(|error| error.to_string().contains("entry point"));
+    if rejected_at_entry_point {
+        // The entry-point restriction still holds, so a prover cannot supply the enum (and hence
+        // its tag) at all. The exploit is unreachable; there is nothing to execute.
+        return;
+    }
+
+    // Phase 2: enums ARE allowed on the interface, so a malicious prover controls the witness for
+    // `action` — including an out-of-range tag. The circuit must reject it.
+    let program = get_monomorphized(src)
+        .expect("enum entry point elaborated, so monomorphization should succeed");
+    let ssa = generate_ssa(program).expect("SSA generation should succeed");
+
+    // `action` is the first parameter and an enum is represented as `(tag, ..variants)`, so the
+    // first flattened parameter is the tag. Forge it out of range (3 variants => valid tags 0..=2)
+    // and zero the remaining inputs.
+    let main = ssa.main();
+    let malicious_args = main
+        .parameters()
+        .iter()
+        .enumerate()
+        .map(|(i, param)| {
+            let typ = main.dfg.type_of_value(*param).into_owned();
+            let Type::Numeric(numeric_type) = typ else {
+                panic!(
+                    "issue #754 guard: the enum interface now has a non-numeric leading parameter \
+                     ({typ}); update this test to forge the enum tag for the new representation"
+                );
+            };
+            let value = if i == 0 { FieldElement::from(99_u128) } else { FieldElement::zero() };
+            InterpreterValue::from_constant(value, numeric_type)
+                .expect("a constant value for a main parameter should be constructible")
+        })
+        .collect();
+
+    let result = ssa.interpret(malicious_args);
+
+    assert!(
+        result.is_err(),
+        "issue #754: an enum is allowed on the circuit interface but an out-of-range tag (99) was \
+         accepted. A malicious prover can force the last match arm and bypass every other arm's \
+         constraints. Constrain the enum tag to a valid variant index before allowing enums to \
+         cross the circuit interface."
+    );
 }

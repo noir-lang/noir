@@ -1233,6 +1233,33 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
 }
 
 #[test]
+fn return_enum_from_unconstrained_to_constrained() {
+    // The elaborator rejects this first (see tests/enums.rs); this asserts the
+    // monomorphization defense-in-depth check also rejects an enum return, so the gap
+    // cannot reappear through a boundary-crossing call the elaborator did not lint.
+    let src = r#"
+    enum E {
+        A,
+        B,
+    }
+
+    fn main() {
+        // safety: test
+        unsafe {
+            let _e = choose();
+                     ^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^^^^ Enum `E` cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn choose() -> E {
+        E::A
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[UnstableFeature::Enums], true);
+}
+
+#[test]
 fn evaluates_builtin_zeroed() {
     let src = r#"
     fn main() {
@@ -1268,6 +1295,34 @@ fn evaluates_builtin_zeroed_function() {
         [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
+        [0; 2]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_zeroed_closure_type() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
         [0; 2]
     }
     ");

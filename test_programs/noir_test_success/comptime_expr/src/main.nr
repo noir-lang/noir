@@ -370,6 +370,19 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_lambda_params_stored_type() {
+        comptime {
+            let expr = quote { |x| { 1 } }.as_expr().unwrap();
+            let (params, _, _) = expr.as_lambda().unwrap();
+
+            // The stored type of the parameter vector must match the type
+            // advertised by `Expr::as_lambda`, i.e. the optional-type element
+            // `(Expr, Option<UnresolvedType>)`, not bare `(Expr, UnresolvedType)`.
+            let _: [(Expr, Option<UnresolvedType>)] = std::mem::checked_transmute(params);
+        }
+    }
+
+    #[test]
     fn test_expr_as_let() {
         comptime {
             let expr = quote { let x: Field = 1; }.as_expr().unwrap();

@@ -273,7 +273,17 @@ impl Monomorphizer<'_> {
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
-        let parameters = vecmap(parameter_types, |parameter_type| {
+        let mut parameters = Vec::with_capacity(parameter_types.len() + 1);
+        if !matches!(env_type.as_ref(), ast::Type::Unit) {
+            parameters.push((
+                self.next_local_id(),
+                true,
+                "env".into(),
+                env_type.clone(),
+                Visibility::Private,
+            ));
+        }
+        parameters.extend(parameter_types.iter().map(|parameter_type| {
             (
                 self.next_local_id(),
                 false,
@@ -281,7 +291,7 @@ impl Monomorphizer<'_> {
                 Rc::new(parameter_type.clone()),
                 Visibility::Private,
             )
-        });
+        }));
 
         let body = self.zeroed_value_of_type(&ret_type, location);
 

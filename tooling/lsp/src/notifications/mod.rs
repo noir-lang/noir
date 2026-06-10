@@ -632,7 +632,7 @@ fn uri_from_path(path: &Path) -> Option<Url> {
     if let Ok(uri) = Url::from_file_path(path) {
         Some(uri)
     } else if path.starts_with("std") {
-        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+        Some(crate::requests::stdlib_path_to_uri(&path.to_string_lossy()))
     } else {
         None
     }
