@@ -121,51 +121,23 @@
 //! return v1, u32 0
 //! ```
 //!
-//! ## Why a failing instruction makes the rest of the block unreachable
+//! ## Reachability and predicates
 //!
-//! The pass only declares a block fully unreachable — dropping every following instruction and
+//! A block is only declared fully unreachable — dropping every following instruction and
 //! replacing the terminator with `unreachable` (the `Reachability::Unreachable` state) — when
-//! it finds an instruction that fails *unconditionally*. Failures that are only conditional
-//! (an overflowing binary op or an out-of-bounds access guarded by a non-constant predicate)
-//! take the separate `Reachability::UnreachableUnderPredicate` path, which replaces results
-//! with default values rather than deleting the block tail. Correctness therefore rests on the
-//! cases that reach the unconditional `Unreachable` path never being maskable by a runtime
-//! predicate. Each such case is justified below, so this can be checked without reading ACIR
-//! generation:
-//!
-//! - **`Constrain` (equality assert).** An equality `constrain` ignores the side-effects
-//!   predicate in both runtimes: ACIR generation lowers it to an unconditional equality
-//!   assertion (`assert_eq_var`, with no `enable_side_effects` predicate applied), and in
-//!   Brillig a failed assert aborts execution. A *conditional* assert never reaches this code
-//!   as a comparison of two constants, because [flatten_cfg][`super::flatten_cfg`] folds the
-//!   active predicate into the operands (`constrain lhs == rhs` becomes
-//!   `constrain cond * lhs == cond * rhs`); a guarded assert therefore has a non-constant
-//!   operand (e.g. `constrain 0 == v0`) and the pass returns early on it. Hence a `Constrain`
-//!   with two *unequal constant* operands always fails, and its successors are genuinely
-//!   unreachable.
-//!
-//! - **`ConstrainNotEqual`.** Unlike equality, this instruction *does* respect the side-effects
-//!   predicate (ACIR generation lowers it with `enable_side_effects` as the predicate), so it
-//!   would be unsound to treat a failing one as unconditional if it could sit under a
-//!   non-constant predicate. That cannot happen:
-//!   [make_constrain_not_equal][`super::make_constrain_not_equal`] only ever creates a
-//!   `ConstrainNotEqual` when the active predicate is the constant one, and explicitly refuses
-//!   to otherwise (it documents that, because the two instructions differ in exactly this
-//!   respect, the transformation would be a miscompilation). So a `ConstrainNotEqual` with two
-//!   *equal constant* operands also always fails.
-//!
-//! - **Binary overflow / division by zero, array out-of-bounds, empty vector pops.** These
-//!   consult the predicate explicitly (`is_predicate_constant_one`): they only move to
-//!   `Unreachable` when the predicate is known to be one, and otherwise fall back to
-//!   `UnreachableUnderPredicate`.
+//! an instruction fails *unconditionally*. A failure that only happens under a runtime
+//! predicate instead takes the `Reachability::UnreachableUnderPredicate` path, which replaces
+//! results with default values and keeps the rest of the block. Whether each handled
+//! instruction can be treated as an unconditional failure depends on how it interacts with the
+//! `enable_side_effects` predicate; the reasoning lives next to each case in
+//! [`Function::remove_unreachable_instructions`].
 //!
 //! ## Preconditions:
-//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`] (so guarded asserts have
-//!   their predicate folded into the constrain operands) and *after*
-//!   [make_constrain_not_equal][`super::make_constrain_not_equal`] (so every `ConstrainNotEqual`
-//!   was created under a constant-one predicate). See the correctness notes above for why both
-//!   are required; nothing may re-introduce branches or predicated constraints between those
-//!   passes and this one.
+//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`] and
+//!   [make_constrain_not_equal][`super::make_constrain_not_equal`]; see the `Constrain` and
+//!   `ConstrainNotEqual` handling in [`Function::remove_unreachable_instructions`] for why.
+//!   Nothing may re-introduce branches or predicated constraints between those passes and this
+//!   one.
 //! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
@@ -297,6 +269,14 @@ impl Function {
                     let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
                         return;
                     };
+                    // An equality `constrain` ignores the side-effects predicate: ACIR gen lowers
+                    // it to an unconditional `assert_eq_var` (no predicate applied) and Brillig
+                    // aborts on a failed assert. A predicated assert never reaches here as a
+                    // comparison of two constants, because `flatten_cfg` folds the active predicate
+                    // into the operands (`constrain lhs == rhs` becomes
+                    // `constrain cond * lhs == cond * rhs`), leaving a non-constant operand
+                    // (e.g. `constrain 0 == v0`) which the early returns above skip. So two unequal
+                    // constant operands always fail, making the rest of the block unreachable.
                     if lhs_constant != rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
@@ -308,6 +288,13 @@ impl Function {
                     let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
                         return;
                     };
+                    // Unlike equality, `ConstrainNotEqual` *does* respect the side-effects predicate
+                    // (ACIR gen lowers it with `enable_side_effects` as the predicate), so treating
+                    // a failing one as unconditional would be unsound under a non-constant predicate.
+                    // That cannot happen here: `make_constrain_not_equal` only ever creates this
+                    // instruction when the active predicate is the constant one (it refuses
+                    // otherwise, as the two constrain kinds differ in exactly this respect). So two
+                    // equal constant operands always fail, making the rest of the block unreachable.
                     if lhs_constant == rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
