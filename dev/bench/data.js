@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781101244757,
+  "lastUpdate": 1781101370503,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ff724662eee31e1d6f83374e2764a8304a86167b",
-          "message": "chore(deps): bump launch-editor from 2.6.1 to 2.13.2 (#12900)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-08T09:52:56Z",
-          "tree_id": "1189c280ba46e62b3f37a5deb0fdf2ef454ab40d",
-          "url": "https://github.com/noir-lang/noir/commit/ff724662eee31e1d6f83374e2764a8304a86167b"
-        },
-        "date": 1780914110932,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126694,
-            "range": "± 923",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113027,
-            "range": "± 1785",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040651,
-            "range": "± 7225",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657544,
             "range": "± 5518",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bcad3c3da5fb6849dee6f5107543473886546e9b",
+          "message": "chore: clarify unbound type variable handling in monomorphization (#12918)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-10T13:48:20Z",
+          "tree_id": "f5cda5da8a92c0d78836142f409ef2d955ae876a",
+          "url": "https://github.com/noir-lang/noir/commit/bcad3c3da5fb6849dee6f5107543473886546e9b"
+        },
+        "date": 1781101299294,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126678,
+            "range": "± 553",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112863,
+            "range": "± 1634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042935,
+            "range": "± 32999",
             "unit": "ns/iter"
           }
         ]
