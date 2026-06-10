@@ -1810,8 +1810,7 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
-        let typ = typ.follow_bindings_shallow();
-        Ok(match typ.as_ref() {
+        Ok(match typ {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
@@ -1861,7 +1860,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
+            HirType::NamedGeneric(NamedGeneric { type_var, .. })
+            | HirType::TypeVariable(type_var) => {
                 if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
@@ -1874,35 +1874,6 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::convert_type_helper(to, location, seen_types)?
             }
 
-            HirType::TypeVariable(binding) => {
-                let input_type = typ.as_ref().clone();
-                if !seen_types.insert(input_type.clone()) {
-                    let typ = input_type;
-                    return Err(MonomorphizationError::RecursiveType { typ, location });
-                }
-
-                let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        let typ = Self::convert_type_helper(binding, location, seen_types);
-                        seen_types.remove(&input_type);
-                        return typ;
-                    }
-                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
-                };
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                let Some(default) = type_var_kind.default_type() else {
-                    return Err(MonomorphizationError::NoDefaultType { location });
-                };
-
-                let monomorphized_default =
-                    Self::convert_type_helper(&default, location, seen_types)?;
-                binding.bind(default);
-                monomorphized_default
-            }
-
             HirType::DataType(def, args) => {
                 // Not all generic arguments may be used in a datatype's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
@@ -1910,10 +1881,11 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                let input_type = typ.as_ref().clone();
-                if !seen_types.insert(input_type.clone()) {
-                    let typ = input_type;
-                    return Err(MonomorphizationError::RecursiveType { typ, location });
+                if !seen_types.insert(typ.clone()) {
+                    return Err(MonomorphizationError::RecursiveType {
+                        typ: typ.clone(),
+                        location,
+                    });
                 }
 
                 let def = def.borrow();
@@ -1922,7 +1894,7 @@ impl<'interner> Monomorphizer<'interner> {
                         Self::convert_type_helper(&field, location, seen_types)
                     })?;
 
-                    seen_types.remove(&input_type);
+                    seen_types.remove(typ);
                     ast::Type::Tuple(fields)
                 } else if let Some(variants) = def.get_variants(args) {
                     // Enums are represented as (tag, variant1, variant2, .., variantN)
@@ -1933,7 +1905,7 @@ impl<'interner> Monomorphizer<'interner> {
                         })?;
                         fields.push(ast::Type::Tuple(variant_fields));
                     }
-                    seen_types.remove(&input_type);
+                    seen_types.remove(typ);
                     ast::Type::Tuple(fields)
                 } else {
                     unreachable!("Data type has no body")
