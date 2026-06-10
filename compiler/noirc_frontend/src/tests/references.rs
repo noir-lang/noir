@@ -176,7 +176,7 @@ fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_oracle() {
+fn reference_behind_generics_returned_from_oracle() {
     let src = r#"
     unconstrained fn main() {
         let y = &mut 10;
@@ -184,7 +184,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         let mul = |x: Field| { *y = *y * x; };
 
         let f = choose_func(add, mul);
-                ^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+                ^^^^^^^^^^^ Reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
 
         f(20);
     }
@@ -199,7 +199,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
+fn reference_behind_generics_returned_from_indirect_oracle() {
     let src = r#"
     unconstrained fn main() {
         foo::<&[(u8, u8); 3]>();
@@ -207,7 +207,7 @@ fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
 
     unconstrained fn foo<T>() {
         let f = get_array::<T>;
-                ^^^^^^^^^ Mutable reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
+                ^^^^^^^^^ Reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
         let _result = f();
     }
 
