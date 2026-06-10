@@ -1114,7 +1114,6 @@ impl Loop {
     ) -> Option<(HashSet<ValueId>, HashSet<ValueId>)> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
 
-        // Blocks that may execute before the loop is entered.
         let blocks = self.blocks_before_loop(pre_header, cfg);
 
         // Collect allocations in all blocks above the header.
@@ -1167,8 +1166,7 @@ impl Loop {
         Some((refs, constant_initial_refs))
     }
 
-    /// Collect the blocks that may execute before this loop is entered: every block from
-    /// which the pre-header is reachable without passing through the loop itself.
+    /// Collect the blocks that may execute before this loop is entered.
     fn blocks_before_loop(
         &self,
         pre_header: BasicBlockId,
