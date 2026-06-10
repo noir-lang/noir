@@ -516,7 +516,13 @@ impl From<BrilligBinaryOp> for BinaryFieldOp {
             BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
-            _ => panic!("Unsupported operation: {operation:?} on a field"),
+            BrilligBinaryOp::And
+            | BrilligBinaryOp::Or
+            | BrilligBinaryOp::Xor
+            | BrilligBinaryOp::Shl
+            | BrilligBinaryOp::Shr => {
+                panic!("Unsupported operation: {operation:?} on a field")
+            }
         }
     }
 }
@@ -536,7 +542,9 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Xor => BinaryIntOp::Xor,
             BrilligBinaryOp::Shl => BinaryIntOp::Shl,
             BrilligBinaryOp::Shr => BinaryIntOp::Shr,
-            _ => panic!("Unsupported operation: {operation:?} on an integer"),
+            BrilligBinaryOp::FieldDiv => {
+                panic!("Unsupported operation: {operation:?} on an integer")
+            }
         }
     }
 }
