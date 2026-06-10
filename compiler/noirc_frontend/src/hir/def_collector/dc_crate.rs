@@ -799,7 +799,7 @@ impl DefCollector {
             .iter()
             .filter(|(module_id, _)| in_crate(module_id))
             .flat_map(|(_, unused_items)| {
-                unused_items.iter().map(|((_namespace, ident), unused_item)| (ident, unused_item))
+                unused_items.iter().map(|((_namespace, ident), unused_item)| (ident, *unused_item))
             });
 
         let unused_imports = context
@@ -807,14 +807,14 @@ impl DefCollector {
             .unused_imports()
             .iter()
             .filter(|(module_id, _)| in_crate(module_id))
-            .flat_map(|(_, unused_items)| unused_items.iter());
+            .flat_map(|(_, names)| names.iter().map(|ident| (ident, UnusedItem::Import)));
 
         let mut unused_errors = unused_definitions
             .chain(unused_imports)
-            .map(|(ident, unused_item)| {
+            .map(|(ident, item)| {
                 CompilationError::ResolverError(ResolverError::UnusedItem {
                     ident: ident.clone(),
-                    item: *unused_item,
+                    item,
                 })
             })
             .collect::<Vec<_>>();

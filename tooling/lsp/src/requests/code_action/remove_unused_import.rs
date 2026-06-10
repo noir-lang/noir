@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 use async_lsp::lsp_types::TextEdit;
 use fm::FileId;
@@ -7,7 +7,6 @@ use noirc_frontend::{
     ParsedModule,
     ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
     parser::{Item, ItemKind},
-    usage_tracker::UnusedItem,
 };
 
 use crate::byte_span_to_range;
@@ -25,21 +24,22 @@ impl CodeActionFinder<'_> {
             return;
         }
 
-        let Some(unused_items) = self.usage_tracker.unused_imports().get(&self.module_id) else {
+        let Some(unused_imports) = self.usage_tracker.unused_imports().get(&self.module_id) else {
             return;
         };
 
-        if unused_items.is_empty() {
+        if unused_imports.is_empty() {
             return;
         }
 
-        if has_unused_import(use_tree, unused_items) {
+        if has_unused_import(use_tree, unused_imports) {
             let byte_span = span.start() as usize..span.end() as usize;
             let Some(range) = byte_span_to_range(self.files, self.file, byte_span) else {
                 return;
             };
 
-            let (use_tree, removed_count) = use_tree_without_unused_import(use_tree, unused_items);
+            let (use_tree, removed_count) =
+                use_tree_without_unused_import(use_tree, unused_imports);
             let (title, new_text) = match use_tree {
                 Some(use_tree) => (
                     if removed_count == 1 {
@@ -61,14 +61,14 @@ impl CodeActionFinder<'_> {
     }
 }
 
-fn has_unused_import(use_tree: &UseTree, unused_items: &HashMap<Ident, UnusedItem>) -> bool {
+fn has_unused_import(use_tree: &UseTree, unused_imports: &HashSet<Ident>) -> bool {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            unused_items.contains_key(ident)
+            unused_imports.contains(ident)
         }
         UseTreeKind::List(use_trees) => {
-            use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_items))
+            use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_imports))
         }
     }
 }
@@ -76,19 +76,20 @@ fn has_unused_import(use_tree: &UseTree, unused_items: &HashMap<Ident, UnusedIte
 /// Returns a new `UseTree` with all the unused imports removed, and the number of removed imports.
 fn use_tree_without_unused_import(
     use_tree: &UseTree,
-    unused_items: &HashMap<Ident, UnusedItem>,
+    unused_imports: &HashSet<Ident>,
 ) -> (Option<UseTree>, usize) {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            if unused_items.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
+            if unused_imports.contains(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
         }
         UseTreeKind::List(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();
             let mut total_count = 0;
 
             for use_tree in use_trees {
-                let (new_use_tree, count) = use_tree_without_unused_import(use_tree, unused_items);
+                let (new_use_tree, count) =
+                    use_tree_without_unused_import(use_tree, unused_imports);
                 if let Some(new_use_tree) = new_use_tree {
                     new_use_trees.push(new_use_tree);
                 }

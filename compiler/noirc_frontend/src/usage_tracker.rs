@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     ast::{Ident, ItemVisibility},
@@ -54,11 +54,11 @@ pub struct UsageTracker {
     /// error. Keying by namespace as well as name keeps the two in separate slots, so marking one
     /// as used (e.g. constructing the struct) leaves the genuinely unused sibling tracked.
     unused_items: HashMap<ModuleId, HashMap<(Namespace, Ident), UnusedItem>>,
-    /// Unused imports per module, keyed by name only. A `use` is a single syntactic unit: the
-    /// name it brings into scope may occupy both namespaces (e.g. a re-exported `struct N` and
-    /// `fn N`), yet referencing it in either namespace uses the one import. Tracking imports by
-    /// name keeps them independent of the namespace-keyed definitions above.
-    unused_imports: HashMap<ModuleId, HashMap<Ident, UnusedItem>>,
+    /// Unused import names per module. A `use` is a single syntactic unit: the name it brings
+    /// into scope may occupy both namespaces (e.g. a re-exported `struct N` and `fn N`), yet
+    /// referencing it in either namespace uses the one import. Tracking imports by name alone
+    /// keeps them independent of the namespace-keyed definitions above.
+    unused_imports: HashMap<ModuleId, HashSet<Ident>>,
     unused_impl_functions: HashMap<FuncId, Ident>,
 }
 
@@ -94,11 +94,7 @@ impl UsageTracker {
         visibility: ItemVisibility,
     ) {
         if visibility != ItemVisibility::Public && !name.span().is_empty() {
-            self.unused_imports
-                .entry(module_id)
-                .or_default()
-                .entry(name)
-                .or_insert(UnusedItem::Import);
+            self.unused_imports.entry(module_id).or_default().insert(name);
         }
     }
 
@@ -175,8 +171,8 @@ impl UsageTracker {
         &self.unused_items
     }
 
-    /// Get all the unused imports per module, keyed by name.
-    pub fn unused_imports(&self) -> &HashMap<ModuleId, HashMap<Ident, UnusedItem>> {
+    /// Get all the unused import names per module.
+    pub fn unused_imports(&self) -> &HashMap<ModuleId, HashSet<Ident>> {
         &self.unused_imports
     }
 }
