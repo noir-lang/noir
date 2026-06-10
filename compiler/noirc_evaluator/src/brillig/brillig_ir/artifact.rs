@@ -359,7 +359,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         call_instruction: BrilligOpcode<F>,
         destination: UnresolvedJumpLocation,
     ) {
-        // TODO: Add a check to ensure that the opcode is a call instruction
+        assert!(
+            matches!(call_instruction, BrilligOpcode::Call { .. }),
+            "expected a call instruction, but found {call_instruction:?}"
+        );
 
         self.unresolved_external_call_labels.push((self.index_of_next_opcode(), destination));
         self.push_opcode(call_instruction);
