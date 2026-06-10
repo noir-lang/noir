@@ -1,3 +1,5 @@
+use crate::monomorphization::errors::MonomorphizationError;
+use crate::test_utils::{get_monomorphized_with_stdlib, stdlib_src};
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
 };
@@ -241,6 +243,119 @@ fn errors_if_oracle_has_reference_parameter_nested_in_container_behind_generics(
     unconstrained fn pass_ref<T>(x: (Field, T)) {}
     "#;
     check_monomorphization_error(src);
+}
+
+// The `print` oracle does not receive references: the compiler loads any reference in the printed
+// value before the call, so the oracle is monomorphized with a reference-free type. References at
+// the top level and nested inside tuples, structs and fixed-size arrays are loaded and printed.
+// - Vector whose elements contain references is sent as an empty, reference-free vector
+// and shown as a placeholder.
+// - References nested inside an enum variant are not supported and produce an error.
+
+#[test]
+fn prints_mutable_reference() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 1;
+        println(&mut x);
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing a mutable reference should compile");
+}
+
+#[test]
+fn prints_reference_nested_in_tuple() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 1;
+        println((2, &mut x));
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing a reference inside a tuple should compile");
+}
+
+#[test]
+fn prints_reference_to_struct() {
+    let src = r#"
+    struct Foo {
+        a: Field,
+        b: Field,
+    }
+
+    unconstrained fn main() {
+        let mut foo = Foo { a: 1, b: 2 };
+        println(&mut foo);
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing a reference to a struct should compile");
+}
+
+#[test]
+fn prints_reference_nested_in_array() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 1;
+        let mut y = 2;
+        println([&mut x, &mut y]);
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing an array of references should compile");
+}
+
+#[test]
+fn prints_reference_nested_in_struct() {
+    let src = r#"
+    struct Foo {
+        a: &mut Field,
+        b: Field,
+    }
+
+    unconstrained fn main() {
+        let mut x = 1;
+        println(Foo { a: &mut x, b: 2 });
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing a struct with a reference field should compile");
+}
+
+#[test]
+fn prints_reference_nested_in_vector() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 1;
+        let mut y = 2;
+        println(@[&mut x, &mut y]);
+    }
+    "#;
+    // A vector whose elements contain references is sent to the oracle as an empty, reference-free
+    // vector and shown as a placeholder.
+    get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect("printing a vector of references should compile");
+}
+
+#[test]
+fn errors_when_printing_reference_nested_in_enum() {
+    let src = r#"
+    enum Foo {
+        Bar(&mut Field),
+    }
+
+    unconstrained fn main() {
+        let mut x = 1;
+        println(Foo::Bar(&mut x));
+    }
+    "#;
+    let error = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT])
+        .expect_err("printing an enum with a reference field is not supported");
+    assert!(
+        matches!(error, MonomorphizationError::ReferenceParameterToOracle { .. }),
+        "unexpected error: {error:?}"
+    );
 }
 
 #[test]

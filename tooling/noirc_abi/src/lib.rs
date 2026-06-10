@@ -498,21 +498,22 @@ pub fn display_abi_error<F: AcirField>(
         AbiErrorType::FmtString { length, item_types } => {
             let mut fields_iter = fields.iter().copied();
             let PrintableValue::String(string) =
-                decode_printable_value(&mut fields_iter, &PrintableType::String { length })
+                decode_printable_value(&mut fields_iter, &PrintableType::String { length }, false)
             else {
                 unreachable!("Got non-string from string decoding");
             };
             let _length_of_items = fields_iter.next();
             let items = item_types.into_iter().map(|abi_type| {
                 let printable_type = (&abi_type).into();
-                let decoded = decode_printable_value(&mut fields_iter, &printable_type);
+                let decoded = decode_printable_value(&mut fields_iter, &printable_type, false);
                 (decoded, printable_type)
             });
             PrintableValueDisplay::FmtString(string, items.collect())
         }
         AbiErrorType::Custom(abi_typ) => {
             let printable_type = (&abi_typ).into();
-            let decoded = decode_printable_value(&mut fields.iter().copied(), &printable_type);
+            let decoded =
+                decode_printable_value(&mut fields.iter().copied(), &printable_type, false);
             PrintableValueDisplay::Plain(decoded, printable_type)
         }
         AbiErrorType::String { string } => {

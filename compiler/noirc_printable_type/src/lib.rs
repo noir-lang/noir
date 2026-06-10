@@ -196,32 +196,42 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             };
             output.push_str(&format!("<<{typ}>>"));
         }
-        PrintableType::Reference { mutable, .. } => {
-            if *mutable {
-                output.push_str("<<mutable ref>>");
+        PrintableType::Reference { typ, mutable } => {
+            // The debugger does not have the monomorphizer pass rewriting the references
+            if matches!(value, PrintableValue::Other) {
+                output.push_str(if *mutable { "<<mutable ref>>" } else { "<<ref>>" });
             } else {
-                output.push_str("<<ref>>");
+                output.push_str(if *mutable { "&mut " } else { "&" });
+                output.push_str(&to_string(value, typ)?);
             }
         }
         PrintableType::Array { typ, .. } | PrintableType::Vector { typ } => {
             let PrintableValue::Vec { array_elements, is_vector } = value else {
                 return None;
             };
-            if *is_vector {
-                output.push('@');
-            }
-            output.push('[');
-            let mut values = array_elements.iter().peekable();
-            while let Some(value) = values.next() {
-                output.push_str(&format!(
-                    "{}",
-                    PrintableValueDisplay::Plain(value.clone(), *typ.clone())
-                ));
-                if values.peek().is_some() {
-                    output.push_str(", ");
+            if *is_vector && array_elements.is_empty() && contains_reference(typ) {
+                // A vector whose elements contain references is sent to the oracle as an empty,
+                // reference-free vector (see `dereference_print_value`). We display a placeholder.
+                // The debugger keeps the references as addresses and decodes the real elements, so
+                // a non-empty vector still renders each element below.
+                output.push_str("@[<<ref>>...]");
+            } else {
+                if *is_vector {
+                    output.push('@');
                 }
+                output.push('[');
+                let mut values = array_elements.iter().peekable();
+                while let Some(value) = values.next() {
+                    output.push_str(&format!(
+                        "{}",
+                        PrintableValueDisplay::Plain(value.clone(), *typ.clone())
+                    ));
+                    if values.peek().is_some() {
+                        output.push_str(", ");
+                    }
+                }
+                output.push(']');
             }
-            output.push(']');
         }
         PrintableType::String { .. } => {
             let PrintableValue::String(s) = value else {
@@ -372,9 +382,16 @@ fn write_template_replacing_interpolations(
 }
 
 /// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
+///
+/// `deref_references` controls how a [`PrintableType::Reference`] is decoded:
+/// - `true` (used when printing): the value has been dereferenced in-circuit, so the pointee's
+///   fields follow directly and are decoded as the pointee type.
+/// - `false` (used by the debugger): the reference is transmitted as its memory address, whose
+///   fields are skipped without being decoded.
 pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
+    deref_references: bool,
 ) -> PrintableValue<F> {
     match typ {
         PrintableType::Field
@@ -390,7 +407,7 @@ pub fn decode_printable_value<F: AcirField>(
             let mut array_elements = Vec::with_capacity(length);
 
             for _ in 0..length {
-                array_elements.push(decode_printable_value(field_iterator, typ));
+                array_elements.push(decode_printable_value(field_iterator, typ, deref_references));
             }
 
             PrintableValue::Vec { array_elements, is_vector: false }
@@ -403,13 +420,15 @@ pub fn decode_printable_value<F: AcirField>(
             let mut array_elements = Vec::with_capacity(length);
 
             for _ in 0..length {
-                array_elements.push(decode_printable_value(field_iterator, typ));
+                array_elements.push(decode_printable_value(field_iterator, typ, deref_references));
             }
 
             PrintableValue::Vec { array_elements, is_vector: true }
         }
         PrintableType::Tuple { types } => PrintableValue::Vec {
-            array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
+            array_elements: vecmap(types, |typ| {
+                decode_printable_value(field_iterator, typ, deref_references)
+            }),
             is_vector: false,
         },
         PrintableType::String { length } => {
@@ -433,7 +452,7 @@ pub fn decode_printable_value<F: AcirField>(
             // Next come the interpolated values
             let values = types
                 .iter()
-                .map(|typ| decode_printable_value(field_iterator, typ))
+                .map(|typ| decode_printable_value(field_iterator, typ, deref_references))
                 .collect::<Vec<_>>();
 
             PrintableValue::FmtString(string, values)
@@ -442,7 +461,8 @@ pub fn decode_printable_value<F: AcirField>(
             let mut struct_map = BTreeMap::new();
 
             for (field_key, param_type) in fields {
-                let field_value = decode_printable_value(field_iterator, param_type);
+                let field_value =
+                    decode_printable_value(field_iterator, param_type, deref_references);
 
                 struct_map.insert(field_key.to_owned(), field_value);
             }
@@ -451,20 +471,25 @@ pub fn decode_printable_value<F: AcirField>(
         }
         PrintableType::Function { env, .. } => {
             // We want to consume the fields from the environment, but for now they are not actually printed.
-            let _env = decode_printable_value(field_iterator, env);
+            let _env = decode_printable_value(field_iterator, env, deref_references);
             let func_id = field_iterator.next().expect("not enough data: expected function ID");
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
-            // We decode the reference, but it's not actually used for printing.
-            // The reference consists of varying number of fields, depending on type.
-            let num_fields = flattened_reference_size(typ);
-            for i in 0..num_fields {
-                let _ = field_iterator
-                    .next()
-                    .unwrap_or_else(|| panic!("not enough data: expected reference field [{i}]"));
+            if deref_references {
+                // The reference was dereferenced in-circuit: the pointee's fields follow directly.
+                decode_printable_value(field_iterator, typ, deref_references)
+            } else {
+                // The reference is transmitted as its address; skip those fields without decoding.
+                // The reference consists of varying number of fields, depending on type.
+                let num_fields = flattened_reference_size(typ);
+                for i in 0..num_fields {
+                    let _ = field_iterator.next().unwrap_or_else(|| {
+                        panic!("not enough data: expected reference field [{i}]")
+                    });
+                }
+                PrintableValue::Other
             }
-            PrintableValue::Other
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
@@ -480,7 +505,7 @@ pub fn decode_printable_value<F: AcirField>(
             let mut elements = Vec::with_capacity(variants[tag].1.len());
             for (i, (_, types)) in variants.iter().enumerate() {
                 for typ in types {
-                    let value = decode_printable_value(field_iterator, typ);
+                    let value = decode_printable_value(field_iterator, typ, deref_references);
                     if i == tag {
                         elements.push(value);
                     }
@@ -518,16 +543,20 @@ impl<F: AcirField> PrintableValueDisplay<F> {
     /// * formatted: msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
     ///
     /// The meta parts are JSON descriptors of the corresponding types, which guide the decoding.
+    ///
+    /// `deref_references` is forwarded to [`decode_printable_value`]: `true` when the printed
+    /// values had their references dereferenced in-circuit (the `print` oracle), `false` otherwise.
     pub fn try_from_params(
         foreign_call_inputs: &[ForeignCallParam<F>],
+        deref_references: bool,
     ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
 
         if is_fmt_str.unwrap_field().is_one() {
-            convert_fmt_string_inputs(foreign_call_inputs)
+            convert_fmt_string_inputs(foreign_call_inputs, deref_references)
         } else {
-            convert_string_inputs(foreign_call_inputs)
+            convert_string_inputs(foreign_call_inputs, deref_references)
         }
     }
 }
@@ -547,6 +576,7 @@ fn flatten_inputs<F: AcirField>(input_values: &[ForeignCallParam<F>]) -> impl It
 /// value.0, ..., value.i, meta
 fn convert_string_inputs<F: AcirField>(
     foreign_call_inputs: &[ForeignCallParam<F>],
+    deref_references: bool,
 ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
     // Fetch the PrintableType from the foreign call input
     // The remaining input values should hold what is to be printed
@@ -558,7 +588,8 @@ fn convert_string_inputs<F: AcirField>(
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields = flatten_inputs(input_values);
 
-    let value = decode_printable_value(&mut input_values_as_fields, &printable_type);
+    let value =
+        decode_printable_value(&mut input_values_as_fields, &printable_type, deref_references);
 
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
@@ -570,6 +601,7 @@ fn convert_string_inputs<F: AcirField>(
 /// msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN
 fn convert_fmt_string_inputs<F: AcirField>(
     foreign_call_inputs: &[ForeignCallParam<F>],
+    deref_references: bool,
 ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
     let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
@@ -590,7 +622,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
 
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
-        let value = decode_printable_value(&mut input_iter, &printable_type);
+        let value = decode_printable_value(&mut input_iter, &printable_type, deref_references);
 
         output.push((value, printable_type));
     }
@@ -609,6 +641,30 @@ fn fetch_printable_type<F: AcirField>(
     match printable_type {
         Ok(printable_type) => Ok(printable_type),
         Err(err) => Err(TryFromParamsError::ParsingError(err)),
+    }
+}
+
+/// Whether a type contains a reference anywhere in its structure.
+fn contains_reference(typ: &PrintableType) -> bool {
+    match typ {
+        PrintableType::Reference { .. } => true,
+        PrintableType::Array { typ, .. }
+        | PrintableType::Vector { typ }
+        | PrintableType::FmtString { typ, .. } => contains_reference(typ),
+        PrintableType::Tuple { types } => types.iter().any(contains_reference),
+        PrintableType::Struct { fields, .. } => {
+            fields.iter().any(|(_, typ)| contains_reference(typ))
+        }
+        PrintableType::Enum { variants, .. } => {
+            variants.iter().flat_map(|(_, types)| types).any(contains_reference)
+        }
+        PrintableType::Function { env, .. } => contains_reference(env),
+        PrintableType::Field
+        | PrintableType::UnsignedInteger { .. }
+        | PrintableType::SignedInteger { .. }
+        | PrintableType::Boolean
+        | PrintableType::String { .. }
+        | PrintableType::Unit => false,
     }
 }
 

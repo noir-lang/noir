@@ -4,5 +4,4 @@ type = "bin"
 authors = [""]
 compiler_unstable_features = ["enums"]
 
-
 [dependencies]

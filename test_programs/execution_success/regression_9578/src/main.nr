@@ -4,12 +4,24 @@ struct Foo {
     c: [u64; 3],
 }
 
-// Printing references to enums don't work at the moment,
-// because instead of the tag, we get the address of the tag,
-// and we can't tell how many fields follow.
-// enum Bar {
-//     Baz((u32, [u32; 2])),
-// }
+// A value containing a reference can be printed: the compiler loads every reference before the
+// `print` oracle call, so the oracle receives a reference-free value. References to an enum work
+// too, because once the reference is loaded the tag is a concrete value (rather than the address
+// of the tag, which is why this used to be unsupported).
+//
+// References are loaded through tuples, structs and fixed-size arrays, so a reference nested inside
+// any of those can also be printed. A vector whose elements contain references is shown as a
+// placeholder (`@[<<ref>>...]`): its dynamic length means the references cannot be loaded ahead of
+// the call, so it is sent to the oracle as an empty, reference-free vector. References nested inside
+// an enum variant are still unsupported: the compiler cannot load them without the active variant.
+enum Bar {
+    Baz((u32, [u32; 2])),
+}
+
+struct WithRef {
+    a: &mut u32,
+    b: u32,
+}
 
 unconstrained fn main() {
     show(1, ());
@@ -23,7 +35,13 @@ unconstrained fn main() {
     show(9, [1, 2, 3].as_vector());
     show(9, [(1, 2), (3, 4)].as_vector());
     show(10, Foo { a: 1, b: (true, [3, 4]), c: [5, 6, 7] });
-    // show(11, Bar::Baz((1, [2, 3])));
+    show(11, Bar::Baz((1, [2, 3])));
+
+    let mut x = 12;
+    let mut y = 13;
+    show(14, WithRef { a: &mut x, b: 15 });
+    show(16, [&mut x, &mut y]);
+    show(17, @[&mut x, &mut y]);
 }
 
 unconstrained fn show<T>(case: u32, mut value: T) {

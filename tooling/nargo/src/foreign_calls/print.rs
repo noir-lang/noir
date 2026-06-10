@@ -48,7 +48,7 @@ impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCal
                     .1;
 
                 let display_values =
-                    PrintableValueDisplay::<F>::try_from_params(foreign_call_inputs)?;
+                    PrintableValueDisplay::<F>::try_from_params(foreign_call_inputs, true)?;
 
                 if skip_newline {
                     write!(self.output, "{display_values}").expect("write should succeed");

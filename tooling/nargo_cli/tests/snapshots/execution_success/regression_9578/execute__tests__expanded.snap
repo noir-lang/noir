@@ -8,6 +8,15 @@ struct Foo {
     c: [u64; 3],
 }
 
+enum Bar {
+    Baz((u32, [u32; 2])),
+}
+
+struct WithRef {
+    a: &mut u32,
+    b: u32,
+}
+
 unconstrained fn main() {
     show(1_u32, ());
     show(2_u32, 123_Field);
@@ -23,6 +32,12 @@ unconstrained fn main() {
         10_u32,
         Foo { a: 1_u32, b: (true, [3_u64, 4_u64]), c: [5_u64, 6_u64, 7_u64] },
     );
+    show(11_u32, Bar::Baz((1_u32, [2_u32, 3_u32])));
+    let mut x: u32 = 12_u32;
+    let mut y: u32 = 13_u32;
+    show(14_u32, WithRef { a: &mut x, b: 15_u32 });
+    show(16_u32, [&mut x, &mut y]);
+    show(17_u32, @[&mut x, &mut y]);
 }
 
 unconstrained fn show<T>(case: u32, mut value: T) {
