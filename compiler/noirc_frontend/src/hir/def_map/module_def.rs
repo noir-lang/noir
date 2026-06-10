@@ -1,6 +1,6 @@
 use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 
-use super::ModuleId;
+use super::{ModuleId, Namespace};
 
 /// A generic ID that references either a module, function, type, interface or global
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -68,6 +68,19 @@ impl ModuleDefId {
         match self {
             Self::ModuleId(v) => Some(*v),
             _ => None,
+        }
+    }
+
+    /// The namespace this definition lives in. Mirrors how [`super::PerNs`] splits its
+    /// `types` and `values` slots: functions and globals are values, everything else is a type.
+    pub fn namespace(&self) -> Namespace {
+        match self {
+            ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => Namespace::Value,
+            ModuleDefId::ModuleId(_)
+            | ModuleDefId::TypeId(_)
+            | ModuleDefId::TypeAliasId(_)
+            | ModuleDefId::TraitId(_)
+            | ModuleDefId::TraitAssociatedTypeId(_) => Namespace::Type,
         }
     }
 }

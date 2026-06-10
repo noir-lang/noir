@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    hir::def_map::ModuleId,
+    hir::def_map::{ModuleId, Namespace},
     node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId},
 };
 
@@ -29,18 +29,29 @@ impl UnusedItem {
             UnusedItem::Global(_) => "global",
         }
     }
+
+    /// The namespace this item occupies. An import can resolve into either namespace, so its
+    /// namespace is determined by the imported definition at the call site rather than here.
+    fn namespace(&self) -> Option<Namespace> {
+        match self {
+            UnusedItem::Function(_) | UnusedItem::Global(_) => Some(Namespace::Value),
+            UnusedItem::Struct(_)
+            | UnusedItem::Enum(_)
+            | UnusedItem::Trait(_)
+            | UnusedItem::TypeAlias(_) => Some(Namespace::Type),
+            UnusedItem::Import => None,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
 pub struct UsageTracker {
-    /// Unused items per module, keyed only by name. Noir's type and value namespaces are
-    /// separate, so a type-namespace item and a value-namespace item can legally share a
-    /// name within a module (e.g. `struct N` and `fn N`) without a duplicate-definition
-    /// error. Keying by name alone conflates the two: only one is tracked, and marking
-    /// either as used clears the shared slot. The worst case is a *missing* unused warning
-    /// for the untracked sibling — never a missing error, since genuine same-namespace
-    /// clashes are caught as duplicate definitions before reaching here.
-    unused_items: HashMap<ModuleId, HashMap<Ident, UnusedItem>>,
+    /// Unused items per module, keyed by `(namespace, name)`. Noir's type and value namespaces
+    /// are separate, so a type-namespace item and a value-namespace item can legally share a
+    /// name within a module (e.g. `struct N` and `fn N`) without a duplicate-definition error.
+    /// Keying by namespace as well as name keeps the two in separate slots, so marking one as
+    /// used (e.g. constructing the struct) leaves the genuinely unused sibling tracked.
+    unused_items: HashMap<ModuleId, HashMap<(Namespace, Ident), UnusedItem>>,
     unused_impl_functions: HashMap<FuncId, Ident>,
 }
 
@@ -54,25 +65,57 @@ impl UsageTracker {
         item: UnusedItem,
         visibility: ItemVisibility,
     ) {
+        let namespace = item.namespace().expect("imports must be registered via add_unused_import");
+        self.insert_unused_item(module_id, name, namespace, item, visibility);
+    }
+
+    /// Register an unused import. Unlike other items, an import can resolve into either
+    /// namespace, so the caller supplies the namespace of the imported definition.
+    pub(crate) fn add_unused_import(
+        &mut self,
+        module_id: ModuleId,
+        name: Ident,
+        namespace: Namespace,
+        visibility: ItemVisibility,
+    ) {
+        self.insert_unused_item(module_id, name, namespace, UnusedItem::Import, visibility);
+    }
+
+    fn insert_unused_item(
+        &mut self,
+        module_id: ModuleId,
+        name: Ident,
+        namespace: Namespace,
+        item: UnusedItem,
+        visibility: ItemVisibility,
+    ) {
         // Empty spans could come from implicitly injected imports, and we don't want to track those
         if visibility != ItemVisibility::Public && !name.span().is_empty() {
-            // Two items can share a name within a module (e.g. a global and a function),
-            // which is a duplicate-definition error reported elsewhere. `HashMap::insert`
-            // keeps the existing key but swaps the value, leaving the recorded location and
-            // item kind describing different definitions. Keep the first item we saw so the
-            // unused warning stays self-consistent.
-            self.unused_items.entry(module_id).or_default().entry(name).or_insert(item);
+            // A genuine same-namespace clash is a duplicate-definition error reported elsewhere;
+            // `entry(..).or_insert` keeps the first item we saw so the unused warning's recorded
+            // location and item kind stay self-consistent.
+            self.unused_items
+                .entry(module_id)
+                .or_default()
+                .entry((namespace, name))
+                .or_insert(item);
         }
     }
 
     /// Marks an item as being referenced. This doesn't always makes the item as used. For example
     /// if a struct is referenced it will still be considered unused unless it's constructed somewhere.
-    pub(crate) fn mark_as_referenced(&mut self, current_mod_id: ModuleId, name: &Ident) {
+    pub(crate) fn mark_as_referenced(
+        &mut self,
+        current_mod_id: ModuleId,
+        name: &Ident,
+        namespace: Namespace,
+    ) {
         let Some(items) = self.unused_items.get_mut(&current_mod_id) else {
             return;
         };
 
-        let Some(unused_item) = items.get(name) else {
+        let key = (namespace, name.clone());
+        let Some(unused_item) = items.get(&key) else {
             return;
         };
 
@@ -80,13 +123,18 @@ impl UsageTracker {
             return;
         }
 
-        items.remove(name);
+        items.remove(&key);
     }
 
     /// Marks an item as being used.
-    pub(crate) fn mark_as_used(&mut self, current_mod_id: ModuleId, name: &Ident) {
+    pub(crate) fn mark_as_used(
+        &mut self,
+        current_mod_id: ModuleId,
+        name: &Ident,
+        namespace: Namespace,
+    ) {
         if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
-            items.remove(name);
+            items.remove(&(namespace, name.clone()));
         }
     }
 
@@ -112,8 +160,8 @@ impl UsageTracker {
         &self.unused_impl_functions
     }
 
-    /// Get all the unused items per module.
-    pub fn unused_items(&self) -> &HashMap<ModuleId, HashMap<Ident, UnusedItem>> {
+    /// Get all the unused items per module, keyed by `(namespace, name)`.
+    pub fn unused_items(&self) -> &HashMap<ModuleId, HashMap<(Namespace, Ident), UnusedItem>> {
         &self.unused_items
     }
 }

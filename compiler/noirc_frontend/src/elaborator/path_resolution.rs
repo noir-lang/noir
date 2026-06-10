@@ -5,7 +5,7 @@ use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
-use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, Namespace, PerNs};
 use crate::hir::resolution::import::{
     PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
 };
@@ -556,6 +556,24 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Mark a path segment's definition as used or referenced, depending on the [PathResolutionMode].
+    fn mark_segment(
+        &mut self,
+        mode: PathResolutionMode,
+        module_id: ModuleId,
+        name: &Ident,
+        namespace: Namespace,
+    ) {
+        match mode {
+            PathResolutionMode::MarkAsReferenced => {
+                self.usage_tracker.mark_as_referenced(module_id, name, namespace);
+            }
+            PathResolutionMode::MarkAsUsed => {
+                self.usage_tracker.mark_as_used(module_id, name, namespace);
+            }
+        }
+    }
+
     /// Resolves a [TypedPath] assuming it is inside `starting_module`.
     ///
     /// `importing_module` is the module where the lookup originally started.
@@ -601,13 +619,11 @@ impl Elaborator<'_> {
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        match mode {
-            PathResolutionMode::MarkAsReferenced => {
-                self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
-            }
-            PathResolutionMode::MarkAsUsed => {
-                self.usage_tracker.mark_as_used(current_module_id, first_segment);
-            }
+        // When the path has more than one segment, the first segment is traversed as a module or
+        // type, so it lives in the type namespace. A single-segment path's only segment is the
+        // leaf, which is marked after the loop with the namespace it actually resolved to.
+        if path.segments.len() > 1 {
+            self.mark_segment(mode, current_module_id, first_segment, Namespace::Type);
         }
 
         let mut errors = Vec::new();
@@ -734,7 +750,7 @@ impl Elaborator<'_> {
                     }
                     MethodLookupResult::FoundMethod(per_ns) => per_ns,
                     MethodLookupResult::FoundTraitMethod(per_ns, name) => {
-                        self.usage_tracker.mark_as_used(importing_module, &name);
+                        self.usage_tracker.mark_as_used(importing_module, &name, Namespace::Type);
                         per_ns
                     }
                     MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
@@ -749,7 +765,11 @@ impl Elaborator<'_> {
                     MethodLookupResult::FoundMultipleTraitMethods(vec) => {
                         let traits = vecmap(vec, |(trait_id, name)| {
                             let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(importing_module, &name);
+                            self.usage_tracker.mark_as_used(
+                                importing_module,
+                                &name,
+                                Namespace::Type,
+                            );
                             self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
@@ -766,13 +786,11 @@ impl Elaborator<'_> {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            match mode {
-                PathResolutionMode::MarkAsReferenced => {
-                    self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
-                }
-                PathResolutionMode::MarkAsUsed => {
-                    self.usage_tracker.mark_as_used(current_module_id, current_ident);
-                }
+            // Every segment but the last is traversed as a module or type. The last segment is
+            // the leaf, marked after the loop with the namespace it actually resolved to.
+            let is_last_segment = index == path.segments.len() - 2;
+            if !is_last_segment {
+                self.mark_segment(mode, current_module_id, current_ident, Namespace::Type);
             }
 
             current_ns = found_ns;
@@ -785,6 +803,10 @@ impl Elaborator<'_> {
 
         let (module_def_id, visibility, _) =
             target_ns.or(fallback_ns).expect("A namespace should never be empty");
+
+        // Mark the leaf segment as used/referenced in the namespace it resolved to, so that a
+        // same-named sibling in the other namespace stays tracked.
+        self.mark_segment(mode, current_module_id, &path.last_ident(), module_def_id.namespace());
 
         let item = self.per_ns_item_to_path_resolution_item(
             path,
@@ -1147,7 +1169,7 @@ impl Elaborator<'_> {
             let traits = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
             let traits = vecmap(traits, |(trait_id, name)| {
                 let trait_ = self.interner.get_trait(trait_id);
-                self.usage_tracker.mark_as_used(importing_module_id, &name);
+                self.usage_tracker.mark_as_used(importing_module_id, &name, Namespace::Type);
                 self.fully_qualified_trait_path(trait_)
             });
             let ident = method_name_ident.clone();

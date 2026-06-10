@@ -23,7 +23,7 @@ use crate::{
     hir::{
         comptime::{Integer, Value, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
-        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        def_map::{ModuleDefId, ModuleId, Namespace, fully_qualified_module_path},
         resolution::{
             errors::ResolverError,
             import::PathResolutionError,
@@ -2890,7 +2890,7 @@ impl Elaborator<'_> {
             .collect();
 
         for (_, trait_name) in &traits_in_scope {
-            self.usage_tracker.mark_as_used(module_id, trait_name);
+            self.usage_tracker.mark_as_used(module_id, trait_name, Namespace::Type);
         }
 
         if traits_in_scope.is_empty() {

@@ -755,10 +755,10 @@ impl DefCollector {
             if !has_path_resolution_error {
                 let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
 
-                context.usage_tracker.add_unused_item(
+                context.usage_tracker.add_unused_import(
                     defining_module,
                     name.clone(),
-                    UnusedItem::Import,
+                    module_def_id.namespace(),
                     visibility,
                 );
 
@@ -800,7 +800,7 @@ impl DefCollector {
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
         let mut unused_errors = unused_imports
             .flat_map(|(_, unused_items)| {
-                unused_items.iter().map(|(ident, unused_item)| {
+                unused_items.iter().map(|((_namespace, ident), unused_item)| {
                     let ident = ident.clone();
                     CompilationError::ResolverError(ResolverError::UnusedItem {
                         ident,

@@ -76,20 +76,17 @@ fn unused_global_clashing_with_function_is_reported_as_global() {
 }
 
 #[test]
-#[should_panic(expected = "Expected some errors but got none")]
-fn cross_namespace_name_clash_misses_unused_warning_but_is_not_an_error() {
+fn cross_namespace_name_clash_still_warns_on_unused_value() {
     // A type-namespace item (`struct N`) and a value-namespace item (`fn N`) may legally
     // share a name within a module, so this is *not* a duplicate-definition error and the
-    // program compiles. The usage tracker keys unused items by name only, so the struct and
-    // the function share one slot: constructing the struct clears it, and the genuinely
-    // unused `fn N` produces no "unused function" warning.
-    //
-    // The absence below is a missing *warning*, not a missing *error*, so there is no miscompilation.
-    // TODO(#11927): The test is here to highlight this gap, until it's fixed in
+    // program compiles. The usage tracker keys unused items by `(namespace, name)`, so the
+    // struct and the function occupy separate slots: constructing the struct clears only the
+    // type-namespace entry, leaving the genuinely unused `fn N` to warn.
     let src = r#"
     struct N {}
     fn N() {}
        ^ unused function N
+       ~ unused function
     fn main() {
         let _ = N {};
     }
