@@ -101,6 +101,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         rhs: MemoryAddress,
         destination: MemoryAddress,
     ) {
+        // The overflow check reads `lhs` back after the add, so it must survive being written.
+        assert_ne!(destination, lhs, "codegen_checked_add: destination must not alias lhs");
         self.memory_op_instruction(lhs, rhs, destination, BrilligBinaryOp::Add);
         self.codegen_add_overflow_check(
             SingleAddrVariable::new_usize(lhs),
@@ -115,6 +117,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         rhs: MemoryAddress,
         destination: MemoryAddress,
     ) {
+        // The overflow check reads `lhs` and `rhs` back after the mul, so they must survive being written.
+        assert_ne!(destination, lhs, "codegen_checked_mul: destination must not alias lhs");
+        assert_ne!(destination, rhs, "codegen_checked_mul: destination must not alias rhs");
         self.memory_op_instruction(lhs, rhs, destination, BrilligBinaryOp::Mul);
         self.codegen_mul_overflow_check(lhs, rhs, destination);
     }
@@ -128,5 +133,40 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         let const_register = self.make_usize_constant_instruction(F::from(constant));
         self.codegen_checked_mul(operand, const_register.address, destination);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::{FieldElement, acir::brillig::MemoryAddress};
+
+    use crate::brillig::{
+        BrilligOptions,
+        brillig_ir::{BrilligContext, Stack, artifact::Label},
+    };
+    use crate::ssa::ir::function::FunctionId;
+
+    fn create_context() -> BrilligContext<FieldElement, Stack> {
+        let mut context = BrilligContext::new("test", &BrilligOptions::default());
+        context.enter_context(Label::function(FunctionId::test_new(0)));
+        context
+    }
+
+    #[test]
+    #[should_panic(expected = "codegen_checked_add: destination must not alias lhs")]
+    fn checked_add_rejects_destination_aliasing_operand() {
+        let mut context = create_context();
+        let lhs = MemoryAddress::relative(1);
+        let rhs = MemoryAddress::relative(2);
+        context.codegen_checked_add(lhs, rhs, lhs);
+    }
+
+    #[test]
+    #[should_panic(expected = "codegen_checked_mul: destination must not alias rhs")]
+    fn checked_mul_rejects_destination_aliasing_operand() {
+        let mut context = create_context();
+        let lhs = MemoryAddress::relative(1);
+        let rhs = MemoryAddress::relative(2);
+        context.codegen_checked_mul(lhs, rhs, rhs);
     }
 }
