@@ -21,7 +21,7 @@ use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_field, get_fixed_array_map, get_struct_field, get_struct_fields, get_u8,
-        get_u32, get_u64, to_struct,
+        get_u32, get_u64, return_type_is_definitely_incompatible, to_struct,
     },
 };
 
@@ -46,7 +46,8 @@ fn call_foreign(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    match name {
+    let expected_return_type = return_type.clone();
+    let result = match name {
         "aes128_encrypt" => aes128_encrypt(args, location),
         "blake2s" => blake_hash(args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(args, location, acvm::blackbox_solver::blake3),
@@ -77,7 +78,17 @@ fn call_foreign(
             let item = format!("Attempting to evaluate foreign function '{name}'");
             Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
         }
+    }?;
+
+    let produced = result.get_type().into_owned();
+    if return_type_is_definitely_incompatible(&produced, &expected_return_type) {
+        return Err(InterpreterError::TypeMismatch {
+            expected: expected_return_type.to_string(),
+            actual: produced,
+            location,
+        });
     }
+    Ok(result)
 }
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`

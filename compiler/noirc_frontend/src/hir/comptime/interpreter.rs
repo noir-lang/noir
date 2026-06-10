@@ -662,6 +662,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         match self.evaluate_no_dereference(id)? {
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // dereferenced automatically on use, regardless of whether it is mutable: indexing
+            // an immutable array, for instance, yields an immutable auto-deref pointer.
             Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
             other => Ok(other.move_struct()),
         }

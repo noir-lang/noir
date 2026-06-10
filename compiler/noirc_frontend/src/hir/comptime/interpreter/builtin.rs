@@ -14,7 +14,7 @@ use builtin_helpers::{
     get_location, get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl,
     get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
     has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
-    parse, quote_ident, visibility_to_quoted,
+    parse, quote_ident, return_type_is_definitely_incompatible, visibility_to_quoted,
 };
 use fm::FileMap;
 use im::Vector;
@@ -75,8 +75,9 @@ impl Interpreter<'_, '_> {
         location: Location,
     ) -> IResult<Value> {
         let call_stack = &self.elaborator.interpreter_call_stack().clone();
+        let expected_return_type = return_type.clone();
         let interner = &mut self.elaborator.interner;
-        match name {
+        let result = match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
@@ -297,8 +298,26 @@ impl Interpreter<'_, '_> {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
-        }
+        }?;
+
+        check_return_type(&result, expected_return_type, location)?;
+        Ok(result)
     }
+}
+
+/// Guards the `return_type` contract of a builtin/foreign call: type checking has already
+/// validated the call, so a mismatch here means the builtin implementation contradicts its
+/// declared return type and is reported as an internal error.
+fn check_return_type(value: &Value, expected: Type, location: Location) -> IResult<()> {
+    let produced = value.get_type().into_owned();
+    if return_type_is_definitely_incompatible(&produced, &expected) {
+        return Err(InterpreterError::TypeMismatch {
+            expected: expected.to_string(),
+            actual: produced,
+            location,
+        });
+    }
+    Ok(())
 }
 
 fn failing_constraint<T>(
@@ -1105,7 +1124,10 @@ fn to_le_radix(
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
-    assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
+    // `BigUint::to_radix_le` requires the radix to be in `2..=256` and only checks this in debug
+    // builds. The stdlib `static_assert`s the same bound for user code, so reaching here with an
+    // out-of-range radix is an internal precondition violation.
+    assert!((2..=256).contains(&radix), "ICE: radix must be in the range 2..=256, found {radix}");
 
     // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make
     // a zero value appear to require one limb. Decomposing zero requires no significant limbs,
@@ -3259,10 +3281,32 @@ fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 #[cfg(test)]
 mod tests {
-    use super::field_less_than;
+    use super::{compute_to_radix_le, field_less_than};
     use crate::hir::comptime::value::Value;
     use acvm::FieldElement;
     use noirc_errors::Location;
+
+    #[test]
+    fn compute_to_radix_le_decomposes_in_range() {
+        // 6 in base 2 (little endian) is 0,1,1.
+        assert_eq!(compute_to_radix_le(FieldElement::from(6u128), 2), vec![0, 1, 1]);
+        // Zero decomposes into no significant limbs.
+        assert_eq!(compute_to_radix_le(FieldElement::from(0u128), 2), Vec::<u8>::new());
+        // Largest supported radix is accepted.
+        assert_eq!(compute_to_radix_le(FieldElement::from(255u128), 256), vec![255]);
+    }
+
+    #[test]
+    #[should_panic(expected = "radix must be in the range 2..=256")]
+    fn compute_to_radix_le_rejects_radix_below_two() {
+        compute_to_radix_le(FieldElement::from(6u128), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "radix must be in the range 2..=256")]
+    fn compute_to_radix_le_rejects_radix_above_256() {
+        compute_to_radix_le(FieldElement::from(6u128), 300);
+    }
 
     fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
         vec![(a, Location::dummy()), (b, Location::dummy())]

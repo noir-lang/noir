@@ -595,8 +595,11 @@ impl Value {
                     return Err(InterpreterError::CannotInlineMacro { value, typ, location });
                 }
             }
-            // Only convert pointers with auto_deref = true. These are mutable variables
-            // and we don't need to wrap them in `&mut`.
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // transparently dereferenced on use, so we convert the pointed-to value directly
+            // rather than wrapping it in `&mut`. The mutability flag is irrelevant here:
+            // auto-deref pointers are produced for both mutable and immutable bindings
+            // (e.g. indexing an immutable array yields an immutable auto-deref pointer).
             Value::Pointer(element, true, _) => {
                 return element
                     .unwrap_or_clone()
@@ -784,12 +787,16 @@ impl Value {
         }
     }
 
-    /// Structs and tuples store references to their fields internally which need to be manually
-    /// changed when moving them.
+    /// Deep-copies a compound value so that moving it does not alias the original's fields.
     ///
-    /// All references are shared by default but when we have `let mut foo = Struct { .. }` in
-    /// code, we don't want moving it: `let mut bar = foo;` to refer to the same references.
-    /// This function will copy them so that mutating the fields of `foo` will not mutate `bar`.
+    /// Fields of structs and tuples are held behind shared cells (`Shared<Value>`) so that
+    /// mutating a field through one binding is observable through any binding that references the
+    /// same value. That sharing must be broken on a move: after `let mut bar = foo;`, mutating a
+    /// field of `foo` must not mutate `bar`. The same applies to compound values nested inside
+    /// arrays, slices, and enum payloads, so this recurses through every container.
+    ///
+    /// References (`Value::Pointer`) are deliberately left shared: a pointer is an explicit
+    /// reference whose aliasing must survive a move, so recursion stops there.
     pub(crate) fn move_struct(self) -> Value {
         match self {
             Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
@@ -801,6 +808,13 @@ impl Value {
                 });
                 Value::Struct(fields.collect(), typ)
             }
+            Value::Array(elements, typ) => {
+                Value::Array(elements.into_iter().map(Value::move_struct).collect(), typ)
+            }
+            Value::Vector(elements, typ) => {
+                Value::Vector(elements.into_iter().map(Value::move_struct).collect(), typ)
+            }
+            Value::Enum(tag, args, typ) => Value::Enum(tag, vecmap(args, Value::move_struct), typ),
             other => other,
         }
     }
@@ -839,5 +853,33 @@ where
             let tokens = tokens_to_string(&tokens, elaborator.interner, elaborator.files);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::iter::once;
+
+    use crate::Shared;
+    use crate::Type;
+    use crate::hir::comptime::value::Value;
+
+    /// `move_struct` must break implicit field sharing even when the shared value is nested inside
+    /// an array. A `Value` clone is shallow over `Shared` cells, so a tuple held in an array keeps
+    /// aliasing its field cells; the move has to recurse through the array to copy them.
+    #[test]
+    fn move_struct_breaks_sharing_through_arrays() {
+        let cell = Shared::new(Value::u32(0));
+        let tuple = Value::Tuple(vec![cell.clone()]);
+        let array = Value::Array(once(tuple).collect(), Type::Unit);
+
+        let moved = array.move_struct();
+
+        // Mutating the original cell must not be observable through the moved copy.
+        *cell.borrow_mut() = Value::u32(1);
+
+        let Value::Array(elements, _) = moved else { panic!("expected an array") };
+        let Value::Tuple(fields) = &elements[0] else { panic!("expected a tuple") };
+        assert_eq!(*fields[0].borrow(), Value::u32(0));
     }
 }

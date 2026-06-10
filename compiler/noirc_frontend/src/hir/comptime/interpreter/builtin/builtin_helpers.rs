@@ -45,6 +45,65 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
+/// The top-level "shape" of a [Type], used to catch builtins whose produced value is grossly
+/// inconsistent with their declared return type.
+///
+/// Types whose shape cannot be judged cheaply and reliably (type variables, generics, aliases,
+/// references, functions, ...) have no shape and are therefore never flagged. Arrays and slices
+/// share a shape because some builtins legitimately return one where the other is declared.
+#[derive(PartialEq)]
+enum TypeShape {
+    Field,
+    Integer(Signedness, IntegerBitSize),
+    Bool,
+    Unit,
+    Sequence,
+    String,
+    FmtString,
+    Tuple(usize),
+    DataType,
+    Quoted,
+}
+
+fn type_shape(typ: &Type) -> Option<TypeShape> {
+    match typ {
+        Type::FieldElement => Some(TypeShape::Field),
+        Type::Integer(sign, size) => Some(TypeShape::Integer(*sign, *size)),
+        Type::Bool => Some(TypeShape::Bool),
+        Type::Unit => Some(TypeShape::Unit),
+        Type::Array(..) | Type::Vector(_) => Some(TypeShape::Sequence),
+        Type::String(_) => Some(TypeShape::String),
+        Type::FmtString(..) => Some(TypeShape::FmtString),
+        Type::Tuple(types) => Some(TypeShape::Tuple(types.len())),
+        Type::DataType(..) => Some(TypeShape::DataType),
+        Type::Quoted(_) => Some(TypeShape::Quoted),
+        Type::Alias(..)
+        | Type::TypeVariable(_)
+        | Type::TraitAsType(..)
+        | Type::NamedGeneric(_)
+        | Type::CheckedCast { .. }
+        | Type::Function(..)
+        | Type::Reference(..)
+        | Type::Forall(..)
+        | Type::Constant(..)
+        | Type::InfixExpr(..)
+        | Type::Error => None,
+    }
+}
+
+/// A defensive check guarding the `return_type` contract of `call_builtin`/`call_foreign`.
+///
+/// Type checking already validates that a builtin's produced value matches its declared return
+/// type, so this only catches a builtin implementation that contradicts its declaration. It
+/// returns `true` only when `produced` and `expected` have known, conflicting shapes; anything it
+/// cannot judge for certain is treated as compatible to avoid false positives on generic returns.
+pub(crate) fn return_type_is_definitely_incompatible(produced: &Type, expected: &Type) -> bool {
+    match (type_shape(produced), type_shape(expected)) {
+        (Some(produced), Some(expected)) => produced != expected,
+        _ => false,
+    }
+}
+
 pub(crate) fn check_argument_count(
     expected: usize,
     arguments: &[(Value, Location)],
@@ -890,6 +949,45 @@ mod tests {
     use siphasher::sip::SipHasher13;
 
     use super::DeterministicHasher;
+    use super::return_type_is_definitely_incompatible;
+    use crate::Type;
+    use crate::ast::IntegerBitSize;
+    use crate::shared::Signedness;
+
+    #[test]
+    fn matching_shapes_are_compatible() {
+        let u8 = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+        assert!(!return_type_is_definitely_incompatible(&Type::Bool, &Type::Bool));
+        assert!(!return_type_is_definitely_incompatible(&Type::FieldElement, &Type::FieldElement));
+        assert!(!return_type_is_definitely_incompatible(&u8, &u8.clone()));
+        // Arrays and slices share a shape, so one is accepted where the other is declared.
+        let array = Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(1)));
+        let slice = Type::Vector(Box::new(Type::Bool));
+        assert!(!return_type_is_definitely_incompatible(&array, &slice));
+    }
+
+    #[test]
+    fn unjudgeable_shapes_are_treated_as_compatible() {
+        // `Type::Error` (and other forms without a known shape) must never be flagged.
+        assert!(!return_type_is_definitely_incompatible(&Type::Error, &Type::Bool));
+        assert!(!return_type_is_definitely_incompatible(&Type::Bool, &Type::Error));
+    }
+
+    #[test]
+    fn conflicting_shapes_are_incompatible() {
+        assert!(return_type_is_definitely_incompatible(&Type::Bool, &Type::FieldElement));
+        let string = Type::String(Box::new(Type::constant_u32(1)));
+        let array = Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(1)));
+        assert!(return_type_is_definitely_incompatible(&string, &array));
+
+        let u8 = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        assert!(return_type_is_definitely_incompatible(&u8, &u32));
+
+        let pair = Type::Tuple(vec![Type::Bool, Type::Bool]);
+        let triple = Type::Tuple(vec![Type::Bool, Type::Bool, Type::Bool]);
+        assert!(return_type_is_definitely_incompatible(&pair, &triple));
+    }
 
     fn hash_bytes(bytes: &[u8]) -> u64 {
         let mut hasher = DeterministicHasher::new();
