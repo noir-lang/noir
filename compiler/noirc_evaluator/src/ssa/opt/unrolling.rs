@@ -395,7 +395,7 @@ impl Function {
         }
 
         // Try to unroll.
-        match loop_.unroll(self, &loops.cfg) {
+        match loop_.unroll(self, &loops.cfg, &loops.dominates_jmpif_target) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -491,6 +491,10 @@ pub(crate) struct Loops {
     pub(crate) cfg: ControlFlowGraph,
     /// The [DominatorTree] used during the discovery of loops.
     pub(crate) dom: DominatorTree,
+    /// For every `JmpIf` edge in a loop body, whether the source block dominates the target.
+    /// Computed once on the original CFG; drives parameter-specialization when a constant `JmpIf`
+    /// is folded during unrolling (see [`LoopIteration::handle_jmpif`]).
+    pub(crate) dominates_jmpif_target: HashMap<(BasicBlockId, BasicBlockId), bool>,
     /// Body weights of callees that will be inlined, used to estimate the true cost
     /// of call instructions in loop bodies instead of using call overhead.
     /// Callers of unrolling set this to the
@@ -551,6 +555,28 @@ impl Loops {
             }
         }
 
+        // Precompute, for every `JmpIf` terminator of a block in some loop body, whether that block
+        // dominates each of its destinations. Computed once on the original (pre-unroll) CFG; the
+        // loops' blocks and edges are unchanged by unrolling, so these facts stay valid for the
+        // original block ids that `handle_jmpif` queries.
+        let mut dominates_jmpif_target = HashMap::default();
+        for loop_ in &loops {
+            for block in &loop_.blocks {
+                if let Some(TerminatorInstruction::JmpIf {
+                    then_destination,
+                    else_destination,
+                    ..
+                }) = function.dfg[*block].terminator()
+                {
+                    for target in [*then_destination, *else_destination] {
+                        dominates_jmpif_target
+                            .entry((*block, target))
+                            .or_insert_with(|| dom_tree.dominates(*block, target));
+                    }
+                }
+            }
+        }
+
         match order {
             LoopOrder::InsideOut => {
                 // Sort by block size descending so `pop` yields smaller, inner loops first.
@@ -564,7 +590,13 @@ impl Loops {
             }
         }
 
-        Self { yet_to_unroll: loops, cfg, dom: dom_tree, callee_costs: HashMap::default() }
+        Self {
+            yet_to_unroll: loops,
+            cfg,
+            dom: dom_tree,
+            dominates_jmpif_target,
+            callee_costs: HashMap::default(),
+        }
     }
 }
 
@@ -918,6 +950,7 @@ impl Loop {
         &self,
         function: &mut Function,
         cfg: &ControlFlowGraph,
+        dominates_jmpif_target: &HashMap<(BasicBlockId, BasicBlockId), bool>,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -928,13 +961,8 @@ impl Loop {
         // replace those references with the final iteration's values.
         let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
-        // Precompute, for every `JmpIf` edge in the original loop body, whether the source
-        // block dominates the target. This drives the parameter-specialization decision when a
-        // constant `JmpIf` is folded during unrolling (see `LoopIteration::handle_jmpif`).
-        let dominates_jmpif_target = self.compute_jmpif_target_dominance(function, cfg);
-
         while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args, &dominates_jmpif_target)?
+            self.unroll_header(function, unroll_into, &header_args, dominates_jmpif_target)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
         }
@@ -947,33 +975,6 @@ impl Loop {
         }
 
         Ok(mapping)
-    }
-
-    /// For every `JmpIf` terminator of a block in the loop body, record whether that block
-    /// dominates each of its destinations. Computed once on the original (pre-unroll) function;
-    /// the loop's blocks and edges are unchanged by unrolling, so these facts stay valid for the
-    /// original block ids that `handle_jmpif` queries.
-    fn compute_jmpif_target_dominance(
-        &self,
-        function: &Function,
-        cfg: &ControlFlowGraph,
-    ) -> HashMap<(BasicBlockId, BasicBlockId), bool> {
-        let post_order = PostOrder::with_cfg(cfg);
-        let mut dom = DominatorTree::with_cfg_and_post_order(cfg, &post_order);
-        let mut dominance = HashMap::default();
-        for block in &self.blocks {
-            if let Some(TerminatorInstruction::JmpIf {
-                then_destination, else_destination, ..
-            }) = function.dfg[*block].terminator()
-            {
-                for target in [*then_destination, *else_destination] {
-                    dominance
-                        .entry((*block, target))
-                        .or_insert_with(|| dom.dominates(*block, target));
-                }
-            }
-        }
-        dominance
     }
 
     /// The loop pre-header is the block that comes before the loop begins. Generally a header block
