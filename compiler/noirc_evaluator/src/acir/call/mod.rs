@@ -71,7 +71,11 @@ impl Context<'_> {
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
-                        assert_eq!(result_ids.len(), outputs.len());
+                        assert_eq!(
+                            result_ids.len(),
+                            outputs.len(),
+                            "ICE: intrinsic call produced a different number of outputs than result ids"
+                        );
                         self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
                     }
                     Value::ForeignFunction { .. } => unreachable!(
@@ -288,6 +292,10 @@ impl Context<'_> {
                 values.push(Self::convert_var_type_to_values(&result_type, &mut vars));
             }
         }
+        assert!(
+            vars.next().is_none(),
+            "ICE: not all ACIR vars from a function call were consumed when converting to values"
+        );
         values
     }
 
@@ -311,12 +319,29 @@ impl Context<'_> {
                 AcirValue::Array(element_values)
             }
             Type::Numeric(numeric_type) => {
-                let var = vars.next().unwrap();
+                let var = vars
+                    .next()
+                    .expect("ICE: ran out of ACIR vars while converting call outputs to values");
                 AcirValue::Var(var, *numeric_type)
             }
             typ => {
                 panic!("Unexpected type {typ} in convert_var_type_to_values");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Context;
+    use crate::acir::AcirVar;
+    use crate::ssa::ir::types::{NumericType, Type};
+
+    #[test]
+    #[should_panic(expected = "ICE: ran out of ACIR vars")]
+    fn convert_var_type_to_values_panics_on_exhausted_vars() {
+        let typ = Type::Numeric(NumericType::NativeField);
+        let mut vars = Vec::<AcirVar>::new().into_iter();
+        let _ = Context::convert_var_type_to_values(&typ, &mut vars);
     }
 }
