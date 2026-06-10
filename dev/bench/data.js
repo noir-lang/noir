@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781093354303,
+  "lastUpdate": 1781094059597,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7a7deaa46ab4c8e32eb1e801a8e2d072ae8502eb",
-          "message": "fix: use global comptime-value in ABI (#12714)",
-          "timestamp": "2026-06-05T13:08:56Z",
-          "tree_id": "f7fdba4c0585a3d86ab022549da9660ffa2d811a",
-          "url": "https://github.com/noir-lang/noir/commit/7a7deaa46ab4c8e32eb1e801a8e2d072ae8502eb"
-        },
-        "date": 1780666536440,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162744,
-            "range": "± 489",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141529,
-            "range": "± 3586",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2125804,
-            "range": "± 1012",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3038416,
             "range": "± 1995",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9defb61a9c8f1b27aad8ec51c4e33c9f7a069356",
+          "message": "feat: allow assigning through any reference expression with `*` (#12951)\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-10T11:50:41Z",
+          "tree_id": "e09221facd6fb5537915241f1250803c4605c30d",
+          "url": "https://github.com/noir-lang/noir/commit/9defb61a9c8f1b27aad8ec51c4e33c9f7a069356"
+        },
+        "date": 1781093986052,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127763,
+            "range": "± 271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112126,
+            "range": "± 1402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042130,
+            "range": "± 2219",
             "unit": "ns/iter"
           }
         ]
