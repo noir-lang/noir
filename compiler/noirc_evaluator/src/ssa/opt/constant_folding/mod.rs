@@ -1234,9 +1234,9 @@ mod test {
           b0():
             v1, v2 = call f1() -> (u32, [u32])
             v4, v5, v6 = call vector_pop_front(v1, v2) -> (u32, u32, [u32])
-            inc_rc v2
-            v8 = array_get v2, index u32 0 -> u32
-            return v8
+            v7, v8 = call f1() -> (u32, [u32])
+            v10 = array_get v8, index u32 0 -> u32
+            return v10
         }
         brillig(inline_never) predicate_pure fn get_slice f1 {
           b0():
