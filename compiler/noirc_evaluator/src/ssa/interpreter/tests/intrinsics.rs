@@ -157,6 +157,81 @@ fn print_lambda() {
 }
 
 #[test]
+fn vector_pop_front_mutates_in_place_in_brillig() {
+    // In Brillig a vector mutator reuses the input allocation when its copy-on-write
+    // reference count is 1, just like `array_set`. Here `v0` has RC 1 and no protecting
+    // `inc_rc`, so `vector_pop_front` writes through the shared backing: reading the
+    // original handle afterwards observes the popped element gone (index 0 is now 200).
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 100, u32 200] : [u32]
+            v4, v5, v6 = call vector_pop_front(u32 2, v0) -> (u32, u32, [u32])
+            v7 = array_get v0, index u32 0 -> u32
+            return v7
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(200));
+}
+
+#[test]
+fn vector_pop_front_copies_when_shared() {
+    // With a protecting `inc_rc` the reference count is 2, so `vector_pop_front` must copy
+    // rather than mutate in place. The original handle is left untouched (index 0 is still 100).
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 100, u32 200] : [u32]
+            inc_rc v0
+            v4, v5, v6 = call vector_pop_front(u32 2, v0) -> (u32, u32, [u32])
+            v7 = array_get v0, index u32 0 -> u32
+            return v7
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(100));
+}
+
+#[test]
+fn vector_ops_always_copy_in_acir() {
+    // ACIR does not track reference counts, so vector mutators always copy. The original
+    // handle is preserved regardless of RC (index 0 is still 100).
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 100, u32 200] : [u32]
+            v4, v5, v6 = call vector_pop_front(u32 2, v0) -> (u32, u32, [u32])
+            v7 = array_get v0, index u32 0 -> u32
+            return v7
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(100));
+}
+
+#[test]
+fn vector_push_back_mutates_in_place_in_brillig() {
+    // The in-place reuse applies to growth as well: pushing onto an RC-1 vector writes through
+    // the shared backing, so the original handle can read the newly appended element at index 1.
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 100] : [u32]
+            v3, v4 = call vector_push_back(u32 1, v0, u32 200) -> (u32, [u32])
+            v5 = array_get v0, index u32 1 -> u32
+            return v5
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(200));
+}
+
+#[test]
 fn vector_pop_from_empty() {
     // Initial SSA of the following program:
     // fn main() -> pub Field {
