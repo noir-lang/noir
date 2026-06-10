@@ -35,8 +35,8 @@ use super::dc_crate::ModuleAttribute;
 use super::dc_crate::{CollectedItems, UnresolvedEnum};
 use super::{
     dc_crate::{
-        CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
-        UnresolvedTypeAlias,
+        CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedImpl,
+        UnresolvedTraitImpl, UnresolvedTypeAlias,
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
@@ -1467,14 +1467,14 @@ pub fn collect_impl(
     let impl_id = interner.next_impl_id();
 
     let key = (r#impl.object_type, module_id.local_id);
-    let methods = items.impls.entry(key).or_default();
-    methods.push((
-        r#impl.generics,
-        r#impl.where_clause,
-        r#impl.type_location,
-        unresolved_functions,
+    let impls = items.impls.entry(key).or_default();
+    impls.push(UnresolvedImpl {
+        generics: r#impl.generics,
+        where_clause: r#impl.where_clause,
+        object_type_location: r#impl.type_location,
+        methods: unresolved_functions,
         impl_id,
-    ));
+    });
 }
 
 fn find_module(

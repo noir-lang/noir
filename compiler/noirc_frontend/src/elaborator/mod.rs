@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::{Ident, UnresolvedGenerics, UnresolvedTraitConstraint},
+    ast::Ident,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -67,7 +67,7 @@ use crate::{
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
-                UnresolvedGlobal, UnresolvedTraitImpl, UnresolvedTypeAlias,
+                UnresolvedGlobal, UnresolvedImpl, UnresolvedTraitImpl, UnresolvedTypeAlias,
             },
             errors::DefCollectorErrorKind,
         },
@@ -1074,18 +1074,9 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_impls(
-        &mut self,
-        impls: Vec<(
-            UnresolvedGenerics,
-            Vec<UnresolvedTraitConstraint>,
-            Location,
-            UnresolvedFunctions,
-            ImplId,
-        )>,
-    ) {
-        for (_, _, _, functions, _) in impls {
-            self.recover_generics(|this| this.elaborate_functions(functions));
+    fn elaborate_impls(&mut self, impls: Vec<UnresolvedImpl>) {
+        for unresolved_impl in impls {
+            self.recover_generics(|this| this.elaborate_functions(unresolved_impl.methods));
         }
     }
 

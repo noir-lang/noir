@@ -80,12 +80,15 @@ use noirc_errors::Location;
 
 use crate::{
     Type,
-    ast::{UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType},
+    ast::UnresolvedType,
     hir::{
-        def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
+        def_collector::{
+            dc_crate::{UnresolvedFunctions, UnresolvedImpl},
+            errors::DefCollectorErrorKind,
+        },
         def_map::LocalModuleId,
     },
-    node_interner::{FuncId, ImplId, TraitId},
+    node_interner::{FuncId, TraitId},
 };
 
 use super::Elaborator;
@@ -109,23 +112,18 @@ impl Elaborator<'_> {
     pub(super) fn collect_impls(
         &mut self,
         module: LocalModuleId,
-        impls: &mut [(
-            UnresolvedGenerics,
-            Vec<UnresolvedTraitConstraint>,
-            Location,
-            UnresolvedFunctions,
-            ImplId,
-        )],
+        impls: &mut [UnresolvedImpl],
         self_type: &UnresolvedType,
     ) {
         let previous_local_module = self.replace_local_module(module);
 
-        for (generics, _, location, unresolved, _impl_id) in impls {
-            self.check_generics_appear_in_types(generics, &[self_type], &[]);
+        for unresolved_impl in impls {
+            self.check_generics_appear_in_types(&unresolved_impl.generics, &[self_type], &[]);
 
+            let location = unresolved_impl.object_type_location;
             self.recover_generics(|this| {
                 let no_trait_id = None;
-                this.declare_methods_on_data_type(no_trait_id, unresolved, *location);
+                this.declare_methods_on_data_type(no_trait_id, &unresolved_impl.methods, location);
             });
         }
 

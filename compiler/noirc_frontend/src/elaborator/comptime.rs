@@ -325,15 +325,15 @@ impl<'context> Elaborator<'context> {
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for ((object_type, _impl_module), impls_in_module) in impls {
-            for (generics, where_clause, type_location, methods, _impl_id) in impls_in_module {
+            for unresolved_impl in impls_in_module {
                 let impl_target = AttributeImplTarget {
                     object_type: object_type.clone(),
-                    generics: generics.clone(),
-                    where_clause: where_clause.clone(),
-                    type_location: *type_location,
+                    generics: unresolved_impl.generics.clone(),
+                    where_clause: unresolved_impl.where_clause.clone(),
+                    type_location: unresolved_impl.object_type_location,
                 };
                 self.collect_attributes_on_functions(
-                    std::slice::from_ref(methods),
+                    std::slice::from_ref(&unresolved_impl.methods),
                     Some(&impl_target),
                     attributes_to_run,
                 );

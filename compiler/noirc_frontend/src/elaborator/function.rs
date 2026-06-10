@@ -25,7 +25,9 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
+        def_collector::dc_crate::{
+            ImplMap, UnresolvedFunctions, UnresolvedImpl, UnresolvedTraitImpl,
+        },
         def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
@@ -136,50 +138,44 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(
-            UnresolvedGenerics,
-            Vec<UnresolvedTraitConstraint>,
-            Location,
-            UnresolvedFunctions,
-            ImplId,
-        )>,
+        impls: &mut Vec<UnresolvedImpl>,
     ) {
         let previous_local_module = self.replace_local_module(local_module);
 
-        for (generics, where_clause, location, function_set, impl_id) in function_sets {
-            let impl_id = *impl_id;
+        for unresolved_impl in impls {
+            let impl_id = unresolved_impl.impl_id;
 
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
-            let resolved_generics = self.add_generics(generics);
+            let resolved_generics = self.add_generics(&unresolved_impl.generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
-            function_set.self_type = Some(self_type.clone());
+            unresolved_impl.methods.self_type = Some(self_type.clone());
 
             // Resolve the impl's where clause so it can be recovered later (e.g. by
             // `nargo expand`). The constraints are resolved with the impl generics in scope so
             // they share type variables with the methods' copies of these constraints (each
             // method's where clause is extended with the impl's during def collection).
             let resolved_where_clause =
-                self.resolve_trait_constraints_and_add_to_scope(where_clause);
+                self.resolve_trait_constraints_and_add_to_scope(&unresolved_impl.where_clause);
 
             self.interner.add_impl(
                 impl_id,
                 Impl {
-                    location: *location,
+                    location: unresolved_impl.object_type_location,
                     typ: self_type.clone(),
-                    file: location.file,
+                    file: unresolved_impl.object_type_location.file,
                     crate_id: self.crate_id,
                     module_id: ModuleId { krate: self.crate_id, local_id: local_module },
                     generics: resolved_generics,
-                    methods: function_set.function_ids(),
+                    methods: unresolved_impl.methods.function_ids(),
                     where_clause: resolved_where_clause.clone(),
                 },
             );
 
             let outer_generics = self.generics.clone();
-            for (method_module, id, func) in &function_set.functions {
+            for (method_module, id, func) in &unresolved_impl.methods.functions {
                 self.unresolved_function_metas.insert(
                     *id,
                     UnresolvedFunctionMeta {
