@@ -14,7 +14,7 @@ use noirc_frontend::{
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
-    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait, traits::TraitConstraint},
     modules::module_full_path,
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
@@ -512,7 +512,26 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             }
         }
 
-        let trait_constraints = &func_meta.trait_constraints;
+        // An inherent impl's where clause is copied onto each method's constraints during
+        // collection. Those belong to the impl, not the method, so exclude them here and show
+        // only the method's own constraints. The impl's where clause is re-resolved per method,
+        // minting fresh type variables for any associated types it introduces, so match on the
+        // constrained type, trait, and ordered generics rather than by exact equality.
+        let impl_where_clause = func_meta
+            .impl_id
+            .map(|impl_id| args.interner.get_impl(impl_id).where_clause.clone())
+            .unwrap_or_default();
+        let is_from_impl = |constraint: &TraitConstraint| {
+            impl_where_clause.iter().any(|parent| {
+                parent.typ == constraint.typ
+                    && parent.trait_bound.trait_id == constraint.trait_bound.trait_id
+                    && parent.trait_bound.trait_generics.ordered
+                        == constraint.trait_bound.trait_generics.ordered
+            })
+        };
+
+        let trait_constraints: Vec<_> =
+            func_meta.trait_constraints.iter().filter(|c| !is_from_impl(c)).collect();
         if !trait_constraints.is_empty() {
             string.push_str(" where ");
             for (index, constraint) in trait_constraints.iter().enumerate() {
