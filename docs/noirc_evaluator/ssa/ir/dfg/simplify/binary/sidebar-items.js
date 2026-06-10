@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["simplify_binary"]};
+window.SIDEBAR_ITEMS = {"fn":["can_simplify_arithmetic_identity","simplify_binary"]};
