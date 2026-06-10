@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781092194705,
+  "lastUpdate": 1781092230684,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "85425c706837bce404f87ad51cb5d571055376fa",
-          "message": "fix(frontend): force unconstrained when monomorphizing into unconstrained fn target (#12831)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-05T11:50:00Z",
-          "tree_id": "b094b4a026b6fcdc5878019d8e4396b6332b83a9",
-          "url": "https://github.com/noir-lang/noir/commit/85425c706837bce404f87ad51cb5d571055376fa"
-        },
-        "date": 1780661825233,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 163912,
-            "range": "± 197",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142194,
-            "range": "± 1591",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2125354,
-            "range": "± 1108",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "7a7deaa46ab4c8e32eb1e801a8e2d072ae8502eb",
           "message": "fix: use global comptime-value in ABI (#12714)",
           "timestamp": "2026-06-05T13:08:56Z",
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657891,
             "range": "± 5864",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "369212296b7cfbb9ba61471830d6ce9fd5b91472",
+          "message": "fix(ssa): correct transposed sha256_compression constant-fold bindings (#12975)",
+          "timestamp": "2026-06-10T11:16:54Z",
+          "tree_id": "f38456b853357dcf8b3b50abf0397715f9ba255b",
+          "url": "https://github.com/noir-lang/noir/commit/369212296b7cfbb9ba61471830d6ce9fd5b91472"
+        },
+        "date": 1781092158813,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127175,
+            "range": "± 538",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112213,
+            "range": "± 2596",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3038416,
+            "range": "± 1995",
             "unit": "ns/iter"
           }
         ]
