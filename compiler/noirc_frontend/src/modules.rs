@@ -238,11 +238,61 @@ pub fn module_def_id_relative_path(
 pub fn module_def_id_is_visible(
     module_def_id: ModuleDefId,
     current_module_id: ModuleId,
+    visibility: ItemVisibility,
+    defining_module: Option<ModuleId>,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+    dependencies: &[Dependency],
+) -> bool {
+    module_def_id_is_visible_impl(
+        module_def_id,
+        current_module_id,
+        visibility,
+        defining_module,
+        interner,
+        def_maps,
+        Some(dependencies),
+    )
+}
+
+/// Like `module_def_id_is_visible`, but only considers visibility modifiers and ignores whether
+/// the defining crate is reachable through the current crate's dependency edges.
+///
+/// This is used by the macro-spliced-type leak check: a maximally-public type that lives in a
+/// transitive dependency is legitimately part of the public API surface even though it cannot be
+/// named by an explicit path from the current crate (which would require a direct dependency edge).
+/// The leak check only cares whether the type's own visibility (and its enclosing modules') is
+/// public enough, not about path reachability.
+pub fn module_def_id_is_visible_ignoring_dependencies(
+    module_def_id: ModuleDefId,
+    current_module_id: ModuleId,
+    visibility: ItemVisibility,
+    defining_module: Option<ModuleId>,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    module_def_id_is_visible_impl(
+        module_def_id,
+        current_module_id,
+        visibility,
+        defining_module,
+        interner,
+        def_maps,
+        None,
+    )
+}
+
+/// When `dependencies` is `Some`, an item in a crate that is neither the current crate nor one of
+/// its dependencies is considered not visible. When `None`, only the visibility modifiers along the
+/// module chain are checked.
+fn module_def_id_is_visible_impl(
+    module_def_id: ModuleDefId,
+    current_module_id: ModuleId,
     mut visibility: ItemVisibility,
     mut defining_module: Option<ModuleId>,
     interner: &NodeInterner,
     def_maps: &DefMaps,
-    dependencies: &[Dependency],
+    dependencies: Option<&[Dependency]>,
 ) -> bool {
     // First find out which module we need to check.
     // If a module is trying to be referenced, it's that module. Otherwise it's the module that contains the item.
@@ -261,7 +311,8 @@ pub fn module_def_id_is_visible(
 
         // If the target module isn't in the same crate as `module_id` or isn't in one of its
         // dependencies, then it's not visible.
-        if module_id.krate != current_module_id.krate
+        if let Some(dependencies) = dependencies
+            && module_id.krate != current_module_id.krate
             && dependencies.iter().all(|dep| dep.crate_id != module_id.krate)
         {
             return false;
@@ -292,10 +343,47 @@ pub fn get_ancestor_module_reexport(
     def_maps: &DefMaps,
     dependencies: &[Dependency],
 ) -> Option<Reexport> {
+    get_ancestor_module_reexport_impl(
+        module_def_id,
+        visibility,
+        current_module_id,
+        interner,
+        def_maps,
+        Some(dependencies),
+    )
+}
+
+/// Like `get_ancestor_module_reexport`, but ignores whether the defining crate is reachable through
+/// the current crate's dependency edges (see `module_def_id_is_visible_ignoring_dependencies`).
+pub fn get_ancestor_module_reexport_ignoring_dependencies(
+    module_def_id: ModuleDefId,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> Option<Reexport> {
+    get_ancestor_module_reexport_impl(
+        module_def_id,
+        visibility,
+        current_module_id,
+        interner,
+        def_maps,
+        None,
+    )
+}
+
+fn get_ancestor_module_reexport_impl(
+    module_def_id: ModuleDefId,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+    dependencies: Option<&[Dependency]>,
+) -> Option<Reexport> {
     let parent_module = get_parent_module(module_def_id, interner, def_maps)?;
     let reexport =
         interner.get_reexports(ModuleDefId::ModuleId(parent_module)).iter().find(|reexport| {
-            module_def_id_is_visible(
+            module_def_id_is_visible_impl(
                 ModuleDefId::ModuleId(reexport.module_id),
                 current_module_id,
                 reexport.visibility,
@@ -310,7 +398,7 @@ pub fn get_ancestor_module_reexport(
     }
 
     // Try searching in the parent's parent module.
-    let mut grandparent_module_reexport = get_ancestor_module_reexport(
+    let mut grandparent_module_reexport = get_ancestor_module_reexport_impl(
         ModuleDefId::ModuleId(parent_module),
         visibility,
         current_module_id,
@@ -320,7 +408,7 @@ pub fn get_ancestor_module_reexport(
     )?;
 
     // If we can find one, we need to check if ModuleDefId is actually visible from the grandparent module
-    if !module_def_id_is_visible(
+    if !module_def_id_is_visible_impl(
         module_def_id,
         current_module_id,
         visibility,

@@ -14,7 +14,10 @@ use crate::{
         },
     },
     hir_def::function::FuncMeta,
-    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
+    modules::{
+        get_ancestor_module_reexport_ignoring_dependencies,
+        module_def_id_is_visible_ignoring_dependencies,
+    },
     node_interner::{FuncId, FunctionModifiers},
 };
 
@@ -103,40 +106,40 @@ impl Elaborator<'_> {
         visibility
     }
 
-    /// Whether a foreign data type can be named from the current module: directly, via a
-    /// `pub use` re-export of the type itself, or via a re-export of one of its ancestor
-    /// modules. This mirrors what naming the type by hand would require, so a macro-spliced
-    /// resolved type cannot expose a dependency-private type that hand-written code could not.
+    /// Whether a foreign data type's visibility is public enough to be exposed from the current
+    /// module: the type itself (and its enclosing modules) is visible, the type is `pub use`
+    /// re-exported, or one of its ancestor modules is re-exported.
+    ///
+    /// Unlike path resolution, this ignores whether the defining crate is a direct dependency. A
+    /// maximally-public type reached from a transitive dependency (e.g. by a macro reflecting over
+    /// an accessible value's field) is part of the public API surface and is not "more private"
+    /// than the item it is spliced into, even though it could not be named by an explicit path.
     fn foreign_type_is_visible(&self, struct_type: &DataType) -> bool {
         let module_def_id = ModuleDefId::TypeId(struct_type.id);
         let visibility = struct_type.visibility;
-        let dependencies = &self.crate_graph[self.crate_id].dependencies;
 
-        module_def_id_is_visible(
+        module_def_id_is_visible_ignoring_dependencies(
             module_def_id,
             self.module_id(),
             visibility,
             None,
             self.interner,
             self.def_maps,
-            dependencies,
         ) || self.interner.get_reexports(module_def_id).iter().any(|reexport| {
-            module_def_id_is_visible(
+            module_def_id_is_visible_ignoring_dependencies(
                 module_def_id,
                 self.module_id(),
                 reexport.visibility,
                 Some(reexport.module_id),
                 self.interner,
                 self.def_maps,
-                dependencies,
             )
-        }) || get_ancestor_module_reexport(
+        }) || get_ancestor_module_reexport_ignoring_dependencies(
             module_def_id,
             visibility,
             self.module_id(),
             self.interner,
             self.def_maps,
-            dependencies,
         )
         .is_some()
     }

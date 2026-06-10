@@ -1,0 +1,7 @@
+[package]
+name = "comptime_transitive_public_dependency_type"
+type = "bin"
+authors = [""]
+
+[dependencies]
+midlib = { path = "./midlib" }
