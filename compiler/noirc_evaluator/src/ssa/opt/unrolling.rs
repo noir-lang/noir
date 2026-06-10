@@ -1996,11 +1996,11 @@ impl<'f> LoopIteration<'f> {
                 // independent predecessor carrying a different argument, and its parameters
                 // must be preserved so the join body runs once over the merged parameter;
                 // specializing would copy the body for this edge and drop it for the others.
-                let folding_block_dominates_destination = self
-                    .dominates_jmpif_target
-                    .get(&(folding_block, original_destination))
-                    .copied()
-                    .unwrap_or(false);
+                // Every loop block with a `JmpIf` has its `then`/`else` targets recorded by
+                // `compute_jmpif_target_dominance`, and `folding_block` is always such a block
+                // (see the loop-membership assertion in `unroll_loop_block`), so the entry must exist.
+                let folding_block_dominates_destination =
+                    self.dominates_jmpif_target[&(folding_block, original_destination)];
                 if folding_block_dominates_destination {
                     let destination_params = self.dfg().block_parameters(destination).to_vec();
                     for (param, arg) in destination_params.iter().zip(&arguments) {
