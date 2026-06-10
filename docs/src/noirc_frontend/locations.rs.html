@@ -21,7 +21,7 @@
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">impl </span>LocationIndices {
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location, node_index: PetGraphIndex) {
 <a href=#23 id=23 data-nosnippet>23</a>        <span class="comment">// Some location spans are empty: maybe they are from fictitious nodes?
-<a href=#24 id=24 data-nosnippet>24</a>        </span><span class="kw">if </span>location.span.start() == location.span.end() {
+<a href=#24 id=24 data-nosnippet>24</a>        </span><span class="kw">if </span>location.span.is_empty() {
 <a href=#25 id=25 data-nosnippet>25</a>            <span class="kw">return</span>;
 <a href=#26 id=26 data-nosnippet>26</a>        }
 <a href=#27 id=27 data-nosnippet>27</a>
