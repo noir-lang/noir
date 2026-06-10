@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781095426234,
+  "lastUpdate": 1781095714693,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e7d68c13d2eaec25e4d8bf66d3176a9d317203a6",
-          "message": "chore(deps): bump assert_fs from 1.1.3 to 1.1.4 (#12903)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-05T15:38:57Z",
-          "tree_id": "9364d3a33c8cc665dd5f8ce9c44fb26ea969f64e",
-          "url": "https://github.com/noir-lang/noir/commit/e7d68c13d2eaec25e4d8bf66d3176a9d317203a6"
-        },
-        "date": 1780675564624,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165772,
-            "range": "± 1710",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134692,
-            "range": "± 3569",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648520,
-            "range": "± 26005",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042426,
             "range": "± 9066",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "eb63bb840241ebb5ed5eee9c130396d85c2a4f06",
+          "message": "fix(lsp): show function where clauses in hover (#12985)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-10T12:20:31Z",
+          "tree_id": "3e9d73e32563c478cfab7d16e1f57c3d6947a31a",
+          "url": "https://github.com/noir-lang/noir/commit/eb63bb840241ebb5ed5eee9c130396d85c2a4f06"
+        },
+        "date": 1781095658849,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98134,
+            "range": "± 398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87590,
+            "range": "± 737",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2358455,
+            "range": "± 1441",
             "unit": "ns/iter"
           }
         ]
