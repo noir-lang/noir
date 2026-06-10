@@ -440,18 +440,13 @@ pub(crate) struct Loop {
 /// upper 5) looks identical to an executed `for i in 0..5`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoopBoundKind {
-    /// `i < upper`: the body executes iff `lower < upper`. The guard caps every visited value
-    /// below `upper`, so `[lower, upper)` over-approximates the visited values for any step.
+    /// `i < upper`: the body executes iff `lower < upper`.
     LessThan,
     /// `i == upper - 1` (an `Eq`/`Not` header with the body on the `then` branch):
-    /// the body executes iff `lower == upper - 1`. The body only ever runs on the single value
-    /// `upper - 1`, so `[lower, upper)` over-approximates the visited values for any step.
+    /// the body executes iff `lower == upper - 1`.
     Equal,
     /// `i != upper` (an `Eq` header with the body on the *else* branch): the body executes iff
-    /// `lower != upper`. Unlike `LessThan`, the guard only stops the loop when the induction
-    /// variable lands *exactly* on `upper`; a non-unit step can skip over `upper` and run the
-    /// body on values past it, so `[lower, upper)` over-approximates the visited values only when
-    /// the step is `0` or `1`.
+    /// `lower != upper`.
     NotEqual,
 }
 
@@ -480,16 +475,16 @@ impl LoopBounds {
         }
     }
 
-    /// Whether the `[lower, upper)` interval over-approximates the values the induction variable
-    /// actually visits, given its per-iteration `step`. This is what makes it sound to use the
-    /// bounds for value-range reasoning (e.g. proving a comparison or that an arithmetic operation
-    /// cannot overflow).
+    /// Whether every value the induction variable takes on stays inside `[lower, upper)`, given
+    /// its per-iteration `step`. When this holds we can safely use the bounds as the variable's
+    /// value range (e.g. to fold a comparison or prove an arithmetic operation cannot overflow).
     ///
-    /// A `NotEqual` guard only stops the loop when the induction variable lands exactly on
-    /// `upper`; a non-unit step can step over `upper` and visit larger values, so the interval is
-    /// only an over-approximation when the step is `0` (constant induction variable) or `1`. The
-    /// other guard kinds bound the visited values for any step (see [`LoopBoundKind`]).
-    pub(super) fn over_approximates_visited_values(self, step: IntegerConstant) -> bool {
+    /// `LessThan` and `Equal` keep the variable inside the bounds for any step: their guards stop
+    /// the loop at or before `upper`. A `NotEqual` guard only stops the loop when the variable
+    /// lands exactly on `upper`, so a step larger than `1` can jump past `upper` and keep going,
+    /// taking on values outside `[lower, upper)`. So `NotEqual` only stays within the bounds when
+    /// the step is `0` (the variable never moves) or `1` (it can't skip over `upper`).
+    pub(super) fn visited_values_stay_within_bounds(self, step: IntegerConstant) -> bool {
         match self.kind {
             LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
             LoopBoundKind::NotEqual => step.is_zero() || step.is_one(),

@@ -314,13 +314,11 @@ impl LoopContext {
         }
         let induction = get_induction_var_bounds(inserter, loop_, pre_header);
         let does_loop_execute = does_loop_execute(induction.map(|(_, bounds, _)| bounds));
-        // `does_loop_execute` is sound for any step, but the `[lower, upper)` interval only bounds
-        // the induction variable's visited values for some step/guard combinations. Only record it
-        // as a value range when it actually over-approximates those values, otherwise simplifying
-        // from the bounds (e.g. folding a comparison) would be unsound.
-        let induction_variable = induction
-            .filter(|(_, bounds, step)| bounds.over_approximates_visited_values(*step))
-            .map(|(var, bounds, step)| (var, bounds, step));
+        // Only keep the bounds when every value the induction variable visits stays within them.
+        // Otherwise using them as a value range (e.g. to fold a comparison or prove an add cannot
+        // overflow) would be unsound.
+        let induction_variable =
+            induction.filter(|(_, bounds, step)| bounds.visited_values_stay_within_bounds(*step));
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -503,12 +501,11 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
-        // Only record bounds that over-approximate the visited values: the outer-bound consumers
-        // (array-access hoisting, `match_induction_and_constant`) use the interval as a value
-        // range, which a non-unit-step `!=`-guarded loop would violate.
+        // As above, only record the bounds when every visited value stays within them, otherwise
+        // using them as a value range would be unsound.
         if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
-            && bounds.over_approximates_visited_values(step)
+            && bounds.visited_values_stay_within_bounds(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }
