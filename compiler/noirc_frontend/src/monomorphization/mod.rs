@@ -2496,6 +2496,13 @@ impl<'interner> Monomorphizer<'interner> {
             });
         }
 
+        if return_type.contains_enum() {
+            return Err(MonomorphizationError::UnconstrainedEnumReturnToConstrained {
+                typ: return_type.to_string(),
+                location,
+            });
+        }
+
         Ok(())
     }
 

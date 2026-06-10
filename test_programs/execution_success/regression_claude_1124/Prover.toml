@@ -1,0 +1,37 @@
+zero = "0"
+one = "1"
+two = "2"
+return = 33
+
+[[arr]]
+x = 1
+
+[[arr.inner]]
+a = 10
+b = 11
+
+[[arr.inner]]
+a = 12
+b = 13
+
+[[arr]]
+x = 2
+
+[[arr.inner]]
+a = 20
+b = 21
+
+[[arr.inner]]
+a = 22
+b = 23
+
+[[arr]]
+x = 3
+
+[[arr.inner]]
+a = 30
+b = 31
+
+[[arr.inner]]
+a = 32
+b = 33
