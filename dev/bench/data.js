@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781101174185,
+  "lastUpdate": 1781101176299,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4968,100 +4968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "48a92be208e037fe339d2220c62d79f44f5e8259",
-          "message": "chore(deps): bump nwtgck/actions-netlify from 3.0.0 to 4.0.0 (#12940)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-08T09:52:01Z",
-          "tree_id": "487f312326bab40d19ffe4fa64f4fff0f03cb685",
-          "url": "https://github.com/noir-lang/noir/commit/48a92be208e037fe339d2220c62d79f44f5e8259"
-        },
-        "date": 1780914506682,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 7.376,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 18.92,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 3.532,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.99,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.99,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.094,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 264,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 262,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.168,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 23.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 107.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.016,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.217,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.615,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "3b78c15ecc876c752d30bce7f8567ad002da6fa5",
           "message": "chore(deps): bump log from 0.4.30 to 0.4.31 (#12904)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-06-08T09:52:33Z",
@@ -9896,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.438,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d32027552301e087dec5a199b5f5ba9749662d5b",
+          "message": "fix(licm): don't use loop bounds as a value range for non-unit-step != loops (#12981)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-10T13:38:12Z",
+          "tree_id": "5883832ec5ffbc563215e6d685c0869aa6b0f134",
+          "url": "https://github.com/noir-lang/noir/commit/d32027552301e087dec5a199b5f5ba9749662d5b"
+        },
+        "date": 1781101106222,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 5.89,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 20.54,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 3.884,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.334,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.83,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 269,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 265,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.506,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 18.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 109.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.068,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.299,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.935,
             "unit": "s"
           }
         ]
