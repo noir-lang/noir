@@ -1,0 +1,26 @@
+---
+source: compiler/noirc_frontend/src/tests/expand.rs
+expression: expanded
+---
+trait Bar {
+
+}
+
+impl Bar for Field {
+
+}
+
+struct Foo<T> {
+    x: T,
+}
+
+impl<T> Foo<T> {
+    fn get(self) -> T where T: Bar {
+        self.x
+    }
+}
+
+fn main() {
+    let foo: Foo<Field> = Foo::<Field> { x: 1_Field};
+    let _: Field = foo.get();
+}

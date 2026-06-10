@@ -9,6 +9,7 @@ mod cast;
 mod control_flow;
 mod deeply_nested;
 mod enums;
+mod expand;
 mod expressions;
 mod functions;
 mod globals;
