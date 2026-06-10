@@ -88,6 +88,12 @@ impl Span {
         self.0.end().into()
     }
 
+    /// Returns `true` if the span covers no characters, i.e. its start and end coincide
+    /// (as produced by [`Span::empty`]).
+    pub fn is_empty(&self) -> bool {
+        self.start() == self.end()
+    }
+
     pub fn contains(&self, other: &Span) -> bool {
         self.start() <= other.start() && self.end() >= other.end()
     }
@@ -148,5 +154,13 @@ mod tests {
 
         assert!(!Span::from(5..10).intersects(&Span::from(11..12)));
         assert!(!Span::from(11..12).intersects(&Span::from(5..10)));
+    }
+
+    #[test]
+    fn test_is_empty() {
+        assert!(Span::empty(5).is_empty());
+        assert!(Span::from(5..5).is_empty());
+        assert!(!Span::single_char(5).is_empty());
+        assert!(!Span::from(5..10).is_empty());
     }
 }
