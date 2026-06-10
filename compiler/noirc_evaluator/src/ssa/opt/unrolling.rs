@@ -1942,7 +1942,10 @@ impl<'f> LoopIteration<'f> {
         let condition = self.inserter.resolve(condition);
 
         // The block whose `JmpIf` we are folding. Captured before `source_block` is
-        // reassigned to the chosen destination below.
+        // reassigned to the chosen destination below. `source_block` always holds an
+        // original (pre-unroll) block id, so no `get_original_block` mapping is needed:
+        // every assignment to it is either the loop header or already passed through
+        // `get_original_block`.
         let folding_block = self.source_block;
 
         match self.dfg().get_numeric_constant(condition) {
