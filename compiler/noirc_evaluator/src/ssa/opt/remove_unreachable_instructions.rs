@@ -121,21 +121,51 @@
 //! return v1, u32 0
 //! ```
 //!
+//! ## Why a failing instruction makes the rest of the block unreachable
+//!
+//! The pass only declares a block fully unreachable — dropping every following instruction and
+//! replacing the terminator with `unreachable` (the `Reachability::Unreachable` state) — when
+//! it finds an instruction that fails *unconditionally*. Failures that are only conditional
+//! (an overflowing binary op or an out-of-bounds access guarded by a non-constant predicate)
+//! take the separate `Reachability::UnreachableUnderPredicate` path, which replaces results
+//! with default values rather than deleting the block tail. Correctness therefore rests on the
+//! cases that reach the unconditional `Unreachable` path never being maskable by a runtime
+//! predicate. Each such case is justified below, so this can be checked without reading ACIR
+//! generation:
+//!
+//! - **`Constrain` (equality assert).** An equality `constrain` ignores the side-effects
+//!   predicate in both runtimes: ACIR generation lowers it to an unconditional equality
+//!   assertion (`assert_eq_var`, with no `enable_side_effects` predicate applied), and in
+//!   Brillig a failed assert aborts execution. A *conditional* assert never reaches this code
+//!   as a comparison of two constants, because [flatten_cfg][`super::flatten_cfg`] folds the
+//!   active predicate into the operands (`constrain lhs == rhs` becomes
+//!   `constrain cond * lhs == cond * rhs`); a guarded assert therefore has a non-constant
+//!   operand (e.g. `constrain 0 == v0`) and the pass returns early on it. Hence a `Constrain`
+//!   with two *unequal constant* operands always fails, and its successors are genuinely
+//!   unreachable.
+//!
+//! - **`ConstrainNotEqual`.** Unlike equality, this instruction *does* respect the side-effects
+//!   predicate (ACIR generation lowers it with `enable_side_effects` as the predicate), so it
+//!   would be unsound to treat a failing one as unconditional if it could sit under a
+//!   non-constant predicate. That cannot happen:
+//!   [make_constrain_not_equal][`super::make_constrain_not_equal`] only ever creates a
+//!   `ConstrainNotEqual` when the active predicate is the constant one, and explicitly refuses
+//!   to otherwise (it documents that, because the two instructions differ in exactly this
+//!   respect, the transformation would be a miscompilation). So a `ConstrainNotEqual` with two
+//!   *equal constant* operands also always fails.
+//!
+//! - **Binary overflow / division by zero, array out-of-bounds, empty vector pops.** These
+//!   consult the predicate explicitly (`is_predicate_constant_one`): they only move to
+//!   `Unreachable` when the predicate is known to be one, and otherwise fall back to
+//!   `UnreachableUnderPredicate`.
+//!
 //! ## Preconditions:
-//! - in ACIR, this pass must run *after* [flatten_cfg][`super::flatten_cfg`]. Treating a
-//!   failing `constrain` as making the block unreachable is only sound when that `constrain`
-//!   fails *unconditionally*. In ACIR there is no control flow: a `constrain` under a
-//!   non-constant `enable_side_effects v0` predicate is only enforced when `v0` is one, so for
-//!   witnesses where `v0` is zero the surrounding instructions still execute and contribute to
-//!   the output. Flattening folds the active predicate into the operands of every guarded
-//!   `constrain` (`constrain lhs == rhs` becomes `constrain cond * lhs == cond * rhs`), so a
-//!   guarded constraint becomes `constrain 0 == v0` (a non-constant operand the pass skips).
-//!   A `constrain c1 == c2` that still has two mismatched constant operands is therefore
-//!   genuinely unconditional, and treating the rest of the circuit as unreachable is sound.
-//!   (In Brillig there are no predicates and a failing `constrain` is a real abort, so its
-//!   successors are genuinely unreachable regardless.) This precondition is checked at runtime
-//!   when deciding that a `constrain` makes a block unreachable (see the assertions in
-//!   [`Function::remove_unreachable_instructions`]).
+//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`] (so guarded asserts have
+//!   their predicate folded into the constrain operands) and *after*
+//!   [make_constrain_not_equal][`super::make_constrain_not_equal`] (so every `ConstrainNotEqual`
+//!   was created under a constant-one predicate). See the correctness notes above for why both
+//!   are required; nothing may re-introduce branches or predicated constraints between those
+//!   passes and this one.
 //! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
@@ -268,7 +298,6 @@ impl Function {
                         return;
                     };
                     if lhs_constant != rhs_constant {
-                        assert_constrain_is_not_predicated(is_predicate_constant_one);
                         current_block_reachability = Reachability::Unreachable;
                     }
                 }
@@ -280,7 +309,6 @@ impl Function {
                         return;
                     };
                     if lhs_constant == rhs_constant {
-                        assert_constrain_is_not_predicated(is_predicate_constant_one);
                         current_block_reachability = Reachability::Unreachable;
                     }
                 }
@@ -415,25 +443,6 @@ impl Function {
             }
         });
     }
-}
-
-/// Precondition check for the `Constrain`/`ConstrainNotEqual` handling: a constraint with
-/// constant operands that is guaranteed to fail may only mark the rest of the block as
-/// unreachable when it is not gated by a runtime predicate, i.e. the active
-/// `enable_side_effects` condition is the constant `1`.
-///
-/// This holds for any SSA that has been flattened (see this module's preconditions): a
-/// constraint guarded by a non-constant predicate `cond` has that predicate folded into its
-/// operands by [flatten_cfg][`super::flatten_cfg`] (`constrain cond * lhs == cond * rhs`), so
-/// at least one operand is non-constant and the always-fails branch is never reached. If this
-/// assertion ever trips, the pass is being run on un-flattened SSA where a failing constraint
-/// is still guarded by a predicate, and treating the block as unreachable would be unsound.
-fn assert_constrain_is_not_predicated(is_predicate_constant_one: bool) {
-    assert!(
-        is_predicate_constant_one,
-        "remove_unreachable_instructions: a failing constrain with constant operands is gated by a non-constant predicate; \
-         the SSA must be flattened (so the predicate is folded into the constrain operands) before running this pass"
-    );
 }
 
 /// If a binary operation is guaranteed to fail, returns the error message. Otherwise returns None.
@@ -765,38 +774,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "gated by a non-constant predicate")]
-    fn rejects_failing_constrain_under_non_constant_predicate() {
-        // This is the unsound scenario from the audit finding: a `constrain 0 == 1` that is
-        // guarded by a non-constant `enable_side_effects` predicate. After flattening this can
-        // never occur (the predicate is folded into the operands, giving `constrain 0 == v0`),
-        // so reaching it means the SSA was not flattened. The pass must reject it rather than
-        // mark the (conditionally reachable) instructions after it as unreachable.
+    fn does_not_treat_predicated_failing_constraint_as_unreachable() {
+        // A `constrain` whose operands are not both constant is conditional: after flattening,
+        // a guarded assert has its predicate folded into the operands (e.g. `constrain 0 == v0`),
+        // so it only fails when the predicate is active. Such a constraint must NOT make the
+        // block unreachable, otherwise instructions that execute when the predicate is off would
+        // be dropped. The pass returns early on the non-constant operand and leaves it (and
+        // everything after it) untouched.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            constrain u1 0 == u1 1
-            return
+            constrain u1 0 == v0
+            v1 = add u32 1, u32 2
+            return v1
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.remove_unreachable_instructions();
-    }
-
-    #[test]
-    #[should_panic(expected = "gated by a non-constant predicate")]
-    fn rejects_failing_constrain_not_equal_under_non_constant_predicate() {
-        let src = r#"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            constrain u1 0 != u1 0
-            return
-        }
-        "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.remove_unreachable_instructions();
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]
