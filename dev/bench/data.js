@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781095416927,
+  "lastUpdate": 1781095419934,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "42dc27aa92cdfe8e3f3bc69114e7431d720b5713",
-          "message": "chore: overlapping trait impls follow-up (#11747)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-06-05T15:15:52Z",
-          "tree_id": "5c9e1c2a30b0bebd40bb25a318085d2869a16071",
-          "url": "https://github.com/noir-lang/noir/commit/42dc27aa92cdfe8e3f3bc69114e7431d720b5713"
-        },
-        "date": 1780674512390,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 99637,
-            "range": "± 358",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 88327,
-            "range": "± 1043",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2359694,
-            "range": "± 4922",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2358382,
             "range": "± 2537",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d1603eafe480d72a55658bf270def93d422d042",
+          "message": "chore: document that dropping no-effect EnableSideEffectsIf is expected (#12980)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-06-10T12:12:43Z",
+          "tree_id": "489fb83b05fc7ef260bfb3fdd5552116ba73a89b",
+          "url": "https://github.com/noir-lang/noir/commit/2d1603eafe480d72a55658bf270def93d422d042"
+        },
+        "date": 1781095346294,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128790,
+            "range": "± 806",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112526,
+            "range": "± 3223",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042426,
+            "range": "± 9066",
             "unit": "ns/iter"
           }
         ]
