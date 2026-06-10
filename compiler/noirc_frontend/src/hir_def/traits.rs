@@ -118,12 +118,6 @@ pub struct TraitImpl {
 
 /// A completed inherent `impl` block, i.e. one that does not implement a trait,
 /// such as `impl<T> Foo<T> where T: Bar { ... }`.
-///
-/// Unlike methods, which are recorded individually in the [`NodeInterner`], this records the
-/// impl block as a whole so its generics and where clause can be recovered later (for example
-/// by `nargo expand` and `nargo doc`). The impl's where clause is also copied onto each method
-/// during def collection; recording it here lets consumers tell the impl's constraints apart
-/// from each method's own.
 #[derive(Debug)]
 pub struct Impl {
     pub location: Location,

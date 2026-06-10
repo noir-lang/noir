@@ -176,10 +176,6 @@ pub struct NodeInterner {
     trait_impl_associated_constants: HashMap<TraitImplId, HashMap<String, (DefinitionId, Type)>>,
 
     /// Inherent `impl` blocks (those that do not implement a trait), indexed by `ImplId`.
-    ///
-    /// Unlike methods, which are recorded individually in `self.methods`, this records each
-    /// impl block as a whole so its generics and where clause can be recovered later (e.g. by
-    /// `nargo expand` and `nargo doc`).
     pub(crate) impls: HashMap<ImplId, Impl>,
 
     next_impl_id: usize,
