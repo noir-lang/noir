@@ -4555,4 +4555,50 @@ mod control_dependence {
         "#;
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
+
+    #[test]
+    fn does_not_hoist_div_with_descending_outer_loop_bounds() {
+        // Outer header `b1(v1: u32, v2: u32)`: v1 is the first block parameter and is
+        // therefore misidentified as the induction variable. The header exits via
+        // `eq v1, u32 2`, so `get_const_upper_bound` returns 2 while the pre-header
+        // supplies 5 as the lower bound — an inverted range (5, 2).
+        //
+        // `can_evaluate_binary_op`'s Div/Mod arm proves the divisor is non-zero from the
+        // induction-variable bounds. With an inverted range neither bound is zero, so the
+        // misidentified `v1` is wrongly declared provably non-zero and `u32 10 / v1` is
+        // hoisted out of its control-dependent block. The bounds are bogus — they do not
+        // constrain the runtime value of `v1`, which may be 0 — so the divide must stay put.
+        //
+        // The `div` sits behind a runtime predicate `v0` so that, absent the spurious
+        // non-zero proof, the control-dependence gate would correctly refuse to hoist it.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 5, u32 0)
+          b1(v1: u32, v2: u32):
+            v4 = eq v1, u32 2
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            jmp b4(u32 0)
+          b4(v3: u32):
+            v6 = lt v3, u32 4
+            jmpif v6 then: b5(), else: b6()
+          b5():
+            jmpif v0 then: b7(), else: b8()
+          b6():
+            v8 = unchecked_add v2, u32 1
+            jmp b1(v1, v8)
+          b7():
+            v10 = div u32 10, v1
+            constrain v10 == u32 2
+            jmp b8()
+          b8():
+            v12 = unchecked_add v3, u32 1
+            jmp b4(v12)
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
 }

@@ -532,6 +532,42 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     assert_no_errors(src);
 }
 
+/// Regression test for https://github.com/noir-lang/noir/issues/8963
+///
+/// When a path-based trait call like `U60Repr::from2(x)` has multiple candidate
+/// impls, only one of which is compatible with the argument type, the trait
+/// solver must run before integer-literal defaulting — otherwise the array's
+/// element type defaults to `Field` and the only matching impl (`From2<[i32; 3]>`)
+/// is no longer reachable.
+#[test]
+fn calls_trait_method_using_struct_name_picks_impl_before_defaulting_integers() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+
+    struct U60Repr {}
+
+    impl From2<[i32; 3]> for U60Repr {
+        fn from2(_: [i32; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+
+    impl From2<i32> for U60Repr {
+        fn from2(_: i32) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let x = [1, 2, 3];
+        let _ = U60Repr::from2(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn suggests_importing_trait_via_reexport() {
     let src = r#"
