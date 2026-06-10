@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781083112674,
+  "lastUpdate": 1781083117055,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -30210,105 +30210,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e0f6faae9f8a0b89ced43e540660b64eca0def4f",
-          "message": "fix: check infix result type during monomorphization (#12917)",
-          "timestamp": "2026-06-04T17:05:08Z",
-          "tree_id": "32fa6fa22f8abfc2910efb021f6e300074212f2f",
-          "url": "https://github.com/noir-lang/noir/commit/e0f6faae9f8a0b89ced43e540660b64eca0def4f"
-        },
-        "date": 1780594939492,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 17660,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 84400,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 8680,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1038,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 929,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2112,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1271,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1387614,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1388793,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1526,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 269909,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 280180,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1303,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -35073,6 +34974,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c5911bfc300b5c97e10de5d02952e65ed863c1d4"
         },
         "date": 1781033338652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 17660,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 84400,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 8680,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1038,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 929,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2112,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1271,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1387614,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1388793,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1526,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 269909,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 280180,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1303,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb7060de1c13742ecb76c0a9df6d7a1d5a3f6355",
+          "message": "fix: Error on oracle functions with reference parameters (1) (#12947)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-06-10T08:31:07Z",
+          "tree_id": "8c2379c861037937a567598f7d4b6e999f97dc95",
+          "url": "https://github.com/noir-lang/noir/commit/cb7060de1c13742ecb76c0a9df6d7a1d5a3f6355"
+        },
+        "date": 1781083047427,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
