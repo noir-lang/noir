@@ -52,6 +52,18 @@ fn check_fits_in_bits<F: AcirField>(
     Ok(())
 }
 
+/// Checks that an already-complete `witness_map` satisfies every *constraint* imposed by
+/// `circuit`, returning the first violation found.
+///
+/// This is a debugging/checking aid that re-evaluates each opcode's constraint against the
+/// provided witness, mirroring what a proving backend enforces: a witness that passes here is
+/// one the backend should accept, and a witness that fails here is one it should reject.
+///
+/// The unit of correctness is constraint satisfaction. Only opcodes that *impose constraints*
+/// are checked here; opcodes that impose none are intentionally skipped, because there is
+/// nothing about them for a witness to satisfy or violate. The most important example is
+/// [`Opcode::BrilligCall`] (unconstrained execution) — see its match arm for the full rationale
+/// on why skipping it, including not checking its outputs, is correct rather than a gap.
 pub fn validate_witness<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     witness_map: WitnessMap<F>,
@@ -374,7 +386,33 @@ pub fn validate_witness<F: AcirField>(
                     ));
                 }
             }
-            // BrilligCall is unconstrained
+            // `BrilligCall` invokes unconstrained (Brillig) bytecode. By design it imposes *no*
+            // constraints on the witness: during proving it is executed only to *compute* witness
+            // values (non-deterministic "hints"), and the constraint system places no requirement
+            // on what those values are. There is therefore no constraint to evaluate here, so
+            // skipping the opcode is correct rather than an oversight.
+            //
+            // In particular it is deliberate that we do NOT check that the declared output
+            // witnesses are present, nor that they are "consistent" with what the Brillig program
+            // would compute. A witness map satisfies a circuit exactly when it satisfies the
+            // circuit's constraints, and Brillig outputs only matter insofar as they are consumed
+            // by later *constrained* opcodes (`AssertZero`, range checks, black-box calls, memory
+            // ops, ACIR `Call`s, ...). Two cases cover every output:
+            //
+            //   1. The output is read by a later constrained opcode. Then that opcode validates the
+            //      value: a missing assignment surfaces as `MissingAssignment` from its own
+            //      `witness_value`/`input_to_value` lookup, and a wrong value surfaces as an
+            //      unsatisfied constraint. Re-checking it here would be redundant.
+            //   2. The output is never read by any constrained opcode. Then its value (or absence)
+            //      cannot affect whether the witness satisfies the circuit, so asserting anything
+            //      about it would reject witnesses that are in fact valid.
+            //
+            // The "consistency" concern — that execution's `insert_value` rejects re-assigning a
+            // witness to a conflicting value — is a property of *partial witness generation*, where
+            // the map is built up incrementally. `validate_witness` instead receives an
+            // already-complete map and only asks whether it satisfies the constraints, so there is
+            // no competing assignment to conflict with. Contrast `Opcode::Call` below, which is a
+            // *constrained* ACIR call and therefore does require its operands to be present.
             Opcode::BrilligCall { .. } => (),
             Opcode::Call { id: _, inputs, outputs, predicate } => {
                 // Skip validation when predicate is false
@@ -893,6 +931,60 @@ mod tests {
 
         let backend = Bn254BlackBoxSolver;
         assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
+
+    #[test]
+    fn test_brillig_call_outputs_are_not_validated() {
+        // A `BrilligCall` imposes no constraints, so the validator must not check its outputs.
+        // Here the output witness holds an arbitrary value that no Brillig program needs to have
+        // produced, and nothing constrained consumes it. Validation must still succeed because the
+        // witness satisfies every constraint in the circuit (there are none). This is exactly the
+        // behaviour audit finding noir-claude#502 mistook for a bug.
+        let circuit = make_circuit(vec![Opcode::BrilligCall {
+            id: BrilligFunctionId(0),
+            inputs: vec![BrilligInputs::Single(Witness(1).into())],
+            outputs: vec![BrilligOutputs::Simple(Witness(2))],
+            predicate: Expression::one(),
+        }]);
+
+        let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(7u128)),
+            (Witness(2), FieldElement::from(123_456u128)), // arbitrary; intentionally not checked
+        ]));
+
+        let backend = Bn254BlackBoxSolver;
+        assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
+
+    #[test]
+    fn test_brillig_output_validated_by_consuming_constraint() {
+        // Brillig outputs are only ever "checked" via the later *constrained* opcodes that read
+        // them. A wrong value is reported against that constrained opcode (index 1 here), never
+        // against the unconstrained `BrilligCall` (index 0).
+        let circuit = make_circuit(vec![
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(0),
+                inputs: vec![],
+                outputs: vec![BrilligOutputs::Simple(Witness(1))],
+                predicate: Expression::one(),
+            },
+            // Constrain the Brillig output: w1 - 5 == 0.
+            Opcode::AssertZero(Expression {
+                mul_terms: vec![],
+                linear_combinations: vec![(FieldElement::one(), Witness(1))],
+                q_c: -FieldElement::from(5u128),
+            }),
+        ]);
+
+        let witness_map =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(6u128))]));
+
+        let backend = Bn254BlackBoxSolver;
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            1,
+            "Invalid witness assignment: w1 - 5",
+        );
     }
 
     #[test]
