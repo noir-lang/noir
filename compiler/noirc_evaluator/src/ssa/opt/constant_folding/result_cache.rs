@@ -184,6 +184,13 @@ impl InstructionResultCache {
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
+        // Arrays and vectors are only mutated in place under Brillig's copy-on-write semantics.
+        // In ACIR they are value-semantic: `array_set`/`store` produce a fresh result and never
+        // mutate a previously-created array, so no cached instruction can become stale here.
+        if !dfg.runtime().is_brillig() {
+            return;
+        }
+
         /// Recursively remove from the cache any array values.
         fn go(
             dfg: &DataFlowGraph,
@@ -236,7 +243,7 @@ impl InstructionResultCache {
                 // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
                 remove_if_array(value);
             }
-            Call { arguments, func } if dfg.runtime().is_brillig() => {
+            Call { arguments, func } => {
                 // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
                 let Value::Function(func_id) = &dfg[*func] else { return };
                 if matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
