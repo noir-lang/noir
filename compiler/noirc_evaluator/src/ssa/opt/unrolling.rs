@@ -328,7 +328,7 @@ impl Function {
             } else {
                 self.try_unroll_loop(
                     next_loop,
-                    &mut loops,
+                    &loops,
                     max_unroll_iterations,
                     force_unroll_threshold,
                 )
@@ -365,7 +365,7 @@ impl Function {
     fn try_unroll_loop(
         &mut self,
         loop_: Loop,
-        loops: &mut Loops,
+        loops: &Loops,
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> LoopUnrollResult {
@@ -395,7 +395,7 @@ impl Function {
         }
 
         // Try to unroll.
-        match loop_.unroll(self, &loops.cfg, &mut loops.dom) {
+        match loop_.unroll(self, &loops.cfg, &loops.dom) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -540,7 +540,7 @@ impl Loops {
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut loops = vec![];
 
@@ -922,7 +922,7 @@ impl Loop {
         &self,
         function: &mut Function,
         cfg: &ControlFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -981,7 +981,7 @@ impl Loop {
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
-        dom: &'a mut DominatorTree,
+        dom: &'a DominatorTree,
     ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
@@ -1790,7 +1790,7 @@ struct LoopIteration<'f> {
     /// block dominates the destination; otherwise the destination is a join reachable from an
     /// independent predecessor and its parameters must be preserved (see [`Self::handle_jmpif`]).
     /// Queries use original block ids, which the original dominator tree still describes correctly.
-    dom: &'f mut DominatorTree,
+    dom: &'f DominatorTree,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1799,7 +1799,7 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
-        dom: &'f mut DominatorTree,
+        dom: &'f DominatorTree,
     ) -> Self {
         Self {
             inserter: FunctionInserter::new(function),

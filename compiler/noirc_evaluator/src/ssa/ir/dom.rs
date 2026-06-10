@@ -4,6 +4,7 @@
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
 //! calculating dominance frontiers.
 
+use std::cell::RefCell;
 use std::cmp::Ordering;
 
 #[cfg(test)]
@@ -47,8 +48,11 @@ pub(crate) struct DominatorTree {
     /// reachable block, and no nodes for unreachable blocks.
     nodes: HashMap<BasicBlockId, DominatorTreeNode>,
 
-    /// Subsequent calls to `dominates` are cached to speed up access
-    cache: HashMap<(BasicBlockId, BasicBlockId), bool>,
+    /// Subsequent calls to `dominates` are cached to speed up access.
+    ///
+    /// Wrapped in a `RefCell` so that `dominates` can memoize behind a shared `&self` reference,
+    /// keeping it a logically-pure query that callers don't need to hold a `&mut` borrow to use.
+    cache: RefCell<HashMap<(BasicBlockId, BasicBlockId), bool>>,
 }
 
 /// Methods for querying the dominator tree.
@@ -94,13 +98,13 @@ impl DominatorTree {
     /// This function panics if either of the blocks are unreachable.
     ///
     /// A block is considered to dominate itself.
-    pub(crate) fn dominates(&mut self, block_a_id: BasicBlockId, block_b_id: BasicBlockId) -> bool {
-        if let Some(res) = self.cache.get(&(block_a_id, block_b_id)) {
+    pub(crate) fn dominates(&self, block_a_id: BasicBlockId, block_b_id: BasicBlockId) -> bool {
+        if let Some(res) = self.cache.borrow().get(&(block_a_id, block_b_id)) {
             return *res;
         }
 
         let result = self.dominates_helper(block_a_id, block_b_id);
-        self.cache.insert((block_a_id, block_b_id), result);
+        self.cache.borrow_mut().insert((block_a_id, block_b_id), result);
         result
     }
 
@@ -152,7 +156,7 @@ impl DominatorTree {
     /// This method should be used for when we want to compute a post-dominator tree.
     /// A post-dominator tree just expects the control flow graph to be reversed.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
-        let mut dom_tree = DominatorTree { nodes: HashMap::default(), cache: HashMap::default() };
+        let mut dom_tree = DominatorTree { nodes: HashMap::default(), cache: RefCell::default() };
         dom_tree.compute_dominator_tree(cfg, post_order);
         dom_tree
     }
@@ -421,7 +425,7 @@ mod tests {
                 call_stack: CallStackId::root(),
             },
         );
-        let mut dom_tree = DominatorTree::with_function(&func);
+        let dom_tree = DominatorTree::with_function(&func);
         assert!(dom_tree.dominates(block0_id, block0_id));
     }
 
@@ -480,7 +484,7 @@ mod tests {
     // unreachable, performing this query indicates an internal compiler error.
     #[test]
     fn unreachable_node_asserts() {
-        let (mut dt, b0, _b1, b2, b3) = unreachable_node_setup();
+        let (dt, b0, _b1, b2, b3) = unreachable_node_setup();
 
         assert!(dt.dominates(b0, b0));
         assert!(dt.dominates(b0, b2));
@@ -498,42 +502,42 @@ mod tests {
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b0_b1() {
-        let (mut dt, b0, b1, _b2, _b3) = unreachable_node_setup();
+        let (dt, b0, b1, _b2, _b3) = unreachable_node_setup();
         dt.dominates(b0, b1);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b0() {
-        let (mut dt, b0, b1, _b2, _b3) = unreachable_node_setup();
+        let (dt, b0, b1, _b2, _b3) = unreachable_node_setup();
         dt.dominates(b1, b0);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b1() {
-        let (mut dt, _b0, b1, _b2, _b3) = unreachable_node_setup();
+        let (dt, _b0, b1, _b2, _b3) = unreachable_node_setup();
         dt.dominates(b1, b1);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b2() {
-        let (mut dt, _b0, b1, b2, _b3) = unreachable_node_setup();
+        let (dt, _b0, b1, b2, _b3) = unreachable_node_setup();
         dt.dominates(b1, b2);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b3() {
-        let (mut dt, _b0, b1, _b2, b3) = unreachable_node_setup();
+        let (dt, _b0, b1, _b2, b3) = unreachable_node_setup();
         dt.dominates(b1, b3);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b3_b1() {
-        let (mut dt, _b0, b1, b2, _b3) = unreachable_node_setup();
+        let (dt, _b0, b1, b2, _b3) = unreachable_node_setup();
         dt.dominates(b2, b1);
     }
 
@@ -562,7 +566,7 @@ mod tests {
     }
 
     fn check_dom_matrix(
-        mut dom_tree: DominatorTree,
+        dom_tree: DominatorTree,
         blocks: Vec<BasicBlockId>,
         dominance_matrix: Vec<Vec<bool>>,
     ) {
