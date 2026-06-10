@@ -76,35 +76,6 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     (res, output)
 }
 
-/// The comptime `interpret` function uses a bare context without stdlib.
-/// These stubs provide the definitions that generated code may call.
-const STDLIB_STUBS: &str = r#"
-#[oracle(print)]
-unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
-unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
-    print_oracle(with_newline, input);
-}
-pub fn println<T>(input: T) { unsafe { print_unconstrained(true, input); } }
-pub fn print<T>(input: T) { unsafe { print_unconstrained(false, input); } }
-
-impl<T> [T] {
-    #[builtin(array_len)]
-    pub fn len(self) -> u32 {}
-    #[builtin(vector_push_back)]
-    pub fn push_back(self, elem: T) -> Self {}
-    #[builtin(vector_push_front)]
-    pub fn push_front(self, elem: T) -> Self {}
-    #[builtin(vector_pop_back)]
-    pub fn pop_back(self) -> (Self, T) {}
-    #[builtin(vector_pop_front)]
-    pub fn pop_front(self) -> (T, Self) {}
-    #[builtin(vector_insert)]
-    pub fn insert(self, index: u32, elem: T) -> Self {}
-    #[builtin(vector_remove)]
-    pub fn remove(self, index: u32) -> (Self, T) {}
-}
-"#;
-
 /// Compare the execution of a Noir program in pure comptime (via interpreter)
 /// vs normal SSA execution.
 pub struct CompareComptime {
