@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781102394006,
+  "lastUpdate": 1781104006474,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "00b49d47625ac77e83b3c7c9d86b0ff830a9c9a0",
-          "message": "chore: regression test for ABI global struct field order (#12939)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-08T10:47:37Z",
-          "tree_id": "7a886292af9c8745d71e99d75b5644e00c763d0f",
-          "url": "https://github.com/noir-lang/noir/commit/00b49d47625ac77e83b3c7c9d86b0ff830a9c9a0"
-        },
-        "date": 1780917518606,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170128,
-            "range": "± 734",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137063,
-            "range": "± 1432",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642792,
-            "range": "± 2326",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042935,
             "range": "± 32999",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f85c87868ced94a6fe1362d2f282d6bba8e35fdf",
+          "message": "chore(nargo): Document `nargo info --profile-execution` (#12988)",
+          "timestamp": "2026-06-10T14:39:39Z",
+          "tree_id": "caa7a16aaf0b5b7eddd24e0e5427b65d0b7f8f94",
+          "url": "https://github.com/noir-lang/noir/commit/f85c87868ced94a6fe1362d2f282d6bba8e35fdf"
+        },
+        "date": 1781103937507,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167858,
+            "range": "± 2439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136944,
+            "range": "± 5789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655947,
+            "range": "± 5054",
             "unit": "ns/iter"
           }
         ]
