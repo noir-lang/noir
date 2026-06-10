@@ -1844,10 +1844,11 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                let input_type = typ.clone();
-                if !seen_types.insert(input_type.clone()) {
-                    let typ = input_type;
-                    return Err(MonomorphizationError::RecursiveType { typ, location });
+                if !seen_types.insert(typ.clone()) {
+                    return Err(MonomorphizationError::RecursiveType {
+                        typ: typ.clone(),
+                        location,
+                    });
                 }
 
                 let def = def.borrow();
@@ -1856,7 +1857,7 @@ impl<'interner> Monomorphizer<'interner> {
                         Self::convert_type_helper(&field, location, seen_types)
                     })?;
 
-                    seen_types.remove(&input_type);
+                    seen_types.remove(typ);
                     ast::Type::Tuple(fields)
                 } else if let Some(variants) = def.get_variants(args) {
                     // Enums are represented as (tag, variant1, variant2, .., variantN)
@@ -1867,7 +1868,7 @@ impl<'interner> Monomorphizer<'interner> {
                         })?;
                         fields.push(ast::Type::Tuple(variant_fields));
                     }
-                    seen_types.remove(&input_type);
+                    seen_types.remove(typ);
                     ast::Type::Tuple(fields)
                 } else {
                     unreachable!("Data type has no body")
