@@ -361,7 +361,11 @@ impl Elaborator<'_> {
             let trait_ = self.interner.get_trait(trait_id);
             if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
                 let numeric_type = self.interner.definition_type(definition_id);
-                return Some(self.intern_associated_constant(definition_id, numeric_type, location));
+                return Some(self.intern_associated_constant(
+                    definition_id,
+                    numeric_type,
+                    location,
+                ));
             }
         }
 
@@ -832,11 +836,9 @@ impl Elaborator<'_> {
         let t = self.type_substitute_trait_as_type(&ident);
 
         let direct_generic_ids = match func_id {
-            Some(function) => {
-                vecmap(&self.function_meta(function).direct_generics, |generic| {
-                    generic.type_var.id()
-                })
-            }
+            Some(function) => vecmap(&self.function_meta(function).direct_generics, |generic| {
+                generic.type_var.id()
+            }),
             None => Vec::new(),
         };
 
