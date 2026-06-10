@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781033735851,
+  "lastUpdate": 1781082337698,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "94083b205658b8c936f03c3a41caed659a731011",
-          "message": "fix: order match struct-pattern fields by declaration, not field name (#12798)\n\nCo-authored-by: Claude Opus 4.7 <noreply@anthropic.com>",
-          "timestamp": "2026-06-04T18:02:51Z",
-          "tree_id": "c14cfc890f229eabcb2536cdb374ef7d94131aa9",
-          "url": "https://github.com/noir-lang/noir/commit/94083b205658b8c936f03c3a41caed659a731011"
-        },
-        "date": 1780597670814,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 99456,
-            "range": "± 1285",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 88395,
-            "range": "± 1083",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2357754,
-            "range": "± 3192",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043329,
             "range": "± 1568",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb7060de1c13742ecb76c0a9df6d7a1d5a3f6355",
+          "message": "fix: Error on oracle functions with reference parameters (1) (#12947)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-06-10T08:31:07Z",
+          "tree_id": "8c2379c861037937a567598f7d4b6e999f97dc95",
+          "url": "https://github.com/noir-lang/noir/commit/cb7060de1c13742ecb76c0a9df6d7a1d5a3f6355"
+        },
+        "date": 1781082258097,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166961,
+            "range": "± 559",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136787,
+            "range": "± 393",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655860,
+            "range": "± 4756",
             "unit": "ns/iter"
           }
         ]
