@@ -1,0 +1,6 @@
+[package]
+name = "dereference_assignment"
+type = "bin"
+authors = [""]
+
+[dependencies]

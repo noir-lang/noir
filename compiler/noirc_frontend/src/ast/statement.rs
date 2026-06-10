@@ -645,10 +645,16 @@ impl AssignOpKind {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
+    /// A path like `foo::bar`
     Path(Path),
+    /// `object.field_name`
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
+    /// `array[index]`
     Index { array: Box<LValue>, index: Expression, location: Location },
-    Dereference(Box<LValue>, Location),
+    /// A dereference `*expression`. Its target can be any expression.
+    /// However, during elaboration we check that its type is a mutable reference.
+    Dereference(Box<Expression>, Location),
+    /// An LValue wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
 }
 
@@ -736,10 +742,10 @@ impl LValue {
                     index: index.clone(),
                 }))
             }
-            LValue::Dereference(lvalue, _span) => {
+            LValue::Dereference(expr, _span) => {
                 ExpressionKind::Prefix(Box::new(crate::ast::PrefixExpression {
                     operator: crate::ast::UnaryOp::Dereference { implicitly_added: false },
-                    rhs: lvalue.as_expression(),
+                    rhs: expr.as_ref().clone(),
                 }))
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
@@ -769,10 +775,7 @@ impl LValue {
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    Some(LValue::Dereference(
-                        Box::new(LValue::from_expression(prefix.rhs)?),
-                        location,
-                    ))
+                    Some(LValue::Dereference(Box::new(prefix.rhs), location))
                 } else {
                     None
                 }
