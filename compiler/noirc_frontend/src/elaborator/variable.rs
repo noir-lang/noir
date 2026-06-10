@@ -107,8 +107,7 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(generic.kind())
                     });
                     let mut errors = Vec::new();
-                    let type_alias_ref = self.interner.get_type_alias(type_alias_id);
-                    let type_alias_ref = type_alias_ref.borrow();
+                    let type_alias_ref = type_alias.borrow();
                     let resolved_generics = self.resolve_alias_turbofish_generics(
                         &type_alias_ref,
                         alias_generic_types,
@@ -351,10 +350,7 @@ impl Elaborator<'_> {
         if let Some((definition_id, numeric_type)) =
             self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
         {
-            let hir_ident = HirIdent::non_trait_method(definition_id, location);
-            let hir_expr = HirExpression::Ident(hir_ident, None);
-            let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-            return Some((id, numeric_type));
+            return Some(self.intern_associated_constant(definition_id, numeric_type, location));
         }
 
         // Check if the constant exists in the trait definition (even if impl is missing it).
@@ -365,10 +361,11 @@ impl Elaborator<'_> {
             let trait_ = self.interner.get_trait(trait_id);
             if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
                 let numeric_type = self.interner.definition_type(definition_id);
-                let hir_ident = HirIdent::non_trait_method(definition_id, location);
-                let hir_expr = HirExpression::Ident(hir_ident, None);
-                let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-                return Some((id, numeric_type));
+                return Some(self.intern_associated_constant(
+                    definition_id,
+                    numeric_type,
+                    location,
+                ));
             }
         }
 
@@ -380,6 +377,19 @@ impl Elaborator<'_> {
         let ident = variable.segments[1].ident.clone();
         let typ_location = variable.segments[0].location;
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
+    }
+
+    /// Intern an identifier expression referring to an associated constant of the given type.
+    fn intern_associated_constant(
+        &mut self,
+        definition_id: DefinitionId,
+        numeric_type: Type,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let hir_ident = HirIdent::non_trait_method(definition_id, location);
+        let hir_expr = HirExpression::Ident(hir_ident, None);
+        let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+        (id, numeric_type)
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
@@ -794,10 +804,15 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
+        let func_id = match definition.kind {
+            DefinitionKind::Function(func_id) => Some(func_id),
+            _ => None,
+        };
+
         // If the variable is a function whose meta hasn't been resolved yet, resolve
         // it now. This handles forward references — a global's RHS may name a
         // function whose meta would otherwise only be drained at end-of-elaboration.
-        if let DefinitionKind::Function(func_id) = definition.kind {
+        if let Some(func_id) = func_id {
             let item_name = definition.name.clone();
             self.define_function_meta_if_undefined(func_id);
 
@@ -820,14 +835,11 @@ impl Elaborator<'_> {
         // variable to handle generic functions.
         let t = self.type_substitute_trait_as_type(&ident);
 
-        let definition_kind = self.interner.definition(ident.id).kind.clone();
-        let direct_generic_ids = match definition_kind {
-            DefinitionKind::Function(function) => {
-                vecmap(&self.function_meta(function).direct_generics, |generic| {
-                    generic.type_var.id()
-                })
-            }
-            _ => Vec::new(),
+        let direct_generic_ids = match func_id {
+            Some(function) => vecmap(&self.function_meta(function).direct_generics, |generic| {
+                generic.type_var.id()
+            }),
+            None => Vec::new(),
         };
 
         let location = self.interner.expr_location(expr_id);
@@ -881,8 +893,7 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        let definition_kind = self.interner.definition(ident.id).kind.clone();
-        if let DefinitionKind::Function(function) = definition_kind {
+        if let Some(function) = func_id {
             let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
                 constraint.apply_bindings(&bindings);
