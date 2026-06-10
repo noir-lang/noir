@@ -195,9 +195,6 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
                 format!("Reference `{typ}` cannot be passed to an oracle function")
             }
-            MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
-                format!("Reference `{typ}` cannot be passed to an oracle function")
-            }
             MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
                 format!(
                     "Vector with nested array `{typ}` cannot be returned from an oracle function"

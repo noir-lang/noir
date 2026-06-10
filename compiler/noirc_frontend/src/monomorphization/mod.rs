@@ -2539,25 +2539,6 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    /// Reject oracle signatures whose concrete types contains a reference.
-    fn check_oracle_signature(
-        &self,
-        parameter_types: &[Type],
-        return_type: &Type,
-        location: Location,
-    ) -> Result<(), MonomorphizationError> {
-        self.check_return_type_returned_from_oracle(return_type, location)?;
-
-        for parameter_type in parameter_types {
-            if parameter_type.contains_reference() {
-                let typ = parameter_type.to_string();
-                return Err(MonomorphizationError::ReferenceParameterToOracle { typ, location });
-            }
-        }
-
-        Ok(())
-    }
-
     fn check_return_type_returned_from_oracle(
         &self,
         return_type: &Type,
