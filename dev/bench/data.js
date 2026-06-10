@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781130245617,
+  "lastUpdate": 1781130323301,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -35182,105 +35182,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "214091eff62c13bd9026b3e53c46e1e49a14a252",
-          "message": "fix: report \"Assertion is always false\" diagnostic for contract crates (#12926)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-08T12:04:39Z",
-          "tree_id": "29d07536662de0e852edb8d4e9e7364d2069d9a6",
-          "url": "https://github.com/noir-lang/noir/commit/214091eff62c13bd9026b3e53c46e1e49a14a252"
-        },
-        "date": 1780922997751,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.808,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.988,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.534,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.174,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.994,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 2.73,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.61,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.138,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.066,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.352,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.337,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "fc74f57ef5a75e3f51799f034214d2958ce125b4",
           "message": "fix(ssa): immutable-reference call arguments must keep prior stores live (#12938)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
           "timestamp": "2026-06-08T12:20:26Z",
@@ -40115,6 +40016,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.373,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4de8a8f3adfd19630e90c44080f707801a23641d",
+          "message": "chore(brillig): clarify black box predicate assertion message (#13004)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-10T21:37:09Z",
+          "tree_id": "68acff42bb7044bec1cb33cef19fbe9ef730e580",
+          "url": "https://github.com/noir-lang/noir/commit/4de8a8f3adfd19630e90c44080f707801a23641d"
+        },
+        "date": 1781130254839,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.862,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.832,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.642,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.15,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 2.432,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2.308,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.108,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.227,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.371,
             "unit": "s"
           }
         ]
