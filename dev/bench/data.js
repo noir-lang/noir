@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781095714693,
+  "lastUpdate": 1781095767939,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2521f7b122d070764d2722ee17f1a543eecf7b36",
-          "message": "fix(ssa): preserve out-of-range signed constants in SSA parser roundtrip (#12896)",
-          "timestamp": "2026-06-05T16:40:40Z",
-          "tree_id": "1e2e4b7c9a2f09f652c381d5db6a1067e352b7fb",
-          "url": "https://github.com/noir-lang/noir/commit/2521f7b122d070764d2722ee17f1a543eecf7b36"
-        },
-        "date": 1780679355399,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162672,
-            "range": "± 617",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 133771,
-            "range": "± 1482",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2127969,
-            "range": "± 5413",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2358455,
             "range": "± 1441",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb647b395260489467734d44e2f02671a06941a8",
+          "message": "chore(test): Add tests to show that visiblity in descendant module is correct (#12967)",
+          "timestamp": "2026-06-10T12:22:19Z",
+          "tree_id": "af7a51884d200a90e45c2ce9ae53d2443567d316",
+          "url": "https://github.com/noir-lang/noir/commit/eb647b395260489467734d44e2f02671a06941a8"
+        },
+        "date": 1781095697238,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127174,
+            "range": "± 483",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112679,
+            "range": "± 3141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042623,
+            "range": "± 5325",
             "unit": "ns/iter"
           }
         ]
