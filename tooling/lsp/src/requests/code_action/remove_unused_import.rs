@@ -6,7 +6,6 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule,
     ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
-    hir::def_map::Namespace,
     parser::{Item, ItemKind},
     usage_tracker::UnusedItem,
 };
@@ -26,7 +25,7 @@ impl CodeActionFinder<'_> {
             return;
         }
 
-        let Some(unused_items) = self.usage_tracker.unused_items().get(&self.module_id) else {
+        let Some(unused_items) = self.usage_tracker.unused_imports().get(&self.module_id) else {
             return;
         };
 
@@ -62,19 +61,11 @@ impl CodeActionFinder<'_> {
     }
 }
 
-/// Whether an import with this name is unused in either namespace.
-fn is_unused_import(unused_items: &HashMap<(Namespace, Ident), UnusedItem>, ident: &Ident) -> bool {
-    unused_items.keys().any(|(_namespace, name)| name == ident)
-}
-
-fn has_unused_import(
-    use_tree: &UseTree,
-    unused_items: &HashMap<(Namespace, Ident), UnusedItem>,
-) -> bool {
+fn has_unused_import(use_tree: &UseTree, unused_items: &HashMap<Ident, UnusedItem>) -> bool {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            is_unused_import(unused_items, ident)
+            unused_items.contains_key(ident)
         }
         UseTreeKind::List(use_trees) => {
             use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_items))
@@ -85,16 +76,12 @@ fn has_unused_import(
 /// Returns a new `UseTree` with all the unused imports removed, and the number of removed imports.
 fn use_tree_without_unused_import(
     use_tree: &UseTree,
-    unused_items: &HashMap<(Namespace, Ident), UnusedItem>,
+    unused_items: &HashMap<Ident, UnusedItem>,
 ) -> (Option<UseTree>, usize) {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            if is_unused_import(unused_items, ident) {
-                (None, 1)
-            } else {
-                (Some(use_tree.clone()), 0)
-            }
+            if unused_items.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
         }
         UseTreeKind::List(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();

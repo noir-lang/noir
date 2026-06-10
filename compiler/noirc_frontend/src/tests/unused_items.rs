@@ -95,6 +95,49 @@ fn cross_namespace_name_clash_still_warns_on_unused_value() {
 }
 
 #[test]
+#[should_panic(expected = "Expected some errors but got none")]
+fn cross_namespace_name_clash_misses_unconstructed_type_warning() {
+    // Mirror of the case above, but the warning is still missed in this direction. Elaborating
+    // the call `N()` first tries to resolve `N` as a `Type::method` receiver, and that
+    // speculative type lookup marks the type-namespace `struct N` as *used* even though it is
+    // never constructed, so no "never constructed" warning is produced.
+    //
+    // The absence below is a missing *warning*, not a missing *error*, so there is no
+    // miscompilation. TODO(#11927): the speculative type resolution should not mark the type as
+    // used.
+    let src = r#"
+    struct N {}
+           ^ struct `N` is never constructed
+           ~ struct is never constructed
+    fn N() {}
+    fn main() {
+        N();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_dual_namespace_import_warns_once() {
+    // `use foo::N` brings both the type-namespace `struct N` and the value-namespace `fn N` into
+    // scope, but a `use` is a single syntactic unit, so an unused import warns exactly once (not
+    // once per namespace).
+    let src = r#"
+    mod foo {
+        pub struct N {}
+        pub fn N() {}
+    }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_unused_function() {
     let src = r#"
     contract some_contract {

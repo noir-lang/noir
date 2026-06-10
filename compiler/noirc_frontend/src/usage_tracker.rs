@@ -30,62 +30,45 @@ impl UnusedItem {
         }
     }
 
-    /// The namespace this item occupies. An import can resolve into either namespace, so its
-    /// namespace is determined by the imported definition at the call site rather than here.
-    fn namespace(&self) -> Option<Namespace> {
+    /// The namespace a definition occupies. Imports are tracked separately (by name only) since
+    /// a `use` is one syntactic unit regardless of which namespaces the name resolves into.
+    fn namespace(&self) -> Namespace {
         match self {
-            UnusedItem::Function(_) | UnusedItem::Global(_) => Some(Namespace::Value),
+            UnusedItem::Function(_) | UnusedItem::Global(_) => Namespace::Value,
             UnusedItem::Struct(_)
             | UnusedItem::Enum(_)
             | UnusedItem::Trait(_)
-            | UnusedItem::TypeAlias(_) => Some(Namespace::Type),
-            UnusedItem::Import => None,
+            | UnusedItem::TypeAlias(_) => Namespace::Type,
+            UnusedItem::Import => {
+                unreachable!("imports are tracked by name only, not by namespace")
+            }
         }
     }
 }
 
 #[derive(Debug, Default)]
 pub struct UsageTracker {
-    /// Unused items per module, keyed by `(namespace, name)`. Noir's type and value namespaces
-    /// are separate, so a type-namespace item and a value-namespace item can legally share a
-    /// name within a module (e.g. `struct N` and `fn N`) without a duplicate-definition error.
-    /// Keying by namespace as well as name keeps the two in separate slots, so marking one as
-    /// used (e.g. constructing the struct) leaves the genuinely unused sibling tracked.
+    /// Unused definitions per module, keyed by `(namespace, name)`. Noir's type and value
+    /// namespaces are separate, so a type-namespace item and a value-namespace item can legally
+    /// share a name within a module (e.g. `struct N` and `fn N`) without a duplicate-definition
+    /// error. Keying by namespace as well as name keeps the two in separate slots, so marking one
+    /// as used (e.g. constructing the struct) leaves the genuinely unused sibling tracked.
     unused_items: HashMap<ModuleId, HashMap<(Namespace, Ident), UnusedItem>>,
+    /// Unused imports per module, keyed by name only. A `use` is a single syntactic unit: the
+    /// name it brings into scope may occupy both namespaces (e.g. a re-exported `struct N` and
+    /// `fn N`), yet referencing it in either namespace uses the one import. Tracking imports by
+    /// name keeps them independent of the namespace-keyed definitions above.
+    unused_imports: HashMap<ModuleId, HashMap<Ident, UnusedItem>>,
     unused_impl_functions: HashMap<FuncId, Ident>,
 }
 
 impl UsageTracker {
-    /// Register an item as unused, waiting to be marked as used later.
+    /// Register a definition as unused, waiting to be marked as used later.
     /// Things that should not emit warnings should not be added at all.
     pub(crate) fn add_unused_item(
         &mut self,
         module_id: ModuleId,
         name: Ident,
-        item: UnusedItem,
-        visibility: ItemVisibility,
-    ) {
-        let namespace = item.namespace().expect("imports must be registered via add_unused_import");
-        self.insert_unused_item(module_id, name, namespace, item, visibility);
-    }
-
-    /// Register an unused import. Unlike other items, an import can resolve into either
-    /// namespace, so the caller supplies the namespace of the imported definition.
-    pub(crate) fn add_unused_import(
-        &mut self,
-        module_id: ModuleId,
-        name: Ident,
-        namespace: Namespace,
-        visibility: ItemVisibility,
-    ) {
-        self.insert_unused_item(module_id, name, namespace, UnusedItem::Import, visibility);
-    }
-
-    fn insert_unused_item(
-        &mut self,
-        module_id: ModuleId,
-        name: Ident,
-        namespace: Namespace,
         item: UnusedItem,
         visibility: ItemVisibility,
     ) {
@@ -97,8 +80,25 @@ impl UsageTracker {
             self.unused_items
                 .entry(module_id)
                 .or_default()
-                .entry((namespace, name))
+                .entry((item.namespace(), name))
                 .or_insert(item);
+        }
+    }
+
+    /// Register an unused import. Imports are keyed by name only; if the imported name occupies
+    /// both namespaces this is still a single import, so repeated registrations coalesce.
+    pub(crate) fn add_unused_import(
+        &mut self,
+        module_id: ModuleId,
+        name: Ident,
+        visibility: ItemVisibility,
+    ) {
+        if visibility != ItemVisibility::Public && !name.span().is_empty() {
+            self.unused_imports
+                .entry(module_id)
+                .or_default()
+                .entry(name)
+                .or_insert(UnusedItem::Import);
         }
     }
 
@@ -110,6 +110,11 @@ impl UsageTracker {
         name: &Ident,
         namespace: Namespace,
     ) {
+        // Referencing a name uses the import that brought it in, regardless of namespace.
+        if let Some(imports) = self.unused_imports.get_mut(&current_mod_id) {
+            imports.remove(name);
+        }
+
         let Some(items) = self.unused_items.get_mut(&current_mod_id) else {
             return;
         };
@@ -133,6 +138,11 @@ impl UsageTracker {
         name: &Ident,
         namespace: Namespace,
     ) {
+        // Using a name in either namespace uses the import that brought it in.
+        if let Some(imports) = self.unused_imports.get_mut(&current_mod_id) {
+            imports.remove(name);
+        }
+
         if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
             items.remove(&(namespace, name.clone()));
         }
@@ -160,8 +170,13 @@ impl UsageTracker {
         &self.unused_impl_functions
     }
 
-    /// Get all the unused items per module, keyed by `(namespace, name)`.
+    /// Get all the unused definitions per module, keyed by `(namespace, name)`.
     pub fn unused_items(&self) -> &HashMap<ModuleId, HashMap<(Namespace, Ident), UnusedItem>> {
         &self.unused_items
+    }
+
+    /// Get all the unused imports per module, keyed by name.
+    pub fn unused_imports(&self) -> &HashMap<ModuleId, HashMap<Ident, UnusedItem>> {
+        &self.unused_imports
     }
 }

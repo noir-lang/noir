@@ -808,11 +808,16 @@ fn same_name_in_types_and_values_namespace_works() {
 
 #[test]
 fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    // `moo::foo {}` constructs the struct (type namespace); the same-named `fn foo` (value
+    // namespace) is never called, so it is correctly reported as unused — the two namespaces
+    // are tracked independently.
     let src = "
     mod moo {
         struct foo {}
 
         fn foo() {}
+           ^^^ unused function foo
+           ~~~ unused function
     }
 
     fn main() {
