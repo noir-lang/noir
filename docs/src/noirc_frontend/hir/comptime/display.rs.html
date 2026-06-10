@@ -934,8 +934,8 @@
 <a href=#934 id=934 data-nosnippet>934</a>            index: remove_interned_in_expression(interner, index),
 <a href=#935 id=935 data-nosnippet>935</a>            location: span,
 <a href=#936 id=936 data-nosnippet>936</a>        },
-<a href=#937 id=937 data-nosnippet>937</a>        LValue::Dereference(lvalue, span) =&gt; {
-<a href=#938 id=938 data-nosnippet>938</a>            LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>lvalue)), span)
+<a href=#937 id=937 data-nosnippet>937</a>        LValue::Dereference(expr, span) =&gt; {
+<a href=#938 id=938 data-nosnippet>938</a>            LValue::Dereference(Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>expr)), span)
 <a href=#939 id=939 data-nosnippet>939</a>        }
 <a href=#940 id=940 data-nosnippet>940</a>        LValue::Interned(id, span) =&gt; {
 <a href=#941 id=941 data-nosnippet>941</a>            <span class="kw">let </span>lvalue = interner.get_lvalue(id, span);

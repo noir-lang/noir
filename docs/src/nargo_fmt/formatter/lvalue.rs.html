@@ -36,11 +36,11 @@
 <a href=#36 id=36 data-nosnippet>36</a>                    formatter.write_right_bracket();
 <a href=#37 id=37 data-nosnippet>37</a>                }));
 <a href=#38 id=38 data-nosnippet>38</a>            }
-<a href=#39 id=39 data-nosnippet>39</a>            LValue::Dereference(lvalue, _span) =&gt; {
+<a href=#39 id=39 data-nosnippet>39</a>            LValue::Dereference(expr, _span) =&gt; {
 <a href=#40 id=40 data-nosnippet>40</a>                group.text(<span class="self">self</span>.chunk(|formatter| {
 <a href=#41 id=41 data-nosnippet>41</a>                    formatter.write_token(Token::Star);
 <a href=#42 id=42 data-nosnippet>42</a>                }));
-<a href=#43 id=43 data-nosnippet>43</a>                <span class="self">self</span>.format_lvalue(<span class="kw-2">*</span>lvalue, group);
+<a href=#43 id=43 data-nosnippet>43</a>                <span class="self">self</span>.format_expression(<span class="kw-2">*</span>expr, group);
 <a href=#44 id=44 data-nosnippet>44</a>            }
 <a href=#45 id=45 data-nosnippet>45</a>            LValue::Interned(..) =&gt; {
 <a href=#46 id=46 data-nosnippet>46</a>                <span class="macro">unreachable!</span>(<span class="string">"Should not be present in the AST"</span>)
