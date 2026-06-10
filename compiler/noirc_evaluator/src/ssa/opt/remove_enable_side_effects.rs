@@ -27,8 +27,8 @@
 //! When a deferred [Instruction::EnableSideEffectsIf] (one whose condition is not the constant
 //! `u1 1`) is not followed by any such instruction before the end of the block — or before another
 //! [Instruction::EnableSideEffectsIf] supersedes it — then it is dropped entirely rather than
-//! re-inserted. This is expected behaviour and is safe: if no instruction is affected by an
-//! `enable_side_effects` instruction then removing it does not change the behaviour of the circuit.
+//! re-inserted. This is expected behavior and is safe: if no instruction is affected by an
+//! `enable_side_effects` instruction then removing it does not change the behavior of the circuit.
 //! In particular a trailing `enable_side_effects` sitting immediately before the `return`
 //! terminator is always removed, as `return` does not consume the side-effects predicate.
 //!
