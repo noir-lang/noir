@@ -2461,10 +2461,10 @@ fn trait_associated_constant_duplicate_is_an_error() {
     let src = r#"
     pub trait Foo {
         let N: u32;
-            ~ First trait associated item found here
+            ~ First definition found here
         let N: u8;
             ^ Duplicate definitions of trait associated item with name N found
-            ~ Second trait associated item found here
+            ~ Second definition found here
     }
     "#;
     check_errors(src);
