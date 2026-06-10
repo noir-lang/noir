@@ -95,16 +95,11 @@ fn cross_namespace_name_clash_still_warns_on_unused_value() {
 }
 
 #[test]
-#[should_panic(expected = "Expected some errors but got none")]
-fn cross_namespace_name_clash_misses_unconstructed_type_warning() {
-    // Mirror of the case above, but the warning is still missed in this direction. Elaborating
-    // the call `N()` first tries to resolve `N` as a `Type::method` receiver, and that
-    // speculative type lookup marks the type-namespace `struct N` as *used* even though it is
-    // never constructed, so no "never constructed" warning is produced.
-    //
-    // The absence below is a missing *warning*, not a missing *error*, so there is no
-    // miscompilation. TODO(#11927): the speculative type resolution should not mark the type as
-    // used.
+fn cross_namespace_name_clash_still_warns_on_unconstructed_type() {
+    // Mirror of the case above: calling `N()` clears only the value-namespace entry, leaving the
+    // never-constructed `struct N` to warn. Elaborating the call speculatively resolves `N` as a
+    // `Type::method` receiver, but that probe only *references* the type (it doesn't mark it
+    // used), so the struct is still reported as never constructed.
     let src = r#"
     struct N {}
            ^ struct `N` is never constructed

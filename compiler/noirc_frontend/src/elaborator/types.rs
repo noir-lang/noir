@@ -1401,7 +1401,11 @@ impl Elaborator<'_> {
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
-        let path_resolution = self.use_path_as_type(path.clone()).ok()?;
+        // This is a speculative probe: the path may turn out not to be a trait static method at
+        // all (e.g. a plain `N()` call where `N` is also a struct). Only *reference* the type
+        // here so a failed probe doesn't mark it used; a genuine `Type::method` call marks the
+        // type used through its real resolution downstream.
+        let path_resolution = self.resolve_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
         let trait_id = meta.trait_id?;
