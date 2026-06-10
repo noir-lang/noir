@@ -418,12 +418,16 @@ fn wildcard_with_generic_argument() {
 
     fn main() {
       let x: _<_> = "123";
+             ^ Cannot apply generics to a wildcard type
+             ~ The wildcard type `_` cannot take generic arguments
       let y: _<_> = Foo::<()> { };
+             ^ Cannot apply generics to a wildcard type
+             ~ The wildcard type `_` cannot take generic arguments
       println(x);
       println(y);
     }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]

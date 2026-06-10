@@ -547,6 +547,22 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 }
 
 #[test]
+fn turbofish_not_allowed_on_enum_variant_reports_enum_variant() {
+    let src = r#"
+    enum Foo {
+        Bar,
+    }
+
+    fn main() {
+        let _ = Foo::Bar::<u32>;
+                        ^^^^^^^ turbofish (`::<_>`) not allowed on enum variants
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
 fn impl_on_enum() {
     let src = r#"
     enum Foo { Bar }

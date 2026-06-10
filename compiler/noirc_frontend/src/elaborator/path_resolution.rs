@@ -5,6 +5,7 @@ use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
+use crate::hir::comptime::Value;
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
 use crate::hir::resolution::import::{
     PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
@@ -17,8 +18,8 @@ use crate::hir::resolution::visibility::{
 
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
-    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId,
-    TypeId,
+    DefinitionId, FuncId, GlobalId, GlobalValue, NodeInterner, TraitAssociatedTypeId, TraitId,
+    TypeAliasId, TypeId,
 };
 use crate::{Shared, Type, TypeAlias};
 
@@ -484,9 +485,19 @@ impl Elaborator<'_> {
 
         result.map(|mut resolution| {
             match resolution.item {
-                PathResolutionItem::Global(..) => {
+                PathResolutionItem::Global(global_id) => {
+                    // Enum variants without parameters are resolved as globals, so distinguish
+                    // them here to avoid reporting a confusing "globals" diagnostic for them.
+                    let item = if matches!(
+                        self.interner.get_global(global_id).value,
+                        GlobalValue::Resolved(Value::Enum(..))
+                    ) {
+                        "enum variants"
+                    } else {
+                        "globals"
+                    };
                     resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "globals".to_string(),
+                        item: item.to_string(),
                         location: last_segment_turbofish_location,
                     });
                 }
