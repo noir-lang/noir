@@ -9,12 +9,12 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
-    check_function_not_yet_resolved, check_one_argument, check_three_arguments,
-    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_location, get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl,
-    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
-    parse, quote_ident, return_type_is_definitely_incompatible, visibility_to_quoted,
+    check_function_not_yet_resolved, check_one_argument, check_return_type_shape,
+    check_three_arguments, check_two_arguments, get_bool, get_expr, get_field, get_format_string,
+    get_function_def, get_location, get_module, get_quoted, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
+    get_vector, has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op,
+    new_unary_op, parse, quote_ident, type_shape, visibility_to_quoted,
 };
 use fm::FileMap;
 use im::Vector;
@@ -75,7 +75,7 @@ impl Interpreter<'_, '_> {
         location: Location,
     ) -> IResult<Value> {
         let call_stack = &self.elaborator.interpreter_call_stack().clone();
-        let expected_return_type = return_type.clone();
+        let expected_return_shape = type_shape(&return_type);
         let interner = &mut self.elaborator.interner;
         let result = match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
@@ -300,24 +300,9 @@ impl Interpreter<'_, '_> {
             }
         }?;
 
-        check_return_type(&result, expected_return_type, location)?;
+        check_return_type_shape(&result, expected_return_shape, location)?;
         Ok(result)
     }
-}
-
-/// Guards the `return_type` contract of a builtin/foreign call: type checking has already
-/// validated the call, so a mismatch here means the builtin implementation contradicts its
-/// declared return type and is reported as an internal error.
-fn check_return_type(value: &Value, expected: Type, location: Location) -> IResult<()> {
-    let produced = value.get_type().into_owned();
-    if return_type_is_definitely_incompatible(&produced, &expected) {
-        return Err(InterpreterError::TypeMismatch {
-            expected: expected.to_string(),
-            actual: produced,
-            location,
-        });
-    }
-    Ok(())
 }
 
 fn failing_constraint<T>(
