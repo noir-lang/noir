@@ -64,10 +64,10 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 }
                 if is_signed {
                     self.convert_signed_modulo(left, right, result_variable);
-                    return;
                 } else {
-                    BrilligBinaryOp::Modulo
+                    self.brillig_context.unsigned_modulo_instruction(result_variable, left, right);
                 }
+                return;
             }
             BinaryOp::Add { .. } => BrilligBinaryOp::Add,
             BinaryOp::Sub { .. } => BrilligBinaryOp::Sub,

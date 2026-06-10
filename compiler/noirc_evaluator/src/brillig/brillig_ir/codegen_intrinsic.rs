@@ -3,8 +3,6 @@ use acvm::acir::{
     brillig::{BlackBoxOp, IntegerBitSize},
 };
 
-use crate::brillig::brillig_ir::BrilligBinaryOp;
-
 use super::{
     BrilligContext,
     brillig_variable::{BrilligArray, SingleAddrVariable},
@@ -55,11 +53,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             value_to_truncate.bit_size,
         );
 
-        self.binary_instruction(
+        self.unsigned_modulo_instruction(
+            destination_of_truncated_value,
             value_to_truncate,
             *modulus_var,
-            destination_of_truncated_value,
-            BrilligBinaryOp::Modulo,
         );
     }
 

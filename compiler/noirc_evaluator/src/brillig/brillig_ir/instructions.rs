@@ -38,6 +38,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.binary(lhs, rhs, result, operation);
     }
 
+    /// Computes `left % right` for unsigned operands, writing the result to `result`.
+    pub(crate) fn unsigned_modulo_instruction(
+        &mut self,
+        result: SingleAddrVariable,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+    ) {
+        self.debug_show.modulo_instruction(left.address, right.address, result.address);
+        self.modulo(result, left, right);
+    }
+
     /// Processes a not instruction.
     ///
     /// Not is computed using a subtraction operation as there is no native not instruction
@@ -130,9 +141,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             rhs.bit_size
         );
 
-        if let BrilligBinaryOp::Modulo = operation {
-            self.modulo(result, lhs, rhs);
-        } else if is_field_op {
+        if is_field_op {
             self.push_opcode(BrilligOpcode::BinaryFieldOp {
                 op: operation.into(),
                 destination: result.address,
@@ -494,8 +503,6 @@ pub enum BrilligBinaryOp {
     Xor,
     Shl,
     Shr,
-    // Modulo operation requires more than one brillig opcode
-    Modulo,
 }
 
 impl From<BrilligBinaryOp> for BinaryFieldOp {
