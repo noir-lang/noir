@@ -23,12 +23,12 @@ comptime fn macro() -> Quoted {
 
 struct Foo<T> {}
 
-impl Foo<Field> {
-    fn do_nothing(_self: Self) {}
-}
-
 impl Foo<u32> {
     pub fn do_nothing(_self: Self) {
         assert(false);
     }
+}
+
+impl Foo<Field> {
+    fn do_nothing(_self: Self) {}
 }

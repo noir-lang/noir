@@ -11,8 +11,8 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
-    hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
-    node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
+    hir_def::traits::{Impl, NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
+    node_interner::{ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
 
 use super::NodeInterner;
@@ -68,6 +68,29 @@ impl NodeInterner {
             if trait_impl.borrow().crate_id == crate_id { Some(*id) } else { None }
         });
         trait_impls.collect()
+    }
+
+    /// Reserves the next [ImplId] for an inherent (non-trait) `impl` block.
+    pub fn next_impl_id(&mut self) -> ImplId {
+        let next_id = self.next_impl_id;
+        self.next_impl_id += 1;
+        ImplId(next_id)
+    }
+
+    /// Records a resolved inherent `impl` block under its previously-reserved [ImplId].
+    pub fn add_impl(&mut self, id: ImplId, impl_: Impl) {
+        self.impls.insert(id, impl_);
+    }
+
+    pub fn get_impl(&self, id: ImplId) -> &Impl {
+        &self.impls[&id]
+    }
+
+    pub fn get_impls_in_crate(&self, crate_id: CrateId) -> HashSet<ImplId> {
+        self.impls
+            .iter()
+            .filter_map(|(id, impl_)| (impl_.crate_id == crate_id).then_some(*id))
+            .collect()
     }
 
     /// Adds an "assumed" trait implementation to the currently known trait implementations.

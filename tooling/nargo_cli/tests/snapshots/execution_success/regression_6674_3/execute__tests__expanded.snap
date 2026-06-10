@@ -135,7 +135,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
             self.public_inputs.end.public_call_requests.len(),
         );
     }
+}
 
+impl PrivateKernelCircuitPublicInputsComposer {
     pub fn new_from_previous_kernel(
         previous_kernel_public_inputs: PrivateKernelCircuitPublicInputs,
     ) -> Self {

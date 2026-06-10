@@ -385,18 +385,23 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
-        let generics = vecmap(impl_.generics, |(name, kind)| {
-            let numeric = self.kind_to_numeric(kind);
+        let generics = vecmap(impl_.generics, |generic| {
+            let name = generic.name.as_ref().clone();
+            let numeric = self.kind_to_numeric(generic.kind());
             Generic { name, numeric }
         });
         let r#type = self.convert_type(&impl_.typ);
+        let where_clause =
+            vecmap(&impl_.where_clause, |constraint| self.convert_trait_constraint(constraint));
+        self.trait_constraints = where_clause.clone();
         let methods = impl_
             .methods
             .into_iter()
             .filter(|(visibility, _)| visibility == &ItemVisibility::Public)
             .map(|(_, func_id)| self.convert_function(func_id))
             .collect();
-        Impl { generics, r#type, methods }
+        self.trait_constraints.clear();
+        Impl { generics, r#type, where_clause, methods }
     }
 
     fn convert_trait_impl(&mut self, item_trait_impl: expand_items::TraitImpl) -> TraitImpl {

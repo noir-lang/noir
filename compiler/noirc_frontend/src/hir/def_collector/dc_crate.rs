@@ -20,7 +20,7 @@ use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied
 
 use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
-    FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
+    FuncId, GlobalId, ImplId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
 };
 
@@ -201,7 +201,13 @@ impl CollectedItems {
 /// (attribute run order, method declaration order). Using an `IndexMap` keeps source-order for evaluation.
 pub(crate) type ImplMap = IndexMap<
     (UnresolvedType, LocalModuleId),
-    Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
+    Vec<(
+        UnresolvedGenerics,
+        Vec<UnresolvedTraitConstraint>,
+        Location,
+        UnresolvedFunctions,
+        ImplId,
+    )>,
     FxBuildHasher,
 >;
 

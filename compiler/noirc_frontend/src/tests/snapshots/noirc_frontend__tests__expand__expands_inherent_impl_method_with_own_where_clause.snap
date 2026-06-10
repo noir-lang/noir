@@ -10,17 +10,25 @@ impl Bar for Field {
 
 }
 
+trait Baz {
+
+}
+
+impl Baz for Field {
+
+}
+
 struct Foo<T> {
     x: T,
 }
 
 impl<T> Foo<T> where T: Bar {
-    fn get(self) -> T {
+    fn convert<U>(self, _other: U) -> T where U: Baz {
         self.x
     }
 }
 
 fn main() {
     let foo: Foo<Field> = Foo::<Field> { x: 1_Field};
-    let _: Field = foo.get();
+    let _: Field = foo.convert(2_Field);
 }

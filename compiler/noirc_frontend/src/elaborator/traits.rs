@@ -1098,6 +1098,7 @@ impl Elaborator<'_> {
                 outer_generics: self.generics.clone(),
                 current_trait: Some(trait_id),
                 current_trait_impl: None,
+                current_impl: None,
                 extra_trait_constraints: Vec::new(),
             },
         );

@@ -10,7 +10,7 @@ use super::traits::TraitConstraint;
 use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
-use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
+use crate::node_interner::{ExprId, ImplId, NodeInterner, TraitId, TraitImplId, TypeId};
 use crate::shared::Visibility;
 
 use crate::{ResolvedGeneric, Type};
@@ -151,6 +151,9 @@ pub struct FuncMeta {
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// The inherent (non-trait) impl this function belongs to, if any
+    pub impl_id: Option<ImplId>,
 
     /// If this function is the one related to an enum variant, this holds its index (relative to `type_id`)
     pub enum_variant_index: Option<usize>,

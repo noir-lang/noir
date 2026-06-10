@@ -81,7 +81,8 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, FuncId, GlobalId, ImplId, NodeInterner, TraitId, TraitImplId, TypeAliasId,
+        TypeId,
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
@@ -272,6 +273,10 @@ pub struct Elaborator<'context> {
     /// If we're currently resolving methods within a trait impl, this will be set
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
+
+    /// If we're currently resolving methods within an inherent (non-trait) impl,
+    /// this will be set to the corresponding impl ID.
+    current_impl: Option<ImplId>,
 
     /// The trait we're currently resolving or implementing, if any.
     /// Set during both trait definitions (`trait Foo { ... }`) and
@@ -502,6 +507,7 @@ impl<'context> Elaborator<'context> {
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
+            current_impl: None,
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
@@ -1075,9 +1081,10 @@ impl<'context> Elaborator<'context> {
             Vec<UnresolvedTraitConstraint>,
             Location,
             UnresolvedFunctions,
+            ImplId,
         )>,
     ) {
-        for (_, _, _, functions) in impls {
+        for (_, _, _, functions, _) in impls {
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }

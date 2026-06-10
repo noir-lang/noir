@@ -116,6 +116,33 @@ pub struct TraitImpl {
     pub where_clause: Vec<TraitConstraint>,
 }
 
+/// A completed inherent `impl` block, i.e. one that does not implement a trait,
+/// such as `impl<T> Foo<T> where T: Bar { ... }`.
+///
+/// Unlike methods, which are recorded individually in the [`NodeInterner`], this records the
+/// impl block as a whole so its generics and where clause can be recovered later (for example
+/// by `nargo expand` and `nargo doc`). The impl's where clause is also copied onto each method
+/// during def collection; recording it here lets consumers tell the impl's constraints apart
+/// from each method's own.
+#[derive(Debug)]
+pub struct Impl {
+    pub location: Location,
+    pub typ: Type,
+
+    pub file: FileId,
+    pub crate_id: CrateId,
+    pub module_id: crate::hir::def_map::ModuleId,
+
+    /// The generics introduced by the impl block, in declaration order
+    /// (e.g. `T` in `impl<T> Foo<T>`).
+    pub generics: ResolvedGenerics,
+
+    pub methods: Vec<FuncId>,
+
+    /// The impl's where clause. Empty if there is no where clause.
+    pub where_clause: Vec<TraitConstraint>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: Type,

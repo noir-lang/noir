@@ -85,6 +85,10 @@ pub struct TraitAssociatedTypeId(pub usize);
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
 
+/// Identifies an inherent `impl` block (i.e. one that does not implement a trait).
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
+pub struct ImplId(pub usize);
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TraitItemId {
     pub trait_id: TraitId,

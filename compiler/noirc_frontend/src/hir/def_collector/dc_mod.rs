@@ -1464,6 +1464,8 @@ pub fn collect_impl(
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
     }
 
+    let impl_id = interner.next_impl_id();
+
     let key = (r#impl.object_type, module_id.local_id);
     let methods = items.impls.entry(key).or_default();
     methods.push((
@@ -1471,6 +1473,7 @@ pub fn collect_impl(
         r#impl.where_clause,
         r#impl.type_location,
         unresolved_functions,
+        impl_id,
     ));
 }
 

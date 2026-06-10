@@ -1,0 +1,25 @@
+---
+source: compiler/noirc_frontend/src/tests/expand.rs
+expression: expanded
+---
+struct Foo {
+    x: Field,
+}
+
+impl Foo {
+    fn a(self) -> Field {
+        self.x
+    }
+}
+
+impl Foo {
+    fn b(self) -> Field {
+        self.x
+    }
+}
+
+fn main() {
+    let foo: Foo = Foo { x: 1_Field};
+    let _: Field = foo.a();
+    let _: Field = foo.b();
+}

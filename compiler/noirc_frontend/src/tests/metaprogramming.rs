@@ -236,7 +236,9 @@ fn generate_function_with_macros_on_impl_method() {
     impl Spam {
         pub fn struct_method() {
         }
+    }
 
+    impl Spam {
         pub fn bar(x: i32) -> i32 {
             x + 1_i32
         }

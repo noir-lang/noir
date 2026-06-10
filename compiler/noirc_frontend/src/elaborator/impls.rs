@@ -85,7 +85,7 @@ use crate::{
         def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
         def_map::LocalModuleId,
     },
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, ImplId, TraitId},
 };
 
 use super::Elaborator;
@@ -114,12 +114,13 @@ impl Elaborator<'_> {
             Vec<UnresolvedTraitConstraint>,
             Location,
             UnresolvedFunctions,
+            ImplId,
         )],
         self_type: &UnresolvedType,
     ) {
         let previous_local_module = self.replace_local_module(module);
 
-        for (generics, _, location, unresolved) in impls {
+        for (generics, _, location, unresolved, _impl_id) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
 
             self.recover_generics(|this| {

@@ -34,7 +34,7 @@ use crate::token::MetaAttributeName;
 use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
-use crate::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
+use crate::hir_def::traits::{Impl, Trait, TraitConstraint, TraitImpl};
 use crate::hir_def::types::{DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -174,6 +174,15 @@ pub struct NodeInterner {
     trait_impl_generic_types: HashMap<TraitImplId, TraitGenerics>,
 
     trait_impl_associated_constants: HashMap<TraitImplId, HashMap<String, (DefinitionId, Type)>>,
+
+    /// Inherent `impl` blocks (those that do not implement a trait), indexed by `ImplId`.
+    ///
+    /// Unlike methods, which are recorded individually in `self.methods`, this records each
+    /// impl block as a whole so its generics and where clause can be recovered later (e.g. by
+    /// `nargo expand` and `nargo doc`).
+    pub(crate) impls: HashMap<ImplId, Impl>,
+
+    next_impl_id: usize,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -505,6 +514,8 @@ impl Default for NodeInterner {
             trait_implementations: HashMap::default(),
             trait_implementations_by_trait_id: HashMap::default(),
             next_trait_implementation_id: 0,
+            impls: HashMap::default(),
+            next_impl_id: 0,
             trait_implementation_map: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
             infix_operator_traits: HashMap::default(),

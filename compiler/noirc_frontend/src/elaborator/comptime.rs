@@ -325,7 +325,7 @@ impl<'context> Elaborator<'context> {
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for ((object_type, _impl_module), impls_in_module) in impls {
-            for (generics, where_clause, type_location, methods) in impls_in_module {
+            for (generics, where_clause, type_location, methods, _impl_id) in impls_in_module {
                 let impl_target = AttributeImplTarget {
                     object_type: object_type.clone(),
                     generics: generics.clone(),

@@ -78,6 +78,12 @@ struct ItemPrinter<'context, 'string> {
     /// Trait constraints in scope.
     /// These are set when a trait, trait impl or function is visited.
     trait_constraints: Vec<TraitConstraint>,
+    /// The where clause of the inherent impl currently being printed, if any.
+    ///
+    /// Kept separate from `trait_constraints` because an inherent impl's where clause is
+    /// copied onto and re-resolved per method, minting fresh type variables for any associated
+    /// types it introduces; matching a method's constraints against it requires ignoring those.
+    impl_where_clause: Vec<TraitConstraint>,
     /// Keep track of trait impls that have been printed so we don't show a
     /// same trait impl multiple times.
     trait_impls_printed: HashSet<TraitImplId>,
@@ -107,6 +113,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             imports,
             self_type: None,
             trait_constraints: Vec::new(),
+            impl_where_clause: Vec::new(),
             trait_impls_printed: HashSet::new(),
         }
     }
@@ -341,13 +348,18 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let typ = impl_.typ;
 
         self.push_str("impl");
-        self.show_generic_type_variables(&impl_.generics);
+        self.show_generics(&impl_.generics);
         self.push(' ');
         self.show_type(&typ);
+        self.show_where_clause(&impl_.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
 
         self.self_type = Some(typ.clone());
+
+        // The impl's where clause is also copied onto each method during def collection.
+        // Tracking it here keeps `show_function` from printing it again on each method.
+        self.impl_where_clause = impl_.where_clause.clone();
 
         for (index, (visibility, func_id)) in impl_.methods.iter().enumerate() {
             if index != 0 {
@@ -364,6 +376,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.self_type = None;
+        self.impl_where_clause.clear();
     }
 
     fn show_trait_impls(&mut self, trait_impls: &[&TraitImpl]) {
@@ -589,6 +602,29 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(";");
     }
 
+    /// Whether a parent trait/impl already declares the given constraint, so it shouldn't be
+    /// repeated on a method's where clause.
+    ///
+    /// Constraints from a parent trait or trait impl are the same resolved objects the method
+    /// carries, so they're matched exactly. An inherent impl's where clause is instead copied
+    /// onto each method during def collection and re-resolved per method, which mints fresh type
+    /// variables for any associated types the constraint introduces (e.g. `<T as Foo>::E`).
+    /// Those make two otherwise-identical constraints compare unequal, so an impl's where clause
+    /// is matched on the parts that identify the constraint — the constrained type, the trait,
+    /// and its ordered generics — rather than on the associated (named) generics.
+    fn parent_constraints_contain(&self, constraint: &TraitConstraint) -> bool {
+        if self.trait_constraints.contains(constraint) {
+            return true;
+        }
+
+        self.impl_where_clause.iter().any(|parent| {
+            parent.typ == constraint.typ
+                && parent.trait_bound.trait_id == constraint.trait_bound.trait_id
+                && parent.trait_bound.trait_generics.ordered
+                    == constraint.trait_bound.trait_generics.ordered
+        })
+    }
+
     fn show_function(&mut self, func_id: FuncId) {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
@@ -651,7 +687,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let func_trait_constraints = func_meta
             .trait_constraints
             .iter()
-            .filter(|trait_constraint| !self.trait_constraints.contains(trait_constraint))
+            .filter(|trait_constraint| !self.parent_constraints_contain(trait_constraint))
             .cloned()
             .collect::<Vec<_>>();
 
