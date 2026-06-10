@@ -328,7 +328,7 @@ impl Function {
             } else {
                 self.try_unroll_loop(
                     next_loop,
-                    &loops,
+                    &mut loops,
                     max_unroll_iterations,
                     force_unroll_threshold,
                 )
@@ -365,7 +365,7 @@ impl Function {
     fn try_unroll_loop(
         &mut self,
         loop_: Loop,
-        loops: &Loops,
+        loops: &mut Loops,
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> LoopUnrollResult {
@@ -395,7 +395,7 @@ impl Function {
         }
 
         // Try to unroll.
-        match loop_.unroll(self, &loops.cfg, &loops.dominates_jmpif_target) {
+        match loop_.unroll(self, &loops.cfg, &mut loops.dom) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -490,11 +490,11 @@ pub(crate) struct Loops {
     /// The CFG so we can query the predecessors of blocks when needed.
     pub(crate) cfg: ControlFlowGraph,
     /// The [DominatorTree] used during the discovery of loops.
+    ///
+    /// Also queried during unrolling to decide whether a folded constant-`JmpIf`'s destination
+    /// parameters can be specialized to the taken edge (see [`LoopIteration::handle_jmpif`]).
+    /// `dominates` caches its results, so on-demand queries stay cheap.
     pub(crate) dom: DominatorTree,
-    /// For every `JmpIf` edge in a loop body, whether the source block dominates the target.
-    /// Computed once on the original CFG; drives parameter-specialization when a constant `JmpIf`
-    /// is folded during unrolling (see [`LoopIteration::handle_jmpif`]).
-    pub(crate) dominates_jmpif_target: HashMap<(BasicBlockId, BasicBlockId), bool>,
     /// Body weights of callees that will be inlined, used to estimate the true cost
     /// of call instructions in loop bodies instead of using call overhead.
     /// Callers of unrolling set this to the
@@ -555,28 +555,6 @@ impl Loops {
             }
         }
 
-        // Precompute, for every `JmpIf` terminator of a block in some loop body, whether that block
-        // dominates each of its destinations. Computed once on the original (pre-unroll) CFG; the
-        // loops' blocks and edges are unchanged by unrolling, so these facts stay valid for the
-        // original block ids that `handle_jmpif` queries.
-        let mut dominates_jmpif_target = HashMap::default();
-        for loop_ in &loops {
-            for block in &loop_.blocks {
-                if let Some(TerminatorInstruction::JmpIf {
-                    then_destination,
-                    else_destination,
-                    ..
-                }) = function.dfg[*block].terminator()
-                {
-                    for target in [*then_destination, *else_destination] {
-                        dominates_jmpif_target
-                            .entry((*block, target))
-                            .or_insert_with(|| dom_tree.dominates(*block, target));
-                    }
-                }
-            }
-        }
-
         match order {
             LoopOrder::InsideOut => {
                 // Sort by block size descending so `pop` yields smaller, inner loops first.
@@ -590,13 +568,7 @@ impl Loops {
             }
         }
 
-        Self {
-            yet_to_unroll: loops,
-            cfg,
-            dom: dom_tree,
-            dominates_jmpif_target,
-            callee_costs: HashMap::default(),
-        }
+        Self { yet_to_unroll: loops, cfg, dom: dom_tree, callee_costs: HashMap::default() }
     }
 }
 
@@ -950,7 +922,7 @@ impl Loop {
         &self,
         function: &mut Function,
         cfg: &ControlFlowGraph,
-        dominates_jmpif_target: &HashMap<(BasicBlockId, BasicBlockId), bool>,
+        dom: &mut DominatorTree,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -962,7 +934,7 @@ impl Loop {
         let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
         while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args, dominates_jmpif_target)?
+            self.unroll_header(function, unroll_into, &header_args, dom)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
         }
@@ -1009,15 +981,14 @@ impl Loop {
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
-        dominates_jmpif_target: &'a HashMap<(BasicBlockId, BasicBlockId), bool>,
+        dom: &'a mut DominatorTree,
     ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
-        let mut context =
-            LoopIteration::new(function, self, fresh_block, self.header, dominates_jmpif_target);
+        let mut context = LoopIteration::new(function, self, fresh_block, self.header, dom);
         let loop_header_id = context.source_block;
 
         // Collect all header parameters before mutably borrowing context.
@@ -1814,12 +1785,12 @@ struct LoopIteration<'f> {
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
 
-    /// For each `(block, jmpif_target)` edge in the original loop body, whether `block`
-    /// dominates `jmpif_target`. When a constant-`JmpIf` is folded, its destination's block
-    /// parameters can only be specialized to the taken edge if the folding block dominates
-    /// the destination; otherwise the destination is a join reachable from an independent
-    /// predecessor and its parameters must be preserved (see [`Self::handle_jmpif`]).
-    dominates_jmpif_target: &'f HashMap<(BasicBlockId, BasicBlockId), bool>,
+    /// Dominator tree of the original (pre-unroll) function. When a constant-`JmpIf` is folded,
+    /// its destination's block parameters can only be specialized to the taken edge if the folding
+    /// block dominates the destination; otherwise the destination is a join reachable from an
+    /// independent predecessor and its parameters must be preserved (see [`Self::handle_jmpif`]).
+    /// Queries use original block ids, which the original dominator tree still describes correctly.
+    dom: &'f mut DominatorTree,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1828,7 +1799,7 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
-        dominates_jmpif_target: &'f HashMap<(BasicBlockId, BasicBlockId), bool>,
+        dom: &'f mut DominatorTree,
     ) -> Self {
         Self {
             inserter: FunctionInserter::new(function),
@@ -1841,7 +1812,7 @@ impl<'f> LoopIteration<'f> {
             encountered_loop_header: false,
 
             induction_value: None,
-            dominates_jmpif_target,
+            dom,
         }
     }
 
@@ -1997,11 +1968,8 @@ impl<'f> LoopIteration<'f> {
                 // independent predecessor carrying a different argument, and its parameters
                 // must be preserved so the join body runs once over the merged parameter;
                 // specializing would copy the body for this edge and drop it for the others.
-                // Every loop block with a `JmpIf` has its `then`/`else` targets recorded by
-                // `compute_jmpif_target_dominance`, and `folding_block` is always such a block
-                // (see the loop-membership assertion in `unroll_loop_block`), so the entry must exist.
                 let folding_block_dominates_destination =
-                    self.dominates_jmpif_target[&(folding_block, original_destination)];
+                    self.dom.dominates(folding_block, original_destination);
                 if folding_block_dominates_destination {
                     let destination_params = self.dfg().block_parameters(destination).to_vec();
                     for (param, arg) in destination_params.iter().zip(&arguments) {
