@@ -2025,14 +2025,16 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
+/// ```text
 /// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
-/// `name_matches("compute_merkle_root`", "`merk_ro`") == true // cSpell:disable-line
+/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
 /// // "ro" matches "root", but "merkle" comes before it, so no match
-/// `name_matches("compute_merkle_root`", "`ro_mer`") == false
+/// name_matches("compute_merkle_root", "ro_mer") == false
 ///
 /// // neither "compute" nor "merkle" nor "root" start with "oot"
-/// `name_matches("compute_merkle_root`", "oot") == false
+/// name_matches("compute_merkle_root", "oot") == false
+/// ```
 fn name_matches(name: &str, prefix: &str) -> bool {
     let name = name.to_case(Case::Snake);
     let name_parts: Vec<&str> = name.split('_').collect();

@@ -3041,7 +3041,7 @@ mod test {
     ///
     /// Revisit from b3: the new `Not(v2)` in b6 hits the cache from b3, but b3
     /// doesn't dominate b6 (path b2→b6 bypasses b3), so it's hoisted to
-    /// `common_dom(b3`, b6) = b2. Later in the same iteration, b2 is visited via the
+    /// `common_dom(b3, b6) = b2`. Later in the same iteration, b2 is visited via the
     /// loop back-edge (b6→b1→b2), and the hoisted `Not` self-deduplicates: the cache
     /// points to its own results, so the pass skips re-insertion, orphaning the result.
     #[test]

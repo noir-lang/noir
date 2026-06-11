@@ -295,7 +295,7 @@ impl FuzzerBuilder {
 
     /// Inserts a new parameter to the current SSA block and returns its value
     ///
-    /// `b0()` -> `b0(new_parameter`: `parameter_type`)
+    /// `b0() -> b0(new_parameter: parameter_type)`
     pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> TypedValue {
         let id = self.builder.add_block_parameter(block, typ.clone().into());
         TypedValue::new(id, typ)

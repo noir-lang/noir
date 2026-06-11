@@ -215,7 +215,7 @@ impl Context<'_, '_, '_> {
     ///
     /// The math here is:
     ///
-    /// result = value + 2*((`2^(bit_size` - 1) - value)*`value_is_negative`)
+    /// `result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)`
     ///
     /// For example, for i8 we have `bit_size` = 8 so:
     ///

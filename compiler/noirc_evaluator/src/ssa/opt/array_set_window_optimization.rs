@@ -906,7 +906,7 @@ mod tests {
     }
 
     /// Two independent candidates A (v4) and B (v5) are connected through a derived
-    /// value v7 = `array_set(v5`, `v6_from_A`). Candidate A's chain escapes (v6 used
+    /// value `v7 = array_set(v5, v6_from_A)`. Candidate A's chain escapes (v6 used
     /// outside the window), but B is correctly used in `IfElse`. B should still be
     /// optimized because its own uses are all within the window.
     #[test]

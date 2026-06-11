@@ -29,7 +29,7 @@ pub(crate) struct InfoCommand {
     profile_execution: bool,
 
     /// Path to the input file (TOML or JSON) containing witness values.
-    /// If not provided, looks for <`artifact_name>.toml` or <`artifact_name>.json`
+    /// If not provided, looks for `<artifact_name>.toml` or `<artifact_name>.json`
     /// in the same directory as the artifact.
     #[clap(long, short = 'i')]
     input_file: Option<PathBuf>,
