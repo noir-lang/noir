@@ -128,7 +128,7 @@ impl Monomorphizer<'_> {
         expected: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if actual.try_unify(expected, &mut TypeBindings::default()).is_ok() {
+        if actual.try_unify_with_default_bindings(expected).is_ok() {
             Ok(())
         } else {
             let actual = actual.to_string();
