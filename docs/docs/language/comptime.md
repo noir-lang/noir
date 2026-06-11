@@ -280,6 +280,34 @@ mod bar; // followed by attributes in bar
 struct Baz {}
 ```
 
+Here's a more involved example showing evaluation order:
+
+```rust
+// Assume `nth` asserts this is the `nth` attribute which runs.
+// In this case, it is the third which runs due to the inline submodule further below
+#[nth(2)]
+mod child1;
+
+#[nth(3)]
+pub fn foo() {}
+
+#![nth(4)]
+
+// This attribute is on a submodule rather than in it, so it is ordered with the rest of the parent module
+#[nth(5)]
+mod child2 {
+    #![nth(0)]
+
+    #[nth(1)]
+    pub fn foo() {}
+}
+
+#[nth(6)]
+pub fn bar() {}
+
+#![nth(7)]
+```
+
 Note that because of this evaluation order, you may get an error trying to derive a trait for a struct whose fields
 have not yet had the trait derived already:
 
