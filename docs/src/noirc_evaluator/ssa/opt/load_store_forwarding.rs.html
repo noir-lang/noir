@@ -1454,4 +1454,40 @@
 <a href=#1454 id=1454 data-nosnippet>1454</a>        }
 <a href=#1455 id=1455 data-nosnippet>1455</a>        "</span>);
 <a href=#1456 id=1456 data-nosnippet>1456</a>    }
-<a href=#1457 id=1457 data-nosnippet>1457</a>}</code></pre></div></section></main></body></html>
+<a href=#1457 id=1457 data-nosnippet>1457</a>
+<a href=#1458 id=1458 data-nosnippet>1458</a>    <span class="attr">#[test]
+<a href=#1459 id=1459 data-nosnippet>1459</a>    </span><span class="kw">fn </span>call_with_nested_reference() {
+<a href=#1460 id=1460 data-nosnippet>1460</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1461 id=1461 data-nosnippet>1461</a>        acir(inline) fn main f0 {
+<a href=#1462 id=1462 data-nosnippet>1462</a>          b0():
+<a href=#1463 id=1463 data-nosnippet>1463</a>            v0 = allocate -&gt; &amp;mut Field
+<a href=#1464 id=1464 data-nosnippet>1464</a>            store Field 1 at v0
+<a href=#1465 id=1465 data-nosnippet>1465</a>            v1 = make_array [] : [&amp;mut u32; 0]
+<a href=#1466 id=1466 data-nosnippet>1466</a>            call f1(v1)
+<a href=#1467 id=1467 data-nosnippet>1467</a>            v2 = load v0 -&gt; Field
+<a href=#1468 id=1468 data-nosnippet>1468</a>            return v2
+<a href=#1469 id=1469 data-nosnippet>1469</a>        }
+<a href=#1470 id=1470 data-nosnippet>1470</a>        acir(inline) fn f1 f1 {
+<a href=#1471 id=1471 data-nosnippet>1471</a>          b0(v0: [&amp;mut u32; 0]):
+<a href=#1472 id=1472 data-nosnippet>1472</a>            return
+<a href=#1473 id=1473 data-nosnippet>1473</a>        }
+<a href=#1474 id=1474 data-nosnippet>1474</a>        "</span>;
+<a href=#1475 id=1475 data-nosnippet>1475</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1476 id=1476 data-nosnippet>1476</a>        <span class="kw">let </span>ssa = ssa.load_store_forwarding();
+<a href=#1477 id=1477 data-nosnippet>1477</a>        <span class="comment">// The call `call f1(v1)` has a reference but it cannot impact v0.
+<a href=#1478 id=1478 data-nosnippet>1478</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#1479 id=1479 data-nosnippet>1479</a>        acir(inline) fn main f0 {
+<a href=#1480 id=1480 data-nosnippet>1480</a>          b0():
+<a href=#1481 id=1481 data-nosnippet>1481</a>            v0 = allocate -&gt; &amp;mut Field
+<a href=#1482 id=1482 data-nosnippet>1482</a>            store Field 1 at v0
+<a href=#1483 id=1483 data-nosnippet>1483</a>            v2 = make_array [] : [&amp;mut u32; 0]
+<a href=#1484 id=1484 data-nosnippet>1484</a>            call f1(v2)
+<a href=#1485 id=1485 data-nosnippet>1485</a>            return Field 1
+<a href=#1486 id=1486 data-nosnippet>1486</a>        }
+<a href=#1487 id=1487 data-nosnippet>1487</a>        acir(inline) fn f1 f1 {
+<a href=#1488 id=1488 data-nosnippet>1488</a>          b0(v0: [&amp;mut u32; 0]):
+<a href=#1489 id=1489 data-nosnippet>1489</a>            return
+<a href=#1490 id=1490 data-nosnippet>1490</a>        }
+<a href=#1491 id=1491 data-nosnippet>1491</a>        "</span>);
+<a href=#1492 id=1492 data-nosnippet>1492</a>    }
+<a href=#1493 id=1493 data-nosnippet>1493</a>}</code></pre></div></section></main></body></html>
