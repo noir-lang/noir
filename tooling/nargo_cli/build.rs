@@ -159,7 +159,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 0] = [];
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 6] = [
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 7] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
@@ -168,6 +168,9 @@ const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 6] = [
     // Enums (and `match`) are currently unsupported in comptime code
     "regression_7323",
     "match_struct_pattern_field_order",
+    // An associated constant resolved through `Expr::resolve` is inferred with type
+    // `Type::Error`, so the comptime interpreter can't fit its integer value to a type.
+    "comptime_resolve_associated_constant_scope",
 ];
 
 const PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
@@ -219,7 +222,10 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
+    // `nargo expand` prints an associated constant resolved through `Expr::resolve` as a bare
+    // `N`, dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
+    "comptime_resolve_associated_constant_scope",
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",

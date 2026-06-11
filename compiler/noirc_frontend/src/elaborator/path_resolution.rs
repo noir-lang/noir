@@ -705,13 +705,13 @@ impl Elaborator<'_> {
 
             // Check if namespace
             let found_ns = if current_module_id_is_type {
-                match self.resolve_method(visibility_module, current_module, current_ident) {
+                match self.resolve_method(importing_module, current_module, current_ident) {
                     MethodLookupResult::NotFound(method_traits) => {
                         // Before returning an error, try to look up as an associated constant
                         if let Some(result) = self.try_resolve_trait_constant(
                             &intermediate_item,
                             current_ident,
-                            visibility_module,
+                            importing_module,
                         ) {
                             return result.map(|item| PathResolution { item, errors });
                         }
