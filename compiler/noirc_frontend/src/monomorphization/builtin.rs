@@ -5,7 +5,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Type, TypeBindings,
+    Type,
     ast::IntegerBitSize,
     monomorphization::{
         CanonicalBindings, Monomorphizer,
