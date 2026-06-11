@@ -388,7 +388,7 @@ fn checked_transmute(
 ) -> IResult<Value> {
     let (value, location) = check_one_argument(arguments, location)?;
 
-    if value.get_type().as_ref() != &return_type {
+    if value.get_type().try_unify_with_default_bindings(&return_type).is_err() {
         return Err(InterpreterError::CheckedTransmuteFailed {
             actual: value.get_type().into_owned(),
             expected: return_type,

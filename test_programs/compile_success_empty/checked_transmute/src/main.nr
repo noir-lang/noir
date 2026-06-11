@@ -3,6 +3,10 @@ use std::mem::checked_transmute;
 fn main() {
     // 1*(2 + 3) = 1*2 + 1*3 = 5
     let _: [Field; 5] = distribute::<1, 2, 3>([1, 2, 3, 4, 5]);
+
+    comptime {
+        let _: [Field; 5] = distribute::<1, 2, 3>([1, 2, 3, 4, 5]);
+    }
 }
 
 pub fn distribute<let N: u32, let A: u32, let B: u32>(
