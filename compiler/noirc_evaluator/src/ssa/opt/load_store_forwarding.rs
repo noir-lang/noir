@@ -126,11 +126,10 @@ fn forward_loads_and_stores_in_block(
                     instructions_to_remove.insert(instruction_id);
                 } else {
                     known_values.insert(key, (address, result));
+                    // Mark aliased stores as used (not dead), when the load is not forwarded.
+                    let function: &Function = inserter.function;
+                    last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
                 }
-
-                // Mark aliased stores as used (not dead).
-                let function: &Function = inserter.function;
-                last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
             }
             Instruction::Call { .. } => {
                 // If the call arguments can reference a known value, we invalidate it.
@@ -246,7 +245,6 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
-            store Field 1 at v0
             store Field 2 at v0
             return Field 3
         }
@@ -725,7 +723,6 @@ mod tests {
             constrain v6 == u1 1
             v8 = array_set v3, index v4, value v2
             v10 = unchecked_add v4, u32 1
-            store v8 at v0
             v11 = add v4, u32 1
             store v8 at v0
             store v11 at v1
@@ -1451,6 +1448,31 @@ mod tests {
           b0(v0: &Field):
             v1 = load v0 -> Field
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn regression_12313_store_loaded_and_returned_is_not_dead() {
+        // A store whose value is forwarded to a later load is still observed
+        // whenever that load's result escapes the block (here, via return).
+        // Without an intervening same-address store, the store must survive.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            v1 = load v0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            return Field 1
         }
         ");
     }
