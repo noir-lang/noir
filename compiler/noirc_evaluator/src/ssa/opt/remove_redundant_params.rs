@@ -64,10 +64,35 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn remove_redundant_params(mut self) -> Self {
         for function in self.functions.values_mut() {
+            #[cfg(debug_assertions)]
+            let entry_param_count = function.parameters().len();
+
             function.remove_redundant_params();
+
+            #[cfg(debug_assertions)]
+            remove_redundant_params_post_check(function, entry_param_count);
         }
         self
     }
+}
+
+/// Post-check condition for [Function::remove_redundant_params].
+///
+/// Panics if:
+///   - The entry block's parameter count changed (entry parameters are the function's
+///     ABI and must never be removed).
+///   - Any `Jmp`/`JmpIf` terminator passes a different number of arguments (or
+///     differently typed arguments) than its destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn remove_redundant_params_post_check(function: &Function, entry_param_count: usize) {
+    assert_eq!(
+        function.parameters().len(),
+        entry_param_count,
+        "Entry block parameters of function {} {} changed",
+        function.name(),
+        function.id(),
+    );
+    super::checks::assert_terminator_args_match_params(function);
 }
 
 /// Lattice element for the abstract value flowing to a block parameter.
