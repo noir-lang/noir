@@ -27,26 +27,45 @@ pub struct CircuitSimulator {
     initialized_blocks: HashSet<BlockId>,
 }
 
+/// The reason a circuit was deemed unsolvable by the [`CircuitSimulator`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SimulationFailure {
+    /// The opcode at this index cannot be solved from the witnesses known at that point.
+    UnsolvableOpcode(usize),
+    /// All opcodes can be solved, but this circuit return value is never computed by any of them.
+    UnsolvableOutput(Witness),
+}
+
 impl CircuitSimulator {
     /// Check whether the circuit is solvable in theory.
     ///
     /// # Returns
     ///
     /// Returns `None` if the circuit is deemed to be solvable
-    /// Otherwise returns `Some(index)` where `index` is the opcode index of the first unsolvable opcode.
-    pub fn check_circuit<F: AcirField>(circuit: &Circuit<F>) -> Option<usize> {
+    /// Otherwise returns `Some(failure)` describing the first unsolvable opcode or return value.
+    pub fn check_circuit<F: AcirField>(circuit: &Circuit<F>) -> Option<SimulationFailure> {
         Self::default().run_check_circuit(circuit)
     }
 
     /// Simulate solving a circuit symbolically by keeping track of the witnesses that can be solved.
-    /// Returns the index of an opcode that cannot be solved, if any.
+    /// Returns the first opcode that cannot be solved, or a return value that no opcode computes, if any.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn run_check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
+    fn run_check_circuit<F: AcirField>(
+        &mut self,
+        circuit: &Circuit<F>,
+    ) -> Option<SimulationFailure> {
         let circuit_inputs = circuit.circuit_arguments();
         self.solvable_witnesses.extend(circuit_inputs.iter());
         for (i, op) in circuit.opcodes.iter().enumerate() {
             if !self.try_solve(op) {
-                return Some(i);
+                return Some(SimulationFailure::UnsolvableOpcode(i));
+            }
+        }
+        // All opcodes can be solved; the declared return values must also be solvable,
+        // otherwise the circuit promises an output it never computes.
+        for ret in &circuit.return_values.0 {
+            if !self.solvable_witnesses.contains(ret) {
+                return Some(SimulationFailure::UnsolvableOutput(*ret));
             }
         }
         None
@@ -223,8 +242,8 @@ pub(crate) fn unresolved_witnesses<F: AcirField>(
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::CircuitSimulator;
-    use acir::circuit::Circuit;
+    use crate::compiler::{CircuitSimulator, simulator::SimulationFailure};
+    use acir::{circuit::Circuit, native_types::Witness};
 
     #[test]
     fn reports_none_for_empty_circuit() {
@@ -340,7 +359,10 @@ mod tests {
         ASSERT w4 = w3
         ";
         let disconnected_circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::check_circuit(&disconnected_circuit), Some(1));
+        assert_eq!(
+            CircuitSimulator::check_circuit(&disconnected_circuit),
+            Some(SimulationFailure::UnsolvableOpcode(1))
+        );
     }
 
     #[test]
@@ -353,7 +375,10 @@ mod tests {
         INIT b0 = [w0]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
+        assert_eq!(
+            CircuitSimulator::check_circuit(&circuit),
+            Some(SimulationFailure::UnsolvableOpcode(1))
+        );
     }
 
     #[test]
@@ -366,7 +391,10 @@ mod tests {
         INIT b0 = [w0]
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
+        assert_eq!(
+            CircuitSimulator::check_circuit(&circuit),
+            Some(SimulationFailure::UnsolvableOpcode(1))
+        );
     }
 
     #[test]
@@ -380,7 +408,10 @@ mod tests {
         ASSERT w0 = w1*w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(0));
+        assert_eq!(
+            CircuitSimulator::check_circuit(&circuit),
+            Some(SimulationFailure::UnsolvableOpcode(0))
+        );
     }
 
     #[test]
@@ -393,7 +424,10 @@ mod tests {
         WRITE b0[w0] = w2
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
+        assert_eq!(
+            CircuitSimulator::check_circuit(&circuit),
+            Some(SimulationFailure::UnsolvableOpcode(1))
+        );
     }
 
     #[test]
@@ -410,6 +444,44 @@ mod tests {
     }
 
     #[test]
+    fn reports_failure_for_uncomputed_return_value() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: [w2]
+        ASSERT w1 = w0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(
+            CircuitSimulator::check_circuit(&circuit),
+            Some(SimulationFailure::UnsolvableOutput(Witness(2)))
+        );
+    }
+
+    #[test]
+    fn reports_none_for_computed_return_value() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: [w1]
+        ASSERT w1 = w0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+    }
+
+    #[test]
+    fn reports_none_for_return_value_that_is_also_a_parameter() {
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: [w0]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+    }
+
+    #[test]
     fn reports_some_when_expression_can_simplify() {
         let src = "
         private parameters: []
@@ -419,6 +491,9 @@ mod tests {
         ASSERT w2 = w1
         ";
         let empty_circuit = Circuit::from_str(src).unwrap();
-        assert_eq!(CircuitSimulator::check_circuit(&empty_circuit), Some(1));
+        assert_eq!(
+            CircuitSimulator::check_circuit(&empty_circuit),
+            Some(SimulationFailure::UnsolvableOpcode(1))
+        );
     }
 }
