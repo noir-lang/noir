@@ -812,14 +812,7 @@ impl<'f> Context<'f> {
         // path to the array_set to be walled by an `inc_rc` on the threaded
         // value or by a fresh allocation of it. See
         // [`Context::value_covered_on_all_paths`].
-        let mut visited: HashSet<(BasicBlockId, ValueId)> = HashSet::default();
-        self.value_covered_on_all_paths(
-            array_set_block,
-            source,
-            array_set_block,
-            Some(array_set_idx),
-            &mut visited,
-        )
+        self.value_covered_on_all_paths(array_set_block, source, array_set_idx)
     }
 
     /// Whether `value` is a fresh allocation whose storage is distinct on
@@ -842,114 +835,116 @@ impl<'f> Context<'f> {
     }
 
     /// Returns `true` if, on **every** control-flow path from the entry block
-    /// to `block`, the storage represented by `value` is protected before
-    /// reaching `block` — i.e. the threaded value is either RC-bumped by an
-    /// `inc_rc` or freshly allocated (`make_array`/`Call`).
+    /// to the array_set, the storage represented by its `source` is protected
+    /// before reaching the array_set — i.e. on each path the threaded value is
+    /// either RC-bumped by an `inc_rc` or an iteration-local fresh allocation
+    /// (`make_array`/`Call` that re-executes each iteration).
     ///
-    /// The walk threads the *exact* value backward: when it crosses a
-    /// block-parameter edge it follows the predecessor's argument, and when it
-    /// reaches an `array_set` result it continues with that `array_set`'s
-    /// `array` operand (the result shares the operand's storage). It thereby
-    /// recognizes path-specific protection that a block-level cut cannot:
-    /// `inc_rc` on one arm of a diamond and a fresh `make_array` on the other
-    /// (the `func_1`/`v20` fuzzer shape).
+    /// Implemented as a backward search for a *witness* of an **un**covered
+    /// path rather than recursion over all paths (the predecessor chain can be
+    /// thousands of blocks deep on large functions, which would risk stack
+    /// exhaustion). Each frame is a `(block, value, seed_idx)`:
     ///
-    /// `seed_idx` is `Some(array_set_idx)` on the initial call and `None`
-    /// afterward: in the array_set's own block only an `inc_rc` *before* the
-    /// array_set protects it, whereas any other block on a path executes fully
-    /// before the array_set, so an `inc_rc` anywhere in it counts.
+    /// - The walk threads the *exact* value backward: across a block-parameter
+    ///   edge it follows the predecessor's argument, and at an `array_set`
+    ///   result it continues with that `array_set`'s `array` operand (the
+    ///   result shares the operand's storage). This recognizes path-specific
+    ///   protection a block-level cut cannot — `inc_rc` on one arm of a diamond
+    ///   and a fresh `make_array` on the other, threaded through a loop (the
+    ///   `func_1`/`v20` fuzzer shape).
+    /// - A wall (`inc_rc` on the value, or an iteration-local fresh allocation)
+    ///   is a covered dead end and is not expanded.
+    /// - `seed_idx` is `Some(array_set_idx)` only for the array_set's own block
+    ///   and `None` for every upstream block: in the array_set's block only an
+    ///   `inc_rc` *before* the array_set protects it, whereas any other block
+    ///   on a path executes fully before the array_set, so an `inc_rc` anywhere
+    ///   in it counts.
+    /// - Reaching the entry block (or any block with no predecessors) with an
+    ///   unwalled value, or a value defined here by an unthreadable instruction
+    ///   (a non-iteration-local allocation, or an `array_get` of a nested
+    ///   array), is an uncovered terminal — return `false`.
+    /// - A revisited `(block, value)` is skipped: a cycle introduces no new
+    ///   entry-originating path, and the forward (pre-header) edges are
+    ///   explored independently.
     ///
-    /// Reaching the entry block (or any block with no predecessors) with an
-    /// unwalled value means the value is a function parameter / live-in whose
-    /// storage may be aliased and has no protection — not covered. Cycles are
-    /// treated as covered for that branch: a back-edge introduces no new
-    /// entry-originating path, and the forward (pre-header) edges are checked
-    /// independently.
-    ///
-    /// Crediting freshness only ever *accepts* more, so it can add
-    /// false-negatives (a freshly-allocated array read back through its own
-    /// name after an in-place mutation — a shape the frontend does not emit)
-    /// but never false-positives.
+    /// If no uncovered terminal is reachable, every path is covered. Crediting
+    /// freshness only ever *accepts* more, so it can add false-negatives (a
+    /// freshly-allocated array read back through its own name after an in-place
+    /// mutation — a shape the frontend does not emit) but never false-positives.
     fn value_covered_on_all_paths(
         &self,
-        block: BasicBlockId,
-        value: ValueId,
         array_set_block: BasicBlockId,
-        seed_idx: Option<usize>,
-        visited: &mut HashSet<(BasicBlockId, ValueId)>,
+        source: ValueId,
+        array_set_idx: usize,
     ) -> bool {
-        if !visited.insert((block, value)) {
-            // Already proven on another branch, or a cycle: introduces no new
-            // entry-originating path.
-            return true;
-        }
+        let mut visited: HashSet<(BasicBlockId, ValueId)> = HashSet::default();
+        let mut worklist: Vec<(BasicBlockId, ValueId, Option<usize>)> =
+            vec![(array_set_block, source, Some(array_set_idx))];
 
-        // Freshness wall: an iteration-local `make_array`/`Call` result is
-        // newly allocated storage on this path, distinct each iteration, so an
-        // in-place mutation of it is never observed through an alias.
-        if self.is_iteration_local_fresh(value, array_set_block) {
-            return true;
-        }
+        while let Some((block, value, seed_idx)) = worklist.pop() {
+            if !visited.insert((block, value)) {
+                continue;
+            }
 
-        // `inc_rc` wall: a bump on the threaded value in this block. In the
-        // array_set's own block (seed), only a bump *before* the array_set
-        // counts; elsewhere the whole block precedes the array_set on the path.
-        if let Some(locations) = self.inc_rc_locations.get(&value) {
-            for &(inc_block, inc_idx) in locations {
-                if inc_block == block && seed_idx.is_none_or(|limit| inc_idx < limit) {
-                    return true;
+            // Freshness wall: an iteration-local `make_array`/`Call` result is
+            // newly allocated storage on this path, distinct each iteration, so
+            // an in-place mutation of it is never observed through an alias.
+            if self.is_iteration_local_fresh(value, array_set_block) {
+                continue;
+            }
+
+            // `inc_rc` wall: a bump on the threaded value in this block.
+            if let Some(locations) = self.inc_rc_locations.get(&value)
+                && locations
+                    .iter()
+                    .any(|&(b, i)| b == block && seed_idx.is_none_or(|limit| i < limit))
+            {
+                continue;
+            }
+
+            // If `value` is defined in this block, the walk stops here (it
+            // cannot flow in from a predecessor).
+            if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&value)
+                && def_block == block
+            {
+                let inst_id = self.function.dfg[block].instructions()[def_idx];
+                // An `array_set` result shares its operand's storage; continue
+                // threading with the operand (defined earlier in this block or
+                // flowing in as a parameter).
+                if let Instruction::ArraySet { array, .. } = self.function.dfg[inst_id] {
+                    worklist.push((block, array, seed_idx));
+                    continue;
                 }
+                // A non-iteration-local allocation or other instruction we
+                // cannot thread: an uncovered terminal.
+                return false;
+            }
+
+            // Flows in from predecessors.
+            let preds: Vec<BasicBlockId> = self.cfg.predecessors(block).collect();
+            if preds.is_empty() {
+                // Reached the entry / a source-less block unwalled: `value` is a
+                // function parameter / live-in with no protection on this path.
+                return false;
+            }
+            // If `value` is a parameter of this block, follow each predecessor's
+            // argument at that position; otherwise the same value flows in from
+            // every predecessor.
+            let params = self.function.dfg.block_parameters(block);
+            let param_pos = params.iter().position(|&p| p == value);
+            for &pred in &preds {
+                let next = match param_pos {
+                    Some(i) => match self.edge_arg(pred, block, i) {
+                        Some(arg) => arg,
+                        None => return false,
+                    },
+                    None => value,
+                };
+                worklist.push((pred, next, None));
             }
         }
 
-        // If `value` is defined in this block, the walk stops here (it cannot
-        // flow in from a predecessor).
-        if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&value)
-            && def_block == block
-        {
-            let inst_id = self.function.dfg[block].instructions()[def_idx];
-            // An `array_set` result shares its operand's storage; continue
-            // threading with the operand (defined earlier in this block or
-            // flowing in as a parameter).
-            if let Instruction::ArraySet { array, .. } = self.function.dfg[inst_id] {
-                return self.value_covered_on_all_paths(
-                    block,
-                    array,
-                    array_set_block,
-                    seed_idx,
-                    visited,
-                );
-            }
-            // Defined here by some other instruction — a `make_array`/`Call`
-            // that is *not* iteration-local (a one-time allocation, handled
-            // above when it is), or an `array_get` of a nested array. We
-            // cannot prove protection — let the forward walk decide.
-            return false;
-        }
-
-        // Not walled and not defined here: `value` flows in from predecessors.
-        let preds: Vec<BasicBlockId> = self.cfg.predecessors(block).collect();
-        if preds.is_empty() {
-            // Reached the entry (or a source-less block): `value` is a function
-            // parameter / live-in with no protecting `inc_rc` or fresh
-            // allocation on this path.
-            return false;
-        }
-        // If `value` is a parameter of this block, follow each predecessor's
-        // argument at that position; otherwise the same value flows in from
-        // every predecessor.
-        let params = self.function.dfg.block_parameters(block);
-        let param_pos = params.iter().position(|&p| p == value);
-        preds.iter().all(|&pred| {
-            let next = match param_pos {
-                Some(i) => match self.edge_arg(pred, block, i) {
-                    Some(arg) => arg,
-                    None => return false,
-                },
-                None => value,
-            };
-            self.value_covered_on_all_paths(pred, next, array_set_block, None, visited)
-        })
+        true
     }
 
     /// The argument passed to parameter position `i` of `dest` on the edge
