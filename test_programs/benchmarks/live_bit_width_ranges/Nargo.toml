@@ -1,0 +1,5 @@
+[package]
+name = "live_bit_width_ranges"
+version = "0.1.0"
+type = "bin"
+authors = [""]

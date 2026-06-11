@@ -3,7 +3,7 @@
 //!
 //! Signed checked binary operations should have already been converted to unchecked ones with
 //! an explicit overflow check during [`super::expand_signed_checks`].
-use acvm::AcirField as _;
+
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -11,8 +11,8 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction},
-        types::NumericType,
-        value::{Value, ValueId},
+        types::{NumericType, max_unsigned_value_for_bit_size},
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -33,7 +33,10 @@ impl Function {
         #[cfg(debug_assertions)]
         checked_to_unchecked_pre_check(self);
 
-        let mut value_max_num_bits = HashMap::<ValueId, u32>::default();
+        // Compute every value's unsigned bounds once. Converting an operation to unchecked only
+        // happens when it cannot overflow, in which case neither the forward range nor the backward
+        // range of any value changes, so this snapshot stays valid for the whole pass.
+        let bounds = self.dfg.unsigned_value_bounds();
 
         self.simple_optimization(|context| {
             let instruction = context.instruction();
@@ -52,58 +55,24 @@ impl Function {
 
             let unchecked = match binary.operator {
                 BinaryOp::Add { unchecked: false } => {
-                    let bit_size = dfg.type_of_value(lhs).bit_size();
-                    let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
-                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
-
-                    // 1. If both lhs and rhs have less max bits than the result it means their
-                    //    value is at most `2^(n-1) - 1`, assuming `n = bit_size`. Adding those
-                    //    we get `2^(n-1) - 1 + 2^(n-1) - 1`, so `2*(2^(n-1)) - 2`,
-                    //    so `2^n - 2` which fits in `0..2^n`.
-                    // In that case, `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    max_lhs_bits < bit_size && max_rhs_bits < bit_size
+                    unsigned_operation_cannot_overflow(dfg, &bounds, lhs, rhs, |lhs, rhs| {
+                        lhs.checked_add(rhs)
+                    })
                 }
                 BinaryOp::Sub { unchecked: false } => {
-                    // True when an unsigned subtraction `lhs - rhs` is guaranteed not to underflow.
-                    //
-                    // This is the case when `lhs` is a constant that is >= the maximum possible value of `rhs`
-                    // (determined by its bit width). For example, `256 - (x as u32)` where `x: u8` cannot
-                    // underflow because `256 >= 255`.
+                    let Some(&(lhs_min, _)) = bounds.get(&lhs) else {
+                        return;
+                    };
+                    let Some(&(_, rhs_max)) = bounds.get(&rhs) else {
+                        return;
+                    };
 
-                    if let Some(lhs_const) = dfg.get_numeric_constant(lhs) {
-                        let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
-                        let max_rhs =
-                            if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
-
-                        // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs >= 0`.
-                        // For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1`.
-                        // Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255`.
-                        lhs_const >= max_rhs.into()
-                    } else {
-                        false
-                    }
+                    lhs_min >= rhs_max
                 }
                 BinaryOp::Mul { unchecked: false } => {
-                    let bit_size = dfg.type_of_value(lhs).bit_size();
-                    let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
-                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
-
-                    // `get_max_num_bits` tracks the actual range of a value through casts,
-                    // truncations, and boolean multiplications — it may be smaller than the
-                    // type's bit_size (e.g. a u8 upcast to u64 still has max_bits == 8).
-                    //
-                    // The product of an `a`-bit value and a `b`-bit value needs at most
-                    // `a + b` bits: `(2^a - 1) * (2^b - 1) < 2^(a+b)`. So if
-                    // `max_lhs_bits + max_rhs_bits <= bit_size`, the result is guaranteed
-                    // to fit and the multiplication cannot overflow.
-                    //
-                    // As a special case, when either operand has `max_bits == 1` its value
-                    // is at most 1, so `x * 0 = 0` or `x * 1 = x` — neither can overflow.
-                    // This is sound as long as `get_max_num_bits` never returns 1 for a
-                    // value that could actually exceed 1.
-                    max_lhs_bits + max_rhs_bits <= bit_size
-                        || max_lhs_bits == 1
-                        || max_rhs_bits == 1
+                    unsigned_operation_cannot_overflow(dfg, &bounds, lhs, rhs, |lhs, rhs| {
+                        lhs.checked_mul(rhs)
+                    })
                 }
                 _ => false,
             };
@@ -119,54 +88,27 @@ impl Function {
     }
 }
 
-/// The logic here is almost the same as [`DataFlowGraph::get_value_max_num_bits`] except that
-/// - it takes into account that the bitsize of multiplying two bools is 1
-/// - it recurses by memoizing the results in `value_max_num_bits`
-fn get_max_num_bits(
+fn unsigned_operation_cannot_overflow(
     dfg: &DataFlowGraph,
-    value: ValueId,
-    value_max_num_bits: &mut HashMap<ValueId, u32>,
-) -> u32 {
-    if let Some(bits) = value_max_num_bits.get(&value) {
-        return *bits;
-    }
-
-    let value_bit_size = dfg.type_of_value(value).bit_size();
-
-    let bits = match dfg[value] {
-        Value::Instruction { instruction, .. } => {
-            match dfg[instruction] {
-                Instruction::Cast(original_value, _) => {
-                    let original_bit_size =
-                        get_max_num_bits(dfg, original_value, value_max_num_bits);
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                }
-                Instruction::Binary(Binary { lhs, operator: BinaryOp::Mul { .. }, rhs })
-                    if get_max_num_bits(dfg, lhs, value_max_num_bits) == 1
-                        && get_max_num_bits(dfg, rhs, value_max_num_bits) == 1 =>
-                {
-                    // When multiplying two values, if their bitsize is 1 then the result's bitsize will be 1 too
-                    1
-                }
-                Instruction::Truncate { value, bit_size, .. } => {
-                    let value_bit_size =
-                        value_bit_size.min(get_max_num_bits(dfg, value, value_max_num_bits));
-                    value_bit_size.min(bit_size)
-                }
-                _ => value_bit_size,
-            }
-        }
-        Value::NumericConstant { constant, .. } => constant.num_bits(),
-        _ => value_bit_size,
+    bounds: &HashMap<ValueId, (u128, u128)>,
+    lhs: ValueId,
+    rhs: ValueId,
+    operation: impl FnOnce(u128, u128) -> Option<u128>,
+) -> bool {
+    // For unsigned monotonic operations, the maximum possible result is produced by the maximum
+    // possible operands. If that result fits in the destination type, the checked op is redundant.
+    let bit_size = dfg.type_of_value(lhs).bit_size();
+    let Some(type_max) = max_unsigned_value_for_bit_size(bit_size) else {
+        return false;
+    };
+    let Some(&(_, lhs_max)) = bounds.get(&lhs) else {
+        return false;
+    };
+    let Some(&(_, rhs_max)) = bounds.get(&rhs) else {
+        return false;
     };
 
-    assert!(bits <= value_bit_size);
-    value_max_num_bits.insert(value, bits);
-
-    bits
+    operation(lhs_max, rhs_max).is_some_and(|result| result <= type_max)
 }
 
 /// Pre-check condition for [Function::checked_to_unchecked].
@@ -206,6 +148,30 @@ mod tests {
             v3 = cast v1 as u32
             v4 = unchecked_add v2, v3
             return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_uses_equality_constraint_ranges() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            constrain v2 == u128 100
+            v3 = add v0, u128 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = unchecked_add v0, v1
+            constrain v2 == u128 100
+            v5 = unchecked_add v0, u128 1
+            return v5
         }
         ");
     }
@@ -364,6 +330,100 @@ mod tests {
             v3 = truncate v1 to 16 bits, max_bit_size: 33
             v4 = unchecked_add v2, v3
             return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_exact_add_range_fits() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, u8 9
+            v3 = mod v1, u8 8
+            v4 = add v2, v3
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v3 = mod v0, u8 9
+            v5 = mod v1, u8 8
+            v6 = unchecked_add v3, v5
+            return v6
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_exact_sub_range_cannot_underflow() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = unchecked_add v1, u32 240
+            v3 = sub u32 500, v2
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v3 = unchecked_add v1, u32 240
+            v5 = unchecked_sub u32 500, v3
+            return v5
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_exact_mul_range_fits() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, u8 9
+            v3 = mod v1, u8 8
+            v4 = mul v2, v3
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v3 = mod v0, u8 9
+            v5 = mod v1, u8 8
+            v6 = unchecked_mul v3, v5
+            return v6
+        }
+        ");
+    }
+
+    #[test]
+    fn checked_to_unchecked_when_result_range_check_prevents_overflow() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u128):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
         }
         ");
     }

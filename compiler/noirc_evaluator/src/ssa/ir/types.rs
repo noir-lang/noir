@@ -117,6 +117,16 @@ impl NumericType {
     }
 }
 
+/// Return the maximum unsigned value representable by `bit_size` bits.
+pub(crate) fn max_unsigned_value_for_bit_size(bit_size: u32) -> Option<u128> {
+    match bit_size {
+        0 => Some(0),
+        1..=127 => Some((1u128 << bit_size) - 1),
+        128 => Some(u128::MAX),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod props {
     use proptest::{
