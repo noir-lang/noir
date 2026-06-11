@@ -11,7 +11,7 @@ use crate::ssa::ir::{
 };
 use noirc_errors::call_stack::CallStackId;
 
-use super::SimplifyResult;
+use super::{SimplifyResult, bail_malformed};
 
 /// Try to simplify this binary instruction, returning the new value if possible.
 pub(super) fn simplify_binary(
@@ -30,7 +30,12 @@ pub(super) fn simplify_binary(
     let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
 
     let operator = binary.operator;
-    assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
+    if lhs_type != rhs_type {
+        bail_malformed!(
+            dfg,
+            "binary instruction operands must have the same type, got {lhs_type:?} and {rhs_type:?}"
+        );
+    }
 
     let operator = if lhs_type == NumericType::NativeField {
         // Unchecked operations between fields don't make sense, so we convert those to non-unchecked
