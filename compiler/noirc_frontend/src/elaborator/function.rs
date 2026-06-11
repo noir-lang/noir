@@ -476,9 +476,9 @@ impl Elaborator<'_> {
         let mut generics = Vec::with_capacity(associated_generics.len());
         let mut associated_generics_trait_constraints = Vec::new();
 
-        for (associated_generic, bounds) in associated_generics {
+        for (associated_generic, named_generic, bounds) in associated_generics {
             for bound in bounds {
-                let typ = Type::TypeVariable(associated_generic.type_var.clone());
+                let typ = named_generic.clone();
                 let location = associated_generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints

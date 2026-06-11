@@ -2516,3 +2516,42 @@ fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_imp
     "#;
     check_errors(src);
 }
+
+#[test]
+fn elided_bounded_associated_type_does_not_wildcard_match_unrelated_type() {
+    // `where T: Foo` elides `Foo`'s bounded associated type `Bar: Baz`, so the
+    // elaborator synthesizes an implicit generic for it and assumes `<T as Foo>::Bar: Baz`.
+    // That assumed bound must be keyed on the rigid associated-type generic, not on a
+    // bindable type variable. Otherwise the assumed `Baz` impl wildcard-matches the
+    // unrelated `u32` query from `needs_baz`, binding the synthetic generic to `u32` and
+    // misreporting the failure at the call site instead of in `caller`'s body.
+    let src = r#"
+    pub trait Baz { fn baz() -> u32; }
+    pub trait Foo {
+        type Bar: Baz;
+        fn make_bar(self) -> Self::Bar;
+    }
+
+    fn needs_baz<X>(_x: X) -> u32 where X: Baz { X::baz() }
+
+    fn caller<T>(_t: T) -> u32 where T: Foo {
+        needs_baz(5_u32)
+        ^^^^^^^^^ No matching impl found for `u32: Baz`
+        ~~~~~~~~~ No impl for `u32: Baz`
+    }
+
+    pub struct S {}
+    impl Baz for S { fn baz() -> u32 { 2 } }
+    pub struct M {}
+    impl Foo for M {
+        type Bar = S;
+        fn make_bar(self) -> S { S {} }
+    }
+
+    fn main() {
+        let m: M = M {};
+        let _ = caller(m);
+    }
+    "#;
+    check_errors(src);
+}

@@ -265,7 +265,7 @@ impl Elaborator<'_> {
             let new_generics =
                 self.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
 
-            let new_generics = vecmap(new_generics, |(generic, _bounds)| {
+            let new_generics = vecmap(new_generics, |(generic, _named_generic, _bounds)| {
                 // TODO: use `_bounds` variable above
                 // See https://github.com/noir-lang/noir/issues/8601
                 generic
@@ -357,7 +357,7 @@ impl Elaborator<'_> {
     pub(super) fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
-    ) -> Vec<(ResolvedGeneric, Vec<ResolvedTraitBound>)> {
+    ) -> Vec<(ResolvedGeneric, Type, Vec<ResolvedTraitBound>)> {
         where_clause
             .iter_mut()
             .flat_map(|constraint| {
@@ -383,7 +383,7 @@ impl Elaborator<'_> {
         &mut self,
         object: &UnresolvedType,
         bound: &mut TraitBound,
-    ) -> Vec<(ResolvedGeneric, Vec<ResolvedTraitBound>)> {
+    ) -> Vec<(ResolvedGeneric, Type, Vec<ResolvedTraitBound>)> {
         let mut added_generics = Vec::new();
         let trait_path = self.validate_path(bound.trait_path.clone());
 
@@ -429,6 +429,12 @@ impl Elaborator<'_> {
                     _ => unreachable!("into_implicit_named_generic returns a NamedGeneric"),
                 };
 
+                // Keep the rigid named-generic form of the associated type. The assumed trait
+                // bound for it must be keyed on this rigid type rather than a bare (bindable)
+                // `Type::TypeVariable`, otherwise the assumed impl wildcard-matches arbitrary
+                // concrete object types during trait lookup.
+                let named_generic = typ.clone();
+
                 let typ = self.interner.push_quoted_type(typ);
                 let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                 let ident = Ident::new(associated_type.name.as_ref().clone(), location);
@@ -439,8 +445,11 @@ impl Elaborator<'_> {
                     .unwrap_or_default();
 
                 bound.trait_generics.named_args.push((ident, typ));
-                added_generics
-                    .push((ResolvedGeneric { name, location, type_var }, associated_type_bounds));
+                added_generics.push((
+                    ResolvedGeneric { name, location, type_var },
+                    named_generic,
+                    associated_type_bounds,
+                ));
             }
         }
 

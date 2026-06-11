@@ -1059,9 +1059,9 @@ impl Elaborator<'_> {
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
         let mut new_generics_trait_constraints = Vec::new();
-        for (new_generic, bounds) in new_generics {
+        for (new_generic, named_generic, bounds) in new_generics {
             for bound in bounds {
-                let typ = Type::TypeVariable(new_generic.type_var.clone());
+                let typ = named_generic.clone();
                 let location = new_generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
