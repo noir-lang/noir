@@ -16,8 +16,14 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#primitive">Primitive type i16</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#bits">bits</a></li>
+<li><a href="#max_value">max_value</a></li>
+<li><a href="#min_value">min_value</a></li>
+</ul>
 <h3>Trait implementations</h3>
 <ul class="sidebar-list">
 <li><a href="#impl-Add-for-i16">Add</a></li>
@@ -88,6 +94,7 @@
 <li><a href="primitive.i32.html">i32</a></div></li>
 <li><a href="primitive.i64.html">i64</a></div></li>
 <li><a href="primitive.i8.html">i8</a></div></li>
+<li><a href="primitive.Location.html">Location</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
@@ -120,7 +127,25 @@
 <div class="comments">
 <p>The 16-bit signed integer type.</p>
 </div>
-<h2>Trait implementations</h2>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../std/primitive.i16.html" class="primitive">i16</a></code></h3>
+
+<div class="padded-methods"><code id="max_value" class="code-header">pub fn <a href="#max_value"><span class="fn">max_value</span></a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the maximum value representable by <code>i16</code>: 32767.</p>
+</div>
+</div><code id="min_value" class="code-header">pub fn <a href="#min_value"><span class="fn">min_value</span></a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the minimum value representable by <code>i16</code>: -32768.</p>
+</div>
+</div><code id="bits" class="code-header">pub fn <a href="#bits"><span class="fn">bits</span></a>() -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the number of bits in <code>i16</code>: 16.</p>
+</div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-i16"><code class="code-header">impl <a href="../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../std/primitive.i16.html" class="primitive">i16</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">add</span>(self, other: Self) -> Self</code>

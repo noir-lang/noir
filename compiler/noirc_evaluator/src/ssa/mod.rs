@@ -52,6 +52,20 @@ pub use artifact::{SsaCircuitArtifact, SsaProgramArtifact};
 use builder::time;
 pub use builder::{SsaBuilder, SsaPass};
 
+/// Environment variable that, when set to a truthy value (`1`/`true`/`yes`),
+/// causes the SSA to be printed to stderr when a validation pass rejects it.
+/// See [`SsaPass::new_validate`] and [`SsaPass::and_then_validate`].
+pub const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
+/// Whether [`SHOW_INVALID_SSA_ENV_KEY`] is currently set to a truthy value.
+///
+/// `1`/`true`/`yes` count as on; `0`/`false`/`no` and anything else
+/// (including unset) count as off — so users can disable it explicitly
+/// with e.g. `NOIR_SHOW_INVALID_SSA=0` rather than having to `unset` it.
+pub fn should_show_invalid_ssa() -> bool {
+    matches!(std::env::var(SHOW_INVALID_SSA_ENV_KEY).as_deref(), Ok("1" | "true" | "yes"))
+}
+
 mod artifact;
 mod builder;
 pub mod checks;
@@ -193,8 +207,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
             .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
-            .and_then(Ssa::remove_redundant_params),
-        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
+            .and_then(Ssa::remove_redundant_params)
+            .and_then_validate(|#[allow(unused)] ssa| {
+                #[cfg(debug_assertions)]
+                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                Ok(())
+            }),
+        SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,
             "Lower refs at ACIR/Brillig boundary",
@@ -357,6 +376,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
@@ -374,17 +394,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
-            .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new_try(
-            Ssa::verify_no_dynamic_indices_to_references,
-            "Verifying no dynamic array indices to reference value elements",
-        ),
+            .and_then(Ssa::remove_unreachable_functions)
+            .and_then_validate(
+                validation::dynamic_array_indices::verify_no_dynamic_indices_to_references,
+            ),
         SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
-            .and_then(|ssa| {
-                // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-                // that we don't know how to attribute to a concrete error with the Noir code.
-                ssa.dead_instruction_elimination_post_check();
-                ssa
+            .and_then_validate(|#[allow(unused)] ssa| {
+                #[cfg(debug_assertions)]
+                validation::validate_no_acir_memory_ops(ssa)?;
+                Ok(())
             }),
     ]
 }
@@ -402,11 +420,15 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
-        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
+        SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
     ]
 }
 
@@ -705,4 +727,46 @@ fn split_public_and_private_inputs(
             }
             (acc.0, acc.1)
         })
+}
+
+#[cfg(test)]
+mod minimal_passes_tests {
+    use super::{Ssa, minimal_passes};
+    use crate::errors::RuntimeError;
+
+    fn run_minimal(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        let mut ssa = ssa;
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa)?;
+        }
+        Ok(ssa)
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_assert_constant() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::AssertConstantFailed { .. })));
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_static_assert() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array b"Assertion failed"
+            v2 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(v0, v1, v2, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::StaticAssertDynamicPredicate { .. })));
+    }
 }

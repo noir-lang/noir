@@ -12,6 +12,71 @@ use crate::{
     ssa::ir::map::Id,
 };
 
+/// The prologue reserves the spill region with `<dst> = const u32 N` at bytecode
+/// index 1, where `N == SpillManager::max_spill_offset` — the number of slots the
+/// frame allocates on every call. Extract `N`.
+fn spill_region_size(bytecode: &str) -> u32 {
+    let line = bytecode
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with("1:") && line.contains("const u32"))
+        .expect("prologue spill-region constant at bytecode index 1");
+    line.rsplit(' ').next().unwrap().parse().expect("spill-region constant is a u32")
+}
+
+/// Regression: a transiently spilled value that is reloaded for one last use and
+/// then dies in the same block must return its spill slot to the free list.
+///
+/// `max_stack_frame_size = 6` leaves 4 usable registers (sp[2..5]), but `main`
+/// takes 5 parameters, so codegen spills from the first instruction. As the chain
+/// is evaluated, several values are transiently spilled, reloaded into a register
+/// for a single use, and then die — all within `b0`. At the moment such a value
+/// dies it is in the `TransientReloaded` state: the live value is in a register
+/// and its spill slot is still allocated.
+///
+/// `convert_ssa_instruction`'s dead-variable cleanup decides what to do via
+/// `is_spilled`, which is `true` only for `Transient`/`Permanent`. A
+/// `TransientReloaded` value matches neither, so cleanup takes the
+/// register-freeing branch and never calls `remove_spill`: the `SpillRecord`
+/// lingers in `records` and its offset is never pushed back onto
+/// `free_spill_slots`. The next `allocate_spill_offset` bumps `next_spill_offset`
+/// instead of reusing the dead slot, so `max_spill_offset` — and the spill region
+/// the prologue reserves on every call — grows by one for each such pattern.
+///
+/// The leak has no soundness impact — the skipped offset is never reused
+/// incorrectly — so it is purely a memory-footprint regression. Here the true
+/// peak of simultaneously live spills is 5 slots, but the bug inflates the
+/// reserved spill region to 6.
+#[test]
+fn brillig_spill_reloaded_transient_value_reclaims_slot_when_it_dies() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32, v3: u32, v4: u32):
+        v5 = unchecked_add v0, v1
+        v6 = unchecked_add v2, v3
+        v7 = unchecked_add v4, v5
+        v8 = unchecked_add v6, v7
+        v9 = unchecked_add v0, v8
+        return v9
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // A leak-free allocator reserves 5 slots (the peak number of values spilled
+    // at once). The bug reserves 6 because a reloaded transient value's slot is
+    // never reclaimed when it dies.
+    let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    let spill_region = spill_region_size(&main.to_string());
+    assert_eq!(
+        spill_region, 5,
+        "spill region grew to {spill_region}: a reloaded transient value leaked its \
+         spill slot instead of returning it to the free list when it died"
+    );
+}
+
 /// Verify that spill/reload instructions are emitted when register
 /// pressure exceeds the stack frame limit.
 ///
@@ -392,4 +457,42 @@ fn brillig_spill_jmpif_condition_register_reuse() {
         &options,
     );
     assert_eq!(result, vec![FieldElement::from(42u32)]);
+}
+
+/// Regression: a `JmpIf` whose then-arguments must be written into eagerly
+/// spilled successor-block param slots used to emit those spill-slot writes
+/// unconditionally. When the else branch was taken at runtime, the spill slot
+/// for the then-destination param was already overwritten with the then-arg,
+/// and any later reload from that slot returned the wrong value.
+///
+/// Here `b1` loops back to itself via a JmpIf whose then-arg is `v4 = v2 + 1`
+/// and whose else-edge falls through to `b2`. After the loop exits with v2 = 5,
+/// `b2` reloads `v2` from its spill slot. The buggy code wrote v4 = 6 into
+/// v2's spill slot before testing the condition, so the final reload produced
+/// 6 instead of 5 and the program returned 16 instead of 15.
+#[test]
+fn brillig_spill_jmpif_then_arg_does_not_overwrite_param_slot() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0)
+      b1(v2: u32):
+        v3 = lt v2, u32 5
+        v4 = unchecked_add v2, u32 1
+        jmpif v3 then: b1(v4), else: b2()
+      b2():
+        v5 = unchecked_add v2, v1
+        return v5
+    }
+    ";
+
+    let layout = LayoutConfig::new(7, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(0u32), FieldElement::from(10u32)],
+        &options,
+    );
+
+    assert_eq!(result, vec![FieldElement::from(15u32)]);
 }

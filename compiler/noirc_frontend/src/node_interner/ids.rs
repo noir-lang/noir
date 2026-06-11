@@ -32,7 +32,7 @@ impl ReferenceId {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct DefinitionId(pub(super) usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
@@ -41,7 +41,7 @@ pub struct StmtId(pub(super) Index);
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(pub(super) Index);
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct FuncId(pub(super) Index);
 
 impl fmt::Display for FuncId {

@@ -33,6 +33,13 @@ impl UnusedItem {
 
 #[derive(Debug, Default)]
 pub struct UsageTracker {
+    /// Unused items per module, keyed only by name. Noir's type and value namespaces are
+    /// separate, so a type-namespace item and a value-namespace item can legally share a
+    /// name within a module (e.g. `struct N` and `fn N`) without a duplicate-definition
+    /// error. Keying by name alone conflates the two: only one is tracked, and marking
+    /// either as used clears the shared slot. The worst case is a *missing* unused warning
+    /// for the untracked sibling — never a missing error, since genuine same-namespace
+    /// clashes are caught as duplicate definitions before reaching here.
     unused_items: HashMap<ModuleId, HashMap<Ident, UnusedItem>>,
     unused_impl_functions: HashMap<FuncId, Ident>,
 }
@@ -48,8 +55,13 @@ impl UsageTracker {
         visibility: ItemVisibility,
     ) {
         // Empty spans could come from implicitly injected imports, and we don't want to track those
-        if visibility != ItemVisibility::Public && name.span().start() < name.span().end() {
-            self.unused_items.entry(module_id).or_default().insert(name, item);
+        if visibility != ItemVisibility::Public && !name.span().is_empty() {
+            // Two items can share a name within a module (e.g. a global and a function),
+            // which is a duplicate-definition error reported elsewhere. `HashMap::insert`
+            // keeps the existing key but swaps the value, leaving the recorded location and
+            // item kind describing different definitions. Keep the first item we saw so the
+            // unused warning stays self-consistent.
+            self.unused_items.entry(module_id).or_default().entry(name).or_insert(item);
         }
     }
 
@@ -85,7 +97,7 @@ impl UsageTracker {
         name: Ident,
         visibility: ItemVisibility,
     ) {
-        if visibility != ItemVisibility::Public && name.span().start() < name.span().end() {
+        if visibility != ItemVisibility::Public && !name.span().is_empty() {
             self.unused_impl_functions.insert(func_id, name);
         }
     }

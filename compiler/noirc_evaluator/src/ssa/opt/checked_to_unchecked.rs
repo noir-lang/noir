@@ -54,8 +54,8 @@ impl Function {
             let unchecked = match binary.operator {
                 BinaryOp::Add { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();
-                    let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
-                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+                    let max_lhs_bits = required_bit_size(dfg, lhs, &mut value_max_num_bits);
+                    let max_rhs_bits = required_bit_size(dfg, rhs, &mut value_max_num_bits);
 
                     // 1. If both lhs and rhs have less max bits than the result it means their
                     //    value is at most `2^(n-1) - 1`, assuming `n = bit_size`. Adding those
@@ -72,7 +72,7 @@ impl Function {
                     // underflow because `256 >= 255`.
 
                     if let Some(lhs_const) = dfg.get_numeric_constant(lhs) {
-                        let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+                        let max_rhs_bits = required_bit_size(dfg, rhs, &mut value_max_num_bits);
                         let max_rhs =
                             if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
 
@@ -86,10 +86,10 @@ impl Function {
                 }
                 BinaryOp::Mul { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();
-                    let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
-                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+                    let max_lhs_bits = required_bit_size(dfg, lhs, &mut value_max_num_bits);
+                    let max_rhs_bits = required_bit_size(dfg, rhs, &mut value_max_num_bits);
 
-                    // `get_max_num_bits` tracks the actual range of a value through casts,
+                    // `required_bit_size` tracks the actual range of a value through casts,
                     // truncations, and boolean multiplications — it may be smaller than the
                     // type's bit_size (e.g. a u8 upcast to u64 still has max_bits == 8).
                     //
@@ -100,7 +100,7 @@ impl Function {
                     //
                     // As a special case, when either operand has `max_bits == 1` its value
                     // is at most 1, so `x * 0 = 0` or `x * 1 = x` — neither can overflow.
-                    // This is sound as long as `get_max_num_bits` never returns 1 for a
+                    // This is sound as long as `required_bit_size` never returns 1 for a
                     // value that could actually exceed 1.
                     max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
@@ -120,10 +120,11 @@ impl Function {
     }
 }
 
+/// Returns a maximum number of bits the `value` requires.
 /// The logic here is almost the same as [`DataFlowGraph::get_value_max_num_bits`] except that
 /// - it takes into account that the bitsize of multiplying two bools is 1
 /// - it recurses by memoizing the results in `value_max_num_bits`
-fn get_max_num_bits(
+fn required_bit_size(
     dfg: &DataFlowGraph,
     value: ValueId,
     value_max_num_bits: &mut HashMap<ValueId, u32>,
@@ -139,22 +140,22 @@ fn get_max_num_bits(
             match dfg[instruction] {
                 Instruction::Cast(original_value, _) => {
                     let original_bit_size =
-                        get_max_num_bits(dfg, original_value, value_max_num_bits);
+                        required_bit_size(dfg, original_value, value_max_num_bits);
                     // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
                     // in which case we want to recover the original smaller bit size;
                     // OTOH if we cast down, then we don't need the higher original size.
                     value_bit_size.min(original_bit_size)
                 }
                 Instruction::Binary(Binary { lhs, operator: BinaryOp::Mul { .. }, rhs })
-                    if get_max_num_bits(dfg, lhs, value_max_num_bits) == 1
-                        && get_max_num_bits(dfg, rhs, value_max_num_bits) == 1 =>
+                    if required_bit_size(dfg, lhs, value_max_num_bits) == 1
+                        && required_bit_size(dfg, rhs, value_max_num_bits) == 1 =>
                 {
                     // When multiplying two values, if their bitsize is 1 then the result's bitsize will be 1 too
                     1
                 }
                 Instruction::Truncate { value, bit_size, .. } => {
                     let value_bit_size =
-                        value_bit_size.min(get_max_num_bits(dfg, value, value_max_num_bits));
+                        value_bit_size.min(required_bit_size(dfg, value, value_max_num_bits));
                     value_bit_size.min(bit_size)
                 }
                 _ => value_bit_size,

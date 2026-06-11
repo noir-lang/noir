@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, str::FromStr};
 use acir_field::{AcirField, FieldElement};
 
 use lexer::{Lexer, LexerError};
-use noirc_span::Span;
+use span::Span;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod lexer;
+mod span;
 #[cfg(test)]
 mod tests;
 mod token;
@@ -500,8 +501,8 @@ impl<'a> Parser<'a> {
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
             }
@@ -541,17 +542,17 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let input1 = self.parse_blackbox_inputs_array::<3>(Keyword::Input1)?;
+                let input1 = self.parse_blackbox_inputs_array::<2>(Keyword::Input1)?;
                 self.eat_comma_or_error()?;
 
-                let input2 = self.parse_blackbox_inputs_array::<3>(Keyword::Input2)?;
+                let input2 = self.parse_blackbox_inputs_array::<2>(Keyword::Input2)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
             }

@@ -126,7 +126,7 @@ impl NodeInterner {
         match def {
             Node::Statement(hir_stmt) => match hir_stmt {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
-                HirStatement::Error => None,
+                HirStatement::Error | HirStatement::TraitAssociatedConstant => None,
                 _other => None,
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),

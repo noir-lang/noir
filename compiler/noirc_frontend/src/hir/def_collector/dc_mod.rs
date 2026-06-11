@@ -43,6 +43,7 @@ use super::{
 use crate::hir::Context;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
+use crate::hir_def::stmt::HirStatement;
 
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
@@ -262,6 +263,7 @@ impl ModCollector<'_> {
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
                 unresolved_associated_types: Vec::new(),
+                inherited_default_method_func_ids: Default::default(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -417,7 +419,7 @@ impl ModCollector<'_> {
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Function,
+                    typ: DuplicateType::TypeDefinition,
                     first_def,
                     second_def,
                 };
@@ -629,6 +631,16 @@ impl ModCollector<'_> {
                             false,
                             false,
                             ItemVisibility::Public,
+                        );
+
+                        // Trait-level associated constants have no value (only impls do), so
+                        // mark the placeholder statement as `TraitAssociatedConstant` rather than
+                        // leaving the `HirStatement::Error` that `push_empty_global` defaults to.
+                        let placeholder_stmt =
+                            context.def_interner.get_global(global_id).let_statement;
+                        context.def_interner.replace_statement(
+                            placeholder_stmt,
+                            HirStatement::TraitAssociatedConstant,
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map
@@ -1454,7 +1466,12 @@ pub fn collect_impl(
 
     let key = (r#impl.object_type, module_id.local_id);
     let methods = items.impls.entry(key).or_default();
-    methods.push((r#impl.generics, r#impl.type_location, unresolved_functions));
+    methods.push((
+        r#impl.generics,
+        r#impl.where_clause,
+        r#impl.type_location,
+        unresolved_functions,
+    ));
 }
 
 fn find_module(

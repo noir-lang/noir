@@ -612,7 +612,8 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
         | SecondaryAttributeKind::MustUse(_)
-        | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
+        | SecondaryAttributeKind::Allow(_)
+        | SecondaryAttributeKind::Pure => secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }
@@ -992,8 +993,8 @@ fn lvalue_with_file(lvalue: LValue, file: FileId) -> LValue {
             index: expression_with_file(index, file),
             location: location_with_file(location, file),
         },
-        LValue::Dereference(lvalue, location) => LValue::Dereference(
-            Box::new(lvalue_with_file(*lvalue, file)),
+        LValue::Dereference(expr, location) => LValue::Dereference(
+            Box::new(expression_with_file(*expr, file)),
             location_with_file(location, file),
         ),
         LValue::Interned(interned_expression_kind, location) => {

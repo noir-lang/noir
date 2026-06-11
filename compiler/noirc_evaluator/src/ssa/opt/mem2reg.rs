@@ -57,55 +57,80 @@ impl Function {
     pub(crate) fn mem2reg(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-        let mut inserter = FunctionInserter::new(self);
-
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let mut dom_frontiers = None;
         let blocks = post_order.into_vec_reverse();
 
-        // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
-        // instruction result. These are iterated on in key order when adding block
-        // parameters and terminator arguments, so the maps must have a deterministic ordering
-        // for arguments to line up with parameters.
-        let (variables, def_sites) =
-            collect_eligible_variables_and_def_sites(inserter.function, &blocks);
+        // Run mem2reg while we successfully removed at least one allocate instruction and there
+        // are at least one more that couldn't be removed. In an SSA like this one:
+        //
+        // ```
+        // v0 = allocate -> &mut u16
+        // store u16 1 at v0
+        // v2 = allocate -> &mut &mut u16
+        // store v0 at v2
+        // ```
+        //
+        // - v0 can't be optimized out because it's stored in v2
+        // - v2 can and will be optimized out
+        // - now running it again will lead to optimizing out v0, etc.
+        loop {
+            let mut inserter = FunctionInserter::new(self);
 
-        if variables.is_empty() {
-            return;
+            // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
+            // instruction result. These are iterated on in key order when adding block
+            // parameters and terminator arguments, so the maps must have a deterministic ordering
+            // for arguments to line up with parameters.
+            let (variables, def_sites, has_ineligible_variables) =
+                collect_eligible_variables_and_def_sites(inserter.function, &blocks);
+
+            if variables.is_empty() {
+                break;
+            }
+
+            // Compute where block parameters are needed using iterated dominance frontiers.
+            // A variable only needs a block parameter at blocks where values from different
+            // control-flow paths could merge (its IDF). For variables stored in a single block,
+            // this is typically empty — no block parameters needed at all.
+            if dom_frontiers.is_none() {
+                dom_frontiers = Some(dom_tree.compute_dominance_frontiers_with_back_edges(&cfg));
+            }
+
+            let param_locations =
+                compute_param_locations(&variables, &def_sites, dom_frontiers.as_ref().unwrap());
+
+            // Precompute which variables are visible at each block by walking the dominator tree.
+            // A variable declared in block D is visible at block B iff D dominates B.
+            // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
+            // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
+            // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
+            // this visibility propagation replaces the per-variable dominance checks in phase 2).
+            let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
+            let mut block_states = BlockStates::default();
+            add_block_params_and_find_exit_states(
+                &blocks,
+                &visible_vars,
+                &param_locations,
+                &mut inserter,
+                &mut block_states,
+                &cfg,
+            );
+            add_terminator_arguments(
+                &blocks,
+                &variables,
+                &param_locations,
+                &mut inserter,
+                &block_states,
+                &cfg,
+            );
+            commit(&mut inserter, &variables, &blocks);
+
+            if !has_ineligible_variables {
+                // mem2reg can no longer simplify the program.
+                break;
+            }
         }
-
-        // Compute where block parameters are needed using iterated dominance frontiers.
-        // A variable only needs a block parameter at blocks where values from different
-        // control-flow paths could merge (its IDF). For variables stored in a single block,
-        // this is typically empty — no block parameters needed at all.
-        let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
-        let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
-
-        // Precompute which variables are visible at each block by walking the dominator tree.
-        // A variable declared in block D is visible at block B iff D dominates B.
-        // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
-        // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
-        // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
-        // this visibility propagation replaces the per-variable dominance checks in phase 2).
-        let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
-
-        let mut block_states = BlockStates::default();
-        add_block_params_and_find_exit_states(
-            &blocks,
-            &visible_vars,
-            &param_locations,
-            &mut inserter,
-            &mut block_states,
-            &cfg,
-        );
-        add_terminator_arguments(
-            &blocks,
-            &variables,
-            &param_locations,
-            &mut inserter,
-            &block_states,
-            &cfg,
-        );
-        commit(&mut inserter, &variables, blocks);
     }
 }
 
@@ -115,8 +140,12 @@ type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 /// Contains the starting & ending values of each variable in one block
 #[derive(Default)]
 struct BlockState {
-    /// Maps each variable visible in this block to its starting value in the block. This is always
-    /// a block parameter or a forwarded value from a previous block.
+    /// Maps each variable visible in this block to its starting value in the block. This is
+    /// normally a block parameter or a value forwarded from a previous block.
+    ///
+    /// In the block where a variable is declared the variable is not yet defined at block entry,
+    /// so it is mapped to its own allocate result as a placeholder. `abstract_interpret_block`
+    /// overwrites this with the real value once it processes the variable's initial `Store`.
     entry_state: BTreeMap<ValueId, ValueId>,
 
     /// Maps each variable modified within this block to the value it is set to at the end of
@@ -250,7 +279,9 @@ fn compute_entry_state(
         .iter()
         .filter_map(|(var, decl_block)| {
             let value = if block == *decl_block {
-                // Declaration block: use original allocate result
+                // Declaration block: the variable is not yet defined at block entry, so map it to
+                // its own allocate result as a placeholder. `abstract_interpret_block` replaces it
+                // with the real value when it processes the variable's initial `Store`.
                 *var
             } else if param_locations[var].contains(&block) {
                 // IDF block: add a block parameter for this variable
@@ -424,11 +455,13 @@ fn abstract_interpret_block(
 fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
-) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>) {
+) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>, bool) {
     // Map each variable to the block it was declared in
     let mut variables = BTreeMap::default();
     // Map each variable to the set of blocks that contain stores to it
     let mut def_sites: HashMap<ValueId, HashSet<BasicBlockId>> = HashMap::default();
+    // Whether there's any allocate that can't be optimized out
+    let mut has_ineligible_variables = false;
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
@@ -446,7 +479,9 @@ fn collect_eligible_variables_and_def_sites(
                 Instruction::Load { .. } => (),
                 // Storing to an address is fine, but storing an address prevents optimizing it out.
                 Instruction::Store { address, value } => {
-                    variables.remove(value);
+                    if variables.remove(value).is_some() {
+                        has_ineligible_variables = true;
+                    }
 
                     if let Some(decl_block) = variables.get(address) {
                         let is_decl_block = *decl_block == block_id;
@@ -458,13 +493,17 @@ fn collect_eligible_variables_and_def_sites(
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
                 _ => instruction.for_each_value(|value| {
-                    variables.remove(&value);
+                    if variables.remove(&value).is_some() {
+                        has_ineligible_variables = true;
+                    }
                 }),
             }
         }
 
         block.unwrap_terminator().for_each_value(|value| {
-            variables.remove(&value);
+            if variables.remove(&value).is_some() {
+                has_ineligible_variables = true;
+            }
         });
     }
 
@@ -472,9 +511,16 @@ fn collect_eligible_variables_and_def_sites(
     // `variables`, so `variables` is the authoritative set of eligible addresses. Both retains
     // below prune any stale entries left by first-class uses that removed an address from
     // `variables` without clearing `def_sites`.
-    variables.retain(|address, _| variables_with_stores_in_decl_block.contains(address));
+    variables.retain(|address, _| {
+        if variables_with_stores_in_decl_block.contains(address) {
+            true
+        } else {
+            has_ineligible_variables = true;
+            false
+        }
+    });
     def_sites.retain(|address, _| variables.contains_key(address));
-    (variables, def_sites)
+    (variables, def_sites, has_ineligible_variables)
 }
 
 /// Commit to all changes made by the pass:
@@ -483,9 +529,9 @@ fn collect_eligible_variables_and_def_sites(
 fn commit(
     inserter: &mut FunctionInserter,
     variables: &BTreeMap<ValueId, BasicBlockId>,
-    blocks: Vec<BasicBlockId>,
+    blocks: &[BasicBlockId],
 ) {
-    for block in blocks {
+    for &block in blocks {
         let mut instructions = inserter.function.dfg[block].take_instructions();
 
         // Remove any allocate, load, or store instructions for variables which were optimized out
@@ -1463,6 +1509,31 @@ brillig(inline) fn main f0 {
           b3(v1: Field, v2: Field):
             v8 = add v1, v2
             return v8
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_running_while_allocations_are_removed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u16
+            store u16 1 at v0
+            v2 = allocate -> &mut &mut u16
+            store v0 at v2
+            constrain u1 0 == u1 1
+            unreachable
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1
+            unreachable
         }
         ");
     }

@@ -282,7 +282,7 @@ yarn vite dev
 
 If it doesn't open a browser for you, just visit `localhost:5173`. You should now see the worst UI ever, with an ugly input.
 
-![Noir Webapp UI](@site/static/img/tutorials/noirjs_webapp/webapp1.png)
+![Noir Webapp UI](@site/static/img/guides/noirjs_webapp/webapp1.png)
 
 Now, our circuit requires a private input `fn main(age: u8)`, and fails if it is less than 18. Let's see if it works. Submit any number above 18 (as long as it fits in 8 bits) and you should get a valid proof. Otherwise the proof won't even generate correctly.
 

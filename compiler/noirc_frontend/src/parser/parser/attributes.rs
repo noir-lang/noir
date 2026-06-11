@@ -275,6 +275,12 @@ impl Parser<'_> {
                     Attribute::Function(attr)
                 })
             }
+            "pure" => {
+                let kind = SecondaryAttributeKind::Pure;
+                let attr = SecondaryAttribute { kind, location };
+                let attr = Attribute::Secondary(attr);
+                self.parse_no_args_attribute(ident, arguments, attr)
+            }
             "use_callers_scope" => {
                 let kind = SecondaryAttributeKind::UseCallersScope;
                 let attr = SecondaryAttribute { kind, location };
@@ -710,6 +716,13 @@ mod tests {
         let src = "#[oracle(foo)]";
         let expected = FunctionAttributeKind::Oracle("foo".to_string());
         parse_function_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_attribute_pure() {
+        let src = "#[pure]";
+        let expected = SecondaryAttributeKind::Pure;
+        parse_secondary_attribute_no_errors(src, expected);
     }
 
     #[test]

@@ -394,6 +394,7 @@ impl<'a> FunctionContext<'a> {
                 return Ok(Some(VariableId::Local(id)));
             }
         }
+
         // If we're looking for a mutable reference, we have to choose some
         // mutable local variable and take a reference over it.
         // We can't use a global for this, because they are immutable.
@@ -413,6 +414,12 @@ impl<'a> FunctionContext<'a> {
                 })
                 .map(|id| id.map(VariableId::Local));
         }
+
+        // If we are looking for a read-only reference, we can choose anything that has the target type.
+        if let Type::Reference(typ, false) = typ {
+            return self.choose_producer(u, typ);
+        }
+
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
     }
 
@@ -724,6 +731,11 @@ impl<'a> FunctionContext<'a> {
                 } else {
                     self.indirect_ref_mut((src_expr, src_dyn), typ.as_ref().clone())
                 };
+                Ok(Some((expr, src_dyn)))
+            }
+            // Read-only reference over the source type.
+            (_, Type::Reference(typ, false)) if typ.as_ref() == src_type => {
+                let expr = expr::ref_with_mut(src_expr, typ.as_ref().clone(), false);
                 Ok(Some((expr, src_dyn)))
             }
             // Index a non-empty array.
@@ -1313,28 +1325,63 @@ impl<'a> FunctionContext<'a> {
             .filter(|(_, (mutable, _, typ))| {
                 // We banned reassigning variables which contain mutable references in ACIR (#8790)
                 *mutable && (self.unconstrained() || !types::contains_reference(typ))
+                // We can deref-assign to `&mut` references even if they are not
+                // themselves mutable, but only when the pointee does not itself
+                // contain a reference. In constrained code the frontend rejects
+                // assigning a reference-containing value (`*r = (&mut x, ..)`),
+                // and the AST fuzzer bypasses that check, so SSA-gen would fail
+                // while flattening tries to merge the reference.
+                || match typ {
+                    Type::Reference(inner, true) => {
+                        self.unconstrained() || !types::contains_reference(inner)
+                    }
+                    _ => false,
+                }
             })
-            .map(|(id, _)| id)
+            .filter(|(id, (_, _, typ))| {
+                // Preserve the non-dynamic state of references.
+                !(types::is_reference(typ) && !self.is_dynamic(id) && self.in_dynamic)
+            })
+            .map(|(id, (mutable, _, _))| (*id, *mutable))
             .collect::<Vec<_>>();
 
         if opts.is_empty() {
             return Ok(None);
         }
 
-        let id = *u.choose_iter(opts)?;
+        let (id, mutable) = u.choose_iter(opts)?;
         let ident = LValue::Ident(self.local_ident(id));
         let typ = self.local_type(id).clone();
-        let lvalue = self.gen_lvalue(u, ident, typ)?;
 
+        // References may have aliases, so we don't want to change their dynamic nature,
+        // because the change would not be reflected on the alias. If the value is already
+        // dynamic, we'll keep it as dynamic, and refrain from change it to non-dynamic as well.
+        let preserve_non_dynamic = types::is_reference(&typ);
+        let no_dynamic = self.in_no_dynamic || preserve_non_dynamic && !self.is_dynamic(&id);
+        let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
+        // Generate the part fo the ident we assign to.
+        // In constrained code we cannot rebind a `&mut T` variable directly
+        // (`b = &mut x;`) because the frontend rejects it via
+        // `AssignedToVarContainingReference`. The variable is still in `opts`
+        // because deref-assign (`*b = x;`) is allowed for `&mut`; force
+        // `can_rebind = false` here so `gen_lvalue` only generates the
+        // deref form.
+        let can_rebind = mutable && (self.unconstrained() || !types::contains_reference(&typ));
+        let lvalue = self.gen_lvalue(u, ident, typ, can_rebind)?;
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
-        if lvalue.is_dyn || expr_dyn || self.in_dynamic {
-            self.set_dynamic(id, true);
-        } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
-            // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
-            // in which case we don't know if other members have dynamic properties.
-            self.set_dynamic(id, false);
+        self.in_no_dynamic = was_in_no_dynamic;
+
+        if !preserve_non_dynamic {
+            if lvalue.is_dyn || expr_dyn || self.in_dynamic {
+                self.set_dynamic(id, true);
+            } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
+                // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
+                // in which case we don't know if other members have dynamic properties.
+                self.set_dynamic(id, false);
+            }
         }
 
         let assign =
@@ -1356,6 +1403,7 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         lvalue: LValue,
         typ: Type,
+        can_rebind: bool,
     ) -> arbitrary::Result<LValueWithMeta> {
         /// Accumulate statements for sub-indexes of multi-dimensional arrays.
         /// For example `a[1+2][3+4] = 5;` becomes `let i = 1+2; let j = 3+4; a[i][j] = 5;`
@@ -1397,7 +1445,7 @@ impl<'a> FunctionContext<'a> {
                     location: Location::dummy(),
                 };
 
-                let mut lvalue = self.gen_lvalue(u, index, typ)?;
+                let mut lvalue = self.gen_lvalue(u, index, typ, can_rebind)?;
                 lvalue.is_compound = true;
                 lvalue.is_dyn |= idx_dyn;
                 lvalue.statements = merge_statements(statements, lvalue.statements);
@@ -1407,9 +1455,18 @@ impl<'a> FunctionContext<'a> {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
                 let member = LValue::MemberAccess { object: Box::new(lvalue), field_index: idx };
-                let mut lvalue = self.gen_lvalue(u, member, typ)?;
+                let mut lvalue = self.gen_lvalue(u, member, typ, can_rebind)?;
                 lvalue.is_compound = true;
                 lvalue
+            }
+            Type::Reference(typ, true) if !can_rebind || bool::arbitrary(u)? => {
+                // If the reference itself is not mutable, we cannot rebind it, but we can deref-assign to it.
+                // eg. `let mut r = &mut 1;` can be re-bound: `r = &mut 2;`, or assigned a value: `*r = 3;`,
+                // but `let r = &mut 1;` can only be assigned to as `*r = 2;`.
+                let typ = typ.as_ref().clone();
+                let deref =
+                    LValue::Dereference { reference: Box::new(lvalue), element_type: typ.clone() };
+                self.gen_lvalue(u, deref, typ, can_rebind)?
             }
             typ => {
                 LValueWithMeta { lvalue, typ, is_dyn: false, is_compound: false, statements: None }
@@ -1469,7 +1526,7 @@ impl<'a> FunctionContext<'a> {
 
         let print_oracle_ident = Ident {
             location: None,
-            definition: Definition::Oracle("print".to_string()),
+            definition: Definition::Oracle { name: "print".to_string(), pure: false },
             mutable: false,
             name: "print_oracle".to_string(),
             typ: Rc::new(Type::Function(

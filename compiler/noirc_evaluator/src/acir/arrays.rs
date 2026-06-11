@@ -826,13 +826,10 @@ impl Context<'_> {
                 // The value is an array with items in a different memory block;
                 // read all values from the source memory block into an Array structure,
                 // then store that into the target memory block.
-                let values = try_vecmap(0..len.to_usize(), |i| {
-                    let index_var = self.acir_context.add_constant(i);
-                    let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
-                    let typ = value_types[i % value_types.len()];
-                    Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, typ))
-                })?;
-                self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
+                let values = self
+                    .read_dynamic_array(*inner_block_id, *len, value_types)
+                    .collect::<Result<_, _>>()?;
+                self.array_set_value(&AcirValue::Array(values), block_id, var_index)?;
             }
         }
         Ok(())
@@ -932,7 +929,7 @@ impl Context<'_> {
         if !matches!(&dfg[array_id], Value::Instruction { .. } | Value::Param { .. }) {
             return Err(InternalError::Unexpected {
                 expected: "array or instruction".to_owned(),
-                found: format!("{:?}", &dfg[array_id]),
+                found: format!("{:?}", dfg[array_id]),
                 call_stack: self.acir_context.get_call_stack(),
             }
             .into());
@@ -1373,7 +1370,11 @@ pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     };
 
     let mut element_sizes = types.iter().map(|typ| typ.flattened_size());
-    let element_size = element_sizes.next().expect("must have at least one element");
-
-    if element_sizes.all(|size| size == element_size) { Some(element_size.0) } else { None }
+    if let Some(element_size) = element_sizes.next() {
+        if element_sizes.all(|size| size == element_size) { Some(element_size.0) } else { None }
+    } else {
+        // If the array has no types in it it can be because it's something like `[(); 3]` where `()` is represented
+        // as "no types". And in this case the array has constant element size because it's zero.
+        Some(0)
+    }
 }

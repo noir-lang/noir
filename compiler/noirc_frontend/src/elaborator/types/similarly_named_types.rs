@@ -71,7 +71,7 @@ impl Elaborator<'_> {
                     self.compute_similarly_named_types_helper(actual, expected, similar_types);
                 }
             }
-            (Type::Array(_, type_1), Type::Array(_, type_2))
+            (Type::Array(type_1, _), Type::Array(type_2, _))
             | (Type::Vector(type_1), Type::Vector(type_2))
             | (Type::FmtString(_, type_1), Type::FmtString(_, type_2))
             | (Type::Reference(type_1, _), Type::Reference(type_2, _)) => {

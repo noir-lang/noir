@@ -162,6 +162,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         target_start: MemoryAddress,
         num_elements_variable: SingleAddrVariable,
     ) {
+        assert!(num_elements_variable.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         self.codegen_generic_iteration(
             |brillig_context| {
                 // Create the pointer to the last item for both source and target

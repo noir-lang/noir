@@ -3,23 +3,23 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 bug: Assertion is always false
-   ┌─ src/main.nr:45:15
+   ┌─ src/main.nr:45:5
    │
 45 │     assert_eq(magic, false);
-   │               ------------ As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+   │     ----------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
    │
    = Call stack:
      1: main
-             at src/main.nr:45:15
+             at src/main.nr:45:5
 
 error: Failed constraint
-   ┌─ src/main.nr:45:15
+   ┌─ src/main.nr:45:5
    │
 45 │     assert_eq(magic, false);
-   │               ------------
+   │     -----------------------
    │
    = Call stack:
      1: main
-             at src/main.nr:45:15
+             at src/main.nr:45:5
 
 Failed to solve program: 'Cannot satisfy constraint'

@@ -21,5 +21,6 @@ mod value;
 pub use display::{tokens_to_string, tokens_to_string_with_indent};
 pub use errors::{ComptimeError, InterpreterError};
 pub use integer::Integer;
-pub use interpreter::Interpreter;
+pub(crate) use interpreter::evaluate_cast_one_step;
+pub use interpreter::{EvaluationTracker, Interpreter};
 pub use value::{FormatStringFragment, Value};

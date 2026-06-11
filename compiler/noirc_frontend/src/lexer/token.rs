@@ -110,8 +110,6 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// &
-    DeprecatedVectorStart,
     /// @
     At,
     /// ^
@@ -388,7 +386,6 @@ impl Display for Token {
             Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::DeprecatedVectorStart => write!(f, "&"),
             Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
@@ -775,6 +772,11 @@ impl Attributes {
     pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
         self.secondary.iter().any(|attr| &attr.kind == kind)
     }
+
+    /// True if the function is marked with `#[pure]`.
+    pub fn is_pure(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttributeKind::Pure)
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -954,6 +956,13 @@ pub enum SecondaryAttributeKind {
     /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
     /// an optional message for the error.
     MustUse(Option<String>),
+
+    /// Asserts that an `#[oracle]` function is pure and that
+    /// the call has no observable side effects on the program.
+    ///
+    /// Only valid on `unconstrained` functions also marked `#[oracle(...)]`.
+    /// For other functions, purity is deduced from their implementation.
+    Pure,
 }
 
 impl SecondaryAttributeKind {
@@ -987,6 +996,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
             SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
             SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::Pure => "pure".to_string(),
         }
     }
 

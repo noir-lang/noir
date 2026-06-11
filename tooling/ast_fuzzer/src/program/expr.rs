@@ -357,12 +357,13 @@ pub fn deref(rhs: Expression, tgt_type: Type) -> Expression {
     unary(UnaryOp::Dereference { implicitly_added: false }, rhs, tgt_type)
 }
 
-/// Reference an expression as a target type
+/// Mutable reference over expression with a target type
 pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
     ref_with_mut(rhs, tgt_type, true)
 }
 
-fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
+/// Reference over an expression with a target type
+pub fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
     unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Rc::new(tgt_type), mutable))
 }
 
@@ -402,7 +403,7 @@ pub fn has_call(expr: &Expression) -> bool {
         };
         let is_builtin_or_oracle = matches!(
             definition,
-            Definition::Builtin(_) | Definition::Oracle(_) | Definition::LowLevel(_)
+            Definition::Builtin(_) | Definition::Oracle { .. } | Definition::LowLevel(_)
         );
         !is_builtin_or_oracle
     })

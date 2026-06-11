@@ -80,7 +80,7 @@ use noirc_errors::Location;
 
 use crate::{
     Type,
-    ast::{UnresolvedGenerics, UnresolvedType},
+    ast::{UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType},
     hir::{
         def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
         def_map::LocalModuleId,
@@ -104,17 +104,22 @@ impl Elaborator<'_> {
     ///
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_impls(
         &mut self,
         module: LocalModuleId,
-        impls: &mut [(UnresolvedGenerics, Location, UnresolvedFunctions)],
+        impls: &mut [(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )],
         self_type: &UnresolvedType,
     ) {
-        self.local_module = Some(module);
+        let previous_local_module = self.replace_local_module(module);
 
-        for (generics, location, unresolved) in impls {
+        for (generics, _, location, unresolved) in impls {
             self.check_generics_appear_in_types(generics, &[self_type], &[]);
 
             self.recover_generics(|this| {
@@ -122,6 +127,8 @@ impl Elaborator<'_> {
                 this.declare_methods_on_data_type(no_trait_id, unresolved, *location);
             });
         }
+
+        self.local_module = previous_local_module;
     }
 
     /// Declares methods in the appropriate module and registers them in the interner.
@@ -141,7 +148,7 @@ impl Elaborator<'_> {
     ///
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn declare_methods_on_data_type(
         &mut self,
@@ -165,38 +172,43 @@ impl Elaborator<'_> {
                 return;
             }
 
-            // Grab the module defined by the data type. Note that impls are a case
-            // where the module the methods are added to is not the same as the module
-            // they are resolved in.
-            let module = Self::get_module_mut(self.def_maps, data_ref.id.module_id());
+            let module_id = data_ref.id.module_id();
 
-            // Declare each method in the data type's module for qualified access (TypeName::method)
-            for (_, method_id, method) in &functions.functions {
-                let name = method.name_ident().clone();
-                let result = if let Some(trait_id) = trait_id {
-                    module.declare_trait_function(name, *method_id, trait_id)
-                } else {
-                    module.declare_function(name, method.def.visibility, *method_id)
-                };
+            // Declare each method in the data type's module for qualified access (TypeName::method).
+            // Conflicts are resolved in two steps so we don't hold a `&mut def_maps` borrow when
+            // we ask the elaborator whether the existing method is a trait-impl method.
+            let mut conflicts = Vec::new();
+            {
+                let module = Self::get_module_mut(self.def_maps, module_id);
+                for (_, method_id, method) in &functions.functions {
+                    let name = method.name_ident().clone();
+                    let result = if let Some(trait_id) = trait_id {
+                        module.declare_trait_function(name, *method_id, trait_id)
+                    } else {
+                        module.declare_function(name, method.def.visibility, *method_id)
+                    };
 
-                // Handle method shadowing when a duplicate method name is found
-                if result.is_err() {
-                    let existing = module.find_func_with_name(method.name_ident()).expect(
-                        "declare_function should only error if there is an existing function",
-                    );
-
-                    // Inherent impls take precedence over trait impls for qualified calls.
-                    // If the existing method is from a trait impl, remove it from module scope
-                    // so that `TypeName::method` resolves to the inherent impl version.
-                    //
-                    // For trait-impl vs trait-impl duplicates, we also remove the existing
-                    // method to prevent qualified access. This allows specialization (e.g.,
-                    // `impl Trait<A> for Foo` and `impl Trait<B> for Foo` can coexist).
-                    // Checking whether the object types in each method overlap (which will be rejected)
-                    // happens later during trait resolution.
-                    if self.interner.function_meta(&existing).trait_impl.is_some() {
-                        module.remove_function(method.name_ident());
+                    if result.is_err()
+                        && let Some(existing) = module.find_func_with_name(method.name_ident())
+                    {
+                        conflicts.push((existing, method.name_ident().clone()));
                     }
+                }
+            }
+
+            for (existing, name) in conflicts {
+                // Inherent impls take precedence over trait impls for qualified calls.
+                // If the existing method is from a trait impl, remove it from module scope
+                // so that `TypeName::method` resolves to the inherent impl version.
+                //
+                // For trait-impl vs trait-impl duplicates, we also remove the existing
+                // method to prevent qualified access. This allows specialization (e.g.,
+                // `impl Trait<A> for Foo` and `impl Trait<B> for Foo` can coexist).
+                // Checking whether the object types in each method overlap (which will be rejected)
+                // happens later during trait resolution.
+                if self.function_is_trait_impl_method(existing) {
+                    let module = Self::get_module_mut(self.def_maps, module_id);
+                    module.remove_function(&name);
                 }
             }
 
@@ -252,6 +264,20 @@ impl Elaborator<'_> {
     fn declare_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
+
+            // The overlap check in `add_method` reads the `FuncMeta` of the method being added
+            // and of every existing method with the same name. Those metas are resolved lazily,
+            // so resolve them here first — but only when an overlap check will actually run (i.e.
+            // there's already a method with this name). Otherwise a lone method referencing a
+            // comptime-generated type would be forced to resolve before the generating attribute
+            // has run.
+            let existing_method_ids = self.interner.get_direct_method_ids(self_type, &method_name);
+            if !existing_method_ids.is_empty() {
+                self.define_function_meta_if_undefined(*method_id);
+                for existing_method_id in existing_method_ids {
+                    self.define_function_meta_if_undefined(existing_method_id);
+                }
+            }
 
             if let Err(error) = self.interner.add_method(self_type, method_name, *method_id, None) {
                 self.push_err(error);

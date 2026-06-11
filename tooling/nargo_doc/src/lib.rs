@@ -160,7 +160,7 @@ impl DocItemBuilder<'_> {
         let module_def_id = if let expand_items::Item::PrimitiveType(..) = item {
             None
         } else {
-            Some(item.module_def_id())
+            item.module_def_id()
         };
         let converted_item = match item {
             expand_items::Item::Module(module) => {
@@ -506,8 +506,11 @@ impl DocItemBuilder<'_> {
                 noirc_frontend::QuotedType::CtString => {
                     Type::Primitive(PrimitiveTypeKind::CtString)
                 }
+                noirc_frontend::QuotedType::Location => {
+                    Type::Primitive(PrimitiveTypeKind::Location)
+                }
             },
-            noirc_frontend::Type::Array(length, element) => Type::Array {
+            noirc_frontend::Type::Array(element, length) => Type::Array {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
@@ -916,6 +919,7 @@ pub(crate) fn convert_primitive_type(
         noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
             PrimitiveTypeKind::UnresolvedType
         }
+        noirc_frontend::elaborator::PrimitiveType::Location => PrimitiveTypeKind::Location,
     }
 }
 

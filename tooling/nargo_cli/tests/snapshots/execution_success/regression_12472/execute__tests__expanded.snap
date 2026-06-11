@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: [(u32, u64); 2]) -> pub u32 {
+    let s: [(u32, u64)] = a.as_vector();
+    let s2: [(u32, u64)] = s.push_back((99_u32, 100_u64));
+    s2.len() as u32
+}

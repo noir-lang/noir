@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -131,9 +133,6 @@ pub struct FuncMeta {
 
     pub location: Location,
 
-    // This flag is needed for the attribute check pass
-    pub has_body: bool,
-
     /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
 
@@ -194,6 +193,18 @@ impl FuncMeta {
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
         self.kind.can_ignore_return_type()
+    }
+
+    /// Number of generics introduced by the enclosing `impl<...>` (or trait `Self`),
+    /// i.e. the prefix of `all_generics` that is not part of `direct_generics`.
+    pub fn impl_generics_count(&self) -> usize {
+        self.all_generics.len() - self.direct_generics.len()
+    }
+
+    /// The generics introduced by the enclosing `impl<...>` (or trait `Self`).
+    /// These are the leading entries of `all_generics`; the remainder are `direct_generics`.
+    pub fn impl_generics(&self) -> &[ResolvedGeneric] {
+        &self.all_generics[..self.impl_generics_count()]
     }
 
     pub fn is_unconstrained(&self) -> bool {
@@ -257,5 +268,15 @@ impl FuncMeta {
 
     pub fn all_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
         self.trait_constraints.iter().chain(self.extra_trait_constraints.iter())
+    }
+
+    /// Instantiates a type by substituting any generics declared on this function that appear
+    /// in the given type with fresh type variables.
+    pub(crate) fn instantiate<'a>(&self, typ: &'a Type, interner: &NodeInterner) -> Cow<'a, Type> {
+        if let Type::Forall(type_vars, _) = &self.typ {
+            Cow::Owned(typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0)
+        } else {
+            Cow::Borrowed(typ)
+        }
     }
 }

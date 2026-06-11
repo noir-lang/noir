@@ -1,3 +1,4 @@
+use fm::FileMap;
 use nargo_fmt::ImportsGranularity;
 use noirc_driver::CrateId;
 use noirc_frontend::{
@@ -14,8 +15,9 @@ pub fn get_expanded_crate(
     crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
+    files: &FileMap,
 ) -> String {
-    let mut expanded_source = display_crate(crate_id, crate_graph, def_maps, interner);
+    let mut expanded_source = display_crate(crate_id, crate_graph, def_maps, interner, files);
     let (parsed_module, errors) = parse_program_with_dummy_file(&expanded_source);
     if errors.is_empty() {
         let config = nargo_fmt::Config {

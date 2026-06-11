@@ -22,7 +22,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -42,7 +42,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store ACVM benchmarks result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "ACVM Benchmarks"
           tool: "cargo"
@@ -51,10 +53,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   benchmark-projects-list:
@@ -69,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Build list of projects
         id: get_bench_projects
@@ -91,7 +92,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -127,7 +128,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -164,7 +165,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Install `bb`
         run: |
@@ -211,7 +212,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -265,7 +266,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -319,7 +320,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -367,7 +368,7 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           sparse-checkout: |
             .github/actions/download-binary/action.yml
@@ -376,7 +377,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -492,7 +493,7 @@ jobs:
 
     name: External repo memory report - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           # Note that we are checking them out under `scripts`, including the github action.
           path: scripts
@@ -508,7 +509,7 @@ jobs:
           name: nargo
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -608,7 +609,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -624,7 +625,9 @@ jobs:
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Compilation Time"
           tool: "customSmallerIsBetter"
@@ -633,10 +636,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_elaboration_reports:
@@ -655,7 +657,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -671,7 +673,9 @@ jobs:
           jq --slurp 'map(.elaboration_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Elaboration Time"
           tool: "customSmallerIsBetter"
@@ -680,10 +684,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_execution_reports:
@@ -702,7 +705,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -718,7 +721,9 @@ jobs:
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Execution Time"
           tool: "customSmallerIsBetter"
@@ -727,10 +732,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_artifact_reports:
@@ -749,7 +753,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -765,7 +769,9 @@ jobs:
           jq --slurp 'map(.artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Artifact Size"
           tool: "customSmallerIsBetter"
@@ -774,10 +780,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_opcode_reports:
@@ -796,7 +801,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -812,7 +817,9 @@ jobs:
           jq --slurp 'map(.num_opcodes | select(.))' ./reports/* | tee num_opcodes.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Opcode count"
           tool: "customSmallerIsBetter"
@@ -821,10 +828,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "110%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_brillig_compilation_reports:
@@ -843,7 +849,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -859,7 +865,9 @@ jobs:
           jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Brillig Compilation Time"
           tool: "customSmallerIsBetter"
@@ -868,10 +876,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_brillig_execution_reports:
@@ -890,7 +897,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -906,7 +913,9 @@ jobs:
           jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Brillig Execution Time"
           tool: "customSmallerIsBetter"
@@ -915,10 +924,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_brillig_artifact_reports:
@@ -937,7 +945,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -953,7 +961,9 @@ jobs:
           jq --slurp 'map(.brillig_artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Brillig Artifact Size"
           tool: "customSmallerIsBetter"
@@ -962,10 +972,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_compilation_memory_report:
@@ -984,7 +993,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download initial memory report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1005,7 +1014,9 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Compilation Memory"
           tool: "customSmallerIsBetter"
@@ -1014,10 +1025,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   upload_execution_memory_report:
@@ -1036,7 +1046,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download initial memory report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -1057,7 +1067,9 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
         with:
           name: "Execution Memory"
           tool: "customSmallerIsBetter"
@@ -1066,10 +1078,9 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
-          comment-on-alert: true
+          comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
   # This is a job which depends on all test jobs and reports the overall status.

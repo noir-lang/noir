@@ -27,7 +27,7 @@ use crate::{
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
-        opt::{LoopOrder, Loops},
+        opt::{LoopBounds, LoopOrder, Loops},
         ssa_gen::Ssa,
     },
 };
@@ -115,13 +115,9 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
         };
         let const_bounds = loop_.get_const_bounds(&function.dfg, pre_header, |v| v);
 
-        let does_execute = const_bounds
-            .and_then(|(lower_bound, upper_bound)| {
-                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-            })
-            // We default to `true` if the bounds are dynamic so that we still
-            // evaluate static assertion in dynamic loops.
-            .unwrap_or(true);
+        // We default to `true` if the bounds are dynamic so that we still
+        // evaluate static assertion in dynamic loops.
+        let does_execute = const_bounds.is_none_or(LoopBounds::loop_executes);
 
         if !does_execute {
             blocks_within_empty_loop.extend(loop_.blocks);
@@ -183,6 +179,10 @@ fn evaluate_assert_constant(
     arguments: &[ValueId],
     error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
+    if arguments.is_empty() {
+        panic!("ICE: assert_constant called with no arguments")
+    }
+
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else if error_on_failure {
@@ -357,6 +357,60 @@ mod tests {
           b2():
             v6 = unchecked_add v0, u32 1
             jmp b1(v6)
+          b3():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_fail_on_assert_constant_in_empty_eq_guarded_loop() {
+        // Regression for noir-lang/noir-claude#1365: `while i == 4` with `i` starting at 0 never
+        // executes, but the `eq v0, u32 4` header yields bounds `[0, 5)`. Classifying execution
+        // as `upper > lower` would treat this skipped body as live and evaluate the
+        // `assert_constant` inside it, raising a spurious runtime error. The `Equal` bound kind
+        // makes `lower + 1 == upper` (0 + 1 != 5) read as "does not execute", so the call is
+        // removed instead.
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v4 = eq v0, u32 4
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            call assert_constant(v2)
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
+          b3():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.evaluate_static_assert_and_assert_constant().unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = eq v0, u32 4
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
           b3():
             return
         }

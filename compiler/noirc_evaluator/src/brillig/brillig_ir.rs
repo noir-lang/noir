@@ -35,7 +35,10 @@ use registers::{RegisterAllocator, ScratchSpace};
 use crate::brillig::assert_u32;
 
 pub use self::registers::LayoutConfig;
-pub use self::registers::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES};
+pub use self::registers::{
+    MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
+    NUM_STACK_FRAMES,
+};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -95,6 +98,14 @@ impl ReservedRegisters {
     pub(crate) fn spill_scratch() -> (MemoryAddress, MemoryAddress) {
         let start = ScratchSpace::start();
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
+    }
+
+    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// to hold a value across the load → cmov → store sequence. Disjoint from
+    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// can be reused by the inner load/store without clobbering the value.
+    pub(crate) fn spill_conditional_value() -> MemoryAddress {
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
     }
 }
 
@@ -286,6 +297,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
+        operator: SignedDivisionOperator,
     ) {
         let left_is_negative = self.allocate_single_addr_bool();
         let left_abs_value = self.allocate_single_addr(left.bit_size);
@@ -327,14 +339,25 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 let no_overflow = ctx.allocate_single_addr_bool();
                 ctx.binary_instruction(result, *max, *no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
-                    ctx2.codegen_constrain(
-                        *no_overflow,
-                        Some("Attempt to divide with overflow".to_string()),
-                    );
+                    let message = match operator {
+                        SignedDivisionOperator::Mod => {
+                            "Attempt to calculate the remainder with overflow"
+                        }
+                        SignedDivisionOperator::Div => "Attempt to divide with overflow",
+                        SignedDivisionOperator::Shift => "Attempt to bit-shift with overflow",
+                    };
+                    ctx2.codegen_constrain(*no_overflow, Some(message.to_string()));
                 });
             }
         });
     }
+}
+
+#[derive(Copy, Clone)]
+pub(crate) enum SignedDivisionOperator {
+    Div,
+    Mod,
+    Shift,
 }
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
@@ -435,20 +458,18 @@ pub(crate) mod tests {
             _scalars_lo: &[FieldElement],
             _scalars_hi: &[FieldElement],
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into()))
         }
 
         fn ec_add(
             &self,
             _input1_x: &FieldElement,
             _input1_y: &FieldElement,
-            _input1_infinite: &FieldElement,
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
-            _input2_infinite: &FieldElement,
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
 
@@ -1028,7 +1049,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 0, u32 0)
               b1(v3: u32, v35: u32, v36: u32):
@@ -1068,7 +1089,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move_swap() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 1, u32 0)
               b1(v0: u32, v1: u32, v2: u32):
