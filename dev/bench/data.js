@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781176419520,
+  "lastUpdate": 1781179627352,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3125ff4ef77f5dbefb5dd17db707159245a5080d",
-          "message": "fix: Fix grandparent trait associated types (#12890)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-06-08T13:02:12Z",
-          "tree_id": "93255ef80350d2eb4b119d19276c34894a0496fe",
-          "url": "https://github.com/noir-lang/noir/commit/3125ff4ef77f5dbefb5dd17db707159245a5080d"
-        },
-        "date": 1780925388204,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162009,
-            "range": "± 381",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144526,
-            "range": "± 259",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2130461,
-            "range": "± 3835",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3039708,
             "range": "± 1522",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd40bc452d70f7e3f2f5759e0090edf6a84949a9",
+          "message": "fix(ssa): preserve shared join block params when unrolling a constant JmpIf (#12964)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-06-11T11:31:10Z",
+          "tree_id": "d219d9c544b0aca9e917129a09d314e6c6ffe58c",
+          "url": "https://github.com/noir-lang/noir/commit/dd40bc452d70f7e3f2f5759e0090edf6a84949a9"
+        },
+        "date": 1781179556482,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166994,
+            "range": "± 562",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135603,
+            "range": "± 371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2657604,
+            "range": "± 3740",
             "unit": "ns/iter"
           }
         ]
