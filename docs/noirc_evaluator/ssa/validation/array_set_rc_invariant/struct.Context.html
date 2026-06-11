@@ -318,7 +318,7 @@ no argument at that position.</p>
     array_set_id: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     array_set_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     array_set_idx: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
-    write_index_const: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;FieldElement&gt;,
+    write_index_const: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.AliasedUse.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::AliasedUse">AliasedUse</a>&gt;</h4></section></summary><div class="docblock"><p>Forward CFG walk from after the <code>array_set</code> looking for a
 non-terminator instruction that reads a value still in the alias
 use-set.</p>

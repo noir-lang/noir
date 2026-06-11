@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a>    call_stack: CallStackId,
 <a href=#27 id=27 data-nosnippet>27</a>) -&gt; SimplifyResult {
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="comment">// arguments: [x1, y1, x2, y2, predicate]
-<a href=#29 id=29 data-nosnippet>29</a>    </span><span class="kw">if </span>dfg.is_constant(arguments[<span class="number">4</span>]) &amp;&amp; !dfg.is_constant_true(arguments[<span class="number">4</span>]) {
+<a href=#29 id=29 data-nosnippet>29</a>    </span><span class="kw">if </span>dfg.is_constant_false(arguments[<span class="number">4</span>]) {
 <a href=#30 id=30 data-nosnippet>30</a>        <span class="kw">let </span>result_instruction =
 <a href=#31 id=31 data-nosnippet>31</a>            constant_point_result_helper(dfg, FieldElement::zero(), FieldElement::zero());
 <a href=#32 id=32 data-nosnippet>32</a>        <span class="kw">let </span>result_array =
@@ -64,7 +64,7 @@
 <a href=#64 id=64 data-nosnippet>64</a>    call_stack: CallStackId,
 <a href=#65 id=65 data-nosnippet>65</a>) -&gt; SimplifyResult {
 <a href=#66 id=66 data-nosnippet>66</a>    <span class="comment">// Simplify msm with false predicate
-<a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">if </span>dfg.is_constant(<span class="kw-2">*</span>predicate) &amp;&amp; !dfg.is_constant_true(<span class="kw-2">*</span>predicate) {
+<a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">if </span>dfg.is_constant_false(<span class="kw-2">*</span>predicate) {
 <a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">let </span>result_instruction =
 <a href=#69 id=69 data-nosnippet>69</a>            constant_point_result_helper(dfg, FieldElement::zero(), FieldElement::zero());
 <a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">let </span>result_array =
@@ -324,234 +324,355 @@
 <a href=#324 id=324 data-nosnippet>324</a>    arguments: <span class="kw-2">&amp;</span>[ValueId],
 <a href=#325 id=325 data-nosnippet>325</a>    signature_verifier: ECDSASignatureVerifier,
 <a href=#326 id=326 data-nosnippet>326</a>) -&gt; SimplifyResult {
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="kw">match </span>(
-<a href=#328 id=328 data-nosnippet>328</a>        dfg.get_array_constant(arguments[<span class="number">0</span>]),
-<a href=#329 id=329 data-nosnippet>329</a>        dfg.get_array_constant(arguments[<span class="number">1</span>]),
-<a href=#330 id=330 data-nosnippet>330</a>        dfg.get_array_constant(arguments[<span class="number">2</span>]),
-<a href=#331 id=331 data-nosnippet>331</a>        dfg.get_array_constant(arguments[<span class="number">3</span>]),
-<a href=#332 id=332 data-nosnippet>332</a>        dfg.get_array_constant(arguments[<span class="number">4</span>]),
-<a href=#333 id=333 data-nosnippet>333</a>    ) {
-<a href=#334 id=334 data-nosnippet>334</a>        (
-<a href=#335 id=335 data-nosnippet>335</a>            <span class="prelude-val">Some</span>((public_key_x, <span class="kw">_</span>)),
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="prelude-val">Some</span>((public_key_y, <span class="kw">_</span>)),
-<a href=#337 id=337 data-nosnippet>337</a>            <span class="prelude-val">Some</span>((signature, <span class="kw">_</span>)),
-<a href=#338 id=338 data-nosnippet>338</a>            <span class="prelude-val">Some</span>((hashed_message, <span class="kw">_</span>)),
-<a href=#339 id=339 data-nosnippet>339</a>            <span class="prelude-val">Some</span>((predicate, <span class="kw">_</span>)),
-<a href=#340 id=340 data-nosnippet>340</a>        ) <span class="kw">if </span>array_is_constant(dfg, <span class="kw-2">&amp;</span>public_key_x)
-<a href=#341 id=341 data-nosnippet>341</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>public_key_y)
-<a href=#342 id=342 data-nosnippet>342</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>signature)
-<a href=#343 id=343 data-nosnippet>343</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>hashed_message) =&gt;
-<a href=#344 id=344 data-nosnippet>344</a>        {
-<a href=#345 id=345 data-nosnippet>345</a>            <span class="kw">if </span>dfg.get_numeric_constant(predicate[<span class="number">0</span>]) == <span class="prelude-val">Some</span>(FieldElement::zero()) {
-<a href=#346 id=346 data-nosnippet>346</a>                <span class="kw">let </span>valid_signature = dfg.make_constant(<span class="number">1_u128</span>.into(), NumericType::bool());
-<a href=#347 id=347 data-nosnippet>347</a>                <span class="kw">return </span>SimplifyResult::SimplifiedTo(valid_signature);
-<a href=#348 id=348 data-nosnippet>348</a>            }
-<a href=#349 id=349 data-nosnippet>349</a>            <span class="kw">let </span>public_key_x: [u8; <span class="number">32</span>] = to_u8_vec(dfg, public_key_x)
-<a href=#350 id=350 data-nosnippet>350</a>                .try_into()
-<a href=#351 id=351 data-nosnippet>351</a>                .expect(<span class="string">"ECDSA public key fields are 32 bytes"</span>);
-<a href=#352 id=352 data-nosnippet>352</a>            <span class="kw">let </span>public_key_y: [u8; <span class="number">32</span>] = to_u8_vec(dfg, public_key_y)
-<a href=#353 id=353 data-nosnippet>353</a>                .try_into()
-<a href=#354 id=354 data-nosnippet>354</a>                .expect(<span class="string">"ECDSA public key fields are 32 bytes"</span>);
-<a href=#355 id=355 data-nosnippet>355</a>            <span class="kw">let </span>signature: [u8; <span class="number">64</span>] =
-<a href=#356 id=356 data-nosnippet>356</a>                to_u8_vec(dfg, signature).try_into().expect(<span class="string">"ECDSA signatures are 64 bytes"</span>);
-<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">let </span>hashed_message: [u8; <span class="number">32</span>] = to_u8_vec(dfg, hashed_message)
-<a href=#358 id=358 data-nosnippet>358</a>                .try_into()
-<a href=#359 id=359 data-nosnippet>359</a>                .expect(<span class="string">"ECDSA message hashes are 32 bytes"</span>);
-<a href=#360 id=360 data-nosnippet>360</a>
-<a href=#361 id=361 data-nosnippet>361</a>            <span class="kw">let </span>valid_signature =
-<a href=#362 id=362 data-nosnippet>362</a>                signature_verifier(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>public_key_x, <span class="kw-2">&amp;</span>public_key_y, <span class="kw-2">&amp;</span>signature)
-<a href=#363 id=363 data-nosnippet>363</a>                    .expect(<span class="string">"Rust solvable black box function should not fail"</span>);
-<a href=#364 id=364 data-nosnippet>364</a>
-<a href=#365 id=365 data-nosnippet>365</a>            <span class="kw">let </span>valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
-<a href=#366 id=366 data-nosnippet>366</a>            SimplifyResult::SimplifiedTo(valid_signature)
-<a href=#367 id=367 data-nosnippet>367</a>        }
-<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">_ </span>=&gt; SimplifyResult::None,
-<a href=#369 id=369 data-nosnippet>369</a>    }
-<a href=#370 id=370 data-nosnippet>370</a>}
-<a href=#371 id=371 data-nosnippet>371</a>
-<a href=#372 id=372 data-nosnippet>372</a><span class="attr">#[cfg(test)]
-<a href=#373 id=373 data-nosnippet>373</a></span><span class="kw">mod </span>embedded_curve_add {
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
-<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
+<a href=#327 id=327 data-nosnippet>327</a>    <span class="comment">// arguments: [public_key_x, public_key_y, signature, hashed_message, predicate]
+<a href=#328 id=328 data-nosnippet>328</a>    // The predicate is a single `u1` value, not an array. Mirror `simplify_ec_add` /
+<a href=#329 id=329 data-nosnippet>329</a>    // `simplify_msm_helper`: a statically-false predicate disables the check and the verifier
+<a href=#330 id=330 data-nosnippet>330</a>    // reports success, so fold to `true`. This also strips the call before ACIR-gen, whose
+<a href=#331 id=331 data-nosnippet>331</a>    // `prepare_inputs_for_black_box_func` asserts a zero predicate was already optimized away.
+<a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">if </span>dfg.is_constant_false(arguments[<span class="number">4</span>]) {
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">let </span>valid_signature = dfg.make_constant(<span class="number">1_u128</span>.into(), NumericType::bool());
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">return </span>SimplifyResult::SimplifiedTo(valid_signature);
+<a href=#335 id=335 data-nosnippet>335</a>    }
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="kw">match </span>(
+<a href=#338 id=338 data-nosnippet>338</a>        dfg.get_array_constant(arguments[<span class="number">0</span>]),
+<a href=#339 id=339 data-nosnippet>339</a>        dfg.get_array_constant(arguments[<span class="number">1</span>]),
+<a href=#340 id=340 data-nosnippet>340</a>        dfg.get_array_constant(arguments[<span class="number">2</span>]),
+<a href=#341 id=341 data-nosnippet>341</a>        dfg.get_array_constant(arguments[<span class="number">3</span>]),
+<a href=#342 id=342 data-nosnippet>342</a>    ) {
+<a href=#343 id=343 data-nosnippet>343</a>        (
+<a href=#344 id=344 data-nosnippet>344</a>            <span class="prelude-val">Some</span>((public_key_x, <span class="kw">_</span>)),
+<a href=#345 id=345 data-nosnippet>345</a>            <span class="prelude-val">Some</span>((public_key_y, <span class="kw">_</span>)),
+<a href=#346 id=346 data-nosnippet>346</a>            <span class="prelude-val">Some</span>((signature, <span class="kw">_</span>)),
+<a href=#347 id=347 data-nosnippet>347</a>            <span class="prelude-val">Some</span>((hashed_message, <span class="kw">_</span>)),
+<a href=#348 id=348 data-nosnippet>348</a>        ) <span class="kw">if </span>dfg.is_constant_true(arguments[<span class="number">4</span>])
+<a href=#349 id=349 data-nosnippet>349</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>public_key_x)
+<a href=#350 id=350 data-nosnippet>350</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>public_key_y)
+<a href=#351 id=351 data-nosnippet>351</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>signature)
+<a href=#352 id=352 data-nosnippet>352</a>            &amp;&amp; array_is_constant(dfg, <span class="kw-2">&amp;</span>hashed_message) =&gt;
+<a href=#353 id=353 data-nosnippet>353</a>        {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="comment">// The predicate is statically true here, so the output equals the verifier result
+<a href=#355 id=355 data-nosnippet>355</a>            // directly (a false predicate forces `true` and is handled above; a witness predicate
+<a href=#356 id=356 data-nosnippet>356</a>            // would make the output depend on the witness, so it is left unsimplified).
+<a href=#357 id=357 data-nosnippet>357</a>            //
+<a href=#358 id=358 data-nosnippet>358</a>            // The argument arrays are only well-sized for genuine ECDSA calls; SSA built directly
+<a href=#359 id=359 data-nosnippet>359</a>            // (e.g. by the fuzzer) may carry differently-sized arrays, so a length mismatch declines
+<a href=#360 id=360 data-nosnippet>360</a>            // to simplify rather than panicking.
+<a href=#361 id=361 data-nosnippet>361</a>            </span><span class="kw">let </span><span class="prelude-val">Ok</span>(public_key_x): <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], <span class="kw">_</span>&gt; = to_u8_vec(dfg, public_key_x).try_into()
+<a href=#362 id=362 data-nosnippet>362</a>            <span class="kw">else </span>{
+<a href=#363 id=363 data-nosnippet>363</a>                <span class="kw">return </span>SimplifyResult::None;
+<a href=#364 id=364 data-nosnippet>364</a>            };
+<a href=#365 id=365 data-nosnippet>365</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(public_key_y): <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], <span class="kw">_</span>&gt; = to_u8_vec(dfg, public_key_y).try_into()
+<a href=#366 id=366 data-nosnippet>366</a>            <span class="kw">else </span>{
+<a href=#367 id=367 data-nosnippet>367</a>                <span class="kw">return </span>SimplifyResult::None;
+<a href=#368 id=368 data-nosnippet>368</a>            };
+<a href=#369 id=369 data-nosnippet>369</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(signature): <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">64</span>], <span class="kw">_</span>&gt; = to_u8_vec(dfg, signature).try_into() <span class="kw">else </span>{
+<a href=#370 id=370 data-nosnippet>370</a>                <span class="kw">return </span>SimplifyResult::None;
+<a href=#371 id=371 data-nosnippet>371</a>            };
+<a href=#372 id=372 data-nosnippet>372</a>            <span class="kw">let </span><span class="prelude-val">Ok</span>(hashed_message): <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], <span class="kw">_</span>&gt; = to_u8_vec(dfg, hashed_message).try_into()
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="kw">else </span>{
+<a href=#374 id=374 data-nosnippet>374</a>                <span class="kw">return </span>SimplifyResult::None;
+<a href=#375 id=375 data-nosnippet>375</a>            };
 <a href=#376 id=376 data-nosnippet>376</a>
-<a href=#377 id=377 data-nosnippet>377</a>    <span class="attr">#[test]
-<a href=#378 id=378 data-nosnippet>378</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#379 id=379 data-nosnippet>379</a>    </span><span class="kw">fn </span>simplify_adding_point_at_infinity() {
-<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#381 id=381 data-nosnippet>381</a>            acir(inline) fn main f0 {
-<a href=#382 id=382 data-nosnippet>382</a>              b0(v0: Field, v1: Field):
-<a href=#383 id=383 data-nosnippet>383</a>                v2 = call embedded_curve_add (v0, v1, Field 0, Field 0, u1 1) -&gt; [(Field, Field); 1]
-<a href=#384 id=384 data-nosnippet>384</a>                return v2
-<a href=#385 id=385 data-nosnippet>385</a>            }"#</span>;
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#377 id=377 data-nosnippet>377</a>            <span class="kw">let </span>valid_signature =
+<a href=#378 id=378 data-nosnippet>378</a>                signature_verifier(<span class="kw-2">&amp;</span>hashed_message, <span class="kw-2">&amp;</span>public_key_x, <span class="kw-2">&amp;</span>public_key_y, <span class="kw-2">&amp;</span>signature)
+<a href=#379 id=379 data-nosnippet>379</a>                    .expect(<span class="string">"Rust solvable black box function should not fail"</span>);
+<a href=#380 id=380 data-nosnippet>380</a>
+<a href=#381 id=381 data-nosnippet>381</a>            <span class="kw">let </span>valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
+<a href=#382 id=382 data-nosnippet>382</a>            SimplifyResult::SimplifiedTo(valid_signature)
+<a href=#383 id=383 data-nosnippet>383</a>        }
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">_ </span>=&gt; SimplifyResult::None,
+<a href=#385 id=385 data-nosnippet>385</a>    }
+<a href=#386 id=386 data-nosnippet>386</a>}
 <a href=#387 id=387 data-nosnippet>387</a>
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#389 id=389 data-nosnippet>389</a>        acir(inline) fn main f0 {
-<a href=#390 id=390 data-nosnippet>390</a>          b0(v0: Field, v1: Field):
-<a href=#391 id=391 data-nosnippet>391</a>            v2 = make_array [v0, v1] : [(Field, Field); 1]
-<a href=#392 id=392 data-nosnippet>392</a>            return v2
-<a href=#393 id=393 data-nosnippet>393</a>        }
-<a href=#394 id=394 data-nosnippet>394</a>        "</span>);
-<a href=#395 id=395 data-nosnippet>395</a>    }
-<a href=#396 id=396 data-nosnippet>396</a>
-<a href=#397 id=397 data-nosnippet>397</a>    <span class="attr">#[test]
-<a href=#398 id=398 data-nosnippet>398</a>    </span><span class="kw">fn </span>one_constant_argument_is_not_simplified() {
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#400 id=400 data-nosnippet>400</a>            acir(inline) fn main f0 {
-<a href=#401 id=401 data-nosnippet>401</a>              b0(v0: Field, v1: Field):
-<a href=#402 id=402 data-nosnippet>402</a>                v2 = call embedded_curve_add (v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1) -&gt; [(Field, Field); 1]
-<a href=#403 id=403 data-nosnippet>403</a>                return v2
-<a href=#404 id=404 data-nosnippet>404</a>            }"#</span>;
-<a href=#405 id=405 data-nosnippet>405</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#408 id=408 data-nosnippet>408</a>        acir(inline) fn main f0 {
-<a href=#409 id=409 data-nosnippet>409</a>          b0(v0: Field, v1: Field):
-<a href=#410 id=410 data-nosnippet>410</a>            v6 = call embedded_curve_add(v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1) -&gt; [(Field, Field); 1]
-<a href=#411 id=411 data-nosnippet>411</a>            return v6
-<a href=#412 id=412 data-nosnippet>412</a>        }
-<a href=#413 id=413 data-nosnippet>413</a>        "</span>);
-<a href=#414 id=414 data-nosnippet>414</a>    }
-<a href=#415 id=415 data-nosnippet>415</a>}
-<a href=#416 id=416 data-nosnippet>416</a>
-<a href=#417 id=417 data-nosnippet>417</a><span class="attr">#[cfg(test)]
-<a href=#418 id=418 data-nosnippet>418</a>#[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#419 id=419 data-nosnippet>419</a></span><span class="kw">mod </span>multi_scalar_mul {
-<a href=#420 id=420 data-nosnippet>420</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
-<a href=#421 id=421 data-nosnippet>421</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
+<a href=#388 id=388 data-nosnippet>388</a><span class="attr">#[cfg(test)]
+<a href=#389 id=389 data-nosnippet>389</a></span><span class="kw">mod </span>embedded_curve_add {
+<a href=#390 id=390 data-nosnippet>390</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
+<a href=#391 id=391 data-nosnippet>391</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
+<a href=#392 id=392 data-nosnippet>392</a>
+<a href=#393 id=393 data-nosnippet>393</a>    <span class="attr">#[test]
+<a href=#394 id=394 data-nosnippet>394</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#395 id=395 data-nosnippet>395</a>    </span><span class="kw">fn </span>simplify_adding_point_at_infinity() {
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#397 id=397 data-nosnippet>397</a>            acir(inline) fn main f0 {
+<a href=#398 id=398 data-nosnippet>398</a>              b0(v0: Field, v1: Field):
+<a href=#399 id=399 data-nosnippet>399</a>                v2 = call embedded_curve_add (v0, v1, Field 0, Field 0, u1 1) -&gt; [(Field, Field); 1]
+<a href=#400 id=400 data-nosnippet>400</a>                return v2
+<a href=#401 id=401 data-nosnippet>401</a>            }"#</span>;
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#405 id=405 data-nosnippet>405</a>        acir(inline) fn main f0 {
+<a href=#406 id=406 data-nosnippet>406</a>          b0(v0: Field, v1: Field):
+<a href=#407 id=407 data-nosnippet>407</a>            v2 = make_array [v0, v1] : [(Field, Field); 1]
+<a href=#408 id=408 data-nosnippet>408</a>            return v2
+<a href=#409 id=409 data-nosnippet>409</a>        }
+<a href=#410 id=410 data-nosnippet>410</a>        "</span>);
+<a href=#411 id=411 data-nosnippet>411</a>    }
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="attr">#[test]
+<a href=#414 id=414 data-nosnippet>414</a>    </span><span class="kw">fn </span>one_constant_argument_is_not_simplified() {
+<a href=#415 id=415 data-nosnippet>415</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#416 id=416 data-nosnippet>416</a>            acir(inline) fn main f0 {
+<a href=#417 id=417 data-nosnippet>417</a>              b0(v0: Field, v1: Field):
+<a href=#418 id=418 data-nosnippet>418</a>                v2 = call embedded_curve_add (v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1) -&gt; [(Field, Field); 1]
+<a href=#419 id=419 data-nosnippet>419</a>                return v2
+<a href=#420 id=420 data-nosnippet>420</a>            }"#</span>;
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a>    <span class="attr">#[test]
-<a href=#424 id=424 data-nosnippet>424</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#425 id=425 data-nosnippet>425</a>    </span><span class="kw">fn </span>full_constant_folding() {
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#427 id=427 data-nosnippet>427</a>            acir(inline) fn main f0 {
-<a href=#428 id=428 data-nosnippet>428</a>              b0():
-<a href=#429 id=429 data-nosnippet>429</a>                v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
-<a href=#430 id=430 data-nosnippet>430</a>                v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 2]
-<a href=#431 id=431 data-nosnippet>431</a>                v2 = call multi_scalar_mul (v1, v0, u1 1) -&gt; [(Field, Field); 1]
-<a href=#432 id=432 data-nosnippet>432</a>                return v2
-<a href=#433 id=433 data-nosnippet>433</a>            }"#</span>;
-<a href=#434 id=434 data-nosnippet>434</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-<a href=#435 id=435 data-nosnippet>435</a>
-<a href=#436 id=436 data-nosnippet>436</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#437 id=437 data-nosnippet>437</a>        acir(inline) fn main f0 {
-<a href=#438 id=438 data-nosnippet>438</a>          b0():
-<a href=#439 id=439 data-nosnippet>439</a>            v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
-<a href=#440 id=440 data-nosnippet>440</a>            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 2]
-<a href=#441 id=441 data-nosnippet>441</a>            v9 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630] : [(Field, Field); 1]
-<a href=#442 id=442 data-nosnippet>442</a>            return v9
-<a href=#443 id=443 data-nosnippet>443</a>        }
-<a href=#444 id=444 data-nosnippet>444</a>        "</span>);
-<a href=#445 id=445 data-nosnippet>445</a>    }
-<a href=#446 id=446 data-nosnippet>446</a>
-<a href=#447 id=447 data-nosnippet>447</a>    <span class="attr">#[test]
-<a href=#448 id=448 data-nosnippet>448</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#449 id=449 data-nosnippet>449</a>    </span><span class="kw">fn </span>simplify_zero() {
-<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#451 id=451 data-nosnippet>451</a>            acir(inline) fn main f0 {
-<a href=#452 id=452 data-nosnippet>452</a>              b0(v0: Field, v1: Field):
-<a href=#453 id=453 data-nosnippet>453</a>                v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
-<a href=#454 id=454 data-nosnippet>454</a>                v3 = make_array [Field 0, Field 0, v0, v1, Field 1, v0] : [(Field, Field); 3]
-<a href=#455 id=455 data-nosnippet>455</a>                v4 = call multi_scalar_mul (v3, v2, u1 1) -&gt; [(Field, Field); 1]
-<a href=#456 id=456 data-nosnippet>456</a>                return v4
-<a href=#457 id=457 data-nosnippet>457</a>
-<a href=#458 id=458 data-nosnippet>458</a>            }"#</span>;
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-<a href=#460 id=460 data-nosnippet>460</a>        <span class="comment">// The second scalar is a constant zero, so that term is dropped. The first point is the
-<a href=#461 id=461 data-nosnippet>461</a>        // point at infinity, but its scalar is a witness, so the term is retained to preserve the
-<a href=#462 id=462 data-nosnippet>462</a>        // scalar limb range validation; it is kept alongside the last point.
-<a href=#463 id=463 data-nosnippet>463</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#464 id=464 data-nosnippet>464</a>        acir(inline) fn main f0 {
-<a href=#465 id=465 data-nosnippet>465</a>          b0(v0: Field, v1: Field):
-<a href=#466 id=466 data-nosnippet>466</a>            v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
-<a href=#467 id=467 data-nosnippet>467</a>            v5 = make_array [Field 0, Field 0, v0, v1, Field 1, v0] : [(Field, Field); 3]
-<a href=#468 id=468 data-nosnippet>468</a>            v6 = make_array [v0, Field 0, v0, Field 0] : [(Field, Field); 2]
-<a href=#469 id=469 data-nosnippet>469</a>            v7 = make_array [Field 0, Field 0, Field 1, v0] : [(Field, Field); 2]
-<a href=#470 id=470 data-nosnippet>470</a>            v10 = call multi_scalar_mul(v7, v6, u1 1) -&gt; [(Field, Field); 1]
-<a href=#471 id=471 data-nosnippet>471</a>            return v10
-<a href=#472 id=472 data-nosnippet>472</a>        }
-<a href=#473 id=473 data-nosnippet>473</a>        "</span>);
-<a href=#474 id=474 data-nosnippet>474</a>    }
-<a href=#475 id=475 data-nosnippet>475</a>
-<a href=#476 id=476 data-nosnippet>476</a>    <span class="attr">#[test]
-<a href=#477 id=477 data-nosnippet>477</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#478 id=478 data-nosnippet>478</a>    </span><span class="kw">fn </span>retains_witness_scalar_for_constant_infinity_point() {
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="comment">// A point at infinity contributes nothing to the result regardless of the scalar,
-<a href=#480 id=480 data-nosnippet>480</a>        // but eliding the term would also drop the range validation of the witness scalar
-<a href=#481 id=481 data-nosnippet>481</a>        // limbs that the MSM blackbox enforces. The term must be retained.
-<a href=#482 id=482 data-nosnippet>482</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#483 id=483 data-nosnippet>483</a>            acir(inline) fn main f0 {
-<a href=#484 id=484 data-nosnippet>484</a>              b0(v0: Field, v1: Field):
-<a href=#485 id=485 data-nosnippet>485</a>                v2 = make_array [Field 0, Field 0] : [(Field, Field); 1]
-<a href=#486 id=486 data-nosnippet>486</a>                v3 = make_array [v0, v1] : [(Field, Field); 1]
-<a href=#487 id=487 data-nosnippet>487</a>                v4 = call multi_scalar_mul (v2, v3, u1 1) -&gt; [(Field, Field); 1]
-<a href=#488 id=488 data-nosnippet>488</a>                return v4
-<a href=#489 id=489 data-nosnippet>489</a>            }"#</span>;
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-<a href=#491 id=491 data-nosnippet>491</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#492 id=492 data-nosnippet>492</a>        acir(inline) fn main f0 {
-<a href=#493 id=493 data-nosnippet>493</a>          b0(v0: Field, v1: Field):
-<a href=#494 id=494 data-nosnippet>494</a>            v3 = make_array [Field 0, Field 0] : [(Field, Field); 1]
-<a href=#495 id=495 data-nosnippet>495</a>            v4 = make_array [v0, v1] : [(Field, Field); 1]
-<a href=#496 id=496 data-nosnippet>496</a>            v7 = call multi_scalar_mul(v3, v4, u1 1) -&gt; [(Field, Field); 1]
-<a href=#497 id=497 data-nosnippet>497</a>            return v7
-<a href=#498 id=498 data-nosnippet>498</a>        }
-<a href=#499 id=499 data-nosnippet>499</a>        "</span>);
-<a href=#500 id=500 data-nosnippet>500</a>    }
-<a href=#501 id=501 data-nosnippet>501</a>
-<a href=#502 id=502 data-nosnippet>502</a>    <span class="attr">#[test]
-<a href=#503 id=503 data-nosnippet>503</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#504 id=504 data-nosnippet>504</a>    </span><span class="kw">fn </span>partial_constant_folding() {
-<a href=#505 id=505 data-nosnippet>505</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#506 id=506 data-nosnippet>506</a>            acir(inline) fn main f0 {
-<a href=#507 id=507 data-nosnippet>507</a>              b0(v0: Field, v1: Field):
-<a href=#508 id=508 data-nosnippet>508</a>                v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
-<a href=#509 id=509 data-nosnippet>509</a>                v3 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 3]
-<a href=#510 id=510 data-nosnippet>510</a>                v4 = call multi_scalar_mul (v3, v2, u1 1) -&gt; [(Field, Field); 1]
-<a href=#511 id=511 data-nosnippet>511</a>                return v4
-<a href=#512 id=512 data-nosnippet>512</a>            }"#</span>;
-<a href=#513 id=513 data-nosnippet>513</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-<a href=#514 id=514 data-nosnippet>514</a>        <span class="comment">//First and last scalar/point are constant, so we should be left with the msm of the middle point and the folded constant point
-<a href=#515 id=515 data-nosnippet>515</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#516 id=516 data-nosnippet>516</a>        acir(inline) fn main f0 {
-<a href=#517 id=517 data-nosnippet>517</a>          b0(v0: Field, v1: Field):
-<a href=#518 id=518 data-nosnippet>518</a>            v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
-<a href=#519 id=519 data-nosnippet>519</a>            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 3]
-<a href=#520 id=520 data-nosnippet>520</a>            v8 = make_array [v0, Field 0, Field 1, Field 0] : [(Field, Field); 2]
-<a href=#521 id=521 data-nosnippet>521</a>            v11 = make_array [v0, v1, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620] : [(Field, Field); 2]
-<a href=#522 id=522 data-nosnippet>522</a>            v14 = call multi_scalar_mul(v11, v8, u1 1) -&gt; [(Field, Field); 1]
-<a href=#523 id=523 data-nosnippet>523</a>            return v14
-<a href=#524 id=524 data-nosnippet>524</a>        }
-<a href=#525 id=525 data-nosnippet>525</a>        "</span>);
-<a href=#526 id=526 data-nosnippet>526</a>    }
-<a href=#527 id=527 data-nosnippet>527</a>}
-<a href=#528 id=528 data-nosnippet>528</a>
-<a href=#529 id=529 data-nosnippet>529</a><span class="attr">#[cfg(test)]
-<a href=#530 id=530 data-nosnippet>530</a></span><span class="kw">mod </span>sha256_compression {
-<a href=#531 id=531 data-nosnippet>531</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
-<a href=#532 id=532 data-nosnippet>532</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
-<a href=#533 id=533 data-nosnippet>533</a>
-<a href=#534 id=534 data-nosnippet>534</a>    <span class="attr">#[test]
-<a href=#535 id=535 data-nosnippet>535</a>    </span><span class="kw">fn </span>is_optimized_out_with_constant_arguments() {
-<a href=#536 id=536 data-nosnippet>536</a>        <span class="comment">// Canonical argument order: input `[u32; 16]` first, state `[u32; 8]` second, matching
-<a href=#537 id=537 data-nosnippet>537</a>        // the stdlib signature and `ssa::validation`.
-<a href=#538 id=538 data-nosnippet>538</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#539 id=539 data-nosnippet>539</a>            acir(inline) fn main f0 {
-<a href=#540 id=540 data-nosnippet>540</a>              b0():
-<a href=#541 id=541 data-nosnippet>541</a>                v0 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
-<a href=#542 id=542 data-nosnippet>542</a>                v1 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
-<a href=#543 id=543 data-nosnippet>543</a>                v2 = call sha256_compression(v0, v1) -&gt; [u32; 8]
-<a href=#544 id=544 data-nosnippet>544</a>                return v2
-<a href=#545 id=545 data-nosnippet>545</a>            }"#</span>;
-<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
-<a href=#547 id=547 data-nosnippet>547</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
-<a href=#548 id=548 data-nosnippet>548</a>        acir(inline) fn main f0 {
-<a href=#549 id=549 data-nosnippet>549</a>          b0():
-<a href=#550 id=550 data-nosnippet>550</a>            v16 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
-<a href=#551 id=551 data-nosnippet>551</a>            v25 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
-<a href=#552 id=552 data-nosnippet>552</a>            v34 = make_array [u32 2921910434, u32 4262928279, u32 911433216, u32 1248638655, u32 2918467959, u32 1459819522, u32 1329522001, u32 3116489287] : [u32; 8]
-<a href=#553 id=553 data-nosnippet>553</a>            return v34
-<a href=#554 id=554 data-nosnippet>554</a>        }
-<a href=#555 id=555 data-nosnippet>555</a>        "</span>);
-<a href=#556 id=556 data-nosnippet>556</a>    }
-<a href=#557 id=557 data-nosnippet>557</a>}</code></pre></div></section></main></body></html>
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#424 id=424 data-nosnippet>424</a>        acir(inline) fn main f0 {
+<a href=#425 id=425 data-nosnippet>425</a>          b0(v0: Field, v1: Field):
+<a href=#426 id=426 data-nosnippet>426</a>            v6 = call embedded_curve_add(v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 1) -&gt; [(Field, Field); 1]
+<a href=#427 id=427 data-nosnippet>427</a>            return v6
+<a href=#428 id=428 data-nosnippet>428</a>        }
+<a href=#429 id=429 data-nosnippet>429</a>        "</span>);
+<a href=#430 id=430 data-nosnippet>430</a>    }
+<a href=#431 id=431 data-nosnippet>431</a>}
+<a href=#432 id=432 data-nosnippet>432</a>
+<a href=#433 id=433 data-nosnippet>433</a><span class="attr">#[cfg(test)]
+<a href=#434 id=434 data-nosnippet>434</a>#[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#435 id=435 data-nosnippet>435</a></span><span class="kw">mod </span>multi_scalar_mul {
+<a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
+<a href=#438 id=438 data-nosnippet>438</a>
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="attr">#[test]
+<a href=#440 id=440 data-nosnippet>440</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#441 id=441 data-nosnippet>441</a>    </span><span class="kw">fn </span>full_constant_folding() {
+<a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#443 id=443 data-nosnippet>443</a>            acir(inline) fn main f0 {
+<a href=#444 id=444 data-nosnippet>444</a>              b0():
+<a href=#445 id=445 data-nosnippet>445</a>                v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
+<a href=#446 id=446 data-nosnippet>446</a>                v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 2]
+<a href=#447 id=447 data-nosnippet>447</a>                v2 = call multi_scalar_mul (v1, v0, u1 1) -&gt; [(Field, Field); 1]
+<a href=#448 id=448 data-nosnippet>448</a>                return v2
+<a href=#449 id=449 data-nosnippet>449</a>            }"#</span>;
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#451 id=451 data-nosnippet>451</a>
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#453 id=453 data-nosnippet>453</a>        acir(inline) fn main f0 {
+<a href=#454 id=454 data-nosnippet>454</a>          b0():
+<a href=#455 id=455 data-nosnippet>455</a>            v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
+<a href=#456 id=456 data-nosnippet>456</a>            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 2]
+<a href=#457 id=457 data-nosnippet>457</a>            v9 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630] : [(Field, Field); 1]
+<a href=#458 id=458 data-nosnippet>458</a>            return v9
+<a href=#459 id=459 data-nosnippet>459</a>        }
+<a href=#460 id=460 data-nosnippet>460</a>        "</span>);
+<a href=#461 id=461 data-nosnippet>461</a>    }
+<a href=#462 id=462 data-nosnippet>462</a>
+<a href=#463 id=463 data-nosnippet>463</a>    <span class="attr">#[test]
+<a href=#464 id=464 data-nosnippet>464</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#465 id=465 data-nosnippet>465</a>    </span><span class="kw">fn </span>simplify_zero() {
+<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#467 id=467 data-nosnippet>467</a>            acir(inline) fn main f0 {
+<a href=#468 id=468 data-nosnippet>468</a>              b0(v0: Field, v1: Field):
+<a href=#469 id=469 data-nosnippet>469</a>                v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
+<a href=#470 id=470 data-nosnippet>470</a>                v3 = make_array [Field 0, Field 0, v0, v1, Field 1, v0] : [(Field, Field); 3]
+<a href=#471 id=471 data-nosnippet>471</a>                v4 = call multi_scalar_mul (v3, v2, u1 1) -&gt; [(Field, Field); 1]
+<a href=#472 id=472 data-nosnippet>472</a>                return v4
+<a href=#473 id=473 data-nosnippet>473</a>
+<a href=#474 id=474 data-nosnippet>474</a>            }"#</span>;
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#476 id=476 data-nosnippet>476</a>        <span class="comment">// The second scalar is a constant zero, so that term is dropped. The first point is the
+<a href=#477 id=477 data-nosnippet>477</a>        // point at infinity, but its scalar is a witness, so the term is retained to preserve the
+<a href=#478 id=478 data-nosnippet>478</a>        // scalar limb range validation; it is kept alongside the last point.
+<a href=#479 id=479 data-nosnippet>479</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#480 id=480 data-nosnippet>480</a>        acir(inline) fn main f0 {
+<a href=#481 id=481 data-nosnippet>481</a>          b0(v0: Field, v1: Field):
+<a href=#482 id=482 data-nosnippet>482</a>            v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
+<a href=#483 id=483 data-nosnippet>483</a>            v5 = make_array [Field 0, Field 0, v0, v1, Field 1, v0] : [(Field, Field); 3]
+<a href=#484 id=484 data-nosnippet>484</a>            v6 = make_array [v0, Field 0, v0, Field 0] : [(Field, Field); 2]
+<a href=#485 id=485 data-nosnippet>485</a>            v7 = make_array [Field 0, Field 0, Field 1, v0] : [(Field, Field); 2]
+<a href=#486 id=486 data-nosnippet>486</a>            v10 = call multi_scalar_mul(v7, v6, u1 1) -&gt; [(Field, Field); 1]
+<a href=#487 id=487 data-nosnippet>487</a>            return v10
+<a href=#488 id=488 data-nosnippet>488</a>        }
+<a href=#489 id=489 data-nosnippet>489</a>        "</span>);
+<a href=#490 id=490 data-nosnippet>490</a>    }
+<a href=#491 id=491 data-nosnippet>491</a>
+<a href=#492 id=492 data-nosnippet>492</a>    <span class="attr">#[test]
+<a href=#493 id=493 data-nosnippet>493</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#494 id=494 data-nosnippet>494</a>    </span><span class="kw">fn </span>retains_witness_scalar_for_constant_infinity_point() {
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="comment">// A point at infinity contributes nothing to the result regardless of the scalar,
+<a href=#496 id=496 data-nosnippet>496</a>        // but eliding the term would also drop the range validation of the witness scalar
+<a href=#497 id=497 data-nosnippet>497</a>        // limbs that the MSM blackbox enforces. The term must be retained.
+<a href=#498 id=498 data-nosnippet>498</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#499 id=499 data-nosnippet>499</a>            acir(inline) fn main f0 {
+<a href=#500 id=500 data-nosnippet>500</a>              b0(v0: Field, v1: Field):
+<a href=#501 id=501 data-nosnippet>501</a>                v2 = make_array [Field 0, Field 0] : [(Field, Field); 1]
+<a href=#502 id=502 data-nosnippet>502</a>                v3 = make_array [v0, v1] : [(Field, Field); 1]
+<a href=#503 id=503 data-nosnippet>503</a>                v4 = call multi_scalar_mul (v2, v3, u1 1) -&gt; [(Field, Field); 1]
+<a href=#504 id=504 data-nosnippet>504</a>                return v4
+<a href=#505 id=505 data-nosnippet>505</a>            }"#</span>;
+<a href=#506 id=506 data-nosnippet>506</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#507 id=507 data-nosnippet>507</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#508 id=508 data-nosnippet>508</a>        acir(inline) fn main f0 {
+<a href=#509 id=509 data-nosnippet>509</a>          b0(v0: Field, v1: Field):
+<a href=#510 id=510 data-nosnippet>510</a>            v3 = make_array [Field 0, Field 0] : [(Field, Field); 1]
+<a href=#511 id=511 data-nosnippet>511</a>            v4 = make_array [v0, v1] : [(Field, Field); 1]
+<a href=#512 id=512 data-nosnippet>512</a>            v7 = call multi_scalar_mul(v3, v4, u1 1) -&gt; [(Field, Field); 1]
+<a href=#513 id=513 data-nosnippet>513</a>            return v7
+<a href=#514 id=514 data-nosnippet>514</a>        }
+<a href=#515 id=515 data-nosnippet>515</a>        "</span>);
+<a href=#516 id=516 data-nosnippet>516</a>    }
+<a href=#517 id=517 data-nosnippet>517</a>
+<a href=#518 id=518 data-nosnippet>518</a>    <span class="attr">#[test]
+<a href=#519 id=519 data-nosnippet>519</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#520 id=520 data-nosnippet>520</a>    </span><span class="kw">fn </span>partial_constant_folding() {
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#522 id=522 data-nosnippet>522</a>            acir(inline) fn main f0 {
+<a href=#523 id=523 data-nosnippet>523</a>              b0(v0: Field, v1: Field):
+<a href=#524 id=524 data-nosnippet>524</a>                v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
+<a href=#525 id=525 data-nosnippet>525</a>                v3 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 3]
+<a href=#526 id=526 data-nosnippet>526</a>                v4 = call multi_scalar_mul (v3, v2, u1 1) -&gt; [(Field, Field); 1]
+<a href=#527 id=527 data-nosnippet>527</a>                return v4
+<a href=#528 id=528 data-nosnippet>528</a>            }"#</span>;
+<a href=#529 id=529 data-nosnippet>529</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#530 id=530 data-nosnippet>530</a>        <span class="comment">//First and last scalar/point are constant, so we should be left with the msm of the middle point and the folded constant point
+<a href=#531 id=531 data-nosnippet>531</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#532 id=532 data-nosnippet>532</a>        acir(inline) fn main f0 {
+<a href=#533 id=533 data-nosnippet>533</a>          b0(v0: Field, v1: Field):
+<a href=#534 id=534 data-nosnippet>534</a>            v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
+<a href=#535 id=535 data-nosnippet>535</a>            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, v0, v1, Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 3]
+<a href=#536 id=536 data-nosnippet>536</a>            v8 = make_array [v0, Field 0, Field 1, Field 0] : [(Field, Field); 2]
+<a href=#537 id=537 data-nosnippet>537</a>            v11 = make_array [v0, v1, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620] : [(Field, Field); 2]
+<a href=#538 id=538 data-nosnippet>538</a>            v14 = call multi_scalar_mul(v11, v8, u1 1) -&gt; [(Field, Field); 1]
+<a href=#539 id=539 data-nosnippet>539</a>            return v14
+<a href=#540 id=540 data-nosnippet>540</a>        }
+<a href=#541 id=541 data-nosnippet>541</a>        "</span>);
+<a href=#542 id=542 data-nosnippet>542</a>    }
+<a href=#543 id=543 data-nosnippet>543</a>}
+<a href=#544 id=544 data-nosnippet>544</a>
+<a href=#545 id=545 data-nosnippet>545</a><span class="attr">#[cfg(test)]
+<a href=#546 id=546 data-nosnippet>546</a></span><span class="kw">mod </span>ecdsa_simplify {
+<a href=#547 id=547 data-nosnippet>547</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
+<a href=#548 id=548 data-nosnippet>548</a>
+<a href=#549 id=549 data-nosnippet>549</a>    <span class="kw">fn </span>zeros(n: usize) -&gt; String {
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="macro">vec!</span>[<span class="string">"u8 0"</span>; n].join(<span class="string">", "</span>)
+<a href=#551 id=551 data-nosnippet>551</a>    }
+<a href=#552 id=552 data-nosnippet>552</a>
+<a href=#553 id=553 data-nosnippet>553</a>    <span class="comment">// All inputs constant and the predicate statically true: the verifier runs at compile time and
+<a href=#554 id=554 data-nosnippet>554</a>    // the blackbox call is replaced by its boolean result (the all-zero signature is invalid, so
+<a href=#555 id=555 data-nosnippet>555</a>    // the result is `u1 0`).
+<a href=#556 id=556 data-nosnippet>556</a>    </span><span class="attr">#[test]
+<a href=#557 id=557 data-nosnippet>557</a>    </span><span class="kw">fn </span>secp256k1_all_constant_inputs_is_optimized_out() {
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="kw">let </span>src = <span class="macro">format!</span>(
+<a href=#559 id=559 data-nosnippet>559</a>            <span class="string">r#"
+<a href=#560 id=560 data-nosnippet>560</a>            acir(inline) fn main f0 {{
+<a href=#561 id=561 data-nosnippet>561</a>              b0():
+<a href=#562 id=562 data-nosnippet>562</a>                v0 = make_array [{a}] : [u8; 32]
+<a href=#563 id=563 data-nosnippet>563</a>                v1 = make_array [{a}] : [u8; 32]
+<a href=#564 id=564 data-nosnippet>564</a>                v2 = make_array [{b}] : [u8; 64]
+<a href=#565 id=565 data-nosnippet>565</a>                v3 = make_array [{a}] : [u8; 32]
+<a href=#566 id=566 data-nosnippet>566</a>                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -&gt; u1
+<a href=#567 id=567 data-nosnippet>567</a>                return v4
+<a href=#568 id=568 data-nosnippet>568</a>            }}"#</span>,
+<a href=#569 id=569 data-nosnippet>569</a>            a = zeros(<span class="number">32</span>),
+<a href=#570 id=570 data-nosnippet>570</a>            b = zeros(<span class="number">64</span>),
+<a href=#571 id=571 data-nosnippet>571</a>        );
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#573 id=573 data-nosnippet>573</a>        <span class="kw">let </span>lowered = ssa.to_string();
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="macro">assert!</span>(
+<a href=#575 id=575 data-nosnippet>575</a>            !lowered.contains(<span class="string">"call ecdsa_secp256k1"</span>),
+<a href=#576 id=576 data-nosnippet>576</a>            <span class="string">"expected the all-constant ecdsa_secp256k1 call to be folded, got:\n{lowered}"
+<a href=#577 id=577 data-nosnippet>577</a>        </span>);
+<a href=#578 id=578 data-nosnippet>578</a>    }
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="comment">// A statically-false predicate disables the check; the verifier reports success regardless of
+<a href=#581 id=581 data-nosnippet>581</a>    // the other inputs, so the call folds to `u1 1`. This also strips the call before ACIR-gen,
+<a href=#582 id=582 data-nosnippet>582</a>    // whose `prepare_inputs_for_black_box_func` asserts a zero predicate was optimized away.
+<a href=#583 id=583 data-nosnippet>583</a>    </span><span class="attr">#[test]
+<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="kw">fn </span>secp256k1_constant_false_predicate_is_optimized_to_true() {
+<a href=#585 id=585 data-nosnippet>585</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#586 id=586 data-nosnippet>586</a>            acir(inline) fn main f0 {
+<a href=#587 id=587 data-nosnippet>587</a>              b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+<a href=#588 id=588 data-nosnippet>588</a>                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 0) -&gt; u1
+<a href=#589 id=589 data-nosnippet>589</a>                return v4
+<a href=#590 id=590 data-nosnippet>590</a>            }"#</span>;
+<a href=#591 id=591 data-nosnippet>591</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>lowered = ssa.to_string();
+<a href=#593 id=593 data-nosnippet>593</a>        <span class="macro">assert!</span>(
+<a href=#594 id=594 data-nosnippet>594</a>            !lowered.contains(<span class="string">"call ecdsa_secp256k1"</span>),
+<a href=#595 id=595 data-nosnippet>595</a>            <span class="string">"expected a constant-false predicate to fold the call to true, got:\n{lowered}"
+<a href=#596 id=596 data-nosnippet>596</a>        </span>);
+<a href=#597 id=597 data-nosnippet>597</a>        <span class="macro">assert!</span>(
+<a href=#598 id=598 data-nosnippet>598</a>            lowered.contains(<span class="string">"return u1 1"</span>),
+<a href=#599 id=599 data-nosnippet>599</a>            <span class="string">"constant-false predicate must fold to `u1 1`, got:\n{lowered}"
+<a href=#600 id=600 data-nosnippet>600</a>        </span>);
+<a href=#601 id=601 data-nosnippet>601</a>    }
+<a href=#602 id=602 data-nosnippet>602</a>
+<a href=#603 id=603 data-nosnippet>603</a>    <span class="attr">#[test]
+<a href=#604 id=604 data-nosnippet>604</a>    </span><span class="kw">fn </span>secp256r1_constant_false_predicate_is_optimized_to_true() {
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#606 id=606 data-nosnippet>606</a>            acir(inline) fn main f0 {
+<a href=#607 id=607 data-nosnippet>607</a>              b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+<a href=#608 id=608 data-nosnippet>608</a>                v4 = call ecdsa_secp256r1(v0, v1, v2, v3, u1 0) -&gt; u1
+<a href=#609 id=609 data-nosnippet>609</a>                return v4
+<a href=#610 id=610 data-nosnippet>610</a>            }"#</span>;
+<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#612 id=612 data-nosnippet>612</a>        <span class="kw">let </span>lowered = ssa.to_string();
+<a href=#613 id=613 data-nosnippet>613</a>        <span class="macro">assert!</span>(
+<a href=#614 id=614 data-nosnippet>614</a>            !lowered.contains(<span class="string">"call ecdsa_secp256r1"</span>),
+<a href=#615 id=615 data-nosnippet>615</a>            <span class="string">"expected a constant-false predicate to fold the call to true, got:\n{lowered}"
+<a href=#616 id=616 data-nosnippet>616</a>        </span>);
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="macro">assert!</span>(
+<a href=#618 id=618 data-nosnippet>618</a>            lowered.contains(<span class="string">"return u1 1"</span>),
+<a href=#619 id=619 data-nosnippet>619</a>            <span class="string">"constant-false predicate must fold to `u1 1`, got:\n{lowered}"
+<a href=#620 id=620 data-nosnippet>620</a>        </span>);
+<a href=#621 id=621 data-nosnippet>621</a>    }
+<a href=#622 id=622 data-nosnippet>622</a>
+<a href=#623 id=623 data-nosnippet>623</a>    <span class="comment">// Soundness guard: with a witness predicate the output is `predicate ? verify(..) : 1`, which is
+<a href=#624 id=624 data-nosnippet>624</a>    // not a compile-time constant even when every other input is. The call must be left intact.
+<a href=#625 id=625 data-nosnippet>625</a>    </span><span class="attr">#[test]
+<a href=#626 id=626 data-nosnippet>626</a>    </span><span class="kw">fn </span>witness_predicate_with_constant_inputs_is_not_optimized_out() {
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">let </span>src = <span class="macro">format!</span>(
+<a href=#628 id=628 data-nosnippet>628</a>            <span class="string">r#"
+<a href=#629 id=629 data-nosnippet>629</a>            acir(inline) fn main f0 {{
+<a href=#630 id=630 data-nosnippet>630</a>              b0(v5: u1):
+<a href=#631 id=631 data-nosnippet>631</a>                v0 = make_array [{a}] : [u8; 32]
+<a href=#632 id=632 data-nosnippet>632</a>                v1 = make_array [{a}] : [u8; 32]
+<a href=#633 id=633 data-nosnippet>633</a>                v2 = make_array [{b}] : [u8; 64]
+<a href=#634 id=634 data-nosnippet>634</a>                v3 = make_array [{a}] : [u8; 32]
+<a href=#635 id=635 data-nosnippet>635</a>                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, v5) -&gt; u1
+<a href=#636 id=636 data-nosnippet>636</a>                return v4
+<a href=#637 id=637 data-nosnippet>637</a>            }}"#</span>,
+<a href=#638 id=638 data-nosnippet>638</a>            a = zeros(<span class="number">32</span>),
+<a href=#639 id=639 data-nosnippet>639</a>            b = zeros(<span class="number">64</span>),
+<a href=#640 id=640 data-nosnippet>640</a>        );
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>lowered = ssa.to_string();
+<a href=#643 id=643 data-nosnippet>643</a>        <span class="macro">assert!</span>(
+<a href=#644 id=644 data-nosnippet>644</a>            lowered.contains(<span class="string">"call ecdsa_secp256k1"</span>),
+<a href=#645 id=645 data-nosnippet>645</a>            <span class="string">"a witness predicate must not be folded, got:\n{lowered}"
+<a href=#646 id=646 data-nosnippet>646</a>        </span>);
+<a href=#647 id=647 data-nosnippet>647</a>    }
+<a href=#648 id=648 data-nosnippet>648</a>}
+<a href=#649 id=649 data-nosnippet>649</a>
+<a href=#650 id=650 data-nosnippet>650</a><span class="attr">#[cfg(test)]
+<a href=#651 id=651 data-nosnippet>651</a></span><span class="kw">mod </span>sha256_compression {
+<a href=#652 id=652 data-nosnippet>652</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
+<a href=#653 id=653 data-nosnippet>653</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
+<a href=#654 id=654 data-nosnippet>654</a>
+<a href=#655 id=655 data-nosnippet>655</a>    <span class="attr">#[test]
+<a href=#656 id=656 data-nosnippet>656</a>    </span><span class="kw">fn </span>is_optimized_out_with_constant_arguments() {
+<a href=#657 id=657 data-nosnippet>657</a>        <span class="comment">// Canonical argument order: input `[u32; 16]` first, state `[u32; 8]` second, matching
+<a href=#658 id=658 data-nosnippet>658</a>        // the stdlib signature and `ssa::validation`.
+<a href=#659 id=659 data-nosnippet>659</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#660 id=660 data-nosnippet>660</a>            acir(inline) fn main f0 {
+<a href=#661 id=661 data-nosnippet>661</a>              b0():
+<a href=#662 id=662 data-nosnippet>662</a>                v0 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
+<a href=#663 id=663 data-nosnippet>663</a>                v1 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
+<a href=#664 id=664 data-nosnippet>664</a>                v2 = call sha256_compression(v0, v1) -&gt; [u32; 8]
+<a href=#665 id=665 data-nosnippet>665</a>                return v2
+<a href=#666 id=666 data-nosnippet>666</a>            }"#</span>;
+<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+<a href=#668 id=668 data-nosnippet>668</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#669 id=669 data-nosnippet>669</a>        acir(inline) fn main f0 {
+<a href=#670 id=670 data-nosnippet>670</a>          b0():
+<a href=#671 id=671 data-nosnippet>671</a>            v16 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u32 13, u32 14, u32 15, u32 16] : [u32; 16]
+<a href=#672 id=672 data-nosnippet>672</a>            v25 = make_array [u32 100, u32 200, u32 300, u32 400, u32 500, u32 600, u32 700, u32 800] : [u32; 8]
+<a href=#673 id=673 data-nosnippet>673</a>            v34 = make_array [u32 2921910434, u32 4262928279, u32 911433216, u32 1248638655, u32 2918467959, u32 1459819522, u32 1329522001, u32 3116489287] : [u32; 8]
+<a href=#674 id=674 data-nosnippet>674</a>            return v34
+<a href=#675 id=675 data-nosnippet>675</a>        }
+<a href=#676 id=676 data-nosnippet>676</a>        "</span>);
+<a href=#677 id=677 data-nosnippet>677</a>    }
+<a href=#678 id=678 data-nosnippet>678</a>}</code></pre></div></section></main></body></html>
