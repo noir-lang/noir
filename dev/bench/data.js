@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781198267878,
+  "lastUpdate": 1781203007195,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "95276223+TanayK07@users.noreply.github.com",
-            "name": "Tanay Kedia",
-            "username": "TanayK07"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "41259e33a3951252a2c68c73caa488de6abbbd7d",
-          "message": "feat: add max(), min(), and bits() methods for all integer types (#11741)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-06-08T17:43:50Z",
-          "tree_id": "681caf0768ac44ea65571124c596e0ee6dafdc6c",
-          "url": "https://github.com/noir-lang/noir/commit/41259e33a3951252a2c68c73caa488de6abbbd7d"
-        },
-        "date": 1780942191374,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162404,
-            "range": "± 362",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145320,
-            "range": "± 209",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2129259,
-            "range": "± 1095",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2658884,
             "range": "± 2241",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "523e1b8b7dc7b6bd3601ee807a302f53228dab87",
+          "message": "chore: fix `bench-show` label name in CLAUDE.md (#13029)",
+          "timestamp": "2026-06-11T19:33:02+01:00",
+          "tree_id": "99ae5de44df0adc843d7e7e7903fd124e37de256",
+          "url": "https://github.com/noir-lang/noir/commit/523e1b8b7dc7b6bd3601ee807a302f53228dab87"
+        },
+        "date": 1781202936301,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126842,
+            "range": "± 218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113230,
+            "range": "± 3968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041038,
+            "range": "± 4803",
             "unit": "ns/iter"
           }
         ]
