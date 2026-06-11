@@ -86,6 +86,46 @@ fn arithmetic_generics_intermediate_underflow_simplified_out_of_to() {
 }
 
 #[test]
+fn arithmetic_generics_intermediate_underflow_wrapped_in_outer_add_zero() {
+    // `((N - 1) + 1) + 0` nests the cancelling `(N - 1) + 1` inside an outer
+    // `+ 0`. Canonicalizing the outer CheckedCast must not drop the inner
+    // `from` obligation: with N = 0 the `(0 - 1)` underflow still has to be
+    // reported even though every layer simplifies away to `N`.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; ((N - 1) + 1) + 0] {
+            let result: [Field; N] = [0; N];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<0>();
+                     ^^^^^^^^^^^^^^^^^^^^^^ Invalid array length
+                     ~~~~~~~~~~~~~~~~~~~~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
+fn arithmetic_generics_intermediate_underflow_wrapped_in_outer_add_one() {
+    // As above, but the outer `+ 1` changes the final value, proving the inner
+    // `from` obligation survives the collapse regardless of the outer operand.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; ((N - 1) + 1) + 1] {
+            let result: [Field; N + 1] = [0; N + 1];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<0>();
+                     ^^^^^^^^^^^^^^^^^^^^^^ Invalid array length
+                     ~~~~~~~~~~~~~~~~~~~~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
 fn arithmetic_generics_intermediate_expression_with_no_underflow() {
     // Companion to `arithmetic_generics_intermediate_underflow_simplified_out_of_to`:
     // with N = 5 no intermediate step of `(N - 1) + 1` over/underflows, so the
