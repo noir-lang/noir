@@ -26,7 +26,7 @@ pub(super) fn simplify_ec_add(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     // arguments: [x1, y1, x2, y2, predicate]
-    if dfg.is_constant(arguments[4]) && !dfg.is_constant_true(arguments[4]) {
+    if dfg.is_constant_false(arguments[4]) {
         let result_instruction =
             constant_point_result_helper(dfg, FieldElement::zero(), FieldElement::zero());
         let result_array =
@@ -64,7 +64,7 @@ fn simplify_msm_helper(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     // Simplify msm with false predicate
-    if dfg.is_constant(*predicate) && !dfg.is_constant_true(*predicate) {
+    if dfg.is_constant_false(*predicate) {
         let result_instruction =
             constant_point_result_helper(dfg, FieldElement::zero(), FieldElement::zero());
         let result_array =
@@ -327,7 +327,7 @@ pub(super) fn simplify_signature(
     // `simplify_msm_helper`: a statically-false predicate disables the check and the verifier
     // reports success, so fold to `true`. This also strips the call before ACIR-gen, whose
     // `prepare_inputs_for_black_box_func` asserts a zero predicate was already optimized away.
-    if dfg.is_constant(arguments[4]) && !dfg.is_constant_true(arguments[4]) {
+    if dfg.is_constant_false(arguments[4]) {
         let valid_signature = dfg.make_constant(1_u128.into(), NumericType::bool());
         return SimplifyResult::SimplifiedTo(valid_signature);
     }
