@@ -199,16 +199,16 @@ impl From<Ident> for UnresolvedGeneric {
 
 impl ExpressionKind {
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
-        match (operator, &rhs) {
+        match (operator, rhs) {
             (
                 UnaryOp::Minus,
                 Expression {
                     kind: ExpressionKind::Literal(Literal::Integer(value, suffix)), ..
                 },
-            ) if *value >= BigInt::ZERO && *value <= BigInt::from(u128::MAX) => {
-                ExpressionKind::Literal(Literal::Integer(-value.clone(), *suffix))
+            ) if value >= BigInt::ZERO && value <= BigInt::from(u128::MAX) => {
+                ExpressionKind::Literal(Literal::Integer(-value, suffix))
             }
-            _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
+            (operator, rhs) => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
 
