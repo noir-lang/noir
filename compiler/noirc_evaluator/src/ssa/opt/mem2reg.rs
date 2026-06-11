@@ -399,7 +399,7 @@ fn for_each_terminator_edge_mut(
             }
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
-            "for_each_terminator_edge_mut called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+            "for_each_terminator_edge_mut called on edge: {block} -> {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
         ),
     }
 }
