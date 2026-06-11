@@ -335,6 +335,7 @@ impl std::ops::Div for Integer {
 
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
+            (Integer::Field(_), Integer::Field(rhs)) if rhs.is_zero() => None,
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs / rhs)),
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_div(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_div(rhs).map(Integer::U16),
@@ -654,8 +655,9 @@ mod tests {
     fn field_division_by_zero() {
         let a = Integer::Field(FieldElement::from(5u64));
         let b = Integer::Field(FieldElement::zero());
-        // Field division always "succeeds" (FieldElement handles it internally)
-        assert!((a / b).is_some());
+        // Division by zero must honor the `None`-on-failure contract rather than
+        // silently canonicalizing to the field-element inverse of zero (which is zero).
+        assert_eq!(a / b, None);
     }
 
     #[test]

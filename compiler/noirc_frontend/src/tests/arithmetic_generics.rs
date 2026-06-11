@@ -219,6 +219,26 @@ fn arithmetic_generics_checked_cast_fails_to_evaluate_field_destination() {
 }
 
 #[test]
+fn arithmetic_generics_field_division_by_zero() {
+    // A type-level `Field` division by zero must be rejected rather than
+    // silently canonicalized to zero (the field-element inverse of zero).
+    let source = r#"
+        struct W<let N: Field> {}
+
+        fn foo<let N: Field>(_x: W<N>) -> W<N / (N - N)> {
+            W {}
+        }
+
+        fn main() {
+            let w_5: W<5Field> = W {};
+            let _w = foo(w_5);
+                     ^^^ Division by zero: 0x05 / 0x00
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
 fn global_numeric_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6125
     let source = r#"
