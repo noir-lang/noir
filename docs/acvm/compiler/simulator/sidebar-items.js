@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["unresolved_witnesses"],"struct":["CircuitSimulator"]};
+window.SIDEBAR_ITEMS = {"enum":["SimulationFailure"],"fn":["unresolved_witnesses"],"struct":["CircuitSimulator"]};

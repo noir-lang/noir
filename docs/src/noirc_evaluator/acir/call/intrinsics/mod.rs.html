@@ -133,10 +133,10 @@
 <a href=#133 id=133 data-nosnippet>133</a>            Intrinsic::AsWitness =&gt; {
 <a href=#134 id=134 data-nosnippet>134</a>                <span class="kw">let </span>arg = arguments[<span class="number">0</span>];
 <a href=#135 id=135 data-nosnippet>135</a>                <span class="kw">let </span>input = <span class="self">self</span>.convert_value(arg, dfg).into_var()<span class="question-mark">?</span>;
-<a href=#136 id=136 data-nosnippet>136</a>                <span class="prelude-val">Ok</span>(<span class="self">self
-<a href=#137 id=137 data-nosnippet>137</a>                    </span>.acir_context
-<a href=#138 id=138 data-nosnippet>138</a>                    .get_or_create_witness_var(input)
-<a href=#139 id=139 data-nosnippet>139</a>                    .map(|val| <span class="self">self</span>.convert_vars_to_values(<span class="macro">vec!</span>[val], dfg, result_ids))<span class="question-mark">?</span>)
+<a href=#136 id=136 data-nosnippet>136</a>                <span class="comment">// `as_witness` exists only for its side effect of creating a witness for the
+<a href=#137 id=137 data-nosnippet>137</a>                // input; it returns no values.
+<a href=#138 id=138 data-nosnippet>138</a>                </span><span class="self">self</span>.acir_context.get_or_create_witness_var(input)<span class="question-mark">?</span>;
+<a href=#139 id=139 data-nosnippet>139</a>                <span class="prelude-val">Ok</span>(Vec::new())
 <a href=#140 id=140 data-nosnippet>140</a>            }
 <a href=#141 id=141 data-nosnippet>141</a>            Intrinsic::DerivePedersenGenerators =&gt; <span class="prelude-val">Err</span>(RuntimeError::AssertConstantFailed {
 <a href=#142 id=142 data-nosnippet>142</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
