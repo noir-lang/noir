@@ -37,7 +37,7 @@ If we determine that an overflow is not possible we can convert the checked oper
     lhs: &amp;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     rhs: &amp;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     err: &amp;<a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../ir/instruction/enum.ConstrainError.html" title="enum noirc_evaluator::ssa::ir::instruction::ConstrainError">ConstrainError</a>&gt;,
-    call_stack: CallStackId,
+    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
 ) -&gt; <a class="enum" href="../../ir/dfg/simplify/enum.SimplifyResult.html" title="enum noirc_evaluator::ssa::ir::dfg::simplify::SimplifyResult">SimplifyResult</a></h4></section></summary><div class="docblock"><p>Rewrite <code>assert(invariant != induction)</code> into a check, hoisted to the pre-header, that
 <code>invariant</code> is not one of the values the induction variable visits. The induction
 variable runs over <code>lower, lower + step, ...</code> while below <code>upper</code>, so the shape of the
@@ -93,14 +93,14 @@ if <code>only_outer_induction</code>, we only consider outer induction variables
 <li>Replace checked operations with unchecked version if the induction variable bounds prove that the operation will not overflow</li>
 </ul>
 <p><code>header</code> indicates if we are in the loop header where loop bounds do not apply yet</p>
-</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-LoopInvariantContext%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#402-814">Source</a><a href="#impl-LoopInvariantContext%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.LoopInvariantContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopInvariantContext">LoopInvariantContext</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#403-432">Source</a><h4 class="code-header">fn <a href="#method.new" class="fn">new</a>(function: &amp;'f mut <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>, loops: &amp;[<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>]) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.hoist_loop_invariants" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#436-512">Source</a><h4 class="code-header">fn <a href="#method.hoist_loop_invariants" class="fn">hoist_loop_invariants</a>(
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-LoopInvariantContext%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#402-816">Source</a><a href="#impl-LoopInvariantContext%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.LoopInvariantContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopInvariantContext">LoopInvariantContext</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#403-432">Source</a><h4 class="code-header">fn <a href="#method.new" class="fn">new</a>(function: &amp;'f mut <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>, loops: &amp;[<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>]) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.hoist_loop_invariants" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#436-514">Source</a><h4 class="code-header">fn <a href="#method.hoist_loop_invariants" class="fn">hoist_loop_invariants</a>(
     &amp;mut self,
     loop_: &amp;<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>,
     all_loops: &amp;[<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>],
     pre_header: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
 )</h4></section></summary><div class="docblock"><p>Perform loop invariant code motion and induction variable analysis.
 See <a href="index.html" title="mod noirc_evaluator::ssa::opt::loop_invariant"><code>loop_invariant</code></a> module for more information.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.is_control_dependent_post_header" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#516-551">Source</a><h4 class="code-header">fn <a href="#method.is_control_dependent_post_header" class="fn">is_control_dependent_post_header</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.is_control_dependent_post_header" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#518-553">Source</a><h4 class="code-header">fn <a href="#method.is_control_dependent_post_header" class="fn">is_control_dependent_post_header</a>(
     &amp;self,
     loop_: &amp;<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>,
     all_loops: &amp;[<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>],
@@ -109,7 +109,7 @@ See <a href="index.html" title="mod noirc_evaluator::ssa::opt::loop_invariant"><
     nested_loop_control_dependent_blocks: &amp;mut HashSet&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;,
 ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Checks whether a <code>block</code> is control dependent on any blocks after
 the given loop’s header (excluding itself and the header).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.find_control_dependent_nested_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#563-594">Source</a><h4 class="code-header">fn <a href="#method.find_control_dependent_nested_loop" class="fn">find_control_dependent_nested_loop</a>&lt;'a&gt;(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.find_control_dependent_nested_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#565-596">Source</a><h4 class="code-header">fn <a href="#method.find_control_dependent_nested_loop" class="fn">find_control_dependent_nested_loop</a>&lt;'a&gt;(
     &amp;self,
     loop_: &amp;<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>,
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
@@ -123,7 +123,7 @@ when the inner loop is processed later.</p>
 <p>Control dependence on a nested loop is determined by checking whether the nested loop’s header
 is control dependent on any blocks between itself and the outer loop’s header.
 It is expected that <code>all_predecessors</code> contains at least all of these blocks.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.does_block_execute" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#607-631">Source</a><h4 class="code-header">fn <a href="#method.does_block_execute" class="fn">does_block_execute</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.does_block_execute" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#609-633">Source</a><h4 class="code-header">fn <a href="#method.does_block_execute" class="fn">does_block_execute</a>(
     &amp;self,
     loop_context: &amp;<a class="struct" href="struct.LoopContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopContext">LoopContext</a>,
     all_loops: &amp;[<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>],
@@ -136,14 +136,14 @@ or we are unsure if the loop will ever be executed (dynamic loop bounds).
 If certain instructions were to be hoisted out of a loop that never executed it
 could potentially cause the program to fail when it is not meant to fail.</p>
 <p>A block might be in a nested loop that isn’t guaranteed to execute even if the current loop does.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.init_block_context" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#634-687">Source</a><h4 class="code-header">fn <a href="#method.init_block_context" class="fn">init_block_context</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.init_block_context" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#636-689">Source</a><h4 class="code-header">fn <a href="#method.init_block_context" class="fn">init_block_context</a>(
     &amp;self,
     loop_context: &amp;mut <a class="struct" href="struct.LoopContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopContext">LoopContext</a>,
     loop_: &amp;<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>,
     all_loops: &amp;[<a class="struct" href="../unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>],
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
 ) -&gt; <a class="struct" href="struct.BlockContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::BlockContext">BlockContext</a></h4></section></summary><div class="docblock"><p>Create a <code>BlockContext</code>.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.can_hoist_invariant" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#694-756">Source</a><h4 class="code-header">fn <a href="#method.can_hoist_invariant" class="fn">can_hoist_invariant</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.can_hoist_invariant" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#696-758">Source</a><h4 class="code-header">fn <a href="#method.can_hoist_invariant" class="fn">can_hoist_invariant</a>(
     &amp;self,
     loop_context: &amp;<a class="struct" href="struct.LoopContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopContext">LoopContext</a>,
     block_context: &amp;<a class="struct" href="struct.BlockContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::BlockContext">BlockContext</a>,
@@ -154,7 +154,7 @@ could potentially cause the program to fail when it is not meant to fail.</p>
 <li>Whether the instruction can be hoisted</li>
 <li>If it can be hoisted, does it require an <code>IncrementRc</code> instruction.</li>
 </ol>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.can_be_hoisted_from_loop_bounds" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#768-793">Source</a><h4 class="code-header">fn <a href="#method.can_be_hoisted_from_loop_bounds" class="fn">can_be_hoisted_from_loop_bounds</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.can_be_hoisted_from_loop_bounds" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#770-795">Source</a><h4 class="code-header">fn <a href="#method.can_be_hoisted_from_loop_bounds" class="fn">can_be_hoisted_from_loop_bounds</a>(
     &amp;self,
     loop_context: &amp;<a class="struct" href="struct.LoopContext.html" title="struct noirc_evaluator::ssa::opt::loop_invariant::LoopContext">LoopContext</a>,
     instruction: &amp;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>,
@@ -165,7 +165,7 @@ index that is below the length of the array.</p>
 would determine that the instruction is not safe for hoisting.</p>
 <p>However, if we know that the induction variable’s upper bound will always be in bounds of the array
 we can safely hoist the array access.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.map_dependent_instructions" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#803-813">Source</a><h4 class="code-header">fn <a href="#method.map_dependent_instructions" class="fn">map_dependent_instructions</a>(&amp;mut self)</h4></section></summary><div class="docblock"><p>Loop invariant hoisting only operates over loop instructions.
+</div></details><details class="toggle method-toggle" open><summary><section id="method.map_dependent_instructions" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#805-815">Source</a><h4 class="code-header">fn <a href="#method.map_dependent_instructions" class="fn">map_dependent_instructions</a>(&amp;mut self)</h4></section></summary><div class="docblock"><p>Loop invariant hoisting only operates over loop instructions.
 The <code>FunctionInserter</code> is used for mapping old values to new values after
 re-inserting loop invariant instructions.
 However, there may be instructions which are not within loops that are
