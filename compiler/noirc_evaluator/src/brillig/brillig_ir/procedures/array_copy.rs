@@ -153,9 +153,9 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Emit print statements for the total array copy count, then for the top
-    /// [`MAX_DISPLAY_SITES`] most-copied locations sorted descending by count.
+    /// [`MAX_DISPLAY_SITES`](crate::brillig::MAX_DISPLAY_SITES) most-copied locations sorted descending by count.
     ///
-    /// Uses a compile-time-unrolled selection sort: [`MAX_DISPLAY_SITES`] outer iterations, each
+    /// Uses a compile-time-unrolled selection sort: [`MAX_DISPLAY_SITES`](crate::brillig::MAX_DISPLAY_SITES) outer iterations, each
     /// running a runtime inner loop to find the maximum remaining counter, printing its label
     /// via a compile-time if-else chain, then zeroing that slot in a working heap buffer.
     ///
