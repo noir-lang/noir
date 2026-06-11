@@ -205,6 +205,7 @@ struct TraitScopeState {
     generics: GenericsState,
     current_trait: Option<TraitId>,
     self_type: Option<Type>,
+    local_module: Option<crate::hir::def_map::LocalModuleId>,
 }
 
 impl Elaborator<'_> {
@@ -220,6 +221,7 @@ impl Elaborator<'_> {
             generics: self.enter_generics_scope(),
             current_trait: self.current_trait,
             self_type: self.self_type.clone(),
+            local_module: self.local_module,
         };
 
         self.local_module = Some(module_id);
@@ -238,6 +240,7 @@ impl Elaborator<'_> {
         self.exit_generics_scope(state.generics);
         self.current_trait = state.current_trait;
         self.self_type = state.self_type;
+        self.local_module = state.local_module;
     }
 }
 
@@ -839,8 +842,6 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
-        self.local_module = Some(unresolved_trait.module_id);
-
         let mut functions = vec![];
 
         for item in &unresolved_trait.trait_def.items {

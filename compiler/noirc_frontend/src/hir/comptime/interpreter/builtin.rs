@@ -2138,7 +2138,7 @@ fn expr_as_lambda(
                 parameters,
                 Type::Vector(Box::new(Type::Tuple(vec![
                     Type::Quoted(QuotedType::Expr),
-                    Type::Quoted(QuotedType::UnresolvedType),
+                    option_unresolved_type.clone(),
                 ]))),
             ));
 

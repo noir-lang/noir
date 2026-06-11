@@ -229,3 +229,34 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
 fn assert_usize(value: u32) -> usize {
     value.try_into().expect("Failed conversion from u32 to usize")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flattened_length_divides_evenly_by_elements_flattened_length() {
+        assert_eq!(FlattenedLength(6) / ElementsFlattenedLength(2), SemanticLength(3));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Division of FlattenedLength 5 by ElementsFlattenedLength 2 has remainder"
+    )]
+    fn flattened_length_division_with_remainder_panics() {
+        let _ = FlattenedLength(5) / ElementsFlattenedLength(2);
+    }
+
+    #[test]
+    fn semi_flattened_length_divides_evenly_by_element_types_length() {
+        assert_eq!(SemiFlattenedLength(6) / ElementTypesLength(3), SemanticLength(2));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Division of SemiFlattenedLength 7 by ElementTypesLength 3 has remainder"
+    )]
+    fn semi_flattened_length_division_with_remainder_panics() {
+        let _ = SemiFlattenedLength(7) / ElementTypesLength(3);
+    }
+}

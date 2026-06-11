@@ -67,7 +67,7 @@ impl Elaborator<'_> {
     /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        let previous_local_module = self.replace_local_module(trait_impl.module_id);
         let previous_current_trait_impl =
             std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
         let previous_current_trait =
@@ -297,7 +297,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -464,7 +464,7 @@ impl Elaborator<'_> {
 
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
-            let prev_local_module = self.local_module.replace(check.module_id);
+            let prev_local_module = self.replace_local_module(check.module_id);
             let prev_current_trait_impl = self.current_trait_impl.replace(check.impl_id);
             let prev_current_trait = self.current_trait.replace(check.trait_id);
             let prev_self_type = self.self_type.replace(impl_self_type);
@@ -643,7 +643,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
             Some(Type::DataType(struct_or_enum_type, _)) => {
@@ -901,7 +901,7 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
-        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        let previous_local_module = self.replace_local_module(trait_impl.module_id);
         // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
         self.current_item = None;
 

@@ -13,18 +13,18 @@ error: Duplicate definitions of trait associated item with name MyItem found
   ┌─ src/main.nr:2:6
   │
 2 │   fn MyItem();
-  │      ------ First trait associated item found here
+  │      ------ First definition found here
 3 │   let MyItem: u32;
-  │       ------ Second trait associated item found here
+  │       ------ Second definition found here
   │
 
 error: Duplicate definitions of trait associated item with name MyItem found
   ┌─ src/main.nr:2:6
   │
 2 │   fn MyItem();
-  │      ------ First trait associated item found here
+  │      ------ First definition found here
 3 │   let MyItem: u32;
-  │       ------ Second trait associated item found here
+  │       ------ Second definition found here
   │
 
 Aborting due to 2 previous errors

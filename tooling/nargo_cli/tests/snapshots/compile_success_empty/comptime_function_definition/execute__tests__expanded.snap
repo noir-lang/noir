@@ -25,6 +25,14 @@ pub fn singleton_tuples(((nested,),): ((Field,),)) {
     let _: Field = nested;
 }
 
+pub struct Wrapper {
+    value: (Field,),
+}
+
+pub fn struct_field(Wrapper { value: (inner,) }: Wrapper) {
+    let _: Field = inner;
+}
+
 #[test]
 #[deprecated]
 fn some_test() {}
@@ -60,6 +68,17 @@ comptime fn singleton_tuple_attr(f: FunctionDefinition) {
     let parameters: [(Quoted, Type)] = f.parameters();
     assert(parameters.len() == 1_u32);
     assert(parameters[0_u32].0 == quote { ((nested,),) });
+}
+
+comptime fn struct_field_attr(f: FunctionDefinition) {
+    let parameters: [(Quoted, Type)] = f.parameters();
+    assert(parameters.len() == 1_u32);
+    assert(
+        parameters[0_u32].0
+            == quote {
+                Wrapper { value: (inner,) }
+            },
+    );
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
