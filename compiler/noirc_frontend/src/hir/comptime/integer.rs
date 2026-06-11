@@ -16,11 +16,28 @@ pub(crate) fn field_to_bigint(value: &FieldElement) -> BigInt {
     BigInt::from_biguint(Sign::Plus, BigUint::from_bytes_be(&value.to_be_bytes()))
 }
 
-/// Converts a `BigInt` to a `FieldElement`. The magnitude is reduced modulo the field modulus
-/// and negative values are encoded via field negation: `-7` becomes `-FieldElement::from(7)`.
-pub(crate) fn bigint_to_field(value: &BigInt) -> FieldElement {
+/// Converts a `BigInt` to a `FieldElement`, encoding negative values via field negation:
+/// `-7` becomes `-FieldElement::from(7)`.
+///
+/// Returns `None` if the value's magnitude is not canonical (not less than the field
+/// modulus) rather than silently reducing it. The lexer rejects literals which exceed
+/// the field modulus, so every value in the literal pipeline is already canonical.
+pub(crate) fn try_bigint_to_field(value: &BigInt) -> Option<FieldElement> {
+    if *value.magnitude() >= FieldElement::modulus() {
+        return None;
+    }
     let field = FieldElement::from_be_bytes_reduce(&value.magnitude().to_bytes_be());
-    if value.sign() == Sign::Minus { -field } else { field }
+    Some(if value.sign() == Sign::Minus { -field } else { field })
+}
+
+/// Converts a `BigInt` to a `FieldElement`, like [try_bigint_to_field], for values which
+/// are known to be canonical (with a magnitude less than the field modulus).
+///
+/// Panics if the value is not canonical: a non-canonical value here is a compiler bug,
+/// since the lexer rejects literals which exceed the field modulus.
+pub(crate) fn bigint_to_field(value: &BigInt) -> FieldElement {
+    try_bigint_to_field(value)
+        .unwrap_or_else(|| panic!("ICE: value does not fit in the field: {value}"))
 }
 
 /// Converts a `FieldElement` to a `BigInt`, choosing the sign which gives the shorter
@@ -266,7 +283,7 @@ impl Integer {
         use IntegerBitSize::*;
         use Signedness::*;
         match typ.follow_bindings_shallow().as_ref() {
-            Type::FieldElement => Some(Integer::Field(bigint_to_field(value))),
+            Type::FieldElement => try_bigint_to_field(value).map(Integer::Field),
             Type::Integer(Unsigned, Eight) => u8::try_from(value).ok().map(Integer::U8),
             Type::Integer(Unsigned, Sixteen) => u16::try_from(value).ok().map(Integer::U16),
             Type::Integer(Unsigned, ThirtyTwo) => u32::try_from(value).ok().map(Integer::U32),
@@ -509,7 +526,9 @@ mod tests {
 
     use num_bigint::{BigInt, Sign};
 
-    use super::{Integer, bigint_to_field, field_to_bigint, field_to_signed_bigint};
+    use super::{
+        Integer, bigint_to_field, field_to_bigint, field_to_signed_bigint, try_bigint_to_field,
+    };
     use crate::Type;
     use crate::ast::IntegerBitSize;
     use crate::shared::Signedness;
@@ -813,11 +832,25 @@ mod tests {
     }
 
     #[test]
-    fn try_from_bigint_reduces_field_values() {
+    fn bigint_to_field_does_not_reduce_non_canonical_values() {
         let modulus = BigInt::from_biguint(Sign::Plus, FieldElement::modulus());
-        assert_eq!(
-            Integer::try_from_bigint(&(modulus + 1), &Type::FieldElement),
-            Some(Integer::Field(FieldElement::one()))
-        );
+
+        // The largest canonical magnitudes convert, for both signs
+        let max_canonical = modulus.clone() - 1;
+        assert_eq!(try_bigint_to_field(&max_canonical), Some(-FieldElement::one()));
+        assert_eq!(try_bigint_to_field(&-max_canonical), Some(FieldElement::one()));
+
+        // Magnitudes of at least the modulus are rejected rather than reduced
+        assert_eq!(try_bigint_to_field(&modulus), None);
+        assert_eq!(try_bigint_to_field(&-(modulus.clone())), None);
+        assert_eq!(try_bigint_to_field(&(modulus.clone() + 1)), None);
+        assert_eq!(Integer::try_from_bigint(&modulus, &Type::FieldElement), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: value does not fit in the field")]
+    fn bigint_to_field_panics_on_non_canonical_values() {
+        let modulus = BigInt::from_biguint(Sign::Plus, FieldElement::modulus());
+        bigint_to_field(&modulus);
     }
 }
