@@ -26,7 +26,7 @@ pub use binary::{Binary, BinaryOp};
 
 /// Reference to an instruction
 ///
-/// Note that InstructionIds are not unique. That is, two InstructionIds
+/// Note that `InstructionIds` are not unique. That is, two `InstructionIds`
 /// may refer to the same Instruction data. This is because, although
 /// identical, instructions may have different results based on their
 /// placement within a block.
@@ -35,68 +35,68 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
-///   special support for. (LowLevel)
+///   special support for. (`LowLevel`)
 /// - Opcodes which have no function definition in the
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
-    /// ArrayLen - returns the length of the input array
+    /// `ArrayLen` - returns the length of the input array
     /// argument: array (value id)
     /// result: length of the array, panic if the input is not an array
     ArrayLen,
-    /// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+    /// `ArrayAsStrUnchecked` - Converts a byte array of type `[u8; N]` to a string
     /// argument: array (value id)
     /// result: str
     ArrayAsStrUnchecked,
-    /// AsVector
+    /// `AsVector`
     /// argument: value id
     /// result: a vector containing the elements of the argument. Panic if the value id does not correspond to an `array` type
     AsVector,
-    /// AssertConstant - Enforce the argument to be a constant value, at compile time.
+    /// `AssertConstant` - Enforce the argument to be a constant value, at compile time.
     /// argument: value id
     /// result: (), panic if the argument does not resolve to a constant value
     AssertConstant,
-    /// StaticAssert - Enforce the first argument to be true, at compile time
+    /// `StaticAssert` - Enforce the first argument to be true, at compile time
     /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
     /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
-    /// VectorPushBack - Add elements at the end of a vector
-    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// `VectorPushBack` - Add elements at the end of a vector
+    /// arguments:  vector length, vector contents, ...`elements_to_push`
     /// result: a vector containing `vector contents,..elements_to_push`
     VectorPushBack,
-    /// VectorPushFront - Add elements at the start of a vector
-    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// `VectorPushFront` - Add elements at the start of a vector
+    /// arguments:  vector length, vector contents, ...`elements_to_push`
     /// result: a vector containing `..elements_to_push, vector contents`
     VectorPushFront,
-    /// VectorPopBack - Removes the last element of a vector. Checking if the vector is non-empty
+    /// `VectorPopBack` - Removes the last element of a vector. Checking if the vector is non-empty
     /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
     /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the last element of `vector contents`
     VectorPopBack,
-    /// VectorPopFront - Removes the first element of a vector. Checking if the vector is non-empty
+    /// `VectorPopFront` - Removes the first element of a vector. Checking if the vector is non-empty
     /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
     /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the first element of `vector contents`
     VectorPopFront,
-    /// VectorInsert - Insert elements inside a vector. Checking if the index is in bounds
+    /// `VectorInsert` - Insert elements inside a vector. Checking if the index is in bounds
     /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
     /// have been inserted.
-    /// arguments: vector length, vector contents, insert index, ...elements_to_insert
-    /// result: a vector with ...elements_to_insert inserted at the `insert index`
+    /// arguments: vector length, vector contents, insert index, ...`elements_to_insert`
+    /// result: a vector with ...`elements_to_insert` inserted at the `insert index`
     VectorInsert,
-    /// VectorRemove - Removes an element from a vector. Checking if the index is in bounds
+    /// `VectorRemove` - Removes an element from a vector. Checking if the index is in bounds
     /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
     /// have been inserted.
     /// arguments: vector length, vector contents, remove index
     /// result: a vector with without the element at `remove index`
     VectorRemove,
-    /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+    /// `ApplyRangeConstraint` - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
-    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
+    /// result: applies a range check constraint to the input. It is replaced by a `RangeCheck` instruction during simplification.
     ApplyRangeConstraint,
-    /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+    /// `StrAsBytes` - Convert a `str` into a byte array of type `[u8; N]`
     /// arguments: value id
     /// result: the argument. Internally a `str` is a byte array.
     StrAsBytes,
@@ -110,35 +110,35 @@ pub enum Intrinsic {
     /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
     /// The type of the result gives the number of limbs to use for the decomposition.
     ToRadix(Endian),
-    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
+    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [`acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall`]
     BlackBox(BlackBoxFunc),
     /// Hint(Hint) - Avoid its arguments to be removed by DIE.
     /// arguments: ... value id
     /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
     Hint(Hint),
-    /// AsWitness - Adds a new witness constrained to be equal to the argument
+    /// `AsWitness` - Adds a new witness constrained to be equal to the argument
     /// arguments: value id
     /// result: the argument
     AsWitness,
-    /// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+    /// `IsUnconstrained` - Indicates if the execution context is constrained or unconstrained
     /// argument: ()
     /// result: true if execution is under unconstrained context, false else.
     IsUnconstrained,
-    /// DerivePedersenGenerators - Computes the Pedersen generators
-    /// arguments: domain_separator_string (constant string), starting_index (constant)
+    /// `DerivePedersenGenerators` - Computes the Pedersen generators
+    /// arguments: `domain_separator_string` (constant string), `starting_index` (constant)
     /// result: array of elliptic curve points (Grumpkin) containing the generators.
     /// The type of the result gives the number of generators to compute.
     DerivePedersenGenerators,
-    /// FieldLessThan - Compare the arguments: `lhs` < `rhs`
+    /// `FieldLessThan` - Compare the arguments: `lhs` < `rhs`
     /// arguments: lhs, rhs. Field elements
     /// result: true if `lhs` mod p < `rhs` mod p (p being the field characteristic), false else
     FieldLessThan,
-    /// ArrayRefCount - Gives the reference count of the array
+    /// `ArrayRefCount` - Gives the reference count of the array
     /// argument: array (value id)
     /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
     /// in constrained context, it will be 0.
     ArrayRefCount,
-    /// VectorRefCount - Gives the reference count of the vector
+    /// `VectorRefCount` - Gives the reference count of the vector
     /// arguments: vector length, vector contents (value id)
     /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
     /// in constrained context, it will be 0.
@@ -227,7 +227,7 @@ impl Intrinsic {
     /// * Vector mutators (`push`/`pop`/`insert`/`remove`) can write through the input
     ///   pointer when the copy-on-write reference count is 1.
     /// * `StrAsBytes` and `ArrayAsStrUnchecked` simplify to their input value, so the
-    ///   returned array aliases the source. A later array_set against the result
+    ///   returned array aliases the source. A later `array_set` against the result
     ///   would, under RC=1 COW, mutate the source as well.
     pub(crate) fn unsafe_for_clone_elision_in_brillig(&self) -> bool {
         matches!(
@@ -309,7 +309,7 @@ impl Intrinsic {
     }
 }
 
-/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
+/// The endian-ness of bits when encoding values as bits in e.g. `ToBits` or `ToRadix`
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Endian {
     Big,
@@ -403,15 +403,15 @@ pub enum Instruction {
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
-    /// IncrementRc instructions are ignored.
+    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// `IncrementRc` instructions are ignored.
     IncrementRc { value: ValueId },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
-    /// DecrementRc instructions are ignored.
+    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// `DecrementRc` instructions are ignored.
     DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
@@ -439,7 +439,7 @@ pub enum Instruction {
     /// A No-op instruction. These are intended to replace other instructions in a block's
     /// instructions vector without having to move each instruction afterward.
     ///
-    /// A No-op has no results and is always removed when Instruction::simplify is called.
+    /// A No-op has no results and is always removed when `Instruction::simplify` is called.
     /// When replacing another instruction, the instruction's results should always be mapped to a
     /// new value since they will not be able to refer to their original instruction value any more.
     Noop,
@@ -479,7 +479,7 @@ impl Instruction {
     }
 
     /// True if this instruction requires specifying the control type variables when
-    /// inserting this instruction into a DataFlowGraph.
+    /// inserting this instruction into a `DataFlowGraph`.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
@@ -661,9 +661,9 @@ impl Instruction {
         changed
     }
 
-    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
-    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
-    /// until it is manually inserted in a DataFlowGraph later.
+    /// Maps each `ValueId` inside this instruction to a new `ValueId`, returning the new instruction.
+    /// Note that the returned instruction is fresh and will not have an assigned `InstructionId`
+    /// until it is manually inserted in a `DataFlowGraph` later.
     pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
         match self {
             Instruction::Binary(binary) => Instruction::Binary(Binary {
@@ -757,7 +757,7 @@ impl Instruction {
         }
     }
 
-    /// Maps each ValueId inside this instruction to a new ValueId in place.
+    /// Maps each `ValueId` inside this instruction to a new `ValueId` in place.
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         match self {
             Instruction::Binary(binary) => {
@@ -896,7 +896,7 @@ impl Instruction {
     }
 }
 
-/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
+/// Determines whether an `ArrayGet` or `ArraySet` index has been shifted by a given value.
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
 /// and vectors with constant indices.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
@@ -1009,7 +1009,7 @@ impl From<String> for Box<ConstrainError> {
     }
 }
 
-/// The possible return values for Instruction::return_types
+/// The possible return values for `Instruction::return_types`
 pub(crate) enum InstructionResultType {
     /// The result type of this instruction matches that of this operand
     Operand(ValueId),
@@ -1051,7 +1051,7 @@ pub(crate) enum TerminatorInstruction {
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`.
-    /// The CallStack here is expected to be used to issue an error when the start range of
+    /// The `CallStack` here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
     Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStackId },
 
@@ -1070,7 +1070,7 @@ pub(crate) enum TerminatorInstruction {
 }
 
 impl TerminatorInstruction {
-    /// Mutate each ValueId to a new ValueId using the given mapping function
+    /// Mutate each `ValueId` to a new `ValueId` using the given mapping function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
@@ -1131,7 +1131,7 @@ impl TerminatorInstruction {
         found
     }
 
-    /// Mutate each BlockId to a new BlockId specified by the given mapping function.
+    /// Mutate each `BlockId` to a new `BlockId` specified by the given mapping function.
     pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
         use TerminatorInstruction::*;
         match self {

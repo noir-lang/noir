@@ -20,8 +20,8 @@ use super::{
     registers::RegisterAllocator,
 };
 
-/// Low level instructions of the brillig IR, used by the brillig ir codegens and brillig_gen
-/// Printed using debug_slow
+/// Low level instructions of the brillig IR, used by the brillig ir codegens and `brillig_gen`
+/// Printed using `debug_slow`
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Processes a binary instruction according `operation`.
     ///
@@ -404,7 +404,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.constant(result_pointer, bit_size, constant, true);
     }
 
-    /// Pushes a [IndirectConst][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
+    /// Pushes a [`IndirectConst`][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
@@ -451,7 +451,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         register.map(SingleAddrVariable::new_usize)
     }
 
-    /// Pushes a [CalldataCopy][BrilligOpcode::CalldataCopy] opcode to copy the calldata
+    /// Pushes a [`CalldataCopy`][BrilligOpcode::CalldataCopy] opcode to copy the calldata
     /// at a specific offset with and size to the `destination` address.
     pub(super) fn calldata_copy_instruction(
         &mut self,

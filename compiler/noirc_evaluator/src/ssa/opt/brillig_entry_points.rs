@@ -217,8 +217,8 @@ type NewCallSitesMap = HashMap<FunctionId, HashMap<FunctionId, FunctionId>>;
 
 /// Clones new functions and returns a mapping representing the calls to update.
 ///
-/// Returns a set of [CallToUpdate] containing all information needed to rewrite
-/// a call site and a [NewCallSitesMap]
+/// Returns a set of [`CallToUpdate`] containing all information needed to rewrite
+/// a call site and a [`NewCallSitesMap`]
 fn build_calls_to_update(
     ssa: &mut Ssa,
     functions_to_clone_map: HashMap<FunctionId, Vec<FunctionId>>,
@@ -285,7 +285,7 @@ struct CallToUpdate {
 /// set in the `calls_to_update` map build the set of call sites
 /// that should be rewritten.
 /// Upon finding call sites that should be rewritten this method will also
-/// update the mapping of old functions to new functions in the supplied [NewCallSitesMap].
+/// update the mapping of old functions to new functions in the supplied [`NewCallSitesMap`].
 fn collect_callsites_to_rewrite(
     function: &Function,
     entry_point: FunctionId,
@@ -370,7 +370,7 @@ pub(crate) fn get_brillig_entry_points_with_reachability(
     get_brillig_entry_points_with_recursive(functions, main_id, call_graph, &recursive_functions)
 }
 
-/// Like [get_brillig_entry_points_with_reachability], but uses a precomputed set of recursive functions
+/// Like [`get_brillig_entry_points_with_reachability`], but uses a precomputed set of recursive functions
 /// to avoid recomputing SCCs.
 pub(crate) fn get_brillig_entry_points_with_recursive(
     functions: &BTreeMap<FunctionId, Function>,

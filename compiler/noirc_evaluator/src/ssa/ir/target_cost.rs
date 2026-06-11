@@ -1,6 +1,6 @@
 //! Brillig target cost estimation for SSA IR types.
 //!
-//! Provides cost methods on [BinaryOp], [Instruction], [TerminatorInstruction],
+//! Provides cost methods on [`BinaryOp`], [Instruction], [`TerminatorInstruction`],
 //! and [Function] that estimate Brillig opcode counts. These are useful for any
 //! pass that needs to reason about Brillig code size (inlining, optimization ordering, etc.).
 //!
@@ -67,7 +67,7 @@ impl BinaryOp {
     /// Estimate the Brillig opcode cost of this binary operation given the operand type.
     ///
     /// Field operations are single opcodes. Checked unsigned operations are more expensive
-    /// (e.g., checked add = add + lt_eq + constrain = 3 opcodes). Unchecked integer operations
+    /// (e.g., checked add = add + `lt_eq` + constrain = 3 opcodes). Unchecked integer operations
     /// are single opcodes. Signed operations that reach Brillig are always unchecked.
     pub(crate) fn cost(&self, typ: NumericType) -> usize {
         match self {
@@ -237,12 +237,12 @@ impl Function {
     /// Per-call-site overhead of retaining this function, in Brillig opcode units.
     ///
     /// A Brillig function call costs `5 + N + M` opcodes at the call site (from `codegen_call`):
-    ///   1 Const (stack size) + 1 Mov (save sp) + 1 BinaryIntOp (sp += size) + 1 Call + 1 Mov (restore sp)
+    ///   1 Const (stack size) + 1 Mov (save sp) + 1 `BinaryIntOp` (sp += size) + 1 Call + 1 Mov (restore sp)
     ///   + N Mov's for arguments + M Mov's for returns.
     ///
     /// Additionally, every retained function executes `CheckMaxStackDepth` at entry.
     /// The happy-path execution cost is 5 opcodes:
-    ///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 JumpIf + 1 Return.
+    ///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 `JumpIf` + 1 Return.
     ///
     /// This overhead vanishes when the function is inlined.
     pub(crate) fn call_overhead(&self) -> usize {

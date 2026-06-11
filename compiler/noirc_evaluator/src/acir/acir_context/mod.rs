@@ -45,7 +45,7 @@ pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
-/// `Variables`(AcirVar) and types such as `Expression` and `Witness`
+/// `Variables`(`AcirVar`) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
 pub(crate) struct AcirContext<F: AcirField> {
     brillig_stdlib: BrilligStdLib<F>,
@@ -245,7 +245,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(var_data.to_expression().into_owned())
     }
 
-    /// True if the given AcirVar refers to a constant one value
+    /// True if the given `AcirVar` refers to a constant one value
     pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
         match self.vars[var] {
             AcirVarData::Const(field) => field.is_one(),
@@ -253,7 +253,7 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
-    /// True if the given AcirVar refers to a constant value
+    /// True if the given `AcirVar` refers to a constant value
     pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
         matches!(self.vars[var], AcirVarData::Const(_))
     }
@@ -551,7 +551,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    /// Assert that an [AcirVar] equals zero, or fail with a message.
+    /// Assert that an [`AcirVar`] equals zero, or fail with a message.
     pub(crate) fn assert_zero_var(
         &mut self,
         var: AcirVar,
@@ -1277,8 +1277,8 @@ impl<F: AcirField> AcirContext<F> {
         self.radix_decompose(endian, input_var, two_var, limb_count, result_element_type)
     }
 
-    /// Recursive helper to flatten a single AcirValue into the result vector.
-    /// This helper differs from `flatten()` on the `AcirValue` type, as this method has access to the AcirContext
+    /// Recursive helper to flatten a single `AcirValue` into the result vector.
+    /// This helper differs from `flatten()` on the `AcirValue` type, as this method has access to the `AcirContext`
     /// which lets us flatten an `AcirValue::DynamicArray` by reading its variables from memory.
     pub(crate) fn flatten(
         &mut self,
@@ -1372,7 +1372,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    /// Insert the MemoryInit for the Return Data array, using the provided witnesses
+    /// Insert the `MemoryInit` for the Return Data array, using the provided witnesses
     pub(crate) fn initialize_return_data(&mut self, block_id: BlockId, init: Vec<Witness>) {
         self.acir_ir.initialize_memory(block_id, init, BlockType::ReturnData);
     }
@@ -1512,7 +1512,7 @@ enum AcirVarData<F> {
 }
 
 impl<F> AcirVarData<F> {
-    /// Returns a FieldElement, if the underlying `AcirVarData`
+    /// Returns a `FieldElement`, if the underlying `AcirVarData`
     /// represents a constant.
     pub(crate) fn as_constant(&self) -> Option<&F> {
         if let AcirVarData::Const(field) = self {
@@ -1699,7 +1699,7 @@ mod tests {
         assert!(matches!(acvm.solve(), ACVMStatus::Solved));
     }
 
-    /// Exercise bound_constraint_with_offset() with the invalid inputs:
+    /// Exercise `bound_constraint_with_offset()` with the invalid inputs:
     /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
     #[test]
     #[should_panic = "range check with bit size + 1 >= the prime field bit size is not implemented yet"]

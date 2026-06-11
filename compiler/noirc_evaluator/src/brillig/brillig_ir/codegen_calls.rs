@@ -115,7 +115,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// The values are copied to the beginning of the stack space, into an equal number of slots.
     ///
     /// Any potential overlap between the source of the return variables and the final destination
-    /// on the beginning of the stack is handled by [Self::codegen_mov_registers_to_registers].
+    /// on the beginning of the stack is handled by [`Self::codegen_mov_registers_to_registers`].
     pub(crate) fn codegen_return(&mut self, return_variables: &[BrilligVariable]) {
         let mut sources = Vec::with_capacity(return_variables.len());
         let mut destinations = Vec::with_capacity(return_variables.len());

@@ -7,12 +7,12 @@ use crate::{
 use super::{Parser, parse_many::separated_by_comma};
 
 impl Parser<'_> {
-    /// Lambda = ( 'unconstrained' )? '|' LambdaParameters? '|' ( '->' Type )? Expression
+    /// Lambda = ( 'unconstrained' )? '|' `LambdaParameters`? '|' ( '->' Type )? Expression
     ///
-    /// LambdaParameters = LambdaParameter ( ',' LambdaParameter )? ','?
+    /// `LambdaParameters` = `LambdaParameter` ( ',' `LambdaParameter` )? ','?
     ///
-    /// LambdaParameter
-    ///     = Pattern OptionalTypeAnnotation
+    /// `LambdaParameter`
+    ///     = Pattern `OptionalTypeAnnotation`
     pub(super) fn parse_lambda(&mut self) -> Option<ExpressionKind> {
         let unconstrained = self.next_is(Token::Pipe) && self.eat_keyword(Keyword::Unconstrained);
 

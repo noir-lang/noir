@@ -91,8 +91,8 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
-/// A FuncMeta contains the signature of the function and any associated meta data like
-/// the function's Location, FunctionKind, and attributes. If the function's body is
+/// A `FuncMeta` contains the signature of the function and any associated meta data like
+/// the function's Location, `FunctionKind`, and attributes. If the function's body is
 /// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
@@ -102,21 +102,21 @@ pub struct FuncMeta {
 
     pub parameters: Parameters,
 
-    /// The HirIdent of each identifier within the parameter list.
+    /// The `HirIdent` of each identifier within the parameter list.
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     pub parameter_idents: Vec<HirIdent>,
 
     /// The return type as (and if) it appears in the AST.
     ///
     /// This is distinct from the `FuncMeta::return_type()` method,
-    /// which gets the return type from the [FuncMeta::typ] field.
+    /// which gets the return type from the [`FuncMeta::typ`] field.
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
     pub return_visibility_location: Location,
 
-    /// The type of this function. Either a Type::Function
-    /// or a Type::Forall for generic functions.
+    /// The type of this function. Either a `Type::Function`
+    /// or a `Type::Forall` for generic functions.
     pub typ: Type,
 
     /// The set of generics that are declared directly on this function in the source code.
@@ -127,7 +127,7 @@ pub struct FuncMeta {
 
     /// All the generics used by this function, which includes any implicit generics or generics
     /// from outer scopes, such as those introduced by an impl.
-    /// This is stored when the FuncMeta is first created to later be used to set the current
+    /// This is stored when the `FuncMeta` is first created to later be used to set the current
     /// generics when the function's body is later resolved.
     pub all_generics: Vec<ResolvedGeneric>,
 
@@ -169,7 +169,7 @@ pub struct FuncMeta {
     /// The module this function was defined in
     pub source_module: LocalModuleId,
 
-    /// THe file this function was defined in
+    /// `THe` file this function was defined in
     pub source_file: FileId,
 
     /// If this function is from an impl (trait or regular impl), this
@@ -185,7 +185,7 @@ pub enum FunctionBody {
 }
 
 impl FuncMeta {
-    /// A stub function does not have a body. This includes Builtin, LowLevel,
+    /// A stub function does not have a body. This includes Builtin, `LowLevel`,
     /// and Oracle functions in addition to method declarations within a trait
     /// without a body.
     ///

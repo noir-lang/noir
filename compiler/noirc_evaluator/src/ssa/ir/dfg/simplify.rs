@@ -31,7 +31,7 @@ pub(crate) mod value_merger;
 
 pub(crate) use call::constant_to_radix;
 
-/// Contains the result to Instruction::simplify, specifying how the instruction
+/// Contains the result to `Instruction::simplify`, specifying how the instruction
 /// should be simplified.
 #[derive(Debug)]
 pub(crate) enum SimplifyResult {
@@ -428,20 +428,20 @@ fn try_optimize_array_get_from_previous_instructions(
 /// we can simplify that array set to the array we were looking to perform an array set upon.
 ///
 /// Simple case:
-/// v3 = array_get v1, index v2
-/// v5 = array_set v1, index v2, value v3
+/// v3 = `array_get` v1, index v2
+/// v5 = `array_set` v1, index v2, value v3
 ///
 /// If we could not immediately simplify the array set from its value, we can try to follow
 /// the array set backwards in the case we have constant indices:
 ///
-/// v3 = array_get v1, index 1
-/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
-/// v7 = array_set mut v5, index 1, value v3
+/// v3 = `array_get` v1, index 1
+/// v5 = `array_set` v1, index 2, value [Field 100, Field 101, Field 102]
+/// v7 = `array_set` mut v5, index 1, value v3
 ///
 /// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
 /// to `v1` and see that the previous array set occurs to a different constant index.
 ///
-/// For each array_set:
+/// For each `array_set`:
 /// - If the index is non-constant we fail the optimization since any index may be changed.
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
 /// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.

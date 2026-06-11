@@ -222,7 +222,7 @@ pub struct AccumulatedFuzzerCoverage {
 type UnusedTestcaseIdSet = HashSet<TestCaseId>;
 
 impl AccumulatedFuzzerCoverage {
-    /// Create an initial AccumulatedFuzzerCoverage object from brillig coverage ranges
+    /// Create an initial `AccumulatedFuzzerCoverage` object from brillig coverage ranges
     pub fn new(coverage_items: &BrilligCoverageRanges) -> AccumulatedFuzzerCoverage {
         let mut single_branch_coverage = Vec::new();
         let mut cmp_coverage = Vec::new();
@@ -344,7 +344,7 @@ impl AccumulatedFuzzerCoverage {
     }
     /// Merge the coverage of a testcase into accumulated coverage
     /// Returns (false, empty set) if there is no new coverage (true, set of no longer needed testcases' ids) if there is
-    /// We assume that the non-bool witness list is already updated and is the same in new_coverage
+    /// We assume that the non-bool witness list is already updated and is the same in `new_coverage`
     pub fn merge(&mut self, new_coverage: &SingleTestCaseCoverage) -> (bool, UnusedTestcaseIdSet) {
         // Use quick detect first to see if we need to try and merge anything
         if !self.detect_new_coverage(new_coverage) {

@@ -33,7 +33,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
 }
 
 impl Parser<'_> {
-    /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
+    /// Function = 'fn' identifier Generics `FunctionParameters` ( '->' Visibility Type )? `WhereClause` ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -185,11 +185,11 @@ impl Parser<'_> {
         }
     }
 
-    /// FunctionParameters = '(' FunctionParametersList? ')'
+    /// `FunctionParameters` = '(' `FunctionParametersList`? ')'
     ///
-    /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
+    /// `FunctionParametersList` = `FunctionParameter` ( ',' `FunctionParameter` )* ','?
     ///
-    /// FunctionParameter = Visibility PatternOrSelf ':' Type
+    /// `FunctionParameter` = Visibility `PatternOrSelf` ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Option<Vec<Param>> {
         if !self.eat_left_paren() {
             return None;
@@ -295,8 +295,8 @@ impl Parser<'_> {
 
     /// Visibility
     ///     = 'pub'
-    ///     | 'return_data'
-    ///     | 'call_data' '(' int ')'
+    ///     | '`return_data`'
+    ///     | '`call_data`' '(' int ')'
     ///     | nothing
     fn parse_visibility(&mut self) -> (Visibility, Location) {
         let start_location = self.current_token_location;

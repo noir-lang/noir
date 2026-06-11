@@ -154,29 +154,29 @@ pub(crate) enum Keyword {
     Lhs,
     /// rhs
     Rhs,
-    /// public_key_x
+    /// `public_key_x`
     PublicKeyX,
-    /// public_key_y
+    /// `public_key_y`
     PublicKeyY,
     /// signature
     Signature,
-    /// hashed_message
+    /// `hashed_message`
     HashedMessage,
     /// points
     Points,
     /// scalars
     Scalars,
-    /// verification_key
+    /// `verification_key`
     VerificationKey,
     /// proof
     Proof,
-    /// public_inputs
+    /// `public_inputs`
     PublicInputs,
-    /// key_hash
+    /// `key_hash`
     KeyHash,
-    /// proof_type
+    /// `proof_type`
     ProofType,
-    /// hash_values
+    /// `hash_values`
     HashValues,
 }
 

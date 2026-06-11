@@ -156,7 +156,7 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     /// We assume that:
-    /// lhs and rhs are signed integers of bit size bit_size
+    /// lhs and rhs are signed integers of bit size `bit_size`
     /// result is the result of the operation, casted into an unsigned integer and not reduced
     ///
     /// overflow check for signed integer is less straightforward than for unsigned integers.
@@ -459,7 +459,7 @@ impl Context<'_, '_, '_> {
     }
 }
 
-/// Post-check condition for [Function::expand_signed_checks].
+/// Post-check condition for [`Function::expand_signed_checks`].
 ///
 /// Succeeds if:
 ///   - `func` does not contain any checked signed ops

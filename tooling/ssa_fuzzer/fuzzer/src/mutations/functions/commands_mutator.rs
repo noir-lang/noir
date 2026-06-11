@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given vector of [FuzzerCommand](crate::fuzz_lib::base_context::FuzzerCommand) values
+//! This file contains mechanisms for deterministically mutating a given vector of [`FuzzerCommand`](crate::fuzz_lib::base_context::FuzzerCommand) values
 
 use crate::fuzz_lib::{NUMBER_OF_VARIABLES_INITIAL, function_context::FuzzerFunctionCommand};
 use crate::mutations::{

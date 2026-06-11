@@ -115,7 +115,7 @@ impl FileManager {
     }
 
     /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
-    /// "some_dir/package_name/src/main.nr"
+    /// "`some_dir/package_name/src/main.nr`"
     pub fn find_by_path_suffix(&self, suffix: &str) -> Result<Option<FileId>, Vec<PathBuf>> {
         let suffix = Path::new(suffix);
         if suffix.as_os_str().is_empty() {

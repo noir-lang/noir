@@ -18,7 +18,7 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 ///      v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
 ///      return v8
 ///  }
-///  brillig(inline_always) fn f1 f1 {
+///  `brillig(inline_always)` fn f1 f1 {
 ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///      v7 = add v2, v2
 ///      return v7
@@ -66,8 +66,8 @@ fn simple_function_call() {
     }
 }
 
-/// main() { f1() + f2() } -> 8 + 4 => 12
-/// f1() { let var = f2(); var + var } -> 4 + 4 => 8
+/// `main()` { `f1()` + `f2()` } -> 8 + 4 => 12
+/// `f1()` { let var = `f2()`; var + var } -> 4 + 4 => 8
 /// f2(v2) { v2 + v2 } -> 2 + 2 => 4
 ///
 ///   brillig(inline) fn main f0 {
@@ -77,13 +77,13 @@ fn simple_function_call() {
 ///       v11 = add v8, v10
 ///       return v11
 ///   }
-///   brillig(inline_always) fn f1 f1 {
+///   `brillig(inline_always)` fn f1 f1 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v8 = call f2(v0, v1, v2, v3, v4, v5, v6) -> Field
 ///       v9 = add v8, v8
 ///       return v9
 ///   }
-///   brillig(inline_always) fn f2 f2 {
+///   `brillig(inline_always)` fn f2 f2 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = add v2, v2
 ///       return v7
@@ -154,25 +154,25 @@ fn several_functions_several_calls() {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = allocate -> &mut Field
 ///       store v0 at v7
-///       jmpif v6 then: b1(), else: b2()
-///     b1():
+///       jmpif v6 then: `b1()`, else: `b2()`
+///     `b1()`:
 ///       v11 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
 ///       store v11 at v7
-///       jmp b3()
-///     b2():
+///       jmp `b3()`
+///     `b2()`:
 ///       v9 = call f2(v0, v1, v2, v3, v4, v5, v6) -> Field
 ///       store v9 at v7
-///       jmp b3()
-///     b3():
+///       jmp `b3()`
+///     `b3()`:
 ///       v12 = load v7 -> Field
 ///       return v12
 ///   }
-///   brillig(inline_always) fn f1 f1 {
+///   `brillig(inline_always)` fn f1 f1 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = add v3, v3
 ///       return v7
 ///   }
-///   brillig(inline_always) fn f2 f2 {
+///   `brillig(inline_always)` fn f2 f2 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = add v2, v2
 ///       return v7

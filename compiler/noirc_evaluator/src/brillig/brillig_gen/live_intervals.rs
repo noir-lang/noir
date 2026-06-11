@@ -2,7 +2,7 @@
 //! Liveness intervals for Brillig code generation.
 //!
 //! This module provides a global per-value interval representation complementing
-//! the per-block set-based view in [VariableLiveness]. Each SSA value is assigned
+//! the per-block set-based view in [`VariableLiveness`]. Each SSA value is assigned
 //! a conservative `[def, last_use]` range over a total program-point ordering.
 //!
 //! Single-interval representation: we use one contiguous interval per value, which
@@ -25,7 +25,7 @@
 //! Rather than re-deriving loop liveness via Wimmer's loop-header clause, we follow
 //! the practical adaptation described at <https://bernsteinbear.com/blog/linear-scan/>
 //! and reuse the pre-existing loop-aware liveness sets already computed by
-//! [VariableLiveness]. This simplifies the implementation while preserving the
+//! [`VariableLiveness`]. This simplifies the implementation while preserving the
 //! same interval semantics.
 //!
 //! Long-term, these intervals are intended to feed a full linear-scan register
@@ -80,8 +80,8 @@ impl LiveInterval {
 
 /// Global liveness intervals for all values in a function.
 ///
-/// Built from [VariableLiveness] (which provides loop-aware `live_in`/`live_out`)
-/// and [ConstantAllocation] (which provides constant allocation points).
+/// Built from [`VariableLiveness`] (which provides loop-aware `live_in`/`live_out`)
+/// and [`ConstantAllocation`] (which provides constant allocation points).
 #[derive(Default)]
 pub(crate) struct LiveIntervals {
     /// Map from block to the program point at its entry.
@@ -100,7 +100,7 @@ pub(crate) struct LiveIntervals {
 impl LiveIntervals {
     /// Build liveness intervals for a function.
     ///
-    /// See the module-level docs for algorithm references and [Self::build_intervals]
+    /// See the module-level docs for algorithm references and [`Self::build_intervals`]
     /// for the annotated pseudocode mapping.
     pub(crate) fn from_function(
         func: &Function,
@@ -195,14 +195,14 @@ impl LiveIntervals {
     ///
     /// Key differences from the paper:
     /// - `live_out` vs `union of successor.liveIn`: These are equivalent —
-    ///   [VariableLiveness::get_live_out()] is literally `∪ live_in(s) for each successor s`.
+    ///   [`VariableLiveness::get_live_out()`] is literally `∪ live_in(s) for each successor s`.
     /// - Phi inputs -> terminator operands: Wimmer adds phi inputs explicitly;
     ///   we add all terminator operands (jmp args are the phi inputs in Noir's
     ///   block-parameter SSA form).
-    /// - Loop header clause skipped: [VariableLiveness] already handles loop
+    /// - Loop header clause skipped: [`VariableLiveness`] already handles loop
     ///   liveness propagation, so `live_out` includes loop-carried values.
     /// - `b.liveIn` not stored: Wimmer builds liveIn bottom-up; we already
-    ///   have it from [VariableLiveness].
+    ///   have it from [`VariableLiveness`].
     fn build_intervals(
         &mut self,
         func: &Function,
@@ -402,7 +402,7 @@ mod tests {
         std::array::from_fn(|i| BasicBlockId::new(i as u32))
     }
 
-    /// Build LiveIntervals from SSA source string.
+    /// Build `LiveIntervals` from SSA source string.
     pub(super) fn build_intervals(src: &str) -> (LiveIntervals, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();

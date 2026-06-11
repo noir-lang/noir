@@ -7,7 +7,7 @@
 //!    2. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
 //!    3. If not, try to unroll the loop. If successful, remember the modified
-//!       blocks. If unsuccessful either error if the abort_on_error flag is set,
+//!       blocks. If unsuccessful either error if the `abort_on_error` flag is set,
 //!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
@@ -38,7 +38,7 @@
 //! Conditions:
 //!   - Pre-condition: The first block parameter of each loop header is the induction variable.
 //!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
-//!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
+//!   - Pre-condition: No loop header has a `JmpIf` with a constant condition (run `simplify_cfg` first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
 //!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
@@ -423,7 +423,7 @@ pub(crate) struct Loop {
     /// other blocks in the loop.
     pub(crate) header: BasicBlockId,
 
-    /// The start of the back_edge n -> d is the block n at the end of
+    /// The start of the `back_edge` n -> d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
     pub(crate) back_edge_start: BasicBlockId,
 
@@ -511,7 +511,7 @@ pub(crate) struct Loops {
     pub(crate) yet_to_unroll: Vec<Loop>,
     /// The CFG so we can query the predecessors of blocks when needed.
     pub(crate) cfg: ControlFlowGraph,
-    /// The [DominatorTree] used during the discovery of loops.
+    /// The [`DominatorTree`] used during the discovery of loops.
     pub(crate) dom: DominatorTree,
     /// Body weights of callees that will be inlined, used to estimate the true cost
     /// of call instructions in loop bodies instead of using call overhead.
@@ -592,7 +592,7 @@ impl Loops {
 
 impl Loop {
     /// Return each block that is in a loop starting in the given header block.
-    /// Expects back_edge_start -> header to be the back edge of the loop.
+    /// Expects `back_edge_start` -> header to be the back edge of the loop.
     pub(crate) fn find_blocks_in_loop(
         header: BasicBlockId,
         back_edge_start: BasicBlockId,
@@ -712,7 +712,7 @@ impl Loop {
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
     ///
-    /// `resolve_value` maps ValueIds through an external substitution
+    /// `resolve_value` maps `ValueIds` through an external substitution
     /// (e.g. `FunctionInserter::resolve`).
     /// If `get_const_upper_bound` is called within a pass that modifies instructions
     /// e.g through a `FunctionInserter`, the terminator check below might reference
@@ -994,7 +994,7 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some((iteration context, loop_header_id)) if we should perform another iteration.
+    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
@@ -1231,7 +1231,7 @@ impl Loop {
     ///
     /// After unrolling, all Jmp terminators within the loop are eliminated, so every
     /// argument on them (except the induction variable on back-edge Jmps) is boilerplate.
-    /// Similarly, JmpIf `then_arguments`/`else_arguments` that thread promoted values
+    /// Similarly, `JmpIf` `then_arguments`/`else_arguments` that thread promoted values
     /// to loop-internal blocks are also boilerplate.
     /// Sum the Brillig-weighted cost of all terminators in the loop whose
     /// destinations are within the loop (including the header). These terminators
@@ -1499,7 +1499,7 @@ impl Loop {
     }
 
     /// Check whether `source`'s terminator sends a constant value at position
-    /// `param_index` to `target`. For JmpIf where both branches go to the same
+    /// `param_index` to `target`. For `JmpIf` where both branches go to the same
     /// target, both must send constants.
     fn pred_sends_constant_at(
         dfg: &DataFlowGraph,
@@ -1592,7 +1592,7 @@ impl Loop {
 /// `array_get` instructions. Returns true if:
 /// - The value is a compile-time constant (`dfg.is_constant`), OR
 /// - The value is the result of an `array_get` whose array operand
-///   recursively traces back to a constant source (global, MakeArray)
+///   recursively traces back to a constant source (global, `MakeArray`)
 ///
 /// This lets the cost model recognize that `array_get constant_array, index`
 /// will fold away after unrolling, even when `constant_array` is itself
@@ -1657,7 +1657,7 @@ impl BoilerplateStats {
         self.total_cost + pre_header_jmp
     }
 
-    /// Per-iteration cost excluding boilerplate but NOT subtracting useless_cost.
+    /// Per-iteration cost excluding boilerplate but NOT subtracting `useless_cost`.
     /// This is the conservative estimate: it assumes no constant folding happens.
     fn conservative_useful_cost(&self) -> usize {
         let load_and_store = self.loads.min(self.stores) * 2;
@@ -1681,13 +1681,13 @@ impl BoilerplateStats {
         self.useful_cost().saturating_mul(self.iterations)
     }
 
-    /// Conservative estimate of unrolled cost that excludes useless_cost.
+    /// Conservative estimate of unrolled cost that excludes `useless_cost`.
     ///
     /// Unlike `unrolled_cost()` which assumes constant-foldable instructions will be
     /// eliminated, this gives the cost if NO folding happens. Used by `is_small()` to
     /// avoid over-aggressive unrolling of large loops whose `useless_cost` may be
     /// overestimated (e.g. loops containing previously-unrolled inner loops).
-    /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
+    /// The `force_unroll` path still uses `unrolled_cost()` with full `useless_cost`
     /// subtraction, ensuring genuinely tiny loops are still unrolled.
     fn conservative_unrolled_cost(&self) -> usize {
         self.conservative_useful_cost().saturating_mul(self.iterations)
@@ -1698,7 +1698,7 @@ impl BoilerplateStats {
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access overhead.
     ///
-    /// Uses `conservative_unrolled_cost` (without useless_cost subtraction) to avoid
+    /// Uses `conservative_unrolled_cost` (without `useless_cost` subtraction) to avoid
     /// false positives from overestimated constant folding, particularly for loops
     /// containing previously-unrolled inner loops.
     fn is_small(&self) -> bool {
@@ -2068,13 +2068,13 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
     new_size.saturating_mul(100) <= max_size
 }
 
-/// Pre-check condition for [Function::unroll_loops_iteratively].
+/// Pre-check condition for [`Function::unroll_loops_iteratively`].
 #[cfg(debug_assertions)]
 fn unroll_loops_pre_check(function: &Function) {
     super::checks::assert_no_constant_jmpif(function);
 }
 
-/// Post-check condition for [Function::unroll_loops_iteratively].
+/// Post-check condition for [`Function::unroll_loops_iteratively`].
 ///
 /// Panics if:
 ///   - Any ACIR function still contains loops after unrolling.
@@ -2497,7 +2497,7 @@ mod tests {
         assert_eq!(stats.unrolled_cost(), 0);
     }
 
-    /// Regression test for nested loops with an accumulator (simplified regression_4709).
+    /// Regression test for nested loops with an accumulator (simplified `regression_4709`).
     ///
     /// The inner loop (b3, b4) accumulates values from a constant array indexed by
     /// the outer loop's induction variable. Without the filter that excludes `self.blocks`
@@ -2735,11 +2735,11 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 1, "The loop should be unrolled");
     }
 
-    /// Test that setting force_unroll_threshold to 0 disables force-unrolling.
+    /// Test that setting `force_unroll_threshold` to 0 disables force-unrolling.
     ///
     /// This uses a loop with 6 iterations where:
-    /// - is_small() = false (unrolled cost exceeds baseline)
-    /// - unrolled_cost = 78 (within default threshold of 128)
+    /// - `is_small()` = false (unrolled cost exceeds baseline)
+    /// - `unrolled_cost` = 78 (within default threshold of 128)
     ///
     /// With the default threshold, this loop would be force-unrolled.
     /// With threshold=0, it should NOT be unrolled.
@@ -2889,8 +2889,8 @@ mod tests {
     }
 
     /// Generate a loop with a large body containing `num_adds` chained add instructions.
-    /// All instructions are constant-foldable after unrolling (useful_cost = 0),
-    /// but total_cost is high due to the many instructions.
+    /// All instructions are constant-foldable after unrolling (`useful_cost` = 0),
+    /// but `total_cost` is high due to the many instructions.
     fn brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -> Ssa {
         assert!(num_adds >= 1, "need at least one add");
         let mut body_instructions = String::new();
@@ -3037,7 +3037,7 @@ mod tests {
     }
 
     /// Regression test: when `useful_cost` is zero and the loop body is small,
-    /// force_unroll correctly allows the unroll (the folding prediction is trusted
+    /// `force_unroll` correctly allows the unroll (the folding prediction is trusted
     /// because even if wrong, the transient expansion is bounded).
     #[test]
     fn force_unroll_allows_small_body_zero_useful_cost() {
@@ -3065,7 +3065,7 @@ mod tests {
     }
 
     /// Regression test: when `useful_cost` is zero but the loop body is large
-    /// (total_cost > force_unroll_threshold), force_unroll is blocked. This prevents
+    /// (`total_cost` > `force_unroll_threshold`), `force_unroll` is blocked. This prevents
     /// the catastrophic blowup seen in `noir_bigcurve` where a 754-iteration
     /// scalar-multiplication loop was fully unrolled into ~300k lines after
     /// `inc_rc` removal dropped `useful_cost` from 3 to 0.
@@ -3262,10 +3262,10 @@ mod tests {
         assert_eq!(lower, upper);
     }
 
-    /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
-    /// alongside a constant-condition JmpIf.
+    /// Prior passes can place non-comparison instructions (like `MakeArray`) into a loop header block
+    /// alongside a constant-condition `JmpIf`.
     ///
-    /// The pre-check should catch this and require simplify_cfg to be run first.
+    /// The pre-check should catch this and require `simplify_cfg` to be run first.
     #[test]
     #[should_panic(expected = "has a JmpIf with a constant condition")]
     fn pre_check_rejects_const_condition_jmpif_in_loop_header() {
@@ -3566,9 +3566,9 @@ mod tests {
     /// Regression test: after mem2reg promotes loads/stores to block parameters,
     /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
     /// block parameters. Without this, nested loops over constant 2D arrays won't see
-    /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
+    /// inner loop accumulators as constant, inflating `useful_cost` and preventing unrolling.
     ///
-    /// This models the pattern from the regression_4709 integration test: outer loop indexes a constant 2D
+    /// This models the pattern from the `regression_4709` integration test: outer loop indexes a constant 2D
     /// global array, inner loop accumulates over the row. After mem2reg, the row value
     /// is passed as a block parameter to the inner loop header.
     #[test]
@@ -3847,7 +3847,7 @@ mod tests {
     ///
     /// In this test, the loop header b1 has `not v0` (where v0 is a u1 parameter)
     /// and the actual loop exit is `eq v1, u32 1` in b2 (where v1 is the induction
-    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (bit_size 1),
+    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (`bit_size` 1),
     /// and LICM's `simplify_induction_variable_in_binary` replaces `eq v1, u32 1` with
     /// constant `false`, creating an infinite loop.
     #[test]
@@ -3979,9 +3979,9 @@ mod upper_loop_bound_resolution {
 
     use super::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
 
-    /// Regression test for vector_loop: after mem2reg promotes the vector length
+    /// Regression test for `vector_loop`: after mem2reg promotes the vector length
     /// allocation to a block parameter, the iterative unrolling must still resolve the
-    /// sum loop's bound to a constant through the vector_push_back simplification chain.
+    /// sum loop's bound to a constant through the `vector_push_back` simplification chain.
     ///
     /// This is the SSA input to unrolling from the
     /// `test_programs/execution_success/vector_loop` test program.
@@ -4059,15 +4059,15 @@ mod upper_loop_bound_resolution {
 
     /// Regression test: when a loop accumulates a counter via store/load (like BoundedVec.push
     /// incrementing `len`), a second loop that loads that counter as its bound requires
-    /// load-store forwarding (LSF) in simplify_between_unrolls to resolve the bound
+    /// load-store forwarding (LSF) in `simplify_between_unrolls` to resolve the bound
     /// after the first loop is unrolled.
     ///
-    /// This reproduces the pattern from Aztec's FixtureBuilder where:
+    /// This reproduces the pattern from Aztec's `FixtureBuilder` where:
     ///   1. A setup loop stores to a counter (e.g. `append_items` incrementing `BoundedVec.len`)
     ///   2. After the loop, the counter is loaded as the bound of a second loop
     ///      (e.g. `for i in 0..vec.len()` in `get_split_ordered_side_effects`)
     ///
-    /// Without LSF in simplify_between_unrolls, the load is never resolved to a
+    /// Without LSF in `simplify_between_unrolls`, the load is never resolved to a
     /// constant, leaving the second loop's bound non-constant and unrolling fails.
     #[test]
     fn acir_unroll_with_store_load_loop_bound() {
@@ -4113,7 +4113,7 @@ mod upper_loop_bound_resolution {
         );
     }
 
-    /// Regression test: a BoundedVec's length is stored in an allocation.
+    /// Regression test: a `BoundedVec`'s length is stored in an allocation.
     /// Two sequential loops use the same length as their bound.
     /// After Loop 1 unrolls, Loop 2's bound is still a `load` from a different block
     /// because `simplify_function` cannot merge the blocks (a conditional branch in

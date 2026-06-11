@@ -118,7 +118,7 @@ impl<'context> Elaborator<'context> {
 
     /// Elaborate an expression from the middle of a comptime scope within a module.
     ///
-    /// Similar to [Self::elaborate_item_from_comptime_in_function], but for module-level comptime code.
+    /// Similar to [`Self::elaborate_item_from_comptime_in_function`], but for module-level comptime code.
     pub fn elaborate_item_from_comptime_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
@@ -204,7 +204,7 @@ impl<'context> Elaborator<'context> {
     /// scope so that more local definitions naturally shadow outer ones.
     ///
     /// Within a single scope, bindings are registered in ascending
-    /// [crate::node_interner::DefinitionId] order. `DefinitionId`s are minted monotonically
+    /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
     /// as definitions are collected, so this matches source order: when a name is shadowed
     /// within a comptime block (`let x = ...; let x = ...;`) the last `let` is registered
     /// last and wins, just as it does at runtime. Iterating the scope's `FxHashMap`
@@ -527,14 +527,14 @@ impl<'context> Elaborator<'context> {
     /// Elaborate and type-check arguments passed to an attribute function.
     ///
     /// Attribute functions have a special calling convention:
-    /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
+    /// - First parameter must match the type of the attributed item (e.g., `FunctionDefinition`)
     /// - Remaining parameters are provided explicitly in the attribute syntax
     /// - If the function has `#[varargs]`, extra arguments are collected into a vector
     ///
     /// This function:
     /// 1. Validates the first parameter matches the item type
     /// 2. Elaborates and type-checks each argument expression
-    /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
+    /// 3. Handles special cases like [`TraitDefinition`][crate::QuotedType::TraitDefinition] arguments
     /// 4. Collects varargs into a vector if applicable
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
@@ -664,7 +664,7 @@ impl<'context> Elaborator<'context> {
     /// Add a generated item to the collected items (unquoting) for further elaboration.
     ///
     /// Supported item kinds:
-    /// - [Functions][ItemKind::Function], [TraitImpls][ItemKind::TraitImpl],
+    /// - [Functions][ItemKind::Function], [`TraitImpls`][ItemKind::TraitImpl],
     ///   [Globals][ItemKind::Global], [Structs][ItemKind::Struct],
     ///   [Enums][ItemKind::Enum], [Impls][ItemKind::Impl]
     ///

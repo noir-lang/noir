@@ -8,14 +8,14 @@
 //!
 //! ACIR does not have a first-class array type. Instead, all arrays are
 //! represented as contiguous regions in linear memory, identified by a
-//! [BlockId]. This module provides helpers for translating SSA array
+//! [`BlockId`]. This module provides helpers for translating SSA array
 //! operations into ACIR memory reads and writes.
 //!
 //! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
 //!   - Known at compile time.
-//!   - Reads and writes may be folded into an [AcirValue] where possible.
+//!   - Reads and writes may be folded into an [`AcirValue`] where possible.
 //!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 //!
 //! [Dynamic arrays][AcirValue::DynamicArray]
@@ -59,7 +59,7 @@
 //!
 //! To determine which field within the array we are attempting to access, we use an element type sizes array that stores
 //! the flat starting index for each SSA field. Since tuples are flattened in SSA, each tuple field gets its own entry.
-//! For an array like `[(Field, [Field; 3], [Field; 3]); 4]`, the element_type_sizes array would be:
+//! For an array like `[(Field, [Field; 3], [Field; 3]); 4]`, the `element_type_sizes` array would be:
 //!
 //! [0, 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25]
 //!
@@ -109,7 +109,7 @@
 //!
 //! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
 //! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-//! When we read a value from a non-homogenous array, we multiply any resulting [AcirValue::Var] by the predicate
+//! When we read a value from a non-homogenous array, we multiply any resulting [`AcirValue::Var`] by the predicate
 //! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
 //! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
 //!
@@ -143,8 +143,8 @@ use super::{
 };
 
 impl Context<'_> {
-    /// Get the BlockId corresponding to the ValueId
-    /// If there is no matching BlockId, we create a new one.
+    /// Get the `BlockId` corresponding to the `ValueId`
+    /// If there is no matching `BlockId`, we create a new one.
     pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
         *self.memory_blocks.entry(value).or_insert_with(|| {
             let block_id = BlockId(self.max_block_id);
@@ -162,7 +162,7 @@ impl Context<'_> {
         })
     }
 
-    /// Get the next [BlockId] for the internal element type sizes array.
+    /// Get the next [`BlockId`] for the internal element type sizes array.
     /// This is useful for referencing information that can
     /// only be accessed dynamically, such as the type structure
     /// of non-homogenous arrays.
@@ -327,7 +327,7 @@ impl Context<'_> {
         }
     }
 
-    /// See [Self::handle_constant_index_wrapper]
+    /// See [`Self::handle_constant_index_wrapper`]
     fn handle_constant_index(
         &mut self,
         instruction: InstructionId,
@@ -411,11 +411,11 @@ impl Context<'_> {
     /// Returns the flat memory index to read/write at and, for `ArraySet`, the
     /// (predicated) value to store.
     ///
-    /// [Self::get_flattened_index] already gates the returned index by the side-effects
+    /// [`Self::get_flattened_index`] already gates the returned index by the side-effects
     /// predicate when `is_safe_index = false`, so on a disabled branch the index
     /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
     /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
-    /// because [Self::apply_index_side_effects] relies on the dummy value at `offset`
+    /// because [`Self::apply_index_side_effects`] relies on the dummy value at `offset`
     /// being type-compatible with the read's result type to skip masking.
     fn convert_array_operation_inputs(
         &mut self,
@@ -835,15 +835,15 @@ impl Context<'_> {
         Ok(())
     }
 
-    /// Construct the [AcirValue::DynamicArray] that represents the result of an [Instruction::ArraySet].
+    /// Construct the [`AcirValue::DynamicArray`] that represents the result of an [`Instruction::ArraySet`].
     ///
     /// In SSA, an array set always yields a new array value (even if the operation
-    /// mutates in place). At the ACIR level, this corresponds to a [AcirValue::DynamicArray] whose
-    /// memory block has already been resolved by [Self::resolve_array_set_block].
+    /// mutates in place). At the ACIR level, this corresponds to a [`AcirValue::DynamicArray`] whose
+    /// memory block has already been resolved by [`Self::resolve_array_set_block`].
     ///
     /// # Purpose
-    /// - Initializes the optional [AcirDynamicArray::element_type_sizes] helper array for when elements are non-homogenous.
-    /// - Populates the `value_types` vector. See [AcirDynamicArray::value_types] for more information.
+    /// - Initializes the optional [`AcirDynamicArray::element_type_sizes`] helper array for when elements are non-homogenous.
+    /// - Populates the `value_types` vector. See [`AcirDynamicArray::value_types`] for more information.
     pub(super) fn make_array_set_result_value(
         &mut self,
         array: ValueId,
@@ -1023,7 +1023,7 @@ impl Context<'_> {
     }
 
     /// Read an array and reconstruct its structure based on the SSA type.
-    /// For DynamicArrays with nested arrays, this preserves the nested structure
+    /// For `DynamicArrays` with nested arrays, this preserves the nested structure
     /// instead of returning a flat array.
     pub(super) fn read_array_with_type(
         &mut self,
@@ -1289,8 +1289,8 @@ pub(super) enum ElementTypeSizesArrayShift {
 /// # Parameters
 ///
 /// * `array_typ` - Type of the array/vector for which we are generating an element types sizes array
-/// * `flattened_length` - The total flattened size of the array data. For [AcirValue::Array],
-///   this is computed via [flattened_value_size]. For [AcirValue::DynamicArray], this is
+/// * `flattened_length` - The total flattened size of the array data. For [`AcirValue::Array`],
+///   this is computed via [`flattened_value_size`]. For [`AcirValue::DynamicArray`], this is
 ///   stored in the `len` field.
 /// * `shift` - Extra logical elements to allocate space for (e.g., for growth operations such as vector insert)
 ///
@@ -1338,9 +1338,9 @@ pub(super) fn calculate_element_type_sizes_array(
     flat_elem_type_sizes
 }
 
-/// Calculates the total flattened size of an [AcirValue].
+/// Calculates the total flattened size of an [`AcirValue`].
 ///
-/// Unlike [Type::flattened_size], this handles vectors, represented by [AcirDynamicArray], returning their capacity.
+/// Unlike [`Type::flattened_size`], this handles vectors, represented by [`AcirDynamicArray`], returning their capacity.
 pub(super) fn flattened_value_size(value: &AcirValue) -> FlattenedLength {
     match value {
         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,

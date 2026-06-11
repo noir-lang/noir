@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given vector of [InstructionBlock](crate::fuzz_lib::instruction::InstructionBlock) values
+//! This file contains mechanisms for deterministically mutating a given vector of [`InstructionBlock`](crate::fuzz_lib::instruction::InstructionBlock) values
 
 mod argument_mutator;
 mod instruction_block_mutator;

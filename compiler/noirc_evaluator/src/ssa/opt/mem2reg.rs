@@ -233,7 +233,7 @@ fn compute_visible_vars(
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
@@ -375,7 +375,7 @@ impl BlockState {
 ///
 /// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
 /// same successor, in which case `f` is called once per matching edge so the caller
-/// can wire each one. Panics if the given block does not terminate in a Jmp or JmpIf.
+/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
 fn for_each_terminator_edge_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,

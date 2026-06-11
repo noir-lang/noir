@@ -477,7 +477,7 @@ impl Context<'_, '_, '_> {
     }
 }
 
-/// Post-check condition for [Function::remove_bit_shifts].
+/// Post-check condition for [`Function::remove_bit_shifts`].
 ///
 /// Panics if:
 ///   - Any ACIR function contains bitshift instructions.

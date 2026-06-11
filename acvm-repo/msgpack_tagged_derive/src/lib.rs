@@ -1441,7 +1441,7 @@ fn type_contains_ident(ty: &Type, target: &Ident) -> bool {
 ///    whether it appears in a tagged field. (Skipped fields like
 ///    `_phantom: PhantomData<T>` still reference T at the type level, so
 ///    `Self: 'static` requires `T: 'static` even though we don't tag the
-///    PhantomData field.)
+///    `PhantomData` field.)
 /// 2. **`<TaggedFieldType>: MsgpackTagged` for each tagged field's type.**
 ///    Per-field-type bounds compose with hand-written impls that have unusual
 ///    bounds: if `MyType<A, B>: MsgpackTagged` requires `A: SomeOtherTrait`,

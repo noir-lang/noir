@@ -41,7 +41,7 @@ pub(crate) type OpcodeAdvisories = HashMap<OpcodeLocation, Vec<OpcodeAdvisory>>;
 
 /// Go through opcodes and collect advisories, indicating opcodes which are potentially unused.
 ///
-/// At the moment this relies on the CFG still available from the SSA via the [FunctionContext].
+/// At the moment this relies on the CFG still available from the SSA via the [`FunctionContext`].
 /// Unfortunately this doesn't work for the artifacts created by `compile_procedures`,
 /// which use looping in the bytecode level. To handle them in isolation, we would need to
 /// reconstruct the CFG from unresolved jump labels, and then establish a post order from that.
@@ -187,7 +187,7 @@ pub(crate) fn show_opcode_advisories<F: Display>(
     }
 }
 
-/// Go through the labels in the [BrilligContext] and collect the opcode locations
+/// Go through the labels in the [`BrilligContext`] and collect the opcode locations
 /// where each block starts and ends.
 ///
 /// # Assumptions on the label set
@@ -757,7 +757,7 @@ fn is_fallible_opcode<F>(opcode: &Opcode<F>) -> bool {
 /// variants (so any future change to that classification flows through here
 /// automatically), with [`BlackBoxOp::ToRadix`] handled explicitly because
 /// the brillig VM validates its `radix` argument against `[2, 256]` at
-/// runtime and ToRadix has no ACIR analog.
+/// runtime and `ToRadix` has no ACIR analog.
 fn is_fallible_black_box_op(op: &BlackBoxOp) -> bool {
     if let Some(func) = black_box_op_to_acir_func(op) {
         func.has_side_effects()

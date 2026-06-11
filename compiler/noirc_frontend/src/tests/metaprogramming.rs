@@ -1506,7 +1506,7 @@ fn recursive_attribute_causes_expansion_limit_error() {
 
 /// Verifies that mutually recursive attributes are caught by the global macro expansion depth limit.
 /// Three mutually recursive attributes: foo -> bar -> baz -> foo -> ...
-/// With a global counter, this correctly errors at [crate::elaborator::MAX_MACRO_EXPANSION_DEPTH] total expansions.
+/// With a global counter, this correctly errors at [`crate::elaborator::MAX_MACRO_EXPANSION_DEPTH`] total expansions.
 #[test]
 fn mutually_recursive_attributes_cause_expansion_limit_error() {
     use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;

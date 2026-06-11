@@ -1,8 +1,8 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-//! This crate provides the implementation of BlackBox functions of ACIR and Brillig.
-//! For functions that are backend-dependent, it provides a Trait [BlackBoxFunctionSolver] that must be implemented by the backend.
+//! This crate provides the implementation of `BlackBox` functions of ACIR and Brillig.
+//! For functions that are backend-dependent, it provides a Trait [`BlackBoxFunctionSolver`] that must be implemented by the backend.
 //! For functions that have a reference implementation, such as [keccakf1600], this crate exports the reference implementation directly.
 
 use acir::BlackBoxFunc;

@@ -43,7 +43,7 @@
 //!
 //! Note 1: this optimization applies to both arrays and vectors. For arrays the length is
 //! statically known from the type. For vectors the capacity must be determinable via
-//! [DataFlowGraph::try_get_vector_capacity] (e.g. the vector traces back to a `make_array`).
+//! [`DataFlowGraph::try_get_vector_capacity`] (e.g. the vector traces back to a `make_array`).
 //!
 //! Note 2: because the optimization expands to multiple `array_get` and a `make_array` instruction,
 //! for large arrays this might result in too many `array_get` instructions that slow down SSA optimization.
@@ -180,9 +180,9 @@ struct ConditionalWindow {
 #[derive(Debug, Clone)]
 struct TrackedValue {
     window: ConditionalWindow,
-    /// Indices into the `candidate_values` vec — the set of array_set candidates
+    /// Indices into the `candidate_values` vec — the set of `array_set` candidates
     /// this value transitively depends on. Only candidate indices are stored,
-    /// not intermediate ValueIds, keeping the sets small (bounded by candidate count).
+    /// not intermediate `ValueIds`, keeping the sets small (bounded by candidate count).
     candidate_deps: HashSet<usize>,
 }
 
@@ -400,8 +400,8 @@ mod tests {
 
     use super::Ssa;
 
-    /// Basic case: array_set result is only used inside the conditional window.
-    /// It should be replaced with make_array + array_gets.
+    /// Basic case: `array_set` result is only used inside the conditional window.
+    /// It should be replaced with `make_array` + `array_gets`.
     #[test]
     fn replaces_array_set_used_only_within_conditional_window() {
         let src = r#"
@@ -432,7 +432,7 @@ mod tests {
         ");
     }
 
-    /// The array_set result is used *after* the conditional window closes.
+    /// The `array_set` result is used *after* the conditional window closes.
     /// The optimization must not apply.
     #[test]
     fn does_not_replace_array_set_used_after_window() {
@@ -451,11 +451,11 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// A chain of array_sets where each result feeds into the next, and the final
+    /// A chain of `array_sets` where each result feeds into the next, and the final
     /// result escapes the window. Neither the final nor the intermediate one can be
     /// replaced: replacing the intermediate `v2` would corrupt `v3`'s value when the
     /// predicate is false (its false-predicate result is `v2`, which would then be the
-    /// wrong always-modified make_array instead of the original array).
+    /// wrong always-modified `make_array` instead of the original array).
     #[test]
     fn does_not_replace_array_set_chain_when_final_escapes_and_has_constant_index() {
         let src = r#"
@@ -492,7 +492,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// Both array_sets in the window feed into an IfElse — neither escapes.
+    /// Both `array_sets` in the window feed into an `IfElse` — neither escapes.
     /// Both should be replaced.
     #[test]
     fn replaces_chain_of_array_sets_when_none_escape() {
@@ -526,7 +526,7 @@ mod tests {
         ");
     }
 
-    /// An example with an array_set + call where both are used exclusively in the conditional window
+    /// An example with an `array_set` + call where both are used exclusively in the conditional window
     #[test]
     fn replaces_array_set_that_feeds_poseidon2_inside_conditional_window() {
         let src = r#"
@@ -564,7 +564,7 @@ mod tests {
         ");
     }
 
-    /// Another example with array_set -> call -> array_set where the last array_set escapes
+    /// Another example with `array_set` -> call -> `array_set` where the last `array_set` escapes
     /// the window so the first one cannot be optimized.
     #[test]
     fn does_not_replace_chain_of_array_set_call_array_set_where_last_one_is_used_outside_window() {
@@ -586,8 +586,8 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// The array_set feeds a call whose result escapes the window (not via IfElse).
-    /// Even though the array_set itself is only used inside the window, replacing it
+    /// The `array_set` feeds a call whose result escapes the window (not via `IfElse`).
+    /// Even though the `array_set` itself is only used inside the window, replacing it
     /// would corrupt the call's result when the predicate is false.
     #[test]
     fn does_not_replace_array_set_when_derived_value_escapes() {
@@ -607,7 +607,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// An array_set outside any conditional window (no enable_side_effects wrapping it)
+    /// An `array_set` outside any conditional window (no `enable_side_effects` wrapping it)
     /// should not be touched by this pass.
     #[test]
     fn does_not_touch_array_set_outside_conditional_window() {
@@ -656,7 +656,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// The array_set result is passed to a call whose argument type contains a reference
+    /// The `array_set` result is passed to a call whose argument type contains a reference
     /// nested inside an array ([&mut Field; 1]). The callee could store elements of the
     /// array through those nested references, so the optimization must not apply.
     #[test]
@@ -681,7 +681,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// The array_set result is passed to a call that also takes a reference argument.
+    /// The `array_set` result is passed to a call that also takes a reference argument.
     /// The callee (f1) may store the array through the reference, causing it to escape
     /// the conditional window. The optimization must not apply.
     #[test]
@@ -707,9 +707,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
-    /// The array_set result appears as the `else_value` of an IfElse whose
+    /// The `array_set` result appears as the `else_value` of an `IfElse` whose
     /// `else_condition` matches the window predicate — the symmetric safe pattern.
-    /// `if (not v1) then v0 else v2` with else_condition=v1 is equivalent to
+    /// `if (not v1) then v0 else v2` with `else_condition=v1` is equivalent to
     /// `if v1 then v2 else v0`, so the optimization should apply.
     #[test]
     fn replaces_array_set_used_as_safe_else_value() {
@@ -741,10 +741,10 @@ mod tests {
         ");
     }
 
-    /// The array_set result appears as the `else_value` of an IfElse whose
+    /// The `array_set` result appears as the `else_value` of an `IfElse` whose
     /// `else_condition` does NOT match the window predicate. This is unsafe:
     /// when the predicate is false the else branch could be taken, yielding an
-    /// unconditionally-modified make_array instead of the original array.
+    /// unconditionally-modified `make_array` instead of the original array.
     #[test]
     fn does_not_replace_array_set_when_else_value_has_wrong_condition() {
         let src = r#"
@@ -906,8 +906,8 @@ mod tests {
     }
 
     /// Two independent candidates A (v4) and B (v5) are connected through a derived
-    /// value v7 = array_set(v5, v6_from_A). Candidate A's chain escapes (v6 used
-    /// outside the window), but B is correctly used in IfElse. B should still be
+    /// value v7 = `array_set(v5`, `v6_from_A`). Candidate A's chain escapes (v6 used
+    /// outside the window), but B is correctly used in `IfElse`. B should still be
     /// optimized because its own uses are all within the window.
     #[test]
     fn optimizes_independent_candidate_when_sibling_chain_escapes() {

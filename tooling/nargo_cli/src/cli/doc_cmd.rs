@@ -130,7 +130,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
 }
 
 /// Returns the Crate item for the given package, together with all of
-/// its dependencies in a HashMap that maps a dependency's root file to
+/// its dependencies in a `HashMap` that maps a dependency's root file to
 /// its crate.
 fn package_crate(
     file_manager: &FileManager,

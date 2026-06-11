@@ -215,19 +215,19 @@ impl Context<'_, '_, '_> {
     ///
     /// The math here is:
     ///
-    /// result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)
+    /// result = value + 2*((`2^(bit_size` - 1) - value)*`value_is_negative`)
     ///
-    /// For example, for i8 we have bit_size = 8 so:
+    /// For example, for i8 we have `bit_size` = 8 so:
     ///
-    /// result = value + 2*(128 - value)*value_is_negative
+    /// result = value + 2*(128 - value)*`value_is_negative`
     ///
-    /// If the value is positive, so value_is_negative = 0:
+    /// If the value is positive, so `value_is_negative` = 0:
     ///
     /// result = value
     ///
     /// That is, the value stays the same.
     ///
-    /// If value_is_negative = 1 we get:
+    /// If `value_is_negative` = 1 we get:
     ///
     /// result = value + 2*(128 - value) = value + 256 - 2*value = 256 - value
     ///
@@ -306,7 +306,7 @@ impl Context<'_, '_, '_> {
     }
 }
 
-/// Post-check condition for [Function::expand_signed_math].
+/// Post-check condition for [`Function::expand_signed_math`].
 ///
 /// Panics if:
 ///   - Any ACIR function contains signed Lt, Div, or Mod operations.

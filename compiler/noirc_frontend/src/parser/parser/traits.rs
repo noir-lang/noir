@@ -16,8 +16,8 @@ use super::Parser;
 use super::parse_many::without_separator;
 
 impl Parser<'_> {
-    /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
-    ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
+    /// Trait = 'trait' identifier Generics ( ':' `TraitBounds` )? `WhereClause` `TraitBody`
+    ///       | 'trait' identifier Generics '=' `TraitBounds` `WhereClause` ';'
     pub(crate) fn parse_trait(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -129,7 +129,7 @@ impl Parser<'_> {
         (noir_trait, noir_impl)
     }
 
-    /// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
+    /// `TraitBody` = '{' ( `OuterDocComments` `TraitItem` )* '}'
     fn parse_trait_body(&mut self) -> Vec<Documented<TraitItem>> {
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
@@ -150,10 +150,10 @@ impl Parser<'_> {
         })
     }
 
-    /// TraitItem
-    ///     = TraitType
-    ///     | TraitConstant
-    ///     | TraitFunction
+    /// `TraitItem`
+    ///     = `TraitType`
+    ///     | `TraitConstant`
+    ///     | `TraitFunction`
     fn parse_trait_item(&mut self) -> Option<TraitItem> {
         if let Some(item) = self.parse_trait_type() {
             return Some(item);
@@ -170,7 +170,7 @@ impl Parser<'_> {
         None
     }
 
-    /// TraitType = 'type' identifier ( ':' TraitBounds ) ';'
+    /// `TraitType` = 'type' identifier ( ':' `TraitBounds` ) ';'
     fn parse_trait_type(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
@@ -191,7 +191,7 @@ impl Parser<'_> {
         Some(TraitItem::Type { name, bounds })
     }
 
-    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression )? ';'
+    /// `TraitConstant` = 'let' identifier ':' Type ( '=' Expression )? ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -229,7 +229,7 @@ impl Parser<'_> {
         Some(TraitItem::Constant { name, typ })
     }
 
-    /// TraitFunction = Modifiers Function
+    /// `TraitFunction` = Modifiers Function
     fn parse_trait_function(&mut self) -> Option<TraitItem> {
         let modifiers = self.parse_modifiers(
             false, // allow mut

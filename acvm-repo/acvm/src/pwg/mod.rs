@@ -54,17 +54,17 @@
 //! The first ACIR opcodes are RANGE opcodes which ensure the inputs have the expected range (as specified in the Noir source code).
 //! Solving this black-box simply means to validate that the values (from `initial_witness`) are indeed 32 bits for w0, w1, w2, w3, w4
 //! If `initial_witness` does not have values for w0, w1, w2, w3, w4, or if the values are over 32 bits, the execution will fail.
-//! The next opcode is an AssertZero opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
-//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satisfied.
-//! Solving AssertZero means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
+//! The next opcode is an `AssertZero` opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
+//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the `AssertZero` is satisfied.
+//! Solving `AssertZero` means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
 //! The next opcode is a Brillig Call where input is `w6` and output is `w7`. From the function id of the opcode, the solver will retrieve the
 //! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.
 //! Executing the Brillig VM on this input will give us the output which is the value for `w7`, that we add to `initial_witness`.
-//! The next opcode is again an AssertZero: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
-//! The two next opcodes are AssertZero without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
+//! The next opcode is again an `AssertZero`: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
+//! The two next opcodes are `AssertZero` without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
 //! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that they evaluate to 0.
 //! If not, we would return an error.
-//! Finally, the last AssertZero computes `w9` which is the last witness. All of the witnesses have now been computed; execution is complete.
+//! Finally, the last `AssertZero` computes `w9` which is the last witness. All of the witnesses have now been computed; execution is complete.
 
 use std::collections::HashMap;
 
@@ -296,7 +296,7 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// whether the caller has resolved the results of an ACIR [call][Opcode::Call].
     acir_call_counter: usize,
     /// Represents the outputs of all ACIR calls during an ACVM process
-    /// List is appended onto by the caller upon reaching a [ACVMStatus::RequiresAcirCall]
+    /// List is appended onto by the caller upon reaching a [`ACVMStatus::RequiresAcirCall`]
     acir_call_results: Vec<Vec<F>>,
 
     // Each unconstrained function referenced in the program
@@ -408,7 +408,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         &self.status
     }
 
-    /// Sets the VM status to [ACVMStatus::Failure] using the provided `error`.
+    /// Sets the VM status to [`ACVMStatus::Failure`] using the provided `error`.
     /// Returns the new status.
     fn fail(&mut self, error: OpcodeResolutionError<F>) -> ACVMStatus<F> {
         self.status(ACVMStatus::Failure(error))
@@ -522,7 +522,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     /// Returns the status of the ACVM
-    /// If the status is an error, it converts the error into [OpcodeResolutionError]
+    /// If the status is an error, it converts the error into [`OpcodeResolutionError`]
     fn handle_opcode_resolution(
         &mut self,
         resolution: Result<(), OpcodeResolutionError<F>>,
@@ -761,7 +761,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     /// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
     /// 1. It first handles the predicate and return zero values if the predicate is false.
-    /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
+    /// 2. If the results of the execution are not available, it issues a '`AcirCallWaitInfo`'
     ///    to notify the caller that it (the caller) needs to execute the ACIR function.
     /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
     pub fn solve_call_opcode(
@@ -859,7 +859,7 @@ pub fn check_bit_size<F: AcirField>(
 }
 
 /// Returns the concrete value for a particular expression
-/// If the value cannot be computed, it returns an 'OpcodeNotSolvable' error.
+/// If the value cannot be computed, it returns an '`OpcodeNotSolvable`' error.
 pub fn get_value<F: AcirField>(
     expr: &Expression<F>,
     initial_witness: &WitnessMap<F>,

@@ -10,7 +10,7 @@
 //!
 //! Type checking
 //! - Check that the input values of certain instructions matches that instruction's constraint
-//!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
+//!   At the moment, only [`Instruction::Binary`], [`Instruction::ArrayGet`], and [`Instruction::ArraySet`]
 //!   are type checked.
 use core::panic;
 use std::borrow::Cow;

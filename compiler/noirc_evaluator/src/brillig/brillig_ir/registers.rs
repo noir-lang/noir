@@ -19,14 +19,14 @@
 //!    structures. Starts immediately after the stack region.
 //!
 //! This module contains:
-//! - [LayoutConfig]: Centralized configuration of maximum sizes for stack frames, total stack size,
+//! - [`LayoutConfig`]: Centralized configuration of maximum sizes for stack frames, total stack size,
 //!   and scratch space. All register allocators query this configuration to determine their memory bounds.
 //!   This config is meant to be immutable and provides the following benefits:
 //!   - Clear separation between memory layout policy and actual code generation.
 //!   - Unit tests to vary memory layouts and ensure bytecode remains consistent.
-//! - [RegisterAllocator]: Trait implemented by all memory region allocators. Each allocator is expected
+//! - [`RegisterAllocator`]: Trait implemented by all memory region allocators. Each allocator is expected
 //!   to enforce its own bounds checks and allocation/deallocation logic.
-//! - [Stack], [ScratchSpace], and [GlobalSpace]: Register allocator implementations for each memory region.
+//! - [Stack], [`ScratchSpace`], and [`GlobalSpace`]: Register allocator implementations for each memory region.
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::BTreeSet,
@@ -82,7 +82,7 @@ impl LayoutConfig {
 
     /// The maximum number of stack frames that should be active simultaneously.
     ///
-    /// Note that currently this isn't strictly enforced: as long as the memory fits into [LayoutConfig::max_stack_size]
+    /// Note that currently this isn't strictly enforced: as long as the memory fits into [`LayoutConfig::max_stack_size`]
     /// we allow more frames to be created during recursive calls.
     pub(crate) fn num_stack_frames(&self) -> usize {
         self.num_stack_frames
@@ -144,7 +144,7 @@ pub(crate) trait RegisterAllocator {
     ) -> Self;
     /// Finds the first register which is followed only by free registers.
     ///
-    /// Always returns a [MemoryAddress::Relative] address.
+    /// Always returns a [`MemoryAddress::Relative`] address.
     fn empty_registers_start(&self) -> MemoryAddress;
     /// Return the memory layout used by this allocator.
     fn layout(&self) -> LayoutConfig;
@@ -577,7 +577,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         Allocated::new_addr(addr, self.registers.clone())
     }
 
-    /// Allocate a [SingleAddrVariable].
+    /// Allocate a [`SingleAddrVariable`].
     pub(crate) fn allocate_single_addr(
         &self,
         bit_size: u32,
@@ -585,34 +585,34 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.allocate_register().map(|a| SingleAddrVariable::new(a, bit_size))
     }
 
-    /// Allocate a [SingleAddrVariable] with the size of a Brillig memory address.
+    /// Allocate a [`SingleAddrVariable`] with the size of a Brillig memory address.
     pub(crate) fn allocate_single_addr_usize(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_register().map(SingleAddrVariable::new_usize)
     }
 
-    /// Allocate a [SingleAddrVariable] with a size of 1 bit.
+    /// Allocate a [`SingleAddrVariable`] with a size of 1 bit.
     pub(crate) fn allocate_single_addr_bool(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_single_addr(1)
     }
 
-    /// Allocate a [SingleAddrVariable] with a size of `BRILLIG_MEMORY_ADDRESSING_BIT_SIZE` bit.
+    /// Allocate a [`SingleAddrVariable`] with a size of `BRILLIG_MEMORY_ADDRESSING_BIT_SIZE` bit.
     #[allow(unused)]
     pub(crate) fn allocate_single_addr_mem(&self) -> Allocated<SingleAddrVariable, Registers> {
         self.allocate_single_addr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
-    /// Allocate a pointer for [BrilligVector].
+    /// Allocate a pointer for [`BrilligVector`].
     ///
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
-    /// That is done by [BrilligContext::codegen_initialize_vector].
+    /// That is done by [`BrilligContext::codegen_initialize_vector`].
     pub(crate) fn allocate_brillig_vector(&self) -> Allocated<BrilligVector, Registers> {
         self.allocate_register().map(|a| BrilligVector { pointer: a })
     }
 
-    /// Allocate a pointer for [BrilligArray].
+    /// Allocate a pointer for [`BrilligArray`].
     ///
     /// This does not include allocating memory for the data on the heap or shaping the meta-data.
-    /// That is done by [BrilligContext::codegen_initialize_array].
+    /// That is done by [`BrilligContext::codegen_initialize_array`].
     pub(crate) fn allocate_brillig_array(
         &self,
         size: SemiFlattenedLength,
@@ -620,14 +620,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.allocate_register().map(|a| BrilligArray { pointer: a, size })
     }
 
-    /// Allocate a [HeapVector].
+    /// Allocate a [`HeapVector`].
     pub(crate) fn allocate_heap_vector(&self) -> Allocated<HeapVector, Registers> {
         let pointer = self.allocate_register();
         let size = self.allocate_register();
         pointer.map2(size, |pointer, size| HeapVector { pointer, size })
     }
 
-    /// Allocate a [HeapArray].
+    /// Allocate a [`HeapArray`].
     pub(crate) fn allocate_heap_array(
         &self,
         size: SemiFlattenedLength,
@@ -635,7 +635,7 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.allocate_register().map(|pointer| HeapArray { pointer, size })
     }
 
-    /// Create a number of consecutive [MemoryAddress::Direct] addresses at the start of the [ScratchSpace].
+    /// Create a number of consecutive [`MemoryAddress::Direct`] addresses at the start of the [`ScratchSpace`].
     pub(crate) fn make_scratch_registers<const N: usize>(&self) -> [MemoryAddress; N] {
         let scratch_start = ScratchSpace::start();
         std::array::from_fn(|i| MemoryAddress::direct(assert_u32(scratch_start + i)))

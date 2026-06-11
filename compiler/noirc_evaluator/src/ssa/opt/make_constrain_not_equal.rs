@@ -111,7 +111,7 @@ impl Function {
     }
 }
 
-/// Pre-check condition for [Function::make_constrain_not_equal].
+/// Pre-check condition for [`Function::make_constrain_not_equal`].
 ///
 /// Panics if:
 ///   - Any ACIR function contains > 1 block, i.e. the CFG hasn't been flattened yet.
@@ -164,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    /// https://github.com/noir-lang/noir/issues/10929
+    /// <https://github.com/noir-lang/noir/issues/10929>
     /// When side effects is not one, the transformation
     /// should NOT happen because `Constrain` and `ConstrainNotEqual` have different
     /// semantics with respect to `enable_side_effects`:

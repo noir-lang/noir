@@ -14,7 +14,7 @@ pub enum StatementOrExpressionOrLValue {
 }
 
 impl Parser<'_> {
-    /// Parses either a statement, an expression or an LValue. Returns `StatementKind::Error`
+    /// Parses either a statement, an expression or an `LValue`. Returns `StatementKind::Error`
     /// if none can be parsed, recording an error if so.
     ///
     /// This method is only used in `Quoted::as_expr`.

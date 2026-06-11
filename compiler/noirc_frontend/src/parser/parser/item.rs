@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Item = ( Attribute | OuterDocComments )* ItemKind
+    /// Item = ( Attribute | `OuterDocComments` )* `ItemKind`
     fn parse_item(&mut self) -> Vec<Item> {
         let start_location = self.current_token_location;
 
@@ -115,21 +115,21 @@ impl<'a> Parser<'a> {
         vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
     }
 
-    /// This method returns one 'ItemKind' in the majority of cases.
+    /// This method returns one '`ItemKind`' in the majority of cases.
     /// The current exception is when parsing a trait alias,
     /// which returns both the trait and the impl.
     ///
-    /// ItemKind
-    ///     = InnerAttribute
+    /// `ItemKind`
+    ///     = `InnerAttribute`
     ///     | Attributes Modifiers
     ///         ( Use
-    ///         | ModOrContract
+    ///         | `ModOrContract`
     ///         | Struct
     ///         | Enum
     ///         | Impl
     ///         | Trait
     ///         | Global
-    ///         | TypeAlias
+    ///         | `TypeAlias`
     ///         | Function
     ///         )
     fn parse_item_kind(&mut self, attributes: Vec<(Attribute, Location)>) -> Vec<ItemKind> {

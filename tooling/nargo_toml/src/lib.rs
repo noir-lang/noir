@@ -33,7 +33,7 @@ use git::{clone_git_repo, lock_git_deps};
 /// * `/workspace/package`,
 /// * `/workspace`.
 ///
-/// Returns the [PathBuf] of the `Nargo.toml` file if found, otherwise returns None.
+/// Returns the [`PathBuf`] of the `Nargo.toml` file if found, otherwise returns None.
 ///
 /// It will return innermost `Nargo.toml` file, which is the one closest to the current directory.
 /// For example, if the current directory is `/workspace/package/src`, then this function
@@ -47,18 +47,18 @@ pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
+/// Returns the [`PathBuf`] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 /// When `workspace` is `true` it returns the topmost directory, when `false` the innermost one.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if no parent directories of `current_path` contain a manifest file.
 pub fn find_root(current_path: &Path, workspace: bool) -> Result<PathBuf, ManifestError> {
     if workspace { find_package_root(current_path) } else { find_file_root(current_path) }
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// Returns the [`PathBuf`] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
 /// returning at the innermost directory found, i.e. the one corresponding to the package that contains the `current_path`.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if no parent directories of `current_path` contain a manifest file.
 pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     match find_file_manifest(current_path) {
         Some(manifest_path) => {
@@ -71,10 +71,10 @@ pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     }
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// Returns the [`PathBuf`] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
 /// returning the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
-/// Returns a [ManifestError] if none of the ancestor directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if none of the ancestor directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let root = path_root(current_path);
     let manifest_path = find_package_manifest(&root, current_path)?;
@@ -104,9 +104,9 @@ fn path_root(path: &Path) -> PathBuf {
     }
 }
 
-/// Returns the [PathBuf] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
+/// Returns the [`PathBuf`] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_manifest(
     root_path: &Path,
     current_path: &Path,
@@ -133,9 +133,9 @@ pub fn find_package_manifest(
     }
 }
 
-/// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
+/// Returns the [`PathBuf`] of the `Nargo.toml` file in the `current_path` directory.
 ///
-/// Returns a [ManifestError] if `current_path` does not contain a manifest file.
+/// Returns a [`ManifestError`] if `current_path` does not contain a manifest file.
 pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let toml_path = current_path.join("Nargo.toml");
     if toml_path.exists() {
@@ -276,7 +276,7 @@ impl TryFrom<&str> for Config {
     }
 }
 
-/// Tracks the root_dir of a `Nargo.toml` and the contents inside the file.
+/// Tracks the `root_dir` of a `Nargo.toml` and the contents inside the file.
 pub struct NargoToml {
     pub root_dir: PathBuf,
     pub config: Config,

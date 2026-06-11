@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, VecDeque};
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 #[derive(Debug, Clone)]
 pub(crate) struct BlockContext {
-    /// Ids of the Program variables stored as TypedValue separated by type
+    /// Ids of the Program variables stored as `TypedValue` separated by type
     pub(crate) stored_variables: BTreeMap<Type, Vec<TypedValue>>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
@@ -738,7 +738,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * TypedValue
+    /// * `TypedValue`
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_get(
         &self,
@@ -786,7 +786,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * TypedValue referencing the new array
+    /// * `TypedValue` referencing the new array
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_set(
         &self,
@@ -842,7 +842,7 @@ impl BlockContext {
     /// * `index` - Index of the value to find
     ///
     /// # Returns
-    /// * TypedValue with the given type and index, if index is provided, otherwise the last value
+    /// * `TypedValue` with the given type and index, if index is provided, otherwise the last value
     /// * If no value is found, we create it from predefined boolean
     ///
     /// # Examples

@@ -29,8 +29,8 @@ pub struct Expression<F> {
     ///
     /// To avoid having to create intermediate variables pre-optimization
     /// We collect all of the multiplication terms in the assert-zero opcode
-    /// A multiplication term is of the form q_M * wL * wR
-    /// Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
+    /// A multiplication term is of the form `q_M` * wL * wR
+    /// Hence this vector represents the following sum: `q_M1` * wL1 * wR1 + `q_M2` * wL2 * wR2 + .. +
     #[tag(0)]
     pub mul_terms: Vec<(F, Witness, Witness)>,
 

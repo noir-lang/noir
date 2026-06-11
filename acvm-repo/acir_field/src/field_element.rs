@@ -317,11 +317,11 @@ impl<F: PrimeField> FieldElement<F> {
 
     /// Returns true if this field element can be represented as an i128.
     ///
-    /// An i128 can represent values in the range [i128::MIN, i128::MAX], which corresponds
+    /// An i128 can represent values in the range [`i128::MIN`, `i128::MAX`], which corresponds
     /// to field elements in [0, 2^127 - 1] (positive) and [p - 2^127, p - 1] (negative),
     /// where p is the field modulus. The positive value 2^127 does not fit (it exceeds
-    /// i128::MAX), but the field element representing -2^127 (i.e. p - 2^127) does fit
-    /// (it is i128::MIN).
+    /// `i128::MAX`), but the field element representing -2^127 (i.e. p - 2^127) does fit
+    /// (it is `i128::MIN`).
     pub fn fits_in_i128(&self) -> bool {
         let neg = self.neg();
         self.num_bits() <= 127
@@ -346,7 +346,7 @@ impl<F: PrimeField> FieldElement<F> {
     /// it as a string. The range of valid values for this field element is `0..2^bit_size`
     /// with `0..2^(bit_size - 1)` representing positive values and `2^(bit_size - 1)..2^bit_size`
     /// representing negative values (as is commonly done for signed integers).
-    /// `2^(bit_size - 1)` is the lowest negative value, so for example if bit_size is 8 then
+    /// `2^(bit_size - 1)` is the lowest negative value, so for example if `bit_size` is 8 then
     /// `0..127` map to `0..127`, `128` maps to `-128`, `129` maps to `-127` and `255` maps to `-1`.
     /// If `self` falls outside of the valid range it's formatted as-is.
     pub fn to_string_as_signed_integer(self, bit_size: u32) -> String {
@@ -471,7 +471,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     /// Computes the inverse or returns zero if the inverse does not exist
-    /// Before using this FieldElement, please ensure that this behavior is necessary
+    /// Before using this `FieldElement`, please ensure that this behavior is necessary
     fn inverse(&self) -> FieldElement<F> {
         let inv = self.0.inverse().unwrap_or_else(F::zero);
         FieldElement(inv)
@@ -547,13 +547,13 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         bytes
     }
 
-    /// Converts bytes into a FieldElement and applies a
+    /// Converts bytes into a `FieldElement` and applies a
     /// reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
         FieldElement(F::from_be_bytes_mod_order(bytes))
     }
 
-    /// Converts bytes in little-endian order into a FieldElement and applies a
+    /// Converts bytes in little-endian order into a `FieldElement` and applies a
     /// reduction if needed.
     fn from_le_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
         FieldElement(F::from_le_bytes_mod_order(bytes))

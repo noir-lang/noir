@@ -69,7 +69,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code inserted on variable assignment. We need to
-    /// register the variable instance, its type and replace the source_var_id
+    /// register the variable instance, its type and replace the `source_var_id`
     /// with the ID of the registration. Multiple registrations of the same
     /// variable are possible if using generic functions, hence the temporary ID
     /// created when injecting the instrumentation code can map to multiple IDs
@@ -97,7 +97,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code for a variable being dropped out of scope.
-    /// Given the source_var_id we search for the last assigned debug var_id and
+    /// Given the `source_var_id` we search for the last assigned debug `var_id` and
     /// replace it instead.
     fn patch_debug_var_drop(
         &mut self,
@@ -121,7 +121,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code inserted when assigning to a member of an
-    /// existing variable. Same as above for replacing the source_var_id, but also
+    /// existing variable. Same as above for replacing the `source_var_id`, but also
     /// we need to resolve the path and the type of the member being assigned.
     /// For this last part, we need to resolve the mapping from field names in
     /// structs to positions in the runtime tuple, since all structs are

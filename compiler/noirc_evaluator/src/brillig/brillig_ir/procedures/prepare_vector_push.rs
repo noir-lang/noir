@@ -10,7 +10,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorPush].
+    /// Copy arguments to the [`ScratchSpace`] and call [`ProcedureId::PrepareVectorPush`].
     ///
     /// Prepares a vector for a push operation, allocating a larger vector and copying the source vector into the destination vector if necessary.
     /// It returns the destination vector and the write pointer to where to put the new items.
@@ -46,7 +46,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::PrepareVectorPush].
+/// Compile [`ProcedureId::PrepareVectorPush`].
 pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     push_back: bool,

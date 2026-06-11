@@ -11,7 +11,7 @@ use super::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-/// The FunctionInserter can be used to help modify existing Functions
+/// The `FunctionInserter` can be used to help modify existing Functions
 /// and map old values to new values after re-inserting optimized versions
 /// of old instructions.
 pub(crate) struct FunctionInserter<'f> {
@@ -26,19 +26,19 @@ impl<'f> FunctionInserter<'f> {
         Self { function, values: HashMap::default() }
     }
 
-    /// Resolves a ValueId to its new, updated value.
+    /// Resolves a `ValueId` to its new, updated value.
     /// If there is no updated value for this id, this returns the same
-    /// ValueId that was passed in.
+    /// `ValueId` that was passed in.
     pub(crate) fn resolve(&self, value: ValueId) -> ValueId {
         Self::resolve_detached(value, &self.values)
     }
 
-    /// Resolves a ValueId to its new, updated value.
+    /// Resolves a `ValueId` to its new, updated value.
     /// If there is no updated value for this id, this returns the same
-    /// ValueId that was passed in.
+    /// `ValueId` that was passed in.
     ///
-    /// Unlike [Self::resolve], this function does not borrow self, allowing it to be used when
-    /// [Self::function] is also mutably borrowed.
+    /// Unlike [`Self::resolve`], this function does not borrow self, allowing it to be used when
+    /// [`Self::function`] is also mutably borrowed.
     fn resolve_detached(mut value: ValueId, values: &HashMap<ValueId, ValueId>) -> ValueId {
         loop {
             match values.get(&value) {
@@ -94,15 +94,15 @@ impl<'f> FunctionInserter<'f> {
         instruction.map_values_mut(|id| Self::resolve_detached(id, &self.values));
     }
 
-    /// Maps a terminator in place, replacing any ValueId in the terminator with the
-    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+    /// Maps a terminator in place, replacing any `ValueId` in the terminator with the
+    /// resolved version of that value id from this `FunctionInserter`'s internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
         let terminator = self.function.dfg[block].unwrap_terminator_mut();
         terminator.map_values_mut(|value| Self::resolve_detached(value, &self.values));
     }
 
-    /// Maps the data bus in place, replacing any ValueId in the data bus with the
-    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+    /// Maps the data bus in place, replacing any `ValueId` in the data bus with the
+    /// resolved version of that value id from this `FunctionInserter`'s internal value mapping.
     pub(crate) fn map_data_bus_in_place(&mut self) {
         let data_bus = &mut self.function.dfg.data_bus;
         data_bus.map_values_mut(|value| Self::resolve_detached(value, &self.values));
@@ -154,8 +154,8 @@ impl<'f> FunctionInserter<'f> {
         new_results
     }
 
-    /// Modify the values HashMap to remember the mapping between an instruction result's previous
-    /// ValueId (from the source_function) and its new ValueId in the destination function.
+    /// Modify the values `HashMap` to remember the mapping between an instruction result's previous
+    /// `ValueId` (from the `source_function`) and its new `ValueId` in the destination function.
     fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],

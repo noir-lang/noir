@@ -45,7 +45,7 @@ pub enum Type {
     FieldElement,
 
     /// `Array(E, N)` is an array of N elements of type E. It is expected that N
-    /// is either a type variable of some kind or a Type::Constant.
+    /// is either a type variable of some kind or a `Type::Constant`.
     Array(Box<Type>, Box<Type>),
 
     /// Vector(E) is a vector of elements of type E.
@@ -59,12 +59,12 @@ pub enum Type {
     Bool,
 
     /// String(N) is an array of characters of length N. It is expected that N
-    /// is either a type variable of some kind or a Type::Constant.
+    /// is either a type variable of some kind or a `Type::Constant`.
     String(Box<Type>),
 
     /// `FmtString(N, Vec<E>)` is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
-    /// and where N is either a type variable of some kind or a Type::Constant
+    /// and where N is either a type variable of some kind or a `Type::Constant`
     FmtString(Box<Type>, Box<Type>),
 
     /// The unit type `()`.
@@ -83,24 +83,24 @@ pub enum Type {
     /// been applied to the alias.
     Alias(Shared<TypeAlias>, Vec<Type>),
 
-    /// TypeVariables are stand-in variables for some type which is not yet known.
-    /// They are not to be confused with NamedGenerics. While the latter mostly works
-    /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
+    /// `TypeVariables` are stand-in variables for some type which is not yet known.
+    /// They are not to be confused with `NamedGenerics`. While the latter mostly works
+    /// as with normal types (ie. for two `NamedGenerics` T and U, T != U), `TypeVariables`
     /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
-    /// TypeVariables are often created when a generic function is instantiated. This
-    /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
+    /// `TypeVariables` are often created when a generic function is instantiated. This
+    /// is a process that replaces each `NamedGeneric` in a generic function with a `TypeVariable`.
     /// Doing this at each call site of a generic function is how they can be called with
     /// different argument types each time.
     TypeVariable(TypeVariable),
 
     /// `impl Trait` when used in a type position.
-    /// These are only matched based on the TraitId. The trait name parameter is only
+    /// These are only matched based on the `TraitId`. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
     TraitAsType(TraitId, Rc<String>, TraitGenerics),
 
-    /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
-    /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
+    /// `NamedGenerics` are the 'T' or 'U' in a user-defined generic function
+    /// like `fn foo<T, U>(...) {}`. Unlike `TypeVariables`, they cannot be bound over.
     NamedGeneric(NamedGeneric),
 
     /// A cast (to, from) that's checked at monomorphization.
@@ -123,10 +123,10 @@ pub enum Type {
     Reference(Box<Type>, /*mutable*/ bool),
 
     /// A type that's generic over the given type variables.
-    /// Storing both the TypeVariableId and TypeVariable isn't necessary
-    /// but it makes handling them both easier. The TypeVariableId should
+    /// Storing both the `TypeVariableId` and `TypeVariable` isn't necessary
+    /// but it makes handling them both easier. The `TypeVariableId` should
     /// never be bound over during type checking, but during monomorphization it
-    /// will be and thus needs the full TypeVariable link.
+    /// will be and thus needs the full `TypeVariable` link.
     Forall(GenericTypeVars, Box<Type>),
 
     /// A type-level integer. Included to let
@@ -174,7 +174,7 @@ pub struct NamedGeneric {
 }
 
 impl NamedGeneric {
-    /// Create a [NamedGeneric].
+    /// Create a [`NamedGeneric`].
     ///
     /// If an object and trait name pair is given in `as_trait`, this is assumed
     /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
@@ -209,21 +209,21 @@ pub enum Kind {
     // TODO(https://github.com/noir-lang/noir/issues/6194): evaluate need for and usage of
     Any,
 
-    /// Can bind to any type, except Type::Constant and Type::InfixExpr
+    /// Can bind to any type, except `Type::Constant` and `Type::InfixExpr`
     Normal,
 
-    /// A generic integer or field type. This is a more specific kind of TypeVariable
-    /// that can only be bound to Type::Field, Type::Integer, or other polymorphic integers.
+    /// A generic integer or field type. This is a more specific kind of `TypeVariable`
+    /// that can only be bound to `Type::Field`, `Type::Integer`, or other polymorphic integers.
     /// This is the type of undecorated integer literals like `46`. Typing them in this way
     /// allows them to be polymorphic over the actual integer/field type used without requiring
     /// type annotations on each integer literal.
     IntegerOrField,
 
-    /// A generic integer type. This is a more specific kind of TypeVariable
-    /// that can only be bound to Type::Integer, or other polymorphic integers.
+    /// A generic integer type. This is a more specific kind of `TypeVariable`
+    /// that can only be bound to `Type::Integer`, or other polymorphic integers.
     Integer,
 
-    /// Can bind to a Type::Constant or Type::InfixExpr of the given kind
+    /// Can bind to a `Type::Constant` or `Type::InfixExpr` of the given kind
     Numeric(Box<Type>),
 }
 
@@ -287,7 +287,7 @@ impl Kind {
         }
     }
 
-    /// Ensure the given integer value fits in self.integral_maximum_size()
+    /// Ensure the given integer value fits in `self.integral_maximum_size()`
     pub(crate) fn ensure_value_fits(
         &self,
         value: Integer,
@@ -383,8 +383,8 @@ pub enum QuotedType {
     Location,
 }
 
-/// A list of (TypeVariableId, Kind)'s to bind to a type. Storing the
-/// TypeVariable in addition to the matching TypeVariableId allows
+/// A list of (`TypeVariableId`, Kind)'s to bind to a type. Storing the
+/// `TypeVariable` in addition to the matching `TypeVariableId` allows
 /// the binding to later be undone if needed.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
@@ -418,7 +418,7 @@ pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
 }
 
 /// Represents a struct or enum type in the type system. Each instance of this
-/// rust struct will be shared across all Type::DataType variants that represent
+/// rust struct will be shared across all `Type::DataType` variants that represent
 /// the same struct or enum type.
 pub struct DataType {
     /// A unique id representing this type. Used to check if two types are equal.
@@ -429,7 +429,7 @@ pub struct DataType {
     pub comptime: bool,
 
     /// A type's body is private to force struct fields or enum variants to only be
-    /// accessed through get_field(), get_fields(), instantiate(), or similar functions
+    /// accessed through `get_field()`, `get_fields()`, `instantiate()`, or similar functions
     /// since these will handle applying generic arguments to fields as well.
     body: TypeBody,
 
@@ -500,7 +500,7 @@ pub struct ResolvedGeneric {
 }
 
 impl ResolvedGeneric {
-    /// Create a [Type::NamedGeneric] from this [ResolvedGeneric].
+    /// Create a [`Type::NamedGeneric`] from this [`ResolvedGeneric`].
     pub fn into_named_generic(self, as_trait: Option<(&str, &str)>) -> Type {
         Type::NamedGeneric(NamedGeneric::new(self.type_var, false, &self.name, as_trait, None))
     }
@@ -766,8 +766,8 @@ impl DataType {
     /// Panics if this is not an enum.
     ///
     /// The function type uses the variant "as written" ie. no generic substitutions.
-    /// Although the returned function is technically generic, Type::Function is returned
-    /// instead of Type::Forall.
+    /// Although the returned function is technically generic, `Type::Function` is returned
+    /// instead of `Type::Forall`.
     pub fn variant_function_type(&self, variant_index: usize, this: Shared<DataType>) -> Type {
         let variant = self.variant_at(variant_index);
         let args = variant.params.clone();
@@ -911,7 +911,7 @@ pub struct TraitAssociatedType {
 }
 
 /// A shared, mutable reference to some T.
-/// Wrapper is required for Hash impl of RefCell.
+/// Wrapper is required for Hash impl of `RefCell`.
 #[derive(Debug, Eq, PartialOrd, Ord)]
 pub struct Shared<T>(Rc<RefCell<T>>);
 
@@ -989,8 +989,8 @@ impl BinaryTypeOperator {
     }
 }
 
-/// A TypeVariable is a mutable reference that is either
-/// bound to some type, or unbound with a given TypeVariableId.
+/// A `TypeVariable` is a mutable reference that is either
+/// bound to some type, or unbound with a given `TypeVariableId`.
 #[derive(PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 
@@ -1005,8 +1005,8 @@ impl TypeVariable {
 
     /// Bind this type variable to a value.
     ///
-    /// Panics if this TypeVariable is already Bound.
-    /// Also Panics if the ID of this TypeVariable occurs within the given
+    /// Panics if this `TypeVariable` is already Bound.
+    /// Also Panics if the ID of this `TypeVariable` occurs within the given
     /// binding, as that would cause an infinitely recursive type.
     pub fn bind(&self, typ: Type) {
         let id = match &*self.1.borrow() {
@@ -1049,7 +1049,7 @@ impl TypeVariable {
         }
     }
 
-    /// Borrows this TypeVariable to (e.g.) manually match on the inner TypeBinding.
+    /// Borrows this `TypeVariable` to (e.g.) manually match on the inner `TypeBinding`.
     pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
         self.1.borrow()
     }
@@ -1080,7 +1080,7 @@ impl TypeVariable {
     }
 
     /// Check that if bound, it's an integer
-    /// and if unbound, that it's a Kind::Integer
+    /// and if unbound, that it's a `Kind::Integer`
     pub fn is_integer(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => {
@@ -1093,7 +1093,7 @@ impl TypeVariable {
     }
 
     /// Check that if bound, it's an integer or field
-    /// and if unbound, that it's a Kind::IntegerOrField
+    /// and if unbound, that it's a `Kind::IntegerOrField`
     pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => {
@@ -1125,7 +1125,7 @@ impl TypeVariable {
         }
     }
 
-    /// Create a [Type::NamedGeneric].
+    /// Create a [`Type::NamedGeneric`].
     ///
     /// If an object and trait name pair is given in `as_trait`, this is assumed
     /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
@@ -1138,7 +1138,7 @@ impl TypeVariable {
         Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait, None))
     }
 
-    /// Create a implicit [Type::NamedGeneric].
+    /// Create a implicit [`Type::NamedGeneric`].
     ///
     /// If an object and trait name pair is given in `as_trait`, this is assumed
     /// to be an associated type, and its name will be formatted as `"<{object} as {trait}>::{name}"`
@@ -1167,7 +1167,7 @@ impl TypeVariable {
     }
 }
 
-/// TypeBindings are the mutable insides of a TypeVariable.
+/// `TypeBindings` are the mutable insides of a `TypeVariable`.
 /// They are either bound to some type, or are unbound.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TypeBinding {
@@ -1396,7 +1396,7 @@ impl Type {
 
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
-    /// NamedGenerics will always be false as although they are bindable,
+    /// `NamedGenerics` will always be false as although they are bindable,
     /// they shouldn't be bound over until monomorphization.
     pub fn is_bindable(&self) -> bool {
         match self {
@@ -1437,7 +1437,7 @@ impl Type {
         }
     }
 
-    /// While Kind::is_numeric refers to numeric _types_,
+    /// While `Kind::is_numeric` refers to numeric _types_,
     /// this method checks for numeric _values_
     pub fn is_numeric_value(&self) -> bool {
         use Kind as K;
@@ -1555,15 +1555,15 @@ impl Type {
     }
 
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
-    /// given type bindings, ignoring what each type variable is bound to in the TypeBindings
+    /// given type bindings, ignoring what each type variable is bound to in the `TypeBindings`
     /// and their Kind's
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
         let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, _kind, _))| type_var);
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
-    /// Return this type as a monomorphic type - without a [Type::Forall] if there is one.
-    /// This is only a shallow check since Noir's type system prohibits [Type::Forall] anywhere
+    /// Return this type as a monomorphic type - without a [`Type::Forall`] if there is one.
+    /// This is only a shallow check since Noir's type system prohibits [`Type::Forall`] anywhere
     /// inside other types.
     pub fn as_monotype(&self) -> &Type {
         match self {
@@ -1572,9 +1572,9 @@ impl Type {
         }
     }
 
-    /// Return the generics and type within this [Type::Forall].
+    /// Return the generics and type within this [`Type::Forall`].
     ///
-    /// Returns an empty list of type variables and the type itself if it's not a [Type::Forall].
+    /// Returns an empty list of type variables and the type itself if it's not a [`Type::Forall`].
     pub fn unwrap_forall(&self) -> (Cow<GenericTypeVars>, &Type) {
         match self {
             Type::Forall(generics, typ) => (Cow::Borrowed(generics), typ.as_ref()),
@@ -1613,12 +1613,12 @@ impl Type {
         }
     }
 
-    /// Determines if a type contains a self referring alias by tracking visited TypeAliasId.
+    /// Determines if a type contains a self referring alias by tracking visited `TypeAliasId`.
     pub fn has_cyclic_alias(&self) -> bool {
         self.has_cyclic_alias_helper(TypeRecursionContext::default())
     }
 
-    /// `aliases` is a mutable set of TypeAliasId to track visited aliases
+    /// `aliases` is a mutable set of `TypeAliasId` to track visited aliases
     fn has_cyclic_alias_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
         match self {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
@@ -2311,9 +2311,9 @@ impl Type {
         self.contains_type_variable_helper(true)
     }
 
-    /// True if the type contains an unbound [Type::TypeVariable] (an inference variable that
-    /// unification may still bind). Unlike [Self::contains_type_variable], an unbound
-    /// [Type::NamedGeneric] does not count: named generics are rigid until monomorphization,
+    /// True if the type contains an unbound [`Type::TypeVariable`] (an inference variable that
+    /// unification may still bind). Unlike [`Self::contains_type_variable`], an unbound
+    /// [`Type::NamedGeneric`] does not count: named generics are rigid until monomorphization,
     /// so a type built only from them cannot be changed by unification. A type for which this
     /// returns false is "rigid" in that sense.
     pub(crate) fn contains_unbound_type_variable(&self) -> bool {
@@ -2359,9 +2359,9 @@ impl Type {
         }
     }
 
-    /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
-    /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
-    /// given TypeBindings map rather than linked immediately.
+    /// Try to bind a `PolymorphicInt` variable to self, succeeding if self is an integer, field,
+    /// other `PolymorphicInt` type, or type variable. If successful, the binding is placed in the
+    /// given `TypeBindings` map rather than linked immediately.
     fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
@@ -2435,11 +2435,11 @@ impl Type {
     }
 
     /// Try to bind the given type variable to self. Although the given type variable
-    /// is expected to be of Kind::Normal, this binding can still fail
+    /// is expected to be of `Kind::Normal`, this binding can still fail
     /// if the given type variable occurs within `self` as that would create a recursive type.
     ///
     /// If successful, the binding is placed in the
-    /// given TypeBindings map rather than linked immediately.
+    /// given `TypeBindings` map rather than linked immediately.
     fn try_bind_to(
         &self,
         var: &TypeVariable,
@@ -2494,8 +2494,8 @@ impl Type {
         }
     }
 
-    /// If this type is a Type::Constant (used in array lengths), or is bound
-    /// to a Type::Constant, return the constant as a u32.
+    /// If this type is a `Type::Constant` (used in array lengths), or is bound
+    /// to a `Type::Constant`, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
         self.evaluate_to_integer(&Kind::u32(), location).map(|int| match int {
             Integer::U32(value) => value,
@@ -2580,7 +2580,7 @@ impl Type {
         }
     }
 
-    /// Retrieves the [Type] and [ItemVisibility] of the given field name:
+    /// Retrieves the [Type] and [`ItemVisibility`] of the given field name:
     /// * for structs, it finds a member with a matching name
     /// * for tuples, it find the item by index, treating indexes as names "0", "1", ...
     /// * otherwise returns `None`
@@ -2626,7 +2626,7 @@ impl Type {
     }
 
     /// Instantiate this type, replacing any type variables it is quantified
-    /// over with fresh type variables. If this type is not a Type::Forall,
+    /// over with fresh type variables. If this type is not a `Type::Forall`,
     /// it is unchanged.
     pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
@@ -2720,17 +2720,17 @@ impl Type {
 
     /// Substitute any type variables found within this type with the
     /// given bindings if found. If a type variable is not found within
-    /// the given TypeBindings, it is unchanged.
+    /// the given `TypeBindings`, it is unchanged.
     pub fn substitute(&self, type_bindings: &TypeBindings) -> Type {
         self.substitute_helper(type_bindings, false)
     }
 
     /// Forcibly substitute any type variables found within this type with the
     /// given bindings if found. If a type variable is not found within
-    /// the given TypeBindings, it is unchanged.
+    /// the given `TypeBindings`, it is unchanged.
     ///
     /// Compared to `substitute`, this function will also substitute any type variables
-    /// from type_bindings, even if they are bound in `self`. Since this can undo previous
+    /// from `type_bindings`, even if they are bound in `self`. Since this can undo previous
     /// bindings, this function should be avoided unless necessary. Currently, it is only
     /// needed when handling bindings between trait methods and their corresponding impl
     /// method during monomorphization.
@@ -2889,7 +2889,7 @@ impl Type {
         }
     }
 
-    /// True if the given TypeVariableId is free anywhere within self
+    /// True if the given `TypeVariableId` is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(elem, len) => len.occurs(target_id) || elem.occurs(target_id),
@@ -2938,12 +2938,12 @@ impl Type {
         }
     }
 
-    /// Follow any TypeVariable bindings within this type. Doing so ensures
+    /// Follow any `TypeVariable` bindings within this type. Doing so ensures
     /// that if the bindings are rebound or unbound from under the type then the
     /// returned type will not change (because it will no longer contain the
     /// links that may be unbound).
     ///
-    /// Expected to be called on an instantiated type (with no Type::Foralls)
+    /// Expected to be called on an instantiated type (with no `Type::Foralls`)
     pub fn follow_bindings(&self) -> Type {
         fn helper(this: &Type, mut i: u32) -> Type {
             if i >= TYPE_RECURSION_LIMIT {
@@ -3049,10 +3049,10 @@ impl Type {
         vecmap(generics, |var| Type::TypeVariable(var.clone()))
     }
 
-    /// Replace any [Type::NamedGeneric] in this type with a [Type::TypeVariable]
+    /// Replace any [`Type::NamedGeneric`] in this type with a [`Type::TypeVariable`]
     /// if it's unbound, and the type it's bound to if it's bound.
     ///
-    /// Also replaces bound [Type::TypeVariable]s and [Type::Alias]es with
+    /// Also replaces bound [`Type::TypeVariable`]s and [`Type::Alias`]es with
     /// their target types.
     ///
     /// This is used during monomorphization to bind to named generics since
@@ -3282,7 +3282,7 @@ impl Type {
 
     /// Returns the minimum value of this type.
     ///
-    /// This function returns a `i128` instead of a FieldElement to avoid confusion with negative
+    /// This function returns a `i128` instead of a `FieldElement` to avoid confusion with negative
     /// field values being equal to large field values.
     pub(crate) fn integral_minimum_size(&self) -> Option<i128> {
         match self.follow_bindings_shallow().as_ref() {

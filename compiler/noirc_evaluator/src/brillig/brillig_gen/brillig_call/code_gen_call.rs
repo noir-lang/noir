@@ -170,7 +170,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
+    /// Convert output [`BrilligVariable`]s to [`ValueOrArray`] destinations on the heap.
     fn output_variables_to_destinations(
         &mut self,
         output_variables: &[BrilligVariable],
@@ -204,7 +204,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts a black box function call into Brillig bytecode.
     ///
     /// Black box functions are native cryptographic operations or other optimized primitives.
-    /// Some black box functions (ECDSA, MultiScalarMul, EmbeddedCurveAdd) have a predicate
+    /// Some black box functions (ECDSA, `MultiScalarMul`, `EmbeddedCurveAdd`) have a predicate
     /// argument in SSA that is removed for Brillig as CFG flattening is not needed.
     fn convert_ssa_black_box_call(
         &mut self,

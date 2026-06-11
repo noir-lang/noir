@@ -115,11 +115,11 @@ struct NodeFinder<'a> {
     /// Type parameters in the current scope. These are collected when entering
     /// a struct, a function, etc., and cleared afterwards.
     type_parameters: HashSet<String>,
-    /// ModuleDefIds we already suggested, so we don't offer these for auto-import.
+    /// `ModuleDefIds` we already suggested, so we don't offer these for auto-import.
     suggested_module_def_ids: HashSet<ModuleDefId>,
     /// How many nested `mod` we are in deep
     nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     auto_import_line: usize,
     use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
@@ -2026,13 +2026,13 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 /// For example:
 ///
 /// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
-/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
+/// `name_matches("compute_merkle_root`", "`merk_ro`") == true // cSpell:disable-line
 ///
 /// // "ro" matches "root", but "merkle" comes before it, so no match
-/// name_matches("compute_merkle_root", "ro_mer") == false
+/// `name_matches("compute_merkle_root`", "`ro_mer`") == false
 ///
 /// // neither "compute" nor "merkle" nor "root" start with "oot"
-/// name_matches("compute_merkle_root", "oot") == false
+/// `name_matches("compute_merkle_root`", "oot") == false
 fn name_matches(name: &str, prefix: &str) -> bool {
     let name = name.to_case(Case::Snake);
     let name_parts: Vec<&str> = name.split('_').collect();

@@ -191,7 +191,7 @@ fn collect_specialization_candidates(
     key_to_callsites
 }
 
-/// Try to build a [SpecializationKey] for a call instruction.
+/// Try to build a [`SpecializationKey`] for a call instruction.
 /// Returns `None` if no argument is a numeric constant.
 fn try_build_specialization_key(
     caller_fn: &Function,
@@ -351,7 +351,7 @@ fn rewrite_call_sites(
 }
 
 /// Scan the given functions for call sites that match a surviving specialization key
-/// and append them to `key_to_callsites`. This lets [rewrite_call_sites] handle both
+/// and append them to `key_to_callsites`. This lets [`rewrite_call_sites`] handle both
 /// original callers and clones in one pass.
 fn collect_matching_callsites(
     functions: &BTreeMap<FunctionId, Function>,

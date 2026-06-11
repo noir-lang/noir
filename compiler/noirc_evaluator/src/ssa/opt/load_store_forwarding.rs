@@ -1277,11 +1277,11 @@ mod tests {
         ");
     }
 
-    /// load_store_forwarding incorrectly forwards a store across two call
+    /// `load_store_forwarding` incorrectly forwards a store across two call
     /// sites of a non-recursive callee. Each call to `f1` allocates a
     /// fresh `inner` cell; the store at `v1` writes to the first call's
     /// `inner`, and the load at `v4` reads through the second call's
-    /// `inner`. Because pass 2 of alias_analysis assigns
+    /// `inner`. Because pass 2 of `alias_analysis` assigns
     /// `Known(f1::inner)` to both `v1` and `v3` — and `is_trusted` does
     /// not account for multi-call-site amplification of a non-recursive
     /// callee — the forwarding pass keys both under the same trusted

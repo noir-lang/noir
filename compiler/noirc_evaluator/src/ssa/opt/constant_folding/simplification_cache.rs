@@ -41,7 +41,7 @@ impl SimplificationCache {
     }
 }
 
-/// HashMap from `(side_effects_enabled_var, Instruction)` to a simplified expression that it can
+/// `HashMap` from `(side_effects_enabled_var, Instruction)` to a simplified expression that it can
 /// be replaced with based on constraints that testify to their equivalence, stored together
 /// with the set of blocks at which this constraint has been observed.
 ///

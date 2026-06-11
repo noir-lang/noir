@@ -8,7 +8,7 @@ use crate::{
     node_interner::{NodeInterner, Reexport, ReferenceId},
 };
 
-/// Returns the ModuleId a ModuleDefId is in.
+/// Returns the `ModuleId` a `ModuleDefId` is in.
 pub fn get_parent_module(
     module_def_id: ModuleDefId,
     interner: &NodeInterner,
@@ -230,9 +230,9 @@ pub fn module_def_id_relative_path(
     Some(path)
 }
 
-/// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
+/// Returns true if the given `ModuleDefId` is visible from the current module, given its visibility.
 ///
-/// This will in turn check if the ModuleDefId parent modules are visible from the current module.
+/// This will in turn check if the `ModuleDefId` parent modules are visible from the current module.
 /// If `defining_module` is Some, it will be considered as the parent of the item to check
 /// (this is the case when the item is re-exported with `pub use` or similar).
 pub fn module_def_id_is_visible(
@@ -283,7 +283,7 @@ pub fn module_def_id_is_visible(
     true
 }
 
-/// Finds a visible reexport for any ancestor module of the given ModuleDefId,
+/// Finds a visible reexport for any ancestor module of the given `ModuleDefId`,
 pub fn get_ancestor_module_reexport(
     module_def_id: ModuleDefId,
     visibility: ItemVisibility,

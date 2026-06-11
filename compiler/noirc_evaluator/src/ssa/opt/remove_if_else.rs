@@ -34,7 +34,7 @@
 //! ```
 //!
 //! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
-//! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
+//! at the basic block level into simple ternary operations returning a value, using these `IfElse` instructions,
 //! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
 //! `Instruction::IfElse` only for arrays and vectors. The remove-if-else pass is used for array and vectors
 //! in order to track their lengths, depending on existing vector intrinsics which modify vectors,
@@ -73,7 +73,7 @@
 //! }
 //! ```
 //!
-//! The IfElse instruction is then replaced by these instruction during the remove if-else pass:
+//! The `IfElse` instruction is then replaced by these instruction during the remove if-else pass:
 //! ```ssa
 //! v13 = cast v0 as u32
 //! v14 = cast v6 as u32
@@ -124,7 +124,7 @@ use crate::ssa::{
 impl Ssa {
     /// Replaces all `Instruction::IfElse` instructions with the result of a
     /// value merger of the then and else values. The specifics of the value merger
-    /// depends on the type but is expected to be an equivalent value to the IfElse.
+    /// depends on the type but is expected to be an equivalent value to the `IfElse`.
     /// For example, on integers, the merger will be:
     /// `then_condition * then_value + !then_condition * else_value`
     /// which should zero out the branch that was not taken.
@@ -513,7 +513,7 @@ fn remove_if_else_pre_check(func: &Function) {
     });
 }
 
-/// Post-check condition for [Function::remove_if_else].
+/// Post-check condition for [`Function::remove_if_else`].
 ///
 /// Succeeds if:
 ///   - `func` is a Brillig function, OR

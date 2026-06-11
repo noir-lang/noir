@@ -81,9 +81,9 @@ static TOP_LEVEL_MODULE_ATTRIBUTES: ModuleAttributes = ModuleAttributes {
 type TypeAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
-/// various node types can be found in hir_def). The interner is also used to collect
+/// various node types can be found in `hir_def`). The interner is also used to collect
 /// extra information about the Hir, such as the type of each node, information about
-/// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
+/// each definition or struct, etc. Because it is used on the Hir, the `NodeInterner` is
 /// useful in passes where the Hir is used - name resolution, type checking, and
 /// monomorphization - and it is not useful afterward.
 #[derive(Debug)]
@@ -108,7 +108,7 @@ pub struct NodeInterner {
     /// This is used to ensure the absence of dependency cycles for globals and types.
     dependency_graph: DiGraph<DependencyId, ()>,
 
-    /// To keep track of where each DependencyId is in `dependency_graph`, we need
+    /// To keep track of where each `DependencyId` is in `dependency_graph`, we need
     /// this separate graph to map between the ids and indices.
     dependency_graph_indices: HashMap<DependencyId, PetGraphIndex>,
 
@@ -200,12 +200,12 @@ pub struct NodeInterner {
     /// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
     ordering_type: Option<Type>,
 
-    /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
+    /// Map from `ExprId` (referring to a Function/Method call) to its corresponding `TypeBindings`,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
     pub instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
-    /// Remembers the field index a given HirMemberAccess expression was resolved to during type
+    /// Remembers the field index a given `HirMemberAccess` expression was resolved to during type
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
@@ -228,7 +228,7 @@ pub struct NodeInterner {
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
 
     /// A list of all type aliases that are referenced in the program.
-    /// Searched by LSP to resolve [Location]s of [TypeAlias]s
+    /// Searched by LSP to resolve [Location]s of [`TypeAlias`]s
     pub(crate) type_alias_ref: Vec<(TypeAliasId, Location)>,
 
     /// Stores the [Location] of a [Type] reference
@@ -289,14 +289,14 @@ pub struct NodeInterner {
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions. The first scope is always the global scope.
     ///
-    /// This is stored in the NodeInterner so that the Elaborator from each crate can
+    /// This is stored in the `NodeInterner` so that the Elaborator from each crate can
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
 
-    /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
+    /// A map of `ModuleDefId` to each module that pub or pub(crate) exports it.
     /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
@@ -397,7 +397,7 @@ pub struct FunctionModifiers {
 }
 
 impl FunctionModifiers {
-    /// A semi-reasonable set of default FunctionModifiers used for testing.
+    /// A semi-reasonable set of default `FunctionModifiers` used for testing.
     #[cfg(test)]
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -412,7 +412,7 @@ impl FunctionModifiers {
     }
 }
 
-/// A Definition enum specifies anything that we can intern in the NodeInterner
+/// A Definition enum specifies anything that we can intern in the `NodeInterner`
 /// We use one Arena for all types that can be interned as that has better cache locality
 /// This data structure is never accessed directly, so API wise there is no difference between using
 /// Multiple arenas and a single Arena
@@ -451,7 +451,7 @@ pub enum DefinitionKind {
     Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
-    /// in which case they will not have an associated ExprId.
+    /// in which case they will not have an associated `ExprId`.
     /// For example a mutable variable can change, so it does
     /// not have a stable defining expression.
     Local(Option<ExprId>),
@@ -656,7 +656,7 @@ impl NodeInterner {
         type_id
     }
 
-    /// Adds [TypeAliasId] and [Location] to the type_alias_ref vector
+    /// Adds [`TypeAliasId`] and [Location] to the `type_alias_ref` vector
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
@@ -810,14 +810,14 @@ impl NodeInterner {
     }
 
     /// Retrieves the definition where the given id was defined.
-    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// This will panic if given `DefinitionId::dummy_id`. Use `try_definition` for
     /// any call with a possibly undefined variable.
     pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
         &self.definitions[id.0]
     }
 
     /// Retrieves the definition where the given id was defined.
-    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// This will panic if given `DefinitionId::dummy_id`. Use `try_definition` for
     /// any call with a possibly undefined variable.
     pub fn definition_mut(&mut self, id: DefinitionId) -> &mut DefinitionInfo {
         &mut self.definitions[id.0]
@@ -890,7 +890,7 @@ impl NodeInterner {
         self.type_aliases[id.0].clone()
     }
 
-    /// Returns the type of an item stored in the [NodeInterner], or [Type::Error] if it was not found.
+    /// Returns the type of an item stored in the [`NodeInterner`], or [`Type::Error`] if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
         self.try_id_type(index).cloned().unwrap_or(Type::Error)
     }
@@ -900,7 +900,7 @@ impl NodeInterner {
         self.id_to_type.get(&index.into())
     }
 
-    /// Returns the type of the definition, or [Type::Error] if it was not found.
+    /// Returns the type of the definition, or [`Type::Error`] if it was not found.
     pub fn definition_type(&self, id: DefinitionId) -> Type {
         self.try_definition_type(id).cloned().unwrap_or(Type::Error)
     }
@@ -949,13 +949,13 @@ impl NodeInterner {
         self.id_to_location.get(&index.into()).copied()
     }
 
-    /// Replaces the HirExpression at the given ExprId with a new HirExpression
+    /// Replaces the `HirExpression` at the given `ExprId` with a new `HirExpression`
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
     }
 
-    /// Replaces the HirStatement at the given StmtId with a new HirStatement
+    /// Replaces the `HirStatement` at the given `StmtId` with a new `HirStatement`
     pub fn replace_statement(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
         let old = self.nodes.get_mut(stmt_id.0).unwrap();
         *old = Node::Statement(hir_stmt);
@@ -975,7 +975,7 @@ impl NodeInterner {
         Type::type_variable_with_kind(self, kind)
     }
 
-    /// Remember the [TypeBindings] used during the instantiation of an expression.
+    /// Remember the [`TypeBindings`] used during the instantiation of an expression.
     pub fn store_instantiation_bindings(
         &mut self,
         expr_id: ExprId,
@@ -1000,7 +1000,7 @@ impl NodeInterner {
         self.field_indices.insert(expr_id, index);
     }
 
-    /// Look up the [DefinitionId] of a [FuncId].
+    /// Look up the [`DefinitionId`] of a [`FuncId`].
     ///
     /// Panics if it's not found.
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
@@ -1009,7 +1009,7 @@ impl NodeInterner {
 
     /// Returns the definition id and trait id for a given trait or impl function.
     ///
-    /// If this is an impl function, the DefinitionId inside the TraitItemId will still
+    /// If this is an impl function, the `DefinitionId` inside the `TraitItemId` will still
     /// be that of the function in the parent trait.
     pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<TraitItemId> {
         let function = self.function_meta(&function_id);
@@ -1135,7 +1135,7 @@ impl NodeInterner {
     /// Looks up methods that apply to the given type but are defined in traits.
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
-    /// registered (see [Self::add_method]). This is the concrete type the impl applies to,
+    /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
     /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
     /// for shared trait-method `FuncId`s (default methods inherited from the trait).
     pub fn lookup_trait_methods(
@@ -1173,7 +1173,7 @@ impl NodeInterner {
             .collect()
     }
 
-    /// Same as [Self::method_candidate_ids] but for `impl<T>`-style generic
+    /// Same as [`Self::method_candidate_ids`] but for `impl<T>`-style generic
     /// trait impls keyed under `TypeMethodKey::Generic`.
     pub fn generic_method_candidate_ids(&self, method_name: &str) -> Vec<FuncId> {
         self.methods
@@ -1192,7 +1192,7 @@ impl NodeInterner {
 
     /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`.
     ///
-    /// See [Self::lookup_trait_methods] for the meaning of the third tuple element.
+    /// See [`Self::lookup_trait_methods`] for the meaning of the third tuple element.
     pub fn lookup_generic_methods(
         &self,
         typ: &Type,
@@ -1206,14 +1206,14 @@ impl NodeInterner {
             .unwrap_or_default()
     }
 
-    /// Tags the given identifier with the selected trait_impl so that monomorphization
+    /// Tags the given identifier with the selected `trait_impl` so that monomorphization
     /// can later recover which impl was selected, or alternatively see if it needs to
     /// decide which impl to select (because the impl was Assumed).
     pub fn select_impl_for_expression(&mut self, ident_id: ExprId, trait_impl: TraitImplKind) {
         self.selected_trait_implementations.insert(ident_id, trait_impl);
     }
 
-    /// Retrieves the impl selected for a given [ExprId] during name resolution.
+    /// Retrieves the impl selected for a given [`ExprId`] during name resolution.
     pub fn get_selected_impl_for_expression(&self, ident_id: ExprId) -> Option<TraitImplKind> {
         self.selected_trait_implementations.get(&ident_id).cloned()
     }
@@ -1320,7 +1320,7 @@ impl NodeInterner {
             || self.prefix_operator_traits.values().any(|id| *id == trait_id)
     }
 
-    /// This function is needed when creating a NodeInterner for testing so that calls
+    /// This function is needed when creating a `NodeInterner` for testing so that calls
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
     #[cfg(any(test, feature = "test_utils"))]
     pub fn populate_dummy_operator_traits(&mut self) {
@@ -1394,32 +1394,32 @@ impl NodeInterner {
         &self.quoted_types[id.0]
     }
 
-    /// Intern a [ExpressionKind].
+    /// Intern a [`ExpressionKind`].
     pub fn push_expression_kind(&mut self, expr: ExpressionKind) -> InternedExpressionKind {
         InternedExpressionKind(self.interned_expression_kinds.insert(expr))
     }
 
-    /// Get an interned [ExpressionKind] by its [InternedExpressionKind] ID.
+    /// Get an interned [`ExpressionKind`] by its [`InternedExpressionKind`] ID.
     pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
         &self.interned_expression_kinds[id.0]
     }
 
-    /// Intern a [StatementKind].
+    /// Intern a [`StatementKind`].
     pub fn push_statement_kind(&mut self, statement: StatementKind) -> InternedStatementKind {
         InternedStatementKind(self.interned_statement_kinds.insert(statement))
     }
 
-    /// Get an interned [StatementKind] by its [InternedStatementKind] ID.
+    /// Get an interned [`StatementKind`] by its [`InternedStatementKind`] ID.
     pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
         &self.interned_statement_kinds[id.0]
     }
 
-    /// Intern an [LValue] by turning it into an [Expression][crate::ast::Expression] and interning its [ExpressionKind].
+    /// Intern an [`LValue`] by turning it into an [Expression][crate::ast::Expression] and interning its [`ExpressionKind`].
     pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
-    /// Get an interned [LValue] by its [InternedExpressionKind] ID.
+    /// Get an interned [`LValue`] by its [`InternedExpressionKind`] ID.
     pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
         LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
@@ -1430,12 +1430,12 @@ impl NodeInterner {
         InternedPattern(self.interned_patterns.insert(pattern))
     }
 
-    /// Get an interned [Pattern] by its [InternedPattern] ID.
+    /// Get an interned [Pattern] by its [`InternedPattern`] ID.
     pub fn get_pattern(&self, id: InternedPattern) -> &Pattern {
         &self.interned_patterns[id.0]
     }
 
-    /// Intern a [UnresolvedTypeData].
+    /// Intern a [`UnresolvedTypeData`].
     pub fn push_unresolved_type_data(
         &mut self,
         typ: UnresolvedTypeData,
@@ -1595,7 +1595,7 @@ impl NodeInterner {
         results
     }
 
-    /// Return a set of [TypeBindings] to bind types from the trait definition to those from the trait impl.
+    /// Return a set of [`TypeBindings`] to bind types from the trait definition to those from the trait impl.
     ///
     /// Recursively collects associated types from parent implementations.
     pub fn trait_to_impl_bindings(
@@ -1768,7 +1768,7 @@ impl NodeInterner {
         }
     }
 
-    /// Clears data that is stored in this NodeInterner that is declared at the given file.
+    /// Clears data that is stored in this `NodeInterner` that is declared at the given file.
     /// This isn't used by the compiler. It's only used by the LSP server when a file
     /// changes, to clear the definitions of the previous version of the file.
     pub fn clear_in_file(&mut self, file: FileId) {

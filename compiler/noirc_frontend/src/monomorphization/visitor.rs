@@ -29,7 +29,7 @@ where
 ///
 /// Gets mutable references so it can manipulate the expressions if needed.
 ///
-/// Compared to [visit_expr_mut], this version allows the caller to maintain
+/// Compared to [`visit_expr_mut`], this version allows the caller to maintain
 /// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
 ///
 /// It also takes a function to modify [Ident]s, which can be located in
@@ -183,7 +183,7 @@ where
 /// The `bool` returned indicates whether we want to visit the children
 /// of the visited expression.
 ///
-/// This is a read-only version of [visit_expr_mut], for cases where
+/// This is a read-only version of [`visit_expr_mut`], for cases where
 /// we don't have/need a mutable reference to the AST.
 pub fn visit_expr<V>(expr: &Expression, v: &mut V)
 where
@@ -198,10 +198,10 @@ where
 /// The `bool` returned by _begin_ indicates whether we want to
 /// visit the children of the visited expression.
 ///
-/// This is a read-only version [visit_expr_be_mut], for cases where
+/// This is a read-only version [`visit_expr_be_mut`], for cases where
 /// we don't have/need a mutable reference to the AST.
 ///
-/// Compared to [visit_expr], this version allows the caller to maintain
+/// Compared to [`visit_expr`], this version allows the caller to maintain
 /// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
 pub fn visit_expr_be<B, E, T, I>(expr: &Expression, b: &mut B, e: &mut E, i: &mut I)
 where

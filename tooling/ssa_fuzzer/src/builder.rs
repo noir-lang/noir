@@ -31,14 +31,14 @@ pub type InstructionWithTwoArgs = fn(&mut FuzzerBuilder, TypedValue, TypedValue)
 pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValue;
 
 /// Builder for generating fuzzed SSA functions
-/// Contains a FunctionBuilder and tracks the current numeric type being used
+/// Contains a `FunctionBuilder` and tracks the current numeric type being used
 pub struct FuzzerBuilder {
     pub(crate) builder: FunctionBuilder,
     pub(crate) runtime: RuntimeType,
 }
 
 impl FuzzerBuilder {
-    /// Creates a new FuzzerBuilder in ACIR context
+    /// Creates a new `FuzzerBuilder` in ACIR context
     pub fn new_acir(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
@@ -47,7 +47,7 @@ impl FuzzerBuilder {
         Self { builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
     }
 
-    /// Creates a new FuzzerBuilder in Brillig context
+    /// Creates a new `FuzzerBuilder` in Brillig context
     pub fn new_brillig(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
@@ -64,7 +64,7 @@ impl FuzzerBuilder {
         Self { builder, runtime }
     }
 
-    /// Compiles the built function into a CompiledProgram, to run it with nargo execute
+    /// Compiles the built function into a `CompiledProgram`, to run it with nargo execute
     pub fn compile(
         self,
         compile_options: CompileOptions,
@@ -295,7 +295,7 @@ impl FuzzerBuilder {
 
     /// Inserts a new parameter to the current SSA block and returns its value
     ///
-    /// b0() -> b0(new_parameter: parameter_type)
+    /// `b0()` -> `b0(new_parameter`: `parameter_type`)
     pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> TypedValue {
         let id = self.builder.add_block_parameter(block, typ.clone().into());
         TypedValue::new(id, typ)
@@ -348,7 +348,7 @@ impl FuzzerBuilder {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
-    /// Creates a new function with the given name and id with inline type InlineType::Inline
+    /// Creates a new function with the given name and id with inline type `InlineType::Inline`
     /// Sets the same runtime as the builder
     pub fn new_function(&mut self, name: String, function_id: Id<Function>) {
         // maybe use different inline type
@@ -416,7 +416,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, array_elements_type)
     }
 
-    /// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
+    /// Inserts a `to_le_radix` intrinsic call that decomposes a field into little-endian radix representation
     ///
     /// # Arguments
     /// * `field_value` - The field value to decompose (must be a field type)
@@ -448,7 +448,7 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], result_type)
     }
 
-    /// Inserts a from_le_radix hand-written function that composes a field from little-endian radix representation
+    /// Inserts a `from_le_radix` hand-written function that composes a field from little-endian radix representation
     ///
     /// # Arguments
     /// * `array` - The array of u8 values to compose into a field
@@ -612,7 +612,7 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], return_type)
     }
 
-    /// Inserts a aes128_encrypt intrinsic call
+    /// Inserts a `aes128_encrypt` intrinsic call
     ///
     /// # Arguments
     /// * `input` - The array of u8 values to encrypt
@@ -727,7 +727,7 @@ impl FuzzerBuilder {
     /// Inserts an array get instruction
     ///
     /// Index must be u32
-    /// If safe_index is true, index will be taken modulo the array length
+    /// If `safe_index` is true, index will be taken modulo the array length
     pub fn insert_array_get(
         &mut self,
         array: TypedValue,
@@ -752,7 +752,7 @@ impl FuzzerBuilder {
     /// Inserts an array set instruction
     ///
     /// Index must be u32
-    /// If safe_index is true, index will be taken modulo the array length
+    /// If `safe_index` is true, index will be taken modulo the array length
     pub fn insert_array_set(
         &mut self,
         array: TypedValue,

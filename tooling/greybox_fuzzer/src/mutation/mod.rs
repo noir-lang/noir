@@ -35,8 +35,8 @@ pub struct InputMutator {
 pub use dictionary::add_elements_from_input_map_to_vector_without_abi;
 const MUTATION_LOG_MIN: u32 = 0;
 const MUTATION_LOG_MAX: u32 = 5;
-/// NodeWeight determines the probability of mutating a particular object
-/// It represent the relative weight of this InputValue and its children
+/// `NodeWeight` determines the probability of mutating a particular object
+/// It represent the relative weight of this `InputValue` and its children
 #[derive(Clone, Debug)]
 pub struct NodeWeight {
     start: u32,

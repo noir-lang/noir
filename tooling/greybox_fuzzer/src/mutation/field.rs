@@ -25,7 +25,7 @@
 //!     3. Multiplication
 //!
 //! There are configurations for determining probability of each top-level and low-level mutation
-//! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
+//! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of `MOpt` (Mutation Optimization) technique in the future
 
 use std::sync::OnceLock;
 

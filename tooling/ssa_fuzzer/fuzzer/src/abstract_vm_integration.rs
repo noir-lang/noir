@@ -36,9 +36,9 @@ pub(crate) enum AbstractVMComparisonResult {
 
 /// Gets or initializes the counters
 ///
-/// The counters must be registered ONCE (if we reregister them, LibFuzzer will panic),
+/// The counters must be registered ONCE (if we reregister them, `LibFuzzer` will panic),
 /// so we use a `Mutex` to ensure this
-/// We cannot just register it in `init` closure of `fuzz_target!` macro https://github.com/rust-fuzz/libfuzzer/issues/135
+/// We cannot just register it in `init` closure of `fuzz_target!` macro <https://github.com/rust-fuzz/libfuzzer/issues/135>
 fn get_or_init_counters()
 -> Result<MutexGuard<'static, Option<&'static Counters<1_000_000>>>, String> {
     let mutex = COUNTERS_LOCK.get_or_init(|| Mutex::new(None));

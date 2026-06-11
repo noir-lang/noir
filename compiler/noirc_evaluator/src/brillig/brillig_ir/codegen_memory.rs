@@ -281,7 +281,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// Converts a [BrilligArray] (pointer to `[RC, ...items]`) to a [HeapArray] (pointer to `[...items]`).
+    /// Converts a [`BrilligArray`] (pointer to `[RC, ...items]`) to a [`HeapArray`] (pointer to `[...items]`).
     pub(crate) fn codegen_brillig_array_to_heap_array(
         &mut self,
         array: BrilligArray,
@@ -296,7 +296,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         heap_array
     }
 
-    /// Converts a [BrilligVector] (pointer to `[RC, size, capacity, ...items]`) to a [HeapVector] (two pointers to `[...items]` and `size`).
+    /// Converts a [`BrilligVector`] (pointer to `[RC, size, capacity, ...items]`) to a [`HeapVector`] (two pointers to `[...items]` and `size`).
     pub(crate) fn codegen_brillig_vector_to_heap_vector(
         &mut self,
         vector: BrilligVector,
@@ -311,7 +311,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         heap_vector
     }
 
-    /// Converts a [BrilligVariable] to [ValueOrArray].
+    /// Converts a [`BrilligVariable`] to [`ValueOrArray`].
     ///
     /// This can involve allocating new registers and loading values into them
     /// from the input data structures.
@@ -414,9 +414,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// This should only be called upon a vector that has already been heap allocated.
     ///
     /// The addition `vector.pointer + [offsets::VECTOR_ITEMS]` cannot overflow because:
-    /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [offsets::VECTOR_META_COUNT] (3)
+    /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [`offsets::VECTOR_META_COUNT`] (3)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
-    /// - Since [offsets::VECTOR_ITEMS] == [offsets::VECTOR_META_COUNT] == 3, if allocation succeeded,
+    /// - Since [`offsets::VECTOR_ITEMS`] == [`offsets::VECTOR_META_COUNT`] == 3, if allocation succeeded,
     ///   `vector.pointer + 3` is guaranteed safe
     pub(crate) fn codegen_vector_items_pointer(
         &mut self,
@@ -441,7 +441,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
-    /// Reads the metadata of a vector into individual registers and returns them as [VectorMetaData].
+    /// Reads the metadata of a vector into individual registers and returns them as [`VectorMetaData`].
     ///
     /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
     /// vector data structure, it is calculated as a multiplication of length and item size.
@@ -490,7 +490,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
     /// Such a vector with a semantic length of 3 would have a flattened size of 6.
     ///
-    /// Uses checked multiplication to trap on overflow (length × item_size > u32::MAX).
+    /// Uses checked multiplication to trap on overflow (length × `item_size` > `u32::MAX`).
     pub(crate) fn codegen_vector_flattened_size(
         &mut self,
         destination: MemoryAddress,
@@ -507,9 +507,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// This should only be called upon an array that has already been heap allocated.
     ///
     /// The addition `array.pointer + [offsets::ARRAY_ITEMS]` cannot overflow because:
-    /// - [Array allocation][Self::codegen_initialize_array] size is at least [offsets::ARRAY_META_COUNT] (1)
+    /// - [Array allocation][Self::codegen_initialize_array] size is at least [`offsets::ARRAY_META_COUNT`] (1)
     /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
-    /// - Since [offsets::ARRAY_ITEMS] == [offsets::ARRAY_META_COUNT] == 1, if allocation succeeded,
+    /// - Since [`offsets::ARRAY_ITEMS`] == [`offsets::ARRAY_META_COUNT`] == 1, if allocation succeeded,
     ///   `array.pointer + 1` is guaranteed safe
     pub(crate) fn codegen_make_array_items_pointer(
         &mut self,
@@ -673,7 +673,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.store_instruction(*write_pointer, capacity.address);
     }
 
-    /// Initialize the [BrilligVector] after the data returned by a foreign call has been written to the heap.
+    /// Initialize the [`BrilligVector`] after the data returned by a foreign call has been written to the heap.
     ///
     /// We don't know the length of a vector returned externally before the call,
     /// so we write the size and the data to the _free memory pointer_.

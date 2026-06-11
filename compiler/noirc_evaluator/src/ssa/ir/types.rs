@@ -14,7 +14,7 @@ use std::sync::Arc;
 use crate::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 
 /// A numeric type in the Intermediate representation
-/// Note: we class NativeField as a numeric type
+/// Note: we class `NativeField` as a numeric type
 /// though we also apply limitations to it, such as not
 /// being able to compare two native fields, whereas this is
 /// something that you can do with a signed/unsigned integer.
@@ -37,12 +37,12 @@ impl NumericType {
         }
     }
 
-    /// Creates a NumericType::Signed type
+    /// Creates a `NumericType::Signed` type
     pub(crate) fn signed(bit_size: u32) -> NumericType {
         NumericType::Signed { bit_size }
     }
 
-    /// Creates a NumericType::Unsigned type
+    /// Creates a `NumericType::Unsigned` type
     pub(crate) fn unsigned(bit_size: u32) -> NumericType {
         NumericType::Unsigned { bit_size }
     }
@@ -63,7 +63,7 @@ impl NumericType {
     }
 
     /// Returns None if the given Field value is within the numeric limits
-    /// for the current NumericType. Otherwise returns a string describing
+    /// for the current `NumericType`. Otherwise returns a string describing
     /// the limits, as a range.
     pub(crate) fn value_is_outside_limits(self, value: FieldElement) -> Option<String> {
         match self {
@@ -214,7 +214,7 @@ impl Type {
         matches!(self, Type::Numeric(_))
     }
 
-    /// Returns the inner NumericType if this is one, or panics otherwise
+    /// Returns the inner `NumericType` if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {
             Type::Numeric(numeric) => *numeric,
@@ -279,7 +279,7 @@ impl Type {
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
     ///
-    /// Panics if called on a [Type::Vector], since its value cannot be known based on its type.
+    /// Panics if called on a [`Type::Vector`], since its value cannot be known based on its type.
     pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
@@ -367,9 +367,9 @@ impl Type {
         }
     }
 
-    /// Recursively rewrite every [Type::Reference] inside `self` to be immutable.
+    /// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
     ///
-    /// The SSA validator ([Type::canonical_eq]) and the Noir frontend both
+    /// The SSA validator ([`Type::canonical_eq`]) and the Noir frontend both
     /// accept passing `&mut T` where `&T` is expected. To make types in those
     /// positions compare equal under that same leniency, callers that need a
     /// canonical form (e.g., map keys in defunctionalize) can collapse
@@ -393,7 +393,7 @@ impl Type {
         }
     }
 
-    /// Owned counterpart to [Type::canonicalize] — returns a clone with all
+    /// Owned counterpart to [`Type::canonicalize`] — returns a clone with all
     /// reference mutability stripped.
     pub(crate) fn canonicalized(&self) -> Self {
         let mut clone = self.clone();

@@ -68,8 +68,8 @@ pub struct AddressMap {
     brillig_addresses: Vec<BrilligAddressSpace>,
 }
 
-/// Associates a BrilligFunctionId with the address space.
-/// A BrilligFunctionId is found by checking whether an address is between
+/// Associates a `BrilligFunctionId` with the address space.
+/// A `BrilligFunctionId` is found by checking whether an address is between
 /// the `start_address` and `end_address`
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 struct BrilligAddressSpace {
@@ -120,7 +120,7 @@ impl AddressMap {
     }
 
     /// Returns the absolute address of the opcode at the given location.
-    /// Absolute here means accounting for nested Brillig opcodes in BrilligCall
+    /// Absolute here means accounting for nested Brillig opcodes in `BrilligCall`
     /// opcodes.
     pub fn debug_location_to_address(&self, location: &DebugLocation) -> usize {
         let circuit_addresses = &self.addresses[location.circuit_id as usize];
@@ -285,7 +285,7 @@ pub struct DebugProject {
 #[derive(Debug, Clone)]
 
 pub struct RunParams {
-    /// Option for configuring the source_code_printer
+    /// Option for configuring the `source_code_printer`
     /// This option only applies for the Repl interface
     pub raw_source_printing: Option<bool>,
 
@@ -976,7 +976,7 @@ fn is_debug_file_in_debug_crate(debug_file: &DebugFile) -> bool {
     debug_file.path.starts_with("__debug/")
 }
 
-/// Builds a map from FileId to an ordered vector of tuples with line
+/// Builds a map from `FileId` to an ordered vector of tuples with line
 /// numbers and opcode locations corresponding to those line numbers
 fn build_source_to_opcode_debug_mappings(
     debug_artifact: &DebugArtifact,

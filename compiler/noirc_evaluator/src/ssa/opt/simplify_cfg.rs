@@ -1346,7 +1346,7 @@ mod tests {
     }
 
     /// A `jmpif` whose two edges point at the same block with *matching* arguments is
-    /// observationally redundant. simplify_cfg must fold it into a `jmp` while
+    /// observationally redundant. `simplify_cfg` must fold it into a `jmp` while
     /// preserving the shared arguments — the previous implementation silently
     /// constructed the replacement `jmp` with an empty argument vector, producing
     /// malformed SSA whenever the target block had parameters.
@@ -1374,7 +1374,7 @@ mod tests {
 
     /// A `jmpif` whose two edges point at the same block with *differing* arguments
     /// is semantically meaningful — the condition selects between the two argument
-    /// lists. simplify_cfg must leave it alone rather than folding.
+    /// lists. `simplify_cfg` must leave it alone rather than folding.
     #[test]
     fn preserve_jmpif_same_target_differing_arguments() {
         let src = "

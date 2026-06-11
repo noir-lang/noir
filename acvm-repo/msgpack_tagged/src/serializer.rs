@@ -30,7 +30,7 @@
 //!   order. Tightening this requires buffering field bytes before writing.
 //! - **Encoding strategies.** Only the **Tagged** strategy (int-keyed
 //!   map) is implemented. Per-type strategy overrides — **Array**
-//!   (positional msgpack array, smallest wire) and **Named** (rmp_serde
+//!   (positional msgpack array, smallest wire) and **Named** (`rmp_serde`
 //!   default, string-keyed map) — are deferred follow-ups.
 //! - **`assert_eq!` on `len` vs `product.fields.len()`** — already
 //!   tightened, but only inside the four product-shaped methods. New
@@ -84,7 +84,7 @@ pub struct Serializer<'a, W: Write> {
     /// (`Foo<FieldElement>` and `Foo<OtherF>` share the name "Foo") and
     /// across shadow DTOs (a public `Circuit<F>` with
     /// `#[tagged(via(CircuitWire<F>))]` reaches the same "Circuit"
-    /// override that CircuitWire registers under via `#[serde(rename)]`).
+    /// override that `CircuitWire` registers under via `#[serde(rename)]`).
     /// See [`type_name_basename`] for the derivation rule.
     overrides: HashMap<&'static str, EncodingStrategy>,
 }
@@ -601,10 +601,10 @@ impl<'a, W: Write> Serializer<'a, W> {
 /// wrapper, so the inner's `ForceIterables` is never consulted.
 ///
 /// We could override `collect_seq` to forward byte-shaped iterators
-/// to `inner.collect_seq` — but rmp_serde's detection heuristic is
+/// to `inner.collect_seq` — but `rmp_serde`'s detection heuristic is
 /// purely size-based: any iterator over pointer-sized items (`&u8`,
 /// `Box<T>`, `Rc<T>`, `&T`, …) matches. For items that *aren't*
-/// actually `u8`, rmp_serde's `OnlyBytes` probe rejects, and rmp_serde
+/// actually `u8`, `rmp_serde`'s `OnlyBytes` probe rejects, and `rmp_serde`
 /// falls back to its **own** `serialize_seq` — which doesn't route
 /// through our wrapper. That would silently bypass `MsgpackTagged`
 /// interception for any tagged type wrapped in `Box`/`&`/etc. inside
@@ -622,7 +622,7 @@ impl<'a, W: Write> Serializer<'a, W> {
 /// hooking it up via `serialize_bytes` for the same reason. Only if a
 /// generic byte-iter intercept becomes truly necessary should we
 /// override `collect_seq` here — and at that point we'd need to
-/// **also replicate rmp_serde's `OnlyBytes` probe** so the
+/// **also replicate `rmp_serde`'s `OnlyBytes` probe** so the
 /// reference-bypass risk above is closed.
 fn make_inner_rmp_serializer<W: Write>(writer: W) -> RmpSerializer<W> {
     RmpSerializer::new(writer)

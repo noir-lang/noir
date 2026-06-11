@@ -21,7 +21,7 @@ use std::sync::Arc;
 /// Note: v2 and v3 auto generated
 /// fn main f0 {
 ///   b0(v0: [Field; 2], v1: u32, v2: u1, v3: u1):
-///   v4 = array_get v0, index v1 -> Field
+///   v4 = `array_get` v0, index v1 -> Field
 ///   return v4
 /// }
 #[test]

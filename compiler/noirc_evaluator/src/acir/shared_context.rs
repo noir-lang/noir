@@ -2,7 +2,7 @@
 //! Specifically, it manages Brillig function pointers, stdlib calls, and global usage.
 //!
 //! ## Design
-//! - Keep a single [SharedContext] struct across all ACIR artifacts so Brillig
+//! - Keep a single [`SharedContext`] struct across all ACIR artifacts so Brillig
 //!   functions are deduplicated and pointers remain consistent.
 //! - Track both generated Brillig artifacts and stdlib Brillig functions
 //!   (the latter do not originate from SSA function IDs).
@@ -11,7 +11,7 @@
 //!   call sites in the generated ACIR.
 //!
 //! ## Preconditions
-//! - Caller must provide a valid [BrilligStdLib] and a global usage map.
+//! - Caller must provide a valid [`BrilligStdLib`] and a global usage map.
 //!
 //! ## Post-conditions
 //! - Brillig artifacts are deduplicated, callable by their [function IDs][BrilligFunctionId].
@@ -70,7 +70,7 @@ pub(super) struct SharedContext<F: AcirField> {
 }
 
 impl<F: AcirField> SharedContext<F> {
-    /// Create a new [SharedContext] with a stdlib and a precomputed global usage map.
+    /// Create a new [`SharedContext`] with a stdlib and a precomputed global usage map.
     pub(super) fn new(
         brillig_stdlib: BrilligStdLib<F>,
         used_globals: HashMap<FunctionId, HashSet<ValueId>>,
@@ -78,7 +78,7 @@ impl<F: AcirField> SharedContext<F> {
         Self { brillig_stdlib, used_globals, ..Default::default() }
     }
 
-    /// Lookup a previously generated Brillig function pointer by ([FunctionId], Vec<[BrilligParameter]>).
+    /// Lookup a previously generated Brillig function pointer by ([`FunctionId`], Vec<[`BrilligParameter`]>).
     /// Returns `None` if a pointer has not yet been registered.
     pub(super) fn generated_brillig_pointer(
         &self,

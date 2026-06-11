@@ -92,8 +92,8 @@ impl CrateDefMap {
     ///
     /// # Arguments
     ///
-    /// - `krate`: The [CrateId] of the crate for which this `CrateDefMap` refers to.
-    /// - `root_module`: The [ModuleData] for the root module of the crate.
+    /// - `krate`: The [`CrateId`] of the crate for which this `CrateDefMap` refers to.
+    /// - `root_module`: The [`ModuleData`] for the root module of the crate.
     pub fn new(krate: CrateId, root_module: ModuleData) -> CrateDefMap {
         let mut modules = Arena::default();
         let root = LocalModuleId::new(modules.insert(root_module));
@@ -153,7 +153,7 @@ impl CrateDefMap {
         self.root
     }
 
-    /// Returns a reference to the [ModuleData] stored at [LocalModuleId] `id` or `None` if none exists.
+    /// Returns a reference to the [`ModuleData`] stored at [`LocalModuleId`] `id` or `None` if none exists.
     pub fn get(&self, id: LocalModuleId) -> Option<&ModuleData> {
         self.modules.get(id.0)
     }
@@ -366,7 +366,7 @@ pub fn fully_qualified_module_path(
     }
 }
 
-/// Given a FileId, fetch the File, from the FileManager and parse it's content
+/// Given a `FileId`, fetch the File, from the `FileManager` and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file_source = fm.fetch_file(file_id).expect("File does not exist");
     parse_program(file_source, file_id)

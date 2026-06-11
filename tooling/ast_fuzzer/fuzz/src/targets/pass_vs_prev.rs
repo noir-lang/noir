@@ -70,7 +70,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 /// Human-readable label for a given pipeline step:
 /// - step 0 is the initial SSA, before any pass has run;
-/// - step N (1 ≤ N ≤ passes.len()) is the SSA after running
+/// - step N (1 ≤ N ≤ `passes.len()`) is the SSA after running
 ///   `passes[N - 1]`.
 fn step_msg(passes: &[SsaPass<'_>], step: usize) -> String {
     if step == 0 { "Initial SSA".to_string() } else { passes[step - 1].msg().to_string() }

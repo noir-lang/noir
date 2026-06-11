@@ -1,9 +1,9 @@
-//! Circuit definitions shared between the serialization tests and the acvm_js fixture generator.
+//! Circuit definitions shared between the serialization tests and the `acvm_js` fixture generator.
 //!
 //! These are the reference circuits that both the serialization snapshot tests in
 //! `acir/tests/test_program_serialization.rs` and the `generate_acvm_js_fixtures` binary in the
 //! `acvm` crate are built from. Keeping a single definition ensures the bytecodes embedded in the
-//! acvm_js TypeScript test fixtures always match the circuits exercised by the Rust tests.
+//! `acvm_js` TypeScript test fixtures always match the circuits exercised by the Rust tests.
 
 use crate::{
     FieldElement,

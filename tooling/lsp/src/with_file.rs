@@ -23,7 +23,7 @@ use noirc_frontend::{
     },
 };
 
-/// Returns a copy of the given ParsedModule with all FileIds present in its locations changed to the given FileId.
+/// Returns a copy of the given `ParsedModule` with all `FileIds` present in its locations changed to the given `FileId`.
 pub(super) fn parsed_module_with_file(parsed_module: ParsedModule, file: FileId) -> ParsedModule {
     ParsedModule {
         items: parsed_module.items.into_iter().map(|item| item_with_file(item, file)).collect(),

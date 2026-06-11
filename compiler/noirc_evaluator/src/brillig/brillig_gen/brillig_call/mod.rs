@@ -26,18 +26,18 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Allocates a variable to hold the result of an external function call (e.g., foreign or black box).
     /// For more information about foreign function calls in Brillig take a look at the [foreign call opcode][acvm::acir::brillig::Opcode::ForeignCall].
     ///
-    /// This is typically used during Brillig codegen for calls to [Value::ForeignFunction], where
+    /// This is typically used during Brillig codegen for calls to [`Value::ForeignFunction`], where
     /// external host functions return values back into the program.
     ///
     /// Numeric types and fixed-sized array results are directly allocated.
     ///
     /// As vectors are determined at runtime they are allocated differently:
-    /// - Allocates memory for a [BrilligVariable::BrilligVector], which holds a pointer and dynamic size.
+    /// - Allocates memory for a [`BrilligVariable::BrilligVector`], which holds a pointer and dynamic size.
     /// - Initializes the pointer using the free memory pointer.
     /// - The actual size will be updated after the foreign function call returns.
     ///
     /// # Returns
-    /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
+    /// A [`BrilligVariable`] representing the allocated memory structure to store the foreign call's result.
     ///
     /// # Panics
     /// If there is a vector among the output variables _and_ it's followed by another vector:
@@ -169,7 +169,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Internal method to codegen an [crate::ssa::ir::instruction::Instruction::Call] to a [Value::Function]
+    /// Internal method to codegen an [`crate::ssa::ir::instruction::Instruction::Call`] to a [`Value::Function`]
     fn convert_ssa_function_call(
         &mut self,
         func_id: FunctionId,

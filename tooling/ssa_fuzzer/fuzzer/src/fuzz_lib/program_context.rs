@@ -22,7 +22,7 @@ struct StoredFunction {
     types: Vec<Type>,
 }
 
-/// FuzzerProgramContext is a context for storing and processing SSA functions
+/// `FuzzerProgramContext` is a context for storing and processing SSA functions
 pub(crate) struct FuzzerProgramContext {
     /// Builder for the program
     builder: FuzzerBuilder,
@@ -49,7 +49,7 @@ pub(crate) struct FuzzerProgramContext {
 }
 
 impl FuzzerProgramContext {
-    /// Creates a new FuzzerProgramContext
+    /// Creates a new `FuzzerProgramContext`
     fn new(
         program_context_options: FunctionContextOptions,
         runtime: RuntimeType,
@@ -73,7 +73,7 @@ impl FuzzerProgramContext {
         }
     }
 
-    /// Creates a new FuzzerProgramContext where all inputs are constants
+    /// Creates a new `FuzzerProgramContext` where all inputs are constants
     fn new_constant_context(
         program_context_options: FunctionContextOptions,
         runtime: RuntimeType,

@@ -58,7 +58,7 @@ impl<'a> ValueMerger<'a> {
         ValueMerger { dfg, block, vector_sizes, call_stack, array_get_optimization_side_effects }
     }
 
-    /// Choose a call stack to return with the [RuntimeError].
+    /// Choose a call stack to return with the [`RuntimeError`].
     ///
     /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
     fn get_call_stack(&self, value: ValueId) -> CallStack {

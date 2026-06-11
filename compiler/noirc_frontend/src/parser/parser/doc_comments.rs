@@ -7,7 +7,7 @@ use crate::{
 use super::{Parser, parse_many::without_separator};
 
 impl Parser<'_> {
-    /// InnerDocComments = inner_doc_comment*
+    /// `InnerDocComments` = `inner_doc_comment`*
     pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<DocComment> {
         self.parse_many("inner doc comments", without_separator(), Self::parse_inner_doc_comment)
     }
@@ -29,12 +29,12 @@ impl Parser<'_> {
         })
     }
 
-    /// OuterDocComments = OuterDocComment*
+    /// `OuterDocComments` = `OuterDocComment`*
     pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<DocComment> {
         self.parse_many("outer doc comments", without_separator(), Self::parse_outer_doc_comment)
     }
 
-    /// OuterDocComment = outer_doc_comment
+    /// `OuterDocComment` = `outer_doc_comment`
     pub(super) fn parse_outer_doc_comment(&mut self) -> Option<DocComment> {
         self.eat_kind(TokenKind::OuterDocComment).map(|token| {
             let location = token.location();

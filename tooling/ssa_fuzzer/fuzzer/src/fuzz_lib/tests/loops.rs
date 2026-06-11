@@ -2,7 +2,7 @@
 //! 1) Simple loop
 //! 2) Nested loop
 //! 3) Test that Jmp command breaks the loop
-//! 4) Test that JmpIf command works in the loop
+//! 4) Test that `JmpIf` command works in the loop
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;

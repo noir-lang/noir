@@ -46,22 +46,22 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::DataType(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [GlobalId].
+    /// Mark a [`DependencyId`] as being dependant on a [`GlobalId`].
     pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
         self.add_dependency(dependent, DependencyId::Global(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [FuncId].
+    /// Mark a [`DependencyId`] as being dependant on a [`FuncId`].
     pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [TypeAliasId].
+    /// Mark a [`DependencyId`] as being dependant on a [`TypeAliasId`].
     pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [TraitId].
+    /// Mark a [`DependencyId`] as being dependant on a [`TraitId`].
     pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
         self.add_dependency(dependent, DependencyId::Trait(dependency));
     }

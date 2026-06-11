@@ -171,7 +171,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// This method generates one `store` instruction per array element, writing each
     /// value from the SSA into consecutive memory addresses starting at `pointer`.
     ///
-    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime], this
+    /// Unlike [`initialize_constant_array_runtime`][Self::initialize_constant_array_runtime], this
     /// does not use loops and emits one instruction per write, which can increase bytecode size
     /// but provides fine-grained control.
     fn initialize_constant_array_comptime(
@@ -205,7 +205,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// base pointer.
     ///
     /// # Panics
-    /// - The array variable is not a [BrilligVariable::BrilligArray] or [BrilligVariable::BrilligVector] when `has_offset` is false
+    /// - The array variable is not a [`BrilligVariable::BrilligArray`] or [`BrilligVariable::BrilligVector`] when `has_offset` is false
     fn convert_ssa_array_get(
         &mut self,
         array_variable: BrilligVariable,
@@ -280,7 +280,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// If RC's have drifted down to zero it means the RC increment/decrement instructions
     /// have been written incorrectly.
     ///
-    /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
+    /// Should only be called if [`BrilligContext::enable_debug_assertions`] returns true.
     fn codegen_assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
         let zero = self.brillig_context.allocate_single_addr(32);
 

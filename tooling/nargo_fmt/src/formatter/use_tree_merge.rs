@@ -120,10 +120,10 @@ fn format_merged_import(segment: Segment, import_tree: ImportTree) -> ChunkGroup
 #[derive(Debug, PartialEq, Eq)]
 enum Segment {
     /// Represents the end of a path.
-    /// This is needed because we have want to merge "foo" and "foo::bar",
-    /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", losing "foo",
-    /// when we actually want "foo::{self, bar}".
+    /// This is needed because we have want to merge "foo" and "`foo::bar`",
+    /// we need to know that "foo" is the end of a path, and "`foo::bar`" is another one.
+    /// If we don't, merging "foo" and "`foo::bar`" will result in just "`foo::bar`", losing "foo",
+    /// when we actually want "`foo::{self`, bar}".
     SelfReference,
     Crate,
     Super,
@@ -190,10 +190,10 @@ impl Ord for Segment {
 /// An import tree to represent merged imports.
 /// For example for the given imports:
 ///
-/// use foo::bar::{baz, qux};
-/// use foo::another;
+/// use `foo::bar::{baz`, qux};
+/// use `foo::another`;
 ///
-/// an ImportTree that represents the merged imports would be:
+/// an `ImportTree` that represents the merged imports would be:
 ///
 /// {
 ///     "foo" => {
@@ -236,7 +236,7 @@ impl ImportTree {
     /// will be simplified to:
     ///
     /// {
-    ///     "foo::bar" => {"baz", "qux"}
+    ///     "`foo::bar`" => {"baz", "qux"}
     /// }
     fn simplify(self) -> ImportTree {
         let mut new_tree = ImportTree::new();
@@ -254,7 +254,7 @@ impl ImportTree {
     }
 }
 
-/// Combines all use trees to form a single ImportTree.
+/// Combines all use trees to form a single `ImportTree`.
 fn merge_imports(imports: Vec<UseTree>) -> ImportTree {
     let mut tree = ImportTree::new();
     merge_imports_in_tree(imports, &mut tree);

@@ -40,7 +40,7 @@ impl<T: Default> Default for Located<T> {
     }
 }
 
-/// Hash-based data structures (HashMap, HashSet) rely on the inverse of Hash
+/// Hash-based data structures (`HashMap`, `HashSet`) rely on the inverse of Hash
 /// being injective, i.e. x.eq(y) => hash(x, H) == hash(y, H), we hence align
 /// this with the above
 impl<T: Hash> Hash for Located<T> {

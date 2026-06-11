@@ -204,7 +204,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Given its ID, retrieve and elaborate an interned [StatementKind].
+    /// Given its ID, retrieve and elaborate an interned [`StatementKind`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_interned_statement_as_expr(
         &mut self,
@@ -309,8 +309,8 @@ impl Elaborator<'_> {
     }
 
     /// If the given type was declared as:
-    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
-    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - `#[must_use = "message"]`, return [`MustUse::MustUse(Some("message`"))]
+    /// - `#[must_use]`, return [`MustUse::MustUse(None)`]
     /// - otherwise, return `MustUse::NoMustUse`
     fn type_is_must_use(typ: &Type) -> MustUse {
         /// Helper function to avoid infinite recursion for infinitely recursive types
@@ -1149,7 +1149,7 @@ impl Elaborator<'_> {
     /// Elaborate a struct constructor.
     ///
     /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
-    /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
+    /// then delegates to [`Elaborator::elaborate_constructor_with_type`] to handle the fields.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_constructor(
         &mut self,
@@ -1410,7 +1410,7 @@ impl Elaborator<'_> {
         (expr_id, typ, is_offset && is_reference)
     }
 
-    /// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+    /// Push a [`HirExpression`] with its [Location], with the [Type] to be followed up later.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn intern_expr(
         &mut self,
@@ -1420,7 +1420,7 @@ impl Elaborator<'_> {
         self.interner.push_expr(expr).push_location(self.interner, location)
     }
 
-    /// Follow up [Self::intern_expr] with the [Type].
+    /// Follow up [`Self::intern_expr`] with the [Type].
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn intern_expr_type(&mut self, expr_id: PushedExpr<HasLocation>, typ: Type) -> ExprId {
         expr_id.push_type(self.interner, typ)
@@ -1492,8 +1492,8 @@ impl Elaborator<'_> {
         (expr_id, typ)
     }
 
-    /// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
-    /// * if the rules returned an `Err`, it returns [Type::Error]
+    /// Handles the results of [`Self::prefix_operand_type_rules`] and [`Self::infix_operand_type_rules`].
+    /// * if the rules returned an `Err`, it returns [`Type::Error`]
     /// * if the results indicate that a trait method should be used,
     ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
     #[tracing::instrument(level = "trace", skip_all)]

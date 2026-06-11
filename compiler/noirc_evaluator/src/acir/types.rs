@@ -56,8 +56,8 @@ impl From<&SsaType> for AcirType {
 /// }
 /// ```
 ///
-/// the array, first represented as an [AcirValue::Array], will be put in
-/// an [AcirValue::DynamicArray]:
+/// the array, first represented as an [`AcirValue::Array`], will be put in
+/// an [`AcirValue::DynamicArray`]:
 ///
 /// ```acir
 /// private parameters: [w0, w1, w2, w3]
@@ -68,7 +68,7 @@ impl From<&SsaType> for AcirType {
 /// ASSERT w4 = w5
 /// ```
 ///
-/// Every dynamic array has an associated [BlockId] where its contents are stored,
+/// Every dynamic array has an associated [`BlockId`] where its contents are stored,
 /// in this case `b0`. Then the block can be read or written using dynamic indexes.
 ///
 /// Dynamic arrays might result from other operations. For example:
@@ -137,7 +137,7 @@ pub(crate) enum AcirValue {
     /// }
     /// ```
     ///
-    /// the array will be represented as an [AcirValue::Array]
+    /// the array will be represented as an [`AcirValue::Array`]
     /// but we can see that it's simply a list of variables:
     ///
     /// ```acir
@@ -147,15 +147,15 @@ pub(crate) enum AcirValue {
     /// BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2]], outputs: []
     /// ```
     ///
-    /// The length of the inner vector is a [acvm::acir::brillig::lengths::SemiFlattenedLength].
+    /// The length of the inner vector is a [`acvm::acir::brillig::lengths::SemiFlattenedLength`].
     ///
     /// Compare this with `DynamicArray` below.
     Array(im::Vector<AcirValue>),
     /// Represents an array whose size is not known during compile time,
     /// and which might be indexed with a dynamic index.
     ///
-    /// See [AcirDynamicArray] for more details and how this differs from
-    /// [AcirValue::Array].
+    /// See [`AcirDynamicArray`] for more details and how this differs from
+    /// [`AcirValue::Array`].
     DynamicArray(AcirDynamicArray),
 }
 
@@ -180,12 +180,12 @@ impl AcirValue {
         }
     }
 
-    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    /// Fetch a flat list of ([`AcirVar`], [`AcirType`]).
     ///
     /// # Panics
-    /// If [AcirValue::DynamicArray] is supplied or an inner element of an [AcirValue::Array].
-    /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
-    /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
+    /// If [`AcirValue::DynamicArray`] is supplied or an inner element of an [`AcirValue::Array`].
+    /// This is because an [`AcirValue::DynamicArray`] is simply a pointer to an array
+    /// and fetching its internal [`AcirValue::Var`] would require laying down opcodes to read its content.
     /// This method should only be used where dynamic arrays are not a possible type.
     pub(super) fn flatten(self) -> Vec<(AcirVar, NumericType)> {
         match self {

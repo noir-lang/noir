@@ -48,7 +48,7 @@ impl Ssa {
     }
 }
 
-/// Pre-check condition for [Function::mutable_array_set_optimization].
+/// Pre-check condition for [`Function::mutable_array_set_optimization`].
 ///
 /// Only applies to ACIR functions. Panics if:
 ///   - The function contains more than 1 block, i.e. it hasn't been flattened yet.
@@ -74,7 +74,7 @@ fn mutable_array_set_optimization_pre_check(func: &Function) {
     });
 }
 
-/// Post-check condition for [Function::mutable_array_set_optimization].
+/// Post-check condition for [`Function::mutable_array_set_optimization`].
 ///
 /// Panics if a Brillig function contains mutable array set instructions.
 /// Brillig uses ref-counting to decide whether to mutate an array, not mutable flags.
@@ -244,7 +244,7 @@ impl<'f> Context<'f> {
     }
 }
 
-/// Make each ArraySet instruction in `instructions_to_update` mutable.
+/// Make each `ArraySet` instruction in `instructions_to_update` mutable.
 fn make_mutable(dfg: &mut DataFlowGraph, instructions_to_update: &HashSet<InstructionId>) {
     for instruction_id in instructions_to_update {
         let instruction = &mut dfg[*instruction_id];
@@ -445,7 +445,7 @@ mod tests {
     }
 
     /// Two independent array chains returned together: every `array_set` should be
-    /// marked mutable. Regression test for https://github.com/noir-lang/noir/issues/12411,
+    /// marked mutable. Regression test for <https://github.com/noir-lang/noir/issues/12411>,
     /// where the over-broad terminator-based `is_nested` guard blocked all mutations
     /// because each chain's final value appeared as "another array in the terminator".
     #[test]

@@ -27,7 +27,7 @@ fn default_generators() -> &'static [Affine; NUM_DEFAULT_GENERATORS] {
 ///
 /// 1. Each generator has an associated "generator index" described by its location in the vector
 /// 2. a 64-byte preimage buffer is generated with the following structure:
-///     - bytes 0-31: BLAKE3 hash of domain_separator
+///     - bytes 0-31: BLAKE3 hash of `domain_separator`
 ///     - bytes 32-63: generator index in big-endian form
 /// 3. The hash-to-curve algorithm is used to hash the above into a curve point.
 ///

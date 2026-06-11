@@ -11,7 +11,7 @@
 //!     This also means the only acir functions in the program should be `main` (if main is
 //!     constrained), or any constrained `InlineType::Fold` functions.
 //!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
-//!   - Precondition: "Equal" constraints have not been turned into "NotEqual".
+//!   - Precondition: "Equal" constraints have not been turned into "`NotEqual`".
 //!   - Postcondition: Each constrained function should now consist of only one block where the
 //!     terminator instruction is always a return.
 //!
@@ -196,7 +196,7 @@ impl Ssa {
     }
 }
 
-/// Pre-check condition for [Ssa::flatten_cfg].
+/// Pre-check condition for [`Ssa::flatten_cfg`].
 ///
 /// Panics if the ACIR function being flattened has at least 1 loop or contains a
 /// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
@@ -208,7 +208,7 @@ fn flatten_cfg_pre_check(function: &Function) {
     });
 }
 
-/// Post-check condition for [Ssa::flatten_cfg].
+/// Post-check condition for [`Ssa::flatten_cfg`].
 ///
 /// Panics if the ACIR function contains more than one block. The caller already
 /// skipped Brillig functions.
@@ -261,12 +261,12 @@ pub(crate) struct Context<'f> {
     /// helps simplifications.
     not_instructions: HashMap<ValueId, ValueId>,
 
-    /// Maps merge result ValueId to the provenance of the IfElse that produced it.
+    /// Maps merge result `ValueId` to the provenance of the `IfElse` that produced it.
     /// Used to detect and collapse redundant nested merges in `inline_branch_end`.
     /// See [`Context::try_collapse_merge`] for the four patterns this enables.
     merge_provenance: HashMap<ValueId, MergeProvenance>,
 
-    /// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
+    /// Flag to tell the context to not issue '`enable_side_effect`' instructions during flattening.
     ///
     /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
     /// the overhead of handling side effects.
@@ -326,8 +326,8 @@ struct ConditionalContext {
     predicated_values: HashMap<ValueId, ValueId>,
     /// The allocations accumulated before processing the branch.
     local_allocations: HashSet<ValueId>,
-    /// When JmpIf's else_destination is the exit/merge block (no separate else block),
-    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+    /// When `JmpIf`'s `else_destination` is the exit/merge block (no separate else block),
+    /// stores the resolved `else_arguments` so `inline_branch_end` can use them.
     jmpif_else_arguments: Option<Vec<ValueId>>,
 }
 
@@ -381,20 +381,20 @@ impl<'f> Context<'f> {
     /// until all blocks have been flattened.
     ///
     /// We follow the terminator of each block to determine which blocks to process next:
-    /// * If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
-    ///   add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
+    /// * If the terminator is a '`JumpIf`', we assume we are entering a conditional statement and
+    ///   add the start blocks of the '`then_branch`', '`else_branch`' and the 'exit' block to the queue.
     /// * Other blocks will have only one successor, so we will process them iteratively,
     ///   until we reach one block already in the queue, added when entering a conditional statement,
-    ///   i.e. the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue,
+    ///   i.e. the '`else_branch`' or the 'exit'. In that case we switch to the next block in the queue,
     ///   instead of the successor.
     ///
     /// This process ensures that the blocks are always processed in this order:
-    /// * if_entry -> then_branch -> else_branch -> exit
+    /// * `if_entry` -> `then_branch` -> `else_branch` -> exit
     ///
-    /// In case of nested if statements, for instance in the 'then_branch', it will be:
-    /// * if_entry -> then_branch -> if_entry_2 -> then_branch_2 -> exit_2 -> else_branch -> exit
+    /// In case of nested if statements, for instance in the '`then_branch`', it will be:
+    /// * `if_entry` -> `then_branch` -> `if_entry_2` -> `then_branch_2` -> `exit_2` -> `else_branch` -> exit
     ///
-    /// Information about the nested if statements is stored in the 'condition_stack' which
+    /// Information about the nested if statements is stored in the '`condition_stack`' which
     /// is popped/pushed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashSet<FunctionId>) {
         let mut work_list = WorkList::new();
@@ -426,7 +426,7 @@ impl<'f> Context<'f> {
     /// The conditions are in a stack, they are added as conditional branches are encountered
     /// so the last one is the current condition.
     /// When processing a conditional branch, we first follow the 'then' branch and only after we
-    /// process the 'else' branch. At that point, the `ConditionalContext` has the 'else_branch'
+    /// process the 'else' branch. At that point, the `ConditionalContext` has the '`else_branch`'
     fn get_last_condition(&self) -> Option<ValueId> {
         self.condition_stack
             .last()
@@ -514,14 +514,14 @@ impl<'f> Context<'f> {
     /// For a normal block, it would be its successor.
     ///
     /// For blocks related to a conditional statement, we ensure to process
-    /// the 'then_branch', then the 'else_branch' (if it exists), and finally the exit block.
+    /// the '`then_branch`', then the '`else_branch`' (if it exists), and finally the exit block.
     ///
     /// The update of the context is done by the functions `if_start`, `then_stop` and `else_stop`
-    /// which perform the business logic when entering a conditional statement, finishing the 'then_branch'
-    /// and the 'else_branch', respectively.
+    /// which perform the business logic when entering a conditional statement, finishing the '`then_branch`'
+    /// and the '`else_branch`', respectively.
     ///
     /// We know if a block is related to the conditional statement if is referenced by the `work_list`.
-    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the `work_list` when
+    /// Indeed, the start blocks of the '`then_branch`' and '`else_branch`' are added to the `work_list` when
     /// starting to process a conditional statement.
     pub(crate) fn handle_terminator(
         &mut self,
@@ -595,8 +595,8 @@ impl<'f> Context<'f> {
 
     /// Process a conditional statement by creating a `ConditionalContext`
     /// with information about the branch, and storing it in the dedicated stack.
-    /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
-    /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
+    /// Local allocations are moved to the '`then_branch`' of the `ConditionalContext`.
+    /// Returns the blocks corresponding to the '`then_branch`', '`else_branch`',
     /// and exit block of the conditional statement, so that they will be processed in this order.
     pub(crate) fn if_start(
         &mut self,
@@ -654,11 +654,11 @@ impl<'f> Context<'f> {
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
-    /// Switch context to the 'else_branch':
-    /// - Negates the condition for the 'else_branch' and set it in the `ConditionalContext`
-    /// - Move the local allocations to the 'else_branch'
+    /// Switch context to the '`else_branch`':
+    /// - Negates the condition for the '`else_branch`' and set it in the `ConditionalContext`
+    /// - Move the local allocations to the '`else_branch`'
     /// - Reset the predicated values to their old mapping in the inserter
-    /// - Issues the 'enable_side_effect' instruction
+    /// - Issues the '`enable_side_effect`' instruction
     fn then_stop(&mut self, block: &BasicBlockId) {
         assert_eq!(self.cfg.successors(*block).len(), 1);
 
@@ -698,11 +698,11 @@ impl<'f> Context<'f> {
     /// When nested `jmpif` blocks thread the same value through their arguments,
     /// the outer merge is redundant. This detects four patterns:
     ///
-    /// **Group 1 — shared else_value (y):**
+    /// **Group 1 — shared `else_value` (y):**
     /// - `IfElse(c1, IfElse(c2, x, _, y), _, y)` → `IfElse(c2, x, NOT(c2), y)`
     /// - `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`
     ///
-    /// **Group 2 — shared then_value (x):**
+    /// **Group 2 — shared `then_value` (x):**
     /// - `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`
     /// - `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`
     ///
@@ -753,7 +753,7 @@ impl<'f> Context<'f> {
     /// Switch context the 'exit' block of a conditional statement:
     /// - Retrieves the local allocations from the Conditional Context
     /// - Reset the predicated values to their old mapping in the inserter
-    /// - Issues the 'enable_side_effect' instruction
+    /// - Issues the '`enable_side_effect`' instruction
     /// - Joins the arguments from both branches
     fn else_stop(&mut self, block: &BasicBlockId) {
         assert_eq!(self.cfg.successors(*block).len(), 1);
@@ -794,8 +794,8 @@ impl<'f> Context<'f> {
     /// all of the join point's predecessors, and it must handle any differing side effects from
     /// each branch.
     ///
-    /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
-    /// the argument from the 'then_branch' or the 'else_branch' depending the the condition.
+    /// The merge of arguments is done by inserting an '`IfElse`' instructions which returns
+    /// the argument from the '`then_branch`' or the '`else_branch`' depending the the condition.
     ///
     /// The arguments are prepared for the destination to consume in the next immediate inlining.
     fn inline_branch_end(&mut self, destination: BasicBlockId, cond_context: ConditionalContext) {
@@ -893,7 +893,7 @@ impl<'f> Context<'f> {
     }
 
     /// Map the value to its predicated value in the current conditional context, and store the previous mapping
-    /// to the 'predicated_values' map if not already stored.
+    /// to the '`predicated_values`' map if not already stored.
     fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
         let conditional_context = self.condition_stack.last_mut().unwrap();
 
@@ -913,7 +913,7 @@ impl<'f> Context<'f> {
     }
 
     /// Insert a new instruction into the target block.
-    /// Unlike push_instruction, this function will not map any ValueIds.
+    /// Unlike `push_instruction`, this function will not map any `ValueIds`.
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStackId) -> ValueId {
         let block = self.target_block;
@@ -926,7 +926,7 @@ impl<'f> Context<'f> {
 
     /// Inserts a new instruction into the target block, using the given
     /// control type variables to specify result types if needed.
-    /// Unlike push_instruction, this function will not map any ValueIds.
+    /// Unlike `push_instruction`, this function will not map any `ValueIds`.
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction_with_typevars(
         &mut self,
@@ -965,9 +965,9 @@ impl<'f> Context<'f> {
 
     /// Push the given instruction to the end of the target block of the current function.
     ///
-    /// Note that each ValueId of the instruction will be mapped via `self.inserter.resolve`.
+    /// Note that each `ValueId` of the instruction will be mapped via `self.inserter.resolve`.
     /// As a result, the instruction that will be pushed will actually be a new instruction
-    /// with a different InstructionId from the original. The results of the given instruction
+    /// with a different `InstructionId` from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
@@ -1181,7 +1181,7 @@ impl<'f> Context<'f> {
     /// 'Cast' the 'condition' to 'value' type
     ///
     /// This is needed because we need to multiply the condition with several values
-    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects' function).
+    /// in order to 'nullify' side-effects when the 'condition' is false (in '`handle_instruction_side_effects`' function).
     ///
     /// Since the condition is a boolean, it can be safely casted to any other type.
     fn cast_condition_to_value_type(
@@ -1941,7 +1941,7 @@ mod tests {
     #[test]
     #[should_panic = "ICE: branches merge inside of `then` branch"]
     fn panics_if_branches_merge_within_then_branch() {
-        //! This is a regression test for https://github.com/noir-lang/noir/issues/6620
+        //! This is a regression test for <https://github.com/noir-lang/noir/issues/6620>
 
         let src = "
         acir(inline) fn main f0 {
@@ -2187,8 +2187,8 @@ mod tests {
         ");
     }
 
-    /// Regression test: when JmpIf's else_destination IS the exit/merge block
-    /// (no separate else block), the else_arguments carry the "no-change" value
+    /// Regression test: when `JmpIf`'s `else_destination` IS the exit/merge block
+    /// (no separate else block), the `else_arguments` carry the "no-change" value
     /// directly to the merge. This is the pattern mem2reg produces when
     /// the else branch has no stores (just falls through to the merge block).
     #[test]
@@ -2222,7 +2222,7 @@ mod tests {
         ");
     }
 
-    /// Regression test: when an inner IfElse simplifies to its own condition
+    /// Regression test: when an inner `IfElse` simplifies to its own condition
     /// (e.g. IfElse(v0, 1, _, 0) -> v0), provenance must NOT be stored for that
     /// value. Otherwise the outer merge sees the provenance on v0 and
     /// incorrectly collapses.
@@ -2290,12 +2290,12 @@ mod tests {
 mod merge_provenance_tests {
     use crate::{assert_ssa_snapshot, ssa::Ssa};
 
-    /// Regression test for #12106: promoted block params with jmpif else_arguments
+    /// Regression test for #12106: promoted block params with jmpif `else_arguments`
     /// should produce the same (or fewer) instructions as the equivalent store/load
     /// pattern after flattening + cleanup.
     ///
     /// The pattern is 3 iterations of: `if !ok { if bit[i] { ok = true } }`
-    /// where `ok` is threaded through else_arguments.
+    /// where `ok` is threaded through `else_arguments`.
     #[test]
     fn collapse_nested_merge_shared_else_value() {
         // Promoted version: `ok` threaded through block params with jmpif else_arguments.
@@ -2759,8 +2759,8 @@ mod merge_provenance_tests {
     ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
     ///   2nd: `if v1 { y = R } else { y = Field 200 }`
     ///
-    /// R has provenance {else_value = Field 200}. The second conditional also has
-    /// else_arg = Field 200, which would match R's provenance. If provenance
+    /// R has provenance {`else_value` = Field 200}. The second conditional also has
+    /// `else_arg` = Field 200, which would match R's provenance. If provenance
     /// leaked, the second merge would incorrectly collapse to
     /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
     ///

@@ -16,7 +16,7 @@ use rand::{RngExt, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 use std::cmp::min;
 
-/// This file contains mechanisms for mutating string InputValues. It can perform the following mutations:
+/// This file contains mechanisms for mutating string `InputValues`. It can perform the following mutations:
 /// 1. Value mutations
 ///     1. Substitution a random character in the string with a random appropriate value from the dictionary
 ///     2. Substitution of a random character with a random character

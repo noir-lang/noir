@@ -34,7 +34,7 @@ use crate::{
 };
 
 /// Prepare a code snippet.
-/// (copied from nargo_cli/tests/common.rs)
+/// (copied from `nargo_cli/tests/common.rs`)
 fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
@@ -54,7 +54,7 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 ///
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
-/// (copied from nargo_cli/tests/common.rs)
+/// (copied from `nargo_cli/tests/common.rs`)
 fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     source: String,
     force_brillig: bool,

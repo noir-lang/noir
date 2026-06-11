@@ -14,8 +14,8 @@ pub mod json;
 mod toml;
 
 /// This is what all formats eventually transform into
-/// For example, a toml file will parse into TomlTypes
-/// and those TomlTypes will be mapped to Value
+/// For example, a toml file will parse into `TomlTypes`
+/// and those `TomlTypes` will be mapped to Value
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum InputValue {
     Field(FieldElement),
@@ -63,7 +63,7 @@ impl InputTypecheckingError {
 }
 
 impl InputValue {
-    /// Checks whether the ABI type matches the InputValue type
+    /// Checks whether the ABI type matches the `InputValue` type
     pub(crate) fn find_type_mismatch(
         &self,
         abi_param: &AbiType,
@@ -185,7 +185,7 @@ impl InputValue {
         }
     }
 
-    /// Checks whether the ABI type matches the InputValue type.
+    /// Checks whether the ABI type matches the `InputValue` type.
     pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
         self.find_type_mismatch(abi_param, String::new()).is_ok()
     }

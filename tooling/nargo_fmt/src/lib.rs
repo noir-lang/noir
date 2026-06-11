@@ -14,7 +14,7 @@
 //!
 //! fn foo ( ) { let x : Field = ( 2 , 3 ) ; }
 //!
-//! We first parse the above code so we end up with a ParsedModule. Next we traverse this module
+//! We first parse the above code so we end up with a `ParsedModule`. Next we traverse this module
 //! contents and process each item, statement, expression, type, etc., we find.
 //!
 //! For example, the first thing we'll find is a function. We know it has no visibility and no doc

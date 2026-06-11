@@ -31,8 +31,8 @@ macro_rules! parse_infix {
 }
 
 impl Parser<'_> {
-    /// EqualOrNotEqualExpression
-    ///     = OrExpression ( ( '==' | '!=' ) OrExpression )*
+    /// `EqualOrNotEqualExpression`
+    ///     = `OrExpression` ( ( '==' | '!=' ) `OrExpression` )*
     #[inline(always)]
     pub(super) fn parse_equal_or_not_equal(
         &mut self,
@@ -52,8 +52,8 @@ impl Parser<'_> {
         )
     }
 
-    /// OrExpression
-    ///     = AndExpression ( '|' AndExpression )*
+    /// `OrExpression`
+    ///     = `AndExpression` ( '|' `AndExpression` )*
     #[inline(always)]
     pub(super) fn parse_or(&mut self, allow_constructors: bool) -> Option<Expression> {
         parse_infix!(
@@ -70,8 +70,8 @@ impl Parser<'_> {
         )
     }
 
-    /// AndExpression
-    ///     = XorExpression ( '&' XorExpression )*
+    /// `AndExpression`
+    ///     = `XorExpression` ( '&' `XorExpression` )*
     #[inline(always)]
     pub(super) fn parse_and(&mut self, allow_constructors: bool) -> Option<Expression> {
         parse_infix!(
@@ -92,8 +92,8 @@ impl Parser<'_> {
         )
     }
 
-    /// XorExpression
-    ///     = LessOrGreaterExpression ( '^' LessOrGreaterExpression )*
+    /// `XorExpression`
+    ///     = `LessOrGreaterExpression` ( '^' `LessOrGreaterExpression` )*
     #[inline(always)]
     pub(super) fn parse_xor(&mut self, allow_constructors: bool) -> Option<Expression> {
         parse_infix!(
@@ -111,8 +111,8 @@ impl Parser<'_> {
         )
     }
 
-    /// LessOrGreaterExpression
-    ///     = ShiftExpression ( ( '<' | '<=' | '>' | '>=' ) ShiftExpression )*
+    /// `LessOrGreaterExpression`
+    ///     = `ShiftExpression` ( ( '<' | '<=' | '>' | '>=' ) `ShiftExpression` )*
     #[inline(always)]
     pub(super) fn parse_less_or_greater(&mut self, allow_constructors: bool) -> Option<Expression> {
         parse_infix!(
@@ -135,8 +135,8 @@ impl Parser<'_> {
         )
     }
 
-    /// ShiftExpression
-    ///     = AddOrSubtractExpression ( ( '<<' | '>' '>' ) AddOrSubtractExpression )*
+    /// `ShiftExpression`
+    ///     = `AddOrSubtractExpression` ( ( '<<' | '>' '>' ) `AddOrSubtractExpression` )*
     #[inline(always)]
     pub(super) fn parse_shift(&mut self, allow_constructors: bool) -> Option<Expression> {
         parse_infix!(
@@ -163,8 +163,8 @@ impl Parser<'_> {
         )
     }
 
-    /// AddOrSubtractExpression
-    ///     = MultiplyOrDivideOrModuloExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloExpression )*
+    /// `AddOrSubtractExpression`
+    ///     = `MultiplyOrDivideOrModuloExpression` ( ( '+' | '-' ) `MultiplyOrDivideOrModuloExpression` )*
     #[inline(always)]
     pub(super) fn parse_add_or_subtract(&mut self, allow_constructors: bool) -> Option<Expression> {
         parse_infix!(
@@ -183,7 +183,7 @@ impl Parser<'_> {
         )
     }
 
-    /// MultiplyOrDivideOrModuloExpression
+    /// `MultiplyOrDivideOrModuloExpression`
     ///     = Term ( ( '*' | '/' | '%' ) Term )*
     #[inline(always)]
     pub(super) fn parse_multiply_or_divide_or_modulo(

@@ -10,8 +10,8 @@ use super::Elaborator;
 
 impl Elaborator<'_> {
     /// Go through the given tokens looking for a '$' token followed by a variable to unquote.
-    /// Each time these two tokens are found, they are replaced by a new UnquoteMarker token
-    /// containing the ExprId of the resolved variable to unquote.
+    /// Each time these two tokens are found, they are replaced by a new `UnquoteMarker` token
+    /// containing the `ExprId` of the resolved variable to unquote.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn find_unquoted_exprs_tokens(&mut self, tokens: Tokens) -> Tokens {
         let token_count = tokens.0.len();

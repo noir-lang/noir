@@ -22,7 +22,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::constant_allocation::{ConstantAllocation, InstructionLocation};
 
-/// A set of [ValueId]s referring to SSA variables (not functions).
+/// A set of [`ValueId`]s referring to SSA variables (not functions).
 type Variables = HashSet<ValueId>;
 /// The set variables which are dead after a given instruction (in a given block).
 type LastUses = HashMap<InstructionId, Variables>;
@@ -38,7 +38,7 @@ struct BackEdge {
     start: BasicBlockId,
 }
 
-/// Check if the [Value] behind the [ValueId] requires register allocation (like a function parameter),
+/// Check if the [Value] behind the [`ValueId`] requires register allocation (like a function parameter),
 /// rather than a global value like a user-defined function, intrinsic, or foreign function.
 pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     let value = &dfg[value_id];
@@ -53,7 +53,7 @@ pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     }
 }
 
-/// Collect all [ValueId]s used in an [Instruction] which refer to variables (not functions).
+/// Collect all [`ValueId`]s used in an [Instruction] which refer to variables (not functions).
 pub(super) fn variables_used_in_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
@@ -69,7 +69,7 @@ pub(super) fn variables_used_in_instruction(
     used
 }
 
-/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+/// Collect all [`ValueId`]s returned by an [Instruction] which refer to variables (not functions).
 fn variables_returned_by_instruction(
     instruction_id: InstructionId,
     dfg: &DataFlowGraph,
@@ -81,7 +81,7 @@ fn variables_returned_by_instruction(
         .collect()
 }
 
-/// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
+/// Collect all [`ValueId`]s used in an [`BasicBlock`] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
 fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
@@ -182,7 +182,7 @@ impl VariableLiveness {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 
-    /// Compute [VariableLiveness::param_definitions].
+    /// Compute [`VariableLiveness::param_definitions`].
     ///
     /// Append the parameters of each block to the parameter definition list of
     /// its immediate dominator.
@@ -203,7 +203,7 @@ impl VariableLiveness {
         self
     }
 
-    /// Compute [VariableLiveness::live_in].
+    /// Compute [`VariableLiveness::live_in`].
     ///
     /// Collect the variables which are alive before each block.
     fn compute_live_in_of_blocks(
@@ -311,7 +311,7 @@ impl VariableLiveness {
         }
     }
 
-    /// Compute [VariableLiveness::last_uses].
+    /// Compute [`VariableLiveness::last_uses`].
     ///
     /// For each block, starting from the terminator than going backwards through the instructions,
     /// take note of the first (technically last) instruction the value is used in.
@@ -373,7 +373,7 @@ impl VariableLiveness {
         self
     }
 
-    /// Compute [VariableLiveness::max_live_count].
+    /// Compute [`VariableLiveness::max_live_count`].
     ///
     /// Walk each block instruction-by-instruction, tracking the set of variables
     /// simultaneously alive: start with `live_in` plus block param definitions,

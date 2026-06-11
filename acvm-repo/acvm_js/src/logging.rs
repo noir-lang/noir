@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 /// Sets the package's logging level.
 ///
-/// @param {LogLevel} level - The maximum level of logging to be emitted.
+/// @param {`LogLevel`} level - The maximum level of logging to be emitted.
 #[wasm_bindgen(js_name = initLogLevel, skip_jsdoc)]
 pub fn init_log_level(filter: String) -> Result<(), JsLogInitError> {
     // Set the static variable from Rust

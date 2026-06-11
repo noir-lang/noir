@@ -80,8 +80,8 @@
 //!
 //! ## ACIR vs Brillig
 //! - On ACIR, LICM operates only on pure value computations.
-//! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
-//!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
+//! - On Brillig, additional reference-counting rules apply. For example, hoisting [`Instruction::MakeArray`]
+//!   requires inserting an [`Instruction::IncrementRc`] to preserve reference semantics if the array
 //!   may later be mutated.
 use std::collections::BTreeSet;
 
@@ -286,7 +286,7 @@ impl BlockContext {
     }
 
     /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
-    /// This function matches [Self::can_hoist_control_dependent_instruction] except
+    /// This function matches [`Self::can_hoist_control_dependent_instruction`] except
     /// that simplification does not require that the current block is pure to be simplified.
     fn can_simplify_control_dependent_instruction(&self) -> bool {
         !self.is_control_dependent && self.does_execute
@@ -2505,7 +2505,7 @@ mod tests {
         assert!(b2_ctx.is_impure, "header was impure");
     }
 
-    /// Test cases where array_get should or shouldn't be hoisted from an inner loop
+    /// Test cases where `array_get` should or shouldn't be hoisted from an inner loop
     /// when its indexed by the outer loop induction variable.
     #[test_case(4, 1, true; "upper less than size and both execute")]
     #[test_case(5, 1, true; "upper equal size and both execute")]
@@ -4475,7 +4475,7 @@ mod control_dependence {
     }
 
     #[test]
-    /// Checks that hoisting a function call returning an array adds an inc_rc operation
+    /// Checks that hoisting a function call returning an array adds an `inc_rc` operation
     fn call_func_call_inc_rc() {
         let src = r#"
         brillig(inline) impure fn main f0 {
@@ -4510,7 +4510,7 @@ mod control_dependence {
     }
 
     #[test]
-    /// Validates that the pass does not add an inc_rc operation for ArrayGet
+    /// Validates that the pass does not add an `inc_rc` operation for `ArrayGet`
     fn array_get_does_not_add_inc_rc() {
         let src = r#"
         g0 = make_array [Field 1, Field 2] : [Field; 2]

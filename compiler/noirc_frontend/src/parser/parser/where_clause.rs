@@ -10,11 +10,11 @@ use super::{
 };
 
 impl Parser<'_> {
-    /// WhereClause = 'where' WhereClauseItems?
+    /// `WhereClause` = 'where' `WhereClauseItems`?
     ///
-    /// WhereClauseItems = WhereClauseItem ( ',' WhereClauseItem )* ','?
+    /// `WhereClauseItems` = `WhereClauseItem` ( ',' `WhereClauseItem` )* ','?
     ///
-    /// WhereClauseItem = Type ':' TraitBounds
+    /// `WhereClauseItem` = Type ':' `TraitBounds`
     pub(super) fn parse_where_clause(&mut self) -> Vec<UnresolvedTraitConstraint> {
         if !self.eat_keyword(Keyword::Where) {
             return Vec::new();
@@ -45,7 +45,7 @@ impl Parser<'_> {
         Some((typ, trait_bounds))
     }
 
-    /// TraitBounds = TraitBound ( '+' TraitBound )? '+'?
+    /// `TraitBounds` = `TraitBound` ( '+' `TraitBound` )? '+'?
     pub(super) fn parse_trait_bounds(&mut self) -> Vec<TraitBound> {
         self.parse_many(
             "trait bounds",
@@ -75,7 +75,7 @@ impl Parser<'_> {
         }
     }
 
-    /// TraitBound = PathNoTurbofish GenericTypeArgs
+    /// `TraitBound` = `PathNoTurbofish` `GenericTypeArgs`
     pub(crate) fn parse_trait_bound(&mut self) -> Option<TraitBound> {
         let trait_path = self.parse_path_no_turbofish()?;
         let trait_generics = self.parse_generic_type_args();

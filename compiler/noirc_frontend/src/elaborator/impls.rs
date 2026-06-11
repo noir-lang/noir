@@ -103,8 +103,8 @@ impl Elaborator<'_> {
     /// - `self_type`: The type being implemented (e.g., `Foo` in `impl Foo { ... }`)
     ///
     /// # Panics
-    /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+    /// If the `self_type` is not already resolved in each impl's function set.
+    /// The self type should be resolved by [`Self::register_function_metas`] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_impls(
         &mut self,
@@ -138,7 +138,7 @@ impl Elaborator<'_> {
     ///
     /// # Parameters
     /// - `trait_id`: `Some(trait_id)` if this is a trait impl, `None` for inherent impls
-    /// - `functions`: The functions/methods to declare (self_type must already be resolved)
+    /// - `functions`: The functions/methods to declare (`self_type` must already be resolved)
     /// - `location`: Location of the impl block for error reporting
     ///
     /// # Error Cases
@@ -147,8 +147,8 @@ impl Elaborator<'_> {
     /// - Primitive impl: Non-stdlib code trying to impl methods on primitive types
     ///
     /// # Panics
-    /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+    /// If the `self_type` is not already resolved in each impl's function set.
+    /// The self type should be resolved by [`Self::register_function_metas`] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn declare_methods_on_data_type(
         &mut self,

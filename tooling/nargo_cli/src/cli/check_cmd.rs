@@ -84,7 +84,7 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
     Ok(())
 }
 
-/// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the allow_overwrite flag and files' existence.
+/// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the `allow_overwrite` flag and files' existence.
 /// Returns `true` if any file was generated or updated, `false` otherwise.
 fn check_package(
     file_manager: &FileManager,

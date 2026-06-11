@@ -91,10 +91,10 @@ pub fn function_locations_in_parsed_module(
     function_locations
 }
 
-/// Collects function names in a given ParsedModule.
+/// Collects function names in a given `ParsedModule`.
 /// Note: names are fully qualified respective to the file they are in. For example,
 /// a function `foo` inside a module `bar` that is declared in a separate file will have
-/// "foo" as its fully qualified name, and not "bar::foo".
+/// "foo" as its fully qualified name, and not "`bar::foo`".
 struct FunctionLocationsCollector<'a> {
     function_locations: &'a mut FunctionLocations,
     file_id: FileId,

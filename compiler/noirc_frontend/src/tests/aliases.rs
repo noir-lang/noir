@@ -1179,7 +1179,7 @@ fn type_alias_as_closure_environment() {
     assert_no_errors(src);
 }
 
-/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// Regression test: `define_type_alias` did not reset `current_item` after finishing,
 /// which can leak into subsequent elaboration phases.
 #[test]
 fn no_false_cycle_from_stale_current_item_after_type_alias() {

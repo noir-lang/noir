@@ -390,13 +390,13 @@ impl From<Type> for TypeOrString {
     }
 }
 
-/// Helper function to report an [InterpreterError::TypeMismatch] where a [Value] could not be unwrapped
+/// Helper function to report an [`InterpreterError::TypeMismatch`] where a [Value] could not be unwrapped
 /// into an expected type, which can either be a concrete [Type] or a textual description, e.g. "tuple".
 ///
-/// It has special handling for [Value::Zeroed], which wraps a [Type] that might actually be the
+/// It has special handling for [`Value::Zeroed`], which wraps a [Type] that might actually be the
 /// one we expected, but we expected a concrete _value_ with that type, not a zeroed placeholder,
 /// which we optimistically created expecting that it will never be used. In such cases
-/// [InterpreterError::UnexpectedZeroedValue] is returned.
+/// [`InterpreterError::UnexpectedZeroedValue`] is returned.
 fn type_mismatch<T>(
     value: Value,
     expected: impl Into<TypeOrString>,
@@ -667,7 +667,7 @@ fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
 /// unspecified implementation detail that may change between Rust releases, this
 /// wraps a fixed-keyed SipHash-1-3 (`siphasher`) so a given Noir compiler version
 /// produces identical hashes regardless of the Rust toolchain it was built with.
-/// SipHash also keeps a keyed mixing structure, so collisions cannot be crafted by
+/// `SipHash` also keeps a keyed mixing structure, so collisions cannot be crafted by
 /// trivial arithmetic the way they can for a plain multiplicative hash.
 ///
 /// `siphasher` already encodes byte streams little-endian, but its `write_usize`
@@ -680,7 +680,7 @@ pub(super) struct DeterministicHasher {
 }
 
 impl DeterministicHasher {
-    /// The canonical SipHash reference key (bytes `0x00..=0x0f`), used as a fixed,
+    /// The canonical `SipHash` reference key (bytes `0x00..=0x0f`), used as a fixed,
     /// publicly specified key rather than a per-process random seed.
     const KEY0: u64 = 0x0706_0504_0302_0100;
     const KEY1: u64 = 0x0f0e_0d0c_0b0a_0908;

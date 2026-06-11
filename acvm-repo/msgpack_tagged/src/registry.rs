@@ -54,7 +54,7 @@ impl Tagged {
         }
     }
 
-    /// Empty [Tagged::Product] used for primitives and _newtypes_.
+    /// Empty [`Tagged::Product`] used for primitives and _newtypes_.
     pub const fn empty_product() -> Self {
         Self::Product(Product::empty())
     }
@@ -93,7 +93,7 @@ impl Product {
     /// Look up a field's tag by its serde name. O(N) over `fields` —
     /// acceptable for the small (typically 3-30) field counts of ACIR types;
     /// if a profile ever shows this hot, the registry can precompute
-    /// HashMap views.
+    /// `HashMap` views.
     pub fn tag_for(self, field_name: &str) -> Option<Tag> {
         self.fields.iter().find(|(_, name)| *name == field_name).map(|(t, _)| *t)
     }

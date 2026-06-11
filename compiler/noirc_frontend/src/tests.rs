@@ -102,7 +102,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 
 /// Given a source file with annotated errors, like this
 ///
-/// fn main() -> pub i32 {
+/// fn `main()` -> pub i32 {
 ///                  ^^^ expected i32 because of return type
 ///     true
 ///     ~~~~ bool returned here

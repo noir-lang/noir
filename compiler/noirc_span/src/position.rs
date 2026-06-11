@@ -14,14 +14,14 @@ pub struct Spanned<T> {
 }
 
 /// This is important for tests. Two Spanned objects are equal if their content is equal
-/// They may not have the same span. Use into_span to test for Span being equal specifically
+/// They may not have the same span. Use `into_span` to test for Span being equal specifically
 impl<T: PartialEq> PartialEq<Spanned<T>> for Spanned<T> {
     fn eq(&self, other: &Spanned<T>) -> bool {
         self.contents == other.contents
     }
 }
 
-/// Hash-based data structures (HashMap, HashSet) rely on the inverse of Hash
+/// Hash-based data structures (`HashMap`, `HashSet`) rely on the inverse of Hash
 /// being injective, i.e. x.eq(y) => hash(x, H) == hash(y, H), we hence align
 /// this with the above
 impl<T: Hash> Hash for Spanned<T> {
@@ -66,7 +66,7 @@ impl Span {
         Span::from(position..position)
     }
 
-    /// Unlike Span::empty, Span::initial always starts at index 0
+    /// Unlike `Span::empty`, `Span::initial` always starts at index 0
     pub const fn initial() -> Span {
         Span(ByteSpan::initial())
     }

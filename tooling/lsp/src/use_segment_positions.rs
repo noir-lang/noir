@@ -17,29 +17,29 @@ pub(crate) enum UseSegmentPosition {
     NoneOrMultiple,
     /// The segment is the last one in the `use` statement (or nested use statement):
     ///
-    /// use foo::bar;
+    /// use `foo::bar`;
     ///          ^^^
     ///
     /// Auto-import will transform it to this:
     ///
-    /// use foo::bar::{self, baz};
+    /// use `foo::bar::{self`, baz};
     Last { span: Span },
     /// The segment happens before another simple (ident) segment:
     ///
-    /// use foo::bar::qux;
+    /// use `foo::bar::qux`;
     ///          ^^^
     ///
     /// Auto-import will transform it to this:
     ///
-    /// use foo::bar::{qux, baz};
+    /// use `foo::bar::{qux`, baz};
     BeforeSegment { segment_span_until_end: Span },
     /// The segment happens before a list:
     ///
-    /// use foo::bar::{qux, another};
+    /// use `foo::bar::{qux`, another};
     ///
     /// Auto-import will transform it to this:
     ///
-    /// use foo::bar::{qux, another, baz};
+    /// use `foo::bar::{qux`, another, baz};
     BeforeList { first_entry_span: Span, list_is_empty: bool },
 }
 
@@ -219,7 +219,7 @@ pub(crate) struct UseCompletionItemAdditionTextEditsRequest<'a> {
     pub(crate) lines: &'a Vec<&'a str>,
     /// How many nested `mod` we are in deep
     pub(crate) nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     pub(crate) auto_import_line: usize,
 }
 

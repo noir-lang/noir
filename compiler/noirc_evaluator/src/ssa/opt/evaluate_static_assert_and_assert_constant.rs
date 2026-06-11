@@ -189,7 +189,7 @@ fn evaluate_assert_constant(
 }
 
 /// Evaluate a call to `static_assert`, returning an error if the value is false
-/// or not constant (see assert_constant).
+/// or not constant (see `assert_constant`).
 ///
 /// When it passes, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled

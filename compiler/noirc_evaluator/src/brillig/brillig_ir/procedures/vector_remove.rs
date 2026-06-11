@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorRemove].
+    /// Copy arguments to [`ScratchSpace`] and call [`ProcedureId::VectorRemove`].
     ///
     /// Removes `item_count` items from the `source_vector` at `index`, returning the new `destination_vector`.
     /// Modifies the `source_vector` if the reference count is 1.
@@ -39,7 +39,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::VectorRemove].
+/// Compile [`ProcedureId::VectorRemove`].
 pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

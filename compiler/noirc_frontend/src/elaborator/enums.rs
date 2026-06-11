@@ -48,7 +48,7 @@ use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget}
 const WILDCARD_PATTERN: &str = "_";
 
 /// Everything needed to resolve an enum's variants later, captured at
-/// registration time. Mirrors [super::structs::UnresolvedStructFields] for
+/// registration time. Mirrors [`super::structs::UnresolvedStructFields`] for
 /// struct fields.
 pub(super) struct UnresolvedEnumVariants {
     pub(super) enum_def: NoirEnumeration,
@@ -865,8 +865,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Convert a PathResolutionItem - usually an enum variant or global - to a Constructor.
-    /// If `name` is `Some`, we'll define a Pattern::Binding instead of erroring if the
+    /// Convert a `PathResolutionItem` - usually an enum variant or global - to a Constructor.
+    /// If `name` is `Some`, we'll define a `Pattern::Binding` instead of erroring if the
     /// item doesn't resolve to a variant or global. This would shadow an existing
     /// value such as a free function. Generally this is desired unless the variable was
     /// a path with multiple components such as `foo::bar` which should always be treated as
@@ -1464,7 +1464,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
     }
 
-    /// Traverse the resulting HirMatch to build counter-examples of values which would
+    /// Traverse the resulting `HirMatch` to build counter-examples of values which would
     /// not be covered by the match.
     #[tracing::instrument(level = "trace", skip_all)]
     fn issue_missing_cases_error(

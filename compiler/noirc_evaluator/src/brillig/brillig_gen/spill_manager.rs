@@ -129,7 +129,7 @@ impl SpillManager {
     /// 3. Removes spilled values from the live-in set (they have no register).
     /// 4. Updates the LRU: retains existing entries still live-in and not spilled
     ///    (preserving eviction hints from the previous block), then appends any
-    ///    new live-in values sorted by [ValueId] for determinism.
+    ///    new live-in values sorted by [`ValueId`] for determinism.
     pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
         // No transient spills should survive across block boundaries.
         assert!(
@@ -275,7 +275,7 @@ impl SpillManager {
     ///
     /// Entries already in `lru_order` that are still live-in and not spilled are kept
     /// in their existing order (preserving eviction hints from the previous block).
-    /// New live-in values not yet in the LRU are appended, sorted by [ValueId] for
+    /// New live-in values not yet in the LRU are appended, sorted by [`ValueId`] for
     /// determinism.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
         let records = &self.records;

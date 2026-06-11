@@ -95,7 +95,7 @@ pub enum MemoryTypeError {
     )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
     /// The memory value is not an integer and cannot be interpreted as one.
-    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [MemoryValue::to_u128].
+    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [`MemoryValue::to_u128`].
     #[error("Value is not an integer")]
     NotAnInteger,
 }
@@ -390,10 +390,10 @@ pub struct Memory<F> {
     /// Cached stack pointer to avoid a memory read + enum match on every
     /// relative address resolution.
     ///
-    /// The canonical value lives in memory slot [STACK_POINTER_ADDRESS]
+    /// The canonical value lives in memory slot [`STACK_POINTER_ADDRESS`]
     /// and must remain there for downstream ZK VM proving. We mirror it here
-    /// because [Self::resolve] is called on every memory access
-    /// with a relative address. Updated on writes to slot [STACK_POINTER_ADDRESS]
+    /// because [`Self::resolve`] is called on every memory access
+    /// with a relative address. Updated on writes to slot [`STACK_POINTER_ADDRESS`]
     /// which are more rare than reads.
     stack_pointer: u32,
 }

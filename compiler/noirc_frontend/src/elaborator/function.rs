@@ -67,7 +67,7 @@ pub(super) struct UnresolvedFunctionMeta {
 
 impl Elaborator<'_> {
     /// Registers all functions, impl methods, and trait impl methods for *lazy*
-    /// metadata resolution. Each entry captures the elaborator context (self_type,
+    /// metadata resolution. Each entry captures the elaborator context (`self_type`,
     /// outer generics, trait/impl ids) needed to resolve the meta later. Trait
     /// impls are also prepared here so that `<Object as Trait>::Type` references
     /// inside any signature can be looked up during meta resolution.
@@ -227,19 +227,19 @@ impl Elaborator<'_> {
         self.resolve_unresolved_function_meta(func_id, info);
     }
 
-    /// Lazily resolves a function's [FuncMeta] if needed, then returns it.
+    /// Lazily resolves a function's [`FuncMeta`] if needed, then returns it.
     pub(crate) fn function_meta(&mut self, func_id: FuncId) -> &FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta(&func_id)
     }
 
-    /// Mutable counterpart of [Self::function_meta].
+    /// Mutable counterpart of [`Self::function_meta`].
     pub(crate) fn function_meta_mut(&mut self, func_id: FuncId) -> &mut FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta_mut(&func_id)
     }
 
-    /// Runs `f` with the function's resolved [FuncMeta].
+    /// Runs `f` with the function's resolved [`FuncMeta`].
     pub(crate) fn with_function_meta<R>(
         &mut self,
         func_id: FuncId,
@@ -310,10 +310,10 @@ impl Elaborator<'_> {
     ///
     /// This resolves the function's signature including generics, parameters, return type,
     /// and trait constraints. The function body is stored unresolved and will be elaborated
-    /// later by [Self::elaborate_function].
+    /// later by [`Self::elaborate_function`].
     ///
     /// Prerequisite: any implicit generics from enclosing impls have already been added
-    /// to scope via [Self::add_generics].
+    /// to scope via [`Self::add_generics`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_meta(
         &mut self,
@@ -459,7 +459,7 @@ impl Elaborator<'_> {
 
     /// Adds function generics and associated generics (from where clause) to scope.
     ///
-    /// Returns (generics, associated_generics_trait_constraints) where generics contains
+    /// Returns (generics, `associated_generics_trait_constraints`) where generics contains
     /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_function_generics_to_scope(
@@ -515,8 +515,8 @@ impl Elaborator<'_> {
 
     /// Resolves function parameters and validates their types for entry points.
     ///
-    /// Returns (parameters, parameter_types, parameter_idents) where generics and
-    /// trait_constraints may be extended due to `impl Trait` desugaring.
+    /// Returns (parameters, `parameter_types`, `parameter_idents`) where generics and
+    /// `trait_constraints` may be extended due to `impl Trait` desugaring.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_parameters(
         &mut self,
@@ -617,7 +617,7 @@ impl Elaborator<'_> {
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
+    /// function. If the given type is not sized (e.g. contains a vector or `NamedGeneric` type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program(
         typ: &Type,
@@ -670,7 +670,7 @@ impl Elaborator<'_> {
     ///
     /// This is the second pass of function elaboration that processes the function body,
     /// resolves all expressions and statements, performs type checking, and verifies
-    /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
+    /// trait constraints. The function metadata must already be defined by [`Self::define_function_meta`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);

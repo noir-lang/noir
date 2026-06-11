@@ -2,7 +2,7 @@
 //!
 //! # Terminology:
 //!
-//! ## TraitConstraint & TraitBound
+//! ## `TraitConstraint` & `TraitBound`
 //!
 //! In the following code:
 //! ```noir
@@ -10,8 +10,8 @@
 //!     x.eq(x)
 //! }
 //! ```
-//! We call `T: Eq` a TraitConstraint, while `Eq` alone (along with any generics)
-//! is the TraitBound (although the two are sometimes informally used interchangeably).
+//! We call `T: Eq` a `TraitConstraint`, while `Eq` alone (along with any generics)
+//! is the `TraitBound` (although the two are sometimes informally used interchangeably).
 //!
 //! ## Assumed Implementations
 //!
@@ -36,7 +36,7 @@
 //! constraint. An impl candidate may be any trait impl for the same trait as the one in the trait
 //! constraint, including assumed impls.
 //!
-//! ## Solving a TraitConstraint
+//! ## Solving a `TraitConstraint`
 //!
 //! Solving a trait constraint is finding the single matching impl candidate it refers to.
 //! If it may refer to zero or more than one, the constraint can't be solved and an error should be
@@ -117,12 +117,12 @@
 //! explicitly via `T: Foo<U, B = MyB, C = MyC>` but this isn't very relevant to the inner workings
 //! of how the compiler handles associated types.
 //!
-//! ## How TraitConstraints are resolved
+//! ## How `TraitConstraints` are resolved
 //!
-//! This section is an attempt at a primer on how TraitConstraints are resolved by the elaborator.
+//! This section is an attempt at a primer on how `TraitConstraints` are resolved by the elaborator.
 //!
 //! The elaborator starts by seeing parsed code and must:
-//! 1. Resolve & type-check code (type_check_variable_with_bindings)
+//! 1. Resolve & type-check code (`type_check_variable_with_bindings`)
 //!   - In doing so, determine if the snippet has a trait constraint which needs to be solved
 //!   - Some variables have trait constraints because they refer to a generic function with
 //!     one or more trait constraints. Others have trait constraints because they directly refer
@@ -350,7 +350,7 @@ impl Elaborator<'_> {
     }
 
     /// Expands any traits in a where clause to mention all associated types if they were
-    /// elided by the user. See [Self::add_missing_named_generics] for more detail.
+    /// elided by the user. See [`Self::add_missing_named_generics`] for more detail.
     ///
     /// Returns all newly created generics to be added to this function/trait/impl.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -496,7 +496,7 @@ impl Elaborator<'_> {
         self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
     }
 
-    /// Resolve the given TraitBound, pushing error(s) if the path or any
+    /// Resolve the given `TraitBound`, pushing error(s) if the path or any
     /// types used failed to resolve.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_bound_inner(
@@ -526,7 +526,7 @@ impl Elaborator<'_> {
     ///
     /// Since there is no global/local scope distinction for trait constraints,
     /// care should be taken to manually remove these from scope (via
-    /// [Self::remove_trait_constraints_from_scope]) after the desired item finishes resolving.
+    /// [`Self::remove_trait_constraints_from_scope`]) after the desired item finishes resolving.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_trait_constraints_to_scope<'a>(
         &mut self,
@@ -548,7 +548,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// The removing counterpart for [Self::add_trait_constraints_to_scope].
+    /// The removing counterpart for [`Self::add_trait_constraints_to_scope`].
     ///
     /// This will only remove assumed trait impls from scope, but this
     /// is always what is desired since true trait impls are permanent.
@@ -620,7 +620,7 @@ impl Elaborator<'_> {
     /// named (associated) types are then replaced with fresh per-function type variables
     /// so they can be wrapped in `Type::Forall` and freshened at each call site.
     ///
-    /// Returns (new_generics, new_constraints) to be added to the function's generics
+    /// Returns (`new_generics`, `new_constraints`) to be added to the function's generics
     /// and trait constraints respectively.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_parent_associated_type_constraints(
@@ -834,7 +834,7 @@ impl Elaborator<'_> {
     /// In the deferred case the stubs carry real `name`, `location`, and
     /// `default_impl` info so `collect_trait_impl` can do name-based matching,
     /// but `typ`, `trait_constraints`, and `direct_generics` are placeholders.
-    /// Those are filled in by [Self::populate_resolved_trait_method_records]
+    /// Those are filled in by [`Self::populate_resolved_trait_method_records`]
     /// after the post-attribute drain has resolved each method's meta.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_methods(
@@ -951,7 +951,7 @@ impl Elaborator<'_> {
         functions
     }
 
-    /// Eager-flow variant of [Self::resolve_trait_methods]'s per-method body
+    /// Eager-flow variant of [`Self::resolve_trait_methods`]'s per-method body
     /// (used in the stdlib): resolve the meta now and build a real
     /// `TraitFunction` from it.
     #[allow(clippy::too_many_arguments)]
@@ -980,7 +980,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Deferred-flow variant of [Self::resolve_trait_methods]'s per-method body
+    /// Deferred-flow variant of [`Self::resolve_trait_methods`]'s per-method body
     /// (used outside the stdlib): register the meta for later resolution and
     /// return a stub `TraitFunction`.
     #[allow(clippy::too_many_arguments)]
@@ -1007,7 +1007,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Eagerly defines the [FuncMeta] for a trait method (used in the stdlib).
+    /// Eagerly defines the [`FuncMeta`] for a trait method (used in the stdlib).
     /// Mirrors the original pre-deferral path: bodies of body-less trait
     /// methods are also elaborated here, mainly to validate parameters and the
     /// return type.
@@ -1042,9 +1042,9 @@ impl Elaborator<'_> {
     }
 
     /// Compute the `(typ, trait_constraints, direct_generics)` tuple for a
-    /// trait method's `TraitFunction` record from its resolved [FuncMeta].
-    /// Shared between the stdlib eager path in [Self::resolve_trait_methods]
-    /// and the deferred path in [Self::populate_resolved_trait_method_records].
+    /// trait method's `TraitFunction` record from its resolved [`FuncMeta`].
+    /// Shared between the stdlib eager path in [`Self::resolve_trait_methods`]
+    /// and the deferred path in [`Self::populate_resolved_trait_method_records`].
     fn build_trait_function_type_bits(
         &self,
         func_id: FuncId,
@@ -1112,7 +1112,7 @@ impl Elaborator<'_> {
     /// After the post-attribute drain has resolved trait method metas, fill in
     /// the real `typ`, `trait_constraints`, and `direct_generics` of each
     /// `TraitFunction` record on the trait. Until this runs, those fields hold
-    /// the stub values written by [Self::resolve_trait_methods].
+    /// the stub values written by [`Self::resolve_trait_methods`].
     pub(super) fn populate_resolved_trait_method_records(&mut self) {
         let pending: Vec<(TraitId, FuncId, Ident)> =
             std::mem::take(&mut self.pending_trait_work.records);

@@ -8,9 +8,9 @@ use strum_macros::EnumCount;
 pub(crate) struct NumericArgument {
     /// Index of the argument in the context of stored variables of this type
     /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
-    /// Argument(Index(0), ValueType::U64) -> id 0
-    /// Argument(Index(0), ValueType::Field) -> id 5
-    /// Argument(Index(1), ValueType::Field) -> id 8
+    /// Argument(Index(0), `ValueType::U64`) -> id 0
+    /// Argument(Index(0), `ValueType::Field`) -> id 5
+    /// Argument(Index(1), `ValueType::Field`) -> id 8
     pub(crate) index: usize,
     /// Type of the argument
     pub(crate) numeric_type: NumericType,
@@ -73,23 +73,23 @@ pub(crate) enum Instruction {
     /// Less than comparison
     Lt { lhs: NumericArgument, rhs: NumericArgument },
 
-    /// constrain(lhs == lhs + rhs - rhs), doesn't insert constraint if idempotent_morphing_enabled=false
+    /// constrain(lhs == lhs + rhs - rhs), doesn't insert constraint if `idempotent_morphing_enabled=false`
     /// uses only fields variables
     AddSubConstrain { lhs: usize, rhs: usize },
-    /// constrain(lhs == lhs * rhs / rhs), doesn't insert constraint if idempotent_morphing_enabled=false
+    /// constrain(lhs == lhs * rhs / rhs), doesn't insert constraint if `idempotent_morphing_enabled=false`
     /// uses only fields variables
     MulDivConstrain { lhs: usize, rhs: usize },
 
     /// Store value to mutable memory
-    /// Allocates memory for Argument.value_type type with insert_allocate
-    /// Stores value to memory with insert_store
+    /// Allocates memory for `Argument.value_type` type with `insert_allocate`
+    /// Stores value to memory with `insert_store`
     AddToMemory { lhs: Argument },
     /// Load value from mutable memory
-    /// Loads value from memory with insert_load, choosing memory address for type Argument.value_type and index Argument.index
-    /// Returns value of type Argument.value_type
+    /// Loads value from memory with `insert_load`, choosing memory address for type `Argument.value_type` and index Argument.index
+    /// Returns value of type `Argument.value_type`
     LoadFromMemory { memory_addr: Argument },
     /// Store value to mutable memory
-    /// Stores value to memory with insert_store
+    /// Stores value to memory with `insert_store`
     /// If reference to this type is not found, allocates memory for it and stores value to it
     SetToMemory { memory_addr_index: usize, value: Argument },
 
@@ -97,18 +97,18 @@ pub(crate) enum Instruction {
     /// Other elements will be taken from stored variables of the same type
     CreateArray { elements_indices: Vec<usize>, element_type: Type },
     /// Get element from array, index will be casted to u32, only for arrays without references
-    /// If safe_index is true, index will be taken modulo the size of the array
+    /// If `safe_index` is true, index will be taken modulo the size of the array
     ArrayGet { array_index: usize, index: NumericArgument, safe_index: bool },
     /// Set element in array, index will be casted to u32, only for arrays without references
     /// Value will be cast to the type of the array
-    /// If safe_index is true, index will be taken modulo the size of the array
+    /// If `safe_index` is true, index will be taken modulo the size of the array
     ArraySet { array_index: usize, index: NumericArgument, value_index: usize, safe_index: bool },
     /// Get element from array, index is constant
-    /// If safe_index is true, index will be taken modulo the size of the array
+    /// If `safe_index` is true, index will be taken modulo the size of the array
     ArrayGetWithConstantIndex { array_index: usize, index: usize, safe_index: bool },
     /// Set element in array, index is constant
     /// Value will be cast to the type of the array
-    /// If safe_index is true, index will be taken modulo the size of the array
+    /// If `safe_index` is true, index will be taken modulo the size of the array
     ArraySetWithConstantIndex {
         array_index: usize,
         index: usize,
@@ -117,18 +117,18 @@ pub(crate) enum Instruction {
     },
 
     /// Field to bytes to field
-    /// Takes field, converts it to le_bytes
-    /// Then converts the le_bytes to field and stores it in the context
+    /// Takes field, converts it to `le_bytes`
+    /// Then converts the `le_bytes` to field and stores it in the context
     FieldToBytesToField { field_idx: usize },
 
     /// Blake2s hash
-    /// Takes field, converts it to le_bytes of the size specified by `limbs_count`
-    /// Then hashes it with blake2s and stores the hash from le_bytes in the context
+    /// Takes field, converts it to `le_bytes` of the size specified by `limbs_count`
+    /// Then hashes it with blake2s and stores the hash from `le_bytes` in the context
     Blake2sHash { field_idx: usize, limbs_count: u8 },
 
     /// Blake3 hash
-    /// Takes field, converts it to le_bytes of the size specified by `limbs_count`
-    /// Then hashes it with blake3 and stores the hash from le_bytes in the context
+    /// Takes field, converts it to `le_bytes` of the size specified by `limbs_count`
+    /// Then hashes it with blake3 and stores the hash from `le_bytes` in the context
     Blake3Hash { field_idx: usize, limbs_count: u8 },
 
     /// Keccakf1600 hash

@@ -175,7 +175,7 @@ impl Generic for FmtstrPrimitiveType {
     }
 }
 
-/// TraitGenerics are different from regular generics in that they can
+/// `TraitGenerics` are different from regular generics in that they can
 /// also contain associated type arguments.
 #[derive(Default, Clone, Ord, PartialOrd, Eq)]
 pub struct TraitGenerics {

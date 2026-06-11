@@ -210,11 +210,11 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
     TypedPathSegment::without_generics(segment.ident, segment.location)
 }
 
-/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
-/// and a [ModuleId] where that `TypedPath` should be resolved.
+/// Given a `TypedPath` and a [`ModuleId`] it's being used in, this function returns a `TypedPath`
+/// and a [`ModuleId`] where that `TypedPath` should be resolved.
 ///
-/// For a [PathKind::Absolute] with a value such as `::foo::bar::baz`, the path will be turned into a
-/// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
+/// For a [`PathKind::Absolute`] with a value such as `::foo::bar::baz`, the path will be turned into a
+/// [`PathKind::Plain`] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
 /// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
 /// up with the module where it should be looked up. If the module cannot be found, and error is
 /// returned.
@@ -237,7 +237,7 @@ pub fn resolve_path_kind<'r>(
 /// Returns `true` if the first segment of a `TypedPath` in the `starting_module`
 /// should always be visible to the `importing_module`.
 ///
-/// Assumes that we have called [resolve_path_kind] before.
+/// Assumes that we have called [`resolve_path_kind`] before.
 pub(crate) fn first_segment_is_always_visible(
     path: &TypedPath,
     importing_module: ModuleId,
@@ -260,7 +260,7 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
 }
 
 impl PathResolutionTargetResolver<'_, '_> {
-    /// Resolve a `TypedPath` based on its [PathKind] to the target [ModuleId].
+    /// Resolve a `TypedPath` based on its [`PathKind`] to the target [`ModuleId`].
     fn resolve(&mut self, path: TypedPath) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
@@ -339,7 +339,7 @@ impl PathResolutionTargetResolver<'_, '_> {
 
     /// Resolve a path such as `super::foo::bar` or `super::super::foo::bar`:
     /// * walk up `extras + 1` parents of the current importing module (one per `super`)
-    /// * return the path still with [PathKind::Super], paired up with the ancestor module
+    /// * return the path still with [`PathKind::Super`], paired up with the ancestor module
     fn resolve_super_path(
         &self,
         path: TypedPath,
@@ -376,7 +376,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Self { importing_module, def_maps, usage_tracker, references_tracker }
     }
 
-    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
     ///
     /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(

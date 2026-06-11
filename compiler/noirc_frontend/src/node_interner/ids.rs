@@ -50,7 +50,7 @@ impl fmt::Display for FuncId {
     }
 }
 
-/// A [TypeId] wraps a [ModuleId], because types are represented by an anonymous module.
+/// A [`TypeId`] wraps a [`ModuleId`], because types are represented by an anonymous module.
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeId(pub(super) ModuleId);
 
@@ -95,15 +95,15 @@ pub struct TraitItemId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(pub(super) Index);
 
-/// The ID of an [crate::ast::ExpressionKind] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
+/// The ID of an [`crate::ast::ExpressionKind`] that's been pushed into the [`NodeInterner`][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedExpressionKind(pub(super) Index);
 
-/// The ID of a [crate::ast::StatementKind] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
+/// The ID of a [`crate::ast::StatementKind`] that's been pushed into the [`NodeInterner`][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedStatementKind(pub(super) Index);
 
-/// The ID of a [crate::ast::UnresolvedTypeData] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
+/// The ID of a [`crate::ast::UnresolvedTypeData`] that's been pushed into the [`NodeInterner`][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(pub(super) Index);
 

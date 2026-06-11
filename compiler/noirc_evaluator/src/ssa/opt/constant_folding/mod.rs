@@ -224,8 +224,8 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 /// Pre-scan the function to find array types that are mutated through block parameters.
 ///
 /// In RPO traversal, loop bodies are processed after loop exit blocks. This means if a
-/// MakeArray is cached before a loop, and the loop body mutates the array through a block
-/// parameter, the mutation won't be seen before a duplicate MakeArray in the exit block
+/// `MakeArray` is cached before a loop, and the loop body mutates the array through a block
+/// parameter, the mutation won't be seen before a duplicate `MakeArray` in the exit block
 /// gets incorrectly deduplicated. We find these types upfront so we can skip caching them.
 fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
     if !function.runtime().is_brillig() {
@@ -310,13 +310,13 @@ struct Context {
     /// See [`can_be_deduplicated`] for more information
     cached_instruction_results: InstructionResultCache,
 
-    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
+    /// Maps pre-folded `ValueIds` to the new `ValueIds` obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
 
     /// Array types that are mutated through block parameters in brillig.
     /// In RPO traversal, loop bodies are processed after loop exits, so we may encounter
-    /// a duplicate MakeArray in the exit block before seeing the mutation in the loop body.
-    /// We pre-scan the function to find these types and skip caching MakeArray instructions
+    /// a duplicate `MakeArray` in the exit block before seeing the mutation in the loop body.
+    /// We pre-scan the function to find these types and skip caching `MakeArray` instructions
     /// that produce them to avoid incorrect deduplication.
     mutated_block_param_array_types: HashSet<Type>,
 }
@@ -2979,9 +2979,9 @@ mod test {
         folded.interpret(Vec::new()).unwrap();
     }
 
-    /// Regression test for MakeArray deduplication in brillig with loops.
-    /// When a MakeArray's result flows into a loop where it's mutated via a block parameter,
-    /// a duplicate MakeArray after the loop must not be deduplicated to the first one,
+    /// Regression test for `MakeArray` deduplication in brillig with loops.
+    /// When a `MakeArray`'s result flows into a loop where it's mutated via a block parameter,
+    /// a duplicate `MakeArray` after the loop must not be deduplicated to the first one,
     /// because in brillig the first array was mutated in place.
     #[test]
     fn do_not_deduplicate_make_array_mutated_through_block_param() {
@@ -3036,12 +3036,12 @@ mod test {
     /// a hoisted instruction self-deduplicates during a revisit.
     ///
     /// Pass 1: b4/b5 are siblings with `not v2`, hoisted to b3. The `eq v2, u1 0`
-    /// in b6 doesn't match `not` in the cache, but push_instruction simplifies it to
+    /// in b6 doesn't match `not` in the cache, but `push_instruction` simplifies it to
     /// a new `Not(v2)` instruction placed in b6 (not seen by this pass).
     ///
     /// Revisit from b3: the new `Not(v2)` in b6 hits the cache from b3, but b3
     /// doesn't dominate b6 (path b2→b6 bypasses b3), so it's hoisted to
-    /// common_dom(b3, b6) = b2. Later in the same iteration, b2 is visited via the
+    /// `common_dom(b3`, b6) = b2. Later in the same iteration, b2 is visited via the
     /// loop back-edge (b6→b1→b2), and the hoisted `Not` self-deduplicates: the cache
     /// points to its own results, so the pass skips re-insertion, orphaning the result.
     #[test]

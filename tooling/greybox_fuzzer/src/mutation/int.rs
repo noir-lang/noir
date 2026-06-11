@@ -1,4 +1,4 @@
-//! This file contains mechanisms for mutating integer InputValues.
+//! This file contains mechanisms for mutating integer `InputValues`.
 //! If the value is a boolean, it just picks a new random value.
 //! Otherwise, it performs one of the following mutations:
 //! 1. Substitution with one of the fixed values (the selection of values is dependent on the width and signedness of the integer)
@@ -303,7 +303,7 @@ fn add_sub_xor_and_or_unsigned<
 }
 
 /// Perform a shift operation on the value and convert to field
-/// The lowest bit of direction_and_magnitude represents shift direction, higher bits - shift value
+/// The lowest bit of `direction_and_magnitude` represents shift direction, higher bits - shift value
 fn shift_signed_int<
     T: Shl<u32, Output = T> + Shr<u32, Output = T> + PrimInt + HasBits + AsPrimitive<i128>,
 >(
@@ -321,7 +321,7 @@ fn shift_signed_int<
 }
 
 /// Perform a shift operation on the value and convert to field
-/// The lowest bit of direction_and_magnitude represents shift direction, higher bits - shift value
+/// The lowest bit of `direction_and_magnitude` represents shift direction, higher bits - shift value
 fn shift_unsigned_int<
     T: Shl<u32, Output = T> + Shr<u32, Output = T> + PrimInt + HasBits + AsPrimitive<u128>,
 >(

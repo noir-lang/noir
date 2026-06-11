@@ -47,7 +47,7 @@ impl std::fmt::Display for NamedType {
 }
 
 /// Represents a trait in the type system. Each instance of this struct
-/// will be shared across all Type::Trait variants that represent
+/// will be shared across all `Type::Trait` variants that represent
 /// the same trait.
 #[derive(Debug, Eq)]
 pub struct Trait {
@@ -59,10 +59,10 @@ pub struct Trait {
 
     pub methods: Vec<TraitFunction>,
 
-    /// Maps method_name -> method id.
-    /// This map is separate from methods since TraitFunction ids
+    /// Maps `method_name` -> method id.
+    /// This map is separate from methods since `TraitFunction` ids
     /// are created during collection where we don't yet have all
-    /// the information needed to create the full TraitFunction.
+    /// the information needed to create the full `TraitFunction`.
     pub method_ids: HashMap<String, FuncId>,
 
     /// Named generics of the trait.
@@ -76,8 +76,8 @@ pub struct Trait {
     pub visibility: ItemVisibility,
 
     /// When resolving the types of Trait elements, all references to `Self` resolve
-    /// to this TypeVariable. Then when we check if the types of trait impl elements
-    /// match the definition in the trait, we bind this TypeVariable to whatever
+    /// to this `TypeVariable`. Then when we check if the types of trait impl elements
+    /// match the definition in the trait, we bind this `TypeVariable` to whatever
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
 
@@ -89,14 +89,14 @@ pub struct Trait {
 
     pub all_generics: ResolvedGenerics,
 
-    /// Map from each associated constant's name to a unique DefinitionId for that constant.
+    /// Map from each associated constant's name to a unique `DefinitionId` for that constant.
     pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
 /// A completed trait implementation.
 ///
 /// Note that ordered generics and named arguments (associated types) are stored separately
-/// in the NodeInterner. This is because they're required to resolve types before the impl
+/// in the `NodeInterner`. This is because they're required to resolve types before the impl
 /// as a whole is finished resolving.
 #[derive(Debug)]
 pub struct TraitImpl {
@@ -181,7 +181,7 @@ pub struct ResolvedTraitBound {
 }
 
 impl ResolvedTraitBound {
-    /// Update all [Type]s in the bound generics by substituting some [TypeBindings] onto them.
+    /// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
@@ -298,7 +298,7 @@ impl Trait {
         TraitGenerics { ordered, named }
     }
 
-    /// Returns a TraitConstraint for this trait using Self as the object
+    /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
         let trait_generics = self.get_trait_generics(location);

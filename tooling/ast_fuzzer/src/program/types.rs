@@ -341,7 +341,7 @@ pub fn ref_with_mut(typ: Type, mutable: bool) -> Type {
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
 ///
-/// Aims to maintain parity with [Monomorphizer::convert_type](noirc_frontend::monomorphization::Monomorphizer::convert_type).
+/// Aims to maintain parity with [`Monomorphizer::convert_type`](noirc_frontend::monomorphization::Monomorphizer::convert_type).
 pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
     use noirc_frontend::Type as HirType;
 

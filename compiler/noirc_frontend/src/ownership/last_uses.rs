@@ -108,7 +108,7 @@ impl LastUseContext {
     }
 
     /// Record a use of a local variable. If this is the first encounter in the
-    /// reverse traversal (i.e. the last use in forward order), add it to pending_last_uses.
+    /// reverse traversal (i.e. the last use in forward order), add it to `pending_last_uses`.
     fn use_variable(&mut self, id: LocalId, ident_id: IdentId) {
         if self.seen.insert(id) {
             self.pending_last_uses.entry(id).or_default().push(ident_id);

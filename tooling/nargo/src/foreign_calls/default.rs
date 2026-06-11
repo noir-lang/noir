@@ -11,7 +11,7 @@ use super::{
 #[cfg(feature = "rpc")]
 use super::rpc::RPCForeignCallExecutor;
 
-/// A builder for [DefaultForeignCallLayers] where we can enable fields based on feature flags,
+/// A builder for [`DefaultForeignCallLayers`] where we can enable fields based on feature flags,
 /// which is easier than providing different overrides for a `new` method.
 pub struct DefaultForeignCallBuilder<W> {
     pub output: W,
@@ -73,7 +73,7 @@ impl<W> DefaultForeignCallBuilder<W> {
         self
     }
 
-    /// Compose the executor layers with [layers::Empty] as the default handler.
+    /// Compose the executor layers with [`layers::Empty`] as the default handler.
     pub fn build<F>(self) -> DefaultForeignCallLayers<W, layers::Empty, F>
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de>,

@@ -248,7 +248,7 @@ mod tests {
     use super::evaluate_infix;
 
     #[test]
-    /// See: https://github.com/noir-lang/noir/issues/8391
+    /// See: <https://github.com/noir-lang/noir/issues/8391>
     fn regression_8391() {
         let lhs = Value::u128(340282366920938463463374607431768211455);
         let rhs = Value::u128(2);

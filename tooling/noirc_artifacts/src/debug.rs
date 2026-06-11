@@ -360,7 +360,7 @@ impl DebugInfo {
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
     ///
     /// The [`OpcodeLocation`]s are generated with the ACIR, but passing the ACIR through a transformation step
-    /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
+    /// renders the old `OpcodeLocation`s invalid. The `AcirTransformationMap` is able to map the old `OpcodeLocation` to the new ones.
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     #[tracing::instrument(level = "trace", skip(self, update_map))]
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
@@ -403,7 +403,7 @@ impl LocationTree {
         &self.locations
     }
 
-    /// Construct a [CallStack] from a [CallStackId]
+    /// Construct a [`CallStack`] from a [`CallStackId`]
     pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
         let mut result = Vec::new();
         while let Some(parent) = self.locations[call_stack.index()].parent {

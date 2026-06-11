@@ -128,7 +128,7 @@ impl std::fmt::Display for ProcedureId {
 }
 
 /// Compile a procedure as a stand-alone Brillig artifact, generating byte code for a specific operation,
-/// reading and returning arguments through the [ScratchSpace][crate::brillig::brillig_ir::registers::ScratchSpace].
+/// reading and returning arguments through the [`ScratchSpace`][crate::brillig::brillig_ir::registers::ScratchSpace].
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
     options: &BrilligOptions,

@@ -10,11 +10,11 @@
 //! - A function is reachable if it is stored in a reference (e.g., in a `Store` instruction) from another reachable function.
 //!   Even if not immediately called, it may later be dynamically loaded and invoked.
 //!   This marking is conservative but ensures correctness. We should instead rely on
-//!   [crate::ssa::opt::mem2reg] for resolving loads/stores.
+//!   [`crate::ssa::opt::mem2reg`] for resolving loads/stores.
 //! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 //!
 //! The pass builds a call graph based upon the definition of reachability above.
-//! It then identifies all entry points and uses the [CallGraph::reachable_from] utility
+//! It then identifies all entry points and uses the [`CallGraph::reachable_from`] utility
 //! to mark all transitively reachable functions. It then discards the rest.
 //!
 //! This pass helps shrink the SSA before compilation stages like inlining and dead code elimination.
@@ -48,7 +48,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Ssa::remove_unreachable_functions].
+/// Post-check condition for [`Ssa::remove_unreachable_functions`].
 ///
 /// Succeeds if:
 ///   - `ssa` contains no unreachable functions, i.e., all functions are reachable from the entry points.

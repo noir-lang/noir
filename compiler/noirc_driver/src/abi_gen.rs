@@ -183,7 +183,7 @@ fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
     })
 }
 
-/// Converts a comptime-evaluated [Value] of an `#[abi(tag)]` global into an [AbiValue].
+/// Converts a comptime-evaluated [Value] of an `#[abi(tag)]` global into an [`AbiValue`].
 ///
 /// The elaborator rejects globals whose type the ABI cannot represent (via
 /// `Type::program_validity`), so this function only needs to handle the value shapes that

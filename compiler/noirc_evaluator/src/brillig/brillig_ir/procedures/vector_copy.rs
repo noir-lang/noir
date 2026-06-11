@@ -12,7 +12,7 @@ use crate::brillig::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorCopy].
+    /// Copy arguments to [`ScratchSpace`] and call [`ProcedureId::VectorCopy`].
     ///
     /// Conditionally copies a source vector to a destination vector.
     /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
@@ -32,7 +32,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::VectorCopy].
+/// Compile [`ProcedureId::VectorCopy`].
 pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

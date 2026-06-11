@@ -55,7 +55,7 @@ type IntKeyedEntries<'de> = SmallVec<[(u8, &'de [u8]); 4]>;
 /// free function. A builder for strategy customization will land later
 /// (mirroring the serializer's plan).
 ///
-/// The inner reader is fixed to `&'de [u8]` (wrapped in rmp_serde's
+/// The inner reader is fixed to `&'de [u8]` (wrapped in `rmp_serde`'s
 /// `ReadReader`, the shape `RmpDeserializer::new` constructs). We don't
 /// keep the reader generic because two interception paths need to grab a
 /// snapshot of the unread byte slice — `deserialize_option`'s peek-via-

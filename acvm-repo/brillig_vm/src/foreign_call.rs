@@ -16,7 +16,7 @@ use itertools::Itertools;
 use crate::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
-    /// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+    /// Handles the execution of a single [`ForeignCall` opcode][acir::brillig::Opcode::ForeignCall].
     ///
     /// This method performs the following steps:
     /// 1. Checks if the foreign call results are already available. If not, it resolves the input
@@ -31,7 +31,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// 3. Increments the foreign call counter and advances the program counter.
     ///
     /// # Parameters
-    /// The borrowed fields of a [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+    /// The borrowed fields of a [`ForeignCall` opcode][acir::brillig::Opcode::ForeignCall].
     /// They are listed again below:
     /// - `function`: Name of the foreign function being called.
     /// - `destinations`: Pointers or heap structures where the return values will be written.
@@ -40,9 +40,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
     /// - `input_value_types`: Expected type layout for each input.
     ///
     /// # Returns
-    /// - [VMStatus] indicating the next state of the VM:
-    ///   - [VMStatus::ForeignCallWait] if the results are not yet available.
-    ///   - [VMStatus::Finished] or [VMStatus::Failure] depending on whether writing the results succeeded.
+    /// - [`VMStatus`] indicating the next state of the VM:
+    ///   - [`VMStatus::ForeignCallWait`] if the results are not yet available.
+    ///   - [`VMStatus::Finished`] or [`VMStatus::Failure`] depending on whether writing the results succeeded.
     ///
     /// # Panics
     /// - If `inputs` and `input_value_types` lengths do not match.

@@ -16,7 +16,7 @@ use crate::ssa::{
 impl Context {
     /// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
     /// Returns `true` if at least one check was inserted.
-    /// Because some ArrayGet might happen in groups (for composite types), if just
+    /// Because some `ArrayGet` might happen in groups (for composite types), if just
     /// some of the instructions in a group are used but not all of them, no check
     /// is inserted, so this method might return `false`.
     pub(super) fn replace_array_instructions_with_out_of_bounds_checks(

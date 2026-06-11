@@ -111,7 +111,7 @@ pub(super) fn assert_not_checked_signed_add_sub_mul(
     }
 }
 
-/// Panics if the instruction is an IfElse.
+/// Panics if the instruction is an `IfElse`.
 pub(super) fn assert_not_if_else(instruction: &Instruction) {
     assert!(!matches!(instruction, Instruction::IfElse { .. }), "IfElse instruction found");
 }
@@ -135,7 +135,7 @@ pub(super) fn assert_not_bit_shift(instruction: &Instruction) {
     );
 }
 
-/// Panics if the instruction is a ConstrainNotEqual.
+/// Panics if the instruction is a `ConstrainNotEqual`.
 pub(super) fn assert_not_constrain_not_equal(instruction: &Instruction) {
     assert!(
         !matches!(instruction, Instruction::ConstrainNotEqual(_, _, _)),
@@ -161,7 +161,7 @@ pub(super) fn assert_not_signed_mod(instruction: &Instruction, dfg: &DataFlowGra
     assert!(!is_signed_binary_op(instruction, dfg, BinaryOp::Mod), "Signed modulo found");
 }
 
-/// Panics if the instruction is an IfElse operating on a numeric type.
+/// Panics if the instruction is an `IfElse` operating on a numeric type.
 pub(super) fn assert_not_if_else_on_numeric(instruction: &Instruction, dfg: &DataFlowGraph) {
     if let Instruction::IfElse { then_value, .. } = instruction {
         assert!(
@@ -171,7 +171,7 @@ pub(super) fn assert_not_if_else_on_numeric(instruction: &Instruction, dfg: &Dat
     }
 }
 
-/// Panics if the instruction is a mutable ArraySet.
+/// Panics if the instruction is a mutable `ArraySet`.
 pub(super) fn assert_not_mutable_array_set(instruction: &Instruction) {
     assert!(
         !matches!(instruction, Instruction::ArraySet { mutable: true, .. }),

@@ -5,7 +5,7 @@ use crate::node_interner::{FuncId, TraitId};
 use std::collections::{BTreeMap, btree_map};
 use std::collections::{HashMap, hash_map};
 
-/// Definitions of an [Ident]: it can be a standalone without a [TraitId],
+/// Definitions of an [Ident]: it can be a standalone without a [`TraitId`],
 /// or it can appear across multiple traits.
 type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
 
@@ -18,7 +18,7 @@ pub struct ItemScope {
 }
 
 impl ItemScope {
-    /// Add an [Ident] and its [ModuleDefId] to the namespace,
+    /// Add an [Ident] and its [`ModuleDefId`] to the namespace,
     /// and also push the definition to the `defs`.
     pub fn add_definition(
         &mut self,
@@ -32,7 +32,7 @@ impl ItemScope {
         Ok(())
     }
 
-    /// Add an [Ident] and its [ModuleDefId] to either `types` or `values`,
+    /// Add an [Ident] and its [`ModuleDefId`] to either `types` or `values`,
     /// depending on what its definition is.
     ///
     /// Returns an `Err` with `(old_item, new_item)` if there is already an
@@ -90,7 +90,7 @@ impl ItemScope {
         }
     }
 
-    /// Look up an [Ident] in `types` with no [TraitId], and return it _iff_ it's a [ModuleDefId::ModuleId].
+    /// Look up an [Ident] in `types` with no [`TraitId`], and return it _iff_ it's a [`ModuleDefId::ModuleId`].
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
         let (module_def, _, _) = self.types.get(mod_name)?.get(&None)?;
         match module_def {
@@ -99,7 +99,7 @@ impl ItemScope {
         }
     }
 
-    /// Look up an [Ident] in `values`, then return the [FuncId] if the definition is a [ModuleDefId::FunctionId],
+    /// Look up an [Ident] in `values`, then return the [`FuncId`] if the definition is a [`ModuleDefId::FunctionId`],
     ///
     /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
@@ -151,8 +151,8 @@ impl ItemScope {
     }
 
     /// Look up an [Ident] in `types` or `values`:
-    /// * if a definition without a [TraitId] exists, return that
-    /// * if there is exactly 1 definition with a [TraitId], return that
+    /// * if a definition without a [`TraitId`] exists, return that
+    /// * if there is exactly 1 definition with a [`TraitId`], return that
     /// * otherwise return nothing, as the name is ambiguous, exists in multiple traits
     fn find_name_in<'a>(
         name: &Ident,

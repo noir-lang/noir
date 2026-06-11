@@ -10,7 +10,7 @@
 //! dispatch `apply` function.
 //!
 //! ## How the pass works:
-//! - Every function used as a value (e.g., passed as a parameter) is assigned a unique [NumericType::NativeField] value.
+//! - Every function used as a value (e.g., passed as a parameter) is assigned a unique [`NumericType::NativeField`] value.
 //!   This value now represents the first-class function's ID.
 //! - All call instructions with non-literal targets are replaced by calls to an `apply` function.
 //! - The `apply` function is a dispatcher. It takes the function ID as its first argument
@@ -69,7 +69,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// }
 /// ```
 /// Apply functions generally take the function to apply as their first parameter. This is a Field value
-/// obtained by converting the FunctionId into a Field. The remaining parameters of apply are the
+/// obtained by converting the `FunctionId` into a Field. The remaining parameters of apply are the
 /// arguments to forward to this function when calling it internally.
 #[derive(Debug, Clone, Copy)]
 struct ApplyFunction {
@@ -78,15 +78,15 @@ struct ApplyFunction {
 }
 
 /// All functions used as a value that share the same signature and runtime type
-/// Maps ([Signature], Caller [RuntimeType]) -> Vec<([FunctionId], Callee [RuntimeType])>
+/// Maps ([Signature], Caller [`RuntimeType`]) -> Vec<([`FunctionId`], Callee [`RuntimeType`])>
 type Variants = BTreeMap<(Signature, RuntimeType), Vec<(FunctionId, RuntimeType)>>;
 /// All generated apply functions for each grouping of function variants.
-/// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
-/// Maps ([Signature], [RuntimeType]) -> [ApplyFunction]
+/// Each apply function is handles a specific ([Signature], [`RuntimeType`]) group.
+/// Maps ([Signature], [`RuntimeType`]) -> [`ApplyFunction`]
 type ApplyFunctions = HashMap<(Signature, RuntimeType), ApplyFunction>;
 
 /// Performs defunctionalization on all functions
-/// This is done by changing all functions as value to be a number (FieldElement)
+/// This is done by changing all functions as value to be a number (`FieldElement`)
 /// And creating apply functions that dispatch to the correct target by runtime comparisons with constants
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
@@ -311,7 +311,7 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
 
 /// Collects all functions used as values that can be called by their signatures.
 ///
-/// Groups all [FunctionId]s used as values by their [Signature] and caller [RuntimeType],
+/// Groups all [`FunctionId`]s used as values by their [Signature] and caller [`RuntimeType`],
 /// producing a mapping from these tuples to the list of target functions that may be dynamically dispatched.
 ///
 /// # Arguments
@@ -436,22 +436,22 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// function is grouped by functions that share a target signature and caller runtime.
 ///
 /// An apply function is only created if there are multiple function variants
-/// for a specific ([Signature], [RuntimeType]) group.
+/// for a specific ([Signature], [`RuntimeType`]) group.
 /// Otherwise, if there is a single variant that function is simply reused.
 ///
 /// If there are no variants a dummy function is created.
 /// A dummy function acts as a safe no-op to continue compilation even though there are no variants
-/// for a first-class function call. For more information you can reference [create_dummy_function].
+/// for a first-class function call. For more information you can reference [`create_dummy_function`].
 ///
 /// # Arguments
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// - [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+/// - [`ApplyFunctions`] keyed by each function's signature _before_ functions are changed
 ///   into field types. The inner apply function itself will have its defunctionalized type,
 ///   with function values represented as field values.
-/// - [HashMap<FunctionId, Purity>] with purities that must be set to all functions in the SSA,
+/// - [`HashMap`<`FunctionId`, Purity>] with purities that must be set to all functions in the SSA,
 ///   as this function might have created dummy pure functions.
 fn create_apply_functions(
     ssa: &mut Ssa,
@@ -554,7 +554,7 @@ fn filter_apply_function_variants(
         .collect()
 }
 
-/// Transforms a [FunctionId] into a [FieldElement]
+/// Transforms a [`FunctionId`] into a [`FieldElement`]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
     u128::from(function_id.to_u32()).into()
 }
@@ -579,7 +579,7 @@ fn param_lowerable_across_boundary(typ: &Type) -> bool {
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
-/// that share the same [Signature] and [RuntimeType].
+/// that share the same [Signature] and [`RuntimeType`].
 ///
 /// This function is responsible for generating an entry point that dispatches between several
 /// concrete functions at runtime based on a target field value. It builds a sequence of
@@ -593,11 +593,11 @@ fn param_lowerable_across_boundary(typ: &Type) -> bool {
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
 /// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced with a field type.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
-/// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
+/// - `function_ids`: A non-empty list of [`FunctionId`]s representing concrete functions to dispatch between.
 ///   This method will panic if `function_ids` is empty.
 ///
 /// # Returns
-/// The [FunctionId] of the new apply function
+/// The [`FunctionId`] of the new apply function
 ///
 /// # Panics
 /// If the `function_ids` argument has fewer than two elements, implying that no apply function is necessary.
@@ -746,7 +746,7 @@ fn create_apply_function(
 /// This is especially useful in cases where we cannot statically resolve the function reference,
 /// but want to continue compiling the rest of the program safely.
 ///
-/// Returns the [FunctionId] of the newly created dummy function.
+/// Returns the [`FunctionId`] of the newly created dummy function.
 fn create_dummy_function(
     ssa: &mut Ssa,
     signature: Signature,
@@ -2000,7 +2000,7 @@ mod tests {
         ");
     }
 
-    /// This test expands [acir_variant_in_brillig_last_function_to_dispatch] by having multiple
+    /// This test expands [`acir_variant_in_brillig_last_function_to_dispatch`] by having multiple
     /// ACIR variants be at the end of the proposed variant dispatch table
     #[test]
     fn acir_variant_in_brillig_multiple_at_end_are_skipped() {

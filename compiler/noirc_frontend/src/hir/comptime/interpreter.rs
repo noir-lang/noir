@@ -30,7 +30,7 @@
 //! we cannot continue otherwise. This can result in similar errors being issued for the same
 //! code. For example, a function's body may fail to type check, but that same function may
 //! be called in the interpreter later on where we'd presumably halt with a similar error.
-//! [InterpreterError::ArgumentCountMismatch] is an example of such an error.
+//! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
@@ -370,7 +370,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Performs the bulk of the work for calling a closure function.
-    /// This function is very similar to [Self::call_user_defined_function]
+    /// This function is very similar to [`Self::call_user_defined_function`]
     /// with the main difference being handling of `closure.captures`.
     fn call_closure_inner(
         &mut self,
@@ -411,7 +411,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
-    /// [Self::exit_function] is called.
+    /// [`Self::exit_function`] is called.
     pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let mut scope = Vec::new();
@@ -422,7 +422,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         (std::mem::take(&mut self.in_loop), scope)
     }
 
-    /// Resets the per-function state to the value previously returned by [Self::enter_function]
+    /// Resets the per-function state to the value previously returned by [`Self::enter_function`]
     pub(super) fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
         self.in_loop = state.0;
 
@@ -1208,7 +1208,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Err(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
     }
 
-    /// Evaluates a call expression, deferring to [Self::call_function] or [Self::call_closure]
+    /// Evaluates a call expression, deferring to [`Self::call_function`] or [`Self::call_closure`]
     /// once the function is determined.
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;

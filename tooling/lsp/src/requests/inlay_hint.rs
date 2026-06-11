@@ -717,7 +717,7 @@ mod inlay_hints_tests {
     /// rendered label is `label`". The markers (brackets and content) are stripped from the
     /// source before it's sent to the LSP — the label text is virtual, not real source.
     /// Use this for tests that care about position + label; for tests that also assert on
-    /// text_edits or label_part locations, drop down to `get_inlay_hints` instead.
+    /// `text_edits` or `label_part` locations, drop down to `get_inlay_hints` instead.
     async fn assert_inlay_hints(src: &str, options: InlayHintsOptions) {
         let (clean_src, expected) = parse_inlay_hint_markers(src);
         let mut actual: Vec<(Position, String)> = get_inlay_hints(&clean_src, options)

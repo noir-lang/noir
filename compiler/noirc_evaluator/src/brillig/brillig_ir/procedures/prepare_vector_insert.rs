@@ -10,7 +10,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy the arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorInsert].
+    /// Copy the arguments to the [`ScratchSpace`] and call [`ProcedureId::PrepareVectorInsert`].
     ///
     /// Prepares a the `source_vector` for a insert operation by making a copy to `destination_vector`,
     /// leaving an `item_count` hole at the `index` position, which is returned as the `write_pointer`.
@@ -41,7 +41,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::PrepareVectorInsert].
+/// Compile [`ProcedureId::PrepareVectorInsert`].
 pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

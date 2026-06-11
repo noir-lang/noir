@@ -121,7 +121,7 @@ impl<'args> SemanticTokenCollector<'args> {
         std::mem::take(&mut self.tokens)
     }
 
-    /// Checks doc comments on the given ReferenceId. Semantic tokens are produced for any links found,
+    /// Checks doc comments on the given `ReferenceId`. Semantic tokens are produced for any links found,
     /// so that they can be colorized in the editor.
     fn process_reference_id(&mut self, id: ReferenceId) {
         let Some(doc_comments) = self.args.interner.doc_comments(id) else {

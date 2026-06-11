@@ -169,11 +169,11 @@ fn get_max_num_bits(
     bits
 }
 
-/// Pre-check condition for [Function::checked_to_unchecked].
+/// Pre-check condition for [`Function::checked_to_unchecked`].
 ///
 /// Panics if:
 ///   - The function contains any checked signed binary operations (add, sub, mul).
-///   - These should have already been converted by the expand_signed_checks pass.
+///   - These should have already been converted by the `expand_signed_checks` pass.
 #[cfg(debug_assertions)]
 fn checked_to_unchecked_pre_check(func: &Function) {
     // expand_signed_checks must have run

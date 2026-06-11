@@ -259,9 +259,9 @@ impl Context<'_> {
 
     /// Convert a `Vec<[AcirVar]>` into a `Vec<[AcirValue]>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
-    /// a single [AcirValue::Array] of the same length.
+    /// a single [`AcirValue::Array`] of the same length.
     /// If the type of a result id is a vector, the vector length must precede it and we can
-    /// convert to an [AcirValue::Array] when the length is known (constant).
+    /// convert to an [`AcirValue::Array`] when the length is known (constant).
     fn convert_vars_to_values(
         &self,
         vars: Vec<AcirVar>,
@@ -291,10 +291,10 @@ impl Context<'_> {
         values
     }
 
-    /// Recursive helper for [Self::convert_vars_to_values].
-    /// If the given result_type is an array of length N, this will create an [AcirValue::Array] with
+    /// Recursive helper for [`Self::convert_vars_to_values`].
+    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
     /// the first N elements of the given iterator. Otherwise, the result is a single
-    /// [AcirValue::Var] wrapping the first element of the iterator.
+    /// [`AcirValue::Var`] wrapping the first element of the iterator.
     fn convert_var_type_to_values(
         result_type: &Type,
         vars: &mut impl Iterator<Item = AcirVar>,

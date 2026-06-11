@@ -19,9 +19,9 @@ impl Parser<'_> {
         self.parse_generics(true)
     }
 
-    /// Generics = ( '<' GenericsList? '>' )?
+    /// Generics = ( '<' `GenericsList`? '>' )?
     ///
-    /// GenericsList = Generic ( ',' Generic )* ','?
+    /// `GenericsList` = Generic ( ',' Generic )* ','?
     fn parse_generics(&mut self, allow_trait_bounds: bool) -> UnresolvedGenerics {
         if !self.eat_less() {
             return Vec::new();
@@ -44,9 +44,9 @@ impl Parser<'_> {
     }
 
     /// Generic
-    ///     = VariableGeneric
-    ///     | NumericGeneric
-    ///     | ResolvedGeneric
+    ///     = `VariableGeneric`
+    ///     | `NumericGeneric`
+    ///     | `ResolvedGeneric`
     fn parse_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
         if let Some(generic) = self.parse_variable_generic(allow_trait_bounds) {
             return Some(generic);
@@ -55,7 +55,7 @@ impl Parser<'_> {
         self.parse_numeric_generic()
     }
 
-    /// VariableGeneric = identifier ( ':' TraitBounds ) ?
+    /// `VariableGeneric` = identifier ( ':' `TraitBounds` ) ?
     fn parse_variable_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
         let ident = self.parse_ident_or_quoted()?;
 
@@ -88,7 +88,7 @@ impl Parser<'_> {
         }
     }
 
-    /// NumericGeneric = 'let' identifier ':' Type
+    /// `NumericGeneric` = 'let' identifier ':' Type
     fn parse_numeric_generic(&mut self) -> Option<UnresolvedGeneric> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -126,17 +126,17 @@ impl Parser<'_> {
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
 
-    /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )?
+    /// `GenericTypeArgs` = ( '<' `GenericTypeArgsList`? '>' )?
     ///
-    /// GenericTypeArgsList = GenericTypeArg ( ',' GenericTypeArg )* ','?
+    /// `GenericTypeArgsList` = `GenericTypeArg` ( ',' `GenericTypeArg` )* ','?
     ///
-    /// GenericTypeArg
-    ///     = NamedTypeArg
-    ///     | OrderedTypeArg
+    /// `GenericTypeArg`
+    ///     = `NamedTypeArg`
+    ///     | `OrderedTypeArg`
     ///
-    /// NamedTypeArg = identifier '=' Type
+    /// `NamedTypeArg` = identifier '=' Type
     ///
-    /// OrderedTypeArg = TypeOrTypeExpression
+    /// `OrderedTypeArg` = `TypeOrTypeExpression`
     pub(super) fn parse_generic_type_args(&mut self) -> GenericTypeArgs {
         let mut generic_type_args = GenericTypeArgs::default();
 

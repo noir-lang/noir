@@ -55,7 +55,7 @@ const SINGLE_FUZZING_ROUND_TARGET_TIME: u128 = 100_000u128;
 /// Minimum pulse interval in milliseconds for printing metrics
 const MINIMUM_PULSE_INTERVAL_MILLIS: u64 = 1000u64;
 
-/// A seed for the XorShift RNG for use during mutation
+/// A seed for the `XorShift` RNG for use during mutation
 type SimpleXorShiftRNGSeed = <XorShiftRng as SeedableRng>::Seed;
 
 /// Information collected from testcase execution on success
@@ -78,7 +78,7 @@ struct FuzzTask {
 }
 
 impl FuzzTask {
-    /// Create a new FuzzTask where everything is given
+    /// Create a new `FuzzTask` where everything is given
     pub(crate) fn new(
         main_testcase_id: TestCaseId,
         additional_testcase_id: Option<TestCaseId>,

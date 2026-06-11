@@ -432,7 +432,7 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     ]
 }
 
-/// Optimize the given SsaBuilder by converting it into SSA
+/// Optimize the given `SsaBuilder` by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions

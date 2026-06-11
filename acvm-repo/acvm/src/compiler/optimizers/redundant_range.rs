@@ -1,4 +1,4 @@
-//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+//! The redundant range constraint optimization pass aims to remove any [`BlackBoxFunc::Range`] opcodes
 //! which doesn't result in additional restrictions on the values of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
@@ -19,7 +19,7 @@
 //!
 //! # Implicit range constraints
 //!
-//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range]
+//! We also consider implicit range constraints on witnesses - constraints other than [`BlackBoxFunc::Range`]
 //! which limit the size of a witness.
 //!
 //! ## Constant assignments
@@ -71,7 +71,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// Information gathered about witnesses which are subject to range constraints.
 struct RangeInfo {
-    /// Opcode positions which updated this RangeInfo, i.e
+    /// Opcode positions which updated this `RangeInfo`, i.e
     /// at which stricter bit size information becomes available.
     switch_points: BTreeSet<usize>,
     /// Strictest constraint on bit size so far.

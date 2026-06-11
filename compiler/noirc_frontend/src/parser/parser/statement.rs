@@ -25,7 +25,7 @@ impl Parser<'_> {
         }
     }
 
-    /// Statement = Attributes StatementKind ';'?
+    /// Statement = Attributes `StatementKind` ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
         loop {
             // Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
@@ -69,33 +69,33 @@ impl Parser<'_> {
         }
     }
 
-    /// StatementKind
-    ///     = BreakStatement
-    ///     | ContinueStatement
-    ///     | ReturnStatement
-    ///     | LetStatement
-    ///     | ComptimeStatement
-    ///     | ForStatement
-    ///     | LoopStatement
-    ///     | WhileStatement
-    ///     | IfStatement
-    ///     | BlockStatement
-    ///     | AssignStatement
-    ///     | ExpressionStatement
+    /// `StatementKind`
+    ///     = `BreakStatement`
+    ///     | `ContinueStatement`
+    ///     | `ReturnStatement`
+    ///     | `LetStatement`
+    ///     | `ComptimeStatement`
+    ///     | `ForStatement`
+    ///     | `LoopStatement`
+    ///     | `WhileStatement`
+    ///     | `IfStatement`
+    ///     | `BlockStatement`
+    ///     | `AssignStatement`
+    ///     | `ExpressionStatement`
     ///
-    /// BreakStatement = 'break'
+    /// `BreakStatement` = 'break'
     ///
-    /// ContinueStatement = 'continue'
+    /// `ContinueStatement` = 'continue'
     ///
-    /// ReturnStatement = 'return' Expression?
+    /// `ReturnStatement` = 'return' Expression?
     ///
-    /// IfStatement = IfExpression
+    /// `IfStatement` = `IfExpression`
     ///
-    /// BlockStatement = Block
+    /// `BlockStatement` = Block
     ///
-    /// AssignStatement = Expression '=' Expression
+    /// `AssignStatement` = Expression '=' Expression
     ///
-    /// ExpressionStatement = Expression
+    /// `ExpressionStatement` = Expression
     fn parse_statement_kind(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -246,7 +246,7 @@ impl Parser<'_> {
         }
     }
 
-    /// ForStatement = 'for' identifier 'in' ForRange Block
+    /// `ForStatement` = 'for' identifier 'in' `ForRange` Block
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
         let start_location = self.current_token_location;
 
@@ -289,7 +289,7 @@ impl Parser<'_> {
         })
     }
 
-    /// LoopStatement = 'loop' Block
+    /// `LoopStatement` = 'loop' Block
     fn parse_loop(&mut self) -> Option<LoopStatement> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
@@ -313,7 +313,7 @@ impl Parser<'_> {
         Some(LoopStatement { body: block, loop_keyword_location: start_location })
     }
 
-    /// WhileStatement = 'while' ExpressionExceptConstructor Block
+    /// `WhileStatement` = 'while' `ExpressionExceptConstructor` Block
     fn parse_while(&mut self) -> Option<WhileStatement> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::While) {
@@ -339,9 +339,9 @@ impl Parser<'_> {
         Some(WhileStatement { condition, body: block, while_keyword_location: start_location })
     }
 
-    /// ForRange
-    ///     = ExpressionExceptConstructor
-    ///     | ExpressionExceptConstructor '..' ExpressionExceptConstructor
+    /// `ForRange`
+    ///     = `ExpressionExceptConstructor`
+    ///     | `ExpressionExceptConstructor` '..' `ExpressionExceptConstructor`
     fn parse_for_range(&mut self) -> ForRange {
         let expr = self.parse_expression_except_constructor_or_error();
 
@@ -366,16 +366,16 @@ impl Parser<'_> {
         }
     }
 
-    /// ComptimeStatement
-    ///     = ComptimeBlock
-    ///     | ComptimeLet
-    ///     | ComptimeFor
+    /// `ComptimeStatement`
+    ///     = `ComptimeBlock`
+    ///     | `ComptimeLet`
+    ///     | `ComptimeFor`
     ///
-    /// ComptimeBlock = 'comptime' Block
+    /// `ComptimeBlock` = 'comptime' Block
     ///
-    /// ComptimeLet = 'comptime' LetStatement
+    /// `ComptimeLet` = 'comptime' `LetStatement`
     ///
-    /// ComptimeFor = 'comptime' ForStatement
+    /// `ComptimeFor` = 'comptime' `ForStatement`
     fn parse_comptime_statement(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -426,7 +426,7 @@ impl Parser<'_> {
         None
     }
 
-    /// LetStatement = 'let' pattern OptionalTypeAnnotation '=' Expression
+    /// `LetStatement` = 'let' pattern `OptionalTypeAnnotation` '=' Expression
     fn parse_let_statement(
         &mut self,
         attributes: Vec<(Attribute, Location)>,

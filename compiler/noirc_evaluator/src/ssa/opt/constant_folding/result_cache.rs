@@ -94,7 +94,7 @@ impl AsRef<Instruction> for CacheKey {
     }
 }
 
-/// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
+/// `HashMap` from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
@@ -165,10 +165,10 @@ impl InstructionResultCache {
         self.0.remove(&CacheKeyRef::from(instruction))
     }
 
-    /// Remove all cached MakeArray instructions that produce the given type.
+    /// Remove all cached `MakeArray` instructions that produce the given type.
     /// Used when we encounter a mutation of an array value that we can't trace back
     /// to a specific instruction (e.g. block parameters), so we must conservatively
-    /// invalidate all cached MakeArrays that could be the source.
+    /// invalidate all cached `MakeArrays` that could be the source.
     fn remove_make_arrays_of_type(&mut self, typ: &Type) {
         self.0.retain(|instruction, _| {
             !matches!(instruction.as_ref(), Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)

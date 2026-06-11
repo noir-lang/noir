@@ -18,7 +18,7 @@ pub(crate) struct MemoryOpSolver<F> {
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
-    /// Creates a new MemoryOpSolver with the values given in `init`.
+    /// Creates a new `MemoryOpSolver` with the values given in `init`.
     pub(crate) fn new(
         init: &[Witness],
         initial_witness: &WitnessMap<F>,
@@ -50,8 +50,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
         })
     }
 
-    /// Update the 'block_value' map with the provided index/value
-    /// Returns an 'IndexOutOfBounds' error if the index is outside the block range.
+    /// Update the '`block_value`' map with the provided index/value
+    /// Returns an '`IndexOutOfBounds`' error if the index is outside the block range.
     pub(crate) fn write_memory_index(
         &mut self,
         index: MemoryIndex,
@@ -69,8 +69,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
         Ok(())
     }
 
-    /// Returns the value stored in the 'block_value' map for the provided index
-    /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
+    /// Returns the value stored in the '`block_value`' map for the provided index
+    /// Returns an '`IndexOutOfBounds`' error if the index is not in the map.
     pub(crate) fn read_memory_index(
         &self,
         index: MemoryIndex,
@@ -84,10 +84,10 @@ impl<F: AcirField> MemoryOpSolver<F> {
         )
     }
 
-    /// Update the 'block_values' by processing the provided Memory opcode
+    /// Update the '`block_values`' by processing the provided Memory opcode
     /// The opcode 'op' contains the index and value of the operation and the type
     /// of the operation.
-    /// They are all stored as an [acir::native_types::Expression]
+    /// They are all stored as an [`acir::native_types::Expression`]
     /// The type of 'operation' is '0' for a read and '1' for a write. It must be a constant
     /// expression.
     /// Index is not required to be constant but it must reduce to a known value
