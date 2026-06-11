@@ -133,9 +133,6 @@ pub struct FuncMeta {
 
     pub location: Location,
 
-    // This flag is needed for the attribute check pass
-    pub has_body: bool,
-
     /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
 

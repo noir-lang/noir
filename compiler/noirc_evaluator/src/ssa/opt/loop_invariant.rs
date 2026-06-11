@@ -237,13 +237,9 @@ struct LoopInvariantContext<'f> {
 /// Context with the scope of just one loop.
 struct LoopContext {
     pre_header: BasicBlockId,
-    /// Maps current loop induction variable with a fixed lower and upper loop bound.
-    /// If the loop doesn't have constant bounds then it's `None`.
-    induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
-
-    /// The constant step by which the induction variable advances each iteration.
-    /// None if the step is not a constant.
-    induction_step: Option<IntegerConstant>,
+    /// Maps current loop induction variable with its bounds and step.
+    /// If the loop doesn't have constant bounds with then it's `None`.
+    induction_variable: Option<(ValueId, LoopBounds, IntegerConstant)>,
 
     /// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
     does_loop_execute: bool,
@@ -318,14 +314,15 @@ impl LoopContext {
         }
         let induction = get_induction_var_bounds(inserter, loop_, pre_header);
         let does_loop_execute = does_loop_execute(induction.map(|(_, bounds, _)| bounds));
-        let (induction_variable, induction_step) = induction
-            .map(|(var, bounds, step)| ((var, (bounds.lower, bounds.upper)), step))
-            .unzip();
+        // Only keep the bounds when every value the induction variable visits stays within them.
+        // Otherwise using them as a value range (e.g. to fold a comparison or prove an add cannot
+        // overflow) would be unsound.
+        let induction_variable =
+            induction.filter(|(_, bounds, step)| bounds.visited_values_stay_within_bounds(*step));
 
         Self {
             // There is only ever one current induction variable for a loop.
             induction_variable,
-            induction_step,
             does_loop_execute,
             pre_header,
             defined_in_loop,
@@ -348,16 +345,13 @@ impl LoopContext {
     }
 
     /// Get the induction variable bounds if it the current variable matches the `id`.
-    fn get_current_induction_variable_bounds(
-        &self,
-        id: ValueId,
-    ) -> Option<(IntegerConstant, IntegerConstant)> {
-        self.induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
+    fn get_current_induction_variable_bounds(&self, id: ValueId) -> Option<LoopBounds> {
+        self.induction_variable.filter(|(val, _, _)| *val == id).map(|(_, bounds, _)| bounds)
     }
 
     /// Get the induction variable's per-iteration step if the current variable matches `id`.
     fn get_current_induction_step(&self, id: ValueId) -> Option<IntegerConstant> {
-        self.induction_variable.filter(|(val, _)| *val == id).and(self.induction_step)
+        self.induction_variable.filter(|(val, _, _)| *val == id).map(|(_, _, step)| step)
     }
 
     /// Update any values defined in the loop and loop invariants after
@@ -507,8 +501,11 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
-        if let Some((induction_variable, bounds, _)) =
+        // As above, only record the bounds when every visited value stays within them, otherwise
+        // using them as a value range would be unsound.
+        if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
+            && bounds.visited_values_stay_within_bounds(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }
@@ -3771,6 +3768,77 @@ mod control_dependence {
             jmp b1(v5)
           b3():
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn neq_guarded_loop_non_unit_step_does_not_use_bounds() {
+        // Regression for noir-lang/noir-claude#102: a `while i != 4` loop lowers to an `Eq`
+        // header with the body on the *else* branch, which `get_const_upper_bound` records as
+        // `[0, 4)`. That interval only bounds the induction variable when the step lands it
+        // exactly on `4`. Here the step is `3`, so `i` runs `0, 3, 6, 9, ...` and skips the
+        // guard value entirely, escaping `[0, 4)`. LICM must therefore not use those bounds to
+        // fold `i < 5` to `true` (deleting the constraint) nor to rewrite the checked add to
+        // `unchecked_add` — both would accept executions that should fail at `i == 6`.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = eq v0, u8 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = lt v0, u8 5
+            constrain v5 == u1 1
+            v8 = add v0, u8 3
+            jmp b1(v8)
+          b3():
+            return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn neq_guarded_loop_unit_step_still_uses_bounds() {
+        // Counterpart to `neq_guarded_loop_non_unit_step_does_not_use_bounds`: with a unit step the
+        // `while i != 4` loop visits exactly `0, 1, 2, 3` and stays within `[0, 4)`, so the bounds
+        // remain a sound value range. LICM must still fold `i < 4` to `true` and rewrite the
+        // checked add to `unchecked_add`, otherwise the `NotEqual` fix would needlessly disable
+        // simplification for ordinary unit-step `!=`-guarded loops.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = eq v0, u8 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = lt v0, u8 4
+            constrain v5 == u1 1
+            v8 = add v0, u8 1
+            jmp b1(v8)
+          b3():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v3 = eq v0, u8 4
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = unchecked_add v0, u8 1
+            jmp b1(v5)
+          b3():
+            return
         }
         ");
     }

@@ -445,6 +445,9 @@ pub(crate) enum LoopBoundKind {
     /// `i == upper - 1` (an `Eq`/`Not` header with the body on the `then` branch):
     /// the body executes iff `lower == upper - 1`.
     Equal,
+    /// `i != upper` (an `Eq` header with the body on the *else* branch): the body executes iff
+    /// `lower != upper`.
+    NotEqual,
 }
 
 /// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
@@ -460,12 +463,31 @@ impl LoopBounds {
     /// Whether the loop body is guaranteed to execute at least once.
     pub(super) fn loop_executes(self) -> bool {
         match self.kind {
-            LoopBoundKind::LessThan => {
+            // `lower < upper` for `LessThan`, and `lower != upper` for `NotEqual`; for an
+            // ascending induction variable starting at or below `upper` these coincide, so both
+            // reduce to `upper > lower`.
+            LoopBoundKind::LessThan | LoopBoundKind::NotEqual => {
                 self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
             }
             // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
             // maximum (where `inc` would overflow) correctly reads as "does not execute".
             LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
+        }
+    }
+
+    /// Whether every value the induction variable takes on stays inside `[lower, upper)`, given
+    /// its per-iteration `step`. When this holds we can safely use the bounds as the variable's
+    /// value range (e.g. to fold a comparison or prove an arithmetic operation cannot overflow).
+    ///
+    /// `LessThan` and `Equal` keep the variable inside the bounds for any step: their guards stop
+    /// the loop at or before `upper`. A `NotEqual` guard only stops the loop when the variable
+    /// lands exactly on `upper`, so a step larger than `1` can jump past `upper` and keep going,
+    /// taking on values outside `[lower, upper)`. So `NotEqual` only stays within the bounds when
+    /// the step is `0` (the variable never moves) or `1` (it can't skip over `upper`).
+    pub(super) fn visited_values_stay_within_bounds(self, step: IntegerConstant) -> bool {
+        match self.kind {
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
+            LoopBoundKind::NotEqual => step.is_zero() || step.is_one(),
         }
     }
 }
@@ -793,13 +815,15 @@ impl Loop {
                 //
                 // If `b2` is the loop body: the body runs only on the single value `rhs`, so
                 // upper = rhs + 1 and the bound is `Equal` (it enters iff `lower == rhs`).
-                // If `b3` is the loop body: the body runs while `v != rhs` (i.e. `v < rhs` for an
-                // increasing induction variable), so upper = rhs and the bound is `LessThan`.
+                // If `b3` is the loop body: the body runs while `v != rhs`, so upper = rhs and the
+                // bound is `NotEqual`. For a unit step this matches `v < rhs`, but a non-unit step
+                // can skip over `rhs` and run the body on larger values, which `NotEqual` records
+                // so later value-range reasoning does not assume `v < rhs`.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
                 if then_branch_is_body {
                     Some((const_rhs.inc()?, LoopBoundKind::Equal))
                 } else {
-                    Some((const_rhs, LoopBoundKind::LessThan))
+                    Some((const_rhs, LoopBoundKind::NotEqual))
                 }
             }
             Instruction::Not(operand) => {
