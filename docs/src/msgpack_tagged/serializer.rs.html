@@ -799,7 +799,7 @@
 <a href=#799 id=799 data-nosnippet>799</a>    })
 <a href=#800 id=800 data-nosnippet>800</a>}
 <a href=#801 id=801 data-nosnippet>801</a>
-<a href=#802 id=802 data-nosnippet>802</a><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; TaggedSerializeProduct&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#802 id=802 data-nosnippet>802</a><span class="kw">impl</span>&lt;W: Write&gt; TaggedSerializeProduct&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#803 id=803 data-nosnippet>803</a>    <span class="doccomment">/// Emit one field's wire contribution. Direct path (the common case):
 <a href=#804 id=804 data-nosnippet>804</a>    /// write `(tag, value)` under Tagged or just `value` under Array,
 <a href=#805 id=805 data-nosnippet>805</a>    /// straight to the parent stream. Buffered path (Array with
@@ -858,7 +858,7 @@
 <a href=#858 id=858 data-nosnippet>858</a>/// `serialize_field(name, value)` call resolves `name` against the
 <a href=#859 id=859 data-nosnippet>859</a>/// registered `Product` (honoring `#[serde(rename)]`) to derive the wire
 <a href=#860 id=860 data-nosnippet>860</a>/// tag, then writes `tag` and `value` through the parent.
-<a href=#861 id=861 data-nosnippet>861</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeStruct <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#861 id=861 data-nosnippet>861</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeStruct <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#862 id=862 data-nosnippet>862</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#863 id=863 data-nosnippet>863</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#864 id=864 data-nosnippet>864</a>
@@ -891,7 +891,7 @@
 <a href=#891 id=891 data-nosnippet>891</a>/// field under the right wire tag even though the calls arrive in source
 <a href=#892 id=892 data-nosnippet>892</a>/// order — and the buffer-and-flush in `finish` then writes them on the
 <a href=#893 id=893 data-nosnippet>893</a>/// wire in tag-ascending order.
-<a href=#894 id=894 data-nosnippet>894</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeTupleStruct <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#894 id=894 data-nosnippet>894</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeTupleStruct <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#895 id=895 data-nosnippet>895</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#896 id=896 data-nosnippet>896</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#897 id=897 data-nosnippet>897</a>
@@ -928,7 +928,7 @@
 <a href=#928 id=928 data-nosnippet>928</a>/// `{variant_tag: ...}` map (1-entry discriminator) was written upfront in
 <a href=#929 id=929 data-nosnippet>929</a>/// `serialize_tuple_variant`; the payload's header is deferred to
 <a href=#930 id=930 data-nosnippet>930</a>/// `finish()` along with every other product's.
-<a href=#931 id=931 data-nosnippet>931</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeTupleVariant <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#931 id=931 data-nosnippet>931</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeTupleVariant <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#933 id=933 data-nosnippet>933</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#934 id=934 data-nosnippet>934</a>
@@ -955,7 +955,7 @@
 <a href=#955 id=955 data-nosnippet>955</a>
 <a href=#956 id=956 data-nosnippet>956</a><span class="doccomment">/// Struct variant payload (`enum E { ... Named { a: u32, b: bool } }`). Same
 <a href=#957 id=957 data-nosnippet>957</a>/// payload shape and tag-resolution rule as a top-level named struct.
-<a href=#958 id=958 data-nosnippet>958</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeStructVariant <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#958 id=958 data-nosnippet>958</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeStructVariant <span class="kw">for </span>TaggedSerializeProduct&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#959 id=959 data-nosnippet>959</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#960 id=960 data-nosnippet>960</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#961 id=961 data-nosnippet>961</a>
@@ -997,7 +997,7 @@
 <a href=#997 id=997 data-nosnippet>997</a>
 <a href=#998 id=998 data-nosnippet>998</a><span class="doccomment">/// Variable-length sequences (`Vec&lt;T&gt;`, `&amp;[T]`, …). Each element recurses
 <a href=#999 id=999 data-nosnippet>999</a>/// through the parent so tagged elements stay int-keyed.
-<a href=#1000 id=1000 data-nosnippet>1000</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeSeq <span class="kw">for </span>TaggedSerializeViaParent&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#1000 id=1000 data-nosnippet>1000</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeSeq <span class="kw">for </span>TaggedSerializeViaParent&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#1001 id=1001 data-nosnippet>1001</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#1002 id=1002 data-nosnippet>1002</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#1003 id=1003 data-nosnippet>1003</a>
@@ -1018,7 +1018,7 @@
 <a href=#1018 id=1018 data-nosnippet>1018</a><span class="doccomment">/// Fixed-length Rust tuples (`(A, B)`, `(A, B, C)`, …). Same wire shape as a
 <a href=#1019 id=1019 data-nosnippet>1019</a>/// sequence — msgpack has one length-prefixed array, regardless of whether
 <a href=#1020 id=1020 data-nosnippet>1020</a>/// the source was variable- or fixed-length on the Rust side.
-<a href=#1021 id=1021 data-nosnippet>1021</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeTuple <span class="kw">for </span>TaggedSerializeViaParent&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#1021 id=1021 data-nosnippet>1021</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeTuple <span class="kw">for </span>TaggedSerializeViaParent&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#1022 id=1022 data-nosnippet>1022</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#1024 id=1024 data-nosnippet>1024</a>
@@ -1038,7 +1038,7 @@
 <a href=#1038 id=1038 data-nosnippet>1038</a>/// routed through the parent. Routing keys is mostly a no-op for the common
 <a href=#1039 id=1039 data-nosnippet>1039</a>/// primitive-key case (the wrapper forwards primitives to inner verbatim),
 <a href=#1040 id=1040 data-nosnippet>1040</a>/// but it keeps the door open for tagged keys without a special case here.
-<a href=#1041 id=1041 data-nosnippet>1041</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W: Write&gt; SerializeMap <span class="kw">for </span>TaggedSerializeViaParent&lt;<span class="lifetime">'ser</span>, <span class="lifetime">'a</span>, W&gt; {
+<a href=#1041 id=1041 data-nosnippet>1041</a></span><span class="kw">impl</span>&lt;W: Write&gt; SerializeMap <span class="kw">for </span>TaggedSerializeViaParent&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, W&gt; {
 <a href=#1042 id=1042 data-nosnippet>1042</a>    <span class="kw">type </span><span class="prelude-val">Ok </span>= ();
 <a href=#1043 id=1043 data-nosnippet>1043</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#1044 id=1044 data-nosnippet>1044</a>

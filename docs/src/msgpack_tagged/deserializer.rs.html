@@ -119,7 +119,7 @@
 <a href=#119 id=119 data-nosnippet>119</a>// translated back to serde field/variant names.
 <a href=#120 id=120 data-nosnippet>120</a>// ============================================================================
 <a href=#121 id=121 data-nosnippet>121</a>
-<a href=#122 id=122 data-nosnippet>122</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; de::Deserializer&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span><span class="kw-2">&amp;mut </span>Deserializer&lt;<span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#122 id=122 data-nosnippet>122</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; de::Deserializer&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span><span class="kw-2">&amp;mut </span>Deserializer&lt;<span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="comment">// TODO: when used with self-describing visitors (e.g. `serde_json::Value`,
@@ -509,7 +509,7 @@
 <a href=#509 id=509 data-nosnippet>509</a>    </span>}
 <a href=#510 id=510 data-nosnippet>510</a>}
 <a href=#511 id=511 data-nosnippet>511</a>
-<a href=#512 id=512 data-nosnippet>512</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; Deserializer&lt;<span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#512 id=512 data-nosnippet>512</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserializer&lt;<span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#513 id=513 data-nosnippet>513</a>    <span class="doccomment">/// Resolve a registered `Product` by serde name. Used by
 <a href=#514 id=514 data-nosnippet>514</a>    /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
 <a href=#515 id=515 data-nosnippet>515</a>    /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
@@ -755,7 +755,7 @@
 <a href=#755 id=755 data-nosnippet>755</a><span class="doccomment">/// Variable-length sequences and fixed-length tuples — both wire-encoded
 <a href=#756 id=756 data-nosnippet>756</a>/// as msgpack arrays. `next_element_seed` decrements `remaining` and
 <a href=#757 id=757 data-nosnippet>757</a>/// deserializes one element through the parent.
-<a href=#758 id=758 data-nosnippet>758</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; SeqAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedAccessViaParent&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#758 id=758 data-nosnippet>758</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; SeqAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedAccessViaParent&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#759 id=759 data-nosnippet>759</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#760 id=760 data-nosnippet>760</a>
 <a href=#761 id=761 data-nosnippet>761</a>    <span class="kw">fn </span>next_element_seed&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seed: T) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;T::Value&gt;, <span class="self">Self</span>::Error&gt;
@@ -777,7 +777,7 @@
 <a href=#777 id=777 data-nosnippet>777</a><span class="doccomment">/// Free-form maps. `next_key_seed` decrements `remaining` and deserializes
 <a href=#778 id=778 data-nosnippet>778</a>/// the key; `next_value_seed` deserializes the value without
 <a href=#779 id=779 data-nosnippet>779</a>/// decrementing (it pairs with the just-yielded key).
-<a href=#780 id=780 data-nosnippet>780</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; MapAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedAccessViaParent&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#780 id=780 data-nosnippet>780</a></span><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; MapAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedAccessViaParent&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#781 id=781 data-nosnippet>781</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#782 id=782 data-nosnippet>782</a>
 <a href=#783 id=783 data-nosnippet>783</a>    <span class="kw">fn </span>next_key_seed&lt;K&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seed: K) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;K::Value&gt;, <span class="self">Self</span>::Error&gt;
@@ -821,7 +821,7 @@
 <a href=#821 id=821 data-nosnippet>821</a>    remaining: usize,
 <a href=#822 id=822 data-nosnippet>822</a>}
 <a href=#823 id=823 data-nosnippet>823</a>
-<a href=#824 id=824 data-nosnippet>824</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; MapAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedProductMapAccess&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#824 id=824 data-nosnippet>824</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; MapAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedProductMapAccess&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#825 id=825 data-nosnippet>825</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#826 id=826 data-nosnippet>826</a>
 <a href=#827 id=827 data-nosnippet>827</a>    <span class="kw">fn </span>next_key_seed&lt;K&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seed: K) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;K::Value&gt;, <span class="self">Self</span>::Error&gt;
@@ -909,7 +909,7 @@
 <a href=#909 id=909 data-nosnippet>909</a>    </span>next_position: usize,
 <a href=#910 id=910 data-nosnippet>910</a>}
 <a href=#911 id=911 data-nosnippet>911</a>
-<a href=#912 id=912 data-nosnippet>912</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; MapAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>ArrayProductMapAccess&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#912 id=912 data-nosnippet>912</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; MapAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>ArrayProductMapAccess&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#913 id=913 data-nosnippet>913</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#914 id=914 data-nosnippet>914</a>
 <a href=#915 id=915 data-nosnippet>915</a>    <span class="kw">fn </span>next_key_seed&lt;K&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seed: K) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;K::Value&gt;, <span class="self">Self</span>::Error&gt;
@@ -1009,7 +1009,7 @@
 <a href=#1009 id=1009 data-nosnippet>1009</a>    next_position: usize,
 <a href=#1010 id=1010 data-nosnippet>1010</a>}
 <a href=#1011 id=1011 data-nosnippet>1011</a>
-<a href=#1012 id=1012 data-nosnippet>1012</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; SeqAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedTupleStructAccess&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#1012 id=1012 data-nosnippet>1012</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; SeqAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedTupleStructAccess&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#1013 id=1013 data-nosnippet>1013</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#1014 id=1014 data-nosnippet>1014</a>
 <a href=#1015 id=1015 data-nosnippet>1015</a>    <span class="kw">fn </span>next_element_seed&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seed: T) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;T::Value&gt;, <span class="self">Self</span>::Error&gt;
@@ -1085,7 +1085,7 @@
 <a href=#1085 id=1085 data-nosnippet>1085</a>    </span>payload_already_consumed: bool,
 <a href=#1086 id=1086 data-nosnippet>1086</a>}
 <a href=#1087 id=1087 data-nosnippet>1087</a>
-<a href=#1088 id=1088 data-nosnippet>1088</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; EnumAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedEnumAccess&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#1088 id=1088 data-nosnippet>1088</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; EnumAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedEnumAccess&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#1089 id=1089 data-nosnippet>1089</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#1090 id=1090 data-nosnippet>1090</a>    <span class="kw">type </span>Variant = <span class="self">Self</span>;
 <a href=#1091 id=1091 data-nosnippet>1091</a>
@@ -1100,7 +1100,7 @@
 <a href=#1100 id=1100 data-nosnippet>1100</a>    }
 <a href=#1101 id=1101 data-nosnippet>1101</a>}
 <a href=#1102 id=1102 data-nosnippet>1102</a>
-<a href=#1103 id=1103 data-nosnippet>1103</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>, <span class="lifetime">'der</span>, <span class="lifetime">'a</span>&gt; VariantAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedEnumAccess&lt;<span class="lifetime">'der</span>, <span class="lifetime">'a</span>, <span class="lifetime">'de</span>&gt; {
+<a href=#1103 id=1103 data-nosnippet>1103</a><span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; VariantAccess&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>TaggedEnumAccess&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'de</span>&gt; {
 <a href=#1104 id=1104 data-nosnippet>1104</a>    <span class="kw">type </span>Error = RmpError;
 <a href=#1105 id=1105 data-nosnippet>1105</a>
 <a href=#1106 id=1106 data-nosnippet>1106</a>    <span class="kw">fn </span>unit_variant(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
