@@ -167,6 +167,102 @@ fn shared_and_overridden_default_method_coexist() {
     assert!(result.is_ok(), "monomorphization failed: {result:?}");
 }
 
+/// Regression test: two impls that both inherit a trait's default method must each
+/// resolve `Self::N` to their own associated constant. The default method body is
+/// shared (one `FuncId`), and its `Self: Trait` constraint must use a fresh
+/// associated-type variable per dispatch. Otherwise the trait definition's shared
+/// `N` cell gets bound to the first impl's value (`10`) and leaks into the second,
+/// failing with "No matching impl found for `B: Score<N = 10>`".
+#[test]
+fn shared_default_method_associated_constant_does_not_leak_across_impls() {
+    use crate::test_utils::get_monomorphized;
+    let src = r#"
+    struct A {}
+    struct B {}
+
+    trait Score {
+        let N: u32;
+
+        fn base(self) -> Field;
+
+        fn value(self) -> Field {
+            self.base() + (Self::N as Field)
+        }
+    }
+
+    impl Score for A {
+        let N: u32 = 10;
+
+        fn base(self) -> Field {
+            1
+        }
+    }
+
+    impl Score for B {
+        let N: u32 = 20;
+
+        fn base(self) -> Field {
+            2
+        }
+    }
+
+    fn main() {
+        assert(A {}.value() == 11);
+        assert(B {}.value() == 22);
+    }
+    "#;
+    let result = get_monomorphized(src);
+    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+}
+
+/// Same leak as above, reached through a generic function rather than direct calls on
+/// concrete types, and with the impls resolved in the opposite source order.
+#[test]
+fn shared_default_method_associated_constant_does_not_leak_through_generic_dispatch() {
+    use crate::test_utils::get_monomorphized;
+    let src = r#"
+    struct A {}
+    struct B {}
+
+    trait Score {
+        let N: u32;
+
+        fn base(self) -> Field;
+
+        fn value(self) -> Field {
+            self.base() + (Self::N as Field)
+        }
+    }
+
+    impl Score for A {
+        let N: u32 = 10;
+
+        fn base(self) -> Field {
+            1
+        }
+    }
+
+    impl Score for B {
+        let N: u32 = 20;
+
+        fn base(self) -> Field {
+            2
+        }
+    }
+
+    fn use_score<T>(x: T) -> Field where T: Score {
+        x.value()
+    }
+
+    fn main() {
+        assert(use_score(B {}) == 22);
+        assert(use_score(A {}) == 11);
+    }
+    "#;
+    let result = get_monomorphized(src);
+    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+}
+
 #[test]
 fn accesses_associated_constant_inside_trait_using_self() {
     let src = r#"
