@@ -110,7 +110,7 @@
 <a href=#110 id=110 data-nosnippet>110</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(
 <a href=#111 id=111 data-nosnippet>111</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#112 id=112 data-nosnippet>112</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#113 id=113 data-nosnippet>113</a>        dom: <span class="kw-2">&amp;mut </span>DominatorTree,
+<a href=#113 id=113 data-nosnippet>113</a>        dom: <span class="kw-2">&amp;</span>DominatorTree,
 <a href=#114 id=114 data-nosnippet>114</a>        id: InstructionId,
 <a href=#115 id=115 data-nosnippet>115</a>        instruction: <span class="kw-2">&amp;</span>Instruction,
 <a href=#116 id=116 data-nosnippet>116</a>        predicate: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
@@ -144,7 +144,7 @@
 <a href=#144 id=144 data-nosnippet>144</a>
 <a href=#145 id=145 data-nosnippet>145</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>cache(
 <a href=#146 id=146 data-nosnippet>146</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#147 id=147 data-nosnippet>147</a>        dom: <span class="kw-2">&amp;mut </span>DominatorTree,
+<a href=#147 id=147 data-nosnippet>147</a>        dom: <span class="kw-2">&amp;</span>DominatorTree,
 <a href=#148 id=148 data-nosnippet>148</a>        instruction: Instruction,
 <a href=#149 id=149 data-nosnippet>149</a>        predicate: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
 <a href=#150 id=150 data-nosnippet>150</a>        block: BasicBlockId,
@@ -276,7 +276,7 @@
 <a href=#276 id=276 data-nosnippet>276</a>}
 <a href=#277 id=277 data-nosnippet>277</a><span class="kw">impl </span>ResultCache {
 <a href=#278 id=278 data-nosnippet>278</a>    <span class="doccomment">/// Records that an `Instruction` in block `block` produced the result values `results`.
-<a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">fn </span>cache(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, dom: <span class="kw-2">&amp;mut </span>DominatorTree, results: Vec&lt;ValueId&gt;) {
+<a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">fn </span>cache(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, dom: <span class="kw-2">&amp;</span>DominatorTree, results: Vec&lt;ValueId&gt;) {
 <a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">let </span>overwrite = <span class="kw">match </span><span class="self">self</span>.result {
 <a href=#281 id=281 data-nosnippet>281</a>            <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
 <a href=#282 id=282 data-nosnippet>282</a>            <span class="prelude-val">Some</span>((origin, <span class="kw">_</span>)) =&gt; origin != block &amp;&amp; dom.dominates(block, origin),
@@ -296,7 +296,7 @@
 <a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(
 <a href=#297 id=297 data-nosnippet>297</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#298 id=298 data-nosnippet>298</a>        block: BasicBlockId,
-<a href=#299 id=299 data-nosnippet>299</a>        dom: <span class="kw-2">&amp;mut </span>DominatorTree,
+<a href=#299 id=299 data-nosnippet>299</a>        dom: <span class="kw-2">&amp;</span>DominatorTree,
 <a href=#300 id=300 data-nosnippet>300</a>        has_side_effects: bool,
 <a href=#301 id=301 data-nosnippet>301</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;CacheResult&gt; {
 <a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let </span>(origin, results) = <span class="self">self</span>.result.as_ref()<span class="question-mark">?</span>;
