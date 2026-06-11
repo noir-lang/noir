@@ -294,6 +294,78 @@ mod tests {
     }
 
     #[test]
+    fn removes_loop_invariant_inc_rc_inside_loop_body() {
+        // b0 increments v0 and dominates the loop body b2, so the loop-invariant
+        // `inc_rc v0` inside the body is redundant and removed even though it sits inside
+        // the loop. This is the `lambda_from_array` scenario.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v3 = lt v1, u32 5
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            inc_rc v0
+            v5 = add v1, u32 1
+            jmp b1(v5)
+          b3():
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_inc_rc();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = lt v1, u32 5
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v6 = add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn removes_inc_rc_across_multi_level_dominator_chain() {
+        // b0 dominates b1 which dominates b2, so the grandparent `inc_rc v0` in b0 seeds
+        // the grandchild b2 and the `inc_rc v0` there is redundant. This exercises the
+        // transitivity of the exit-set seeding down the dominator chain.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            inc_rc v0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_inc_rc();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            return v0
+        }
+        ");
+    }
+
+    #[test]
     fn does_not_run_on_acir() {
         let src = "
         acir(inline) fn main f0 {
