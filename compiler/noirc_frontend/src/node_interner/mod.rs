@@ -1510,10 +1510,12 @@ impl NodeInterner {
                 DefinitionKind::AssociatedConstant(impl_id, name.clone()),
                 associated_type.name.location(),
             );
+            let numeric_type = *numeric_type;
+            self.push_definition_type(definition_id, numeric_type.clone());
             self.trait_impl_associated_constants
                 .entry(impl_id)
                 .or_default()
-                .insert(name, (definition_id, *numeric_type));
+                .insert(name, (definition_id, numeric_type));
         }
         let trait_generics = TraitGenerics { ordered: ordered_generics, named: associated_types };
         self.trait_impl_generic_types.insert(impl_id, trait_generics);

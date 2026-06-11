@@ -1492,13 +1492,10 @@ impl<'interner> Monomorphizer<'interner> {
                     .iter()
                     .find(|typ| typ.name.as_str() == name)
                     .expect("Expected to find associated type");
-                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
-                    unreachable!("Expected associated type to be numeric");
-                };
                 match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => {
-                        let typ = Self::convert_type(&numeric_type, location)?;
+                        let typ = Self::convert_type(&typ, location)?;
                         Ok(ast::Expression::Literal(ast::Literal::Integer(
                             value.as_field(),
                             typ,
