@@ -340,6 +340,19 @@ fn allow_abi_attribute_on_global_inside_contract() {
 }
 
 #[test]
+fn deny_abi_attribute_on_global_with_non_abi_type() {
+    let src = r#"
+    contract moo {
+        #[abi(foo)]
+        global foo: () = ();
+                    ^^ Globals marked with `#[abi(tag)]` must have an ABI-compatible type
+                    ~~ Unit is not a valid ABI type
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn break_and_continue_in_constrained_fn() {
     let src = r#"
         fn main() {
@@ -402,8 +415,8 @@ fn disallows_export_attribute_on_impl_method() {
 
         impl Foo {
             #[export]
-            fn foo() { }
-               ^^^ The `#[export]` attribute is disallowed on `impl` methods
+            pub fn foo() { }
+                   ^^^ The `#[export]` attribute is disallowed on `impl` methods
         }
     ";
     check_errors(src);

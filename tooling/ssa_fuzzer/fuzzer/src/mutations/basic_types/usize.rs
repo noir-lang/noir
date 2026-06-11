@@ -7,7 +7,7 @@
 //! 5. Subtract a random value
 
 use crate::mutations::configuration::{UsizeMutationConfig, UsizeMutationOptions};
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 struct RandomMutation;
 impl RandomMutation {

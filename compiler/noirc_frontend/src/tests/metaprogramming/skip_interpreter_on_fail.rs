@@ -1,6 +1,10 @@
 //! Tests for skipping the comptime interpreter when there are elaboration errors for
 //! comptime blocks, functions, or let statements.
 
+use crate::hir::comptime::InterpreterError;
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::parser::ParserErrorReason;
+use crate::test_utils::{GetProgramOptions, get_program_with_options};
 use crate::tests::check_errors;
 
 #[test]
@@ -1039,4 +1043,63 @@ fn mismatched_struct_pattern_assignment() {
     }
     ";
     check_errors(src);
+}
+
+// Regression for https://github.com/noir-lang/noir/issues/12678
+//
+// `comptime { return; }` should report only the parser-level "Early 'return' is
+// unsupported" error, not the additional "Internal Compiler Error: Error node
+// encountered" ICE that asks users to file a bug.
+#[test]
+fn early_return_in_comptime_block_does_not_ice() {
+    let src = "fn main() { comptime { return; } }";
+    let errors = get_program_with_options(
+        src,
+        GetProgramOptions { allow_parser_errors: true, ..Default::default() },
+    )
+    .2;
+
+    let has_early_return = errors.iter().any(|e| {
+        matches!(
+            e,
+            CompilationError::ParseError(err)
+                if matches!(err.reason(), Some(ParserErrorReason::EarlyReturn))
+        )
+    });
+    assert!(has_early_return, "expected EarlyReturn parser error, got: {errors:?}");
+
+    let has_ice = errors.iter().any(|e| {
+        matches!(
+            e,
+            CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. })
+        )
+    });
+    assert!(!has_ice, "should not emit ErrorNodeEncountered ICE, got: {errors:?}");
+}
+
+// Companion regression: the same defensive skip should also apply to HirExpression::Error.
+// An unresolved path inside a comptime block is one way to produce an Error expression
+// after the elaborator has already reported a name-resolution error.
+#[test]
+fn unresolved_path_in_comptime_block_does_not_ice() {
+    let src = "
+    fn main() {
+        comptime {
+            let _ = nonexistent::path;
+        }
+    }
+    ";
+    let errors = get_program_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .2;
+
+    let has_ice = errors.iter().any(|e| {
+        matches!(
+            e,
+            CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. })
+        )
+    });
+    assert!(!has_ice, "should not emit ErrorNodeEncountered ICE, got: {errors:?}");
 }

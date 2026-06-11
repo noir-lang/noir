@@ -23,7 +23,9 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
+mod integer;
 mod primitive_docs;
+mod internal;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident

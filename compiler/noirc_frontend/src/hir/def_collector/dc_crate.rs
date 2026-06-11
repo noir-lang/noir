@@ -12,7 +12,11 @@ use crate::usage_tracker::UnusedItem;
 use crate::{ResolvedGenerics, Type};
 
 use crate::hir::Context;
-use crate::hir::resolution::import::{ImportDirective, ResolvedImport, resolve_import};
+use crate::hir::def_map::ModuleDefId;
+use crate::hir::resolution::import::{
+    ImportDirective, PathResolutionError, ResolvedImport, resolve_import,
+};
+use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
 
 use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
@@ -30,9 +34,12 @@ use crate::parser::{ParserError, SortedModule};
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
+use indexmap::IndexMap;
 use iter_extended::vecmap;
+use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use rustc_hash::FxHashSet as HashSet;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -100,6 +107,13 @@ pub struct UnresolvedTraitImpl {
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
+
+    /// FuncIds in `methods.functions` that refer to a trait's own default-method
+    /// FuncId because this impl did not override the method. The default body
+    /// has already been elaborated once at the trait definition, so these
+    /// slots must not be re-registered or re-elaborated per impl. Populated by
+    /// `collect_trait_impl_methods`.
+    pub inherited_default_method_func_ids: HashSet<FuncId>,
 }
 
 #[derive(Clone)]
@@ -182,12 +196,13 @@ impl CollectedItems {
 /// impl along with the generics declared on the impl itself. This also contains the Span
 /// of the object_type of the impl, used to issue an error if the object type fails to resolve.
 ///
-/// Note that because these are keyed by unresolved types, the impl map is one of the few instances
-/// of HashMap rather than BTreeMap. For this reason, we should be careful not to iterate over it
-/// since it would be non-deterministic.
-pub(crate) type ImplMap = HashMap<
+/// The keys are unresolved types, which are not `Ord`, so a `BTreeMap` cannot be used here.
+/// An `IndexMap` is used instead of a `HashMap` because iteration order is observable
+/// (attribute run order, method declaration order). Using an `IndexMap` keeps source-order for evaluation.
+pub(crate) type ImplMap = IndexMap<
     (UnresolvedType, LocalModuleId),
-    Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+    Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
+    FxBuildHasher,
 >;
 
 /// Wraps a list of compilation errors.
@@ -383,7 +398,7 @@ impl DefCollector {
                 enums: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
                 traits: BTreeMap::new(),
-                impls: HashMap::default(),
+                impls: ImplMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
                 module_attributes: vec![],
@@ -395,6 +410,7 @@ impl DefCollector {
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
@@ -416,7 +432,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options));
 
             let dep_def_map =
-                context.def_map(&dep.crate_id).expect("ice: def map was just created");
+                context.def_map(&dep.crate_id).expect("ICE: def map was just created");
 
             let dep_def_root = dep_def_map.root();
             let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
@@ -471,6 +487,7 @@ impl DefCollector {
     /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
     /// need to be re-collected and re-type-checked.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_defs_and_elaborate(
         ast: SortedModule,
         file_id: FileId,
@@ -543,6 +560,7 @@ impl DefCollector {
         errors.extend(more_errors);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn process_imports(
         mut collected_imports: Vec<ImportDirectiveBatch>,
         crate_id: CrateId,
@@ -678,6 +696,28 @@ impl DefCollector {
         errors: &mut CompilationErrors,
     ) {
         let local_module_id = collected_import.module_id;
+        let name = collected_import.name();
+
+        // Importing a trait method via `Type::method` must respect the trait's own visibility
+        // (e.g. a `pub(crate) trait` is not reachable from another crate, even though the
+        // method is registered as `Public` in the type's module scope). Compute this before
+        // taking a mutable borrow of `context.def_maps` below.
+        let importing_module = ModuleId { krate: crate_id, local_id: local_module_id };
+        for (module_def_id, _, _) in resolved_import.namespace.iter_items() {
+            if let ModuleDefId::FunctionId(func_id) = module_def_id
+                && !trait_visibility_for_method_is_satisfied(
+                    func_id,
+                    importing_module,
+                    &context.def_interner,
+                    &context.def_maps,
+                )
+            {
+                errors.push(DefCollectorErrorKind::PathResolutionError(
+                    PathResolutionError::Private(name.clone()),
+                ));
+            }
+        }
+
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
         let file_id = current_def_map.file_id(local_module_id);
 
@@ -686,8 +726,13 @@ impl DefCollector {
             errors.push(DefCollectorErrorKind::PathResolutionError(error));
         }
 
+        // An item that resolved alongside a visible colliding item but is not itself visible:
+        // bring it into scope below, but remember that referencing it is a privacy error.
+        if let Some(module_def_id) = resolved_import.deferred_private {
+            current_def_map.index_mut(local_module_id).defer_private_import(module_def_id);
+        }
+
         // Populate module namespaces according to the imports used
-        let name = collected_import.name();
         let visibility = collected_import.visibility;
         let is_prelude = collected_import.is_prelude;
         for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
@@ -765,6 +810,16 @@ impl DefCollector {
             })
             .collect::<Vec<_>>();
 
+        for (func_id, ident) in context.usage_tracker.unused_impl_functions() {
+            let func_meta = context.def_interner.function_meta(func_id);
+            if func_meta.source_crate == crate_id {
+                unused_errors.push(CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident: ident.clone(),
+                    item: UnusedItem::Function(*func_id),
+                }));
+            }
+        }
+
         // Make sure errors always show up in the same order when compiling the same codebase
         unused_errors.sort_by_key(|error| error.location());
 
@@ -773,7 +828,7 @@ impl DefCollector {
 }
 
 fn add_import_reference(
-    def_id: crate::hir::def_map::ModuleDefId,
+    def_id: ModuleDefId,
     name: &Ident,
     interner: &mut NodeInterner,
     file_id: FileId,
@@ -787,6 +842,7 @@ fn add_import_reference(
     interner.add_module_def_id_reference(def_id, location, false);
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 fn inject_prelude(
     crate_id: CrateId,
     context: &mut Context,
@@ -864,7 +920,7 @@ fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<Compi
 /// in the output repeatedly.
 fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
     // Using a HashSet of the inner error, because CompilationError does not implement Ord or Hash.
-    let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+    let mut seen: HashSet<ExpectingOtherError> = HashSet::default();
     errors.retain(|error| match error.as_expecting_other_error() {
         Some(e) if seen.contains(e) => false,
         Some(e) => {

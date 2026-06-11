@@ -121,7 +121,7 @@ fn test_reference_in_array() {
     let create_array_block = InstructionBlock {
         instructions: vec![Instruction::CreateArray {
             elements_indices: vec![0, 1, 2],
-            element_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+            element_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
         }],
     };
     let get_from_array_block = InstructionBlock {

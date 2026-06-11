@@ -1,4 +1,3 @@
-use crate::elaborator::UnstableFeature;
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
 };
@@ -24,6 +23,24 @@ fn errors_if_oracle_declaration_has_function_body() {
                          ~~~~~~~~~~~ This function body will never be run so should be removed
         assert(true);
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_oracle_attribute_on_comptime() {
+    let src = r#"
+        #[oracle(foo)]
+        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is not allowed on comptime functions
+        pub unconstrained comptime fn foo(x: Field, y: Field) {}
+                                      ~~~ Oracle functions cannot be marked `comptime`
+
+        fn main() {
+            // safety: test
+            unsafe {
+                foo(1, 2);
+            }
+        }
     "#;
     check_errors(src);
 }
@@ -134,7 +151,7 @@ fn errors_if_oracle_returns_reference_in_tuple() {
     pub unconstrained fn oracle_call() -> (Field, &Field) {}
                          ^^^^^^^^^^^ Oracle functions cannot return references
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -149,7 +166,81 @@ fn errors_if_oracle_returns_reference_in_struct() {
                          ^^^^^^^^^^^ Oracle functions cannot return references
     "#;
     //check_errors(src);
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_mutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &mut Field) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_has_immutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &Field) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_in_tuple() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: (Field, &Field)) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_in_struct() {
+    let src = r#"
+    pub struct Foo {
+        field: &Field,
+    }
+
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: Foo) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_behind_generics() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 10;
+        pass_ref(&mut x);
+        ^^^^^^^^ Reference `&mut Field` cannot be passed to an oracle function
+    }
+
+    #[oracle(pass_ref)]
+    unconstrained fn pass_ref<T>(x: T) {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_nested_in_container_behind_generics() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 10;
+        pass_ref((1, &mut x));
+        ^^^^^^^^ Reference `(Field, &mut Field)` cannot be passed to an oracle function
+    }
+
+    #[oracle(pass_ref)]
+    unconstrained fn pass_ref<T>(x: (Field, T)) {}
+    "#;
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -168,7 +259,7 @@ fn vector_with_nested_array_behind_generics_returned_from_oracle() {
     let src = r#"
     unconstrained fn main() {
         let _result: [[(u8, u8); 3]] = get_array();
-                                       ^^^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
+                                       ^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
     }
 
     #[oracle(get_array)]
@@ -187,6 +278,48 @@ fn errors_if_oracle_clashes_with_stdlib() {
 
     unconstrained fn main() {
         create_mock_oracle();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_pure_attribute_on_oracle() {
+    let src = r#"
+    #[pure]
+    #[oracle(foo)]
+    unconstrained fn foo(x: Field) -> Field {}
+
+    unconstrained fn main(x: Field) {
+        let _ = foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pure_attribute_on_non_oracle() {
+    let src = r#"
+    #[pure]
+    ^^^^^^^ The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`
+    pub unconstrained fn helper(x: Field) -> Field {
+                         ~~~~~~ `#[pure]` requires `unconstrained` and `#[oracle(...)]`
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_pure_attribute_on_constrained_function() {
+    // `#[pure]` requires `#[oracle(...)]`. The frontend reports the missing-oracle
+    // error rather than a separate "constrained" error, which is enough to reject the case.
+    let src = r#"
+    #[pure]
+    ^^^^^^^ The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`
+    pub fn helper(x: Field) -> Field {
+           ~~~~~~ `#[pure]` requires `unconstrained` and `#[oracle(...)]`
+        x
     }
     "#;
     check_errors(src);

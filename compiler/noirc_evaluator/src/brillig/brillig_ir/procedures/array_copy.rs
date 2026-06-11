@@ -285,7 +285,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Emit a `print` foreign call that prints `message` as a format string with one u32 substitution.
     fn emit_println_u32(&mut self, message: &str, value_addr: MemoryAddress) {
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message_val = literal_string_to_value(message, self);
+        let message_len = message.len();
+        let message_value = literal_string_to_value(message, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let value_to_print = ValueOrArray::MemoryAddress(value_addr);
         let type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, self);
@@ -293,7 +294,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         let inputs = [
             newline, // true
-            *message_val,
+            *message_value,
             item_count,     // 1
             value_to_print, // the u32 counter value
             *type_string_metadata,
@@ -305,7 +306,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         let newline_type = u1_type.clone();
-        let size = SemanticLength(assert_u32(message.len()));
+        let size = SemanticLength(assert_u32(message_len));
         let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;

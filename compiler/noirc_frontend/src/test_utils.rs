@@ -10,8 +10,10 @@
 use std::path::Path;
 
 use crate::elaborator::FrontendOptions;
+use crate::error_reporting::report_all;
 
 use iter_extended::vecmap;
+use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
 use crate::hir::Context;
@@ -79,6 +81,8 @@ pub fn get_monomorphized_with_options(
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
     if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
+        let diagnostics = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        report_all(&context.file_manager, &context.parsed_files, &diagnostics, false, false);
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
@@ -88,7 +92,7 @@ pub fn get_monomorphized_with_options(
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, false)
+    monomorphize(main, &mut context.def_interner, context.file_manager.as_file_map(), false)
 }
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
@@ -260,10 +264,10 @@ pub mod stdlib_src {
         pub fn modulus_num_bits() -> u64 {}
 
         #[builtin(modulus_be_bits)]
-        pub fn modulus_be_bits() -> [u1] {}
+        pub fn modulus_be_bits() -> [bool] {}
 
         #[builtin(modulus_le_bits)]
-        pub fn modulus_le_bits() -> [u1] {}
+        pub fn modulus_le_bits() -> [bool] {}
 
         #[builtin(modulus_be_bytes)]
         pub fn modulus_be_bytes() -> [u8] {}
@@ -281,5 +285,13 @@ pub mod stdlib_src {
     pub const PRINT: &str = "
         #[oracle(print)]
         unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+
+        unconstrained fn println<T>(input: T) {
+            print_unconstrained(true, input);
+        }
+
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+            print_oracle(with_newline, input);
+        }
     ";
 }

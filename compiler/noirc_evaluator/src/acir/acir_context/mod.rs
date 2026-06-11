@@ -496,9 +496,7 @@ impl<F: AcirField> AcirContext<F> {
 
         self.acir_ir.assert_is_zero(diff_expr);
         if let Some(payload) = assert_message {
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         self.mark_variables_equivalent(lhs, rhs)?;
 
@@ -547,9 +545,7 @@ impl<F: AcirField> AcirContext<F> {
             if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
                 return Ok(());
             }
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
 
         Ok(())
@@ -1040,10 +1036,12 @@ impl<F: AcirField> AcirContext<F> {
             let r = two_pow_bit_size_minus_one - rhs_offset;
 
             // we need to ensure lhs_offset + r does not overflow
-            if bits + bit_size_u128(r) < F::max_num_bits() {
-                // lhs_offset < rhs_offset
-                // -> lhs_offset + r < rhs_offset + r = 2^bit_size
-                // -> lhs_offset + r < 2^bit_size
+            if u32::max(bits, bit_size_u128(r)) + 1 < F::max_num_bits() {
+                // let max = u32::max(bits, bit_size_u128(r)), then
+                // - lhs_offset < 2^max
+                // - r < 2^max
+                // -> lhs_offset + r < 2^(max+1)
+                // the condition above is: 2^(max +1) < 2^bit_size
 
                 let r_var = self.add_constant(r);
                 let aor = self.add_var(lhs_offset, r_var)?;
@@ -1107,9 +1105,7 @@ impl<F: AcirField> AcirContext<F> {
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
             let payload = self.generate_assertion_message_payload(message);
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         if return_zero {
             let zero = self.add_constant(F::zero());
@@ -1348,7 +1344,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Add the memory read operation to the list of opcodes
-        let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
+        let op = MemOp::read_at_mem_index(index_witness, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
@@ -1370,7 +1366,7 @@ impl<F: AcirField> AcirContext<F> {
         let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Add the memory write operation to the list of opcodes
-        let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
+        let op = MemOp::write_to_mem_index(index_witness, value_write_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())
@@ -1400,6 +1396,15 @@ impl<F: AcirField> AcirContext<F> {
             Some(value) => {
                 let mut values = Vec::new();
                 self.initialize_array_inner(&mut values, value)?;
+                if values.len() != len {
+                    return Err(InternalError::General {
+                        message: format!(
+                            "Attempted to initialize an array of flattened length {len} with {} values",
+                            values.len()
+                        ),
+                        call_stack: self.get_call_stack(),
+                    });
+                }
                 values
             }
         };
@@ -1583,6 +1588,28 @@ mod tests {
         power_of_two::<FieldElement>(FieldElement::max_num_bits());
     }
 
+    #[test]
+    fn initialize_array_rejects_length_mismatch() {
+        use crate::acir::AcirValue;
+        use crate::errors::InternalError;
+        use crate::ssa::ir::types::NumericType;
+        use acvm::acir::brillig::lengths::FlattenedLength;
+        use acvm::acir::circuit::opcodes::{BlockId, BlockType};
+
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+        let var = context.add_constant(FieldElement::one());
+        let value = AcirValue::Array(im::vector![AcirValue::Var(var, NumericType::NativeField)]);
+
+        // Claim a flattened length of 2 but provide only a single value.
+        let result = context.initialize_array(
+            BlockId(0),
+            FlattenedLength(2),
+            Some(value),
+            BlockType::Memory,
+        );
+        assert!(matches!(result, Err(InternalError::General { .. })));
+    }
+
     proptest! {
         #[test]
         fn power_of_two_agrees_with_generic_impl(bit_size in (0..=128u32)) {
@@ -1701,5 +1728,27 @@ mod tests {
         let mut acvm = ACVM::new(&solver, &circuit.opcodes, witness_map, &[], &[]);
 
         assert!(matches!(acvm.solve(), ACVMStatus::Solved));
+    }
+
+    /// Exercise bound_constraint_with_offset() with the invalid inputs:
+    /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
+    #[test]
+    #[should_panic = "range check with bit size + 1 >= the prime field bit size is not implemented yet"]
+    fn bound_constraint_shifted_path_rhs_const() {
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+
+        let bits = 253;
+
+        let lhs = context.add_variable();
+        let rhs = context.add_variable();
+        let predicate = context.add_variable();
+        let one = context.add_constant(1_u128);
+
+        let lhs_witness = context.var_to_witness(lhs).unwrap();
+        let rhs_witness = context.var_to_witness(rhs).unwrap();
+        let predicate_witness = context.var_to_witness(predicate).unwrap();
+        context.acir_ir.input_witnesses = vec![lhs_witness, rhs_witness, predicate_witness];
+
+        context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
     }
 }

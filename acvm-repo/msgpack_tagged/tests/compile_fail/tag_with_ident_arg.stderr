@@ -1,0 +1,5 @@
+error: expected integer literal
+ --> tests/compile_fail/tag_with_ident_arg.rs:9:11
+  |
+9 |     #[tag(default)]
+  |           ^^^^^^^

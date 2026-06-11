@@ -2,12 +2,12 @@ use acvm::{
     FieldElement,
     acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
 };
-use noirc_errors::{Location, call_stack::CallStackId};
+use noirc_errors::call_stack::{CallStack, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     brillig::assert_u32,
-    errors::{RtResult, RuntimeError},
+    errors::{InternalError, RtResult, RuntimeError},
     ssa::{
         ir::{
             basic_block::BasicBlockId,
@@ -61,11 +61,24 @@ impl<'a> ValueMerger<'a> {
     /// Choose a call stack to return with the [RuntimeError].
     ///
     /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
-    fn get_call_stack(&self, value: ValueId) -> Vec<Location> {
+    fn get_call_stack(&self, value: ValueId) -> CallStack {
         // The value points at one of the problematic references, while the instruction would
         // point at where we got the if-then-else; it's not clear which one is more useful.
         let call_stack = self.dfg.get_value_call_stack(value);
         if call_stack.is_empty() { self.dfg.get_call_stack(self.call_stack) } else { call_stack }
+    }
+
+    /// Returns the (tracked) size of a vector being merged.
+    /// Error if the size is not known.
+    fn vector_size_or_err(&self, value: ValueId) -> RtResult<SemanticLength> {
+        self.vector_sizes.get(&value).copied().ok_or_else(|| {
+            RuntimeError::InternalError(InternalError::General {
+                message: format!(
+                    "Merging values during flattening encountered vector {value} without a determinable size"
+                ),
+                call_stack: self.get_call_stack(value),
+            })
+        })
     }
 
     /// Merge two values a and b to a single value.
@@ -87,7 +100,7 @@ impl<'a> ValueMerger<'a> {
             return Ok(then_value);
         }
 
-        match self.dfg.type_of_value(then_value) {
+        match &*self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Ok(Self::merge_numeric_values(
                 self.dfg,
                 self.block,
@@ -97,16 +110,20 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             )),
             typ @ Type::Array(_, _) => {
+                let typ = typ.clone();
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Vector(_) => self.merge_vector_values(
-                typ,
-                then_condition,
-                else_condition,
-                then_value,
-                else_value,
-            ),
-            Type::Reference(_) => {
+            typ @ Type::Vector(_) => {
+                let typ = typ.clone();
+                self.merge_vector_values(
+                    typ,
+                    then_condition,
+                    else_condition,
+                    then_value,
+                    else_value,
+                )
+            }
+            Type::Reference(..) => {
                 let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }
@@ -231,13 +248,8 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected vector type"),
         };
 
-        let then_len = self.vector_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered vector {then_value_id} without a preset size");
-        });
-
-        let else_len = self.vector_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered vector {else_value_id} without a preset size");
-        });
+        let then_len = self.vector_size_or_err(then_value_id)?;
+        let else_len = self.vector_size_or_err(else_value_id)?;
 
         let len = then_len.max(else_len);
         let element_count = ElementTypesLength(assert_u32(element_types.len()));

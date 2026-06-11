@@ -9,15 +9,11 @@ use noirc_abi::{
 use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
 use noirc_frontend::TypeBinding;
+use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
-    hir_def::{
-        expr::{HirArrayLiteral, HirExpression, HirLiteral},
-        function::Param,
-        stmt::HirPattern,
-        types::Type,
-    },
+    hir_def::{function::Param, stmt::HirPattern, types::Type},
     node_interner::{FuncId, NodeInterner},
 };
 
@@ -75,7 +71,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             let span = get_main_function_location(context);
             let length = size
                 .evaluate_to_u32(span)
@@ -167,77 +163,75 @@ pub(super) fn compute_function_abi(
     (parameters, return_type)
 }
 
-/// Attempts to retrieve the name of this parameter. Returns None
-/// if this parameter is a tuple or struct pattern.
-fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
+/// Retrieves the parameter's bound name. Entry point parameters must use a simple identifier
+/// pattern (gated in the elaborator), so any other shape is a compiler bug here.
+fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> &'a str {
     match pattern {
-        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
+        HirPattern::Identifier(ident) => interner.definition_name(ident.id),
         HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::Tuple(_, _) => None,
-        HirPattern::Struct(_, _, _) => None,
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => {
+            unreachable!("destructuring patterns are rejected for entry point parameters")
+        }
     }
 }
 
 fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
     vecmap(params, |(pattern, typ, vis)| {
-        let param_name = get_param_name(&pattern, &context.def_interner)
-            .expect("Abi for tuple and struct parameters is unimplemented")
-            .to_owned();
+        let param_name = get_param_name(&pattern, &context.def_interner).to_owned();
         let as_abi = abi_type_from_hir_type(context, &typ);
         AbiParameter { name: param_name, typ: as_abi, visibility: to_abi_visibility(vis) }
     })
 }
 
-pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpression) -> AbiValue {
-    match expression {
-        HirExpression::Tuple(expr_ids) => {
-            let fields = expr_ids
-                .iter()
-                .map(|expr_id| {
-                    value_from_hir_expression(context, context.def_interner.expression(expr_id))
-                })
-                .collect();
+/// Converts a comptime-evaluated [Value] of an `#[abi(tag)]` global into an [AbiValue].
+///
+/// The elaborator rejects globals whose type the ABI cannot represent (via
+/// `Type::program_validity`), so this function only needs to handle the value shapes that
+/// correspond to ABI-compatible types.
+pub(super) fn value_to_abi_value(value: &Value) -> AbiValue {
+    match value {
+        Value::Bool(value) => AbiValue::Boolean { value: *value },
+        Value::Integer(integer) => {
+            let sign = integer.is_negative();
+            let field = if sign { -integer.as_field() } else { integer.as_field() };
+            AbiValue::Integer { sign, value: field.to_hex() }
+        }
+        Value::String(bytes) => match std::str::from_utf8(bytes.as_ref()) {
+            Ok(value) => AbiValue::String { value: value.to_string() },
+            Err(_) => {
+                let value = vecmap(bytes.iter(), |byte| AbiValue::Integer {
+                    sign: false,
+                    value: format!("{byte:x}"),
+                });
+                AbiValue::Array { value }
+            }
+        },
+        Value::Array(elements, _) => {
+            let value = elements.iter().map(value_to_abi_value).collect();
+            AbiValue::Array { value }
+        }
+        Value::Tuple(elements) => {
+            let fields =
+                elements.iter().map(|element| value_to_abi_value(&element.borrow())).collect();
             AbiValue::Tuple { fields }
         }
-        HirExpression::Constructor(constructor) => {
-            let fields = constructor
-                .fields
-                .iter()
-                .map(|(ident, expr_id)| {
-                    (
-                        ident.to_string(),
-                        value_from_hir_expression(
-                            context,
-                            context.def_interner.expression(expr_id),
-                        ),
-                    )
-                })
-                .collect();
-            AbiValue::Struct { fields }
+        Value::Struct(fields, typ) => {
+            let Type::DataType(definition, _) = typ.follow_bindings() else {
+                unreachable!("Value::Struct must have a DataType type, got: {typ}");
+            };
+            let definition = definition.borrow();
+            let fields_raw =
+                definition.fields_raw().expect("ABI-valid struct values must have named fields");
+            let abi_fields = vecmap(fields_raw, |field| {
+                let name = field.name.as_string();
+                let value = fields
+                    .iter()
+                    .find_map(|(key, value)| (key.as_ref() == name).then_some(value))
+                    .expect("ABI struct value should have all fields populated");
+                (name.clone(), value_to_abi_value(&value.borrow()))
+            });
+            AbiValue::Struct { fields: abi_fields }
         }
-        HirExpression::Literal(literal) => match literal {
-            HirLiteral::Array(hir_array) => match hir_array {
-                HirArrayLiteral::Standard(expr_ids) => {
-                    let value = expr_ids
-                        .iter()
-                        .map(|expr_id| {
-                            value_from_hir_expression(
-                                context,
-                                context.def_interner.expression(expr_id),
-                            )
-                        })
-                        .collect();
-                    AbiValue::Array { value }
-                }
-                HirArrayLiteral::Repeated { .. } => {
-                    unreachable!("Repeated arrays cannot be used in the abi")
-                }
-            },
-            HirLiteral::Bool(value) => AbiValue::Boolean { value },
-            HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(value) => AbiValue::Integer { value: value.to_hex(), sign: false },
-            _ => unreachable!("Literal cannot be used in the abi"),
-        },
-        _ => unreachable!("Type cannot be used in the abi {:?}", expression),
+        _ => unreachable!("Value cannot be used in the abi: {value:?}"),
     }
 }

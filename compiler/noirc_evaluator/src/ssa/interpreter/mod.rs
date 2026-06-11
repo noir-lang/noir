@@ -196,15 +196,20 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let expected_type = func.dfg.type_of_value(id);
             let actual_type = value.get_type();
 
-            if expected_type != actual_type {
+            if *expected_type != actual_type {
                 // Special case for ZST (Zero-Sized Type) arrays: Allow length mismatches.
                 // In early SSA passes, ZST arrays like [(); 3] are represented with empty element lists.
                 // Later optimization passes will fix the representation.
-                let types_compatible = match (&expected_type, &actual_type) {
+                let types_compatible = match (&*expected_type, &actual_type) {
                     (Type::Array(expected_elem, _), Type::Array(actual_elem, actual_len)) => {
                         expected_elem == actual_elem
                             && expected_elem.is_empty()
                             && actual_len.to_usize() == 0
+                    }
+                    // Reference mutability doesn't affect runtime behavior —
+                    // the interpreter treats &T and &mut T identically.
+                    (Type::Reference(expected_elem, _), Type::Reference(actual_elem, _)) => {
+                        expected_elem == actual_elem
                     }
                     _ => false,
                 };
@@ -247,7 +252,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 super::ir::value::Value::Function(id) => Value::Function(*id),
                 super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-                super::ir::value::Value::ForeignFunction(name) => {
+                super::ir::value::Value::ForeignFunction { name, .. } => {
                     Value::ForeignFunction(name.clone())
                 }
                 super::ir::value::Value::Global(_) | super::ir::value::Value::Param { .. } => {
@@ -410,7 +415,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-            super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
+            super::ir::value::Value::ForeignFunction { name, .. } => {
+                Value::ForeignFunction(name.clone())
+            }
             super::ir::value::Value::Instruction { .. }
             | super::ir::value::Value::Param { .. }
             | super::ir::value::Value::Global(_) => {
@@ -1033,7 +1040,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
                 return Ok(vecmap(results, |result| {
                     let typ = self.dfg().type_of_value(*result);
-                    if matches!(typ, Type::Vector(_)) {
+                    if matches!(*typ, Type::Vector(_)) {
                         Value::uninitialized_vector(&element_types, output_len, *result)
                     } else {
                         Value::uninitialized(&typ, *result)
@@ -1072,10 +1079,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             | Value::Intrinsic(_)
             | Value::ForeignFunction(_) => Ok(()),
 
-            Value::Reference(value) => {
-                let value = value.to_string();
-                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
-            }
+            // Immutable references are allowed to cross the constrained->unconstrained
+            // boundary. Mutable references are rejected earlier by the frontend type check.
+            Value::Reference(_) => Ok(()),
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
@@ -1090,14 +1096,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
-        let result_type = self.dfg().type_of_value(result);
-        let element_type = match result_type {
-            Type::Reference(element_type) => element_type,
+        let result_type = self.dfg().type_of_value(result).into_owned();
+        let (element_type, mutable) = match result_type {
+            Type::Reference(element_type, mutable) => (element_type, mutable),
             other => unreachable!(
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        let value = Value::reference(result, element_type);
+        let value = Value::reference(result, element_type, mutable);
         self.define(result, value)
     }
 
@@ -1147,8 +1153,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
+        // Per `Instruction::requires_acir_gen_predicate`, in Brillig an
+        // `array_get` is pure-in-isolation: the OOB check is inserted as a
+        // separate constraint, not part of the access itself. Match that here
+        // so the interpreter agrees with the Brillig VM on dead/unused gets.
+        let oob_is_pure = self.current_function().runtime().is_brillig();
+
         let index = match self.lookup_array_index(index, "array get index", length) {
-            Err(InterpreterError::IndexOutOfBounds { .. }) if !side_effects_enabled => {
+            Err(InterpreterError::IndexOutOfBounds { .. })
+                if !side_effects_enabled || oob_is_pure =>
+            {
                 return uninitialized(self);
             }
             other => other?,
@@ -1160,11 +1174,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
-            if side_effects_enabled {
+            if side_effects_enabled && !oob_is_pure {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
                 return uninitialized(self);
             }
+        }
+
+        if oob_is_pure && index >= length {
+            return uninitialized(self);
         }
 
         let element = {
@@ -1174,7 +1192,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // Find a valid index
                 let typ = self.dfg().type_of_value(result);
                 for (i, element) in array.elements.borrow().iter().enumerate() {
-                    if element.get_type() == typ {
+                    if element.get_type() == *typ {
                         index = i as u32;
                         break;
                     }
@@ -1195,7 +1213,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_vector: array.is_vector,
+                        length: array.length,
                     })
                 } else {
                     element.clone()
@@ -1246,8 +1264,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_vector = array.is_vector;
-                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
+                let length = array.length;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
             }
         } else {
             // Side effects are disabled, return the original array
@@ -1336,7 +1354,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_vector = matches!(&result_type, Type::Vector(..));
+        let length = if let Type::Array(_, length) = result_type { Some(*length) } else { None };
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1361,7 +1379,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements.iter().zip(element_types.iter().cycle()).enumerate()
         {
             let actual_type = element.get_type();
-            if &actual_type != expected_type {
+            if !actual_type.canonical_eq(expected_type) {
                 return Err(internal(InternalError::MakeArrayElementTypeMismatch {
                     result,
                     index,
@@ -1375,7 +1393,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_vector,
+            length,
         });
         self.define(result, array)
     }
@@ -1531,7 +1549,11 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
+            // For `Div`/`Mod`, `checked_div`/`checked_rem` return `None` either because
+            // the divisor is zero or because the operation overflows
+            // (e.g. signed `MIN / -1`). Distinguish the two by inspecting the divisor.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs.convert_to_field().is_zero()
+            {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1674,13 +1696,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop_opt!(
-                lhs,
-                rhs,
-                binary,
-                num_traits::CheckedSub::checked_sub,
-                display_binary
-            )
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects

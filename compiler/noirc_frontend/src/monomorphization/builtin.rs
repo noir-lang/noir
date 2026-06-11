@@ -8,7 +8,7 @@ use crate::{
     Type, TypeBindings,
     ast::IntegerBitSize,
     monomorphization::{
-        Monomorphizer,
+        CanonicalBindings, Monomorphizer,
         ast::{self, Definition, FuncId, Function, InlineType},
         errors::MonomorphizationError,
     },
@@ -35,13 +35,16 @@ impl Monomorphizer<'_> {
     /// Try to evaluate certain builtin functions (just the function itself) given their type.
     /// All builtins are function types, so the evaluated result will always be a new function or None.
     ///
-    /// Prerequisite: `typ = typ.follow_bindings()`
-    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
+    /// Prerequisite: `typ = typ.follow_bindings()`,
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
+    ///          and: `bindings_key` was produced by `Monomorphizer::canonicalize_bindings`.
+    #[expect(clippy::too_many_arguments)]
     pub(super) fn try_evaluate_builtin(
         &mut self,
         opcode_string: &str,
         typ: Type,
         turbofish_generics: Vec<Type>,
+        bindings_key: CanonicalBindings,
         is_unconstrained: bool,
         id: node_interner::FuncId,
         location: Location,
@@ -107,7 +110,14 @@ impl Monomorphizer<'_> {
             },
         );
         let typ = Type::Function(parameter_types, return_type, env, unconstrained);
-        self.define_function(id, typ, turbofish_generics, is_unconstrained, new_function_id);
+        self.define_function(
+            id,
+            typ,
+            turbofish_generics,
+            bindings_key,
+            is_unconstrained,
+            new_function_id,
+        );
         Ok(Some(new_function_id))
     }
 
@@ -127,6 +137,16 @@ impl Monomorphizer<'_> {
         }
     }
 
+    fn modulus_bool_vector_literal(&self, bits: Vec<u8>, _location: Location) -> ast::Expression {
+        use ast::*;
+
+        let bits_as_expr = vecmap(bits, |bit| Expression::Literal(Literal::Bool(bit != 0)));
+
+        let typ = Type::Vector(Rc::new(Type::Bool));
+        let arr_literal = ArrayLiteral { typ, contents: bits_as_expr };
+        Expression::Literal(Literal::Vector(arr_literal))
+    }
+
     fn modulus_vector_literal(
         &self,
         bytes: Vec<u8>,
@@ -136,6 +156,11 @@ impl Monomorphizer<'_> {
         use ast::*;
 
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
+        assert!(
+            arr_elem_bits.bit_size() >= 8,
+            "modulus_vector_literal: arr_elem_bits ({}) is too small to hold a u8 byte",
+            arr_elem_bits.bit_size()
+        );
 
         let bytes_as_expr = vecmap(bytes, |byte| {
             Expression::Literal(Literal::Integer(byte.into(), int_type.clone(), location))
@@ -163,14 +188,29 @@ impl Monomorphizer<'_> {
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type, location);
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: vec![element; *length as usize],
-                    typ: ast::Type::Array(*length, element_type.clone()),
-                }))
+                let typ = ast::Type::Array(*length, element_type.clone());
+                if element_type.contains_reference() {
+                    // A reference lowers to a single `allocate`, so a repeated array literal would
+                    // make every slot share one allocation. Author N independent elements instead
+                    // so each slot gets its own cell, matching the `Tuple` arm below.
+                    let contents =
+                        vecmap(0..*length, |_| self.zeroed_value_of_type(element_type, location));
+                    ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                        contents,
+                        typ,
+                    }))
+                } else {
+                    let element = self.zeroed_value_of_type(element_type, location);
+                    ast::Expression::Literal(ast::Literal::Repeated {
+                        element: Box::new(element),
+                        length: *length,
+                        is_vector: false,
+                        typ,
+                    })
+                }
             }
             ast::Type::String(length) => {
-                ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
+                ast::Expression::Literal(ast::Literal::Str(vec![0; *length as usize]))
             }
             ast::Type::FmtString(length, fields) => {
                 let zeroed_tuple = self.zeroed_value_of_type(fields, location);
@@ -233,7 +273,17 @@ impl Monomorphizer<'_> {
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
-        let parameters = vecmap(parameter_types, |parameter_type| {
+        let mut parameters = Vec::with_capacity(parameter_types.len() + 1);
+        if !matches!(env_type.as_ref(), ast::Type::Unit) {
+            parameters.push((
+                self.next_local_id(),
+                true,
+                "env".into(),
+                env_type.clone(),
+                Visibility::Private,
+            ));
+        }
+        parameters.extend(parameter_types.iter().map(|parameter_type| {
             (
                 self.next_local_id(),
                 false,
@@ -241,7 +291,7 @@ impl Monomorphizer<'_> {
                 Rc::new(parameter_type.clone()),
                 Visibility::Private,
             )
-        });
+        }));
 
         let body = self.zeroed_value_of_type(&ret_type, location);
 
@@ -317,7 +367,7 @@ impl Monomorphizer<'_> {
 
     fn modulus_be_bits(&self, location: Location) -> ast::Expression {
         let bits = FieldElement::modulus().to_radix_be(2);
-        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+        self.modulus_bool_vector_literal(bits, location)
     }
 
     fn modulus_be_bytes(&self, location: Location) -> ast::Expression {
@@ -327,7 +377,7 @@ impl Monomorphizer<'_> {
 
     fn modulus_le_bits(&self, location: Location) -> ast::Expression {
         let bits = FieldElement::modulus().to_radix_le(2);
-        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+        self.modulus_bool_vector_literal(bits, location)
     }
 
     fn modulus_le_bytes(&self, location: Location) -> ast::Expression {

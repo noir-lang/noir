@@ -128,6 +128,8 @@ pub(crate) enum SsaError {
     UnknownBlock(Identifier),
     #[error("Unknown function '{0}'")]
     UnknownFunction(Identifier),
+    #[error("`pure` modifier is only allowed on foreign function calls, but '{0}' is not one")]
+    PureModifierOnNonForeignFunction(Identifier),
     #[error("Mismatched return values")]
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
     #[error("Variable '{0}' already defined")]
@@ -136,6 +138,10 @@ pub(crate) enum SsaError {
     GlobalAlreadyDefined(Identifier),
     #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
     IllegalOffset(Identifier, ArrayOffset),
+    #[error(
+        "Function '{function_name}' is declared as `{stated}` but its instructions compute `{computed}`"
+    )]
+    PurityMismatch { function_name: String, stated: Purity, computed: Purity, span: Span },
 }
 
 impl SsaError {
@@ -148,8 +154,10 @@ impl SsaError {
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier)
+            | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
+            SsaError::PurityMismatch { span, .. } => *span,
         }
     }
 }
@@ -221,7 +229,15 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, data_bus, blocks })
+        Ok(ParsedFunction {
+            runtime_type,
+            purity: purity.map(|(purity, _)| purity),
+            purity_span: purity.map(|(_, span)| span),
+            external_name,
+            internal_name,
+            data_bus,
+            blocks,
+        })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -247,13 +263,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+    fn parse_purity(&mut self) -> ParseResult<Option<(Purity, Span)>> {
+        let span = self.token.span();
         if self.eat_keyword(Keyword::Pure)? {
-            Ok(Some(Purity::Pure))
+            Ok(Some((Purity::Pure, span)))
         } else if self.eat_keyword(Keyword::PredicatePure)? {
-            Ok(Some(Purity::PureWithPredicate))
+            Ok(Some((Purity::PureWithPredicate, span)))
         } else if self.eat_keyword(Keyword::Impure)? {
-            Ok(Some(Purity::Impure))
+            Ok(Some((Purity::Impure, span)))
         } else {
             Ok(None)
         }
@@ -470,9 +487,16 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
+        let pure = self.eat_keyword(Keyword::Pure)?;
         let function = self.eat_identifier_or_error()?;
         let arguments = self.parse_arguments()?;
-        Ok(Some(ParsedInstruction::Call { targets: vec![], function, arguments, types: vec![] }))
+        Ok(Some(ParsedInstruction::Call {
+            targets: vec![],
+            function,
+            arguments,
+            types: vec![],
+            pure,
+        }))
     }
 
     fn parse_constrain(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -583,11 +607,12 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Assign)?;
 
         if self.eat_keyword(Keyword::Call)? {
+            let pure = self.eat_keyword(Keyword::Pure)?;
             let function = self.eat_identifier_or_error()?;
             let arguments = self.parse_arguments()?;
             self.eat_or_error(Token::Arrow)?;
             let types = self.parse_types()?;
-            return Ok(ParsedInstruction::Call { targets, function, arguments, types });
+            return Ok(ParsedInstruction::Call { targets, function, arguments, types, pure });
         }
 
         if targets.len() > 1 {
@@ -920,24 +945,30 @@ impl<'a> Parser<'a> {
 
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
-            let value = self.eat_int_or_error()?;
+            let dash_span = self.token.span();
+            let negative = self.eat(Token::Dash)?;
+            let magnitude = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
 
-            let value = if typ.is_signed() {
-                let bit_size = typ.bit_size();
-                let max_bit_pattern = FieldElement::from(2u128.pow(bit_size) - 1);
-                if value > max_bit_pattern {
-                    // Negative literal: eat_int() returned p - magnitude (field negation).
-                    // Convert to two's complement bit pattern: 2^bit_size + (p - magnitude) mod p
-                    FieldElement::from(2u128.pow(bit_size)) + value
-                } else {
-                    value
-                }
+            // The sign is taken from the literal's syntax, not inferred from the
+            // magnitude. The IR does not normalize numeric constants into their type's
+            // range, and the printer emits a signed value whose field representation is
+            // out of range verbatim as a positive literal (e.g. `i8 256`); re-parsing it
+            // must reproduce that field value rather than mistake it for a negative one.
+            let value = if negative && typ.is_signed() {
+                // Two's complement field value of `-magnitude`, computed exactly as the
+                // inverse of how the printer renders a negative signed integer
+                // (`2^bit_size - value`, in field arithmetic).
+                FieldElement::from(2u32).pow(&typ.bit_size().into()) - magnitude
+            } else if negative {
+                // The printer never emits a `-` for an unsigned type (it prints the raw
+                // field value), so a negative unsigned literal is not valid SSA.
+                return Err(ParserError::NegativeUnsignedLiteral { span: dash_span });
             } else {
-                value
+                magnitude
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
@@ -1003,8 +1034,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if let Some(typ) = self.parse_mutable_reference_type()? {
-            return Ok(Type::Reference(Arc::new(typ)));
+        if let Some((typ, mutable)) = self.parse_reference_type()? {
+            return Ok(Type::Reference(Arc::new(typ), mutable));
         }
 
         if self.eat_keyword(Keyword::Function)? {
@@ -1016,22 +1047,22 @@ impl<'a> Parser<'a> {
 
     /// Parses `&mut Type`, returns `Type` if `&mut` was found, errors otherwise.
     fn parse_mutable_reference_type_or_error(&mut self) -> ParseResult<Type> {
-        if let Some(typ) = self.parse_mutable_reference_type()? {
-            Ok(typ)
+        if let Some((typ, mutable)) = self.parse_reference_type()? {
+            Ok(Type::Reference(Arc::new(typ), mutable))
         } else {
             self.expected_token(Token::Ampersand)
         }
     }
 
-    /// Parses `&mut Type`, returns `Some(Type)` if `&mut` was found, `None` otherwise.
-    fn parse_mutable_reference_type(&mut self) -> ParseResult<Option<Type>> {
+    /// Parses `&mut Type` or `&Type`, returns `Some((Type, mutable))` if `&` was found.
+    fn parse_reference_type(&mut self) -> ParseResult<Option<(Type, bool)>> {
         if !self.eat(Token::Ampersand)? {
             return Ok(None);
         }
 
-        self.eat_or_error(Token::Keyword(Keyword::Mut))?;
+        let mutable = self.eat_keyword(Keyword::Mut)?;
         let typ = self.parse_type()?;
-        Ok(Some(typ))
+        Ok(Some((typ, mutable)))
     }
 
     fn eat_identifier_or_error(&mut self) -> ParseResult<Identifier> {
@@ -1309,6 +1340,8 @@ pub(crate) enum ParserError {
     UnexpectedOffset { found: Token, span: Span },
     #[error("Invalid integer value")]
     InvalidInteger { found: Token, span: Span },
+    #[error("Unsigned integers cannot be negative, but a negative literal was given")]
+    NegativeUnsignedLiteral { span: Span },
 }
 
 impl ParserError {
@@ -1329,7 +1362,8 @@ impl ParserError {
             | ParserError::ExpectedU32 { span, .. }
             | ParserError::ExpectedUSize { span, .. }
             | ParserError::UnexpectedOffset { span, .. }
-            | ParserError::InvalidInteger { span, .. } => *span,
+            | ParserError::InvalidInteger { span, .. }
+            | ParserError::NegativeUnsignedLiteral { span } => *span,
 
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span

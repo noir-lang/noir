@@ -186,16 +186,12 @@ impl FunctionBuilder {
                             continue;
                         }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
-                        index += match subitem_typ {
-                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size().0,
-                            Type::Numeric(_) => 1,
-                            _ => unreachable!("Unsupported type for databus"),
-                        };
+                        index += 1;
                         self.add_to_data_bus(element, databus);
                     }
                 }
             }
-            Type::Reference(_) => {
+            Type::Reference(..) => {
                 unreachable!("Attempted to add invalid type (reference) to databus")
             }
             Type::Vector(_) => unreachable!("Attempted to add invalid type (vector) to databus"),

@@ -10,8 +10,9 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         dom::DominatorTree,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{BinaryOp, Instruction, InstructionId, binary::Binary},
         post_order::PostOrder,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::{LoopOrder, Loops},
@@ -19,7 +20,7 @@ use crate::ssa::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::constant_allocation::ConstantAllocation;
+use super::constant_allocation::{ConstantAllocation, InstructionLocation};
 
 /// A set of [ValueId]s referring to SSA variables (not functions).
 type Variables = HashSet<ValueId>;
@@ -48,7 +49,7 @@ pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
         | Value::NumericConstant { .. }
         | Value::Global(_) => true,
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
-        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => false,
+        Value::ForeignFunction { .. } | Value::Function(_) | Value::Intrinsic(..) => false,
     }
 }
 
@@ -94,7 +95,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters());
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -135,24 +136,17 @@ impl VariableLiveness {
         let back_edges: LoopMap = loops
             .yet_to_unroll
             .into_iter()
-            .map(|_loop| {
-                let back_edge = BackEdge { header: _loop.header, start: _loop.back_edge_start };
-                let loop_body = _loop.blocks;
-                (back_edge, loop_body)
+            .map(|loop_| {
+                let back_edge = BackEdge { header: loop_.header, start: loop_.back_edge_start };
+                (back_edge, loop_.blocks)
             })
             .collect();
 
-        Self {
-            cfg: loops.cfg,
-            live_in: HashMap::default(),
-            last_uses: HashMap::default(),
-            param_definitions: HashMap::default(),
-            max_live_count: 0,
-        }
-        .compute_block_param_definitions(func, &loops.dom)
-        .compute_live_in_of_blocks(func, constants, back_edges)
-        .compute_last_uses(func)
-        .compute_max_live_count(func)
+        Self { cfg: loops.cfg, ..Default::default() }
+            .compute_block_param_definitions(func, &loops.dom)
+            .compute_live_in_of_blocks(func, constants, back_edges)
+            .compute_last_uses(func)
+            .compute_max_live_count(func, constants)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -219,7 +213,7 @@ impl VariableLiveness {
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in(func, func.entry_block(), constants, &back_edges);
+        self.compute_live_in(func, constants, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -229,99 +223,45 @@ impl VariableLiveness {
         self
     }
 
-    /// Starting with the entry block, traverse down all successors to compute their `live_in`,
-    /// then propagate the information back up towards the ancestors as `live_out`.
+    /// Compute `live_in` for every block in one post-order pass.
     ///
-    /// The variables live at the *beginning* of a block are the variables used by the block,
-    /// plus the variables used by the successors of the block, minus the variables defined
-    /// in the block (by definition not alive at the beginning).
+    /// In a post-order traversal, a block is visited after all of its non-back-edge
+    /// successors have been visited, so each block's `live_out` is just the union of
+    /// its already-computed successors' `live_in`s (skipping back-edges — those are
+    /// handled in the second pass, [`Self::update_live_ins_within_loop`]).
     ///
-    /// This is an iterative implementation to avoid stack overflows on complex programs.
+    /// From the paper cited in the module docs:
+    ///   `live_in[B] = used[B] ∪ (live_out[B] - defined[B])`
     fn compute_live_in(
         &mut self,
         func: &Function,
-        entry_block: BasicBlockId,
         constants: &ConstantAllocation,
         back_edges: &LoopMap,
     ) {
-        // Each entry is (block_id, processing_state)
-        // processing_state: false = need to process successors, true = ready to compute live_in
-        let mut stack = vec![(entry_block, false)];
-        let mut visited = HashSet::default();
+        for block_id in PostOrder::with_function(func).as_slice().iter().copied() {
+            let block = &func.dfg[block_id];
+            let mut live_out = HashSet::default();
 
-        while let Some((block_id, processed)) = stack.pop() {
-            if processed {
-                // All successors have been processed, now compute live_in for this block
-                let block = &func.dfg[block_id];
-                let mut live_out = HashSet::default();
-
-                // Collect the `live_in` of successors; their union is the `live_out` of the parent.
-                for successor_id in block.successors() {
-                    // Skip back edges: do not revisit the header of the loop
-                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
-                    {
-                        continue;
-                    }
-                    // Add the live_in of the successor to the union that forms the live_out of the parent.
-                    live_out.extend(
-                        self.live_in
-                            .get(&successor_id)
-                            .expect("live_in for successor should have been calculated")
-                            .iter()
-                            .copied(),
-                    );
-                }
-
-                // Based on the paper mentioned in the module docs, the definition would be:
-                // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-
-                // Variables used in this block, defined in this block or before.
-                let used = variables_used_in_block(block, &func.dfg);
-
-                // Variables defined in this block are not alive at the beginning.
-                let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
-
-                // Live at the beginning are the variables used, but not defined in this block, plus the ones
-                // it passes through to its successors, which are used by them, but not defined here.
-                // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
-                let live_in =
-                    used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
-
-                self.live_in.insert(block_id, live_in);
-            } else {
-                // First visit: check if we've already processed this block
-                if !visited.insert(block_id) {
+            for successor_id in block.successors() {
+                // Skip back edges: the header's live_in is computed in the same pass,
+                // but the loop-body contributions are added later.
+                if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id }) {
                     continue;
                 }
-
-                let block = &func.dfg[block_id];
-
-                // Check if all successors (except back edges) have been processed
-                let mut all_successors_processed = true;
-                let mut unprocessed_successors = Vec::new();
-
-                for successor_id in block.successors() {
-                    // Skip back edges
-                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
-                    {
-                        continue;
-                    }
-                    // If successor hasn't been processed yet, we need to process it first
-                    if !self.live_in.contains_key(&successor_id) {
-                        all_successors_processed = false;
-                        unprocessed_successors.push(successor_id);
-                    }
-                }
-
-                // Push this block back with processed = true (for after successors)
-                stack.push((block_id, true));
-                if !all_successors_processed {
-                    // Push unprocessed successors with processed = false
-                    for successor_id in unprocessed_successors {
-                        stack.push((successor_id, false));
-                    }
-                }
+                live_out.extend(
+                    self.live_in
+                        .get(&successor_id)
+                        .expect("live_in for successor should have been calculated")
+                        .iter()
+                        .copied(),
+                );
             }
+
+            let used = variables_used_in_block(block, &func.dfg);
+            let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
+            let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
+
+            self.live_in.insert(block_id, live_in);
         }
     }
 
@@ -381,9 +321,9 @@ impl VariableLiveness {
             let live_out = self.get_live_out(&block_id);
 
             // Variables we have already visited, ie. they are used in "later" instructions or the terminator.
-            let mut used_after: Variables = Default::default();
+            let mut used_after = Variables::default();
             // Variables becoming dead after each instruction.
-            let mut block_last_uses: LastUses = Default::default();
+            let mut block_last_uses = LastUses::default();
 
             // First, handle the terminator; none of the instructions should cause these to go dead.
             if let Some(terminator_instruction) = block.terminator() {
@@ -409,7 +349,7 @@ impl VariableLiveness {
 
                 // Check results as well: if they are not used by anything after,
                 // they can be deallocated. DIE should remove these, but in isolated
-                // unit tests they can be expected to be removed.
+                // unit tests they may not be removed.
                 let unused_instruction_results =
                     variables_returned_by_instruction(*instruction_id, &func.dfg)
                         .into_iter()
@@ -419,8 +359,12 @@ impl VariableLiveness {
                 // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
                 instruction_last_uses.extend(unused_instruction_results);
 
-                // Remember that we can deallocate these after this instruction.
-                block_last_uses.insert(*instruction_id, instruction_last_uses);
+                // Remember that we can deallocate these after this instruction. Skip
+                // instructions with no last uses to keep the map small; consumers default to
+                // an empty set for missing keys.
+                if !instruction_last_uses.is_empty() {
+                    block_last_uses.insert(*instruction_id, instruction_last_uses);
+                }
             }
 
             self.last_uses.insert(block_id, block_last_uses);
@@ -431,47 +375,76 @@ impl VariableLiveness {
 
     /// Compute [VariableLiveness::max_live_count].
     ///
-    /// Walk each block instruction-by-instruction, tracking how many variables are
-    /// simultaneously alive: start with `live_in`, add variables defined by each
-    /// instruction (including block param definitions), and subtract dead variables
-    /// from `last_uses`. Record the highest count across all blocks.
+    /// Walk each block instruction-by-instruction, tracking the set of variables
+    /// simultaneously alive: start with `live_in` plus block param definitions,
+    /// materialize constants at their allocation points, add instruction results,
+    /// and remove dead variables from `last_uses`. Record the highest count.
     ///
-    /// For `MakeArray` instructions, also account for the element count: during Brillig
-    /// codegen, each unique element value is materialized as a separate register, which
-    /// can far exceed the SSA-level variable count.
-    fn compute_max_live_count(mut self, func: &Function) -> Self {
+    /// On top of the live SSA values, allocated constants, and `MakeArray` elements, this
+    /// adds a per-instruction upper bound on the transient scratch registers the code
+    /// generator allocates (see [`instruction_scratch_demand`]).
+    ///
+    /// # Safety
+    /// This remains a lower bound, not an exact live count: some transients are not
+    /// attributed per-instruction. Consumers of the max live count are expected to keep
+    /// some extra margin to account for those.
+    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
+    fn compute_max_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
         let mut max_count: usize = 0;
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
-            let live_in = self.get_live_in(&block_id);
             let last_uses = self.get_last_uses(&block_id);
 
-            // Start with the live-in set plus variables defined at block entry
-            // (block param definitions are allocated before the first instruction).
-            let param_defs = self.defined_block_params(&block_id);
-            let mut current_count = live_in.len() + param_defs.len();
-            max_count = max_count.max(current_count);
+            let mut live_set: HashSet<ValueId> =
+                self.get_live_in(&block_id).iter().copied().collect();
+            live_set.extend(self.defined_block_params(&block_id));
+            max_count = max_count.max(live_set.len());
 
             for instruction_id in block.instructions() {
-                let instruction = &func.dfg[*instruction_id];
+                // Materialize constants allocated at this instruction location.
+                if let Some(new_consts) = constants.allocated_at_location(
+                    block_id,
+                    InstructionLocation::Instruction(*instruction_id),
+                ) {
+                    live_set.extend(new_consts.iter().copied());
+                    max_count = max_count.max(live_set.len());
+                }
 
-                // MakeArray materializes each element as a register during Brillig codegen.
-                // Count the number of unique element values to estimate register pressure.
+                // MakeArray materializes each unique element as a register during
+                // Brillig codegen. Include them in the live set so the peak accounts
+                // for non-constant element values as well.
+                let instruction = &func.dfg[*instruction_id];
                 if let Instruction::MakeArray { elements, .. } = instruction {
-                    let unique_elements: HashSet<_> = elements.iter().copied().collect();
-                    max_count = max_count.max(current_count + unique_elements.len());
+                    live_set.extend(elements.iter().copied());
+                    max_count = max_count.max(live_set.len());
                 }
 
                 // Add results defined by this instruction.
                 let results = func.dfg.instruction_results(*instruction_id);
-                current_count += results.len();
-                max_count = max_count.max(current_count);
+                live_set.extend(results.iter().copied());
+
+                // The code generator also allocates transient scratch registers while
+                // lowering this instruction (overflow checks, address arithmetic, call
+                // setup). They are live simultaneously with the operands and results, so
+                // include them in the peak rather than relying solely on the spill margin.
+                let scratch = instruction_scratch_demand(instruction, &func.dfg);
+                max_count = max_count.max(live_set.len() + scratch);
 
                 // Subtract variables that die after this instruction.
                 if let Some(dead) = last_uses.get(instruction_id) {
-                    current_count = current_count.saturating_sub(dead.len());
+                    for d in dead {
+                        live_set.remove(d);
+                    }
                 }
+            }
+
+            // Handle constants allocated at the terminator.
+            if let Some(new_consts) =
+                constants.allocated_at_location(block_id, InstructionLocation::Terminator)
+            {
+                live_set.extend(new_consts.iter().copied());
+                max_count = max_count.max(live_set.len());
             }
         }
 
@@ -481,6 +454,71 @@ impl VariableLiveness {
 
     pub(super) fn cfg(&self) -> &ControlFlowGraph {
         &self.cfg
+    }
+}
+
+/// Upper bound on the temporary scratch registers the Brillig code generator allocates
+/// while lowering a single instruction (not counting the SSA values tracked by the live set).
+///
+/// [`compute_max_live_count`] counts live SSA values, allocated constants, and `MakeArray`
+/// elements. The code generator additionally allocates short-lived registers that never
+/// appear as SSA values — overflow/range-check predicates, address-arithmetic temporaries,
+/// and call setup registers. These are live at the same program point as the instruction's
+/// operands and results, so they raise the true register peak there.
+///
+/// The result is a conservative upper bound added on top of the live set. It does not cover
+/// everything, the rest been handled by [`FunctionContext::SPILL_MARGIN`].
+///
+/// [`compute_max_live_count`]: VariableLiveness::compute_max_live_count
+/// [`FunctionContext::SPILL_MARGIN`]: crate::brillig::brillig_gen::brillig_fn::FunctionContext::SPILL_MARGIN
+fn instruction_scratch_demand(instruction: &Instruction, dfg: &DataFlowGraph) -> usize {
+    match instruction {
+        Instruction::Binary(binary) => binary_op_scratch_demand(binary, dfg),
+        // Call setup allocates a `stack_size_register` held across the call sequence.
+        Instruction::Call { .. } => 1,
+        // Memory accesses compute the target address into a temporary register before the
+        // load/store. This is an upper bound on the address arithmetic.
+        Instruction::Store { .. } | Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+            1
+        }
+        _ => 0,
+    }
+}
+
+/// Peak number of scratch registers held simultaneously while lowering a signed division,
+/// modulo, or arithmetic right shift.
+const SIGNED_DIVISION_SCRATCH: usize = 8;
+
+/// Peak number of scratch registers held simultaneously while lowering a [`Binary`]
+/// instruction. The hard-coded values used here are validated in the test
+/// `binary_scratch_demand_matches_codegen`
+fn binary_op_scratch_demand(binary: &Binary, dfg: &DataFlowGraph) -> usize {
+    let (is_field, is_signed) = match dfg.type_of_value(binary.lhs).as_ref() {
+        Type::Numeric(NumericType::Signed { .. }) => (false, true),
+        Type::Numeric(NumericType::Unsigned { .. }) => (false, false),
+        Type::Numeric(NumericType::NativeField) => (true, false),
+        _ => (false, false),
+    };
+
+    match binary.operator {
+        // Signed division performs an unsigned division, compute absolute values and signs
+        BinaryOp::Div if is_signed => SIGNED_DIVISION_SCRATCH,
+        // Signed modulo wraps the signed division with two extra scratch registers.
+        BinaryOp::Mod if is_signed => SIGNED_DIVISION_SCRATCH + 2,
+        // Unsigned (non-field) modulo emits a divisor-is-nonzero pre-check.
+        BinaryOp::Mod if !is_field => 2,
+        // Signed comparison biases both operands before an unsigned comparison.
+        BinaryOp::Lt if is_signed => 3,
+        // Arithmetic right shift on signed values reuses the signed-division expansion plus
+        // the shift-overflow check and sign-handling temporaries.
+        BinaryOp::Shr if is_signed => SIGNED_DIVISION_SCRATCH + 4,
+        // Bit shifts emit an overflow check (a predicate plus the bit-width constant).
+        BinaryOp::Shl | BinaryOp::Shr => 2,
+        // Checked unsigned arithmetic emits an overflow check after the operation.
+        BinaryOp::Add { unchecked: false } if !is_field && !is_signed => 1,
+        BinaryOp::Sub { unchecked: false } if !is_field && !is_signed => 1,
+        BinaryOp::Mul { unchecked: false } if !is_field && !is_signed => 4,
+        _ => 0,
     }
 }
 
@@ -1081,6 +1119,197 @@ mod tests {
     }
 
     #[test]
+    fn max_live_count_includes_constants_outside_make_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // The constant `Field 1` should be allocated in b0.
+        let allocated_in_entry = constants.allocated_in_block(func.entry_block());
+        assert!(
+            !allocated_in_entry.is_empty(),
+            "expected Field 1 to be allocated in the entry block, but nothing was"
+        );
+
+        // The true peak is 3 registers: v0 + Field 1 + v1 must coexist during the add.
+        // If we did not account for constants, we would incorrectly report 2.
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected max_live_count >= 3 (v0 + Field 1 + v1 live during the add), got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_accounts_for_signed_comparison_scratch() {
+        // Ensure that `liveness.max_live_count` is properly computed for `lt` instruction.
+        // We know that the expected value 6 is correct thanks
+        // to `binary_scratch_demand_matches_codegen()` test
+
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = lt v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 6,
+            "expected live set (v0,v1,v2 = 3) + signed-compare scratch (3) = 6, got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_accounts_for_call_setup_scratch() {
+        // Lowering a call allocates a `stack_size_register` that is held across the call
+        // setup/teardown (see `codegen_call` in `brillig_ir`). It is not an SSA value, so
+        // the raw live-set count misses it.
+        //
+        // Live set at the call is {v0, v1} = 2 (the argument is still live, plus the
+        // result). The call scratch demand adds 1, for a peak of 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> u32
+            return v2
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u32):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected live set (v0,v2 = 2) + call scratch (1) = 3, got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_accounts_for_store_address_scratch() {
+        // Lowering a store computes the target address into a temporary register (see
+        // `codegen_store_with_offset` in `brillig_ir`). That address temporary is not an
+        // SSA value, so the raw live-set count misses it.
+        //
+        // Live set at the store is {v0, v1} = 2 (the value being stored plus the address).
+        // With the temporary address, `liveness.max_live_count` should be 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected live set (v0,v1 = 2) + store address scratch (1) = 3, got {}",
+            liveness.max_live_count
+        );
+    }
+
+    /// Peak stack-frame register index referenced by `main`'s bytecode after real codegen.
+    fn measured_register_peak(src: &str) -> usize {
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        crate::brillig::brillig_check::max_relative_register(&main.byte_code)
+    }
+
+    /// The scratch `instruction_scratch_demand` predicts for the first instruction of `src`'s
+    /// entry block.
+    fn predicted_scratch(src: &str) -> usize {
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let entry = func.entry_block();
+        let instruction_id = func.dfg[entry].instructions()[0];
+        super::instruction_scratch_demand(&func.dfg[instruction_id], &func.dfg)
+    }
+
+    #[test]
+    fn binary_scratch_demand_matches_codegen() {
+        // Ensure that the hardcoded `instruction_scratch_demand` for binary operations
+        // correspond to real allocations made by the code-gen.
+        // To compute the real allocations, we brillig-gen from a SSA function having
+        // exactly one binary instruction, and get the highest written register.
+        // We then compare it to an `unchecked_add` that does not need any additional register.
+        // This real allocation is then checked against the `instruction_scratch_demand` function.
+        // So this test ensure the hardcoded function is correct against real binary operations.
+        let baseline = measured_register_peak(
+            "brillig(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v2 = unchecked_add v0, v1
+                return v2
+            }",
+        );
+
+        // (operator, lhs type, rhs type)
+        let cases = [
+            ("lt", "i32", "i32"),
+            ("div", "i32", "i32"),
+            ("mod", "i32", "i32"),
+            ("mod", "u32", "u32"),
+            ("shr", "i32", "i32"),
+            ("shl", "u32", "u32"),
+            ("sub", "u32", "u32"),
+            ("mul", "u32", "u32"),
+            ("div", "i64", "i64"),
+            ("div", "u128", "u128"),
+            ("mul", "u128", "u128"),
+            ("add", "Field", "Field"),
+        ];
+
+        let mut mismatches = Vec::new();
+        for (op, lhs_ty, rhs_ty) in cases {
+            let src = format!(
+                "brillig(inline) fn main f0 {{
+                  b0(v0: {lhs_ty}, v1: {rhs_ty}):
+                    v2 = {op} v0, v1
+                    return v2
+                }}"
+            );
+
+            let measured = measured_register_peak(&src) - baseline;
+            let predicted = predicted_scratch(&src);
+
+            if measured != predicted {
+                mismatches.push(format!(
+                    "`{op}` on {lhs_ty}: codegen uses {measured}, table predicts {predicted}"
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "binary scratch demand drifted from codegen:\n  {}",
+            mismatches.join("\n  "),
+        );
+    }
+
+    #[test]
     fn test_terminator_arguments_stay_alive() {
         // Arguments to terminator instructions must remain alive until the terminator executes.
         // They cannot be deallocated in the last instruction of the block.
@@ -1118,5 +1347,127 @@ mod tests {
         7: sp[2] = sp[3] // f0/b1
         8: return
         ");
+    }
+
+    #[test]
+    fn max_live_count_counts_terminator_constants() {
+        // A constant used in multiple branches whose common dominator is a block that
+        // doesn't itself use the constant is allocated at the dominator's terminator.
+        // The `InstructionLocation::Terminator` branch of compute_max_live_count was
+        // previously untested.
+        //
+        // b0 has four block params live through the jmpif. If the terminator branch
+        // contributes, `Field 100` is added to the live set at b0's terminator, pushing
+        // the peak from 5 (v0-v3 + b3's v6 allocated via dominator) to 6. Removing
+        // lines 481-486 would drop the result to 5.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field, v3: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v4 = add Field 100, v1
+            jmp b3(v4)
+          b2():
+            v5 = mul Field 100, v2
+            jmp b3(v5)
+          b3(v6: Field):
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 6,
+            "expected peak at b0 terminator (v0-v3 + v6 + Field 100), got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_drops_dead_variables() {
+        // A value must leave the live set once it's been consumed. Otherwise the count
+        // keeps growing across a chain of additions. With correct dead-variable removal
+        // the peak is bounded by {previous, constant, new_result} = 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "peak should be {{prev, const, new}} = 3; got {} (did dead values carry over?)",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_takes_max_across_blocks() {
+        // The per-block peak is computed independently but the final value must be the
+        // max across blocks — not the last block's value, not an average.
+        //
+        // b0 and b2 are small (≤ 2 live values each); b1 is the hot block. If the
+        // implementation collapsed `max_count` per block instead of folding, b2's
+        // peak of 1 would win and this assertion would fire.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(v0)
+          b1(v1: u32):
+            v2 = unchecked_add v1, u32 1
+            v3 = unchecked_add v2, u32 2
+            v4 = unchecked_add v3, u32 3
+            v5 = unchecked_add v4, v1
+            jmp b2(v5)
+          b2(v6: u32):
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak in b1 at `v3 = unchecked_add v2, u32 2`: v1 (carried for the later add),
+        // v6 (b2's param pre-allocated via dominator b1), v2 (previous result), u32 2
+        // (allocated at this instruction), and v3 (just produced) = 5.
+        // b0 peak = 2, b2 peak = 1.
+        assert_eq!(liveness.max_live_count, 5, "got {}", liveness.max_live_count);
+    }
+
+    #[test]
+    fn make_array_peak_includes_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = make_array [v0, v1, v2] : [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
+        // The elements are already in the live set as block params, but
+        // the result register is allocated simultaneously during codegen.
+        assert_eq!(
+            liveness.max_live_count, 4,
+            "MakeArray peak must include the result register: \
+             3 element params + 1 result = 4, got {}",
+            liveness.max_live_count
+        );
     }
 }

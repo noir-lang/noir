@@ -5,6 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     BinaryTypeOperator, Kind, QuotedType, Type, TypeBinding, TypeBindings, TypeVariable,
+    elaborator::Elaborator,
     hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError},
     hir_def::{
         expr::{HirCallExpression, HirExpression, HirIdent},
@@ -161,7 +162,7 @@ impl Type {
                 }
             },
 
-            (Array(len_a, elem_a), Array(len_b, elem_b)) => {
+            (Array(elem_a, len_a), Array(elem_b, len_b)) => {
                 len_a.try_unify(len_b, bindings)?;
                 elem_a.try_unify(elem_b, bindings)
             }
@@ -516,9 +517,9 @@ impl Type {
         expected: &Type,
         expression: ExprId,
         location: Location,
-        interner: &mut NodeInterner,
+        elaborator: &mut Elaborator,
         errors: &mut Vec<CompilationError>,
-        make_error: impl FnOnce() -> CompilationError,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
     ) {
         let mut bindings = TypeBindings::default();
 
@@ -527,11 +528,11 @@ impl Type {
             return;
         }
 
-        if self.try_array_to_vector_coercion(expected, expression, interner) {
+        if self.try_array_to_vector_coercion(expected, expression, elaborator.interner) {
             return;
         }
 
-        if self.try_string_to_ctstring_coercion(expected, expression, interner) {
+        if self.try_string_to_ctstring_coercion(expected, expression, elaborator.interner) {
             return;
         }
 
@@ -541,17 +542,17 @@ impl Type {
 
         // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
         match self.try_fn_to_unconstrained_fn_coercion(expected) {
-            FunctionCoercionResult::NoCoercion => errors.push(make_error()),
+            FunctionCoercionResult::NoCoercion => errors.push(make_error(elaborator)),
             FunctionCoercionResult::Coerced(coerced_self) => {
                 coerced_self.unify_with_coercions(
-                    expected, expression, location, interner, errors, make_error,
+                    expected, expression, location, elaborator, errors, make_error,
                 );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
                 errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
 
                 coerced_self.unify_with_coercions(
-                    expected, expression, location, interner, errors, make_error,
+                    expected, expression, location, elaborator, errors, make_error,
                 );
             }
         }
@@ -590,7 +591,7 @@ impl Type {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Array(_size, element1), Type::Vector(element2)) = (&this, &target) {
+        if let (Type::Array(element1, _size), Type::Vector(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
             if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
@@ -623,7 +624,8 @@ impl Type {
         match &this {
             Type::String(..) | Type::FmtString(..) => {
                 // as_ctstring is defined as a trait method
-                for (func_id, trait_id) in interner.lookup_trait_methods(&this, "as_ctstring", true)
+                for (func_id, trait_id, _) in
+                    interner.lookup_trait_methods(&this, "as_ctstring", true)
                 {
                     // Look up the one that's in the standard library.
                     let trait_ = interner.get_trait(trait_id);

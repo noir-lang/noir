@@ -1,5 +1,5 @@
 //! This file contains configurations for selecting particular behaviors during mutations
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 pub(crate) const MAX_NUMBER_OF_MUTATIONS: usize = 25;
 pub(crate) const SIZE_OF_SMALL_ARBITRARY_BUFFER: usize = 25;
@@ -230,8 +230,6 @@ pub(crate) const BASIC_BOOL_MUTATION_CONFIGURATION: BoolMutationConfig =
 
 pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1000), (BoolMutationOptions::False, 1)]);
-pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE: BoolMutationConfig =
-    BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1000)]);
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum UsizeMutationOptions {
@@ -393,14 +391,12 @@ pub(crate) const BASIC_SCALAR_MUTATION_CONFIGURATION: ScalarMutationConfig =
 pub(crate) enum PointMutationOptions {
     Scalar,
     DeriveFromScalarMul,
-    IsInfinite,
 }
-pub(crate) type PointMutationConfig = WeightedSelectionConfig<PointMutationOptions, 3>;
+pub(crate) type PointMutationConfig = WeightedSelectionConfig<PointMutationOptions, 2>;
 pub(crate) const BASIC_POINT_MUTATION_CONFIGURATION: PointMutationConfig =
     PointMutationConfig::new([
         (PointMutationOptions::Scalar, 1),
         (PointMutationOptions::DeriveFromScalarMul, 1),
-        (PointMutationOptions::IsInfinite, 1),
     ]);
 
 // =================== GENERATION CONFIGURATIONS ==================

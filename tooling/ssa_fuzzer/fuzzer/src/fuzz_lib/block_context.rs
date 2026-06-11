@@ -589,7 +589,7 @@ impl BlockContext {
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
                 let acir_point = builder.point_add(p1, p2, predicate);
-                for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
+                for typed_value in [&acir_point.x, &acir_point.y] {
                     self.store_variable(typed_value);
                 }
             }
@@ -616,7 +616,7 @@ impl BlockContext {
                 }
                 let point =
                     builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
-                for typed_value in [&point.x, &point.y, &point.is_infinite] {
+                for typed_value in [&point.x, &point.y] {
                     self.store_variable(typed_value);
                 }
             }
@@ -698,12 +698,11 @@ impl BlockContext {
         let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar);
         scalar.as_ref()?; // wtf clippy forbid me to write if scalar.is_none() {return None}
         let scalar = scalar.unwrap();
-        let is_infinite = builder.insert_constant(point.is_infinite, NumericType::Boolean);
 
         let point = if point.derive_from_scalar_mul {
-            builder.base_scalar_mul(scalar, is_infinite)
+            builder.base_scalar_mul(scalar)
         } else {
-            builder.create_point_from_scalar(scalar, is_infinite)
+            builder.create_point_from_scalar(scalar)
         };
         Some(point)
     }
@@ -879,7 +878,7 @@ impl BlockContext {
             }
             // On reference, try to find value with reference type,
             // allocate and store it in memory
-            Type::Reference(reference_type) => {
+            Type::Reference(reference_type, _) => {
                 let value = self.find_values_with_type(builder, reference_type.as_ref(), None);
                 let value = builder.insert_add_to_memory(value);
                 self.store_variable(&value);

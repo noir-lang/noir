@@ -11,7 +11,7 @@ use crate::mutations::{
         InsertJmpIfBlockMutationOptions,
     },
 };
-use rand::Rng;
+use rand::RngExt;
 use rand::rngs::StdRng;
 
 pub(crate) fn mutate_fuzzer_function_command(

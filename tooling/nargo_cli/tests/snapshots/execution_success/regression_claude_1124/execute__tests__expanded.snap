@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Pair {
+    a: u32,
+    b: u32,
+}
+
+struct Wrapper {
+    x: u32,
+    inner: [Pair; 2],
+}
+
+fn main(arr: [Wrapper; 3], zero: u32, one: u32, two: u32) -> pub u32 {
+    assert(arr[zero].x == 1_u32);
+    assert(arr[one].x == 2_u32);
+    assert(arr[two].x == 3_u32);
+    assert(arr[zero].inner[zero].a == 10_u32);
+    assert(arr[zero].inner[zero].b == 11_u32);
+    assert(arr[zero].inner[one].a == 12_u32);
+    assert(arr[zero].inner[one].b == 13_u32);
+    assert(arr[one].inner[zero].a == 20_u32);
+    assert(arr[one].inner[zero].b == 21_u32);
+    assert(arr[one].inner[one].a == 22_u32);
+    assert(arr[one].inner[one].b == 23_u32);
+    assert(arr[two].inner[zero].a == 30_u32);
+    assert(arr[two].inner[zero].b == 31_u32);
+    assert(arr[two].inner[one].a == 32_u32);
+    assert(arr[two].inner[one].b == 33_u32);
+    arr[two].inner[one].b
+}

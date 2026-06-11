@@ -4,13 +4,13 @@ use noirc_errors::{Location, Span};
 use crate::{
     BinaryTypeOperator, ParsedModule,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
-        Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
-        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl,
-        UnresolvedGeneric, UseTree, UseTreeKind,
+        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, Path, PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem,
+        TypeImpl, UnresolvedGeneric, UseTree, UseTreeKind,
     },
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
@@ -309,6 +309,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_assign_op_statement(&mut self, _: &AssignOpStatement) -> bool {
+        true
+    }
+
     fn visit_for_loop_statement(&mut self, _: &ForLoopStatement) -> bool {
         true
     }
@@ -352,7 +356,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_lvalue_dereference(&mut self, _lvalue: &LValue, _span: Span) -> bool {
+    fn visit_lvalue_dereference(&mut self, _expr: &Expression, _span: Span) -> bool {
         true
     }
 
@@ -1229,6 +1233,9 @@ impl Statement {
             StatementKind::Assign(assign_statement) => {
                 assign_statement.accept(visitor);
             }
+            StatementKind::AssignOp(assign_op_statement) => {
+                assign_op_statement.accept(visitor);
+            }
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
             }
@@ -1304,6 +1311,19 @@ impl AssignStatement {
     }
 }
 
+impl AssignOpStatement {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_assign_op_statement(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.lvalue.accept(visitor);
+        self.expression.accept(visitor);
+    }
+}
+
 impl ForLoopStatement {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_for_loop_statement(self) {
@@ -1338,9 +1358,9 @@ impl LValue {
                     index.accept(visitor);
                 }
             }
-            LValue::Dereference(lvalue, location) => {
-                if visitor.visit_lvalue_dereference(lvalue, location.span) {
-                    lvalue.accept(visitor);
+            LValue::Dereference(expr, location) => {
+                if visitor.visit_lvalue_dereference(expr, location.span) {
+                    expr.accept(visitor);
                 }
             }
             LValue::Interned(id, location) => visitor.visit_lvalue_interned(*id, location.span),
@@ -1388,6 +1408,9 @@ impl AsTraitPath {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.trait_path.accept(visitor);
         self.trait_generics.accept(visitor);
+        if let Some(turbofish) = &self.turbofish {
+            turbofish.accept(visitor);
+        }
     }
 }
 

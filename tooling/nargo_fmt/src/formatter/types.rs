@@ -69,19 +69,7 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersand or VectorStart in the lexer depending
-                // on whether it's right next to a `[` or not.
-                match &self.token {
-                    Token::Ampersand => {
-                        self.write_token(Token::Ampersand);
-                    }
-                    Token::DeprecatedVectorStart => {
-                        self.write_token(Token::DeprecatedVectorStart);
-                    }
-                    _ => {
-                        panic!("Expected Ampersand or VectorStart, found {:?}", self.token);
-                    }
-                }
+                self.write_token(Token::Ampersand);
                 if mutable {
                     self.write_keyword(Keyword::Mut);
                     self.write_space();
@@ -170,6 +158,10 @@ impl Formatter<'_> {
         self.write_token(Token::Greater);
         self.write_token(Token::DoubleColon);
         self.write_identifier(as_trait_path.impl_item);
+        if let Some(turbofish) = as_trait_path.turbofish {
+            self.write_token(Token::DoubleColon);
+            self.format_generic_type_args(turbofish);
+        }
     }
 }
 

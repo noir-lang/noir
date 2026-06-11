@@ -28,11 +28,7 @@ pub fn type_depth(typ: &Type) -> usize {
 /// Some types don't compile in Noir, so avoid those as we couldn't
 /// put any related failures into an integration test.
 pub fn can_be_global(typ: &Type) -> bool {
-    !matches!(
-        typ,
-        Type::Integer(Signedness::Signed, IntegerBitSize::One | IntegerBitSize::HundredTwentyEight)
-            | Type::Integer(Signedness::Unsigned, IntegerBitSize::One)
-    )
+    !matches!(typ, Type::Integer(Signedness::Signed, IntegerBitSize::HundredTwentyEight))
 }
 
 /// Check if a type can be used in the `main` function.
@@ -98,11 +94,8 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
-                    // We don't want to produce `i1` or `i128`
-                    if sign.is_signed()
-                        && (size == IntegerBitSize::One
-                            || size == IntegerBitSize::HundredTwentyEight)
-                    {
+                    // We don't want to produce `i128`
+                    if sign.is_signed() && size == IntegerBitSize::HundredTwentyEight {
                         continue;
                     }
 
@@ -336,9 +329,14 @@ pub fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Typ
     }
 }
 
-/// Reference an expression into a target type
+/// Mutable reference with a target type.
 pub fn ref_mut(typ: Type) -> Type {
-    Type::Reference(Rc::new(typ), true)
+    ref_with_mut(typ, true)
+}
+
+/// Reference an expression into a target type
+pub fn ref_with_mut(typ: Type, mutable: bool) -> Type {
+    Type::Reference(Rc::new(typ), mutable)
 }
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
@@ -384,7 +382,7 @@ pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
             HirType::Integer(*signedness, *integer_bit_size)
         }
         Type::String(size) => HirType::String(size_const(*size)),
-        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
+        Type::Array(size, typ) => HirType::Array(Box::new(to_hir_type(typ)), size_const(*size)),
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
         Type::Vector(typ) => HirType::Vector(Box::new(to_hir_type(typ))),
         Type::FmtString(size, typ) => {

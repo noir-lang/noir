@@ -16,10 +16,6 @@ impl Foo for () {
     let Baz: u32 = 0;
 
     type Bar = Self;
-
-    fn foo(x: [Self; 0]) -> u32 {
-        x.len()
-    }
 }
 
 fn main() {

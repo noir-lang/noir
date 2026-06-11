@@ -6,14 +6,31 @@ use acir::{
 };
 use indexmap::IndexMap;
 
+use crate::compiler::simulator::unresolved_witnesses;
+
 /// Minimum width accepted by the `CSatTransformer`.
 pub(crate) const MIN_EXPRESSION_WIDTH: usize = 3;
 
-/// A transformer which processes any [`Expression`]s to break them up such that they
-/// fit within the backend's width.
+/// A transformer which slices [`Expression`]s towards the backend's preferred `width`, creating
+/// intermediate variables to hold partial calculations and then combining them to recover the
+/// original expression.
 ///
-/// This is done by creating intermediate variables to hold partial calculations and then combining them
-/// to calculate the original expression.
+/// This is a sub-pass of the [`CommonSubexpressionOptimizer`](super); see the module documentation
+/// for how the slices it produces become common-subexpression candidates.
+///
+/// `width` is a best-effort target, not a guarantee. ACIR places no upper bound on the width of an
+/// opcode, so the transformer never splits an expression in a way that would harm solvability. In
+/// particular, an emitted opcode may exceed `width` when it cannot be sliced further without becoming
+/// unsolvable. The two cases are:
+/// - The expression has more than one multiplication term whose operands are not all solvable: each
+///   such term must stay in the opcode (an intermediate bound to it would be unsolvable), so several
+///   may remain.
+/// - The sole unknown of the expression sits inside a multiplication term (e.g. `w_known * y = a + b + c + d`,
+///   solving for `y`). The term cannot be hoisted into an intermediate without leaving the opcode with two
+///   unknowns, so the whole expression — multiplication term and all linear terms — is emitted as one opcode.
+///
+/// The property the transformer preserves is solvability (see [`CircuitSimulator`](crate::compiler::CircuitSimulator)),
+/// not width.
 ///
 /// Pre-Condition:
 /// - General Optimizer must run before this pass
@@ -34,29 +51,11 @@ impl CSatTransformer {
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve<F>(&mut self, opcode: &Expression<F>) {
-        let mut unresolved = Vec::new();
-        for (_, w1, w2) in &opcode.mul_terms {
-            if !self.solvable_witness.contains(w1) {
-                unresolved.push(w1);
-                if !self.solvable_witness.contains(w2) {
-                    return;
-                }
-            }
-            if !self.solvable_witness.contains(w2) {
-                unresolved.push(w2);
-                if !self.solvable_witness.contains(w1) {
-                    return;
-                }
-            }
-        }
-        for (_, w) in &opcode.linear_combinations {
-            if !self.solvable_witness.contains(w) {
-                unresolved.push(w);
-            }
-        }
-        if unresolved.len() == 1 {
-            self.mark_solvable(*unresolved[0]);
+    fn try_solve<F: AcirField>(&mut self, opcode: &Expression<F>) {
+        if let Some(unresolved) = unresolved_witnesses(opcode, &self.solvable_witness)
+            && unresolved.len() == 1
+        {
+            self.mark_solvable(*unresolved.iter().next().expect("len == 1"));
         }
     }
 
@@ -65,11 +64,22 @@ impl CSatTransformer {
         self.solvable_witness.insert(witness);
     }
 
-    /// Transform the input arithmetic expression into a new one having the correct 'width'
-    /// by creating intermediate variables as needed.
-    /// Having the correct width means:
-    /// - it has at most one multiplicative term
-    /// - it uses at most 'width-1' witness linear combination terms, to account for the new intermediate variable
+    /// Transform the input arithmetic expression by slicing it towards `self.width` via intermediate
+    /// variables, marking the witness it solves for so later opcodes can reuse it.
+    ///
+    /// The intended shape of the returned opcode is:
+    /// - at most one multiplication term, and
+    /// - a fan-in whose [`Expression::width`] is at most `self.width`.
+    ///
+    /// This is best-effort, not guaranteed: when an unsolvable multiplication term cannot be hoisted
+    /// into an intermediate variable, it (and the linear terms it sits alongside) remain in the opcode,
+    /// which may then have more than one multiplication term and/or a width exceeding `self.width`. This
+    /// is intentional — slicing such a term out would make the circuit unsolvable, and ACIR imposes no
+    /// hard width limit. See the [`CSatTransformer`] documentation for details.
+    ///
+    /// The `width - 1` budget mentioned in the helper functions refers to each *intermediate* opcode:
+    /// an intermediate reserves one wire for the variable it defines, so it can absorb at most `width - 1`
+    /// source terms. The final opcode itself targets the full `self.width`.
     pub(crate) fn transform<F: AcirField>(
         &mut self,
         opcode: Expression<F>,
@@ -338,7 +348,10 @@ impl CSatTransformer {
             return opcode;
         }
 
-        // Create Intermediate variables for the multiplication opcodes
+        // Replace each multiplication term with an intermediate variable, so it becomes a single linear
+        // term in the fan-in. We can only do this for terms whose operands are both solvable: an intermediate
+        // bound to an unsolvable multiplication term would itself be unsolvable. Unsolvable terms are kept in
+        // the opcode unchanged.
         let mut remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
         for (scale, w_l, w_r) in opcode.mul_terms {
             if self.solvable_witness.contains(&w_l) && self.solvable_witness.contains(&w_r) {
@@ -361,13 +374,13 @@ impl CSatTransformer {
             }
         }
 
-        // Remove all of the mul terms as we have intermediate variables to represent them now
+        // Any multiplication terms left here are unsolvable and could not be hoisted into intermediates.
         opcode.mul_terms = remaining_mul_terms;
 
-        // We now only have a polynomial with only fan-in/fan-out terms i.e. terms of the form Ax + By + Cd + ...
-        // Lets create intermediate variables if all of them cannot fit into the width
-        //
-        // If the polynomial fits perfectly within the given width, we are finished
+        // The remaining work is to squash the linear fan-in down to `self.width` terms. We can only stop once
+        // the linear fan-in fits; any residual unsolvable multiplication terms stay where they are, so the
+        // final opcode's `width()` may still exceed `self.width`. That is acceptable (ACIR has no width limit)
+        // and unavoidable — slicing those terms out would make the circuit unsolvable.
         if opcode.linear_combinations.len() <= self.width {
             return opcode;
         }

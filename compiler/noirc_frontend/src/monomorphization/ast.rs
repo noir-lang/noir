@@ -5,6 +5,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
+use strum_macros::EnumIter;
 
 use crate::token::FmtStrFragment;
 use crate::{
@@ -102,7 +103,13 @@ impl Expression {
                     xs[*idx].return_type()
                 }
                 x => {
-                    let typ = x.return_type()?;
+                    let mut typ = x.return_type()?;
+
+                    // Unwrap reference types to get the underlying tuple type
+                    while let Type::Reference(reference_type, _) = typ.as_ref() {
+                        typ = Cow::Owned(reference_type.as_ref().clone());
+                    }
+
                     let Type::Tuple(types) = typ.as_ref() else {
                         unreachable!("unexpected type for tuple field extraction: {typ}");
                     };
@@ -209,8 +216,14 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
-    // used as a foreign/externally defined unconstrained function
-    Oracle(String),
+    /// A foreign/externally-defined unconstrained function.
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with
+    /// `#[pure]`.
+    Oracle {
+        name: String,
+        pure: bool,
+    },
 }
 
 /// ID of a local definition, e.g. from a let binding or
@@ -284,7 +297,7 @@ pub enum Literal {
     Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(
         Vec<FmtStrFragment>,
         /* Number of variables in the format string. */ u64,
@@ -427,9 +440,8 @@ pub type Parameters =
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(
-    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
-)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+#[derive(Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -563,6 +575,22 @@ impl Type {
         match self {
             Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
+        }
+    }
+
+    /// Returns true if this type is, or transitively contains, a reference.
+    pub fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(..) => true,
+            Type::Array(_, element) | Type::Vector(element) => element.contains_reference(),
+            Type::Tuple(fields) => fields.iter().any(Type::contains_reference),
+            Type::FmtString(_, fields) => fields.contains_reference(),
+            Type::Field
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Function(..) => false,
         }
     }
 

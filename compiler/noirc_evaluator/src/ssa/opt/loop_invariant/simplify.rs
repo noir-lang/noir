@@ -8,7 +8,7 @@ use crate::ssa::{
         integer::IntegerConstant,
         value::ValueId,
     },
-    opt::loop_invariant::BlockContext,
+    opt::{LoopBounds, loop_invariant::BlockContext},
 };
 use noirc_errors::call_stack::CallStackId;
 
@@ -27,12 +27,19 @@ impl LoopInvariantContext<'_> {
         match binary.operator {
             BinaryOp::Div | BinaryOp::Mod => {
                 // Division can be evaluated if we ensure that the divisor cannot be zero
-                let Some((left, value, lower, upper)) =
+                let Some((left, value, bounds)) =
                     self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, true)
                 else {
                     // Not a constant vs non-constant case, we cannot evaluate it.
                     return false;
                 };
+
+                // An inverted range means the variable is not a proper ascending induction
+                // variable, so these bounds are bogus and cannot prove the divisor is non-zero.
+                // Mirrors the guard in `simplify_induction_variable_in_binary`.
+                if bounds.lower > bounds.upper {
+                    return false;
+                }
 
                 if left {
                     // If the induction variable is on the LHS, we're dividing with a constant.
@@ -42,9 +49,9 @@ impl LoopInvariantContext<'_> {
                 } else {
                     // Otherwise we are dividing a constant with the induction variable, and we have to check whether
                     // at any point in the loop the induction variable can be zero.
-                    let can_be_zero = lower.is_negative() && !upper.is_negative()
-                        || lower.is_zero()
-                        || upper.is_zero();
+                    let can_be_zero = bounds.lower.is_negative() && !bounds.upper.is_negative()
+                        || bounds.lower.is_zero()
+                        || bounds.upper.is_zero();
 
                     if !can_be_zero {
                         return true;
@@ -95,10 +102,19 @@ impl LoopInvariantContext<'_> {
         }
     }
 
-    /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
-    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space.
-    /// This is ensured via control dependence and the check for break patterns, before calling this function.
+    /// Rewrite `assert(invariant != induction)` into a check, hoisted to the pre-header, that
+    /// `invariant` is not one of the values the induction variable visits. The induction
+    /// variable runs over `lower, lower + step, ...` while below `upper`, so the shape of the
+    /// check depends on the step:
+    ///
+    /// - step 0: the variable is constant at `lower`, so the check is `invariant != lower`.
+    /// - step 1: it visits every integer in `[lower, max]`, so the check is
+    ///   `invariant < lower || invariant > max`.
+    /// - step > 1: not simplified (see below); the constraint is left in the loop body.
+    ///
+    /// In the simplified cases the assert must execute at each loop iteration and the loop must process
+    /// its whole iteration space. This is ensured via control dependence and the check for
+    /// break patterns, before calling this function.
     fn simplify_not_equal_constraint(
         &mut self,
         loop_context: &LoopContext,
@@ -107,63 +123,98 @@ impl LoopInvariantContext<'_> {
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        let (invariant, min, max) = match self.match_induction_and_invariant(loop_context, lhs, rhs)
-        {
-            Some((true, min, max)) => (rhs, min, max),
-            Some((false, min, max)) => (lhs, min, max),
-            _ => return SimplifyResult::None,
-        };
+        let (invariant, min, max, step) =
+            match self.match_induction_and_invariant(loop_context, lhs, rhs) {
+                Some((true, min, max, step)) => (rhs, min, max, step),
+                Some((false, min, max, step)) => (lhs, min, max, step),
+                _ => return SimplifyResult::None,
+            };
+        // We assume that step is positive, which is already ensured, but it's better to explicitly check it,
+        // in case this assumption (step is positive) is changed in the future.
+        if step.is_negative() {
+            return SimplifyResult::None;
+        }
 
-        let mut insert_binary_to_preheader = |lhs, rhs, operator| {
-            let binary = Instruction::Binary(Binary { lhs, rhs, operator });
+        // Everything below is loop invariant and control independent, so it can be safely
+        // hoisted to the pre-header.
+        let mut insert = |instruction| {
             let results = self
                 .inserter
                 .function
                 .dfg
-                .insert_instruction_and_results(binary, loop_context.pre_header(), None, call_stack)
+                .insert_instruction_and_results(
+                    instruction,
+                    loop_context.pre_header(),
+                    None,
+                    call_stack,
+                )
                 .results();
             assert!(results.len() == 1);
             results[0]
         };
-        // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        let check_min = insert_binary_to_preheader(*invariant, min, BinaryOp::Lt);
-        let check_max = insert_binary_to_preheader(max, *invariant, BinaryOp::Lt);
-        let check_bounds = insert_binary_to_preheader(check_min, check_max, BinaryOp::Or);
+        let binary = |lhs, rhs, operator| Instruction::Binary(Binary { lhs, rhs, operator });
+
+        let check = if step.is_zero() {
+            let equals_lower = insert(binary(*invariant, min, BinaryOp::Eq));
+            insert(Instruction::Not(equals_lower))
+        } else if step.is_one() {
+            let check_min = insert(binary(*invariant, min, BinaryOp::Lt));
+            let check_max = insert(binary(max, *invariant, BinaryOp::Lt));
+            insert(binary(check_min, check_max, BinaryOp::Or))
+        } else {
+            // Non-unit step does not arise in practice:
+            // - NotEqual constraints are code-gen with Eq instructions
+            // - They are transformed into NotEqual only after flattening, and only for ACIR
+            // - Non-unit steps are only possible in Brillig.
+            // However, there is no fundamental reason for not supporting them, in case
+            // these assumptions change in the future.
+            // In order to support non-unit steps, we need to check if the step divides invariant - min
+            // This can be implemented with: `((invariant % step) + step) % step == ((min % step) + step) % step`
+            // This formulation avoids subtraction and its potential underflow, and works for negative lower bounds
+            // (a single modulo (min % step) is not enough if min is negative))
+            return SimplifyResult::None;
+        };
 
         SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-            check_bounds,
+            check,
             self.true_value,
             err.clone(),
         ))
     }
 
-    /// If the inputs are an induction and loop invariant variables, it returns
-    /// the maximum and minimum values of the induction variable, based on the loop bounds,
-    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
+    /// If the inputs are an induction and loop invariant variables, it returns:
+    /// - a boolean indicating if the induction variable is on the lhs or rhs (true for lhs),
+    /// - the minimum and maximum values of the induction variable, based on the loop bounds,
+    ///   as freshly-made constant `ValueId`s,
+    /// - the per-iteration step of the induction variable, so callers can reason about which
+    ///   values in `[min, max]` are actually visited.
     fn match_induction_and_invariant(
         &mut self,
         loop_context: &LoopContext,
         lhs: &ValueId,
         rhs: &ValueId,
-    ) -> Option<(bool, ValueId, ValueId)> {
-        let (is_left, lower, upper) = match (
+    ) -> Option<(bool, ValueId, ValueId, IntegerConstant)> {
+        let (is_left, bounds) = match (
             loop_context.get_current_induction_variable_bounds(*lhs),
             loop_context.get_current_induction_variable_bounds(*rhs),
         ) {
-            (_, Some((lower, upper))) => Some((false, lower, upper)),
-            (Some((lower, upper)), _) => Some((true, lower, upper)),
+            (_, Some(bounds)) => Some((false, bounds)),
+            (Some(bounds), _) => Some((true, bounds)),
             _ => None,
         }?;
 
-        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
-        let (lower_field, lower_type) = lower.into_numeric_constant();
+        let induction_variable = if is_left { *lhs } else { *rhs };
+        let step = loop_context.get_current_induction_step(induction_variable)?;
+
+        let (upper_field, upper_type) = bounds.upper.dec()?.into_numeric_constant();
+        let (lower_field, lower_type) = bounds.lower.into_numeric_constant();
 
         let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
         let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
         if (is_left && loop_context.is_loop_invariant(rhs))
             || (!is_left && loop_context.is_loop_invariant(lhs))
         {
-            return Some((is_left, min_iter, max_iter));
+            return Some((is_left, min_iter, max_iter, step));
         }
         None
     }
@@ -207,7 +258,7 @@ impl LoopInvariantContext<'_> {
         lhs: &ValueId,
         rhs: &ValueId,
         only_outer_induction: bool,
-    ) -> Option<(bool, IntegerConstant, IntegerConstant, IntegerConstant)> {
+    ) -> Option<(bool, IntegerConstant, LoopBounds)> {
         let lhs_const = self.inserter.function.dfg.get_integer_constant(*lhs);
         let rhs_const = self.inserter.function.dfg.get_integer_constant(*rhs);
         match (
@@ -223,13 +274,9 @@ impl LoopInvariantContext<'_> {
                 .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
             // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
-            (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
-                Some((false, lhs, lower_bound, upper_bound))
-            }
+            (Some(lhs), None, None, Some(bounds)) => Some((false, lhs, bounds)),
             // RHS is a constant, LHS is the induction variable with a known lower an upper bound
-            (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
-                Some((true, rhs, lower_bound, upper_bound))
-            }
+            (None, Some(rhs), Some(bounds), None) => Some((true, rhs, bounds)),
             _ => None,
         }
     }
@@ -251,15 +298,25 @@ impl LoopInvariantContext<'_> {
         // Note that here we allow all_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
-        let Some((is_induction_var_lhs, constant, lower_bound, upper_bound)) =
+        let Some((is_induction_var_lhs, constant, bounds)) =
             self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, is_header)
         else {
             return SimplifyResult::None;
         };
 
+        // A monotone-ascending back-edge is already enforced when bounds are recorded
+        // (see `back_edge_advances_monotonically`), so `i` truly counts upward through
+        // `[lower_bound, upper_bound)`. If the constants are still inverted the loop
+        // body never executes; bail out instead of simplifying dead code.
+        if bounds.lower > bounds.upper {
+            return SimplifyResult::None;
+        }
+
         // Handle arithmetic operations:
-        // Check if we can simplify either `lower op const` or `const op upper` into an unchecked version of the operation.
-        if let Some((lhs, rhs)) = match binary.operator {
+        // Check if we can simplify into an unchecked version of the operation.
+        // For signed types, overflow can happen in both directions (underflow and overflow),
+        // so we evaluate the operation at both extremes of the induction variable range.
+        if let Some(checks) = match binary.operator {
             BinaryOp::Add { unchecked }
             | BinaryOp::Sub { unchecked }
             | BinaryOp::Mul { unchecked }
@@ -270,45 +327,44 @@ impl LoopInvariantContext<'_> {
             }
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
-                    // `i - const` won't overflow if the lowest `i` doesn't.
-                    Some((lower_bound, constant))
+                    // `i - const` can overflow at either extreme of `i`.
+                    Some([(bounds.lower, constant), (bounds.upper, constant)])
                 } else {
-                    // `const - i` won't overflow if the highest `i` doesn't.
-                    Some((constant, upper_bound))
+                    // `const - i` can overflow at either extreme of `i`.
+                    Some([(constant, bounds.lower), (constant, bounds.upper)])
                 }
             }
             BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
-                // `i + const` won't overflow if the highest `i` value doesn't.
-                Some((constant, upper_bound))
+                // `i + const` / `i * const` can overflow at either extreme of `i`.
+                Some([(constant, bounds.lower), (constant, bounds.upper)])
             }
             BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
             _ => None,
         } {
-            // We evaluate this expression using the upper bounds (or lower in the case of sub)
-            // of its inputs to check whether it will ever overflow.
-            // If `eval_constant_binary_op` won't overflow we can simplify the instruction to an unchecked version.
-            let lhs = lhs.into_numeric_constant().0;
-            let rhs = rhs.into_numeric_constant().0;
-            match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
-                BinaryEvaluationResult::Success(..) => {
-                    // Unchecked version of the binary operation
-                    let unchecked = Instruction::Binary(Binary {
-                        operator: binary.operator.into_unchecked(),
-                        lhs: binary.lhs,
-                        rhs: binary.rhs,
-                    });
-                    return SimplifyResult::SimplifiedToInstruction(unchecked);
-                }
-                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
-                    return SimplifyResult::None;
+            // Evaluate the operation at both bound extremes to check whether it will ever overflow.
+            for (lhs, rhs) in checks {
+                let lhs = lhs.into_numeric_constant().0;
+                let rhs = rhs.into_numeric_constant().0;
+                match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                    BinaryEvaluationResult::Success(..) => {}
+                    BinaryEvaluationResult::CouldNotEvaluate
+                    | BinaryEvaluationResult::Failure(..) => {
+                        return SimplifyResult::None;
+                    }
                 }
             }
+            let unchecked = Instruction::Binary(Binary {
+                operator: binary.operator.into_unchecked(),
+                lhs: binary.lhs,
+                rhs: binary.rhs,
+            });
+            return SimplifyResult::SimplifiedToInstruction(unchecked);
         }
 
         // Handle comparisons. (The upper_bound is exclusive).
         match binary.operator {
             BinaryOp::Eq => {
-                if constant >= upper_bound || constant < lower_bound {
+                if constant >= bounds.upper || constant < bounds.lower {
                     // `i == const` cannot be true if the constant is out of range.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 } else {
@@ -317,11 +373,11 @@ impl LoopInvariantContext<'_> {
             }
             BinaryOp::Lt => match is_induction_var_lhs {
                 // `i < const`
-                true if upper_bound <= constant => SimplifyResult::SimplifiedTo(self.true_value),
-                true if lower_bound >= constant => SimplifyResult::SimplifiedTo(self.false_value),
+                true if bounds.upper <= constant => SimplifyResult::SimplifiedTo(self.true_value),
+                true if bounds.lower >= constant => SimplifyResult::SimplifiedTo(self.false_value),
                 // `const < i`
-                false if lower_bound > constant => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= constant.inc() => {
+                false if bounds.lower > constant => SimplifyResult::SimplifiedTo(self.true_value),
+                false if constant.inc().is_some_and(|constant| bounds.upper <= constant) => {
                     // If `const >= upper_bound - 1` then it will never be less than `i`.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }

@@ -62,13 +62,9 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         item_push_count_arg,
         destination_vector_pointer_return,
         write_pointer_return,
-        did_rc_copy_return,
     ] = brillig_context.allocate_scratch_registers();
 
-    // Initialize the did_rc_copy flag to false (1-bit 0); reallocate_vector_for_insertion
-    // sets it to true if and only if an RC copy (not a necessary reallocation) is performed.
-    brillig_context
-        .const_instruction(SingleAddrVariable::new(did_rc_copy_return, 1), F::from(0_usize));
+    let did_rc_copy = allocate_rc_copy_flag(brillig_context);
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
@@ -100,7 +96,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         *source_capacity,
         target_vector,
         *target_size,
-        Some(did_rc_copy_return),
+        did_rc_copy,
     );
 
     // Get the pointer to the start of the items in the target vector.
@@ -151,6 +147,24 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         // The write pointer returned is the the first (now free) item in the target vector.
         brillig_context.mov_instruction(write_pointer_return, *target_vector_items_pointer);
     }
+}
+
+/// When copy-counting is enabled, reserve the scratch slot immediately after a vector
+/// procedure's argument registers to hold the "an RC copy occurred" flag, initialised to false.
+/// [`reallocate_vector_for_insertion`] sets it to true if and only if an RC (copy-on-write) copy,
+/// rather than a necessary capacity reallocation, is performed.
+///
+/// Returns `None` when copy-counting is disabled. In that case no register is reserved and no
+/// opcode is emitted, so the procedure's bytecode — including the addresses of the temporaries
+/// allocated afterwards — is identical to when the feature is off.
+pub(super) fn allocate_rc_copy_flag<F: AcirField + DebugToString>(
+    brillig_context: &mut BrilligContext<F, ScratchSpace>,
+) -> Option<MemoryAddress> {
+    brillig_context.count_array_copies().then(|| {
+        let flag = brillig_context.allocate_register().detach();
+        brillig_context.const_instruction(SingleAddrVariable::new(flag, 1), F::from(0_usize));
+        flag
+    })
 }
 
 /// Reallocates the target vector for insertion, skipping reallocation if the source vector can be reused:

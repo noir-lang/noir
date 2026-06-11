@@ -149,8 +149,9 @@ pub enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
-    /// A reference to some value, such as an array
-    Reference(Arc<Type>),
+    /// A reference to some value, such as an array.
+    /// The bool indicates whether this is a mutable reference (`true` = `&mut`, `false` = `&`).
+    Reference(Arc<Type>, /* mutable */ bool),
 
     /// An immutable array value with the given element type and length
     Array(Arc<CompositeType>, SemanticLength),
@@ -267,7 +268,7 @@ impl Type {
             }
             Type::Vector(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(element) => element.contains_vector_element(),
+            Type::Reference(element, _) => element.contains_vector_element(),
             Type::Function => false,
         }
     }
@@ -311,14 +312,14 @@ impl Type {
         match self {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Vector(_) => true,
-            Type::Reference(element) => element.contains_an_array(),
+            Type::Reference(element, _) => element.contains_an_array(),
         }
     }
 
     pub(crate) fn first(&self) -> Type {
         match self {
             Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ) => typ.first(),
+            Type::Reference(typ, _) => typ.first(),
             Type::Vector(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
@@ -326,7 +327,7 @@ impl Type {
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
-            Type::Reference(_) => true,
+            Type::Reference(..) => true,
             Type::Numeric(_) | Type::Function => false,
             Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_reference())
@@ -334,10 +335,22 @@ impl Type {
         }
     }
 
+    /// True if this is a mutable reference type or
+    /// if it is a composite type which contains a mutable reference.
+    pub(crate) fn contains_mutable_reference(&self) -> bool {
+        match self {
+            Type::Reference(element, mutable) => *mutable || element.contains_mutable_reference(),
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().any(|elem| elem.contains_mutable_reference())
+            }
+        }
+    }
+
     /// True if this is a function type or if it is a composite type which contains a function.
     pub(crate) fn contains_function(&self) -> bool {
         match self {
-            Type::Reference(element_type) => element_type.contains_function(),
+            Type::Reference(element_type, _) => element_type.contains_function(),
             Type::Function => true,
             Type::Numeric(_) => false,
             Type::Array(elements, _) | Type::Vector(elements) => {
@@ -349,8 +362,67 @@ impl Type {
     /// If this is a reference type, return the type it references.
     pub(crate) fn reference_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Reference(element_type) => Some(element_type.as_ref()),
+            Type::Reference(element_type, _) => Some(element_type.as_ref()),
             _ => None,
+        }
+    }
+
+    /// Recursively rewrite every [Type::Reference] inside `self` to be immutable.
+    ///
+    /// The SSA validator ([Type::canonical_eq]) and the Noir frontend both
+    /// accept passing `&mut T` where `&T` is expected. To make types in those
+    /// positions compare equal under that same leniency, callers that need a
+    /// canonical form (e.g., map keys in defunctionalize) can collapse
+    /// reference mutability here.
+    pub(crate) fn canonicalize(&mut self) {
+        match self {
+            Type::Reference(element, mutable) => {
+                *mutable = false;
+                let mut new_element = (**element).clone();
+                new_element.canonicalize();
+                *element = Arc::new(new_element);
+            }
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                let mut new_elements = (**elements).clone();
+                for inner in &mut new_elements {
+                    inner.canonicalize();
+                }
+                *elements = Arc::new(new_elements);
+            }
+            Type::Numeric(_) | Type::Function => (),
+        }
+    }
+
+    /// Owned counterpart to [Type::canonicalize] — returns a clone with all
+    /// reference mutability stripped.
+    pub(crate) fn canonicalized(&self) -> Self {
+        let mut clone = self.clone();
+        clone.canonicalize();
+        clone
+    }
+
+    /// Compares two types, treating mutable and immutable references as equivalent.
+    ///
+    /// Equivalent to `self.canonicalized() == other.canonicalized()` but walks
+    /// both types in lockstep instead of allocating cloned trees — the SSA
+    /// validator calls this for every block-terminator argument and every call
+    /// site, so the no-alloc path matters in debug builds.
+    ///
+    /// This is a validation aid, not a soundness check: the frontend rejects
+    /// trying to use `&T` where `&mut T` is expected, but once compiled to
+    /// SSA, we can treat them as equivalents.
+    pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
+        let all_eq = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))
+        };
+
+        match (self, other) {
+            (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => a_elem.canonical_eq(b_elem),
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_eq(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
+            _ => self == other,
         }
     }
 }
@@ -364,7 +436,8 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, true) => write!(f, "&mut {element}"),
+            Type::Reference(element, false) => write!(f, "&{element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 if elements.len() == 1 {

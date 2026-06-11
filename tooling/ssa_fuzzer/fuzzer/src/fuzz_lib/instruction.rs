@@ -34,7 +34,6 @@ pub(crate) struct Point {
     /// If true, the point will be derived from scalar multiplication using [`noir_ssa_fuzzer::builder::FuzzerBuilder::base_scalar_mul`]
     /// Otherwise, the point will be derived from scalar values using [`noir_ssa_fuzzer::builder::FuzzerBuilder::create_point_from_scalar`]
     pub(crate) derive_from_scalar_mul: bool,
-    pub(crate) is_infinite: bool,
 }
 
 pub(crate) type PointAndScalar = (Point, Scalar);

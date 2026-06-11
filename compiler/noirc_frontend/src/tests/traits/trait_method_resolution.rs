@@ -532,6 +532,42 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     assert_no_errors(src);
 }
 
+/// Regression test for https://github.com/noir-lang/noir/issues/8963
+///
+/// When a path-based trait call like `U60Repr::from2(x)` has multiple candidate
+/// impls, only one of which is compatible with the argument type, the trait
+/// solver must run before integer-literal defaulting — otherwise the array's
+/// element type defaults to `Field` and the only matching impl (`From2<[i32; 3]>`)
+/// is no longer reachable.
+#[test]
+fn calls_trait_method_using_struct_name_picks_impl_before_defaulting_integers() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+
+    struct U60Repr {}
+
+    impl From2<[i32; 3]> for U60Repr {
+        fn from2(_: [i32; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+
+    impl From2<i32> for U60Repr {
+        fn from2(_: i32) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let x = [1, 2, 3];
+        let _ = U60Repr::from2(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn suggests_importing_trait_via_reexport() {
     let src = r#"
@@ -1028,4 +1064,54 @@ fn type_path_generic_tuple_method() {
     }
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn trait_method_and_struct_method_with_same_name() {
+    let src = r#"
+    pub struct MyStruct {}
+    impl MyStruct {
+        fn foo() -> i32 {
+            0
+        }
+    }
+
+    pub trait MyTrait {
+        fn foo();
+    }
+
+    impl MyTrait for MyStruct {
+        fn foo() {
+            // This method should resolve to the impl method, not the trait method,
+            // and we verify this by checking that the return type is correct (i32, not ()).
+            let _: i32 = MyStruct::foo();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_method_and_struct_method_with_same_name_and_turbofish() {
+    let src = r#"
+    pub struct MyStruct<T> {}
+    impl<T> MyStruct<T> {
+        fn foo() -> i32 {
+            0
+        }
+    }
+
+    pub trait MyTrait<T> {
+        fn foo();
+    }
+
+    impl<T> MyTrait<T> for MyStruct<T> {
+        fn foo() {
+            // This method should resolve to the impl method, not the trait method,
+            // and we verify this by checking that the return type is correct (i32, not ()).
+            let _: i32 = MyStruct::<T>::foo();
+        }
+    }
+    "#;
+    assert_no_errors(src);
 }

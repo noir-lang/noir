@@ -9,11 +9,9 @@
 //!
 //! This pass does not have any pre/post conditions.
 
-use std::collections::HashSet;
-
 use iter_extended::vecmap;
 use itertools::Itertools;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     Ssa,
@@ -45,11 +43,9 @@ impl Ssa {
     /// Apply the basic_conditional pass to all functions of the program.
     /// It first retrieve the `no_predicates` attribute of each function which will be used during the flattening.
     pub(crate) fn flatten_basic_conditionals(mut self) -> Ssa {
-        // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
-        let mut no_predicates = HashMap::default();
-        for function in self.functions.values() {
-            no_predicates.insert(function.id(), function.is_no_predicates());
-        }
+        let no_predicates: HashSet<FunctionId> =
+            self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
+
         for function in self.functions.values_mut() {
             flatten_function(function, &no_predicates);
         }
@@ -233,7 +229,7 @@ fn differing_merge_cost(
     for ((a, b), param) in then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
-            if typ.is_numeric() || matches!(typ, Type::Reference(_)) {
+            if typ.is_numeric() || matches!(*typ, Type::Reference(..)) {
                 cost += 1; // SingleAddr: one ConditionalMov in Brillig
             } else {
                 // Array/slice: conditional memory copy (~20 opcodes)
@@ -246,26 +242,22 @@ fn differing_merge_cost(
 
 /// Computes a cost estimate for flattening a basic block in a conditional.
 ///
-/// Returns `None` if the block contains instructions that cannot be safely
-/// flattened (side-effectful instructions like constraints, calls, memory ops,
-/// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
+/// Returns `None` if the block contains an instruction that cannot be safely
+/// flattened (side-effectful instructions like constraints, calls, reference-count
+/// ops, memory ops, div/mod, shifts — see `can_flatten_in_conditional`). Otherwise
+/// returns the estimated Brillig opcode cost.
 ///
-/// Memory management instructions (IncrementRc, DecrementRc, Allocate) are
-/// excluded from the cost — they are safe to flatten but represent overhead
-/// that shouldn't influence the flatten/not-flatten decision.
+/// `Allocate` and `Noop` are excluded from the cost — they are safe to execute
+/// unconditionally and represent overhead that shouldn't influence the
+/// flatten/not-flatten decision. (`Allocate` must be skipped before the
+/// `can_flatten_in_conditional` call, which treats reaching it as an ICE.)
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
-        // Skip memory management instructions — these are always allowed to flatten
-        // but don't represent meaningful compute that should affect the decision.
-        if matches!(
-            instruction,
-            Instruction::Allocate
-                | Instruction::IncrementRc { .. }
-                | Instruction::DecrementRc { .. }
-                | Instruction::Noop
-        ) {
+        // Skip memory management instructions that are safe to execute unconditionally —
+        // these don't represent meaningful compute that should affect the decision.
+        if matches!(instruction, Instruction::Allocate | Instruction::Noop) {
             continue;
         }
 
@@ -279,14 +271,14 @@ fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
 }
 
 /// Identifies all simple conditionals in the function and flattens them
-fn flatten_function(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
+fn flatten_function(function: &mut Function, no_predicates: &HashSet<FunctionId>) {
     // This pass is dedicated to brillig functions
     if !function.runtime().is_brillig() {
         return;
     }
     let cfg = ControlFlowGraph::with_function(function);
     let mut stack = vec![function.entry_block()];
-    let mut processed = HashSet::new();
+    let mut processed = HashSet::default();
     // List of all the simple conditionals that we will identify in the function
     let mut conditionals = Vec::new();
 
@@ -324,7 +316,7 @@ fn flatten_function(function: &mut Function, no_predicates: &HashMap<FunctionId,
 /// # Parameters
 /// * `conditionals` - The list of basic conditionals to flatten, assumed in reverse order
 /// * `function` - The function being optimized
-/// * `no_predicates` - Map of function IDs to their no_predicates attribute for handling function calls
+/// * `no_predicates` - Set of function IDs carrying the `no_predicates` attribute, used to gate side-effect handling
 ///
 /// # Process
 /// 1. Each conditional is flattened independently using a fresh context
@@ -333,7 +325,7 @@ fn flatten_function(function: &mut Function, no_predicates: &HashMap<FunctionId,
 fn flatten_multiple(
     conditionals: &Vec<BasicConditional>,
     function: &mut Function,
-    no_predicates: &HashMap<FunctionId, bool>,
+    no_predicates: &HashSet<FunctionId>,
 ) {
     // 1. process each basic conditional, using a new context per conditional
     let post_order = PostOrder::with_function(function);
@@ -367,7 +359,7 @@ impl Context<'_> {
     ///
     /// # Parameters
     /// * `conditional` - The basic conditional structure to flatten
-    /// * `no_predicates` - Map of function IDs to their no_predicates attribute
+    /// * `no_predicates` - Set of function IDs carrying the `no_predicates` attribute
     ///
     /// # Implementation Details
     /// - Sets up context state (target_block, no_predicate) to enable proper inlining
@@ -379,7 +371,7 @@ impl Context<'_> {
     fn flatten_single_conditional(
         &mut self,
         conditional: &BasicConditional,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
         let old_target = self.target_block;
@@ -495,7 +487,12 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            ir::types::Type,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
 
     #[test]
@@ -690,7 +687,7 @@ mod tests {
     }
 
     /// Diamond-shaped conditional where the entry JmpIf carries then/else arguments
-    /// (as emitted by mem2reg_simple). Both branches receive a promoted variable value
+    /// (as emitted by mem2reg). Both branches receive a promoted variable value
     /// as a block parameter. The optimization should still fire and produce merged output.
     #[test]
     fn jmpif_with_then_and_else_args_diamond() {
@@ -759,6 +756,41 @@ mod tests {
             return v8
         }
         ");
+    }
+
+    /// A branch-local `inc_rc` must not be hoisted out of its branch when flattening.
+    ///
+    /// In Brillig, `array_set` mutates its array in place only when the runtime reference
+    /// count is 1, and `inc_rc` bumps that count. Flattening this diamond would move the
+    /// `then`-branch `inc_rc` into the unconditionally executed entry block, so it would run
+    /// even when the condition is false; the later `array_set` would then copy instead of
+    /// mutating in place. With `v0 = false` the `inc_rc` is skipped, `array_set` mutates `v1`
+    /// in place, and `array_get` observes `Field 7` — the pass must preserve that result.
+    #[test]
+    fn does_not_hoist_branch_local_inc_rc() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![
+            Value::bool(false),
+            Value::array(vec![Value::field(1_u128.into())], vec![Type::field()]),
+        ];
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, Ssa::flatten_basic_conditionals);
+        assert_eq!(result.unwrap(), vec![Value::field(7_u128.into())]);
     }
 
     /// Non-diamond (then-only) case with JmpIf arguments: the optimization must be

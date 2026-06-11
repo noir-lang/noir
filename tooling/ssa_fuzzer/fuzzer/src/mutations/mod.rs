@@ -23,7 +23,7 @@ use crate::mutations::configuration::{
     BASIC_FUZZER_DATA_MUTATION_CONFIGURATION, FuzzerDataMutationOptions, MAX_NUMBER_OF_MUTATIONS,
 };
 use noir_ssa_fuzzer::typed_value::Type;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 fn sanitize_type(type_: &mut Type) {
     if type_.is_nested_vector() {

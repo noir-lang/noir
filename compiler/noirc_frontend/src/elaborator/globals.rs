@@ -20,6 +20,8 @@
 //! Globals are assumed to be elaborated in dependency order. This means if global `A` references global `B`, then `B`
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
 
+use std::collections::HashSet;
+
 use crate::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
@@ -33,6 +35,7 @@ use super::Elaborator;
 impl Elaborator<'_> {
     /// Order the set of unresolved globals by their [GlobalId].
     /// This set will be used to determine the ordering in which globals are elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
         for global in globals {
             self.unresolved_globals.insert(global.global_id, global);
@@ -40,6 +43,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborate any globals which were not brought into scope by other items through [Self::elaborate_global_if_unresolved].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_remaining_globals(&mut self) {
         // Start at the first global IDs to maintain the dependency order
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
@@ -47,13 +51,25 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Drains every remaining unresolved global, except those listed in `skip`.
+    /// Preserves the BTreeMap-ordered drain so that inter-global dependency order is maintained.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn resolve_unresolved_globals_skipping(&mut self, skip: &HashSet<GlobalId>) {
+        let to_resolve: Vec<GlobalId> =
+            self.unresolved_globals.keys().copied().filter(|id| !skip.contains(id)).collect();
+        for global_id in to_resolve {
+            self.elaborate_global_if_unresolved(&global_id);
+        }
+    }
+
     /// Elaborates a global constant definition, performing name resolution, type checking, and compile-time evaluation.
     ///
     /// See the [module-level documentation][self] for more details.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = self.local_module.replace(global.module_id);
+        let old_module = self.replace_local_module(global.module_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -81,6 +97,12 @@ impl Elaborator<'_> {
             }
         }
 
+        let has_abi_attribute = let_stmt
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)));
+        let abi_type_location = let_stmt.r#type.as_ref().map(|t| t.location);
+
         // Non-comptime globals must be immutable. Comptime globals can be mutable during
         // compile-time execution, but all globals are immutable at runtime.
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
@@ -94,6 +116,17 @@ impl Elaborator<'_> {
         // All data in globals must be owned.
         if let_statement.r#type.contains_reference() {
             self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        // Globals marked with `#[abi(tag)]` are emitted directly into the contract's ABI, so
+        // their types must be representable in the ABI. We reuse `program_validity` (in input
+        // mode) since the set of ABI-representable value types coincides with what a `main`
+        // entry-point accepts as a parameter.
+        if has_abi_attribute
+            && let Some(invalid_type) = let_statement.r#type.program_validity(false)
+        {
+            let location = abi_type_location.unwrap_or(location);
+            self.push_err(ResolverError::NonAbiTypeInAbiGlobal { invalid_type, location });
         }
 
         let let_statement = HirStatement::Let(let_statement);
@@ -120,6 +153,7 @@ impl Elaborator<'_> {
     /// The comptime [interpreter][crate::hir::comptime::Interpreter] is used for evaluating the expression.
     ///
     /// See the [module-level documentation][self] for more details.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
         // Retrieve the HIR let statement that was generated in elaborate_global.
         let let_statement = self
@@ -134,6 +168,9 @@ impl Elaborator<'_> {
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
+            // Globals must be elaborated at the global scope
+            let saved_scopes: Vec<_> = self.interner.comptime_scopes.drain(1..).collect();
+
             let mut interpreter = self.setup_interpreter();
 
             // Evaluate the global's initializer expression at compile time using the interpreter.
@@ -146,11 +183,15 @@ impl Elaborator<'_> {
                     .lookup_id(definition_id, location)
                     .expect("The global should be defined since evaluate_let did not error");
 
-                self.debug_comptime(location, |interner| value.display(interner).to_string());
+                self.debug_comptime(location, |interner, file_manager| {
+                    value.display(interner, file_manager).to_string()
+                });
 
                 // Store the resolved value so it can be used later
                 self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
             }
+
+            self.interner.comptime_scopes.extend(saved_scopes);
         }
     }
 
@@ -160,6 +201,7 @@ impl Elaborator<'_> {
     /// while elaborating another item, we check if that global needs to be elaborated first.
     /// Returns true if the global was unresolved and has now been elaborated, false if it was
     /// already elaborated (or doesn't exist in the unresolved set).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
             self.elaborate_global(global);

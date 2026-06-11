@@ -52,7 +52,7 @@ impl RedisManager {
         }
 
         self.connection.as_mut().ok_or_else(|| {
-            redis::RedisError::from((redis::ErrorKind::IoError, "No connection available"))
+            redis::RedisError::from((redis::ErrorKind::Io, "No connection available"))
         })
     }
 
@@ -127,6 +127,6 @@ pub(crate) fn push_to_redis_queue(queue_name: &str, value: &str) -> RedisResult<
     if let Some(ref mut redis_manager) = manager_guard.as_mut() {
         redis_manager.push_to_queue(queue_name, value)
     } else {
-        Err(redis::RedisError::from((redis::ErrorKind::IoError, "Redis manager not initialized")))
+        Err(redis::RedisError::from((redis::ErrorKind::Io, "Redis manager not initialized")))
     }
 }

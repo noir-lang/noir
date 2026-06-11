@@ -121,7 +121,23 @@
 //! return v1, u32 0
 //! ```
 //!
+//! ## Reachability and predicates
+//!
+//! A block is only declared fully unreachable — dropping every following instruction and
+//! replacing the terminator with `unreachable` (the `Reachability::Unreachable` state) — when
+//! an instruction fails *unconditionally*. A failure that only happens under a runtime
+//! predicate instead takes the `Reachability::UnreachableUnderPredicate` path, which replaces
+//! results with default values and keeps the rest of the block. Whether each handled
+//! instruction can be treated as an unconditional failure depends on how it interacts with the
+//! `enable_side_effects` predicate; the reasoning lives next to each case in
+//! [`Function::remove_unreachable_instructions`].
+//!
 //! ## Preconditions:
+//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`] and
+//!   [make_constrain_not_equal][`super::make_constrain_not_equal`]; see the `Constrain` and
+//!   `ConstrainNotEqual` handling in [`Function::remove_unreachable_instructions`] for why.
+//!   Nothing may re-introduce branches or predicated constraints between those passes and this
+//!   one.
 //! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
@@ -253,6 +269,14 @@ impl Function {
                     let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
                         return;
                     };
+                    // An equality `constrain` ignores the side-effects predicate: ACIR gen lowers
+                    // it to an unconditional `assert_eq_var` (no predicate applied) and Brillig
+                    // aborts on a failed assert. A predicated assert never reaches here as a
+                    // comparison of two constants, because `flatten_cfg` folds the active predicate
+                    // into the operands (`constrain lhs == rhs` becomes
+                    // `constrain cond * lhs == cond * rhs`), leaving a non-constant operand
+                    // (e.g. `constrain 0 == v0`) which the early returns above skip. So two unequal
+                    // constant operands always fail, making the rest of the block unreachable.
                     if lhs_constant != rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
@@ -264,6 +288,13 @@ impl Function {
                     let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
                         return;
                     };
+                    // Unlike equality, `ConstrainNotEqual` *does* respect the side-effects predicate
+                    // (ACIR gen lowers it with `enable_side_effects` as the predicate), so treating
+                    // a failing one as unconditional would be unsound under a non-constant predicate.
+                    // That cannot happen here: `make_constrain_not_equal` only ever creates this
+                    // instruction when the active predicate is the constant one (it refuses
+                    // otherwise, as the two constrain kinds differ in exactly this respect). So two
+                    // equal constant operands always fail, making the rest of the block unreachable.
                     if lhs_constant == rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
@@ -300,8 +331,8 @@ impl Function {
                     let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays,
                     // and vectors which have been declared as a literal.
-                    let len = match array_type {
-                        Type::Array(_, len) => len,
+                    let len = match &*array_type {
+                        Type::Array(_, len) => *len,
                         Type::Vector(_) => {
                             let Some(Instruction::MakeArray { elements, typ }) =
                                 context.dfg.get_local_or_global_instruction(*array)
@@ -423,7 +454,7 @@ fn binary_operation_always_fails(
         return Some("attempt to calculate the remainder with a divisor of zero".to_string());
     }
 
-    let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) else {
+    let Type::Numeric(numeric_type) = *context.dfg.type_of_value(lhs) else {
         panic!("Expected numeric type for binary operation");
     };
 
@@ -474,12 +505,12 @@ fn zeroed_value(
         Type::Vector(_) => {
             panic!("zeroed_value() does not support vectors, use zeroed_vector_of_size() instead");
         }
-        Type::Reference(element_type) => {
+        Type::Reference(element_type, mutable) => {
             // The result of the instruction is a reference; Allocate creates a reference,
             // but if we tried to Load from it we would get an error, so follow it with a
             // Store of a default value.
             let instruction = Instruction::Allocate;
-            let reference_type = Type::Reference(Arc::new((**element_type).clone()));
+            let reference_type = Type::Reference(Arc::new((**element_type).clone()), *mutable);
 
             let reference_id = dfg
                 .insert_instruction_and_results(
@@ -509,7 +540,7 @@ fn remove_and_replace_with_defaults(
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
     let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
     for (i, result_id) in result_ids.iter().enumerate() {
-        let typ = &context.dfg.type_of_value(*result_id);
+        let typ = context.dfg.type_of_value(*result_id).into_owned();
         if matches!(typ, Type::Vector(_)) {
             let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
                 // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
@@ -517,7 +548,7 @@ fn remove_and_replace_with_defaults(
             };
             // Check if this result is preceded the semantic length.
             let follows_semantic_length = i > 0
-                && context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
+                && *context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
                 && matches!(context.instruction(), Instruction::Call { .. });
 
             if follows_semantic_length {
@@ -528,10 +559,10 @@ fn remove_and_replace_with_defaults(
             }
             replacements.push((
                 *result_id,
-                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
+                zeroed_vector_of_size(context.dfg, func_id, block_id, &typ, len.to_usize()),
             ));
         } else {
-            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
+            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, &typ)));
         }
     }
 
@@ -595,7 +626,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
 
         // If it's zero, make sure that the type in the results
         if index_zero {
-            let typ = match context.dfg.type_of_value(*array) {
+            let typ = match context.dfg.type_of_value(*array).into_owned() {
                 Type::Array(typ, _) | Type::Vector(typ) => typ,
                 other => unreachable!("Array or Vector type expected; got {other:?}"),
             };
@@ -604,7 +635,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             // If the type doesn't agree then we should not use this any more,
             // as the type in the array will replace the type we wanted to get,
             // and cause problems further on.
-            if typ[0] != result_type {
+            if typ[0] != *result_type {
                 return true;
             }
             // If the array contains a reference, then we should replace the results
@@ -727,6 +758,26 @@ mod tests {
             unreachable
         }
         "#);
+    }
+
+    #[test]
+    fn does_not_treat_predicated_failing_constraint_as_unreachable() {
+        // A `constrain` whose operands are not both constant is conditional: after flattening,
+        // a guarded assert has its predicate folded into the operands (e.g. `constrain 0 == v0`),
+        // so it only fails when the predicate is active. Such a constraint must NOT make the
+        // block unreachable, otherwise instructions that execute when the predicate is off would
+        // be dropped. The pass returns early on the non-constant operand and leaves it (and
+        // everything after it) untouched.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            constrain u1 0 == v0
+            v1 = add u32 1, u32 2
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]

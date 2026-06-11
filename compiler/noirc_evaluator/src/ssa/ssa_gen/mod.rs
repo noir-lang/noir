@@ -33,6 +33,7 @@ use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
+use super::should_show_invalid_ssa;
 use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
@@ -43,8 +44,6 @@ use super::{
         value::ValueId,
     },
 };
-
-pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
@@ -151,7 +150,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+        if should_show_invalid_ssa() {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         }
 
@@ -163,7 +162,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::empty() };
         Err(err)
     } else {
         Ok(ssa)
@@ -236,7 +235,9 @@ impl FunctionContext<'_> {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
-            ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
+            ast::Definition::Oracle { name, pure } => {
+                self.builder.import_foreign_function(name, *pure).into()
+            }
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
                 match self.builder.import_intrinsic(name) {
                     Some(builtin) => builtin.into(),
@@ -336,7 +337,7 @@ impl FunctionContext<'_> {
 
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let string = self.codegen_string(&string);
+                let string = self.codegen_string(string.as_bytes());
                 let field_count = self
                     .builder
                     .numeric_constant(u128::from(*number_of_fields), NumericType::NativeField);
@@ -355,8 +356,8 @@ impl FunctionContext<'_> {
         try_vecmap(elements, |element| self.codegen_expression(element))
     }
 
-    fn codegen_string(&mut self, string: &str) -> Values {
-        let elements = vecmap(string.as_bytes(), |byte| {
+    fn codegen_string(&mut self, bytes: &[u8]) -> Values {
+        let elements = vecmap(bytes, |byte| {
             self.builder.numeric_constant(u128::from(*byte), NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
@@ -432,7 +433,7 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable: _ } => {
+            UnaryOp::Reference { mutable } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
                 // If skip is set then `rhs` is a member access expression which is already a reference
                 if unary.skip {
@@ -441,8 +442,10 @@ impl FunctionContext<'_> {
                 Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
-                            let rhs_type = self.builder.current_function.dfg.type_of_value(value);
-                            let alloc = self.builder.insert_allocate(rhs_type);
+                            let rhs_type =
+                                self.builder.current_function.dfg.type_of_value(value).into_owned();
+                            let alloc =
+                                self.builder.insert_allocate_with_mutability(rhs_type, mutable);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
@@ -473,6 +476,19 @@ impl FunctionContext<'_> {
             Expression::ExtractTupleField(tuple, index) => {
                 let tuple = self.codegen_reference(tuple)?;
                 Ok(Self::get_field(tuple, *index))
+            }
+            // `&mut (*x)` is just `x`. Wrapping as `Value::Mutable` signals to
+            // the surrounding `UnaryOp::Reference` handler that these are already addresses,
+            // so it returns them directly instead of allocating a fresh temporary copy.
+            Expression::Unary(unary)
+                if matches!(unary.operator, UnaryOp::Dereference { .. }) && !unary.skip =>
+            {
+                let references = self.codegen_expression(&unary.rhs)?;
+                let element_types = Self::convert_type(&unary.result_type);
+                Ok(references.map_both(element_types, |value, element_type| {
+                    let reference = value.eval_reference();
+                    Tree::Leaf(value::Value::Mutable(reference, element_type))
+                }))
             }
             other => self.codegen_expression(other),
         }
@@ -534,10 +550,7 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
-                // except when the inner elements have no size, because the array access can be optimized out in that case.
-                // We then only need to inject it for brillig functions or for 'unit' elements.
-                if runtime.is_brillig() || type_size_usize == 0 {
+                if context::array_index_needs_explicit_oob_check(runtime, array_type) {
                     let len = self
                         .builder
                         .numeric_constant(u128::from(len.0), NumericType::length_type());
@@ -697,8 +710,16 @@ impl FunctionContext<'_> {
             };
             let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
-            if end_constant.into_numeric_constant().0.to_u128() < max_value {
-                let end_constant_plus_one = end_constant.inc();
+            // Compare against the type's maximum using the *signed-aware* value: a negative
+            // signed `end` round-tripped through `to_u128` would look huge and wrongly fail
+            // this check, forcing an unnecessary final-iteration peel. `max_value` is the
+            // type's max (`2^(bit_size-1) - 1` for signed), which always fits in `i128`.
+            let end_below_max = end_constant
+                .apply(|signed| signed < max_value as i128, |unsigned| unsigned < max_value);
+            if end_below_max {
+                let end_constant_plus_one = end_constant.inc().expect(
+                    "Expected to be able to increment end_constant as it's less than max_value",
+                );
                 end_index = self
                     .builder
                     .numeric_constant(end_constant_plus_one.into_numeric_constant().0, index_type);
@@ -1001,7 +1022,9 @@ impl FunctionContext<'_> {
             self.builder.switch_to_block(end_block);
         } else {
             // In the case we have no 'else', the 'else' block is actually the end block.
-            self.builder.terminate_with_jmp(else_block, vec![]);
+            self.codegen_unless_break_or_continue(then_result, |this, _| {
+                this.builder.terminate_with_jmp(else_block, vec![]);
+            })?;
             self.builder.switch_to_block(else_block);
         }
 
@@ -1234,6 +1257,31 @@ impl FunctionContext<'_> {
         tuple: &Expression,
         field_index: usize,
     ) -> Result<Values, RuntimeError> {
+        // Optimization: for ExtractTupleField(Dereference(x), N), extract the field's
+        // reference first, then dereference only that field. This avoids loading all
+        // fields of a struct through &mut self when only one field is needed.
+        if let Expression::Unary(unary) = tuple
+            && matches!(unary.operator, UnaryOp::Dereference { .. })
+            && !unary.skip
+            && let ast::Type::Tuple(fields) = &unary.result_type
+        {
+            let field_type = &fields[field_index];
+            let references = self.codegen_expression(&unary.rhs)?;
+            let field_ref = Self::get_field(references, field_index);
+            return Ok(self.dereference(&field_ref, field_type));
+        }
+
+        // Optimization: for ExtractTupleField(Ident(mutable_local), N), get the
+        // references without loading, then extract and load only the needed field.
+        if let Expression::Ident(ident) = tuple
+            && ident.mutable
+            && matches!(ident.definition, ast::Definition::Local(_))
+        {
+            let references = self.codegen_ident_reference(ident);
+            let field = Self::get_field(references, field_index);
+            return Ok(field.map(|value| value.eval(self).into()));
+        }
+
         let tuple = self.codegen_expression(tuple)?;
         Ok(Self::get_field(tuple, field_index))
     }
@@ -1244,8 +1292,13 @@ impl FunctionContext<'_> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
-        // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
-        let can_modify_args = !is_pure_builtin_func(&call.func) && !is_oracle_func(&call.func);
+        // Do we know that the callee won't modify its arguments? Foreign calls only read their
+        // inputs, and the same property propagates through thin wrappers that only forward to
+        // a foreign call (e.g. `println` -> `print_unconstrained` -> `print` oracle).
+        let program = &self.shared_context.program;
+        let can_modify_args = !is_pure_builtin_func(&call.func)
+            && !is_oracle_func(&call.func)
+            && !is_oracle_wrapper(&call.func, program);
 
         for argument in &call.arguments {
             // The ownership pass inserts `Clone` around call arguments, however if we know that
@@ -1264,7 +1317,55 @@ impl FunctionContext<'_> {
         // since it is done within the function to each parameter already.
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
-        Ok(self.insert_call(function, arguments, &call.return_type, call.location))
+
+        let result = self.insert_call(function, arguments, &call.return_type, call.location);
+        self.codegen_intrinsic_inc_rc_results(function, &call.return_type, &result);
+        Ok(result)
+    }
+
+    /// For vector intrinsics that hand back an element extracted from the source vector
+    /// (`pop_front`, `pop_back`, `remove`), bump the reference count of any array- or
+    /// vector-typed element value. The intrinsic's returned tuple component for the new
+    /// (post-pop) vector is skipped: it is a distinct result, not an alias of the source.
+    ///
+    /// Without this bump the popped element shares its underlying memory with the source
+    /// vector, so a mutation through it would also mutate the source — breaking the
+    /// copy-on-write invariant the rest of the pipeline relies on. The `ownership` pass
+    /// enforces the same invariant for plain `array[i]` accesses (see `handle_index`),
+    /// but it does not see through these intrinsic calls.
+    fn codegen_intrinsic_inc_rc_results(
+        &mut self,
+        function: ValueId,
+        return_type: &ast::Type,
+        result: &Values,
+    ) {
+        if self.builder.current_function.runtime().is_acir() {
+            return;
+        }
+        let Some(intrinsic) = self.builder.get_intrinsic_from_value(function) else {
+            return;
+        };
+        if !matches!(
+            intrinsic,
+            Intrinsic::VectorPopFront | Intrinsic::VectorPopBack | Intrinsic::VectorRemove
+        ) {
+            return;
+        }
+        // All of these vector operations return either ([T], T) or (T, [T])
+        let (ast::Type::Tuple(types), Tree::Branch(value_trees)) = (return_type, result) else {
+            return;
+        };
+        // We are looking for the T in the tuple, ignoring the [T].
+        for (ty, subtree) in types.iter().zip_eq(value_trees.iter()) {
+            if matches!(ty, ast::Type::Vector(_)) {
+                continue;
+            }
+            for value in subtree.clone().into_value_list(self) {
+                if self.builder.type_of_value(value).is_array() {
+                    self.builder.insert_inc_rc(value);
+                }
+            }
+        }
     }
 
     fn codegen_intrinsic_call_checks(
@@ -1367,18 +1468,14 @@ impl FunctionContext<'_> {
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
         if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
-            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+            let message = String::from_utf8_lossy(static_string).into_owned();
+            Ok(Some(ConstrainError::StaticString(message)))
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
             let selector = error_type.selector();
             let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
-            // Record custom types in the builder, outside of SSA instructions
-            // This is made to avoid having Hir types in the SSA code.
-            if !is_string_type {
-                self.builder.record_error_type(selector, assert_message_typ.clone());
-            }
-
+            self.builder.record_error_type(selector, assert_message_typ.clone());
             Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
         }
     }
@@ -1411,7 +1508,7 @@ impl FunctionContext<'_> {
         let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
@@ -1425,7 +1522,7 @@ impl FunctionContext<'_> {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     /// Evaluate the given expression, increment the reference count of each array within,
@@ -1470,12 +1567,10 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function
-/// that does not modify its array inputs.
-///
-/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-/// when the reference count is 1. We must NOT skip clones for these operations.
+/// Return whether the expression refers to a builtin or low level function for
+/// which the ownership pass's `Clone` around an array argument can be safely
+/// elided: the callee must neither modify the input nor return an alias of it
+/// that a later Brillig mutation could observe.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1488,9 +1583,11 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
         return false;
     };
 
-    // Vector operations can modify their input array in Brillig when RC=1,
-    // so we must clone them to ensure that they are "pure".
-    if intrinsic.modifies_input_array_in_brillig() {
+    // Some intrinsics are technically pure but unsafe to elide clones around in
+    // Brillig: vector mutators mutate through the input pointer when RC=1, and
+    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
+    // alias of their input that a later mutation could corrupt.
+    if intrinsic.unsafe_for_clone_elision_in_brillig() {
         return false;
     }
 
@@ -1499,5 +1596,87 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
 
 /// Return whether the expression refers to a foreign function.
 fn is_oracle_func(expr: &Expression) -> bool {
-    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
+}
+
+/// Return whether the expression refers to a function whose body, after peeling block/semi
+/// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
+/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
+///
+/// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
+/// only read their inputs (values are copied across the runtime boundary), so a wrapper
+/// that forwards to one cannot modify its array arguments either. This lets us drop the
+/// `Clone` that the ownership pass conservatively inserts around array arguments.
+fn is_oracle_wrapper(expr: &Expression, program: &Program) -> bool {
+    /// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
+    /// (e.g. `println` -> `print_unconstrained` -> `print` oracle); the bound only exists to
+    /// keep pathological inputs from blowing the stack.
+    const ORACLE_WRAPPER_MAX_DEPTH: u32 = 5;
+
+    /// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
+    fn go(expr: &Expression, program: &Program, depth: u32) -> bool {
+        if depth == 0 {
+            return false;
+        }
+        let Expression::Ident(ident) = expr else {
+            return false;
+        };
+        let ast::Definition::Function(func_id) = &ident.definition else {
+            return false;
+        };
+        let Some(inner) = peel_to_single_call(&program[*func_id].body) else {
+            return false;
+        };
+        if !inner.arguments.iter().all(is_side_effect_free_arg) {
+            return false;
+        }
+        is_oracle_func(&inner.func) || go(&inner.func, program, depth - 1)
+    }
+
+    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
+}
+
+/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
+/// [`Call`](ast::Call), return that call. Otherwise return `None`.
+fn peel_to_single_call(expr: &Expression) -> Option<&ast::Call> {
+    match expr {
+        Expression::Call(call) => Some(call),
+        Expression::Semi(inner) => peel_to_single_call(inner),
+        Expression::Block(stmts) if stmts.len() == 1 => peel_to_single_call(&stmts[0]),
+        _ => None,
+    }
+}
+
+/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
+///
+/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
+/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
+/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
+/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
+/// side-effectful and rejects the wrapper classification.
+fn is_side_effect_free_arg(expr: &Expression) -> bool {
+    match expr {
+        Expression::Ident(_) => true,
+        Expression::Literal(lit) => match lit {
+            ast::Literal::Array(arr) | ast::Literal::Vector(arr) => {
+                arr.contents.iter().all(is_side_effect_free_arg)
+            }
+            ast::Literal::Repeated { element, .. } => is_side_effect_free_arg(element),
+            ast::Literal::Integer(..)
+            | ast::Literal::Bool(_)
+            | ast::Literal::Unit
+            | ast::Literal::Str(_) => true,
+            ast::Literal::FmtStr(_, _, inner) => is_side_effect_free_arg(inner),
+        },
+        Expression::ExtractTupleField(inner, _) => is_side_effect_free_arg(inner),
+        Expression::Tuple(items) => items.iter().all(is_side_effect_free_arg),
+        Expression::Index(idx) => {
+            is_side_effect_free_arg(&idx.collection) && is_side_effect_free_arg(&idx.index)
+        }
+        Expression::Cast(cast) => is_side_effect_free_arg(&cast.lhs),
+        Expression::Unary(u) => is_side_effect_free_arg(&u.rhs),
+        Expression::Binary(b) => is_side_effect_free_arg(&b.lhs) && is_side_effect_free_arg(&b.rhs),
+        Expression::Clone(inner) => is_side_effect_free_arg(inner),
+        _ => false,
+    }
 }

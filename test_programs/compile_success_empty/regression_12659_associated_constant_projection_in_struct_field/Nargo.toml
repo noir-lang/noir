@@ -1,0 +1,6 @@
+[package]
+name = "regression_12659_associated_constant_projection_in_struct_field"
+type = "bin"
+authors = [""]
+
+[dependencies]

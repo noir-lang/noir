@@ -247,9 +247,20 @@ impl<'a> NodeFinder<'a> {
             return;
         }
 
+        // First try to autocomplete in the path generics
+        for segment in &path.segments {
+            if let Some(generics) = &segment.generics {
+                for generic in generics {
+                    generic.accept(self);
+                }
+            }
+        }
+
         let after_colons = self.byte == Some(b':');
 
         let mut idents: Vec<Ident> = Vec::new();
+
+        let mut found_segment_to_complete = false;
 
         // Find in which ident we are in, and in which part of it
         // (it could be that we are completing in the middle of an ident)
@@ -259,6 +270,7 @@ impl<'a> NodeFinder<'a> {
             // Check if we are at the end of the ident
             if self.byte_index == ident.span().end() as usize {
                 idents.push(ident.clone());
+                found_segment_to_complete = true;
                 break;
             }
 
@@ -277,15 +289,21 @@ impl<'a> NodeFinder<'a> {
                 );
                 idents.push(ident);
                 in_the_middle = true;
+                found_segment_to_complete = true;
                 break;
             }
 
             idents.push(ident.clone());
 
-            // Stop if the cursor is right after this ident and '::'
-            if after_colons && self.byte_index == ident.span().end() as usize + 2 {
+            // Stop if the cursor is right after this segment and '::'
+            if after_colons && self.byte_index == segment.location.span.end() as usize + 2 {
+                found_segment_to_complete = true;
                 break;
             }
+        }
+
+        if !found_segment_to_complete {
+            return;
         }
 
         if idents.len() < path.segments.len() {
@@ -897,14 +915,16 @@ impl<'a> NodeFinder<'a> {
                     module_data = root_module_data;
                     skip_prelude_items = true;
                 }
-                PathKind::Super => {
-                    let Some(parent) = module_data.parent else {
-                        return;
-                    };
-                    let Some(parent_module_data) = def_map.get(parent) else {
-                        return;
-                    };
-                    module_data = parent_module_data;
+                PathKind::Super(extras) => {
+                    for _ in 0..=extras {
+                        let Some(parent) = module_data.parent else {
+                            return;
+                        };
+                        let Some(parent_module_data) = def_map.get(parent) else {
+                            return;
+                        };
+                        module_data = parent_module_data;
+                    }
                     skip_prelude_items = true;
                 }
                 PathKind::Absolute => (),
@@ -1087,9 +1107,9 @@ impl<'a> NodeFinder<'a> {
             let stub = stub.strip_prefix("fn ").unwrap();
 
             let label = if func_meta.parameters.is_empty() {
-                format!("fn {}()", &name)
+                format!("fn {name}()")
             } else {
-                format!("fn {}(..)", &name)
+                format!("fn {name}(..)")
             };
 
             let completion_item = trait_impl_method_completion_item(label, stub);
@@ -1141,7 +1161,8 @@ impl<'a> NodeFinder<'a> {
                 let typ = self.get_lvalue_type(array)?;
                 get_array_element_type(typ)
             }
-            LValue::Dereference(lvalue, ..) => self.get_lvalue_type(lvalue),
+            LValue::Dereference(expr, ..) => LValue::from_expression(expr.as_ref().clone())
+                .and_then(|lvalue| self.get_lvalue_type(&lvalue)),
             LValue::Interned(..) => None,
         }
     }
@@ -1269,12 +1290,16 @@ impl Visitor for NodeFinder<'_> {
             self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
         }
 
+        // We are entering a child module so we shouldn't modify imports from a parent module
+        let previous_use_segment_positions = std::mem::take(&mut self.use_segment_positions);
+
         parsed_sub_module.accept_children(self);
 
         // Restore the old module before continuing
         self.module_id = previous_module_id;
         self.nesting -= 1;
         self.auto_import_line = old_auto_import_line;
+        self.use_segment_positions = previous_use_segment_positions;
 
         false
     }
@@ -1354,8 +1379,8 @@ impl Visitor for NodeFinder<'_> {
                     while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
                         cursor += 1;
                     }
-                    let char = bytes[cursor] as char;
-                    if char != '(' && char != '<' {
+                    let char = bytes.get(cursor).copied().map(char::from);
+                    if !matches!(char, Some('(') | Some('<')) {
                         self.suggest_trait_impl_function(noir_trait_impl, noir_function);
                         return false;
                     }
@@ -1665,9 +1690,11 @@ impl Visitor for NodeFinder<'_> {
         true
     }
 
-    fn visit_lvalue_dereference(&mut self, lvalue: &LValue, span: Span) -> bool {
+    fn visit_lvalue_dereference(&mut self, expr: &Expression, span: Span) -> bool {
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(lvalue) {
+            if let Some(typ) = LValue::from_expression(expr.clone())
+                .and_then(|lvalue| self.get_lvalue_type(&lvalue))
+            {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
@@ -1741,7 +1768,8 @@ impl Visitor for NodeFinder<'_> {
         constructor_expression: &ConstructorExpression,
         _: Span,
     ) -> bool {
-        let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ else {
+        let UnresolvedTypeData::Named(path, generic_type_args, _) = &constructor_expression.typ.typ
+        else {
             return true;
         };
 
@@ -1756,6 +1784,8 @@ impl Visitor for NodeFinder<'_> {
             self.complete_constructor_field_name(constructor_expression);
             return false;
         }
+
+        generic_type_args.accept(self);
 
         for (_field_name, expression) in &constructor_expression.fields {
             expression.accept(self);
@@ -1960,7 +1990,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
 
 fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
-        Type::Array(_, typ) | Type::Vector(typ) => Some(*typ),
+        Type::Array(typ, _) | Type::Vector(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)

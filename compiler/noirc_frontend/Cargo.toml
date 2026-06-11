@@ -19,6 +19,7 @@ noirc_errors.workspace = true
 noirc_artifacts.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
+indexmap.workspace = true
 iter-extended.workspace = true
 itertools.workspace = true
 thiserror.workspace = true
@@ -36,12 +37,14 @@ rangemap.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 rustc-hash.workspace = true
+siphasher.workspace = true
 
 [dev-dependencies]
 base64.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true
 insta.workspace = true
+test-case.workspace = true
 
 [features]
 bn254 = []

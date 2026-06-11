@@ -12,6 +12,7 @@ use crate::{
     },
     parser::ParserError,
     usage_tracker::UnusedItem,
+    validity::InvalidType,
 };
 
 use super::import::PathResolutionError;
@@ -72,6 +73,8 @@ pub enum ResolverError {
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
+    #[error("Globals marked with `#[abi(tag)]` must have an ABI-compatible type")]
+    NonAbiTypeInAbiGlobal { invalid_type: InvalidType, location: Location },
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
@@ -82,12 +85,20 @@ pub enum ResolverError {
     OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
+    #[error("Usage of the `#[oracle]` function attribute is not allowed on comptime functions")]
+    OracleMarkedAsComptime { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
     #[error("Oracle functions cannot return references")]
     OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot accept references as parameters")]
+    OracleParameterIsReference { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
+    #[error(
+        "The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`"
+    )]
+    PureAttributeOnNonOracle { ident: Ident, location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -225,6 +236,13 @@ pub enum ResolverError {
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
     DataBusOnNonEntryPoint { visibility: String, name: String, location: Location },
+    #[error("{visibility} attribute is not allowed on {position}")]
+    DataBusOnWrongPosition {
+        visibility: String,
+        position: &'static str,
+        allowed: &'static str,
+        location: Location,
+    },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
@@ -235,6 +253,10 @@ pub enum ResolverError {
     VarargsLastParameterIsNotAVector { location: Location },
     #[error("`comptime` global used in non-comptime code")]
     ComptimeGlobalInNonComptimeCode { location: Location, name: String },
+    #[error("The `{typ}` type has been removed")]
+    RemovedType { location: Location, typ: String, replacement: String },
+    #[error("Recursion limit reached during elaboration")]
+    MaximumRecursionDepthExceeded { location: Location },
 }
 
 impl ResolverError {
@@ -257,6 +279,7 @@ impl ResolverError {
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location, .. }
+            | ResolverError::NonAbiTypeInAbiGlobal { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -299,9 +322,12 @@ impl ResolverError {
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
+            | ResolverError::OracleMarkedAsComptime { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleParameterIsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
+            | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -318,7 +344,10 @@ impl ResolverError {
             | ResolverError::VarargsLastParameterIsNotAVector { location }
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
-            | ResolverError::DataBusOnNonEntryPoint { location, .. } => *location,
+            | ResolverError::DataBusOnNonEntryPoint { location, .. }
+            | ResolverError::DataBusOnWrongPosition { location, .. }
+            | ResolverError::RemovedType { location, .. }
+            | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
@@ -526,6 +555,17 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
+            ResolverError::NonAbiTypeInAbiGlobal { invalid_type, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    "Globals marked with `#[abi(tag)]` must have an ABI-compatible type"
+                        .to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.secondaries.clear();
+                invalid_type.add_to_abi_diagnostic(*location, &mut diagnostic);
+                diagnostic
+            }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
@@ -547,6 +587,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
                 diagnostic
             },
+            ResolverError::OracleMarkedAsComptime { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("Oracle functions cannot be marked `comptime`".into(), ident.location());
+                diagnostic
+            },
             ResolverError::OracleReturnsMultipleVectors { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
@@ -561,12 +610,28 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::OracleParameterIsReference { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                )
+            },
             ResolverError::OracleReturnsVectorWithNestedArray { location } => {
                 Diagnostic::simple_error(
                     error.to_string(),
                     "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
+            },
+            ResolverError::PureAttributeOnNonOracle { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("`#[pure]` requires `unconstrained` and `#[oracle(...)]`".into(), ident.location());
+                diagnostic
             },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(
@@ -1012,6 +1077,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));
                 diag
             },
+            ResolverError::DataBusOnWrongPosition { visibility, position, allowed, location } => {
+                Diagnostic::simple_error(
+                    format!("{visibility} attribute is not allowed on {position}"),
+                    format!("{visibility} is only allowed on {allowed}"),
+                    *location,
+                )
+            },
             ResolverError::AssociatedTypeInImplWithoutBody { ident } => {
                 Diagnostic::simple_error(
                     "Associated type in impl without body".to_string(),
@@ -1044,6 +1116,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime global `{name}` used in non-comptime code"),
                     "Consider using a comptime function or block".to_string(),
+                    *location,
+                )
+            },
+            ResolverError::RemovedType { location, typ, replacement } => {
+                Diagnostic::simple_error(
+                    format!("`{typ}` has been removed, use `{replacement}` instead"),
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::MaximumRecursionDepthExceeded { location } => {
+                Diagnostic::simple_error(
+                    "Reached the recursion limit during elaboration and type checking".into(),
+                    "Try to simplify expressions".into(),
                     *location,
                 )
             },

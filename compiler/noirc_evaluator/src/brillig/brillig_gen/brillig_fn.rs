@@ -66,16 +66,17 @@ impl FunctionContext {
     /// Safety margin added to `max_live_count` when deciding whether a function needs
     /// spill infrastructure.
     ///
-    /// `max_live_count` is an SSA-level lower bound on actual Brillig register pressure.
-    /// Codegen inflates pressure beyond the SSA estimate in several ways:
-    /// - Temporary/scratch registers for address computation and intermediates
-    /// - Constant materialization into registers at use sites
-    /// - Call setup shuffling arguments/returns into contiguous register windows
-    /// - Instruction-specific expansions (e.g. MakeArray element loads)
-    ///
-    /// This margin is a conservative buffer so that functions close to the frame limit
-    /// still get spill support. It can be tuned if it proves too aggressive or too
-    /// conservative in practice.
+    /// Margin that account for temporary registers added by the code-gen on top
+    /// of the registers corresponding to SSA values.
+    /// This allows use to estimate conservatively the maximum number of live registers,
+    /// by using `max_live_count` with a margin.
+    /// `max_live_count` account for the SSA values, but also the additional ones
+    /// required by various instructions.
+    /// However some registers are not taken into account, such as parallel-move at block boundaries
+    /// or on-demand constants. So `max_live_count` is a lower bound on actual Brillig register pressure.
+    /// These registers are typically a few, so the margin is conservative and comfortable, so that
+    /// functions close to the frame limit still get spill support.
+    /// It can be tuned if it proves too aggressive or too conservative in practice.
     const SPILL_MARGIN: usize = 32;
 
     pub(crate) fn new(
@@ -157,7 +158,7 @@ impl FunctionContext {
     /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+            Type::Numeric(_) | Type::Reference(..) | Type::Function => {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) => BrilligParameter::Array(

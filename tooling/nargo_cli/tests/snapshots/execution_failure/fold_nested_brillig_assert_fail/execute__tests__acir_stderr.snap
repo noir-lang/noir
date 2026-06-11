@@ -13,10 +13,10 @@ bug: Brillig function call isn't properly covered by a manual constraint
              at src/main.nr:19:9
 
 error: Failed to solve program: 'Failed to solve brillig function'
-   ┌─ src/main.nr:28:12
+   ┌─ src/main.nr:28:5
    │
 28 │     assert(x);
-   │            -
+   │     ---------
    │
    = Call stack:
      1: main
@@ -28,6 +28,6 @@ error: Failed to solve program: 'Failed to solve brillig function'
      4: conditional_wrapper
              at src/main.nr:24:5
      5: conditional
-             at src/main.nr:28:12
+             at src/main.nr:28:5
 
 Failed to solve program: 'Failed to solve brillig function'

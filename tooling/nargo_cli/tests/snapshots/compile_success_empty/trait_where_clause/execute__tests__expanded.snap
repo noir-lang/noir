@@ -47,12 +47,7 @@ impl Asd for AddXY {
 
 struct Static100 {}
 
-impl StaticTrait for Static100 {
-    fn static_function(slf: Self) -> Field {
-        let _: Self = slf;
-        100_Field
-    }
-}
+impl StaticTrait for Static100 {}
 
 struct Static200 {}
 

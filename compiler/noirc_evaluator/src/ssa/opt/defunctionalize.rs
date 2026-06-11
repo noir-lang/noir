@@ -38,8 +38,10 @@ use std::{
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use itertools::Itertools;
+use noirc_errors::call_stack::CallStack;
 use noirc_frontend::monomorphization::ast::InlineType;
 
+use crate::errors::RuntimeError;
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
@@ -94,7 +96,7 @@ struct DefunctionalizationContext {
 impl Ssa {
     /// See [`defunctionalize`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn defunctionalize(mut self) -> Ssa {
+    pub(crate) fn defunctionalize(mut self) -> Result<Ssa, RuntimeError> {
         // Check that we have removed all cases we don't handle in this pass.
         #[cfg(debug_assertions)]
         self.functions.values().for_each(defunctionalize_pre_check);
@@ -103,7 +105,7 @@ impl Ssa {
         let variants = find_variants(&self);
 
         // Generate the apply functions for the provided variants
-        let (apply_functions, purities) = create_apply_functions(&mut self, variants);
+        let (apply_functions, purities) = create_apply_functions(&mut self, variants)?;
 
         // Setup the pass context
         let context = DefunctionalizationContext { apply_functions };
@@ -120,7 +122,7 @@ impl Ssa {
         #[cfg(debug_assertions)]
         self.functions.values().for_each(defunctionalize_post_check);
 
-        self
+        Ok(self)
     }
 }
 
@@ -163,10 +165,10 @@ impl DefunctionalizationContext {
                 if matches!(&func.dfg[target_func_id], Param { .. } | Value::Instruction { .. }) {
                     let mut arguments = arguments.clone();
                     let results = func.dfg.instruction_results(instruction_id);
-                    let signature = Signature {
-                        params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                        returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
-                    };
+                    let signature = Signature::new(
+                        vecmap(&arguments, |param| func.dfg.type_of_value(*param).into_owned()),
+                        vecmap(results, |result| func.dfg.type_of_value(*result).into_owned()),
+                    );
 
                     // Find the correct apply function
                     let Some(apply_function) = self.get_apply_function(signature, func.runtime())
@@ -415,10 +417,10 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
                 Instruction::Call { func: target, arguments } => {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
                         let results = func.dfg.instruction_results(*instruction_id);
-                        dispatches.insert(Signature {
-                            params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
-                        });
+                        dispatches.insert(Signature::new(
+                            vecmap(arguments, |param| func.dfg.type_of_value(*param).into_owned()),
+                            vecmap(results, |result| func.dfg.type_of_value(*result).into_owned()),
+                        ));
                     }
                 }
                 _ => continue,
@@ -454,7 +456,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: Variants,
-) -> (ApplyFunctions, HashMap<FunctionId, Purity>) {
+) -> Result<(ApplyFunctions, HashMap<FunctionId, Purity>), RuntimeError> {
     let mut apply_functions = HashMap::default();
     let mut purities = if ssa.functions.is_empty() {
         HashMap::default()
@@ -479,18 +481,7 @@ fn create_apply_functions(
         // function to dispatch constrains that we have an expected ID.
 
         let pre_runtime_filter_len = variants.len();
-        let variants: Vec<(FunctionId, RuntimeType)> = variants
-            .into_iter()
-            .filter(|(_, callee_runtime)| {
-                // Note that the Inline property is ignored.
-                caller_runtime.is_brillig() && callee_runtime.is_brillig()
-                    || caller_runtime.is_acir() && callee_runtime.is_acir()
-                    || caller_runtime.is_acir()
-                        && callee_runtime.is_brillig()
-                        && is_valid_across_boundaries(&signature)
-            })
-            .collect();
-
+        let variants = filter_apply_function_variants(&signature, caller_runtime, &variants);
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // This will be the same signature but with each function type replaced with
@@ -516,10 +507,18 @@ fn create_apply_functions(
         } else if !variants.is_empty() {
             // If there is only variant, we can use it directly rather than creating a new apply function.
             variants[0].0
-        } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
-            // We had variants, but they were all filtered out.
-            // Frontend bug: only ACIR variants in a Brillig group.
-            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime");
+        } else if pre_runtime_filter_len != 0 {
+            // Variants existed but every one was dropped by the runtime/boundary filter.
+            if caller_runtime.is_brillig() {
+                // Frontend bug: only ACIR variants in a Brillig group.
+                panic!(
+                    "ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime"
+                );
+            }
+            // No proper variant to call.
+            return Err(RuntimeError::InvalidUnconstrainedDispatch {
+                call_stack: CallStack::empty(),
+            });
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -532,7 +531,27 @@ fn create_apply_functions(
         );
     }
 
-    (apply_functions, purities)
+    Ok((apply_functions, purities))
+}
+
+/// Collect the function variants that can be called from a given runtime.
+fn filter_apply_function_variants(
+    signature: &Signature,
+    caller_runtime: RuntimeType,
+    variants: &[(FunctionId, RuntimeType)],
+) -> Vec<(FunctionId, RuntimeType)> {
+    variants
+        .iter()
+        .filter(|(_, callee_runtime)| {
+            // Note that the Inline property is ignored.
+            caller_runtime.is_brillig() && callee_runtime.is_brillig()
+                || caller_runtime.is_acir() && callee_runtime.is_acir()
+                || caller_runtime.is_acir()
+                    && callee_runtime.is_brillig()
+                    && is_valid_across_boundaries(signature)
+        })
+        .copied()
+        .collect()
 }
 
 /// Transforms a [FunctionId] into a [FieldElement]
@@ -542,10 +561,21 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 
 /// Check if a [Signature] is valid when the caller is ACIR and the callee is Brillig.
 fn is_valid_across_boundaries(signature: &Signature) -> bool {
-    !signature.params.iter().any(|typ| typ.contains_reference())
+    signature.params.iter().all(param_lowerable_across_boundary)
         && !signature.returns.iter().any(|typ| {
             typ.contains_reference() || typ.contains_vector_element() || typ.contains_function()
         })
+}
+
+/// A call parameter can cross the ACIR/Brillig boundary iff it is either not a reference at all,
+/// or it is a single top-level reference whose pointee holds no further reference.
+/// Mutability is not checked here: the frontend already rejects passing a mutable reference
+/// from a constrained to an unconstrained runtime, so any reference reaching this point is immutable.
+fn param_lowerable_across_boundary(typ: &Type) -> bool {
+    match typ {
+        Type::Reference(inner, _) => !inner.contains_reference(),
+        other => !other.contains_reference(),
+    }
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
@@ -776,7 +806,9 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
+        Type::Reference(element_type, _) => {
+            function_builder.insert_allocate((**element_type).clone())
+        }
         Type::Function => {
             unreachable!(
                 "ICE: Any function passed as a value should have already been converted to a field type"
@@ -792,7 +824,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
 #[cfg(debug_assertions)]
 fn defunctionalize_pre_check(function: &Function) {
     visit_values_other_than_call_target(function, |value| match value {
-        Value::ForeignFunction(name) => panic!("foreign function as value: {name}"),
+        Value::ForeignFunction { name, .. } => panic!("foreign function as value: {name}"),
         Value::Intrinsic(intrinsic) => panic!("intrinsic function as value: {intrinsic}"),
         _ => (),
     });
@@ -827,8 +859,8 @@ fn defunctionalize_post_check(func: &Function) {
 fn replacement_type(typ: &Type) -> Option<Type> {
     match typ {
         Type::Function => Some(Type::field()),
-        Type::Reference(typ) => {
-            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
+        Type::Reference(typ, mutable) => {
+            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ), *mutable))
         }
         Type::Numeric(_) => None,
         Type::Array(items, size) => {
@@ -865,6 +897,8 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
 
 #[cfg(test)]
 mod tests {
+    use noirc_frontend::test_utils::{GetProgramOptions, get_monomorphized_with_options};
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -874,7 +908,11 @@ mod tests {
                 value::{NumericValue, Value},
             },
             ir::function::FunctionId,
-            opt::defunctionalize::create_apply_functions,
+            opt::{
+                assert_pass_does_not_affect_execution,
+                defunctionalize::{create_apply_functions, filter_apply_function_variants},
+            },
+            ssa_gen::generate_ssa,
         },
     };
 
@@ -923,7 +961,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1036,7 +1074,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         let applies = ssa.functions.values().filter(|f| f.name() == "apply").collect::<Vec<_>>();
         assert!(applies.iter().any(|f| f.runtime().is_acir()));
@@ -1077,7 +1115,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(
             ssa,
@@ -1149,7 +1187,7 @@ mod tests {
         ";
 
         let defunctionalize_ssa = Ssa::from_str(src).unwrap();
-        let defunctionalize_ssa = defunctionalize_ssa.defunctionalize();
+        let defunctionalize_ssa = defunctionalize_ssa.defunctionalize().unwrap();
         let defunctionalize_results = defunctionalize_ssa.interpret(vec![]);
 
         let interpreter_return_values = expect_value_with_args(src, vec![]);
@@ -1191,7 +1229,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn get_t_c f0 {
@@ -1220,7 +1258,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1255,7 +1293,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         // We still expect all parameters with a function type to be replaced.
         // However, this is fine as a function with no variants means that function
@@ -1330,7 +1368,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1428,7 +1466,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
@@ -1503,7 +1541,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         // Guarantee we make the following updates:
         // 1. The make_array instruction type is modified
@@ -1539,7 +1577,7 @@ mod tests {
       ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1580,7 +1618,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1631,7 +1669,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1738,7 +1776,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1861,7 +1899,7 @@ mod tests {
         let variants = find_variants(&ssa);
         assert_eq!(variants.len(), 2);
 
-        let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants);
+        let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants).unwrap();
         // This was 1 before this bug was fixed.
         assert_eq!(apply_functions.len(), 2);
     }
@@ -1922,7 +1960,7 @@ mod tests {
         assert!(variants[0].1.is_brillig());
         assert!(variants[1].1.is_acir());
 
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         // The `apply` method skips calling the acir function f3.
         // As there is only one other variant, we just call f1 directly.
@@ -2022,7 +2060,7 @@ mod tests {
         }
         "#;
 
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
 
         let mut variants = find_variants(&ssa);
         let ((_, caller_runtime), variants) = variants.pop_last().unwrap();
@@ -2032,7 +2070,7 @@ mod tests {
         assert!(variants[2].1.is_acir());
         assert!(variants[3].1.is_acir());
 
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -2134,7 +2172,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         // If Field 4 were ever to be passed to `apply` the program would fail.
         assert_ssa_snapshot!(ssa, @r"
@@ -2233,7 +2271,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         // A call to f5 will be created in the `apply` function in this case.
         // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
@@ -2353,7 +2391,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2444,7 +2482,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
 
         // The ACIR dispatch only calls the acir lambdas,
         // because returning a vector from Brillig would be invalid.
@@ -2495,5 +2533,148 @@ mod tests {
             return v1, v2
         }
         ");
+    }
+
+    #[test]
+    fn no_surviving_brillig_variant_in_acir_is_rejected() {
+        // An ACIR caller dispatches between two Brillig variants whose only candidates
+        // return a vector across the boundary. Every variant is dropped by the filter and
+        // there is no surviving sibling, so rather than substitute a zero-returning dummy
+        // (which would silently miscompile the call) defunctionalization must reject it.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(f1)
+          b2():
+            jmp b3(f2)
+          b3(v1: function):
+            v2, v3 = call v1() -> (u32, [Field])
+            return
+        }
+        brillig(inline) fn one f1 {
+          b0():
+            v2 = make_array [Field 1] : [Field]
+            return u32 1, v2
+        }
+        brillig(inline) fn two f2 {
+          b0():
+            v2 = make_array [Field 2] : [Field]
+            return u32 1, v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = ssa.defunctionalize();
+        assert!(
+            matches!(result, Err(crate::errors::RuntimeError::InvalidUnconstrainedDispatch { .. })),
+            "expected the dispatch to be rejected as InvalidUnconstrainedDispatch"
+        );
+    }
+
+    // Regression test for issue #1110:
+    // A function value of static type `fn(&T) -> X` dispatched at a `&mut T`
+    // argument site used to miss the candidate lookup because keys were
+    // compared by strict `Signature` equality. The dispatch fell through to a
+    // silent-zero `apply_dummy`, miscompiling `arr[0]` into `0`.
+    #[test]
+    fn dispatch_to_immut_ref_param_at_mut_ref_arg_site() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0(v0: u1):
+              v5 = make_array [Field 5, Field 6, Field 7] : [Field; 3]
+              v6 = allocate -> &mut [Field; 3]
+              store v5 at v6
+              jmpif v0 then: b1(), else: b2()
+            b1():
+              jmp b3(f1)
+            b2():
+              jmp b3(f1)
+            b3(v3: function):
+              v7 = call f2(v3, v6) -> Field
+              return v7
+          }
+          acir(inline) fn read_first_immut f1 {
+            b0(v0: &[Field; 3]):
+              v1 = load v0 -> [Field; 3]
+              v3 = array_get v1, index u32 0 -> Field
+              return v3
+          }
+          acir(inline) fn dispatch f2 {
+            b0(v0: function, v2: &mut [Field; 3]):
+              v3 = call v0(v2) -> Field
+              return v3
+          }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let args = vec![Value::bool(true)];
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, args, |ssa| ssa.defunctionalize().unwrap());
+
+        let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn foreign_and_oracle_function_value_proxies() {
+        let src = r#"
+        mod std {
+            pub mod hash {
+                #[foreign(blake2s)]
+                pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32] {}
+            }
+        }
+
+        unconstrained fn encrypt_me(encryption_fn: unconstrained fn([u8; 4]) -> [u8; 32], input: [u8; 4]) -> [u8; 32] {
+            encryption_fn(input)
+        }
+
+        #[oracle(oracle_hash)]
+        unconstrained fn oracle_hash(input: [u8; 4]) -> [u8; 32] {}
+
+        unconstrained fn another_hash(_input: [u8; 4]) -> [u8; 32] { [0; 32] }
+
+        fn assert_output(output: [u8; 32]) {
+            for i in 0..32 {
+                assert(output[i] < 255);
+            }
+        }
+
+        pub fn main(input: pub [u8; 4]) -> pub [u8; 32] {
+            // Safety: calling unconstrained functions.
+            unsafe {
+                let output = encrypt_me(std::hash::blake2s, input);
+                assert_output(output);
+                let output = encrypt_me(oracle_hash, input);
+                assert_output(output);
+                let output = encrypt_me(another_hash, input);
+                assert_output(output);
+                output
+            }
+        }
+        "#;
+
+        let program = get_monomorphized_with_options(
+            src,
+            GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+        )
+        .unwrap();
+        let ssa = generate_ssa(program).unwrap();
+
+        let mut ssa_variants = find_variants(&ssa);
+        let ((signature, caller_runtime), variants) = ssa_variants.pop_last().unwrap();
+        assert!(
+            ssa_variants.is_empty(),
+            "should have only one set of variants for one apply function"
+        );
+
+        assert!(caller_runtime.is_brillig());
+        assert_eq!(variants.len(), 4); // blake2s_proxy (acir + brillig) + oracle_hash_proxy + another_hash
+
+        let variants = filter_apply_function_variants(&signature, caller_runtime, &variants);
+        assert_eq!(variants.len(), 3); // blake2s_proxy + oracle_hash_proxy + another_hash
+        assert!(variants.iter().all(|(_, runtime)| runtime.is_brillig()));
     }
 }

@@ -89,7 +89,7 @@ impl Context {
 
         for instruction in function.dfg[entry].instructions() {
             if let Instruction::IncrementRc { value } = &function.dfg[*instruction] {
-                let typ = function.dfg.type_of_value(*value);
+                let typ = function.dfg.type_of_value(*value).into_owned();
 
                 // We assume arrays aren't mutated until we find an array_set
                 let inc_rc =
@@ -134,7 +134,7 @@ impl Context {
     /// Recursively unwrap references and mark any contained arrays as mutated.
     fn mark_each_contained_array_as_mutated(&mut self, typ: &Type) {
         match typ {
-            Type::Reference(element) => self.mark_each_contained_array_as_mutated(element),
+            Type::Reference(element, _) => self.mark_each_contained_array_as_mutated(element),
             Type::Array(element_types, _) | Type::Vector(element_types) => {
                 // Mark the array type we have found as being possibly mutated
                 self.mark_as_mutated(typ);
