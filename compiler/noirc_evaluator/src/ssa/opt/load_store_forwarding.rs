@@ -18,7 +18,6 @@
 //! Calls are handled conservatively: simple reference arguments invalidate
 //! that address and all its potential aliases; containers or nested
 //! references clear all state.
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
