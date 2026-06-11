@@ -39,15 +39,26 @@
 //!    parameter that is freshly re-allocated each iteration, the sibling is a
 //!    distinct per-iteration storage and is dropped (see
 //!    [`Context::swap_excluded_aliases`]).
-//! 2. **Per-path protection / back-edge-participant.** Accept if every path
-//!    to the array_set is protected — the source's storage, threaded
-//!    backward, is on each path either RC-bumped by an `inc_rc` or an
-//!    iteration-local fresh allocation (`make_array`/`Call` re-executed each
-//!    iteration). A back-edge-participant `inc_rc` on a non-source alias is
-//!    also accepted (the frontend is deliberately managing iteration
-//!    aliasing). See [`Context::some_inc_rc_precedes`].
-//! 3. **Protected-participant filter.** Before the forward walk, drop from
-//!    the use-set every alias-set member (other than the source) that both
+//! 2. **Fast full-accept.** Accept the array_set outright (skipping the
+//!    forward walk) when some `inc_rc` on an alias-set member protects it on
+//!    every path by a cheap test: an `inc_rc` earlier in the array_set's own
+//!    block, in a block that **dominates** it, or — for a non-source alias —
+//!    on a loop **back-edge** (the back-edge-participant relaxation, where the
+//!    frontend is deliberately managing iteration aliasing). See
+//!    [`Context::some_inc_rc_precedes`].
+//! 3. **Per-member coverage → use-set.** Otherwise narrow the alias-set to the
+//!    members that are *not* provably protected, and seed the forward walk
+//!    with only those ([`Context::unprotected_aliases`]). Coverage is per
+//!    member: thread the source's storage backward through the CFG
+//!    ([`Context::compute_uncovered_values`]) and drop a member when, on every
+//!    path where it can be the source's storage at the array_set, that storage
+//!    is RC-bumped by an `inc_rc` or is an iteration-local fresh allocation (a
+//!    `MakeArray`/`Call` re-executed each loop iteration). Dropping covered
+//!    members is what stops the forward walk from flagging a read of, say, an
+//!    `inc_rc`'d sibling on a path where the array_set never mutates that
+//!    storage. An empty use-set means every member is protected — accept.
+//! 4. **Protected-participant filter.** A second narrowing inside the forward
+//!    walk: drop every use-set member (other than the source) that both
 //!    carries its own `inc_rc` and is a loop back-edge *participant* (it
 //!    flows — directly or through forward edges — into a back-edge arg
 //!    position). Being in the alias-set means the value flows *into* the
@@ -67,8 +78,8 @@
 //!    shape (an `inc_rc v` placed before `v` is threaded *forward* into the
 //!    latch that then closes the loop) without the unsoundness of crediting
 //!    an `inc_rc` to a value the array_set actually mutates first.
-//! 4. **Forward walk.** Otherwise, walk the CFG forward from the array_set with
-//!    the (filtered) alias-set as the initial use-set. At each block-parameter
+//! 5. **Forward walk.** Walk the CFG forward from the array_set with the
+//!    use-set as the initial set of live aliases. At each block-parameter
 //!    crossing we both **kill** params that the predecessor rebinds to a
 //!    non-alias and **add** params whose arg is still an alias (so alias
 //!    propagation stays accurate as the walk crosses joins and loops). The
@@ -117,6 +128,17 @@
 //! - **Nested-array `MakeArray`**, **`IfElse` on arrays**, **non-inlined
 //!   `Call` returns**, and **`Store`/`Load` on ineligible (nested-ref)
 //!   allocates** are likewise not tracked.
+//! - **Iteration-local fresh array read back within one iteration.** The
+//!   freshness wall (step 3) credits a `MakeArray`/`Call` that shares a loop
+//!   with the array_set as distinct per-iteration storage, which is sound
+//!   only because the result is normally threaded forward rather than the
+//!   freshly-allocated source being re-read after its in-place mutation. A
+//!   hand-written loop body that allocates an array, mutates it in place, and
+//!   then reads the *same* value back within the same iteration would not be
+//!   flagged. The frontend threads the `array_set` result instead of
+//!   re-reading the source, so it does not emit this shape; crediting
+//!   freshness only ever *accepts* more, so this can only be a false negative,
+//!   never a false positive.
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -241,7 +263,7 @@ struct Context<'f> {
     dom_tree: DominatorTree,
     /// Array values that allocate fresh storage at their definition
     /// (`make_array` / `Call` results). Used as a freshness wall by
-    /// [`Context::value_covered_on_all_paths`].
+    /// [`Context::compute_uncovered_values`].
     fresh_array_values: HashSet<ValueId>,
     /// The block set of each loop in the function. The freshness wall only
     /// credits a fresh allocation when its defining block and the array_set's
@@ -398,7 +420,7 @@ impl<'f> Context<'f> {
         let back_edges: HashSet<(BasicBlockId, BasicBlockId)> =
             loops.yet_to_unroll.iter().map(|l| (l.back_edge_start, l.header)).collect();
         // The block set of each loop, used by the freshness wall in
-        // [`Context::value_covered_on_all_paths`] to decide whether a fresh
+        // [`Context::compute_uncovered_values`] to decide whether a fresh
         // allocation re-executes on every iteration that reaches an array_set.
         let loop_blocks: Vec<BTreeSet<BasicBlockId>> =
             loops.yet_to_unroll.iter().map(|l| l.blocks.clone()).collect();
@@ -520,7 +542,7 @@ impl<'f> Context<'f> {
         // the same heuristic [`Context::non_aliasing_array_values`] makes).
         // `array_set` results are excluded — they may mutate in place rather
         // than allocate. Used by the freshness wall in
-        // [`Context::value_covered_on_all_paths`]: storage that is freshly
+        // [`Context::compute_uncovered_values`]: storage that is freshly
         // allocated on a path has no other live alias, so an in-place mutation
         // there cannot be observed through one.
         let fresh_array_values: HashSet<ValueId> =
@@ -992,9 +1014,12 @@ impl<'f> Context<'f> {
     /// non-terminator instruction that reads a value still in the alias
     /// use-set.
     ///
-    /// **Use-set evolution.** Starts as `alias_set` and only shrinks. Kills
-    /// are applied **during propagation** to each successor — see
-    /// [`Context::succ_use_set`] for the kill rules.
+    /// **Use-set evolution.** Starts as `alias_set` — which is **already
+    /// narrowed** to the uncovered members by [`Context::unprotected_aliases`]
+    /// before this is called, so provably-protected aliases never enter the
+    /// walk — and only shrinks from there. Kills are applied **during
+    /// propagation** to each successor — see [`Context::succ_use_set`] for the
+    /// kill rules.
     ///
     /// **What counts as a use.** Only non-terminator operands. Terminator
     /// arguments are the legitimate threading mechanism the invariant

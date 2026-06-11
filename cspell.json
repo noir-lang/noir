@@ -357,6 +357,8 @@
         "unref",
         "unrepresentable",
         "unsignedinteger",
+        "unthreadable",
+        "unwalled",
         "upcasted",
         "urem",
         "USERPROFILE",
