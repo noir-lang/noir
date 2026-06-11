@@ -178,6 +178,10 @@ fn evaluate_assert_constant(
     arguments: &[ValueId],
     error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
+    if arguments.is_empty() {
+        panic!("ICE: assert_constant called with no arguments")
+    }
+
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else if error_on_failure {
