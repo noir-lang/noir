@@ -395,7 +395,7 @@ impl Function {
         }
 
         // Try to unroll.
-        match loop_.unroll(self, &loops.cfg) {
+        match loop_.unroll(self, &loops.cfg, &loops.dom) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -512,6 +512,10 @@ pub(crate) struct Loops {
     /// The CFG so we can query the predecessors of blocks when needed.
     pub(crate) cfg: ControlFlowGraph,
     /// The [DominatorTree] used during the discovery of loops.
+    ///
+    /// Also queried during unrolling to decide whether a folded constant-`JmpIf`'s destination
+    /// parameters can be specialized to the taken edge (see [`LoopIteration::handle_jmpif`]).
+    /// `dominates` caches its results, so on-demand queries stay cheap.
     pub(crate) dom: DominatorTree,
     /// Body weights of callees that will be inlined, used to estimate the true cost
     /// of call instructions in loop bodies instead of using call overhead.
@@ -558,7 +562,7 @@ impl Loops {
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut loops = vec![];
 
@@ -942,6 +946,7 @@ impl Loop {
         &self,
         function: &mut Function,
         cfg: &ControlFlowGraph,
+        dom: &DominatorTree,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -953,7 +958,7 @@ impl Loop {
         let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
         while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args)?
+            self.unroll_header(function, unroll_into, &header_args, dom)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
         }
@@ -1000,13 +1005,14 @@ impl Loop {
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
+        dom: &'a DominatorTree,
     ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
-        let mut context = LoopIteration::new(function, self, fresh_block, self.header);
+        let mut context = LoopIteration::new(function, self, fresh_block, self.header, dom);
         let loop_header_id = context.source_block;
 
         // Collect all header parameters before mutably borrowing context.
@@ -1802,6 +1808,13 @@ struct LoopIteration<'f> {
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
+
+    /// Dominator tree of the original (pre-unroll) function. When a constant-`JmpIf` is folded,
+    /// its destination's block parameters can only be specialized to the taken edge if the folding
+    /// block dominates the destination; otherwise the destination is a join reachable from an
+    /// independent predecessor and its parameters must be preserved (see [`Self::handle_jmpif`]).
+    /// Queries use original block ids, which the original dominator tree still describes correctly.
+    dom: &'f DominatorTree,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1810,6 +1823,7 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
+        dom: &'f DominatorTree,
     ) -> Self {
         Self {
             inserter: FunctionInserter::new(function),
@@ -1822,6 +1836,7 @@ impl<'f> LoopIteration<'f> {
             encountered_loop_header: false,
 
             induction_value: None,
+            dom,
         }
     }
 
@@ -1950,6 +1965,13 @@ impl<'f> LoopIteration<'f> {
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
+        // The block whose `JmpIf` we are folding. Captured before `source_block` is
+        // reassigned to the chosen destination below. `source_block` always holds an
+        // original (pre-unroll) block id, so no `get_original_block` mapping is needed:
+        // every assignment to it is either the loop header or already passed through
+        // `get_original_block`.
+        let folding_block = self.source_block;
+
         match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
                 let (destination, arguments) = if constant.is_zero() {
@@ -1958,16 +1980,28 @@ impl<'f> LoopIteration<'f> {
                     (then_destination, then_arguments)
                 };
 
-                self.source_block = self.get_original_block(destination);
+                let original_destination = self.get_original_block(destination);
+                self.source_block = original_destination;
 
                 // The body block's instructions will be inlined directly into the
                 // current insert_block, not into the fresh destination block created
                 // by `get_or_insert_block`. Map the destination's block params to the
                 // jmp arguments so that inlined instructions resolve to the actual
                 // values rather than the fresh block's (now unreachable) params.
-                let destination_params = self.dfg().block_parameters(destination).to_vec();
-                for (param, arg) in destination_params.iter().zip(&arguments) {
-                    self.inserter.map_value(*param, *arg);
+                //
+                // This specialization is only sound when the folding block dominates the
+                // destination, i.e. every path to the destination passes through this folded
+                // `JmpIf`. Otherwise the destination is a join also reachable from an
+                // independent predecessor carrying a different argument, and its parameters
+                // must be preserved so the join body runs once over the merged parameter;
+                // specializing would copy the body for this edge and drop it for the others.
+                let folding_block_dominates_destination =
+                    self.dom.dominates(folding_block, original_destination);
+                if folding_block_dominates_destination {
+                    let destination_params = self.dfg().block_parameters(destination).to_vec();
+                    for (param, arg) in destination_params.iter().zip(&arguments) {
+                        self.inserter.map_value(*param, *arg);
+                    }
                 }
 
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
@@ -2098,7 +2132,11 @@ mod tests {
     use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
-    use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
+    use crate::ssa::{
+        Ssa,
+        ir::value::ValueId,
+        opt::{assert_normalized_ssa_equals, assert_pass_does_not_affect_execution},
+    };
 
     use super::{
         BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopBounds, LoopOrder,
@@ -3923,6 +3961,141 @@ mod tests {
             jmp b1(u32 50)
           b1(v1: u32):
             return v1
+        }
+        ");
+    }
+
+    /// Regression for noir-claude#1381: a constant-folded `JmpIf` whose chosen destination is a
+    /// shared join block — reachable from another, independent predecessor carrying a different
+    /// edge argument — must not specialize the join's block parameter to one edge's argument and
+    /// copy the join body only once. Doing so collapses the join value, so the other edge observes
+    /// the wrong value (in the audit's framing, a path-specific constraint is dropped).
+    ///
+    /// The join value is surfaced through the loop into the return value: `v0 = 1` takes the
+    /// independent `b3` edge (`Field 1`) and `v0 = 0` takes the folded `b4` edge (`Field 2`). The
+    /// bug made the `b3` path also observe `Field 2`. `assert_pass_does_not_affect_execution`
+    /// checks that unrolling preserves each result.
+    #[test]
+    fn unroll_constant_jmpif_into_shared_join_preserves_per_edge_values() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0, Field 0)
+          b1(v1: u32, v2: Field):
+            v3 = lt v1, u32 1
+            jmpif v3 then: b2(), else: b7()
+          b2():
+            jmpif v0 then: b3(), else: b4()
+          b3():
+            jmp b6(Field 1)
+          b4():
+            v4 = eq v1, u32 0
+            jmpif v4 then: b6(Field 2), else: b6(Field 3)
+          b6(v5: Field):
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6, v5)
+          b7():
+            return v2
+        }
+        ";
+        let run_unroll = |ssa: Ssa| -> Ssa {
+            let (ssa, errors) = try_unroll_loops(ssa);
+            assert_eq!(errors.len(), 0, "Unroll should have no errors");
+            ssa
+        };
+
+        // `v0 = 1` reaches the join via the independent `b3` edge (`Field 1`); the bug instead
+        // collapsed the join to the folded `b4` edge's `Field 2`.
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(true)],
+            run_unroll,
+        );
+        assert_eq!(result, Ok(vec![Value::field(1_u128.into())]), "v0 = 1 observes the b3 edge");
+
+        // `v0 = 0` takes the folded `b4` edge (`Field 2`).
+        let (_, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(false)],
+            run_unroll,
+        );
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]), "v0 = 0 observes the b4 edge");
+
+        // The join keeps its parameter and the return surfaces it per edge, rather than the join
+        // body being specialized to a single edge.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2(), else: b3()
+          b1():
+            return v1
+          b2():
+            jmp b4(Field 1)
+          b3():
+            jmp b4(Field 2)
+          b4(v1: Field):
+            jmp b1()
+        }
+        ");
+    }
+
+    /// Counterpart to [`Self::unroll_constant_jmpif_into_shared_join_preserves_constraint`]:
+    /// when the folding block *dominates* the constant-`JmpIf` destination, that destination is
+    /// reached only through this folded edge, so its block parameters are safely specialized to
+    /// the taken edge's arguments. This must NOT preserve the join parameters: doing so leaves
+    /// redundant block parameters that `flatten_cfg` later turns into predicate multiplications,
+    /// inflating circuit size (the regression observed in `regression_5252`).
+    #[test]
+    fn unroll_constant_jmpif_into_dominated_join_specializes_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v3 = lt v1, u32 2
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            v4 = eq v1, u32 0
+            v5 = mul v0, u32 10
+            v6 = mul v0, u32 20
+            jmpif v4 then: b3(v5), else: b3(v6)
+          b3(v7: u32):
+            v8 = add v2, v7
+            v9 = unchecked_add v1, u32 1
+            jmp b1(v9, v8)
+          b5():
+            return v2
+        }
+        ";
+        let u32_ty = crate::ssa::ir::types::NumericType::unsigned(32);
+        let input = vec![Value::from_constant(1_u128.into(), u32_ty).unwrap()];
+
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), input, |ssa| {
+                let (ssa, errors) = try_unroll_loops(ssa);
+                assert_eq!(errors.len(), 0, "Unroll should have no errors");
+                ssa
+            });
+        // `1 * 10 + 1 * 20 == 30` over the two unrolled iterations.
+        assert_eq!(result, Ok(vec![Value::from_constant(30_u128.into(), u32_ty).unwrap()]));
+
+        // The dominated join is specialized: the accumulating `add` reads the per-edge
+        // multiplications directly (`v4`, `v8`) rather than a preserved join block parameter.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = mul v0, u32 10
+            v6 = mul v0, u32 20
+            jmp b2(v4)
+          b1():
+            return v9
+          b2(v1: u32):
+            v7 = mul v0, u32 10
+            v8 = mul v0, u32 20
+            jmp b3(v8)
+          b3(v2: u32):
+            v9 = add v4, v8
+            jmp b1()
         }
         ");
     }

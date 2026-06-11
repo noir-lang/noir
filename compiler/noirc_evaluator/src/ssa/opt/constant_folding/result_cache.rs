@@ -110,7 +110,7 @@ impl InstructionResultCache {
     pub(super) fn get(
         &self,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         id: InstructionId,
         instruction: &Instruction,
         predicate: Option<ValueId>,
@@ -144,7 +144,7 @@ impl InstructionResultCache {
 
     pub(super) fn cache(
         &mut self,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
@@ -276,7 +276,7 @@ pub(super) struct ResultCache {
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
+    fn cache(&mut self, block: BasicBlockId, dom: &DominatorTree, results: Vec<ValueId>) {
         let overwrite = match self.result {
             None => true,
             Some((origin, _)) => origin != block && dom.dominates(block, origin),
@@ -296,7 +296,7 @@ impl ResultCache {
     pub(super) fn get(
         &self,
         block: BasicBlockId,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
         let (origin, results) = self.result.as_ref()?;
