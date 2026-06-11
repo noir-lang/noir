@@ -301,6 +301,13 @@ struct ConditionalBranch {
     condition: ValueId,
 }
 
+/// Indicate the current processed branch
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum BranchPhase {
+    Then,
+    Else,
+}
+
 /// All bookkeeping for a single `jmpif` that is currently being flattened.
 ///
 /// Pushed onto `Context::condition_stack` when a `jmpif` is entered and popped when
@@ -329,6 +336,10 @@ struct ConditionalContext {
     /// When JmpIf's else_destination is the exit/merge block (no separate else block),
     /// stores the resolved else_arguments so `inline_branch_end` can use them.
     jmpif_else_arguments: Option<Vec<ValueId>>,
+    /// The processing of the conditional branches must start with `Then` before
+    /// `Else`. Tracking on which phase we are allows us to assert the processing
+    /// is done as expected.
+    phase: BranchPhase,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -631,6 +642,7 @@ impl<'f> Context<'f> {
             predicated_values: HashMap::default(),
             local_allocations,
             jmpif_else_arguments,
+            phase: BranchPhase::Then,
         };
         // Clear merge provenance from previous conditionals at this nesting level.
         // Provenance from a previous conditional's merges must not be re-used by
@@ -663,6 +675,12 @@ impl<'f> Context<'f> {
         assert_eq!(self.cfg.successors(*block).len(), 1);
 
         let mut cond_context = self.condition_stack.pop().unwrap();
+        assert_eq!(
+            cond_context.phase,
+            BranchPhase::Then,
+            "ICE: then_stop is expected to process the THEN branch"
+        );
+        cond_context.phase = BranchPhase::Else;
         cond_context.then_branch.last_block = Some(*block);
 
         let condition_call_stack =
@@ -763,10 +781,20 @@ impl<'f> Context<'f> {
             // `then_stop` has not been called, this means that the conditional statement has no else branch
             // so we simply do the `then_stop` now, sandwiched between pushing the context back on the stack,
             // then popping it again after `then_stop` is done popping and pushing.
+            assert_eq!(
+                cond_context.phase,
+                BranchPhase::Then,
+                "ICE: else_stop expect a single THEN branch"
+            );
             self.condition_stack.push(cond_context);
             self.then_stop(block);
             cond_context = self.condition_stack.pop().unwrap();
         }
+        assert_eq!(
+            cond_context.phase,
+            BranchPhase::Else,
+            "ICE: else_stop is expected to process the ELSE branch"
+        );
 
         let mut else_branch = cond_context.else_branch.unwrap();
         self.local_allocations = std::mem::take(&mut cond_context.local_allocations);
@@ -809,24 +837,14 @@ impl<'f> Context<'f> {
         assert_eq!(params.len(), then_args.len());
         // When JmpIf's else_destination is the exit block, the else_arguments were stored
         // in jmpif_else_arguments since there is no separate else block to read them from.
-        let (else_args, else_branch) =
-            match (cond_context.jmpif_else_arguments, cond_context.else_branch) {
-                (Some(args), Some(else_branch)) => (args, else_branch),
-                (None, Some(else_branch)) => {
-                    let last_else = else_branch.last_block.unwrap();
-                    let args =
-                        self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
-                    (args, else_branch)
-                }
-                (Some(args), None) => {
-                    assert!(args.is_empty() && params.is_empty(), "malformed branch");
-                    return;
-                }
-                (None, None) => {
-                    assert!(params.is_empty(), "malformed branch");
-                    return;
-                }
-            };
+        let else_branch = cond_context.else_branch.expect("malformed branch");
+        let else_args = match cond_context.jmpif_else_arguments {
+            Some(args) => args,
+            None => {
+                let last_else = else_branch.last_block.unwrap();
+                self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+            }
+        };
         assert_eq!(params.len(), else_args.len());
 
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {

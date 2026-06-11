@@ -628,7 +628,7 @@ impl Context {
         instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
@@ -1200,6 +1200,55 @@ mod test {
             enable_side_effects v6
             v7, v8 = call vector_push_back(v1, v2, v3) -> (u32, [Field])
             return v8
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    // In ACIR, arrays are value-semantic: `array_set` produces a fresh array and never mutates
+    // its input, so a later identical `make_array` can still be deduplicated against the original
+    // even though `array_set` wrote "to" it. (In Brillig the same dedup would be unsafe because the
+    // `array_set` may mutate the backing store in place under copy-on-write.)
+    #[test]
+    fn acir_array_set_does_not_prevent_make_array_dedup() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 3] : [Field; 1]
+            v3 = array_set v1, index u32 0, value Field 5
+            v4 = make_array [Field 3] : [Field; 1]
+            return v3, v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // The pass deduplicates the second `make_array`, and the interpreter confirms the result is
+        // unchanged, so the optimization is sound.
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.fold_constants(MIN_ITER));
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 3] : [Field; 1]
+            v4 = array_set v1, index u32 0, value Field 5
+            return v4, v1
+        }
+        ");
+    }
+
+    // Counterpart to `acir_array_set_does_not_prevent_make_array_dedup`: once an `array_set` is
+    // marked `mutable` it writes through the input array's backing store in place, so a later
+    // identical `make_array` must NOT be deduplicated against the mutated input. The pass is
+    // therefore a no-op here — deduplicating would be unsound, since the second array would then
+    // alias the mutated backing store.
+    #[test]
+    fn acir_mutable_array_set_prevents_make_array_dedup() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 3] : [Field; 1]
+            v3 = array_set mut v1, index u32 0, value Field 5
+            v4 = make_array [Field 3] : [Field; 1]
+            return v3, v4
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));

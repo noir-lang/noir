@@ -85,7 +85,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
-    timeout: 625
+    timeout: 660
     critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages

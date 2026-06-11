@@ -440,7 +440,6 @@ impl Elaborator<'_> {
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             return_visibility_location: func.def.return_visibility_location,
-            has_body: !func.def.body.is_empty(),
             trait_constraints,
             extra_trait_constraints,
             is_entry_point,
