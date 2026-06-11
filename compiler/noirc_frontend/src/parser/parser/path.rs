@@ -122,11 +122,11 @@ impl Parser<'_> {
                 let location = ident.location();
 
                 let generics = if allow_turbofish
-                    && self.at(Token::DoubleColon)
-                    && self.next_is(Token::Less)
+                    && self.at(&Token::DoubleColon)
+                    && self.next_is(&Token::Less)
                 {
                     self.bump();
-                    self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
+                    self.parse_path_generics(&ParserErrorReason::AssociatedTypesNotAllowedInPaths)
                 } else {
                     None
                 };
@@ -137,7 +137,7 @@ impl Parser<'_> {
                     location: self.location_since(location),
                 });
 
-                if self.at(Token::DoubleColon) && self.next_starts_path_segment() {
+                if self.at(&Token::DoubleColon) && self.next_starts_path_segment() {
                     // Skip the double colons
                     self.bump();
                 } else {
@@ -158,7 +158,7 @@ impl Parser<'_> {
     /// PathGenerics = GenericTypeArgs
     pub(super) fn parse_path_generics(
         &mut self,
-        on_named_arg_error: ParserErrorReason,
+        on_named_arg_error: &ParserErrorReason,
     ) -> Option<Vec<UnresolvedType>> {
         if self.token.token() != &Token::Less {
             return None;
@@ -182,7 +182,7 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
         let mut deprecated_dep_found = false;
 
-        let mut kind = if self.at(Token::DoubleColon) {
+        let mut kind = if self.at(&Token::DoubleColon) {
             PathKind::Absolute
         } else if self.eat_keyword(Keyword::Dep) {
             deprecated_dep_found = true;

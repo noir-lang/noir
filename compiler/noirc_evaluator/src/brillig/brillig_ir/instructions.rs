@@ -208,7 +208,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         outputs: &[ValueOrArray],
         output_value_types: &[HeapValueType],
     ) {
-        self.debug_show.foreign_call_instruction(func_name.clone(), inputs, outputs);
+        self.debug_show.foreign_call_instruction(&func_name, inputs, outputs);
 
         assert!(inputs.len() == input_value_types.len());
         assert!(outputs.len() == output_value_types.len());
@@ -226,32 +226,32 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// This calls into another function compiled into this brillig artifact.
     pub(crate) fn add_external_call_instruction(&mut self, func_id: FunctionId) {
         let func_label = Label::function(func_id);
-        self.debug_show.add_external_call_instruction(func_label.to_string());
+        self.debug_show.add_external_call_instruction(&func_label);
         self.obj.add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, func_label);
     }
 
     pub(super) fn add_procedure_call_instruction(&mut self, procedure_id: ProcedureId) {
         let proc_label = Label::procedure(procedure_id);
-        self.debug_show.add_external_call_instruction(proc_label.to_string());
+        self.debug_show.add_external_call_instruction(&proc_label);
         self.obj.add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, proc_label);
     }
 
     pub(super) fn add_globals_init_instruction(&mut self, func_id: FunctionId) {
         let globals_init_label = Label::globals_init(func_id);
-        self.debug_show.add_external_call_instruction(globals_init_label.to_string());
+        self.debug_show.add_external_call_instruction(&globals_init_label);
         self.obj
             .add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, globals_init_label);
     }
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     pub(crate) fn jump_instruction(&mut self, target_label: Label) {
-        self.debug_show.jump_instruction(target_label.to_string());
+        self.debug_show.jump_instruction(&target_label);
         self.add_unresolved_jump(BrilligOpcode::Jump { location: 0 }, target_label);
     }
 
     /// Adds a unresolved `JumpIf` instruction to the bytecode.
     pub(crate) fn jump_if_instruction(&mut self, condition: MemoryAddress, target_label: Label) {
-        self.debug_show.jump_if_instruction(condition, target_label.to_string());
+        self.debug_show.jump_if_instruction(condition, &target_label);
         self.add_unresolved_jump(BrilligOpcode::JumpIf { condition, location: 0 }, target_label);
     }
 
@@ -269,7 +269,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Entering a context resets the current section to 0 and the next section to 1.
     pub(crate) fn enter_context(&mut self, label: Label) {
         assert!(label.section.is_none(), "new context should have no section");
-        self.debug_show.enter_context(label.to_string());
+        self.debug_show.enter_context(&label);
         self.context_label = label.clone();
         // Add a context label to the next opcode
         self.obj.add_label_at_position(label, self.obj.index_of_next_opcode());

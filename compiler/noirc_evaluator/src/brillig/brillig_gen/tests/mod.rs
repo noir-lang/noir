@@ -65,7 +65,7 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
             FunctionContext::ssa_type_to_parameter(&typ)
         })
         .collect();
-    let generated = gen_brillig_for(func, arguments, &brillig, options).unwrap();
+    let generated = gen_brillig_for(func, &arguments, &brillig, options).unwrap();
     execute_bytecode(&generated.byte_code, calldata)
 }
 

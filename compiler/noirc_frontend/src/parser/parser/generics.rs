@@ -79,7 +79,7 @@ impl Parser<'_> {
             return Some(IdentOrQuotedType::Ident(ident));
         }
 
-        let token = self.eat_kind(TokenKind::QuotedType)?;
+        let token = self.eat_kind(&TokenKind::QuotedType)?;
         match token.into_token() {
             Token::QuotedType(id) => {
                 Some(IdentOrQuotedType::Quoted(id, self.previous_token_location))
@@ -142,7 +142,7 @@ impl Parser<'_> {
 
         // Allow `Type::<Generic>` and `Type<Generic>` as it's common to confuse them.
         // The formatter will remove the double colon.
-        if self.at(Token::DoubleColon) && self.next_is(Token::Less) {
+        if self.at(&Token::DoubleColon) && self.next_is(&Token::Less) {
             self.bump();
         }
 
@@ -173,7 +173,7 @@ impl Parser<'_> {
     }
 
     fn parse_generic_type_arg(&mut self) -> Option<GenericTypeArg> {
-        if matches!(self.token.token(), Token::Ident(..)) && self.next_is(Token::Assign) {
+        if matches!(self.token.token(), Token::Ident(..)) && self.next_is(&Token::Assign) {
             let ident = self.eat_ident().unwrap();
 
             self.eat_assign();

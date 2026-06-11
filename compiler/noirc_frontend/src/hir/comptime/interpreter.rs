@@ -48,7 +48,6 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir_def::expr::TraitItem;
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
@@ -73,7 +72,7 @@ use crate::{
         },
         types::Kind,
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId, TraitItemId},
 };
 use crate::{TypeVariable, UnificationError};
 
@@ -326,7 +325,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
-                self.print_oracle(arguments)
+                self.print_oracle(&arguments)
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
                 Ok(Value::Unit)
@@ -618,7 +617,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         // We can't store to the reference directly, we need to check if the value
                         // is a struct or tuple to store to each field instead. This is so any
                         // references to these fields are also updated.
-                        Self::store_flattened(reference.clone(), argument);
+                        Self::store_flattened(reference, argument);
                     }
                     _ => {
                         entry.insert(argument);
@@ -690,13 +689,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Block(block) => self.evaluate_block(block),
             HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix, id),
             HirExpression::Infix(infix) => self.evaluate_infix(infix, id),
-            HirExpression::Index(index) => self.evaluate_index(index, id),
+            HirExpression::Index(index) => self.evaluate_index(&index, id),
             HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
-            HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
+            HirExpression::MemberAccess(access) => self.evaluate_access(&access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
-            HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
+            HirExpression::Constrain(constrain) => self.evaluate_constrain(&constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
-            HirExpression::If(if_) => self.evaluate_if(if_),
+            HirExpression::If(if_) => self.evaluate_if(&if_),
             HirExpression::Match(_) => {
                 let location = self.elaborator.interner.expr_location(&id);
                 Err(InterpreterError::Unimplemented {
@@ -730,8 +729,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
         let definition = self.elaborator.interner.definition(ident.id);
 
-        if let ImplKind::TraitItem(item) = ident.impl_kind {
-            return self.evaluate_trait_item(item, id);
+        if let ImplKind::TraitItem(item) = &ident.impl_kind {
+            return self.evaluate_trait_item(item.id(), id);
         }
 
         match &definition.kind {
@@ -790,7 +789,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = Type::TypeVariable(type_variable.clone());
-                self.evaluate_numeric_generic(value, numeric_typ, id)
+                self.evaluate_numeric_generic(&value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let associated_types =
@@ -815,7 +814,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Evaluates a numeric generic with the value `value` (expected to be `Type::Constant`)
     /// and an expected integer type `expected`.
-    fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
+    fn evaluate_numeric_generic(
+        &self,
+        value: &Type,
+        expected: &Type,
+        id: ExprId,
+    ) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
             .evaluate_to_integer(&Kind::Numeric(Box::new(expected.clone())), location)
@@ -828,13 +832,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_field_as_integer(value.as_field(), id)
     }
 
-    fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
+    fn evaluate_trait_item(&mut self, item: TraitItemId, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
 
         // `resolve_trait_item` (and the `bind_trait_impl_func_generics_*` helper
         // it calls) reads `function_meta` directly on both the trait method and
         // the matching trait impl method. We need to have them resolved first.
-        self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
+        self.elaborator.resolve_trait_method_metas_for(item.trait_id);
 
         // `resolve_trait_item_impl` extends the call expression's stored instantiation
         // bindings with the resolved impl's bindings (and, for shared default methods,
@@ -844,7 +848,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // leftover impl-specific entries from a previous visit. This mirrors the snapshot
         // logic in `resolve_trait_item_expr` on the monomorphization side.
         let saved_bindings = self.elaborator.interner.try_get_instantiation_bindings(id).cloned();
-        let resolved = resolve_trait_item(self.elaborator.interner, item.id(), id);
+        let resolved = resolve_trait_item(self.elaborator.interner, item, id);
 
         let result = match resolved? {
             crate::monomorphization::TraitItem::Method(func_id) => {
@@ -852,7 +856,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
             }
             crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
-                self.evaluate_numeric_generic(value, &expected_type, id)
+                self.evaluate_numeric_generic(&value, &expected_type, id)
             }
         };
 
@@ -998,7 +1002,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
-            self.evaluate_overloaded_prefix(prefix, rhs, id)
+            self.evaluate_overloaded_prefix(&prefix, rhs, id)
         } else {
             let location = self.elaborator.interner.expr_location(&id);
             evaluate_prefix_with_value(rhs, prefix.operator, location)
@@ -1010,7 +1014,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let rhs_value = self.evaluate(infix.rhs)?;
 
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
-            return self.evaluate_overloaded_infix(infix, lhs_value, rhs_value, id);
+            return self.evaluate_overloaded_infix(&infix, lhs_value, rhs_value, id);
         }
 
         let location = self.elaborator.interner.expr_location(&id);
@@ -1020,7 +1024,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_overloaded_infix(
         &mut self,
-        infix: HirInfixExpression,
+        infix: &HirInfixExpression,
         lhs: Value,
         rhs: Value,
         id: ExprId,
@@ -1046,7 +1050,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match operator {
             NotEqual => evaluate_prefix_with_value(value, UnaryOp::Not, location),
             Less | LessEqual | Greater | GreaterEqual => {
-                self.evaluate_ordering(value, operator, location)
+                self.evaluate_ordering(&value, operator, location)
             }
             _ => Ok(value),
         }
@@ -1054,7 +1058,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_overloaded_prefix(
         &mut self,
-        prefix: HirPrefixExpression,
+        prefix: &HirPrefixExpression,
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
@@ -1073,11 +1077,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
     fn evaluate_ordering(
         &self,
-        ordering: Value,
+        ordering: &Value,
         operator: BinaryOpKind,
         location: Location,
     ) -> IResult<Value> {
-        let field_ordering = match &ordering {
+        let field_ordering = match ordering {
             Value::Struct(fields, typ) => {
                 // Check the struct is named "Ordering"
                 let is_ordering_type = match typ.follow_bindings() {
@@ -1123,7 +1127,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Bool(result))
     }
 
-    fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
+    fn evaluate_index(&mut self, index: &HirIndexExpression, id: ExprId) -> IResult<Value> {
         let idx = self.evaluate(index.index)?;
         let array = self.evaluate(index.collection)?;
 
@@ -1162,7 +1166,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
-    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
+    fn evaluate_access(&mut self, access: &HirMemberAccess, id: ExprId) -> IResult<Value> {
         let lhs = self.evaluate_no_dereference(access.lhs)?;
         let is_offset = access.is_offset && lhs.get_type().is_ref();
 
@@ -1288,7 +1292,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
-    fn evaluate_if(&mut self, if_: HirIfExpression) -> IResult<Value> {
+    fn evaluate_if(&mut self, if_: &HirIfExpression) -> IResult<Value> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
             value => {
@@ -1373,7 +1377,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
-            HirStatement::For(for_) => self.evaluate_for(for_),
+            HirStatement::For(for_) => self.evaluate_for(&for_),
             HirStatement::Loop(expression) => self.evaluate_loop(expression),
             HirStatement::While(condition, block) => self.evaluate_while(condition, block),
             HirStatement::Break => self.evaluate_break(statement),
@@ -1402,7 +1406,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Unit)
     }
 
-    fn evaluate_constrain(&mut self, constrain: HirConstrainExpression) -> IResult<Value> {
+    fn evaluate_constrain(&mut self, constrain: &HirConstrainExpression) -> IResult<Value> {
         match self.evaluate(constrain.0)? {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {
@@ -1435,7 +1439,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        Self::store_flattened(value, rhs);
+                        Self::store_flattened(&value, rhs);
                         Ok(())
                     }
                     value => {
@@ -1496,7 +1500,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// ```
     /// we must flatten the store to store to each individual field so that any existing
     /// references, such as `b` above, will also reflect the mutation.
-    fn store_flattened(lvalue: Shared<Value>, rvalue: Value) {
+    fn store_flattened(lvalue: &Shared<Value>, rvalue: Value) {
         let lvalue_ref = lvalue.borrow();
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
@@ -1509,7 +1513,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             This should have been caught by type checking.",
                         );
                     };
-                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                    Self::store_flattened(lvalue, rvalue.unwrap_or_clone());
                 }
             }
             (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
@@ -1522,7 +1526,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 );
 
                 for (lvalue, rvalue) in lvalue_fields.iter().zip_eq(rvalue_fields) {
-                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                    Self::store_flattened(lvalue, rvalue.unwrap_or_clone());
                 }
             }
             (_, rvalue) => {
@@ -1582,7 +1586,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
+    fn evaluate_for(&mut self, for_: &HirForStatement) -> IResult<Value> {
         let start_value = self.evaluate(for_.start_range)?;
         let end_value = self.evaluate(for_.end_range)?;
         let start_type = start_value.get_type();
@@ -1608,8 +1612,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             };
 
             // i128 can store all values from i8 - u64
-            let start = to_i128(start_value).expect("Checked above that value is signed type");
-            let end = to_i128(end_value).expect("Checked above that types match");
+            let start = to_i128(&start_value).expect("Checked above that value is signed type");
+            let end = to_i128(&end_value).expect("Checked above that types match");
 
             if for_.inclusive {
                 self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
@@ -1627,8 +1631,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             };
 
             // u128 can store all values from u8 - u128
-            let start = to_u128(start_value).expect("Checked above that value is unsigned type");
-            let end = to_u128(end_value).expect("Checked above that types match");
+            let start = to_u128(&start_value).expect("Checked above that value is unsigned type");
+            let end = to_u128(&end_value).expect("Checked above that types match");
 
             if for_.inclusive {
                 self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
@@ -1782,7 +1786,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: &[(Value, Location)]) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
         let Some(output) = self.elaborator.interpreter_output else {
@@ -1933,23 +1937,23 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
     }
 }
 
-fn to_u128(value: Value) -> Option<u128> {
+fn to_u128(value: &Value) -> Option<u128> {
     match value {
-        Value::Integer(Integer::U8(value)) => Some(u128::from(value)),
-        Value::Integer(Integer::U16(value)) => Some(u128::from(value)),
-        Value::Integer(Integer::U32(value)) => Some(u128::from(value)),
-        Value::Integer(Integer::U64(value)) => Some(u128::from(value)),
-        Value::Integer(Integer::U128(value)) => Some(value),
+        Value::Integer(Integer::U8(value)) => Some(u128::from(*value)),
+        Value::Integer(Integer::U16(value)) => Some(u128::from(*value)),
+        Value::Integer(Integer::U32(value)) => Some(u128::from(*value)),
+        Value::Integer(Integer::U64(value)) => Some(u128::from(*value)),
+        Value::Integer(Integer::U128(value)) => Some(*value),
         _ => None,
     }
 }
 
-fn to_i128(value: Value) -> Option<i128> {
+fn to_i128(value: &Value) -> Option<i128> {
     match value {
-        Value::Integer(Integer::I8(value)) => Some(i128::from(value)),
-        Value::Integer(Integer::I16(value)) => Some(i128::from(value)),
-        Value::Integer(Integer::I32(value)) => Some(i128::from(value)),
-        Value::Integer(Integer::I64(value)) => Some(i128::from(value)),
+        Value::Integer(Integer::I8(value)) => Some(i128::from(*value)),
+        Value::Integer(Integer::I16(value)) => Some(i128::from(*value)),
+        Value::Integer(Integer::I32(value)) => Some(i128::from(*value)),
+        Value::Integer(Integer::I64(value)) => Some(i128::from(*value)),
         _ => None,
     }
 }

@@ -185,11 +185,11 @@ impl Interpreter<'_, '_> {
             "module_name" => module_name(interner, arguments, location),
             "module_parent" => module_parent(self, arguments, return_type, location),
             "module_structs" => module_structs(self, arguments, location),
-            "modulus_be_bits" => modulus_be_bits(arguments, location),
-            "modulus_be_bytes" => modulus_be_bytes(arguments, location),
-            "modulus_le_bits" => modulus_le_bits(arguments, location),
-            "modulus_le_bytes" => modulus_le_bytes(arguments, location),
-            "modulus_num_bits" => modulus_num_bits(arguments, location),
+            "modulus_be_bits" => modulus_be_bits(&arguments, location),
+            "modulus_be_bytes" => modulus_be_bytes(&arguments, location),
+            "modulus_le_bits" => modulus_le_bits(&arguments, location),
+            "modulus_le_bytes" => modulus_le_bytes(&arguments, location),
+            "modulus_num_bits" => modulus_num_bits(&arguments, location),
             "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
@@ -1825,7 +1825,7 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-            let binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+            let binary_op = Shared::new(new_binary_op(&infix_expr.operator, binary_op_type));
             let lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
             let rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
             Some(Value::Tuple(vec![lhs, binary_op, rhs]))
@@ -2037,7 +2037,7 @@ fn expr_as_if(
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
-            let option_type = extract_option_generic_type(return_type.clone());
+            let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(option_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
@@ -3023,8 +3023,8 @@ fn module_name(
     Ok(Value::Quoted(tokens))
 }
 
-fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
@@ -3033,8 +3033,8 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(bits_vector, typ))
 }
 
-fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::u8).collect();
@@ -3044,7 +3044,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(bytes_vector, typ))
 }
 
-fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bits, typ) = modulus_be_bits(arguments, location)? else {
         unreachable!("modulus_be_bits must return vector")
     };
@@ -3052,7 +3052,7 @@ fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(reversed_bits, typ))
 }
 
-fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bytes, typ) = modulus_be_bytes(arguments, location)? else {
         unreachable!("modulus_be_bytes must return vector")
     };
@@ -3060,8 +3060,8 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(reversed_bytes, typ))
 }
 
-fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_num_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::u64(bits))
 }

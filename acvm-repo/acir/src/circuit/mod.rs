@@ -224,7 +224,7 @@ impl FromStr for OpcodeLocation {
             return Err(OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()));
         }
 
-        fn parse_components(parts: Vec<&str>) -> Result<OpcodeLocation, ParseIntError> {
+        fn parse_components(parts: &[&str]) -> Result<OpcodeLocation, ParseIntError> {
             match parts.len() {
                 1 => {
                     let index = parts[0].parse()?;
@@ -239,7 +239,7 @@ impl FromStr for OpcodeLocation {
             }
         }
 
-        parse_components(parts)
+        parse_components(&parts)
             .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))
     }
 }
@@ -268,11 +268,11 @@ impl<F: AcirField> Circuit<F> {
 
 impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     /// Compress a serialized [Program].
-    fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
+    fn compress(buf: &[u8]) -> std::io::Result<Vec<u8>> {
         let mut compressed: Vec<u8> = Vec::new();
         // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(&mut compressed, Compression::default());
-        encoder.write_all(&buf)?;
+        encoder.write_all(buf)?;
         encoder.finish()?;
         Ok(compressed)
     }
@@ -281,7 +281,7 @@ impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     pub fn serialize_program_with_format(program: &Self, format: serialization::Format) -> Vec<u8> {
         let program_bytes =
             serialize_with_format(program, format).expect("expected circuit to be serializable");
-        Self::compress(program_bytes).expect("expected circuit to compress")
+        Self::compress(&program_bytes).expect("expected circuit to compress")
     }
 
     /// Serialize and compress a [Program] into bytes, using the format from the environment, or the default format.

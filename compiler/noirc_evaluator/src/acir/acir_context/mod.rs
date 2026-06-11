@@ -290,7 +290,7 @@ impl<F: AcirField> AcirContext<F> {
                 vec![AcirValue::Var(var, NumericType::NativeField)],
                 vec![AcirType::NumericType(NumericType::NativeField)],
             )?;
-            Self::expect_one_var(results)
+            Self::expect_one_var(&results)
         };
 
         // Check that the inverted var is valid.
@@ -307,7 +307,7 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     // Returns the variable from the results, assuming it is the only result
-    fn expect_one_var(results: Vec<AcirValue>) -> AcirVar {
+    fn expect_one_var(results: &[AcirValue]) -> AcirVar {
         assert_eq!(results.len(), 1);
         match results[0] {
             AcirValue::Var(var, _) => var,

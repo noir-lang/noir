@@ -196,7 +196,7 @@ pub fn resolve_import(
         resolve_path_kind(path, importing_module, def_maps, references_tracker)?;
     let mut solver =
         ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
-    solver.resolve_name_in_module(path, module_id)
+    solver.resolve_name_in_module(&path, module_id)
 }
 
 fn path_to_typed_path(path: Path) -> TypedPath {
@@ -381,7 +381,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
         &mut self,
-        path: TypedPath,
+        path: &TypedPath,
         starting_module: ModuleId,
     ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
@@ -394,7 +394,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         }
 
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, self.importing_module, starting_module);
+            first_segment_is_always_visible(path, self.importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;

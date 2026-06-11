@@ -1603,7 +1603,7 @@ impl NodeInterner {
         trait_id: TraitId,
         impl_id: TraitImplId,
         trait_impl_generics: &[Type],
-        impl_self_type: Type,
+        impl_self_type: &Type,
     ) -> TypeBindings {
         let mut bindings = TypeBindings::default();
         let mut visited = HashSet::default();
@@ -1612,7 +1612,7 @@ impl NodeInterner {
             trait_id,
             impl_id,
             trait_impl_generics,
-            &impl_self_type,
+            impl_self_type,
             TYPE_RECURSION_LIMIT,
             &mut visited,
             &mut bindings,

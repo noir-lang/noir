@@ -40,7 +40,7 @@ pub(super) fn simplify_call(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
+    ctrl_typevars: Option<&[Type]>,
     call_stack: CallStackId,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
@@ -48,7 +48,7 @@ pub(super) fn simplify_call(
         _ => return SimplifyResult::None,
     };
 
-    let return_type = ctrl_typevars.and_then(|return_types| return_types.first().cloned());
+    let return_type = ctrl_typevars.and_then(|return_types| return_types.first());
 
     let constant_args: Option<Vec<_>> =
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
@@ -56,7 +56,7 @@ pub(super) fn simplify_call(
     let simplified_result = match intrinsic {
         Intrinsic::ToBits(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
                 let field = constant_args[0];
                 let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
@@ -76,7 +76,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let Type::Array(_, limb_count) = return_type else {
@@ -385,7 +385,7 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedTo(dfg.make_constant(result, NumericType::bool()))
         }
         Intrinsic::DerivePedersenGenerators => {
-            if let Some(Type::Array(_, len)) = return_type.clone() {
+            if let Some(Type::Array(_, len)) = return_type {
                 simplify_derive_generators(dfg, arguments, len.0, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
@@ -416,7 +416,7 @@ pub(super) fn simplify_call(
         (return_type, &simplified_result)
     {
         assert_eq!(
-            *dfg.type_of_value(*result),
+            dfg.type_of_value(*result).as_ref(),
             expected_types,
             "Simplification should not alter return type"
         );

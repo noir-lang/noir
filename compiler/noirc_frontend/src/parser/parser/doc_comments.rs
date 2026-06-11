@@ -13,7 +13,7 @@ impl Parser<'_> {
     }
 
     fn parse_inner_doc_comment(&mut self) -> Option<DocComment> {
-        self.eat_kind(TokenKind::InnerDocComment).map(|token| {
+        self.eat_kind(&TokenKind::InnerDocComment).map(|token| {
             let location = token.location();
             match token.into_token() {
                 Token::LineComment(comment, Some(DocStyle::Inner)) => {
@@ -21,7 +21,7 @@ impl Parser<'_> {
                     DocComment::from(location, comment)
                 }
                 Token::BlockComment(comment, Some(DocStyle::Inner)) => {
-                    let comment = fix_block_comment(comment);
+                    let comment = fix_block_comment(&comment);
                     DocComment::from(location, comment)
                 }
                 _ => unreachable!(),
@@ -36,7 +36,7 @@ impl Parser<'_> {
 
     /// OuterDocComment = outer_doc_comment
     pub(super) fn parse_outer_doc_comment(&mut self) -> Option<DocComment> {
-        self.eat_kind(TokenKind::OuterDocComment).map(|token| {
+        self.eat_kind(&TokenKind::OuterDocComment).map(|token| {
             let location = token.location();
             match token.into_token() {
                 Token::LineComment(comment, Some(DocStyle::Outer)) => {
@@ -44,7 +44,7 @@ impl Parser<'_> {
                     DocComment::from(location, comment)
                 }
                 Token::BlockComment(comment, Some(DocStyle::Outer)) => {
-                    let comment = fix_block_comment(comment);
+                    let comment = fix_block_comment(&comment);
                     DocComment::from(location, comment)
                 }
                 _ => unreachable!(),
@@ -78,8 +78,8 @@ fn fix_line_comment(comment: String) -> String {
 }
 
 /// Strips leading '*' from a block comment if all non-empty lines have it.
-fn fix_block_comment(comment: String) -> String {
-    let all_stars = block_comment_has_all_leading_stars(&comment);
+fn fix_block_comment(comment: &str) -> String {
+    let all_stars = block_comment_has_all_leading_stars(comment);
 
     let mut fixed_comment = String::new();
     for (index, line) in comment.lines().enumerate() {

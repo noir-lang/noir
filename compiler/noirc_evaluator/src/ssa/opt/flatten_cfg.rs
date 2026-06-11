@@ -589,8 +589,7 @@ impl<'f> Context<'f> {
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
                 let call_stack = *call_stack;
-                let return_values =
-                    vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let return_values = vecmap(return_values, |value| self.inserter.resolve(*value));
                 let new_return = TerminatorInstruction::Return { return_values, call_stack };
                 let target = self.target_block;
 

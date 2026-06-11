@@ -24,8 +24,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_entry_point_artifact(
-        arguments: Vec<BrilligParameter>,
-        return_parameters: Vec<BrilligParameter>,
+        arguments: &[BrilligParameter],
+        return_parameters: &[BrilligParameter],
         target_function: FunctionId,
         globals_init: bool,
         globals_memory_size: usize,
@@ -37,15 +37,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.set_globals_memory_size(Some(globals_memory_size));
 
         let stack_start = context.codegen_entry_point(
-            &arguments,
-            &return_parameters,
+            arguments,
+            return_parameters,
             target_function,
             globals_init,
         );
 
         context.add_external_call_instruction(target_function);
 
-        context.codegen_exit_point(&arguments, &return_parameters);
+        context.codegen_exit_point(arguments, return_parameters);
         (context.into_artifact(), stack_start)
     }
 
@@ -439,7 +439,7 @@ mod tests {
         let return_value = BrilligVariable::from(SingleAddrVariable::new_usize(*array_value));
         context.codegen_return(&[return_value]);
 
-        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
         let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
         assert_eq!(return_data_size, 1, "Return data size is incorrect");
         assert_eq!(vm.get_memory()[return_data_offset].to_field(), FieldElement::from(1_usize));
@@ -472,7 +472,7 @@ mod tests {
 
         context.codegen_return(&[return_register.to_var()]);
 
-        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
         let (vm, return_data_pointer, return_data_size) =
             create_and_run_vm(flattened_array.clone(), &bytecode);
         let memory = vm.get_memory();

@@ -42,7 +42,7 @@ impl Parser<'_> {
             let kind = self.parse_statement_kind(attributes);
             self.statement_comments = None;
 
-            let (semicolon_token, semicolon_location) = if self.at(Token::Semicolon) {
+            let (semicolon_token, semicolon_location) = if self.at(&Token::Semicolon) {
                 let token = self.token.clone();
                 self.bump();
                 let location = token.location();
@@ -61,7 +61,7 @@ impl Parser<'_> {
 
             self.expected_label(ParsingRuleLabel::Statement);
 
-            if semicolon_token.is_some() || self.at(Token::RightBrace) || self.at_eof() {
+            if semicolon_token.is_some() || self.at(&Token::RightBrace) || self.at_eof() {
                 return None;
             } else {
                 self.bump();
@@ -102,7 +102,7 @@ impl Parser<'_> {
     ) -> Option<StatementKind> {
         let start_location = self.current_token_location;
 
-        if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
                     return Some(StatementKind::Interned(statement));
@@ -154,7 +154,7 @@ impl Parser<'_> {
             return Some(StatementKind::Expression(expression));
         }
 
-        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
                     let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
@@ -215,7 +215,7 @@ impl Parser<'_> {
 
     fn next_is_op_assign(&mut self) -> Option<AssignOp> {
         let start_location = self.current_token_location;
-        let operator = if self.next_is(Token::Assign) {
+        let operator = if self.next_is(&Token::Assign) {
             match self.token.token() {
                 Token::Plus => Some(AssignOpKind::Add),
                 Token::Minus => Some(AssignOpKind::Subtract),
@@ -227,10 +227,10 @@ impl Parser<'_> {
                 Token::Pipe => Some(AssignOpKind::Or),
                 _ => None,
             }
-        } else if self.at(Token::Greater) && self.next_is(Token::GreaterEqual) {
+        } else if self.at(&Token::Greater) && self.next_is(&Token::GreaterEqual) {
             // >>=
             Some(AssignOpKind::ShiftRight)
-        } else if self.at(Token::Less) && self.next_is(Token::LessEqual) {
+        } else if self.at(&Token::Less) && self.next_is(&Token::LessEqual) {
             // <<=
             Some(AssignOpKind::ShiftLeft)
         } else {
@@ -345,10 +345,10 @@ impl Parser<'_> {
     fn parse_for_range(&mut self) -> ForRange {
         let expr = self.parse_expression_except_constructor_or_error();
 
-        if self.eat(Token::DoubleDot) {
+        if self.eat(&Token::DoubleDot) {
             let end = self.parse_expression_except_constructor_or_error();
             ForRange::Range(ForBounds { start: expr, end, inclusive: false })
-        } else if self.eat(Token::DoubleDotEqual) {
+        } else if self.eat(&Token::DoubleDotEqual) {
             let end = self.parse_expression_except_constructor_or_error();
             ForRange::Range(ForBounds { start: expr, end, inclusive: true })
         } else {
@@ -439,8 +439,8 @@ impl Parser<'_> {
         let pattern = self.parse_pattern_or_error();
         let r#type = self.parse_optional_type_annotation();
         let r#type = if r#type.is_none()
-            && !self.at(Token::Assign)
-            && !self.at(Token::Semicolon)
+            && !self.at(&Token::Assign)
+            && !self.at(&Token::Semicolon)
             && !self.at_eof()
         {
             if let Some(typ) = self.parse_type_allowing_generics(true) {

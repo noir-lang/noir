@@ -841,7 +841,7 @@ impl<'context> Elaborator<'context> {
             }
             Type::DataType(datatype, generics) => {
                 if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
-                    self.mark_struct_as_constructed(datatype.clone());
+                    self.mark_struct_as_constructed(datatype);
                     for generic in generics {
                         self.mark_type_as_used_helper(
                             generic,
@@ -1086,7 +1086,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
-        self.generics = trait_impl.resolved_generics.clone();
+        self.generics.clone_from(&trait_impl.resolved_generics);
         self.current_trait_impl = trait_impl.impl_id;
         self.current_trait = trait_impl.trait_id;
 

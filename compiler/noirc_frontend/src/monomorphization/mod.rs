@@ -601,7 +601,11 @@ impl<'interner> Monomorphizer<'interner> {
         // When this is dropped, the binding is removed.
         let _self_type_guard = self.bind_function_trait_self(&f);
 
-        let meta = self.interner.function_meta(&f).clone();
+        let meta = self.interner.function_meta(&f);
+        let func_parameters = meta.parameters.clone();
+        let meta_return_type = meta.return_type().clone();
+        let return_type_location = meta.return_type.location();
+        let return_visibility = meta.return_visibility;
 
         let modifiers = self.interner.function_modifiers(&f);
         let name = self.interner.function_name(&f).to_owned();
@@ -612,7 +616,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let body_expr_id = self.interner.function(&f).as_expr();
         let body_return_type = self.interner.id_type(body_expr_id);
-        let return_target_type = match meta.return_type() {
+        let return_target_type = match &meta_return_type {
             Type::TraitAsType(..) => &body_return_type,
             other => other,
         };
@@ -630,7 +634,7 @@ impl<'interner> Monomorphizer<'interner> {
         // generics (type variables) can't be known until monomorphization, so here we have
         // to check again.
         if is_fold || is_no_predicate {
-            for (pattern, typ, _visibility) in &meta.parameters.0 {
+            for (pattern, typ, _visibility) in &func_parameters.0 {
                 if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
                     let location = pattern.location();
                     return Err(MonomorphizationError::InvalidTypeForEntryPoint {
@@ -642,7 +646,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             let output = true;
             if let Some(invalid_type) = return_target_type.program_validity(output) {
-                let location = meta.return_type.location();
+                let location = return_type_location;
                 return Err(MonomorphizationError::InvalidTypeForEntryPoint {
                     invalid_type,
                     location,
@@ -654,9 +658,8 @@ impl<'interner> Monomorphizer<'interner> {
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         let return_type = Self::convert_type(return_target_type, location)?;
-        let return_visibility = meta.return_visibility;
 
-        let parameters = self.parameters(&meta.parameters)?;
+        let parameters = self.parameters(&func_parameters)?;
 
         let body = self.expr_with_force_unconstrained_target(body_expr_id, return_target_type)?;
         let function = Function {
@@ -1135,7 +1138,8 @@ impl<'interner> Monomorphizer<'interner> {
 
         let field_types = unwrap_struct_type(typ, location)?;
 
-        let field_type_map = btree_map(&field_types, |(name, typ, _)| (name.clone(), typ.clone()));
+        let field_type_map: BTreeMap<&str, &Type> =
+            field_types.iter().map(|(name, typ, _)| (name.as_str(), typ)).collect();
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -1144,7 +1148,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_local_id();
-            let field_type = field_type_map.get(field_name.as_str()).unwrap();
+            let field_type = *field_type_map.get(field_name.as_str()).unwrap();
             let location = self.interner.expr_location(&expr_id);
             let typ = Self::convert_type(field_type, location)?;
 
@@ -1483,7 +1487,7 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let location = self.interner.id_location(expr_id);
                 let value = Type::TypeVariable(type_variable.clone());
-                self.numeric_generic(value, numeric_typ.as_ref().clone(), typ, location)
+                self.numeric_generic(value, numeric_typ.as_ref(), typ, location)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
@@ -1586,7 +1590,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn numeric_generic(
         &self,
         value: Type,
-        expected_type: Type,
+        expected_type: &Type,
         expr_type: Type,
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -1601,7 +1605,7 @@ impl<'interner> Monomorphizer<'interner> {
             return Err(MonomorphizationError::InternalError { location, message });
         }
 
-        let typ = Self::convert_type(&expected_type, location)?;
+        let typ = Self::convert_type(expected_type, location)?;
         Ok(ast::Expression::Literal(ast::Literal::Integer(value.as_field(), typ, location)))
     }
 
@@ -2179,7 +2183,7 @@ impl<'interner> Monomorphizer<'interner> {
             TraitItem::Constant { id, expected_type, value } => {
                 let location = self.interner.definition(id).location;
                 let expr_type = self.interner.id_type(expr_id);
-                return self.numeric_generic(value, expected_type, expr_type, location);
+                return self.numeric_generic(value, &expected_type, expr_type, location);
             }
         };
 

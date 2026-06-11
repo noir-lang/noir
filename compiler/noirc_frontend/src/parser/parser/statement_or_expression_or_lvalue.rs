@@ -24,14 +24,14 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
 
         // First check if it's an interned LValue
-        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(interned) => {
                     let location = self.location_since(start_location);
                     let interned_lvalue = || LValue::Interned(interned, location);
 
                     // If it is, it could be something like `lvalue = expr`: check that.
-                    if self.eat(Token::Assign) {
+                    if self.eat(&Token::Assign) {
                         let expression = self.parse_expression_or_error();
                         let kind = StatementKind::Assign(AssignStatement {
                             lvalue: interned_lvalue(),
@@ -41,7 +41,7 @@ impl Parser<'_> {
                             kind,
                             location: self.location_since(start_location),
                         });
-                    } else if self.current_is(Token::Dot) {
+                    } else if self.current_is(&Token::Dot) {
                         let object = Expression {
                             kind: ExpressionKind::Interned(interned),
                             location: self.location_since(start_location),

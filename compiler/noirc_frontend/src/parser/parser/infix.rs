@@ -41,9 +41,9 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_or,
-            if self.eat(Token::Equal) {
+            if self.eat(&Token::Equal) {
                 BinaryOpKind::Equal
-            } else if self.eat(Token::NotEqual) {
+            } else if self.eat(&Token::NotEqual) {
                 BinaryOpKind::NotEqual
             } else {
                 break;
@@ -59,9 +59,9 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_and,
-            if self.next_is(Token::Assign) {
+            if self.next_is(&Token::Assign) {
                 break;
-            } else if self.eat(Token::Pipe) {
+            } else if self.eat(&Token::Pipe) {
                 BinaryOpKind::Or
             } else {
                 break;
@@ -78,11 +78,11 @@ impl Parser<'_> {
             self,
             Parser::parse_xor,
             // Don't parse `x &= ...`, etc.
-            if self.next_is(Token::Assign) {
+            if self.next_is(&Token::Assign) {
                 break;
-            } else if self.eat(Token::Ampersand) {
+            } else if self.eat(&Token::Ampersand) {
                 BinaryOpKind::And
-            } else if self.eat(Token::LogicalAnd) {
+            } else if self.eat(&Token::LogicalAnd) {
                 self.push_error(ParserErrorReason::LogicalAnd, self.previous_token_location);
                 BinaryOpKind::And
             } else {
@@ -100,9 +100,9 @@ impl Parser<'_> {
             self,
             Parser::parse_less_or_greater,
             // Don't parse `x |= ...`, etc.
-            if self.next_is(Token::Assign) {
+            if self.next_is(&Token::Assign) {
                 break;
-            } else if self.eat(Token::Caret) {
+            } else if self.eat(&Token::Caret) {
                 BinaryOpKind::Xor
             } else {
                 break;
@@ -118,15 +118,15 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_shift,
-            if self.next_token.token() != &Token::LessEqual && self.eat(Token::Less) {
+            if self.next_token.token() != &Token::LessEqual && self.eat(&Token::Less) {
                 // Make sure to skip the `<<=` case, as `<<=` is lexed as `< <=`.
                 BinaryOpKind::Less
-            } else if self.eat(Token::LessEqual) {
+            } else if self.eat(&Token::LessEqual) {
                 BinaryOpKind::LessEqual
-            } else if self.next_token.token() != &Token::GreaterEqual && self.eat(Token::Greater) {
+            } else if self.next_token.token() != &Token::GreaterEqual && self.eat(&Token::Greater) {
                 // Make sure to skip the `>>=` case, as `>>=` is lexed as `> >=`.
                 BinaryOpKind::Greater
-            } else if self.eat(Token::GreaterEqual) {
+            } else if self.eat(&Token::GreaterEqual) {
                 BinaryOpKind::GreaterEqual
             } else {
                 break;
@@ -142,14 +142,14 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_add_or_subtract,
-            if self.at(Token::Less) && self.next_is(Token::Less) {
+            if self.at(&Token::Less) && self.next_is(&Token::Less) {
                 // Left-shift (<<) is issued as two separate < tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two less-than tokens as a single left-shift here.
                 self.bump();
                 self.bump();
                 BinaryOpKind::ShiftLeft
-            } else if self.at(Token::Greater) && self.next_is(Token::Greater) {
+            } else if self.at(&Token::Greater) && self.next_is(&Token::Greater) {
                 // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two greater-than tokens as a single right-shift here.
@@ -170,11 +170,11 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_multiply_or_divide_or_modulo,
-            if self.next_is(Token::Assign) {
+            if self.next_is(&Token::Assign) {
                 break;
-            } else if self.eat(Token::Plus) {
+            } else if self.eat(&Token::Plus) {
                 BinaryOpKind::Add
-            } else if self.eat(Token::Minus) {
+            } else if self.eat(&Token::Minus) {
                 BinaryOpKind::Subtract
             } else {
                 break;
@@ -193,13 +193,13 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_term,
-            if self.next_is(Token::Assign) {
+            if self.next_is(&Token::Assign) {
                 break;
-            } else if self.eat(Token::Star) {
+            } else if self.eat(&Token::Star) {
                 BinaryOpKind::Multiply
-            } else if self.eat(Token::Slash) {
+            } else if self.eat(&Token::Slash) {
                 BinaryOpKind::Divide
-            } else if self.eat(Token::Percent) {
+            } else if self.eat(&Token::Percent) {
                 BinaryOpKind::Modulo
             } else {
                 break;

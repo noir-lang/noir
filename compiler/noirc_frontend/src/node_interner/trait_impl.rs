@@ -22,6 +22,7 @@ use super::NodeInterner;
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
 /// Modes that affect the behavior of [NodeInterner::try_lookup_trait_implementation].
+#[derive(Clone, Copy)]
 pub(crate) enum TraitLookupMode {
     /// Does not look up implementations for bindable object types, but matches any [TraitImplKind].
     Default,

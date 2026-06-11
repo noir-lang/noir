@@ -97,7 +97,7 @@ impl Parser<'_> {
 
         // `&&` (LogicalAnd) in unary context is two nested references: `&&x` is `&(&x)`,
         // `&&mut x` is `&(&mut x)`. Same approach as `parse_reference_type` for `&&Type`.
-        if self.eat(Token::LogicalAnd) {
+        if self.eat(&Token::LogicalAnd) {
             let mutable = self.eat_keyword(Keyword::Mut);
             let Some(rhs) = self.parse_unary(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
@@ -126,19 +126,19 @@ impl Parser<'_> {
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        if self.at(Token::Ampersand) {
+        if self.at(&Token::Ampersand) {
             let mut mutable = false;
-            if self.next_is(Token::Keyword(Keyword::Mut)) {
+            if self.next_is(&Token::Keyword(Keyword::Mut)) {
                 mutable = true;
                 self.bump();
             }
             self.bump();
             Some(UnaryOp::Reference { mutable })
-        } else if self.eat(Token::Minus) {
+        } else if self.eat(&Token::Minus) {
             Some(UnaryOp::Minus)
-        } else if self.eat(Token::Bang) {
+        } else if self.eat(&Token::Bang) {
             Some(UnaryOp::Not)
-        } else if self.eat(Token::Star) {
+        } else if self.eat(&Token::Star) {
             Some(UnaryOp::Dereference { implicitly_added: false })
         } else {
             None
@@ -324,8 +324,8 @@ impl Parser<'_> {
 
     fn parse_generics_after_member_access_field_name(&mut self) -> Option<Vec<UnresolvedType>> {
         if self.eat_double_colon() {
-            let generics =
-                self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls);
+            let generics = self
+                .parse_path_generics(&ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls);
             if generics.is_none() {
                 self.expected_token(Token::Less);
             }
@@ -380,7 +380,7 @@ impl Parser<'_> {
         if matches!(
             self.token.token(),
             Token::InternedUnresolvedTypeData(..) | Token::QuotedType(..)
-        ) && self.next_is(Token::LeftBrace)
+        ) && self.next_is(&Token::LeftBrace)
         {
             let location = self.current_token_location;
             let typ = self.parse_interned_type().or_else(|| self.parse_resolved_type()).unwrap();
@@ -458,7 +458,7 @@ impl Parser<'_> {
 
     /// InternedExpression = interned_expr
     fn parse_interned_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::InternedExpr) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedExpr) {
             match token.into_token() {
                 Token::InternedExpr(id) => return Some(ExpressionKind::Interned(id)),
                 _ => unreachable!(""),
@@ -470,7 +470,7 @@ impl Parser<'_> {
 
     /// InternedStatementExpression = interned_statement
     fn parse_interned_statement_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(id) => return Some(ExpressionKind::InternedStatement(id)),
                 _ => unreachable!(""),
@@ -548,7 +548,7 @@ impl Parser<'_> {
         // Loop to do some error recovery
         loop {
             // Make sure not to loop forever
-            if self.at_eof() || self.at(Token::RightBrace) {
+            if self.at_eof() || self.at(&Token::RightBrace) {
                 return None;
             }
 
@@ -557,7 +557,7 @@ impl Parser<'_> {
                 self.expected_identifier();
                 self.bump();
                 // Don't error again if a comma comes next
-                if self.at(Token::Comma) {
+                if self.at(&Token::Comma) {
                     self.bump();
                 }
                 continue;
@@ -568,7 +568,7 @@ impl Parser<'_> {
             return Some(if self.eat_colon() {
                 let expression = self.parse_expression_or_error();
                 (ident, expression)
-            } else if self.at(Token::DoubleColon) || self.at(Token::Assign) {
+            } else if self.at(&Token::DoubleColon) || self.at(&Token::Assign) {
                 // If we find '='  or '::' instead of ':', assume the user meant ':`, error and continue
                 self.expected_token(Token::Colon);
                 self.bump();
@@ -595,7 +595,7 @@ impl Parser<'_> {
             let errors_before_consequence = self.errors.len();
             let looks_like_struct_literal = matches!(condition.kind, ExpressionKind::Variable(_))
                 && matches!(self.token.token(), Token::Ident(..))
-                && self.next_is(Token::Colon);
+                && self.next_is(&Token::Colon);
 
             let mut consequence = self.parse_block_after_left_brace();
 
@@ -753,7 +753,7 @@ impl Parser<'_> {
     fn parse_unquote_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
 
-        if !self.eat(Token::DollarSign) {
+        if !self.eat(&Token::DollarSign) {
             return None;
         }
 
@@ -791,7 +791,7 @@ impl Parser<'_> {
         let location = self.location_since(start_location);
         let typ = UnresolvedType { typ, location };
 
-        if self.at(Token::DoubleColon) {
+        if self.at(&Token::DoubleColon) {
             Some(ExpressionKind::TypePath(Box::new(self.parse_type_path_expr_for_type(typ))))
         } else {
             // This is the case when we find `Field` or `i32` but `::` doesn't follow it.
@@ -920,7 +920,7 @@ impl Parser<'_> {
             self.eat_or_error(Token::RightBracket);
 
             // If it's `[expr; length]::ident`, give an error that it's missing `<...>`
-            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+            if self.at(&Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
                 // Remove any errors that happened during `[...]` as it's likely they happened
                 // because of the missing angle brackets.
                 self.errors.truncate(errors_before_array);
@@ -961,7 +961,7 @@ impl Parser<'_> {
 
     /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::At) && self.next_is(Token::LeftBracket)) {
+        if !(self.at(&Token::At) && self.next_is(&Token::LeftBracket)) {
             return None;
         }
 
@@ -989,7 +989,7 @@ impl Parser<'_> {
 
         if self.eat_right_paren() {
             // If it's `()::ident`, parse it as a type path but produce an error saying it should be `<()>::ident`.
-            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+            if self.at(&Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
                 let location = self.location_since(start_location);
                 let typ = UnresolvedTypeData::Unit;
                 let typ = UnresolvedType { typ, location };
@@ -1010,7 +1010,7 @@ impl Parser<'_> {
         );
 
         // If it's `(..)::ident`, give an error that it's missing `<...>`
-        if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+        if self.at(&Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
             // Remove any errors that happened during `(...)` as it's likely they happened
             // because of the missing angle brackets.
             self.errors.truncate(errors_before_parentheses);

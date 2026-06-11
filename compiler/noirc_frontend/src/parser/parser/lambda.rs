@@ -14,7 +14,7 @@ impl Parser<'_> {
     /// LambdaParameter
     ///     = Pattern OptionalTypeAnnotation
     pub(super) fn parse_lambda(&mut self) -> Option<ExpressionKind> {
-        let unconstrained = self.next_is(Token::Pipe) && self.eat_keyword(Keyword::Unconstrained);
+        let unconstrained = self.next_is(&Token::Pipe) && self.eat_keyword(Keyword::Unconstrained);
 
         if !self.eat_pipe() {
             return None;
@@ -22,7 +22,7 @@ impl Parser<'_> {
 
         let parameters = self.parse_lambda_parameters();
         let return_type =
-            if self.eat(Token::Arrow) { Some(self.parse_type_or_error()) } else { None };
+            if self.eat(&Token::Arrow) { Some(self.parse_type_or_error()) } else { None };
         let body = self.parse_expression_or_error();
 
         Some(ExpressionKind::Lambda(Box::new(Lambda {

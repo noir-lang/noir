@@ -595,7 +595,7 @@ impl Elaborator<'_> {
 
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
-                typ.clone(),
+                &typ,
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused

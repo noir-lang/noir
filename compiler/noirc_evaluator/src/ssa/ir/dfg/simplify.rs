@@ -102,7 +102,7 @@ pub(crate) fn simplify(
     instruction: &Instruction,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
+    ctrl_typevars: Option<&[Type]>,
     call_stack: CallStackId,
 ) -> SimplifyResult {
     use SimplifyResult::*;

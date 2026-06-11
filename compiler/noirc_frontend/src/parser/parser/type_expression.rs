@@ -37,9 +37,9 @@ impl Parser<'_> {
         start_location: Location,
     ) -> UnresolvedTypeExpression {
         loop {
-            let operator = if self.eat(Token::Plus) {
+            let operator = if self.eat(&Token::Plus) {
                 BinaryTypeOperator::Addition
-            } else if self.eat(Token::Minus) {
+            } else if self.eat(&Token::Minus) {
                 BinaryTypeOperator::Subtraction
             } else {
                 break;
@@ -80,11 +80,11 @@ impl Parser<'_> {
         start_location: Location,
     ) -> UnresolvedTypeExpression {
         loop {
-            let operator = if self.eat(Token::Star) {
+            let operator = if self.eat(&Token::Star) {
                 BinaryTypeOperator::Multiplication
-            } else if self.eat(Token::Slash) {
+            } else if self.eat(&Token::Slash) {
                 BinaryTypeOperator::Division
-            } else if self.eat(Token::Percent) {
+            } else if self.eat(&Token::Percent) {
                 BinaryTypeOperator::Modulo
             } else {
                 break;
@@ -115,7 +115,7 @@ impl Parser<'_> {
     ///    | AtomTypeExpression
     fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_location = self.current_token_location;
-        if self.eat(Token::Minus) {
+        if self.eat(&Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let location = self.location_since(start_location);
@@ -171,7 +171,7 @@ impl Parser<'_> {
     /// ParenthesizedTypeExpression = '(' TypeExpression ')'
     fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         // Make sure not to parse `()` as a parenthesized expression
-        if self.at(Token::LeftParen) && !self.next_is(Token::RightParen) {
+        if self.at(&Token::LeftParen) && !self.next_is(&Token::RightParen) {
             self.bump();
             match self.parse_type_expression() {
                 Ok(type_expr) => {
@@ -259,7 +259,7 @@ impl Parser<'_> {
 
     fn parse_term_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_location = self.current_token_location;
-        if self.eat(Token::Minus) {
+        if self.eat(&Token::Minus) {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {

@@ -91,7 +91,7 @@ impl Parser<'_> {
     ) -> FunctionDefinitionWithOptionalBody {
         let name = if let Some(name) = self.eat_non_underscore_ident() {
             name
-        } else if self.at(Token::LeftParen) || self.at(Token::Less) {
+        } else if self.at(&Token::LeftParen) || self.at(&Token::Less) {
             // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function
             // definition follows. This can happen if the user is currently renaming a function by first
             // erasing the name.
@@ -116,34 +116,34 @@ impl Parser<'_> {
             }
         };
 
-        let (return_type, return_visibility, return_visibility_location) = if self.eat(Token::Arrow)
-        {
-            let (visibility, location) = self.parse_visibility();
-            (FunctionReturnType::Ty(self.parse_type_or_error()), visibility, location)
-        } else {
-            // This will return the span between `)` and `{`
-            //
-            // fn foo() { }
-            //        ^^^
-            let mut location = self.previous_token_location.merge(self.current_token_location);
+        let (return_type, return_visibility, return_visibility_location) =
+            if self.eat(&Token::Arrow) {
+                let (visibility, location) = self.parse_visibility();
+                (FunctionReturnType::Ty(self.parse_type_or_error()), visibility, location)
+            } else {
+                // This will return the span between `)` and `{`
+                //
+                // fn foo() { }
+                //        ^^^
+                let mut location = self.previous_token_location.merge(self.current_token_location);
 
-            // Here we change it to this (if there's space)
-            //
-            // fn foo() { }
-            //         ^
-            if location.span.end() - location.span.start() >= 3 {
-                location = Location::new(
-                    Span::from(location.span.start() + 1..location.span.end() - 1),
-                    location.file,
-                );
-            }
+                // Here we change it to this (if there's space)
+                //
+                // fn foo() { }
+                //         ^
+                if location.span.end() - location.span.start() >= 3 {
+                    location = Location::new(
+                        Span::from(location.span.start() + 1..location.span.end() - 1),
+                        location.file,
+                    );
+                }
 
-            (
-                FunctionReturnType::Default(location),
-                Visibility::Private,
-                self.location_at_previous_token_end(),
-            )
-        };
+                (
+                    FunctionReturnType::Default(location),
+                    Visibility::Private,
+                    self.location_at_previous_token_end(),
+                )
+            };
 
         let where_clause = self.parse_where_clause();
 

@@ -426,7 +426,7 @@ impl<'f> Context<'f> {
                         incoming_edges
                             .entry(*destination)
                             .or_default()
-                            .push((block_id, arguments.to_vec()));
+                            .push((block_id, arguments.clone()));
                         if back_edges.contains(&(block_id, *destination)) {
                             back_edge_args.extend(arguments.iter().copied());
                         }
@@ -441,11 +441,11 @@ impl<'f> Context<'f> {
                         incoming_edges
                             .entry(*then_destination)
                             .or_default()
-                            .push((block_id, then_arguments.to_vec()));
+                            .push((block_id, then_arguments.clone()));
                         incoming_edges
                             .entry(*else_destination)
                             .or_default()
-                            .push((block_id, else_arguments.to_vec()));
+                            .push((block_id, else_arguments.clone()));
                         if back_edges.contains(&(block_id, *then_destination)) {
                             back_edge_args.extend(then_arguments.iter().copied());
                         }

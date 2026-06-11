@@ -323,7 +323,7 @@ impl DataFlowGraph {
         }
 
         let simplify_result =
-            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+            simplify(&instruction, self, block, ctrl_typevars.as_deref(), call_stack);
 
         match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
@@ -378,10 +378,12 @@ impl DataFlowGraph {
                 // Pull off the last instruction as we want to return its results.
                 let last_instruction = instructions.pop().expect("`instructions` can't be empty");
                 for instruction in instructions {
+                    // These are all `Constrain` instructions, which have no results and so
+                    // never need control type variables.
                     self.insert_instruction_without_simplification(
                         instruction,
                         block,
-                        ctrl_typevars.clone(),
+                        None,
                         call_stack,
                     );
                 }

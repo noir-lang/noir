@@ -506,7 +506,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(" {\n");
         self.increase_indent();
 
-        self.trait_constraints = trait_impl.where_clause.clone();
+        self.trait_constraints.clone_from(&trait_impl.where_clause);
 
         self.self_type = Some(trait_impl.typ.clone());
 
@@ -1049,7 +1049,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str(&format!("{std}::mem::zeroed()"));
             }
             Value::Closure(closure) => {
-                self.show_hir_lambda(closure.lambda.clone());
+                self.show_hir_lambda(&closure.lambda);
             }
             Value::TypeDefinition(_)
             | Value::TraitConstraint(..)

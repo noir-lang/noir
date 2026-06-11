@@ -774,7 +774,7 @@ impl Value {
         let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
-                parse_tokens(tokens, elaborator, parser, location, "top-level item")
+                parse_tokens(&tokens, elaborator, parser, location, "top-level item")
             }
             _ => {
                 let typ = self.get_type().into_owned();
@@ -815,7 +815,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 ///
 /// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
 fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<LocatedToken>>,
+    tokens: &Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
@@ -836,7 +836,7 @@ where
         Err(errors) => {
             let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
             let error = Box::new(error);
-            let tokens = tokens_to_string(&tokens, elaborator.interner, elaborator.files);
+            let tokens = tokens_to_string(tokens, elaborator.interner, elaborator.files);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
     }

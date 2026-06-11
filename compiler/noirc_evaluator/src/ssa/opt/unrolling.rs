@@ -246,7 +246,7 @@ impl Function {
         // which the next iteration discovers and unrolls.
         loop {
             let mut loops = Loops::find_all(self, order);
-            loops.callee_costs = callee_costs.clone();
+            loops.callee_costs.clone_from(callee_costs);
 
             let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
                 loops,

@@ -314,7 +314,7 @@ mod tests {
             context.codegen_return(&[target_vector.to_var()]);
 
             // Compile to byte code.
-            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+            let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
 
             // Prepare flattened inputs.
             let inputs = [vec![source_len.into()], source, vec![item_to_push]].concat();
@@ -499,7 +499,7 @@ mod tests {
 
             context.codegen_return(&[removed_item.to_var(), target_vector.to_var()]);
 
-            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+            let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
 
             let inputs = [vec![source_len.into()], source].concat();
 
@@ -641,7 +641,7 @@ mod tests {
             context.codegen_return(&[target_vector.to_var()]);
             let calldata = array.into_iter().chain(vec![item]).chain(vec![index]).collect();
 
-            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+            let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
             assert_eq!(return_data_size, result_length_with_metadata);
 
@@ -783,7 +783,7 @@ mod tests {
 
             let calldata: Vec<_> = array.into_iter().chain(vec![index]).collect();
 
-            let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+            let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
 
             // vector + removed item

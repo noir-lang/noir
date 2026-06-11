@@ -1241,12 +1241,8 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
-    let mut bindings = interner.trait_to_impl_bindings(
-        impl_.trait_id,
-        impl_id,
-        ordered_generics,
-        impl_.typ.clone(),
-    );
+    let mut bindings =
+        interner.trait_to_impl_bindings(impl_.trait_id, impl_id, ordered_generics, &impl_.typ);
 
     // If this is None, the trait does not have the corresponding function.
     // This error should have been caught in name resolution already so we don't

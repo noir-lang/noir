@@ -18,7 +18,7 @@ fn bit_size(typ: &Type) -> u32 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum CastType {
     Truncate {
         new_bit_size: u32,

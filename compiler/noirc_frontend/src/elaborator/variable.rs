@@ -329,7 +329,7 @@ impl Elaborator<'_> {
             if let Some(assoc_type) =
                 self.interner.find_associated_type_for_impl(*trait_impl_id, name).cloned()
             {
-                let method_ident = variable.segments[2].ident.clone();
+                let method_ident = &variable.segments[2].ident;
                 let typ_location = variable.segments[1].location;
                 // Extract already-resolved turbofish generics from the path segment
                 let resolved_generics = variable.segments[2].generics.as_ref().map(|generics| {
@@ -374,7 +374,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let ident = variable.segments[1].ident.clone();
+        let ident = &variable.segments[1].ident;
         let typ_location = variable.segments[0].location;
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
@@ -554,7 +554,7 @@ impl Elaborator<'_> {
         let turbofish = path.turbofish;
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(path.typ, wildcard_allowed);
-        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+        self.elaborate_type_path_impl(typ, &path.item, turbofish, typ_location)
     }
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
@@ -562,7 +562,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         turbofish: Option<GenericTypeArgs>,
         typ_location: Location,
     ) -> (ExprId, Type) {
@@ -598,7 +598,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         resolved_generics: Option<Vec<Type>>,
         typ_location: Location,
     ) -> (ExprId, Type) {

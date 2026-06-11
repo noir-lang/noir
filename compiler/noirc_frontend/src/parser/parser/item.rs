@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     fn parse_module_item_in_list(&mut self, nested: bool) -> Vec<Item> {
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
-            if nested && self.at(Token::RightBrace) {
+            if nested && self.at(&Token::RightBrace) {
                 return vec![];
             }
 
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
     /// - If we can't parse an item and we don't end up in '}', error but try with the next token
     pub(super) fn parse_item_in_list<T, F>(
         &mut self,
-        label: ParsingRuleLabel,
+        label: &ParsingRuleLabel,
         mut f: F,
     ) -> Option<T>
     where
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             }
 
             let Some(item) = f(self) else {
-                if !self.at(Token::RightBrace) {
+                if !self.at(&Token::RightBrace) {
                     self.expected_label(label.clone());
 
                     // Try with the next token
@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
             true
         } else if !modifiers.is_empty()
             && matches!(self.token.token(), Token::Ident(..))
-            && self.next_is(Token::LeftParen)
+            && self.next_is(&Token::LeftParen)
         {
             // If it's something like `pub foo(` then it's likely the user forgot to put `fn` after `pub`,
             // so we error but keep parsing what comes next as a function.

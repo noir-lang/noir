@@ -1224,7 +1224,7 @@ impl Elaborator<'_> {
         };
         let struct_id = struct_type.borrow().id;
 
-        self.mark_struct_as_constructed(struct_type.clone());
+        self.mark_struct_as_constructed(&struct_type);
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
         let mut generics = generics.clone();
@@ -1266,12 +1266,8 @@ impl Elaborator<'_> {
             .get_fields_with_visibility(&generics)
             .expect("This type should already be validated to be a struct");
 
-        let fields = self.resolve_constructor_expr_fields(
-            struct_type.clone(),
-            field_types,
-            fields,
-            location,
-        );
+        let fields =
+            self.resolve_constructor_expr_fields(&struct_type, field_types, fields, location);
         let expr = HirExpression::Constructor(HirConstructorExpression {
             fields,
             r#type: struct_type.clone(),
@@ -1285,7 +1281,7 @@ impl Elaborator<'_> {
 
     /// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
+    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: &Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         self.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
@@ -1297,7 +1293,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_constructor_expr_fields(
         &mut self,
-        struct_type: Shared<DataType>,
+        struct_type: &Shared<DataType>,
         field_types: Vec<(String, ItemVisibility, Type)>,
         fields: Vec<(Ident, Expression)>,
         location: Location,
@@ -1449,7 +1445,7 @@ impl Elaborator<'_> {
 
         let file = infix.operator.location().file;
         let operator = HirBinaryOp::new(infix.operator, file);
-        self.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+        self.finish_infix(lhs, &lhs_type, operator, rhs, &rhs_type, location)
     }
 
     /// Complete infix elaboration given pre-elaborated operands.
@@ -1460,10 +1456,10 @@ impl Elaborator<'_> {
     pub(super) fn finish_infix(
         &mut self,
         lhs: ExprId,
-        lhs_type: Type,
+        lhs_type: &Type,
         operator: HirBinaryOp,
         rhs: ExprId,
-        rhs_type: Type,
+        rhs_type: &Type,
         location: Location,
     ) -> (ExprId, Type) {
         let opt_trait_id = self.interner.try_get_operator_trait_method(operator.kind);
@@ -1478,10 +1474,10 @@ impl Elaborator<'_> {
 
         let expr_id = self.intern_expr(expr, location);
 
-        let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
+        let result = self.infix_operand_type_rules(lhs_type, &operator, rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
             result,
-            &lhs_type,
+            lhs_type,
             opt_trait_id,
             *expr_id,
             location,
@@ -1728,7 +1724,7 @@ impl Elaborator<'_> {
                 (
                     self.elaborate_pattern(
                         pattern,
-                        typ.clone(),
+                        &typ,
                         parameter,
                         true, // warn_if_unused
                         true, // warn_if_not_mutated

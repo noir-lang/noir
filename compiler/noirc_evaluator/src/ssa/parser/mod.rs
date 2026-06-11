@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
         let globals = self.parse_globals()?;
 
         let mut functions = Vec::new();
-        while !self.at(Token::Eof) {
+        while !self.at(&Token::Eof) {
             let function = self.parse_function()?;
             functions.push(function);
         }
@@ -339,7 +339,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         self.eat_or_error(Token::LeftBracket)?;
 
-        if !self.eat(Token::RightBracket)? {
+        if !self.eat(&Token::RightBracket)? {
             loop {
                 let value = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Colon)?;
@@ -351,7 +351,7 @@ impl<'a> Parser<'a> {
                 };
                 index_map.push((value, index));
 
-                if self.eat(Token::Comma)? {
+                if self.eat(&Token::Comma)? {
                     continue;
                 }
 
@@ -375,7 +375,7 @@ impl<'a> Parser<'a> {
 
     fn parse_blocks(&mut self) -> ParseResult<Vec<ParsedBlock>> {
         let mut blocks = Vec::new();
-        while !self.at(Token::RightBrace) {
+        while !self.at(&Token::RightBrace) {
             let block = self.parse_block()?;
             blocks.push(block);
         }
@@ -387,9 +387,9 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::LeftParen)?;
 
         let mut parameters = Vec::new();
-        while !self.at(Token::RightParen) {
+        while !self.at(&Token::RightParen) {
             parameters.push(self.parse_parameter()?);
-            if !self.eat(Token::Comma)? {
+            if !self.eat(&Token::Comma)? {
                 break;
             }
         }
@@ -505,9 +505,9 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = self.parse_value_or_error()?;
-        let equals = if self.eat(Token::Equal)? {
+        let equals = if self.eat(&Token::Equal)? {
             true
-        } else if self.eat(Token::NotEqual)? {
+        } else if self.eat(&Token::NotEqual)? {
             false
         } else {
             return self.expected_one_of_tokens(&[Token::Equal, Token::NotEqual]);
@@ -515,7 +515,7 @@ impl<'a> Parser<'a> {
 
         let rhs = self.parse_value_or_error()?;
 
-        let assert_message = if self.eat(Token::Comma)? {
+        let assert_message = if self.eat(&Token::Comma)? {
             if let Some(str) = self.eat_str()? {
                 Some(AssertMessage::Static(str))
             } else if self.eat_keyword(Keyword::Data)? {
@@ -572,7 +572,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
 
         let assert_message =
-            if self.eat(Token::Comma)? { Some(self.eat_str_or_error()?) } else { None };
+            if self.eat(&Token::Comma)? { Some(self.eat_str_or_error()?) } else { None };
 
         Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size, assert_message }))
     }
@@ -599,7 +599,7 @@ impl<'a> Parser<'a> {
     fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {
         let mut targets = vec![target];
 
-        while self.eat(Token::Comma)? {
+        while self.eat(&Token::Comma)? {
             let target = self.eat_identifier_or_error()?;
             targets.push(target);
         }
@@ -760,7 +760,7 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        let make_array = if self.eat(Token::Ampersand)? {
+        let make_array = if self.eat(&Token::Ampersand)? {
             let Some(string) = self.eat_byte_str()? else {
                 return self.expected_byte_string();
             };
@@ -899,7 +899,7 @@ impl<'a> Parser<'a> {
         let mut values = Vec::new();
         while let Some(value) = self.parse_value()? {
             values.push(value);
-            if !self.eat(Token::Comma)? {
+            if !self.eat(&Token::Comma)? {
                 break;
             }
         }
@@ -946,7 +946,7 @@ impl<'a> Parser<'a> {
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
             let dash_span = self.token.span();
-            let negative = self.eat(Token::Dash)?;
+            let negative = self.eat(&Token::Dash)?;
             let magnitude = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
@@ -977,8 +977,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_types(&mut self) -> ParseResult<Vec<Type>> {
-        if self.eat(Token::LeftParen)? {
-            let types = if self.eat(Token::RightParen)? {
+        if self.eat(&Token::LeftParen)? {
+            let types = if self.eat(&Token::RightParen)? {
                 Vec::new()
             } else {
                 let types = self.parse_comma_separated_types()?;
@@ -996,7 +996,7 @@ impl<'a> Parser<'a> {
         loop {
             let typ = self.parse_type()?;
             types.push(typ);
-            if !self.eat(Token::Comma)? {
+            if !self.eat(&Token::Comma)? {
                 break;
             }
         }
@@ -1019,9 +1019,9 @@ impl<'a> Parser<'a> {
             });
         }
 
-        if self.eat(Token::LeftBracket)? {
+        if self.eat(&Token::LeftBracket)? {
             let element_types = self.parse_types()?;
-            if self.eat(Token::Semicolon)? {
+            if self.eat(&Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Array(
@@ -1056,7 +1056,7 @@ impl<'a> Parser<'a> {
 
     /// Parses `&mut Type` or `&Type`, returns `Some((Type, mutable))` if `&` was found.
     fn parse_reference_type(&mut self) -> ParseResult<Option<(Type, bool)>> {
-        if !self.eat(Token::Ampersand)? {
+        if !self.eat(&Token::Ampersand)? {
             return Ok(None);
         }
 
@@ -1132,7 +1132,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
-        let negative = self.eat(Token::Dash)?;
+        let negative = self.eat(&Token::Dash)?;
 
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump()?;
@@ -1191,8 +1191,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat(&mut self, token: Token) -> ParseResult<bool> {
-        if self.token.token() == &token {
+    fn eat(&mut self, token: &Token) -> ParseResult<bool> {
+        if self.token.token() == token {
             self.bump()?;
             Ok(true)
         } else {
@@ -1201,11 +1201,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
+        if self.eat(&token)? { Ok(()) } else { self.expected_token(token) }
     }
 
-    fn at(&self, token: Token) -> bool {
-        self.token.token() == &token
+    fn at(&self, token: &Token) -> bool {
+        self.token.token() == token
     }
 
     fn newline_follows(&self) -> bool {

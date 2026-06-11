@@ -161,7 +161,7 @@ impl Parser<'_> {
             Self::parse_parameter,
         );
 
-        let ret = if self.eat(Token::Arrow) {
+        let ret = if self.eat(&Token::Arrow) {
             self.parse_type_or_error()
         } else {
             UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
@@ -196,7 +196,7 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
+        if let Some(token) = self.eat_kind(&TokenKind::QuotedType) {
             match token.into_token() {
                 Token::QuotedType(id) => {
                     return Some(UnresolvedTypeData::Resolved(id));
@@ -209,7 +209,7 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_interned_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(token) = self.eat_kind(TokenKind::InternedUnresolvedTypeData) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedUnresolvedTypeData) {
             match token.into_token() {
                 Token::InternedUnresolvedTypeData(id) => {
                     return Some(UnresolvedTypeData::Interned(id));
@@ -225,7 +225,7 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
 
         // This is '&&', which in this context is a double reference type
-        if self.eat(Token::LogicalAnd) {
+        if self.eat(&Token::LogicalAnd) {
             let mutable = self.eat_keyword(Keyword::Mut);
             let inner_type =
                 UnresolvedTypeData::Reference(Box::new(self.parse_type_or_error()), mutable);
@@ -235,7 +235,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if self.eat(Token::Ampersand) {
+        if self.eat(&Token::Ampersand) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(

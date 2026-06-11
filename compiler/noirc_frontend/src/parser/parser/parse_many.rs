@@ -57,11 +57,12 @@ impl<'a> Parser<'a> {
     where
         F: FnMut(&mut Parser<'a>) -> Vec<T>,
     {
+        let SeparatedBy { token, until, continue_if_separator_is_missing } = separated_by;
         let mut elements: Vec<T> = Vec::new();
         let mut trailing_separator = false;
         loop {
-            if let Some(end) = &separated_by.until
-                && self.eat(end.clone())
+            if let Some(end) = &until
+                && self.eat(end)
             {
                 break;
             }
@@ -69,13 +70,13 @@ impl<'a> Parser<'a> {
             let start_location = self.current_token_location;
             let mut new_elements = f(self);
             if new_elements.is_empty() {
-                if let Some(end) = &separated_by.until {
-                    self.eat(end.clone());
+                if let Some(end) = &until {
+                    self.eat(end);
                 }
                 break;
             }
 
-            if let Some(separator) = &separated_by.token
+            if let Some(separator) = &token
                 && !trailing_separator
                 && !elements.is_empty()
             {
@@ -84,15 +85,12 @@ impl<'a> Parser<'a> {
 
             elements.append(&mut new_elements);
 
-            trailing_separator = if let Some(separator) = &separated_by.token {
-                self.eat(separator.clone())
-            } else {
-                true
-            };
+            trailing_separator =
+                if let Some(separator) = &token { self.eat(separator) } else { true };
 
-            if !trailing_separator && !separated_by.continue_if_separator_is_missing {
-                if let Some(end) = &separated_by.until {
-                    self.eat(end.clone());
+            if !trailing_separator && !continue_if_separator_is_missing {
+                if let Some(end) = &until {
+                    self.eat(end);
                 }
                 break;
             }

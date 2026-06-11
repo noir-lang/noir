@@ -551,7 +551,7 @@ where
     let tokens = get_quoted((value, location))?;
     let quoted = Tokens(unwrap_rc(tokens.clone()));
     let (result, warnings) = parse_tokens(
-        tokens,
+        &tokens,
         quoted,
         elaborator.interner,
         elaborator.files,
@@ -567,7 +567,7 @@ where
 }
 
 pub(super) fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<LocatedToken>>,
+    tokens: &[LocatedToken],
     quoted: Tokens,
     interner: &NodeInterner,
     files: &FileMap,
@@ -584,7 +584,7 @@ where
             .find(|error| !error.is_warning())
             .expect("there is at least 1 error");
         let error = Box::new(error);
-        let tokens = tokens_to_string(&tokens, interner, files);
+        let tokens = tokens_to_string(tokens, interner, files);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
@@ -798,7 +798,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     Some(Value::Struct(fields, typ))
 }
 
-pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
+pub(crate) fn new_binary_op(operator: &BinaryOp, typ: Type) -> Value {
     // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
     let binary_op_value = operator.contents as u128;
 

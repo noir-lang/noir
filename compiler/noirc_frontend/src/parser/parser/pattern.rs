@@ -17,6 +17,7 @@ pub(crate) enum PatternOrSelf {
 }
 
 /// SelfPattern is guaranteed to be `self`, `&self` or `&mut self` without a colon following it.
+#[derive(Clone, Copy)]
 pub(crate) struct SelfPattern {
     pub(crate) reference: bool,
     pub(crate) mutable: bool,
@@ -76,7 +77,7 @@ impl Parser<'_> {
             }
         }
 
-        if self.at(Token::Ampersand) {
+        if self.at(&Token::Ampersand) {
             self.bump();
 
             let mutable = self.eat_keyword(Keyword::Mut);
@@ -97,7 +98,7 @@ impl Parser<'_> {
     }
 
     fn next_is_colon(&self) -> bool {
-        self.next_is(Token::Colon)
+        self.next_is(&Token::Colon)
     }
 
     pub(crate) fn parse_pattern_after_modifiers(
@@ -155,7 +156,7 @@ impl Parser<'_> {
 
     /// InternedPattern = interned_pattern
     fn parse_interned_pattern(&mut self) -> Option<Pattern> {
-        let token = self.eat_kind(TokenKind::InternedPattern)?;
+        let token = self.eat_kind(&TokenKind::InternedPattern)?;
 
         match token.into_token() {
             Token::InternedPattern(pattern) => {
@@ -223,7 +224,7 @@ impl Parser<'_> {
 
         Some(if self.eat_colon() {
             (ident, self.parse_pattern_or_error())
-        } else if self.at(Token::Assign) {
+        } else if self.at(&Token::Assign) {
             // If we find '=' instead of ':', assume the user meant ':`, error and continue
             self.expected_token(Token::Colon);
             self.bump();

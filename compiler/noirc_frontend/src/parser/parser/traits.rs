@@ -144,7 +144,7 @@ impl Parser<'_> {
     }
 
     fn parse_trait_item_in_list(&mut self) -> Option<Documented<TraitItem>> {
-        self.parse_item_in_list(ParsingRuleLabel::TraitItem, |parser| {
+        self.parse_item_in_list(&ParsingRuleLabel::TraitItem, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
             parser.parse_trait_item().map(|item| Documented::new(item, doc_comments))
         })

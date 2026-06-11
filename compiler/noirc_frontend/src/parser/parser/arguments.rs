@@ -27,7 +27,7 @@ impl Parser<'_> {
 
     /// CallArguments = '!'? Arguments
     pub(super) fn parse_call_arguments(&mut self) -> Option<CallArguments> {
-        let is_macro_call = self.at(Token::Bang) && self.next_is(Token::LeftParen);
+        let is_macro_call = self.at(&Token::Bang) && self.next_is(&Token::LeftParen);
 
         if is_macro_call {
             // Given that we expected '!' '(', it's safe to skip the '!' because the next

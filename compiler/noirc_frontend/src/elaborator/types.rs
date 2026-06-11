@@ -1556,19 +1556,20 @@ impl Elaborator<'_> {
 
         let mut matches = Vec::new();
 
+        let parent_constraints = vecmap(the_trait.parent_bounds(), |trait_bound| TraitConstraint {
+            typ: constraint.typ.clone(),
+            trait_bound: trait_bound.clone(),
+        });
+
         if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
         {
-            let trait_item =
-                TraitItem { definition, constraint: constraint.clone(), assumed: true };
+            let trait_item = TraitItem { definition, constraint, assumed: true };
             let method = TraitPathResolutionMethod::TraitItem(trait_item);
             matches.push((method, the_trait.id));
         }
 
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
-        for trait_bound in &parent_bounds {
-            let parent_trait = self.interner.get_trait(trait_bound.trait_id);
-            let constraint =
-                TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
+        for constraint in parent_constraints {
+            let parent_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
             matches.extend(self.find_methods_or_constants_in_trait(
                 path,
                 constraint,
@@ -2023,23 +2024,26 @@ impl Elaborator<'_> {
     /// call object to its base value type T.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
-        if let Type::Reference(element, _mut) = typ.follow_bindings() {
-            let location = self.interner.id_location(object);
-
-            let object = self.interner.push_expr_full(
-                HirExpression::Prefix(HirPrefixExpression::new(
-                    UnaryOp::Dereference { implicitly_added: true },
-                    object,
-                )),
-                location,
-                element.as_ref().clone(),
-            );
-
-            // Recursively dereference to allow for converting &mut &mut T to T
-            self.insert_auto_dereferences(object, *element)
-        } else {
-            (object, typ)
+        if !matches!(typ.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+            return (object, typ);
         }
+
+        let Type::Reference(element, _mut) = typ.follow_bindings() else {
+            unreachable!("`typ` was just checked to be a reference");
+        };
+        let location = self.interner.id_location(object);
+
+        let object = self.interner.push_expr_full(
+            HirExpression::Prefix(HirPrefixExpression::new(
+                UnaryOp::Dereference { implicitly_added: true },
+                object,
+            )),
+            location,
+            element.as_ref().clone(),
+        );
+
+        // Recursively dereference to allow for converting &mut &mut T to T
+        self.insert_auto_dereferences(object, *element)
     }
 
     /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the

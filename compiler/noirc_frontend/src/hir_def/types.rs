@@ -2444,21 +2444,21 @@ impl Type {
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
-        kind: Kind,
+        kind: &Kind,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id, _) => *id,
         };
 
-        if !self.kind().unifies(&kind) {
+        if !self.kind().unifies(kind) {
             return Err(UnificationError);
         }
 
         let this = self.substitute(bindings).follow_bindings();
         if let Some((binding, kind)) = this.get_inner_type_variable() {
             match &*binding.borrow() {
-                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, &kind),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
                 TypeBinding::Unbound(..) => (),
@@ -2489,8 +2489,8 @@ impl Type {
     /// Apply the given type bindings, making them permanently visible for each
     /// clone of each type variable bound.
     pub fn apply_type_bindings(bindings: TypeBindings) {
-        for (type_variable, _kind, binding) in bindings.values() {
-            type_variable.bind(binding.clone());
+        for (type_variable, _kind, binding) in bindings.into_values() {
+            type_variable.bind(binding);
         }
     }
 
