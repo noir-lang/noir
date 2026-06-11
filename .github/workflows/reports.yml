@@ -393,6 +393,12 @@ jobs:
         with:
           name: noir-inspector
 
+      - name: Install valgrind
+        if: matrix.instruction_count
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq valgrind
+
       - name: Generate compilation report
         id: compilation_report
         run: |
@@ -414,6 +420,7 @@ jobs:
           NUM_COMPILE_RUNS: ${{ matrix.num_compile_runs }}
           NUM_EXECUTE_RUNS: ${{ matrix.num_execute_runs }}
           SKIP_BRILLIG_EXECUTION: ${{ matrix.cannot_execute_brillig }}
+          COUNT_INSTRUCTIONS: ${{ matrix.instruction_count }}
 
       - name: Process report data
         run: |
@@ -636,6 +643,56 @@ jobs:
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
+          comment-on-alert: false
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          max-items-in-chart: 50
+
+  upload_instruction_count_reports:
+    name: Upload compilation instruction count reports
+    needs: [external_repo_reports, benchmark-projects-list]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge instruction count reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.compilation_instructions | select(.))' ./reports/* | tee instructions_bench.json
+
+      - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba
+        with:
+          name: "Compilation Instructions"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./instructions_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # Instruction counts are near-deterministic (~0.05% variation between runs) so we can
+          # use a much tighter alert threshold than for the wall-clock time benchmarks.
+          alert-threshold: "105%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
@@ -1096,6 +1153,7 @@ jobs:
     needs:
       - rust_benchmarks
       - upload_compilation_reports
+      - upload_instruction_count_reports
       - upload_elaboration_reports
       - upload_execution_reports
       - upload_artifact_reports
