@@ -1,7 +1,7 @@
 //! Tests for associated types and associated constants in traits.
 //! Validates accessing, computing with, and constraining associated items.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
@@ -88,7 +88,6 @@ fn accesses_associated_constant_inside_trait_impl_using_self() {
 /// "Type annotations needed".
 #[test]
 fn shared_default_method_resolves_self_associated_constant() {
-    use crate::test_utils::get_monomorphized;
     let src = r#"
     trait Foo {
         let N: i32;
@@ -106,8 +105,7 @@ fn shared_default_method_resolves_self_associated_constant() {
         let _ = i32::n();
     }
     "#;
-    let result = get_monomorphized(src);
-    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+    check_monomorphization_error(src);
 }
 
 /// Regression test for #9020: when one impl inherits a trait's default method and
@@ -115,7 +113,6 @@ fn shared_default_method_resolves_self_associated_constant() {
 /// other through the trait's shared `Self` type variable.
 #[test]
 fn shared_and_overridden_default_method_coexist() {
-    use crate::test_utils::get_monomorphized;
     let src = r#"
     pub trait H {
         fn finish(self) -> Field;
@@ -163,8 +160,7 @@ fn shared_and_overridden_default_method_coexist() {
         let _ = use_hasher(BB {});
     }
     "#;
-    let result = get_monomorphized(src);
-    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+    check_monomorphization_error(src);
 }
 
 /// Regression test: two impls that both inherit a trait's default method must each
@@ -175,7 +171,6 @@ fn shared_and_overridden_default_method_coexist() {
 /// failing with "No matching impl found for `B: Score<N = 10>`".
 #[test]
 fn shared_default_method_associated_constant_does_not_leak_across_impls() {
-    use crate::test_utils::get_monomorphized;
     let src = r#"
     struct A {}
     struct B {}
@@ -211,15 +206,13 @@ fn shared_default_method_associated_constant_does_not_leak_across_impls() {
         assert(B {}.value() == 22);
     }
     "#;
-    let result = get_monomorphized(src);
-    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+    check_monomorphization_error(src);
 }
 
 /// Same leak as above, reached through a generic function rather than direct calls on
 /// concrete types, and with the impls resolved in the opposite source order.
 #[test]
 fn shared_default_method_associated_constant_does_not_leak_through_generic_dispatch() {
-    use crate::test_utils::get_monomorphized;
     let src = r#"
     struct A {}
     struct B {}
@@ -259,8 +252,7 @@ fn shared_default_method_associated_constant_does_not_leak_through_generic_dispa
         assert(use_score(A {}) == 11);
     }
     "#;
-    let result = get_monomorphized(src);
-    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+    check_monomorphization_error(src);
 }
 
 #[test]
