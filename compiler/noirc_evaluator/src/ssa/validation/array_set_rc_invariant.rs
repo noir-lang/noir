@@ -395,6 +395,16 @@ struct Context<'f> {
     /// requirement on `Q` is the second guard — a loop-invariant `Q`
     /// swapped into `P` would make `P_k = Q_{k-1} = Q_k` and genuinely
     /// alias.
+    ///
+    /// **Forward propagation.** After recording, exclusions are pushed
+    /// forward across non-back-edge parameter edges to a fixed point: on a
+    /// forward edge `R ← P`, `R` *is* `P` within the same iteration, so `R`
+    /// inherits `P`'s exclusions. This carries an exclusion from a swapped
+    /// loop-header parameter onto a successor parameter seeded from it — e.g.
+    /// an inner-loop header (the array_set's source) fed from the swapped
+    /// outer-loop parameter — so `Q` is dropped for the inner source too.
+    /// Back-edges are excluded from propagation: across one, `R` is a *prior*
+    /// iteration's `P`, a distinct storage.
     swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>>,
 }
 
@@ -624,6 +634,41 @@ impl<'f> Context<'f> {
                     continue;
                 }
                 swap_excluded_aliases.entry(source_param).or_default().insert(sibling);
+            }
+        }
+
+        // Propagate swap exclusions forward across non-back-edge
+        // block-parameter edges. On a forward edge `P ← A`, `P` is `A` within
+        // the same iteration, so `P`'s storage is `A`'s storage; a sibling
+        // distinct from `A`'s per-iteration storage is therefore distinct from
+        // `P`'s too. This carries an exclusion recorded on a loop-header
+        // parameter to a successor parameter seeded from it — e.g. an
+        // inner-loop header (the array_set source) fed from the swapped
+        // outer-loop parameter — so `alias_set_for` drops the sibling for the
+        // inner source as well. Back-edges are excluded: across one, `P` is a
+        // *prior* iteration's `A`, a distinct storage.
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (dest, edges) in &incoming_edges {
+                let params = function.dfg.block_parameters(*dest);
+                for (i, &param) in params.iter().enumerate() {
+                    for (pred, args) in edges {
+                        if back_edges.contains(&(*pred, *dest)) {
+                            continue;
+                        }
+                        let Some(&arg) = args.get(i) else { continue };
+                        let Some(arg_excl) = swap_excluded_aliases.get(&arg).cloned() else {
+                            continue;
+                        };
+                        let entry = swap_excluded_aliases.entry(param).or_default();
+                        for x in arg_excl {
+                            if x != param && entry.insert(x) {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -2208,6 +2253,84 @@ mod tests {
             "the read is of v2, an inc_rc-covered alias of the source; only the \
              uncovered members (v3/v1) belong in the forward walk's use-set",
         );
+    }
+
+    /// Swap exclusion must reach an inner-loop array_set seeded from the
+    /// swapped outer-loop parameter. The outer loop (header b1) rotates its
+    /// array params on the back-edge — `a ← b` while `b ← make_array` — so the
+    /// swap filter records `b` (v4) as excluded from `a` (v3): they are
+    /// distinct per-iteration storage. The inner loop's parameter `c` (v7) is
+    /// seeded from `a` on the forward edge b2→b3, and the inner body does
+    /// `array_set c` and then reads `b`. Because `c = a` within the iteration,
+    /// `b` is distinct from `c` too, so the read is never a hazard. The
+    /// verifier must accept — which requires the swap exclusion on `a` to
+    /// propagate forward onto `c`.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// false-positive (confirmed valid via `--release`): without the forward
+    /// propagation, `b` stays in `c`'s alias-set and the `array_get b` is
+    /// wrongly flagged.
+    #[test]
+    fn end_to_end_swap_exclusion_propagates_to_inner_loop_source_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 1] : [Field; 1]
+                jmp b1(v1, v2, u32 0)
+              b1(v3: [Field; 1], v4: [Field; 1], v5: u32):
+                v6 = lt v5, u32 3
+                jmpif v6 then: b2(), else: b8()
+              b2():
+                jmp b3(v3, u32 0)
+              b3(v7: [Field; 1], v8: u32):
+                v9 = lt v8, u32 3
+                jmpif v9 then: b4(), else: b6()
+              b4():
+                v10 = array_set v7, index u32 0, value Field 7
+                v11 = array_get v4, index u32 0 -> Field
+                v12 = add v8, u32 1
+                jmp b3(v10, v12)
+              b6():
+                v14 = make_array [Field 2] : [Field; 1]
+                v15 = add v5, u32 1
+                jmp b1(v4, v14, v15)
+              b8():
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "b (v4) is swap-excluded from a (v3); a is forwarded to the inner-loop \
+             source c (v7), so the exclusion must propagate and the array_get v4 is safe",
+        );
+    }
+
+    /// The linear analog of `make_array_with_forward_read` but via a `Call`
+    /// result: `v2 = v1 = v0` is the same fresh call-allocated storage,
+    /// `array_set v2` mutates it in place, and `array_get v1` reads it back —
+    /// a genuine hazard. A `Call` result must NOT be blanket-credited as
+    /// distinct-per-iteration freshness (it is one-time storage here), so the
+    /// verifier must reject, exactly as it does for the `make_array` analog.
+    #[test]
+    fn end_to_end_call_result_aliased_via_forward_block_param_with_forward_read_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = call f1() -> [Field; 1]
+                jmp b1(v0)
+              b1(v1: [Field; 1]):
+                jmp b2(v1)
+              b2(v2: [Field; 1]):
+                v3 = array_set v2, index u32 0, value Field 7
+                v4 = array_get v1, index u32 0 -> Field
+                return v4
+            }
+            brillig(inline) fn alloc f1 {
+              b0():
+                v0 = make_array [Field 0] : [Field; 1]
+                return v0
+            }"#;
+        assert_verifier_rejects(src);
     }
 
     /// Index-aware filter: a constant-index `array_set` followed by a
