@@ -49,7 +49,7 @@
 //! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
-use crate::hir::comptime::InterpreterError;
+use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
@@ -776,7 +776,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                Literal(Integer(value, typ, location))
+                Literal(Integer(bigint_to_field(&value), typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,

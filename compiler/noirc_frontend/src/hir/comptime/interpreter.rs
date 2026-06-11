@@ -35,11 +35,12 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::{AcirField, FieldElement};
+use acvm::AcirField;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
@@ -803,7 +804,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let location = self.elaborator.interner.expr_location(&id);
                 match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
-                    Ok(value) => self.evaluate_field_as_integer(value.as_field(), id),
+                    Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
                         location,
@@ -825,7 +826,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
-        self.evaluate_field_as_integer(value.as_field(), id)
+        self.evaluate_integer_literal(value.to_bigint(), id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
@@ -866,7 +867,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value) => self.evaluate_field_as_integer(value, id),
+            HirLiteral::Integer(value) => self.evaluate_integer_literal(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
@@ -918,10 +919,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
-    fn evaluate_field_as_integer(&self, value: FieldElement, id: ExprId) -> IResult<Value> {
+    fn evaluate_integer_literal(&self, value: BigInt, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
-        Integer::try_from_type(value, &typ).map(Value::Integer).ok_or_else(|| {
+        Integer::try_from_bigint(&value, &typ).map(Value::Integer).ok_or_else(|| {
             let typ = typ.clone();
             InterpreterError::IntegerOutOfRangeForType { value, typ, location }
         })

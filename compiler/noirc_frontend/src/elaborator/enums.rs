@@ -21,7 +21,7 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        comptime::Value,
+        comptime::{Value, bigint_to_field},
         def_collector::dc_crate::UnresolvedEnum,
         def_map::LocalModuleId,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -548,12 +548,13 @@ impl Elaborator<'_> {
                 };
                 unify_with_expected_type(self, &actual);
 
+                let field_value = bigint_to_field(&value);
                 let expr = HirExpression::Literal(HirLiteral::Integer(value));
                 let location = expr_location;
                 let expr_id = self.interner.push_expr_full(expr, location, actual);
                 self.push_integer_literal_expr_id(expr_id);
 
-                Pattern::Int(value)
+                Pattern::Int(field_value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
                 unify_with_expected_type(self, &Type::Bool);

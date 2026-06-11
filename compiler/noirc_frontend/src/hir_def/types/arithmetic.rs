@@ -767,8 +767,7 @@ mod proptests {
             }
             Type::Constant(value) => {
                 let integer_type_suffix = value.integer_type_suffix();
-                let field = value.as_field();
-                let literal = Literal::Integer(field, Some(integer_type_suffix));
+                let literal = Literal::Integer(value.to_bigint(), Some(integer_type_suffix));
                 ExpressionKind::Literal(literal)
             }
             Type::TypeVariable(type_var) => unimplemented!(

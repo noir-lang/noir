@@ -1156,7 +1156,7 @@ mod tests {
             parser::tests::{check_errors, expect_no_errors},
         },
     };
-    use acvm::FieldElement;
+    use num_bigint::BigInt;
 
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -1195,7 +1195,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, -FieldElement::from(42u128));
+        assert_eq!(value, BigInt::from(-42));
     }
 
     #[test]

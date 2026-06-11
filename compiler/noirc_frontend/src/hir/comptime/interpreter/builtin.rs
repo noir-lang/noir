@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use crate::hir::comptime::bigint_to_field;
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
@@ -2088,12 +2089,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::field(field))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(value, _suffix))) => {
+            Some(Value::field(bigint_to_field(&value)))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::field(field))
+            if let HirExpression::Literal(HirLiteral::Integer(value)) = interner.expression(&id) {
+                Some(Value::field(bigint_to_field(&value)))
             } else {
                 None
             }
