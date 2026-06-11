@@ -7,16 +7,18 @@ use crate::tests::common::{default_input_types, default_runtimes, default_witnes
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
+/// ```noir
 /// fn main(lo: Field) -> pub Field {
-///     let `scalar_1` = `std::embedded_curve_ops::EmbeddedCurveScalar::new(lo`, 0);
-///     let `scalar_2` = `std::embedded_curve_ops::EmbeddedCurveScalar::new(lo` * 2, 0);
-///     let `point_1` = `std::embedded_curve_ops::fixed_base_scalar_mul(scalar_1)`;
-///     let `point_2` = `std::embedded_curve_ops::fixed_base_scalar_mul(scalar_2)`;
-///     let res = `std::embedded_curve_ops::embedded_curve_add(point_1`, `point_2`);
+///     let scalar_1 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo, 0);
+///     let scalar_2 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo * 2, 0);
+///     let point_1 = std::embedded_curve_ops::fixed_base_scalar_mul(scalar_1);
+///     let point_2 = std::embedded_curve_ops::fixed_base_scalar_mul(scalar_2);
+///     let res = std::embedded_curve_ops::embedded_curve_add(point_1, point_2);
 ///     res.y
 /// }
+/// ```
 /// lo = 1
-/// [`nargo_tests`] Circuit output: Field(8902249110305491597038405103722863701255802573786510474664632793109847672620)
+/// [nargo_tests] Circuit output: Field(8902249110305491597038405103722863701255802573786510474664632793109847672620)
 #[test]
 fn smoke_test_embedded_curve_add() {
     let _ = env_logger::try_init();
@@ -54,15 +56,17 @@ fn smoke_test_embedded_curve_add() {
     );
 }
 
+/// ```noir
 /// fn main(lo1: Field, lo2: Field) -> pub Field {
-///    let `base_scalar` = `std::embedded_curve_ops::EmbeddedCurveScalar::new(1`, 0); // 1
-///    let `scalar_1` = `std::embedded_curve_ops::EmbeddedCurveScalar::new(lo1`, 0);
-///    let `scalar_2` = `std::embedded_curve_ops::EmbeddedCurveScalar::new(lo2`, 0);
-///    let generator = `std::embedded_curve_ops::fixed_base_scalar_mul(base_scalar)`; // Generator * 1
-///    
-///    let res = `std::embedded_curve_ops::multi_scalar_mul`([generator, generator], [`scalar_1`, `scalar_2`]);
+///    let base_scalar = std::embedded_curve_ops::EmbeddedCurveScalar::new(1, 0); // 1
+///    let scalar_1 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo1, 0);
+///    let scalar_2 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo2, 0);
+///    let generator = std::embedded_curve_ops::fixed_base_scalar_mul(base_scalar); // Generator * 1
+///
+///    let res = std::embedded_curve_ops::multi_scalar_mul([generator, generator], [scalar_1, scalar_2]);
 ///    res.y
 /// }
+/// ```
 /// "lo1" = 2
 /// "lo2" = 4
 /// Circuit output: Field(-3851299760922698091325321774664553326049887197487063802849283717866939395465)

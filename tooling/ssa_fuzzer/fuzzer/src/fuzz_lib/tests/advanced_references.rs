@@ -10,6 +10,7 @@ use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use std::sync::Arc;
 
+/// ```noir
 /// fn main(a: Field) -> pub Field {
 ///   let mut t = a;
 ///   func(&mut t);
@@ -19,8 +20,9 @@ use std::sync::Arc;
 /// fn func(a: &mut Field) {
 ///   *a += 1;
 /// }
+/// ```
 /// "a" = 0
-/// [`nargo_tests`] Circuit output: 0x01
+/// [nargo_tests] Circuit output: 0x01
 #[test]
 fn test_other_function_mutates_reference() {
     let _ = env_logger::try_init();
@@ -85,10 +87,13 @@ fn test_other_function_mutates_reference() {
     }
 }
 
+/// ```noir
 /// let t = &mut(&mut a);
 /// *t = &mut b;
 /// return **t;
+/// ```
 /// This test is compiled into
+/// ```text
 /// fn main f0 {
 ///   b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///     v7 = allocate -> &mut Field
@@ -100,11 +105,12 @@ fn test_other_function_mutates_reference() {
 ///     store v8 at v9
 ///     v10 = load v9 -> &mut Field
 ///     v11 = load v10 -> Field
-///     jmp `b1()`
-///   `b1()`:
+///     jmp b1()
+///   b1():
 ///     store v8 at v9 // dummy
 ///     return v11
 ///   }
+/// ```
 #[test]
 fn test_reference_to_reference() {
     let arg_0 = Argument { index: 0, value_type: Type::Numeric(NumericType::Field) };

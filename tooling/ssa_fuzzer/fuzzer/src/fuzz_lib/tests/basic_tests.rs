@@ -63,11 +63,13 @@ fn test_field_addition_zero_plus_one() {
     }
 }
 
+/// ```text
 ///                b0
-///`if(LAST_BOOL)` ↙   ↘ else
+///if(LAST_BOOL) ↙   ↘ else
 ///             b1    b2
 ///              ↘   ↙
 ///                b3
+/// ```
 /// suppose that b1 is failing block, b2 is succeeding block
 /// jmpif uses last boolean value defined in the block as condition
 /// for first program last boolean value is false
@@ -131,6 +133,7 @@ fn test_jmp_if() {
     assert!(result.get_return_witnesses().is_empty());
 }
 
+/// ```text
 /// fn main f0 {
 ///   b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///     v7 = allocate -> &mut Field
@@ -138,11 +141,12 @@ fn test_jmp_if() {
 ///     v8 = add v0, v2
 ///     store v8 at v7
 ///     v9 = load v7 -> Field
-///     jmp `b1()`
-///   `b1()`:
+///     jmp b1()
+///   b1():
 ///     v10 = add v9, v2
 ///     return v10
 /// }
+/// ```
 /// v0 = 0, v2 = 2, so we expect that v10 = 4
 #[test]
 fn test_mutable_variable() {

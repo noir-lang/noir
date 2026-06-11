@@ -598,12 +598,14 @@ fn cmp_binary_ops() {
 #[test]
 fn store_opcode() {
     /// Brillig code for the following:
+    /// ```text
     ///     let mut i = 0;
-    ///     let len = `memory.len()`;
+    ///     let len = memory.len();
     ///     while i < len {
     ///         memory[i] = i as Value;
     ///         i += 1;
     ///     }
+    /// ```
     fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue<FieldElement>> {
         let integer_bit_size = MEMORY_ADDRESSING_BIT_SIZE;
         let bit_size = BitSize::Integer(integer_bit_size);
@@ -700,13 +702,15 @@ fn iconst_opcode() {
 #[test]
 fn load_opcode() {
     /// Brillig code for the following:
+    /// ```text
     ///     let mut sum = 0;
     ///     let mut i = 0;
-    ///     let len = `memory.len()`;
+    ///     let len = memory.len();
     ///     while i < len {
     ///         sum += memory[i];
     ///         i += 1;
     ///     }
+    /// ```
     fn brillig_sum_memory(memory: Vec<FieldElement>) -> FieldElement {
         let bit_size = IntegerBitSize::U32;
         let r_i = MemoryAddress::direct(0);
@@ -818,13 +822,15 @@ fn load_opcode() {
 #[test]
 fn call_and_return_opcodes() {
     /// Brillig code for the following recursive function:
-    ///     fn `recursive_write(i`: u128, len: u128) {
+    /// ```text
+    ///     fn recursive_write(i: u128, len: u128) {
     ///         if len <= i {
     ///             return;
     ///         }
     ///         memory[i as usize] = i as Value;
-    ///         `recursive_write(memory`, i + 1, len);
+    ///         recursive_write(memory, i + 1, len);
     ///     }
+    /// ```
     /// Note we represent a 100% in-stack optimized form in brillig
     fn brillig_recursive_write_memory<F: AcirField>(size: usize) -> Vec<MemoryValue<F>> {
         let integer_bit_size = MEMORY_ADDRESSING_BIT_SIZE;

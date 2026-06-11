@@ -13,17 +13,21 @@ use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use std::sync::Arc;
 
+/// ```noir
 /// fn main(arr: [Field; 2], index: u32) -> pub Field {
 ///   arr[index];
 /// }
+/// ```
 ///
 /// Compiled into:
 /// Note: v2 and v3 auto generated
+/// ```text
 /// fn main f0 {
 ///   b0(v0: [Field; 2], v1: u32, v2: u1, v3: u1):
-///   v4 = `array_get` v0, index v1 -> Field
+///   v4 = array_get v0, index v1 -> Field
 ///   return v4
 /// }
+/// ```
 #[test]
 fn test_array_as_initial_witness() {
     let _ = env_logger::try_init();
