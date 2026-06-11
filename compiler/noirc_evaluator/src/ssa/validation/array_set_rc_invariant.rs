@@ -40,7 +40,7 @@
 //!    distinct per-iteration storage and is dropped (see
 //!    [`Context::swap_excluded_aliases`]).
 //! 2. **inc_rc precedence / back-edge-participant.** If some `inc_rc` on an
-//!    alias-set member either RPO-precedes the array_set or sits on a
+//!    alias-set member either dominates the array_set or sits on a
 //!    non-source alias that's also a loop back-edge arg, accept — the
 //!    frontend is deliberately managing iteration aliasing.
 //! 3. **Protected-participant filter.** Before the forward walk, drop from
@@ -117,8 +117,6 @@
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use std::cmp::Ordering;
-
 use acvm::FieldElement;
 
 use crate::{
@@ -174,9 +172,9 @@ fn verify_function(function: &Function) -> RtResult<()> {
             let alias_set = ctx.alias_set_for(array, block_id, idx);
 
             // Cheap check first: if any `inc_rc` on an alias-set member
-            // precedes this `array_set` in flow order, treat the aliasing
-            // as already protected. See `some_inc_rc_precedes` for the
-            // rationale (relaxed from dominance to RPO precedence).
+            // dominates this `array_set`, treat the aliasing as already
+            // protected on every path. See `some_inc_rc_precedes` for the
+            // rationale (dominance, plus a back-edge-participant relaxation).
             if ctx.some_inc_rc_precedes(&alias_set, array, block_id, idx) {
                 continue;
             }
@@ -224,7 +222,13 @@ fn verify_function(function: &Function) -> RtResult<()> {
 /// checks read from these structures rather than re-scanning the function.
 struct Context<'f> {
     function: &'f Function,
-    /// Dominator tree. Mutable because `dominates` populates an internal cache.
+    /// Control-flow graph. Used by [`Context::some_inc_rc_precedes`] to walk
+    /// predecessors backward when checking whether the `inc_rc`-carrying
+    /// blocks collectively cover every path to an `array_set`.
+    cfg: ControlFlowGraph,
+    /// Dominator tree. Used by [`Context::some_inc_rc_precedes`] as a fast
+    /// path: a single `inc_rc` block that dominates the `array_set` covers
+    /// every path without the backward predecessor walk.
     dom_tree: DominatorTree,
     /// For each array-typed value `V`, the set of values that may share
     /// `V`'s storage **at `V`'s program point** — the source itself plus
@@ -570,6 +574,7 @@ impl<'f> Context<'f> {
 
         Self {
             function,
+            cfg,
             dom_tree,
             backward_aliases,
             array_value_defs,
@@ -668,36 +673,44 @@ impl<'f> Context<'f> {
     }
 
     /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` exists at a
-    /// program point that precedes the `array_set` in flow order — either
-    /// in a strictly-earlier position within the same block, or in a
-    /// different block whose reverse-post-order index is smaller.
+    /// program point that precedes the `array_set` on **every** path to it —
+    /// either in a strictly-earlier position within the same block, or in a
+    /// different block that **dominates** the array_set's block.
     ///
-    /// # Why RPO precedence, not dominance
+    /// # Why dominance, not mere RPO precedence
     ///
-    /// The strict invariant would be "the `inc_rc` dominates the
-    /// `array_set`" — i.e., is on *every* path. But the frontend in
-    /// practice emits **path-specific** `inc_rc`s: each path that creates
-    /// an alias gets its own `inc_rc`, with no single dominating one. See
-    /// e.g. `brillig_array_ifelse` where `b1` has `inc_rc v8` and `b4` has
-    /// `inc_rc v2`, neither dominating the `array_set` in `b6`. On every
-    /// runtime path the alias is either covered by an `inc_rc` or the
-    /// values are freshly allocated, but the verifier can't observe
-    /// path-specific freshness with the current alias-set model.
+    /// This short-circuit accepts the array_set outright, skipping the
+    /// forward aliased-read walk, so it must hold on *every* runtime path:
+    /// an `inc_rc` that runs on only some paths leaves the array_set
+    /// unprotected (RC 1, mutating in place) on the others. Dominance is
+    /// exactly that guarantee — the bump is on every path from entry to the
+    /// array_set.
     ///
-    /// We weaken the check accordingly: presence of *any* `inc_rc` on an
-    /// alias-set member, anywhere earlier in flow, is taken as the
-    /// frontend signalling "I'm aware of this aliasing and have handled
-    /// it." Absence of any such `inc_rc` *combined* with a forward aliased
-    /// read (checked separately) still flags as a hazard, which is the
-    /// shape PR-12671 had. The back-edge-participant relaxation below
-    /// widens this further to cover `inc_rc`s placed after the
-    /// array_set, where iteration aliasing makes the bump's program
-    /// point misleading.
+    /// RPO precedence is *not* sufficient: a sibling-branch `inc_rc` has a
+    /// smaller RPO index than the common-successor block holding the
+    /// array_set, yet the other branch reaches the array_set without it.
+    /// That is the
+    /// `end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`
+    /// shape — `inc_rc v1` on the `then` path, `array_set v1` in the join,
+    /// and a read of `v1` after it; on the `else` path the mutation is
+    /// observable and the verifier must reject.
+    ///
+    /// Genuinely path-specific protection (each aliasing path bumps RC, each
+    /// other path allocates fresh — e.g. `brillig_array_ifelse`) does **not**
+    /// rely on this short-circuit. When the short-circuit declines, the
+    /// forward walk runs, and it accepts those cases because the read is of a
+    /// sibling block-parameter the directed alias-set keeps out of the
+    /// source's class (the documented sibling false-negative). Absence of a
+    /// dominating `inc_rc` *combined* with a forward aliased read of an
+    /// alias-set member still flags as a hazard, which is the shape PR-12671
+    /// had. The back-edge-participant relaxation below covers `inc_rc`s
+    /// placed after the array_set, where iteration aliasing makes the bump's
+    /// program point misleading.
     ///
     /// # Back-edge-participant relaxation
     ///
-    /// In addition to RPO precedence, an `inc_rc` is also accepted when
-    /// it lives on an alias-set member that:
+    /// In addition to a dominating `inc_rc`, an `inc_rc` is also accepted
+    /// when it lives on an alias-set member that:
     ///
     /// - is **not** the array_set's own source (an `inc_rc` on the
     ///   source itself, *after* the array_set, doesn't protect that
@@ -727,6 +740,12 @@ impl<'f> Context<'f> {
         array_set_block: BasicBlockId,
         array_set_idx: usize,
     ) -> bool {
+        // Blocks (other than the array_set's own) that carry a protecting
+        // `inc_rc` on an alias-set member. Any such block, when it lies on a
+        // path to the array_set, fully executes before the array_set, so its
+        // `inc_rc` runs first. Collected here, then tested for coverage below.
+        let mut protection_blocks: HashSet<BasicBlockId> = HashSet::default();
+
         for value in alias_set {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
@@ -743,17 +762,78 @@ impl<'f> Context<'f> {
             }
             for &(inc_block, inc_idx) in locations {
                 if inc_block == array_set_block {
+                    // Same block: protects every path iff it is strictly
+                    // earlier than the array_set (the block is on every
+                    // path to its own array_set).
                     if inc_idx < array_set_idx {
                         return true;
                     }
-                } else if self.dom_tree.reverse_post_order_cmp(inc_block, array_set_block)
-                    == Ordering::Less
-                {
-                    return true;
+                } else {
+                    protection_blocks.insert(inc_block);
                 }
             }
         }
-        false
+
+        if protection_blocks.is_empty() {
+            return false;
+        }
+
+        // Fast path: a single `inc_rc` block that dominates the array_set is
+        // on every path to it, so it covers the array_set without the
+        // backward predecessor walk. This is the common case (e.g. an
+        // `inc_rc` in a loop pre-header).
+        if protection_blocks.iter().any(|&b| self.dom_tree.dominates(b, array_set_block)) {
+            return true;
+        }
+
+        // General case: no single block dominates, but the protection blocks
+        // may still *collectively* cover every path. The frontend emits one
+        // `inc_rc` per branch of a diamond (e.g. `inc_rc v` on both arms
+        // feeding the join that holds `array_set v`); together those cover
+        // every path even though neither dominates.
+        self.protection_blocks_cover_all_paths(array_set_block, &protection_blocks)
+    }
+
+    /// Returns `true` if every control-flow path from the entry block to
+    /// `array_set_block` passes through some block in `protection_blocks`.
+    ///
+    /// Walks predecessors backward from `array_set_block`, treating each
+    /// protection block as a wall (its predecessors are not explored, since
+    /// any path through it is already covered). If the walk reaches the
+    /// entry block — or any block with no predecessors — without being
+    /// walled, an unprotected path exists and the array_set is not covered.
+    fn protection_blocks_cover_all_paths(
+        &self,
+        array_set_block: BasicBlockId,
+        protection_blocks: &HashSet<BasicBlockId>,
+    ) -> bool {
+        let entry = self.function.entry_block();
+        // The array_set's own block isn't a protection block here (the
+        // same-block case is handled by the early return above), so an
+        // array_set in the entry block has no protecting predecessor.
+        if array_set_block == entry {
+            return false;
+        }
+
+        let mut visited: HashSet<BasicBlockId> = HashSet::default();
+        visited.insert(array_set_block);
+        let mut frontier: Vec<BasicBlockId> = self.cfg.predecessors(array_set_block).collect();
+
+        while let Some(block) = frontier.pop() {
+            if !visited.insert(block) {
+                continue;
+            }
+            if protection_blocks.contains(&block) {
+                continue;
+            }
+            let preds = self.cfg.predecessors(block);
+            if block == entry || preds.len() == 0 {
+                // An unprotected path reaches the entry: not covered.
+                return false;
+            }
+            frontier.extend(preds);
+        }
+        true
     }
 
     /// Forward CFG walk from after the `array_set` looking for a
@@ -1802,6 +1882,71 @@ mod tests {
                 return v3
             }"#;
         assert_verifier_accepts(src);
+    }
+
+    /// A branch-local `inc_rc` does **not** protect an `array_set` reached on a
+    /// path that skips it. `inc_rc v1` lives only on the `then` path (b1), but
+    /// the `array_set v1` in the join block b3 is also reachable via b2, which
+    /// has no `inc_rc`. On the `v0 = false` path `v1` has RC 1, so the
+    /// `array_set` mutates it in place and the following `array_get v1` observes
+    /// the mutation. The verifier must reject — a non-dominating `inc_rc`
+    /// cannot vouch for the array_set.
+    #[test]
+    fn end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Branch-local `inc_rc`s that **collectively** cover every path do
+    /// protect the `array_set`, even when no single one dominates it. Both
+    /// arms of the diamond (b1 *and* b2) bump `v1` before the join block b3
+    /// holds `array_set v1` and a read of `v1`. Neither `inc_rc` dominates b3
+    /// on its own, but every path to the array_set passes through one of
+    /// them, so `v1` has RC ≥ 2 on every path and the `array_set` always
+    /// copies. The verifier must accept.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case: the frontend emits one `inc_rc` per branch feeding a join, which
+    /// a single-block dominance check would wrongly reject. It is the exact
+    /// counterpart of
+    /// `end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`
+    /// — adding the second arm's `inc_rc` is what flips it from a hazard to
+    /// safe.
+    #[test]
+    fn end_to_end_branch_local_inc_rcs_on_all_arms_protect_array_set_in_join_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                inc_rc v1
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "inc_rc v1 on both arms collectively cover every path to the array_set; \
+             neither dominates b3 alone, but together they form a cut",
+        );
     }
 
     /// Index-aware filter: a constant-index `array_set` followed by a
@@ -3151,19 +3296,20 @@ mod tests {
 
     /// Five `inc_rc` placements, each isolated on its own array parameter
     /// so the inc_rcs don't accidentally cover for each other. Tests the
-    /// **relaxed** precedence check (any `inc_rc` earlier in RPO suffices;
-    /// it does **not** need to dominate the array_set's block):
+    /// precedence check, which requires the `inc_rc` to be on **every** path
+    /// to the array_set — either earlier in the same block, or in a block
+    /// that **dominates** the array_set's block:
     ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **precedes**.
-    ///   - `v1`: inc_rc in entry block → **precedes**.
-    ///   - `v2`: inc_rc in a sibling branch (b1) → **precedes** under the
-    ///     relaxed check (sibling blocks come earlier in RPO than the
-    ///     common-successor block); would fail a strict dominance check.
+    ///   - `v1`: inc_rc in entry block (dominates everything) → **precedes**.
+    ///   - `v2`: inc_rc in a sibling branch (b1) → does **not** precede.
+    ///     b1 doesn't dominate the common-successor block b3 (the b2 path
+    ///     skips the inc_rc), so the bump can't vouch for the array_set.
     ///   - `v3`: same-block, inc_rc *later* than the array_set → does
     ///     **not** precede (same-block comparison still requires earlier
     ///     position).
     ///   - `v4`: no inc_rc anywhere → does **not** precede.
     #[test]
-    fn inc_rc_precedence_recognizes_earlier_in_flow_positions() {
+    fn inc_rc_precedence_requires_dominating_position() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0(v0: [u32; 2], v1: [u32; 2], v2: [u32; 2], v3: [u32; 2], v4: [u32; 2], v5: u1):
@@ -3205,7 +3351,7 @@ mod tests {
             } else if *source == v1 {
                 (true, "v1: entry-block inc_rc")
             } else if *source == v2 {
-                (true, "v2: inc_rc in sibling branch (precedes in RPO)")
+                (false, "v2: inc_rc in sibling branch does not dominate")
             } else if *source == v3 {
                 (false, "v3: same-block later inc_rc")
             } else if *source == v4 {
