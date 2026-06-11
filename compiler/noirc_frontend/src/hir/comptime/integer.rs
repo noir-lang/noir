@@ -12,13 +12,13 @@ use crate::{
 };
 
 /// Converts a `FieldElement` to the `BigInt` holding its canonical (non-negative) representative.
-pub fn field_to_bigint(value: &FieldElement) -> BigInt {
+pub(crate) fn field_to_bigint(value: &FieldElement) -> BigInt {
     BigInt::from_biguint(Sign::Plus, BigUint::from_bytes_be(&value.to_be_bytes()))
 }
 
 /// Converts a `BigInt` to a `FieldElement`. The magnitude is reduced modulo the field modulus
 /// and negative values are encoded via field negation: `-7` becomes `-FieldElement::from(7)`.
-pub fn bigint_to_field(value: &BigInt) -> FieldElement {
+pub(crate) fn bigint_to_field(value: &BigInt) -> FieldElement {
     let field = FieldElement::from_be_bytes_reduce(&value.magnitude().to_bytes_be());
     if value.sign() == Sign::Minus { -field } else { field }
 }
@@ -26,7 +26,7 @@ pub fn bigint_to_field(value: &BigInt) -> FieldElement {
 /// Converts a `FieldElement` to a `BigInt`, choosing the sign which gives the shorter
 /// decimal representation, mirroring `FieldElement`'s `Display` impl. This keeps values
 /// which encode negative numbers via field negation displaying as negative numbers.
-pub fn field_to_signed_bigint(value: &FieldElement) -> BigInt {
+pub(crate) fn field_to_signed_bigint(value: &FieldElement) -> BigInt {
     let positive = field_to_bigint(value);
     let negated = field_to_bigint(&-*value);
     if negated.to_string().len() < positive.to_string().len() { -negated } else { positive }
@@ -118,18 +118,18 @@ impl Integer {
     /// Converts this [Integer] to a [BigInt]. Negative signed values become negative
     /// bigints, and field values which display as negative numbers (see
     /// [field_to_signed_bigint]) also become negative bigints.
-    pub fn to_bigint(&self) -> BigInt {
+    pub(crate) fn to_bigint(self) -> BigInt {
         match self {
-            Integer::Field(value) => field_to_signed_bigint(value),
-            Integer::I8(value) => (*value).into(),
-            Integer::I16(value) => (*value).into(),
-            Integer::I32(value) => (*value).into(),
-            Integer::I64(value) => (*value).into(),
-            Integer::U8(value) => (*value).into(),
-            Integer::U16(value) => (*value).into(),
-            Integer::U32(value) => (*value).into(),
-            Integer::U64(value) => (*value).into(),
-            Integer::U128(value) => (*value).into(),
+            Integer::Field(value) => field_to_signed_bigint(&value),
+            Integer::I8(value) => value.into(),
+            Integer::I16(value) => value.into(),
+            Integer::I32(value) => value.into(),
+            Integer::I64(value) => value.into(),
+            Integer::U8(value) => value.into(),
+            Integer::U16(value) => value.into(),
+            Integer::U32(value) => value.into(),
+            Integer::U64(value) => value.into(),
+            Integer::U128(value) => value.into(),
         }
     }
 
@@ -262,7 +262,7 @@ impl Integer {
     /// Returns `None` if the given type is not a field or integer, or
     /// if the value does not fit the type. Field values may be negative,
     /// in which case they are encoded via field negation.
-    pub fn try_from_bigint(value: &BigInt, typ: &Type) -> Option<Integer> {
+    pub(crate) fn try_from_bigint(value: &BigInt, typ: &Type) -> Option<Integer> {
         use IntegerBitSize::*;
         use Signedness::*;
         match typ.follow_bindings_shallow().as_ref() {
@@ -284,7 +284,7 @@ impl Integer {
 
     /// Create an [Integer] from the given [IntegerTypeSuffix]. Returns `None` if the
     /// given value does not fit in the desired integer type.
-    pub fn try_from_bigint_and_type_suffix(
+    pub(crate) fn try_from_bigint_and_type_suffix(
         value: &BigInt,
         suffix: IntegerTypeSuffix,
     ) -> Option<Integer> {
