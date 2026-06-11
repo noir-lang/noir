@@ -319,7 +319,7 @@ impl DominatorTree {
     /// frontier of loop body blocks. Use `compute_dominance_frontiers_with_back_edges` for
     /// the standard definition needed by SSA construction (block parameter placement).
     pub(crate) fn compute_dominance_frontiers(
-        &mut self,
+        &self,
         cfg: &ControlFlowGraph,
     ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
         self.compute_dominance_frontiers_inner(cfg, false)
@@ -332,14 +332,14 @@ impl DominatorTree {
     /// X dom Z ∧ X !sdom Y }. The standard definition is required for correct block parameter
     /// placement during SSA construction (e.g., in mem2reg).
     pub(crate) fn compute_dominance_frontiers_with_back_edges(
-        &mut self,
+        &self,
         cfg: &ControlFlowGraph,
     ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
         self.compute_dominance_frontiers_inner(cfg, true)
     }
 
     fn compute_dominance_frontiers_inner(
-        &mut self,
+        &self,
         cfg: &ControlFlowGraph,
         include_back_edges: bool,
     ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn dom_frontiers_backwards_layout() {
         let func = backwards_layout_setup();
-        let mut dt = DominatorTree::with_function(&func);
+        let dt = DominatorTree::with_function(&func);
 
         let cfg = ControlFlowGraph::with_function(&func);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
@@ -676,7 +676,7 @@ mod tests {
     #[test]
     fn post_dom_frontiers_backwards_layout() {
         let func = backwards_layout_setup();
-        let mut post_dom = DominatorTree::with_function_post_dom(&func);
+        let post_dom = DominatorTree::with_function_post_dom(&func);
 
         let cfg = ControlFlowGraph::with_function(&func);
         let dom_frontiers = post_dom.compute_dominance_frontiers(&cfg);
@@ -804,7 +804,7 @@ mod tests {
         let cfg = ControlFlowGraph::with_function(main);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
@@ -848,7 +848,7 @@ mod tests {
         let cfg = ControlFlowGraph::with_function(main);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
 
         assert!(dom_frontiers.is_empty());
@@ -863,7 +863,7 @@ mod tests {
         let reversed_cfg = cfg.reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
 
-        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);

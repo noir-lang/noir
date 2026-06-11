@@ -628,7 +628,7 @@ impl Context {
         instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
