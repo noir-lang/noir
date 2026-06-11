@@ -484,6 +484,8 @@ impl<'f> LoopInvariantContext<'f> {
                     let dfg = &self.inserter.function.dfg;
                     // If the block has already been labelled as impure, we don't need to check the current
                     // instruction's side effects.
+                    // Note that purity is dependent on the instruction ordering, which is expected because
+                    // it tells us exactly if there is a side-effect instruction before the current one.
                     if !block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
