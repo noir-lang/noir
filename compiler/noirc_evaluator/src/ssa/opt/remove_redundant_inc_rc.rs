@@ -33,7 +33,7 @@
 //! in another, so the pass is skipped entirely for any program in which some function
 //! reads a reference count.
 
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -99,7 +99,7 @@ impl Function {
 
     /// Find every `inc_rc` of a value that was already incremented earlier in the same
     /// block or in a dominating block.
-    fn find_redundant_inc_rcs(&self) -> FxHashSet<InstructionId> {
+    fn find_redundant_inc_rcs(&self) -> HashSet<InstructionId> {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -123,11 +123,20 @@ impl Function {
                             to_remove.insert(*instruction);
                         }
                     }
-                    // `dec_rc` is not generated during normal compilation, but if one is
-                    // present it lowers the count of its value, so an earlier increment can
-                    // no longer be assumed to keep it at least 2.
-                    Instruction::DecrementRc { value } => {
-                        incremented.remove(value);
+                    // `dec_rc` is not generated during normal compilation and is rejected
+                    // by validation. This pass is *not* sound in its presence: it only
+                    // follows the dominator chain plus intra-block order, so a `dec_rc v`
+                    // reaching a block along a non-dominating path is invisible to the seed
+                    // set, and a later `inc_rc v` could then be wrongly removed even though
+                    // the count may have dropped back to 1. Removing the value from the
+                    // running set here only covers decrements seen on the walked path, which
+                    // is an incomplete guard, so rather than give a false impression of
+                    // safety we require anyone reintroducing `dec_rc` to revisit this pass.
+                    Instruction::DecrementRc { .. } => {
+                        unreachable!(
+                            "remove_redundant_inc_rc does not support dec_rc; it is not \
+                             generated and this pass would need to be revisited to handle it"
+                        )
                     }
                     _ => {}
                 }
