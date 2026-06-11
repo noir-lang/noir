@@ -755,7 +755,12 @@ impl DefCollector {
             if !has_path_resolution_error {
                 let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
 
-                context.usage_tracker.add_unused_import(defining_module, name.clone(), visibility);
+                context.usage_tracker.add_unused_import(
+                    defining_module,
+                    name.clone(),
+                    module_def_id.namespace(),
+                    visibility,
+                );
 
                 if visibility != ItemVisibility::Private {
                     context.def_interner.register_name_for_auto_import(
@@ -807,7 +812,7 @@ impl DefCollector {
             .unused_imports()
             .iter()
             .filter(|(module_id, _)| in_crate(module_id))
-            .flat_map(|(_, names)| names.iter().map(|ident| (ident, UnusedItem::Import)));
+            .flat_map(|(_, names)| names.keys().map(|ident| (ident, UnusedItem::Import)));
 
         let mut unused_errors = unused_definitions
             .chain(unused_imports)

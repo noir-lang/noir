@@ -133,6 +133,30 @@ fn unused_dual_namespace_import_warns_once() {
 }
 
 #[test]
+fn unused_value_namespace_import_not_cleared_by_type_namespace_use() {
+    // `use foo::N` only imports the value-namespace `fn N`. Constructing the local type-namespace
+    // `struct N` uses that struct, not the import, so the import is still unused and must warn.
+    // TODO(#13008) TODO(#13009): Arguably the `pub fn N` itself is unused, but at the moment
+    // a) `pub` items are not tracked at all and b) the import marks functions as used.
+    let src = r#"
+    mod foo {
+        pub fn N() {}
+    }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+
+    struct N {}
+
+    fn main() {
+        let _ = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_unused_function() {
     let src = r#"
     contract some_contract {

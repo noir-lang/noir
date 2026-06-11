@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use async_lsp::lsp_types::TextEdit;
 use fm::FileId;
@@ -6,6 +6,7 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule,
     ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
+    hir::def_map::Namespace,
     parser::{Item, ItemKind},
 };
 
@@ -61,11 +62,14 @@ impl CodeActionFinder<'_> {
     }
 }
 
-fn has_unused_import(use_tree: &UseTree, unused_imports: &HashSet<Ident>) -> bool {
+fn has_unused_import(
+    use_tree: &UseTree,
+    unused_imports: &HashMap<Ident, HashSet<Namespace>>,
+) -> bool {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            unused_imports.contains(ident)
+            unused_imports.contains_key(ident)
         }
         UseTreeKind::List(use_trees) => {
             use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_imports))
@@ -76,12 +80,12 @@ fn has_unused_import(use_tree: &UseTree, unused_imports: &HashSet<Ident>) -> boo
 /// Returns a new `UseTree` with all the unused imports removed, and the number of removed imports.
 fn use_tree_without_unused_import(
     use_tree: &UseTree,
-    unused_imports: &HashSet<Ident>,
+    unused_imports: &HashMap<Ident, HashSet<Namespace>>,
 ) -> (Option<UseTree>, usize) {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            if unused_imports.contains(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
+            if unused_imports.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
         }
         UseTreeKind::List(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();
