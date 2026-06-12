@@ -2761,7 +2761,7 @@ mod tests {
     #[test]
     fn conditional_array_set_scalar_merge_zero_length_array() {
         let src = "
-          acir(inline) impure fn main f0 {
+          acir(inline) fn main f0 {
             b0(v0: u1, v1: u32):
               v3 = make_array [] : [u32; 0]
               jmpif v0 then: b1(), else: b2(v3)
@@ -2776,7 +2776,7 @@ mod tests {
         let ssa = ssa.flatten_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        acir(inline) fn main f0 {
           b0(v0: u1, v1: u32):
             v2 = make_array [] : [u32; 0]
             enable_side_effects v0
