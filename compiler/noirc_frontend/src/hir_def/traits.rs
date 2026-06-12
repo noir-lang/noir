@@ -160,6 +160,20 @@ impl TraitConstraint {
         )
     }
 
+    /// Whether `self` and `other` are the same bound up to their associated (named) type
+    /// arguments: the same constrained type, trait, and ordered generics.
+    ///
+    /// This is weaker than equality. It's useful when comparing a constraint against a copy of
+    /// it that was resolved independently — e.g. an inherent impl's where clause copied onto a
+    /// method, or a trait's supertrait bound propagated onto a method. That re-resolution mints
+    /// fresh type variables for any associated types the constraint introduces (e.g.
+    /// `<T as Foo>::E`), so the copies are not `==`, but they still denote the same bound.
+    pub fn matches_ignoring_associated_types(&self, other: &TraitConstraint) -> bool {
+        self.typ == other.typ
+            && self.trait_bound.trait_id == other.trait_bound.trait_id
+            && self.trait_bound.trait_generics.ordered == other.trait_bound.trait_generics.ordered
+    }
+
     /// Looks up a trait implementation which satisfies this constraint and returns it.
     ///
     /// Note that if successful, any type bindings from the impl search will be automatically

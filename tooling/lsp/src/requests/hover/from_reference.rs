@@ -514,20 +514,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
         // An inherent impl's where clause is copied onto each method's constraints during
         // collection. Those belong to the impl, not the method, so exclude them here and show
-        // only the method's own constraints. The impl's where clause is re-resolved per method,
-        // minting fresh type variables for any associated types it introduces, so match on the
-        // constrained type, trait, and ordered generics rather than by exact equality.
+        // only the method's own constraints.
         let impl_where_clause = func_meta
             .impl_id
             .map(|impl_id| args.interner.get_impl(impl_id).where_clause.clone())
             .unwrap_or_default();
         let is_from_impl = |constraint: &TraitConstraint| {
-            impl_where_clause.iter().any(|parent| {
-                parent.typ == constraint.typ
-                    && parent.trait_bound.trait_id == constraint.trait_bound.trait_id
-                    && parent.trait_bound.trait_generics.ordered
-                        == constraint.trait_bound.trait_generics.ordered
-            })
+            impl_where_clause
+                .iter()
+                .any(|parent| parent.matches_ignoring_associated_types(constraint))
         };
 
         let trait_constraints: Vec<_> =

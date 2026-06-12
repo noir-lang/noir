@@ -608,12 +608,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     /// match on the parts that identify the constraint — the constrained type, the trait, and
     /// its ordered generics — ignoring the associated (named) generics.
     fn parent_constraints_contain(&self, constraint: &TraitConstraint) -> bool {
-        self.trait_constraints.iter().any(|parent| {
-            parent.typ == constraint.typ
-                && parent.trait_bound.trait_id == constraint.trait_bound.trait_id
-                && parent.trait_bound.trait_generics.ordered
-                    == constraint.trait_bound.trait_generics.ordered
-        })
+        self.trait_constraints
+            .iter()
+            .any(|parent| parent.matches_ignoring_associated_types(constraint))
     }
 
     fn show_function(&mut self, func_id: FuncId) {
