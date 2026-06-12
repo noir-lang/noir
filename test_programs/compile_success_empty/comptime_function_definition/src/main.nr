@@ -23,6 +23,15 @@ pub fn singleton_tuples(((nested,),): ((Field,),)) {
     let _ = nested;
 }
 
+pub struct Wrapper {
+    value: (Field,),
+}
+
+#[struct_field_attr]
+pub fn struct_field(Wrapper { value: (inner,) }: Wrapper) {
+    let _ = inner;
+}
+
 #[test]
 #[deprecated]
 #[check_named_attribute]
@@ -68,6 +77,14 @@ comptime fn singleton_tuple_attr(f: FunctionDefinition) {
     // A singleton tuple in a nested position must keep its trailing comma:
     // `((nested,),)` must not be reflected as `((nested))`.
     assert_eq(parameters[0].0, quote { ((nested,),) });
+}
+
+comptime fn struct_field_attr(f: FunctionDefinition) {
+    // Reflecting a struct-destructure parameter forces the struct's fields to be
+    // resolved on demand; this must not panic when the fields are still deferred.
+    let parameters = f.parameters();
+    assert_eq(parameters.len(), 1);
+    assert_eq(parameters[0].0, quote { Wrapper { value: (inner,) } });
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {

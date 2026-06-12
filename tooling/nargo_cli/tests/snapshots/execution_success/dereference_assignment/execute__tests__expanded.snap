@@ -1,0 +1,38 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct S {
+    y: Field,
+}
+
+fn id(r: &mut Field) -> &mut Field {
+    r
+}
+
+fn main(x: Field) {
+    let mut a: Field = x;
+    {
+        let deref_0: &mut Field = &mut a;
+        *deref_0 = a + 10_Field;
+    };
+    {
+        let deref_1: &mut Field = &mut a;
+        *deref_1 = *deref_1 + 5_Field;
+    };
+    let mut s: S = S { y: 0_Field };
+    {
+        let deref_2: &mut Field = &mut s.y;
+        *deref_2 = a + 10_Field;
+    };
+    {
+        let deref_3: &mut Field = &mut s.y;
+        *deref_3 = *deref_3 - a;
+    };
+    {
+        let deref_4: &mut Field = id(&mut a);
+        *deref_4 = s.y + 90_Field;
+    };
+    assert(a == (s.y + 90_Field));
+    assert(s.y == 10_Field);
+}

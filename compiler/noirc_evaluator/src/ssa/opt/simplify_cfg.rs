@@ -49,9 +49,13 @@ impl Function {
         let mut cfg = ControlFlowGraph::with_function(self);
         let mut values_to_replace = ValueMapping::default();
         let mut stack = vec![self.entry_block()];
+        // Tracks which blocks are currently in `stack`
+        let mut queued: HashSet<BasicBlockId> = stack.iter().copied().collect();
         let mut visited = HashSet::new();
 
         while let Some(block) = stack.pop() {
+            queued.remove(&block);
+
             if cfg.predecessors(block).len() == 0 && block != self.entry_block() {
                 // If the block has no predecessors, it's no longer reachable and can be ignored.
                 cfg.invalidate_block_successors(block);
@@ -67,30 +71,41 @@ impl Function {
             let simplified = simplify_current_block(self, block, &mut cfg, &mut values_to_replace);
 
             if visited.insert(block) || simplified {
-                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+                let successors: Vec<_> = self.dfg[block]
+                    .successors()
+                    .filter(|block| !visited.contains(block) && queued.insert(*block))
+                    .collect();
+                stack.extend(successors);
             }
 
             // If this block was simplified (e.g. a jmpif was folded to a jmp), its predecessors
             // may now have new simplification opportunities (e.g. converging branches).
             // Re-add them to the stack so they get re-checked.
             if simplified {
-                stack.extend(cfg.predecessors(block).filter(|b| visited.contains(b)));
+                let predecessors: Vec<_> = cfg
+                    .predecessors(block)
+                    .filter(|b| visited.contains(b) && queued.insert(*b))
+                    .collect();
+                stack.extend(predecessors);
             }
 
             let mut predecessors = cfg.predecessors(block);
-            if predecessors.len() == 1 {
+            let inlined = if predecessors.len() == 1 {
                 let predecessor =
                     predecessors.next().expect("Already checked length of predecessors");
                 drop(predecessors);
 
-                try_inline_successor(self, &mut cfg, predecessor, &mut values_to_replace);
+                try_inline_successor(self, &mut cfg, predecessor, &mut values_to_replace)
             } else {
                 drop(predecessors);
 
                 check_for_double_jmp(self, block, &mut cfg);
-            }
+                false
+            };
 
-            if !values_to_replace.is_empty() {
+            // When `block` is inlined into its predecessor it becomes empty and unreachable,
+            // so it no longer has a terminator worth updating.
+            if !inlined && !values_to_replace.is_empty() {
                 self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
             }
         }
@@ -479,9 +494,8 @@ fn resolve_jmp_chain(function: &Function, mut current: BasicBlockId) -> BasicBlo
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
 ///
-/// Currently, if this function is needed, `try_inline_into_predecessor` will also always apply,
-/// although in the future it is possible for only this function to apply if jmpif instructions
-/// with block arguments are ever added.
+/// This is only called for a predecessor that terminates in a plain `Jmp` whose sole successor is
+/// the given block, so whenever this function is needed `try_inline_into_predecessor` also applies.
 fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
@@ -495,11 +509,8 @@ fn remove_block_parameters(
 
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
-            TerminatorInstruction::JmpIf { .. } => unreachable!(
-                "If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"
-            ),
             _ => unreachable!(
-                "Predecessor was already validated to have only a single jmp destination"
+                "Predecessor was already validated to terminate in a single jmp destination"
             ),
         };
 

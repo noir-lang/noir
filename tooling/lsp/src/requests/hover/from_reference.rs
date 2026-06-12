@@ -511,6 +511,22 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 string.push_str(&format!("{return_type}"));
             }
         }
+
+        let trait_constraints = &func_meta.trait_constraints;
+        if !trait_constraints.is_empty() {
+            string.push_str(" where ");
+            for (index, constraint) in trait_constraints.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                let constraint_type = &constraint.typ;
+                string.push_str(&format!("{constraint_type}"));
+                string.push_str(": ");
+                let trait_ = args.interner.get_trait(constraint.trait_bound.trait_id);
+                string.push_str(trait_.name.as_str());
+                string.push_str(&constraint.trait_bound.trait_generics.to_string());
+            }
+        }
     }
 
     if enum_variant.is_some() {
