@@ -183,13 +183,14 @@ impl TraitConstraint {
             return false;
         }
 
-        // An associated type left unspecified on a bound is filled in with a fresh type variable
-        // each time the bound is resolved, so two copies of the same bound carry different
-        // variables there. Treat any pair of unbound variables as matching, but still compare
-        // associated types the user bound to a concrete type (e.g. `Foo<Bar = u32>`).
+        // An associated type the bound leaves unspecified is filled in with a fresh type
+        // variable each time the bound is resolved, so two copies of the same bound carry
+        // different ones there. Depending on the resolution path that filler is a bare type
+        // variable or a named generic, so accept either (when unbound) as matching, while still
+        // comparing associated types the user bound to a concrete type (e.g. `Foo<Bar = u32>`).
         let is_unbound = |typ: &Type| match typ {
-            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. }) => {
-                v.borrow().is_unbound()
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                var.borrow().is_unbound()
             }
             _ => false,
         };
