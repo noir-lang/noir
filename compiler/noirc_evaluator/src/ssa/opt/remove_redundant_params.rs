@@ -92,7 +92,7 @@ fn remove_redundant_params_post_check(function: &Function, entry_param_count: us
         function.name(),
         function.id(),
     );
-    super::checks::assert_terminator_args_match_params(function);
+    crate::ssa::validation::validate_terminators(function);
 }
 
 /// Lattice element for the abstract value flowing to a block parameter.

@@ -14,12 +14,10 @@
 //! All functions in this module are only compiled with `#[cfg(debug_assertions)]`.
 
 use crate::ssa::ir::{
-    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::Function,
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
-    value::ValueId,
 };
 
 // ---------------------------------------------------------------------------
@@ -74,56 +72,6 @@ pub(super) fn assert_no_constant_jmpif(function: &Function) {
                  Run simplify_cfg to fold constant-condition branches.",
                 function.name(),
             );
-        }
-    }
-}
-
-/// Asserts that every `Jmp` and `JmpIf` terminator in the function passes exactly as many
-/// arguments to each destination as that destination block has parameters, with matching
-/// types.
-///
-/// Passes which add or remove block parameters (e.g. mem2reg, remove_redundant_params)
-/// must keep every predecessor's terminator arguments consistent with the destination's
-/// parameter list; a mismatch leaves the SSA malformed in a way that only surfaces in
-/// later passes or codegen.
-pub(super) fn assert_terminator_args_match_params(function: &Function) {
-    let check_args = |block: BasicBlockId, destination: BasicBlockId, arguments: &[ValueId]| {
-        let params = function.dfg[destination].parameters();
-        assert_eq!(
-            arguments.len(),
-            params.len(),
-            "Block {block} in function {} jumps to {destination} with {} arguments, but it has {} parameters",
-            function.name(),
-            arguments.len(),
-            params.len(),
-        );
-        for (argument, param) in arguments.iter().zip(params) {
-            let argument_type = function.dfg.type_of_value(*argument);
-            let param_type = function.dfg.type_of_value(*param);
-            assert!(
-                argument_type.canonical_eq(&param_type),
-                "Block {block} in function {} jumps to {destination} passing {argument}, whose type does not match parameter {param}\n  left: {argument_type}\n right: {param_type}",
-                function.name(),
-            );
-        }
-    };
-
-    for block in function.reachable_blocks() {
-        match function.dfg[block].terminator() {
-            Some(TerminatorInstruction::Jmp { destination, arguments, .. }) => {
-                check_args(block, *destination, arguments);
-            }
-            Some(TerminatorInstruction::JmpIf {
-                then_destination,
-                then_arguments,
-                else_destination,
-                else_arguments,
-                ..
-            }) => {
-                check_args(block, *then_destination, then_arguments);
-                check_args(block, *else_destination, else_arguments);
-            }
-            _ => (),
         }
     }
 }
@@ -241,49 +189,5 @@ fn is_signed_binary_op(instruction: &Instruction, dfg: &DataFlowGraph, op: Binar
         dfg.type_of_value(binary.lhs).is_signed() && binary.operator == op
     } else {
         false
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use acvm::{AcirField, FieldElement};
-
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            map::Id,
-            types::{NumericType, Type},
-        },
-    };
-
-    #[test]
-    #[should_panic(expected = "with 0 arguments, but it has 1 parameters")]
-    fn detects_terminator_argument_arity_mismatch() {
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let destination = builder.insert_block();
-        builder.add_block_parameter(destination, Type::field());
-        builder.terminate_with_jmp(destination, Vec::new());
-        builder.switch_to_block(destination);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
-        super::assert_terminator_args_match_params(ssa.main());
-    }
-
-    #[test]
-    #[should_panic(expected = "whose type does not match parameter")]
-    fn detects_terminator_argument_type_mismatch() {
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let destination = builder.insert_block();
-        builder.add_block_parameter(destination, Type::field());
-        let argument = builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        builder.terminate_with_jmp(destination, vec![argument]);
-        builder.switch_to_block(destination);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
-        super::assert_terminator_args_match_params(ssa.main());
     }
 }

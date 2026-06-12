@@ -65,7 +65,7 @@ impl Ssa {
 /// destination block declares as parameters.
 #[cfg(debug_assertions)]
 fn mem2reg_post_check(function: &Function) {
-    super::checks::assert_terminator_args_match_params(function);
+    crate::ssa::validation::validate_terminators(function);
 }
 
 impl Function {
