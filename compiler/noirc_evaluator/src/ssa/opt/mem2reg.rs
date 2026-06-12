@@ -80,7 +80,7 @@ impl Function {
             // instruction result. These are iterated on in key order when adding block
             // parameters and terminator arguments, so the maps must have a deterministic ordering
             // for arguments to line up with parameters.
-            let (variables, def_sites, has_ineligible_variables) =
+            let (mut variables, mut def_sites, has_ineligible_variables) =
                 collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
             if variables.is_empty() {
@@ -95,7 +95,7 @@ impl Function {
                 dom_frontiers = Some(dom_tree.compute_dominance_frontiers_with_back_edges(&cfg));
             }
 
-            let param_locations =
+            let mut param_locations =
                 compute_param_locations(&variables, &def_sites, dom_frontiers.as_ref().unwrap());
 
             // Precompute which variables are visible at each block by walking the dominator tree.
@@ -104,7 +104,31 @@ impl Function {
             // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
             // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
             // this visibility propagation replaces the per-variable dominance checks in phase 2).
-            let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+            let mut visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
+            // Only promote variables that are stored before they are used on every path.
+            // If not, (using an allocation without a previous store to it) we do not
+            // promote the allocation. This should not happen in a well-formed code.
+            let promotable = find_promotable_variables(
+                &blocks,
+                &visible_vars,
+                &param_locations,
+                inserter.function,
+                &cfg,
+            );
+            if promotable.len() != variables.len() {
+                variables.retain(|var, _| promotable.contains(var));
+                if variables.is_empty() {
+                    // Nothing promotable this round; do not loop forever re-collecting the
+                    // same use-before-store variables.
+                    break;
+                }
+                def_sites.retain(|var, _| promotable.contains(var));
+                param_locations.retain(|var, _| promotable.contains(var));
+                for vars in visible_vars.values_mut() {
+                    vars.retain(|var, _| promotable.contains(var));
+                }
+            }
 
             let mut block_states = BlockStates::default();
             add_block_params_and_find_exit_states(
@@ -462,10 +486,6 @@ fn collect_eligible_variables_and_def_sites(
     // Whether there's any allocate that can't be optimized out
     let mut has_ineligible_variables = false;
 
-    // Workaround for https://github.com/noir-lang/noir/issues/11482
-    // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
-    let mut variables_with_stores_in_decl_block = HashSet::default();
-
     for block_id in blocks.iter().copied() {
         let block = &function.dfg[block_id];
         for instruction_id in block.instructions() {
@@ -482,12 +502,8 @@ fn collect_eligible_variables_and_def_sites(
                         has_ineligible_variables = true;
                     }
 
-                    if let Some(decl_block) = variables.get(address) {
-                        let is_decl_block = *decl_block == block_id;
+                    if variables.contains_key(address) {
                         def_sites.entry(*address).or_default().insert(block_id);
-                        if is_decl_block {
-                            variables_with_stores_in_decl_block.insert(*address);
-                        }
                     }
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
@@ -507,19 +523,121 @@ fn collect_eligible_variables_and_def_sites(
     }
 
     // `def_sites` accumulates entries only when we see a store to an address still tracked in
-    // `variables`, so `variables` is the authoritative set of eligible addresses. Both retains
-    // below prune any stale entries left by first-class uses that removed an address from
+    // `variables`, so `variables` is the authoritative set of eligible addresses. The retain
+    // below prunes any stale entries left by first-class uses that removed an address from
     // `variables` without clearing `def_sites`.
-    variables.retain(|address, _| {
-        if variables_with_stores_in_decl_block.contains(address) {
-            true
-        } else {
-            has_ineligible_variables = true;
-            false
-        }
-    });
     def_sites.retain(|address, _| variables.contains_key(address));
+
+    // A non-escaping allocation may still be ineligible because it is *used before it is
+    // stored* on some path (a load or block-parameter merge that would observe the reference
+    // itself rather than a stored value). Such variables are filtered out by the definedness
+    // analysis run by the caller; the declaration block no longer needs its own store
+    // (the previous requirement was a coarser proxy for "defined before use", see #11482).
     (variables, def_sites, has_ineligible_variables)
+}
+
+/// Read-only analysis returning the variables that are *stored before they are used* on every
+/// path, and so can be safely promoted.
+///
+/// Promotion replaces a load with the value that reaches it and merges divergent values with a
+/// block parameter. Before its first store a variable's "value" is the placeholder — its own
+/// `allocate` result ([`compute_entry_state`]). If that placeholder reaches a use it would be
+/// substituted as a value: a load would yield the raw reference, and a block-parameter argument
+/// would pass the reference where the parameter's type is the element type. Both are invalid.
+///
+/// This mirrors the value propagation of [`compute_entry_state`], [`abstract_interpret_block`]
+/// and [`add_terminator_arguments`], tracking a boolean "defined" instead of the actual value.
+/// It is intentionally conservative: when in doubt a variable is reported as not promotable,
+/// which only forgoes an optimization, never miscompiles.
+fn find_promotable_variables(
+    blocks: &[BasicBlockId],
+    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    param_locations: &ParamLocations,
+    function: &Function,
+    cfg: &ControlFlowGraph,
+) -> HashSet<ValueId> {
+    // `exit_defined[block][var]` is true once a stored value reaches the end of `block`.
+    // Populated in reverse-post-order, processing predecessors first.
+    let mut exit_defined: HashMap<BasicBlockId, HashMap<ValueId, bool>> = HashMap::default();
+    let mut not_promotable: HashSet<ValueId> = HashSet::default();
+
+    // Pass 1: propagate promotion, flagging loads that would read the placeholder.
+    for &block in blocks {
+        let mut state: HashMap<ValueId, bool> = HashMap::default();
+        for (var, decl_block) in &visible_vars[&block] {
+            let defined = if block == *decl_block {
+                // Declaration block: not stored yet, so the entry value is the placeholder.
+                false
+            } else if param_locations[var].contains(&block) {
+                // A block parameter provides a value.
+                // Pass 2 will ensure that all predecessors provide a value.
+                true
+            } else {
+                // Inherit the status from the already visited predecessors.
+                // back-edge predecessors not yet visited are skipped.
+                // They must carry the same value: The variable is defined on
+                // entry iff there is a visited predecessor and every visited
+                // predecessor has it defined.
+                let mut any_visited = false;
+                let mut pred_defined = true;
+                for pred in cfg.predecessors(block) {
+                    if let Some(pred_state) = exit_defined.get(&pred) {
+                        any_visited = true;
+                        pred_defined &= *pred_state.get(var).unwrap_or(&false);
+                    }
+                }
+                any_visited && pred_defined
+            };
+            state.insert(*var, defined);
+        }
+
+        for instruction_id in function.dfg[block].instructions() {
+            match &function.dfg[*instruction_id] {
+                Instruction::Store { address, .. } => {
+                    if state.contains_key(address) {
+                        // The store defines the address
+                        state.insert(*address, true);
+                    }
+                }
+                Instruction::Load { address } => {
+                    if state.get(address) == Some(&false) {
+                        // Load before a store
+                        not_promotable.insert(*address);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        exit_defined.insert(block, state);
+    }
+
+    // Pass 2: a block parameter reads each predecessor's exit value, so every predecessor must
+    // be defined there — otherwise the placeholder would be passed as the argument.
+    for &block in blocks {
+        for (var, decl_block) in &visible_vars[&block] {
+            // Same as `add_terminator_arguments`: skips the declaration block and non-IDF blocks.
+            if block == *decl_block || !param_locations[var].contains(&block) {
+                continue;
+            }
+            // Ensure that arguments are defined in all predecessors
+            for pred in cfg.predecessors(block) {
+                if exit_defined.get(&pred).and_then(|m| m.get(var)) != Some(&true) {
+                    not_promotable.insert(*var);
+                }
+            }
+        }
+    }
+
+    let mut promotable = HashSet::default();
+    for vars in visible_vars.values() {
+        for var in vars.keys() {
+            if !not_promotable.contains(var) {
+                promotable.insert(*var);
+            }
+        }
+    }
+    promotable
 }
 
 /// Commit to all changes made by the pass:
@@ -565,6 +683,70 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
+
+    #[test]
+    fn promotes_when_first_store_is_not_in_declaration_block() {
+        // The allocation is declared in the entry block `b0` but its first (and only) store is
+        // in `b3`, which dominates the load. There is no store in the declaration block, yet the
+        // reference is defined before every use, so it must be promoted away entirely.
+        //
+        // This is the minimized shape of `reference_counts_inliner_max`, where load/store
+        // forwarding removes the declaration-block store and leaves the first store in a later
+        // (dominating) block.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            store Field 7 at v1
+            v3 = load v1 -> Field
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return Field 7
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_reference_used_before_stored_on_some_path() {
+        // The reference is stored only on the `b1` branch, then loaded at the merge `b3`. On the
+        // `b2` path it reaches `b3` unstored, so the merge would observe the placeholder (the raw
+        // `allocate` result). Promoting it would produce invalid SSA, so the reference must stay
+        // in memory.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 7 at v1
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v3 = load v1 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 
     #[test]
     fn decl_block_in_own_idf_regression() {
