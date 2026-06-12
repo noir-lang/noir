@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["append_foreign_call_param","check_instruction","evaluate_assert_constant","evaluate_static_assert","get_blocks_within_empty_loop"]};
+window.SIDEBAR_ITEMS = {"fn":["append_foreign_call_param","check_instruction","evaluate_assert_constant","evaluate_static_assert","evaluate_static_assert_and_assert_constant_post_check","get_blocks_within_empty_loop"]};

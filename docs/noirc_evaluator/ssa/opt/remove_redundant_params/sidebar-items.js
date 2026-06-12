@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AbstractValue"],"fn":["collect_edges_for_target","remove_terminator_args"],"struct":["BlockSummary"]};
+window.SIDEBAR_ITEMS = {"enum":["AbstractValue"],"fn":["collect_edges_for_target","remove_redundant_params_post_check","remove_terminator_args"],"struct":["BlockSummary"]};
