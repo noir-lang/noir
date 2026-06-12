@@ -26,7 +26,7 @@ pub(super) fn simplify_ec_add(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     // arguments: [x1, y1, x2, y2, predicate]
-    if dfg.is_constant(arguments[4]) && !dfg.is_constant_true(arguments[4]) {
+    if dfg.is_constant_false(arguments[4]) {
         let result_instruction =
             constant_point_result_helper(dfg, FieldElement::zero(), FieldElement::zero());
         let result_array =
@@ -64,7 +64,7 @@ fn simplify_msm_helper(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     // Simplify msm with false predicate
-    if dfg.is_constant(*predicate) && !dfg.is_constant_true(*predicate) {
+    if dfg.is_constant_false(*predicate) {
         let result_instruction =
             constant_point_result_helper(dfg, FieldElement::zero(), FieldElement::zero());
         let result_array =
@@ -324,39 +324,55 @@ pub(super) fn simplify_signature(
     arguments: &[ValueId],
     signature_verifier: ECDSASignatureVerifier,
 ) -> SimplifyResult {
+    // arguments: [public_key_x, public_key_y, signature, hashed_message, predicate]
+    // The predicate is a single `u1` value, not an array. Mirror `simplify_ec_add` /
+    // `simplify_msm_helper`: a statically-false predicate disables the check and the verifier
+    // reports success, so fold to `true`. This also strips the call before ACIR-gen, whose
+    // `prepare_inputs_for_black_box_func` asserts a zero predicate was already optimized away.
+    if dfg.is_constant_false(arguments[4]) {
+        let valid_signature = dfg.make_constant(1_u128.into(), NumericType::bool());
+        return SimplifyResult::SimplifiedTo(valid_signature);
+    }
+
     match (
         dfg.get_array_constant(arguments[0]),
         dfg.get_array_constant(arguments[1]),
         dfg.get_array_constant(arguments[2]),
         dfg.get_array_constant(arguments[3]),
-        dfg.get_array_constant(arguments[4]),
     ) {
         (
             Some((public_key_x, _)),
             Some((public_key_y, _)),
             Some((signature, _)),
             Some((hashed_message, _)),
-            Some((predicate, _)),
-        ) if array_is_constant(dfg, &public_key_x)
+        ) if dfg.is_constant_true(arguments[4])
+            && array_is_constant(dfg, &public_key_x)
             && array_is_constant(dfg, &public_key_y)
             && array_is_constant(dfg, &signature)
             && array_is_constant(dfg, &hashed_message) =>
         {
-            if dfg.get_numeric_constant(predicate[0]) == Some(FieldElement::zero()) {
-                let valid_signature = dfg.make_constant(1_u128.into(), NumericType::bool());
-                return SimplifyResult::SimplifiedTo(valid_signature);
-            }
-            let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let public_key_y: [u8; 32] = to_u8_vec(dfg, public_key_y)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let signature: [u8; 64] =
-                to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: [u8; 32] = to_u8_vec(dfg, hashed_message)
-                .try_into()
-                .expect("ECDSA message hashes are 32 bytes");
+            // The predicate is statically true here, so the output equals the verifier result
+            // directly (a false predicate forces `true` and is handled above; a witness predicate
+            // would make the output depend on the witness, so it is left unsimplified).
+            //
+            // The argument arrays are only well-sized for genuine ECDSA calls; SSA built directly
+            // (e.g. by the fuzzer) may carry differently-sized arrays, so a length mismatch declines
+            // to simplify rather than panicking.
+            let Ok(public_key_x): Result<[u8; 32], _> = to_u8_vec(dfg, public_key_x).try_into()
+            else {
+                return SimplifyResult::None;
+            };
+            let Ok(public_key_y): Result<[u8; 32], _> = to_u8_vec(dfg, public_key_y).try_into()
+            else {
+                return SimplifyResult::None;
+            };
+            let Ok(signature): Result<[u8; 64], _> = to_u8_vec(dfg, signature).try_into() else {
+                return SimplifyResult::None;
+            };
+            let Ok(hashed_message): Result<[u8; 32], _> = to_u8_vec(dfg, hashed_message).try_into()
+            else {
+                return SimplifyResult::None;
+            };
 
             let valid_signature =
                 signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
@@ -523,6 +539,111 @@ mod multi_scalar_mul {
             return v14
         }
         ");
+    }
+}
+
+#[cfg(test)]
+mod ecdsa_simplify {
+    use crate::ssa::Ssa;
+
+    fn zeros(n: usize) -> String {
+        vec!["u8 0"; n].join(", ")
+    }
+
+    // All inputs constant and the predicate statically true: the verifier runs at compile time and
+    // the blackbox call is replaced by its boolean result (the all-zero signature is invalid, so
+    // the result is `u1 0`).
+    #[test]
+    fn secp256k1_all_constant_inputs_is_optimized_out() {
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{a}] : [u8; 32]
+                v1 = make_array [{a}] : [u8; 32]
+                v2 = make_array [{b}] : [u8; 64]
+                v3 = make_array [{a}] : [u8; 32]
+                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
+                return v4
+            }}"#,
+            a = zeros(32),
+            b = zeros(64),
+        );
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            !lowered.contains("call ecdsa_secp256k1"),
+            "expected the all-constant ecdsa_secp256k1 call to be folded, got:\n{lowered}"
+        );
+    }
+
+    // A statically-false predicate disables the check; the verifier reports success regardless of
+    // the other inputs, so the call folds to `u1 1`. This also strips the call before ACIR-gen,
+    // whose `prepare_inputs_for_black_box_func` asserts a zero predicate was optimized away.
+    #[test]
+    fn secp256k1_constant_false_predicate_is_optimized_to_true() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 0) -> u1
+                return v4
+            }"#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            !lowered.contains("call ecdsa_secp256k1"),
+            "expected a constant-false predicate to fold the call to true, got:\n{lowered}"
+        );
+        assert!(
+            lowered.contains("return u1 1"),
+            "constant-false predicate must fold to `u1 1`, got:\n{lowered}"
+        );
+    }
+
+    #[test]
+    fn secp256r1_constant_false_predicate_is_optimized_to_true() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+                v4 = call ecdsa_secp256r1(v0, v1, v2, v3, u1 0) -> u1
+                return v4
+            }"#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            !lowered.contains("call ecdsa_secp256r1"),
+            "expected a constant-false predicate to fold the call to true, got:\n{lowered}"
+        );
+        assert!(
+            lowered.contains("return u1 1"),
+            "constant-false predicate must fold to `u1 1`, got:\n{lowered}"
+        );
+    }
+
+    // Soundness guard: with a witness predicate the output is `predicate ? verify(..) : 1`, which is
+    // not a compile-time constant even when every other input is. The call must be left intact.
+    #[test]
+    fn witness_predicate_with_constant_inputs_is_not_optimized_out() {
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0(v5: u1):
+                v0 = make_array [{a}] : [u8; 32]
+                v1 = make_array [{a}] : [u8; 32]
+                v2 = make_array [{b}] : [u8; 64]
+                v3 = make_array [{a}] : [u8; 32]
+                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, v5) -> u1
+                return v4
+            }}"#,
+            a = zeros(32),
+            b = zeros(64),
+        );
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            lowered.contains("call ecdsa_secp256k1"),
+            "a witness predicate must not be folded, got:\n{lowered}"
+        );
     }
 }
 
