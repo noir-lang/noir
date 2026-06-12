@@ -1059,16 +1059,16 @@
 <a href=#1059 id=1059 data-nosnippet>1059</a>
 <a href=#1060 id=1060 data-nosnippet>1060</a>        <span class="kw">let </span>new_generics = <span class="self">self</span>.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>trait_impl.where_clause);
 <a href=#1061 id=1061 data-nosnippet>1061</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_generics_trait_constraints = Vec::new();
-<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="kw">for </span>(new_generic, bounds) <span class="kw">in </span>new_generics {
-<a href=#1063 id=1063 data-nosnippet>1063</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
-<a href=#1064 id=1064 data-nosnippet>1064</a>                <span class="kw">let </span>typ = Type::TypeVariable(new_generic.type_var.clone());
-<a href=#1065 id=1065 data-nosnippet>1065</a>                <span class="kw">let </span>location = new_generic.location;
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="kw">for </span>desugared <span class="kw">in </span>new_generics {
+<a href=#1063 id=1063 data-nosnippet>1063</a>            <span class="kw">for </span>bound <span class="kw">in </span>desugared.bounds {
+<a href=#1064 id=1064 data-nosnippet>1064</a>                <span class="kw">let </span>typ = desugared.named_generic.clone();
+<a href=#1065 id=1065 data-nosnippet>1065</a>                <span class="kw">let </span>location = desugared.generic.location;
 <a href=#1066 id=1066 data-nosnippet>1066</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound);
 <a href=#1067 id=1067 data-nosnippet>1067</a>                new_generics_trait_constraints
 <a href=#1068 id=1068 data-nosnippet>1068</a>                    .push((TraitConstraint { typ, trait_bound: bound }, location));
 <a href=#1069 id=1069 data-nosnippet>1069</a>            }
-<a href=#1070 id=1070 data-nosnippet>1070</a>            trait_impl.resolved_generics.push(new_generic.clone());
-<a href=#1071 id=1071 data-nosnippet>1071</a>            <span class="self">self</span>.generics.push(new_generic);
+<a href=#1070 id=1070 data-nosnippet>1070</a>            trait_impl.resolved_generics.push(desugared.generic.clone());
+<a href=#1071 id=1071 data-nosnippet>1071</a>            <span class="self">self</span>.generics.push(desugared.generic);
 <a href=#1072 id=1072 data-nosnippet>1072</a>        }
 <a href=#1073 id=1073 data-nosnippet>1073</a>
 <a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="comment">// We need to resolve the where clause before any associated types to be

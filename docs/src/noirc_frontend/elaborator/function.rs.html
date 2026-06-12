@@ -476,16 +476,16 @@
 <a href=#476 id=476 data-nosnippet>476</a>        <span class="kw">let </span><span class="kw-2">mut </span>generics = Vec::with_capacity(associated_generics.len());
 <a href=#477 id=477 data-nosnippet>477</a>        <span class="kw">let </span><span class="kw-2">mut </span>associated_generics_trait_constraints = Vec::new();
 <a href=#478 id=478 data-nosnippet>478</a>
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">for </span>(associated_generic, bounds) <span class="kw">in </span>associated_generics {
-<a href=#480 id=480 data-nosnippet>480</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
-<a href=#481 id=481 data-nosnippet>481</a>                <span class="kw">let </span>typ = Type::TypeVariable(associated_generic.type_var.clone());
-<a href=#482 id=482 data-nosnippet>482</a>                <span class="kw">let </span>location = associated_generic.location;
+<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">for </span>desugared <span class="kw">in </span>associated_generics {
+<a href=#480 id=480 data-nosnippet>480</a>            <span class="kw">for </span>bound <span class="kw">in </span>desugared.bounds {
+<a href=#481 id=481 data-nosnippet>481</a>                <span class="kw">let </span>typ = desugared.named_generic.clone();
+<a href=#482 id=482 data-nosnippet>482</a>                <span class="kw">let </span>location = desugared.generic.location;
 <a href=#483 id=483 data-nosnippet>483</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound);
 <a href=#484 id=484 data-nosnippet>484</a>                associated_generics_trait_constraints
 <a href=#485 id=485 data-nosnippet>485</a>                    .push(TraitConstraint { typ, trait_bound: bound });
 <a href=#486 id=486 data-nosnippet>486</a>            }
 <a href=#487 id=487 data-nosnippet>487</a>
-<a href=#488 id=488 data-nosnippet>488</a>            generics.push(associated_generic.type_var);
+<a href=#488 id=488 data-nosnippet>488</a>            generics.push(desugared.generic.type_var);
 <a href=#489 id=489 data-nosnippet>489</a>        }
 <a href=#490 id=490 data-nosnippet>490</a>
 <a href=#491 id=491 data-nosnippet>491</a>        <span class="comment">// We put associated generics first, as they are implicit and implicit generics
