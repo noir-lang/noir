@@ -337,8 +337,7 @@ impl AliasAnalysis {
             self.allocation_sites.insert(new, site);
         }
 
-        // Class membership changed; the cached sizes are stale.
-        self.class_sizes = None;
+        self.invalidate_class_sizes(existing, new);
     }
 
     /// Union `new` into `existing`'s alias class, carrying the class's
@@ -358,6 +357,20 @@ impl AliasAnalysis {
         {
             self.points_to.insert(root, pointee);
         }
+    }
+
+    /// Invalidate the cached class sizes affected by merging `a` and `b`.
+    ///
+    /// Only the two values' classes change size, so this could update just
+    /// those entries in place. We instead reset the whole cache: `class_sizes`
+    /// is built lazily by `is_aliased`, which has no production callers, so
+    /// during a real pass run the cache is never populated and this is a no-op.
+    /// Keeping the trivially-correct full reset avoids maintaining an
+    /// invariant for a cache that production never builds. Switch to an
+    /// incremental update here if `is_aliased` ever becomes a production query
+    /// interleaved with merges.
+    fn invalidate_class_sizes(&mut self, _a: GlobalValueId, _b: GlobalValueId) {
+        self.class_sizes = None;
     }
 
     /// Assert (in debug builds) that `value` existed in its function when the
