@@ -2757,7 +2757,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameter_types,
             Rc::new(ret_type),
             Rc::new(ast::Type::Unit),
-            false,
+            self.in_unconstrained_function,
         );
 
         let name = lambda_name.to_owned();
