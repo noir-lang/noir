@@ -1059,16 +1059,16 @@ impl Elaborator<'_> {
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
         let mut new_generics_trait_constraints = Vec::new();
-        for (new_generic, named_generic, bounds) in new_generics {
-            for bound in bounds {
-                let typ = named_generic.clone();
-                let location = new_generic.location;
+        for desugared in new_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
-            trait_impl.resolved_generics.push(new_generic.clone());
-            self.generics.push(new_generic);
+            trait_impl.resolved_generics.push(desugared.generic.clone());
+            self.generics.push(desugared.generic);
         }
 
         // We need to resolve the where clause before any associated types to be

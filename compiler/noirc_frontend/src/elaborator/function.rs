@@ -476,16 +476,16 @@ impl Elaborator<'_> {
         let mut generics = Vec::with_capacity(associated_generics.len());
         let mut associated_generics_trait_constraints = Vec::new();
 
-        for (associated_generic, named_generic, bounds) in associated_generics {
-            for bound in bounds {
-                let typ = named_generic.clone();
-                let location = associated_generic.location;
+        for desugared in associated_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
 
-            generics.push(associated_generic.type_var);
+            generics.push(desugared.generic.type_var);
         }
 
         // We put associated generics first, as they are implicit and implicit generics

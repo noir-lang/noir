@@ -208,6 +208,37 @@ struct TraitScopeState {
     local_module: Option<crate::hir::def_map::LocalModuleId>,
 }
 
+/// A generic synthesized for an associated type that was elided from a trait bound.
+///
+/// For example, given `trait Foo { type Bar: Baz; }`, the where clause in:
+///
+/// ```noir
+/// fn foo<T>() where T: Foo { ... }
+/// ```
+///
+/// is desugared to mention the elided associated type explicitly:
+///
+/// ```noir
+/// fn foo<T, A>() where T: Foo<Bar = A> { ... }
+/// ```
+///
+/// producing one `DesugaredAssociatedGeneric` for the freshly introduced `A`.
+pub(super) struct DesugaredAssociatedGeneric {
+    /// The implicit generic to add to the item's generics list: the `A` above.
+    ///
+    /// Its `type_var` is bindable and is instantiated fresh at each call site, the same
+    /// way an explicit generic is.
+    pub(super) generic: ResolvedGeneric,
+    /// The rigid [`Type::NamedGeneric`] form of [`Self::generic`]: `<T as Foo>::Bar` above.
+    ///
+    /// Used as the object type of the assumed trait bound (`<T as Foo>::Bar: Baz`). It wraps
+    /// the same type variable as [`Self::generic`], but in its rigid form so trait lookup can't
+    /// wildcard-match it against unrelated concrete types.
+    pub(super) named_generic: Type,
+    /// The bounds declared on the associated type: the `Baz` from `type Bar: Baz` above.
+    pub(super) bounds: Vec<ResolvedTraitBound>,
+}
+
 impl Elaborator<'_> {
     /// Sets up the elaborator scope for processing a trait.
     /// Returns state that must be passed to `exit_trait_scope` to restore the previous state.
@@ -265,10 +296,10 @@ impl Elaborator<'_> {
             let new_generics =
                 self.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
 
-            let new_generics = vecmap(new_generics, |(generic, _named_generic, _bounds)| {
-                // TODO: use `_bounds` variable above
+            let new_generics = vecmap(new_generics, |desugared| {
+                // TODO: use `desugared.bounds` here
                 // See https://github.com/noir-lang/noir/issues/8601
-                generic
+                desugared.generic
             });
             self.generics.extend(new_generics);
 
@@ -357,7 +388,7 @@ impl Elaborator<'_> {
     pub(super) fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
-    ) -> Vec<(ResolvedGeneric, Type, Vec<ResolvedTraitBound>)> {
+    ) -> Vec<DesugaredAssociatedGeneric> {
         where_clause
             .iter_mut()
             .flat_map(|constraint| {
@@ -383,7 +414,7 @@ impl Elaborator<'_> {
         &mut self,
         object: &UnresolvedType,
         bound: &mut TraitBound,
-    ) -> Vec<(ResolvedGeneric, Type, Vec<ResolvedTraitBound>)> {
+    ) -> Vec<DesugaredAssociatedGeneric> {
         let mut added_generics = Vec::new();
         let trait_path = self.validate_path(bound.trait_path.clone());
 
@@ -445,11 +476,11 @@ impl Elaborator<'_> {
                     .unwrap_or_default();
 
                 bound.trait_generics.named_args.push((ident, typ));
-                added_generics.push((
-                    ResolvedGeneric { name, location, type_var },
+                added_generics.push(DesugaredAssociatedGeneric {
+                    generic: ResolvedGeneric { name, location, type_var },
                     named_generic,
-                    associated_type_bounds,
-                ));
+                    bounds: associated_type_bounds,
+                });
             }
         }
 
