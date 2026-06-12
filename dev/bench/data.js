@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781279012148,
+  "lastUpdate": 1781279050204,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23156,48 +23156,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "e1c6bdd9e0dfd6403e9dfbbf0a61165195b44632",
-          "message": "chore(deps-dev): bump cspell from 10.0.0 to 10.0.1 (#12962)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-09T11:11:22Z",
-          "tree_id": "7c89dd0c0c0cacb855c54e544aa3da2ccd9b9c2a",
-          "url": "https://github.com/noir-lang/noir/commit/e1c6bdd9e0dfd6403e9dfbbf0a61165195b44632"
-        },
-        "date": 1781005084952,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166662,
-            "range": "± 2013",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135977,
-            "range": "± 584",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648316,
-            "range": "± 24199",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "13809fece005627db2186ac486f6a96912ea74a2",
           "message": "chore(deps-dev): bump ts-loader from 9.5.7 to 9.6.0 (#12961)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-06-09T11:37:55Z",
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040053,
             "range": "± 34158",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4d9e4b95b65d5a33e8b7f93a7a12b73498491965",
+          "message": "fix(frontend): key elided associated-type bounds on rigid generic (#13030)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-12T15:15:42Z",
+          "tree_id": "2ac343d4f5753dfff698460c54cecb0f0ebd67f6",
+          "url": "https://github.com/noir-lang/noir/commit/4d9e4b95b65d5a33e8b7f93a7a12b73498491965"
+        },
+        "date": 1781278978330,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166943,
+            "range": "± 589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136108,
+            "range": "± 2822",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650386,
+            "range": "± 1807",
             "unit": "ns/iter"
           }
         ]
