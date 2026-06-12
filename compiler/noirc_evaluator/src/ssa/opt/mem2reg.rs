@@ -36,6 +36,9 @@ impl Ssa {
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.mem2reg();
+
+            #[cfg(debug_assertions)]
+            mem2reg_post_check(function);
         }
         self
     }
@@ -46,10 +49,23 @@ impl Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
                 function.mem2reg();
+
+                #[cfg(debug_assertions)]
+                mem2reg_post_check(function);
             }
         }
         self
     }
+}
+
+/// Post-check condition for [Function::mem2reg].
+///
+/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
+/// passing a different number of arguments (or differently typed arguments) than its
+/// destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn mem2reg_post_check(function: &Function) {
+    crate::ssa::validation::validate_terminators(function);
 }
 
 impl Function {
@@ -399,7 +415,7 @@ fn for_each_terminator_edge_mut(
             }
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
-            "for_each_terminator_edge_mut called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+            "for_each_terminator_edge_mut called on edge: {block} -> {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
         ),
     }
 }

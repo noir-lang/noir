@@ -7,12 +7,13 @@ mod hir_def;
 mod types;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, Type,
+    Kind, NamedGeneric, QuotedType, ResolvedGenerics, Type,
     ast::{IntegerBitSize, ItemVisibility},
     hir::def_map::ModuleId,
+    hir_def::traits::TraitConstraint,
     modules::module_def_id_to_reference_id,
     node_interner::{
-        FuncId, GlobalId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
+        FuncId, GlobalId, ImplId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     shared::Signedness,
 };
@@ -78,8 +79,9 @@ pub struct PrimitiveType {
 }
 
 pub struct Impl {
-    pub generics: BTreeSet<(String, Kind)>,
+    pub generics: ResolvedGenerics,
     pub typ: Type,
+    pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<(ItemVisibility, FuncId)>,
 }
 
@@ -228,24 +230,24 @@ impl<'context> ItemBuilder<'context> {
             meta.enum_variant_index.is_none()
         });
 
-        // Split them by the impl type. For example here we'll group
-        // all of `Foo<i32>` methods in one bucket, all of `Foo<Field>` in another, and
-        // all of `Foo<T>` in another one.
-        #[allow(clippy::mutable_key_type)]
-        let mut impl_methods_by_type: BTreeMap<Type, Vec<ImplMethod>> = BTreeMap::new();
+        // Group methods by the `impl` block they were declared in, so each `impl` block is
+        // reconstructed individually (preserving its generics and where clause).
+        let mut impl_methods_by_impl_id: BTreeMap<ImplId, Vec<ImplMethod>> = BTreeMap::new();
         for method in impl_methods {
-            impl_methods_by_type.entry(method.typ.clone()).or_default().push(method);
+            let Some(impl_id) = self.interner.function_meta(&method.method).impl_id else {
+                continue;
+            };
+            impl_methods_by_impl_id.entry(impl_id).or_default().push(method);
         }
 
-        impl_methods_by_type
+        impl_methods_by_impl_id
             .into_iter()
-            .map(|(typ, methods)| self.build_impl(typ, methods))
+            .map(|(impl_id, methods)| self.build_impl(impl_id, methods))
             .collect()
     }
 
-    fn build_impl(&self, typ: Type, methods: Vec<ImplMethod>) -> Impl {
-        let mut generics = BTreeSet::new();
-        gather_named_type_vars(&typ, &mut generics);
+    fn build_impl(&self, impl_id: ImplId, methods: Vec<ImplMethod>) -> Impl {
+        let impl_ = self.interner.get_impl(impl_id);
 
         let mut methods = methods
             .into_iter()
@@ -263,7 +265,12 @@ impl<'context> ItemBuilder<'context> {
         let methods =
             methods.into_iter().map(|(visibility, func_id, _)| (visibility, func_id)).collect();
 
-        Impl { generics, typ, methods }
+        Impl {
+            generics: impl_.generics.clone(),
+            typ: impl_.typ.clone(),
+            where_clause: impl_.where_clause.clone(),
+            methods,
+        }
     }
 
     fn build_data_type_trait_impls(&self, data_type: &crate::DataType) -> Vec<TraitImpl> {

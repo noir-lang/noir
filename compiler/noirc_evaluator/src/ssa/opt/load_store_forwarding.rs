@@ -604,11 +604,10 @@ mod tests {
 
     #[test]
     fn call_returning_alias_of_local_allocation_prevents_forwarding() {
-        // Bug: When a local allocation is passed to a call, it is removed from
-        // known_values/last_stores but NOT from local_allocations. If the callee
-        // returns an alias to the same memory, stores through the original address
-        // skip the conservative clear (because it's still in local_allocations),
-        // leaving stale entries for the alias.
+        // A call returns an alias of an address that is also stored to directly.
+        // v1 (the returned reference) and v0 (the call argument) point to the
+        // same memory, so a store through v0 must invalidate the cached value
+        // for v1 — otherwise a later load of v1 forwards a stale value.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -661,6 +660,34 @@ mod tests {
         // must NOT be eliminated as a dead store, because `load v5` (where v5
         // is loaded from v2, which aliases v3 after `store v3 at v2`) reads
         // through the alias in the next iteration.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn loop_carried_alias_via_block_parameter() {
+        // Form 2 of loop-carried aliases: mem2reg_simple has promoted the
+        // `store ref at ref` / `load ref` into a reference-typed block parameter.
+        //
+        // This is the promoted version of `loop_carried_alias_prevents_incorrect_dead_store`:
+        // instead of `store v3 at v2` + `v5 = load v2`, the reference is passed
+        // as a block parameter via jmp.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1(v0)
+          b1(v2: &mut Field):
+            store Field 1 at v1
+            v3 = load v2 -> Field
+            store v3 at v1
+            jmp b1(v1)
+        }
+        ";
+        // v2 is a reference-typed loop header parameter. In the first iteration
+        // v2 == v0, but from the second iteration onward v2 == v1 (passed via jmp).
+        // When v2 == v1, `store Field 1 at v1` writes the value that `load v2` reads.
+        // That store must NOT be eliminated as dead (overwritten by `store v3 at v1`).
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
@@ -765,11 +792,14 @@ mod tests {
     }
 
     // --- Regression tests for issues #12217-#12232 ---
-    // Multi-block tests: the pass skips these entirely (single-block restriction).
+    // Multi-block loop-aliasing cases. The pass processes every block with
+    // state reset at block entry, so a loop-carried alias established across
+    // the back-edge is never forwarded — the relevant load/store pairs sit in
+    // different iterations (i.e. across the block boundary).
 
     #[test]
     fn regression_12217_loop_alias_via_call_input() {
-        // Loop-carried alias established via function call input. Multi-block -> skipped.
+        // Loop-carried alias established via function call input. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -797,7 +827,7 @@ mod tests {
 
     #[test]
     fn regression_12219_loop_alias_via_call_return() {
-        // Loop-carried alias via returned reference from call. Multi-block -> skipped.
+        // Loop-carried alias via returned reference from call. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -825,7 +855,7 @@ mod tests {
 
     #[test]
     fn regression_12220_loop_alias_via_array_get() {
-        // Loop-carried alias via array_get with variable index. Multi-block -> skipped.
+        // Loop-carried alias via array_get with variable index. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_idx: u32):
@@ -850,7 +880,7 @@ mod tests {
 
     #[test]
     fn regression_12221_loop_alias_via_jmpif() {
-        // Loop-carried alias via jmpif passing ref to non-header block. Multi-block -> skipped.
+        // Loop-carried alias via jmpif passing ref to non-header block. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_cond: u1):
@@ -877,7 +907,7 @@ mod tests {
 
     #[test]
     fn regression_12222_loop_nested_refs_form1() {
-        // Array containing references stored in loop (Form 1 misses nested refs). Multi-block -> skipped.
+        // Array containing references stored in loop (Form 1 misses nested refs). Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -903,7 +933,7 @@ mod tests {
 
     #[test]
     fn regression_12223_loop_nested_refs_form2() {
-        // Loop header block param of array-of-refs type (Form 2 misses nested refs). Multi-block -> skipped.
+        // Loop header block param of array-of-refs type (Form 2 misses nested refs). Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -1024,6 +1054,45 @@ mod tests {
         // v3 may alias v1. After `store 1 at v1`, `load v3` must NOT forward
         // the stale Field 0.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn load_through_array_get_alias_keeps_aliased_store_live() {
+        // A store to v0, then v0 is extracted through make_array + array_get as
+        // a fresh ValueId v2, loaded through that alias, then v0 is overwritten.
+        // The load through the alias reads the first store, so that store must
+        // NOT be eliminated as dead by the later store to v0.
+        //
+        // Regression test for noir-lang/noir-claude#798: array_get gives v2 the
+        // allocation site of v0, so `may_alias(v2, v0)` clears `last_stores[v0]`
+        // on the load, the load forwards `Field 1`, and the final store does not
+        // treat `store Field 1 at v0` as a redundant prior write.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            v3 = load v2 -> Field
+            store Field 2 at v0
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The load returns the value through the alias (`Field 1`), never the
+        // uninitialized `Field 0` that DSE of the first store would expose.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            store Field 2 at v0
+            return Field 1
+        }
+        ");
     }
 
     #[test]

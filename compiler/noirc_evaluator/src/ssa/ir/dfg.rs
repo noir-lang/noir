@@ -122,6 +122,14 @@ pub(crate) struct DataFlowGraph {
 
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
+
+    /// When `false` (the default), a `simplify_*` routine that detects malformed input — SSA that
+    /// could not arise from well-formed compilation — panics via [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
+    /// When `true`, those routines instead emit a trace and decline to simplify, leaving the
+    /// instruction untouched. Only producers of deliberately malformed SSA (the `ssa_fuzzer`) set
+    /// this; the normal pipeline keeps it `false` so malformed SSA surfaces loudly.
+    #[serde(skip)]
+    pub(crate) allow_malformed_simplify: bool,
 }
 
 /// The GlobalsGraph contains the actual global data.
@@ -848,7 +856,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// True that the input is a non-zero `Value::NumericConstant`
+    /// True if the input is a non-zero `Value::NumericConstant`
     pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
         if let Some(constant) = self.get_numeric_constant(argument) {
             !constant.is_zero()
@@ -857,7 +865,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// True that the input is a zero `Value::NumericConstant`
+    /// True if the input is a zero `Value::NumericConstant`
     pub(crate) fn is_constant_false(&self, argument: ValueId) -> bool {
         if let Some(constant) = self.get_numeric_constant(argument) {
             constant.is_zero()
