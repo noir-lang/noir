@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781280377667,
+  "lastUpdate": 1781282277297,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4fd0144bc15685ded78a92a729d97192bbebc06b",
-          "message": "feat: Handle `super::super` in paths (#12968)",
-          "timestamp": "2026-06-09T12:28:38Z",
-          "tree_id": "a161f13da9975ca5328d39877c29ff9ca071fc9b",
-          "url": "https://github.com/noir-lang/noir/commit/4fd0144bc15685ded78a92a729d97192bbebc06b"
-        },
-        "date": 1781009621843,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 98104,
-            "range": "± 2176",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 87308,
-            "range": "± 1040",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2356932,
-            "range": "± 8491",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656263,
             "range": "± 2546",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a3b5bbc81615b4ac4e8d78a6866838d5e09ea6c2",
+          "message": "chore: improve error message (#13025)",
+          "timestamp": "2026-06-12T16:10:15Z",
+          "tree_id": "0ac66f9887a161e2a59903ba3d8dfc6ec41be7a2",
+          "url": "https://github.com/noir-lang/noir/commit/a3b5bbc81615b4ac4e8d78a6866838d5e09ea6c2"
+        },
+        "date": 1781282206082,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174244,
+            "range": "± 306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144312,
+            "range": "± 710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2654283,
+            "range": "± 15999",
             "unit": "ns/iter"
           }
         ]
