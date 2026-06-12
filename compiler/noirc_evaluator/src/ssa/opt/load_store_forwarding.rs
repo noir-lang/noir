@@ -1447,6 +1447,70 @@ mod tests {
     }
 
     #[test]
+    fn nested_ifelse_shared_condition_reinsertion_drops_alias() {
+        // Regression test for noir-lang/noir-claude#1005.
+        //
+        // The alias analysis is computed once and frozen. In b0, load
+        // forwarding rewrites the outer IfElse's then_value from v4 (`load v3`)
+        // to v2 (the inner IfElse). On re-insertion `simplify` then collapses
+        // the two IfElses that share the `v_cond` then_condition into a single
+        // IfElse, minting a *fresh* result ValueId. The frozen analysis has no
+        // entry for that new id, so it sits in its own singleton alias class.
+        //
+        // In b1, `store Field 99 at <new_id>` must clear `known_values[v0]`,
+        // because the collapsed IfElse aliases v0 (when v_cond == 1 it *is* v0
+        // at runtime). Because `may_alias(<new_id>, v0)` returns false for the
+        // unknown id, the store does not clear it and `load v0` is forwarded to
+        // the stale `Field 5`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v_cond: u1):
+            v_not = not v_cond
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            v2 = if v_cond then v0 else (if v_not) v1
+            v3 = allocate -> &mut &mut Field
+            store v2 at v3
+            v4 = load v3 -> &mut Field
+            v5 = allocate -> &mut Field
+            v6 = if v_cond then v4 else (if v_not) v5
+            jmp b1()
+          b1():
+            store Field 5 at v0
+            store Field 99 at v6
+            v7 = load v0 -> Field
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // BUG: `return Field 5` is unsound. In the snapshot below, when the
+        // condition is 1 the collapsed IfElse `v7` equals the cell `v2` at
+        // runtime, so `store Field 99 at v7` writes through `v2`; the load of
+        // `v2` must then observe 99 and must NOT fold to the constant
+        // `Field 5`. This snapshot captures the current incorrect output; the
+        // fix updates it so the load survives.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = allocate -> &mut Field
+            v3 = allocate -> &mut Field
+            v4 = if v0 then v2 else (if v1) v3
+            v5 = allocate -> &mut &mut Field
+            store v4 at v5
+            v6 = allocate -> &mut Field
+            v7 = if v0 then v2 else (if v1) v6
+            jmp b1()
+          b1():
+            store Field 5 at v2
+            store Field 99 at v7
+            return Field 5
+        }
+        ");
+    }
+
+    #[test]
     fn call_with_immutable_reference_does_not_invalidate_cache() {
         // A call that only receives an immutable reference cannot write through
         // it, so cached values for that address must remain valid after the call
