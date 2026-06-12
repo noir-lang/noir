@@ -7,8 +7,7 @@ pub struct Foo<let N: u32, T> {
 
 fn main() {
     comptime {
-        let (foo_def, _) =
-            quote { Foo<3, Field> }.as_type().as_data_type().unwrap();
+        let (foo_def, _) = quote { Foo<3, Field> }.as_type().as_data_type().unwrap();
 
         // Ensure `4` can be parsed as a type
         let four_t = quote { 4 }.as_type();
