@@ -230,10 +230,11 @@ fn generates_predicated_index_for_dynamic_read() {
 
     // w0, w1, w2 represents the array
     // So w3 represents our index and w4 is our predicate
-    // We can see that before the read we have `w3*w4 - w5 = 0`
-    // As the index is zero this is a simplified version of `index*predicate + (1-predicate)*offset`
-    // w5 is then used as the index which we use to read from the memory block
-    assert_circuit_snapshot!(program, @r"
+    // `ASSERT w5 = w3*w4` is the predicate gate inside `get_flattened_index`, which forces
+    // the read to fall back to a safe in-bounds slot when the predicate is `0`. Since
+    // `compute_offset` returns `Some(0)` for `[Field; 3]`, no offset-fallback bias is
+    // applied and we read directly at `w5`.
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
@@ -259,9 +260,10 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Similar to the `generates_predicated_index_for_dynamic_read` test we can
-    // see how `w3*w4 - w8 = 0` forms our predicated index.
-    // However, now we also have extra logic for generating a dummy value.
+    // Similar to the `generates_predicated_index_for_dynamic_read` test, `w8 = w3*w4` is the
+    // predicate gate inside `get_flattened_index`. `compute_offset` returns `Some(0)` here so
+    // no offset-fallback bias is applied and we use `w8` directly.
+    // We then have extra logic for generating a dummy value.
     // The original value we want to write is `Field 10` and our predicate is `w4`.
     // We read the value at the predicated index into `w9`. This is our dummy value.
     // We can then see how we form our new store value with:
@@ -270,7 +272,7 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     // `-w4*w9` -> (-predicate * dummy)
     // `w9` -> dummy
     // As expected, we then store `w10` at the predicated index `w8`.
-    assert_circuit_snapshot!(program, @r"
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
@@ -362,7 +364,7 @@ fn zero_length_array_dynamic_predicate() {
 #[test]
 fn non_homogenous_array_dynamic_access() {
     let src = r#"
-    acir(inline) pure fn main f0 {
+    acir(inline) predicate_pure fn main f0 {
       b0(v0: [(Field, [Field; 3], [Field; 3]); 4], v1: u32):
         v2 = array_get v0, index v1 -> [Field; 3]
         return v2
@@ -408,7 +410,7 @@ fn non_homogenous_array_dynamic_access() {
 #[test]
 fn make_dynamic_array_value_types() {
     let src = r#"
-    acir(inline) pure fn main f0 {
+    acir(inline) predicate_pure fn main f0 {
       b0(v0: [[([Field; 2], u8); 3]; 4], v1: u32, v2: [([Field; 2], u8); 3]):
         v3, v4 = call as_vector(v0) -> (u32, [[([Field; 2], u8); 3]])
         v5 = array_set v4, index v1, value v2

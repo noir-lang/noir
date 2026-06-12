@@ -133,10 +133,10 @@ impl Context<'_> {
             Intrinsic::AsWitness => {
                 let arg = arguments[0];
                 let input = self.convert_value(arg, dfg).into_var()?;
-                Ok(self
-                    .acir_context
-                    .get_or_create_witness_var(input)
-                    .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
+                // `as_witness` exists only for its side effect of creating a witness for the
+                // input; it returns no values.
+                self.acir_context.get_or_create_witness_var(input)?;
+                Ok(Vec::new())
             }
             Intrinsic::DerivePedersenGenerators => Err(RuntimeError::AssertConstantFailed {
                 call_stack: self.acir_context.get_call_stack(),

@@ -83,6 +83,34 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    /// Elaborate a call (or method call) argument against its expected type.
+    ///
+    /// For a macro call the argument is elaborated in a comptime context so that
+    /// `quote { ... }` arguments type-check as `Quoted` before the macro is executed.
+    ///
+    /// The resulting type is then unified against the expected type so that a potential
+    /// lambda following this argument can have more concrete types.
+    fn elaborate_call_argument(
+        &mut self,
+        arg: Expression,
+        expected_type: Option<&Type>,
+        is_macro_call: bool,
+    ) -> (ExprId, Type) {
+        let (arg, typ) = if is_macro_call {
+            self.elaborate_in_comptime_context(|this| {
+                this.elaborate_expression_with_target_type(arg, expected_type)
+            })
+        } else {
+            self.elaborate_expression_with_target_type(arg, expected_type)
+        };
+
+        if let Some(expected_type) = expected_type {
+            let _ = typ.unify(expected_type);
+        }
+
+        (arg, typ)
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_expression_inner(
         &mut self,
@@ -464,7 +492,7 @@ impl Elaborator<'_> {
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
+            Type::Array(elem_type, Box::new(length))
         } else {
             Type::Vector(elem_type)
         };
@@ -556,6 +584,20 @@ impl Elaborator<'_> {
             let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
             (rhs, rhs_type, false)
         };
+
+        // Simplify `&*x` and `&mut *x` to just `x` when the reborrow preserves mutability:
+        // A reborrow that changes mutability (e.g. `&mut *x` where `x: &T`) is left
+        // as the full `&[mut] (*x)`
+        if let UnaryOp::Reference { mutable } = operator
+            && let HirExpression::Prefix(deref) = self.interner.expression(&rhs)
+            && let UnaryOp::Dereference { .. } = deref.operator
+        {
+            let inner_type = self.interner.id_type(deref.rhs);
+            if matches!(inner_type.follow_bindings(), Type::Reference(_, inner_mutable) if inner_mutable == mutable)
+            {
+                return (deref.rhs, inner_type);
+            }
+        }
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
@@ -703,7 +745,7 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            Type::Array(ref size, ref base_type) => {
+            Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()
             }
@@ -810,19 +852,7 @@ impl Elaborator<'_> {
             let location = arg.location;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            let (arg, typ) = if is_macro_call {
-                self.elaborate_in_comptime_context(|this| {
-                    this.elaborate_expression_with_target_type(arg, expected_type)
-                })
-            } else {
-                self.elaborate_expression_with_target_type(arg, expected_type)
-            };
-
-            // Try to unify this argument type against the function's argument type
-            // so that a potential lambda following this argument can have more concrete types.
-            if let Some(expected_type) = expected_type {
-                let _ = typ.unify(expected_type);
-            }
+            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
 
             arguments.push(arg);
             (typ, arg, location)
@@ -908,8 +938,21 @@ impl Elaborator<'_> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let function_type = self.interner.function_meta(&func_id).typ.clone();
+        self.usage_tracker.mark_impl_function_as_used(&func_id);
+
+        let function_type = self.function_meta(func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
+
+        // When an impl inherits a trait's default method, the impl's slot points at the
+        // trait's own `FuncId`, so the function meta's self parameter is the trait's `Self`
+        // type variable. If we let the receiver be unified directly with that `Self` and a
+        // polymorphic receiver (e.g. an integer literal) is involved, the receiver will
+        // default to the kind's default type (e.g. `Field`) before the trait constraint
+        // check can pick the right impl. Capture the matching impl's concrete self type
+        // here so we can unify the receiver with it below, pinning the polymorphic type
+        // to the impl's type before defaulting runs.
+        let shared_trait_impl_self_type =
+            self.shared_trait_impl_self_type_for_method(func_id, &object_type, method_name);
 
         let generics = method_call.generics;
         let generics = generics.map(|generics| {
@@ -943,8 +986,26 @@ impl Elaborator<'_> {
         // as a parameter. By unifying `self` with the first argument we'll potentially get more
         // concrete types in the arguments that are function types, which will later be passed as
         // lambda parameter hints.
+
         if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
-            let _ = first_arg_type.unify(&object_type);
+            if first_arg_type.unify(&object_type).is_err()
+                && let Type::Reference(inner_expected, _) = first_arg_type
+                && let Type::Reference(inner_actual, _) = &object_type
+            {
+                // If unification failed due to a reference mutability mismatch
+                // (e.g. `& self` method called on `&mut T`), unify the inner types
+                // to still bind generic type parameters.
+                let _ = inner_expected.unify(inner_actual);
+            }
+
+            // For a shared trait-default method, also unify the impl's concrete self type
+            // with the receiver. The first arg is the trait's `Self` type variable, so the
+            // unify above only ties Self to the receiver (still polymorphic if the receiver
+            // was a literal). Unifying again with the impl's self type pins both Self and the
+            // receiver to the impl's concrete type before kind-based defaulting runs.
+            if let Some(impl_self_type) = &shared_trait_impl_self_type {
+                let _ = first_arg_type.unify(impl_self_type);
+            }
         }
 
         // These arguments will be given to the desugared function call.
@@ -954,25 +1015,21 @@ impl Elaborator<'_> {
 
         function_args.push((object_type.clone(), object, object_location));
 
+        let is_macro_call = method_call.is_macro_call;
+
         for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
             let location = arg.location;
             // The argument types also contain the object type as the first argument.
             // Thus, we need to add one when indexing the argument types to match them up with method arguments.
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
-            let (arg, typ) = self.elaborate_expression_with_target_type(arg, expected_type);
 
-            // Try to unify this argument type against the function's argument type
-            // so that a potential lambda following this argument can have more concrete types.
-            if let Some(expected_type) = expected_type {
-                let _ = expected_type.unify(&typ);
-            }
+            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
 
             arguments.push(arg);
             function_args.push((typ, arg, location));
         }
 
         let method = method_call.method_name;
-        let is_macro_call = method_call.is_macro_call;
         let method_call = HirMethodCallExpression { method, object, arguments, location, generics };
 
         self.check_method_call_visibility(func_id, &object_type, &method_call.method);
@@ -988,6 +1045,26 @@ impl Elaborator<'_> {
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
 
         (function_call, typ)
+    }
+
+    /// If `func_id` is a trait method declaration whose `FuncId` is shared with this call's
+    /// matching impl (because the impl inherits the default body), return the impl's concrete
+    /// self type. Returns `None` when the function is a regular impl method or when zero/multiple
+    /// impls match the receiver — in those cases the existing impl-selection paths take over.
+    fn shared_trait_impl_self_type_for_method(
+        &self,
+        func_id: FuncId,
+        object_type: &Type,
+        method_name: &str,
+    ) -> Option<Type> {
+        let trait_id = self.interner.function_meta(&func_id).trait_id?;
+        let candidates = self.interner.lookup_trait_methods(object_type, method_name, true);
+        let mut matching = candidates
+            .into_iter()
+            .filter(|(f, t, _)| *f == func_id && *t == trait_id)
+            .map(|(_, _, self_typ)| self_typ);
+        let first = matching.next()?;
+        if matching.next().is_some() { None } else { Some(first) }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1066,7 +1143,7 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location, msg)), Type::Unit)
     }
 
     /// Elaborate a struct constructor.
@@ -1182,6 +1259,8 @@ impl Elaborator<'_> {
             }
         }
 
+        // The struct's fields may still be deferred, so type-check them now.
+        self.define_struct_fields_if_undefined(struct_id);
         let field_types = struct_type
             .borrow()
             .get_fields_with_visibility(&generics)
@@ -1723,10 +1802,11 @@ impl Elaborator<'_> {
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
 
-        let (id, typ) = self.inline_comptime_value(value, location);
+        let from_macro_call = false;
+        let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
-        self.debug_comptime(location, |interner| {
+        self.debug_comptime(location, |interner, _| {
             interner.expression(&id).to_display_ast(interner, location).kind
         });
 
@@ -1738,6 +1818,7 @@ impl Elaborator<'_> {
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
+        from_macro_call: bool,
     ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
@@ -1754,14 +1835,19 @@ impl Elaborator<'_> {
 
         match value.into_expression(self, location) {
             Ok(new_expr) => {
-                // At this point the Expression was already elaborated and we got a Value.
+                // Unless the value to inline comes from a macro call (quoted content that is being unquoted),
+                // at this point the Expression was already elaborated and we got a Value.
                 // We'll elaborate this value turned into Expression to inline it and get
                 // an ExprId and Type, but we don't want any visibility errors to happen
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
-                self.silence_field_visibility_errors += 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors += 1;
+                }
                 let value = self.elaborate_expression(new_expr);
-                self.silence_field_visibility_errors -= 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors -= 1;
+                }
                 value
             }
             Err(error) => make_error(self, error),
@@ -1847,7 +1933,8 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location);
+        let from_macro_call = true;
+        let (expr_id, typ) = self.inline_comptime_value(result, location, from_macro_call);
         Some((self.interner.expression(&expr_id), typ))
     }
 
@@ -1920,16 +2007,7 @@ impl Elaborator<'_> {
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
         bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-
-        let typ = self.type_check_variable_with_bindings(
-            ident,
-            &id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        );
+        let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
     }

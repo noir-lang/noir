@@ -570,6 +570,16 @@ mod tests {
     }
 
     #[test]
+    fn format_assign_to_dereference_of_reference() {
+        let src = " fn foo() { * ( & mut x )  =  2 ; } ";
+        let expected = "fn foo() {
+    *(&mut x) = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_assign_to_index_with_block() {
         let src = "fn main(mut array: [Field; 3]) {
     array[{

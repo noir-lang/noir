@@ -4,6 +4,64 @@ use crate::tests::{
 };
 
 #[test]
+fn assign_through_explicit_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let mut x = 10;
+        *(&mut x) = 20;
+        assert(x == 20);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assign_through_explicit_mutable_reference_executes_at_comptime() {
+    // The comptime interpreter evaluates the lowered assignment, so a passing assertion proves
+    // the store actually reaches `x` through the synthesized reference binding.
+    let src = r#"
+    fn main() {
+        comptime {
+            let mut x = 10;
+            *(&mut x) = 20;
+            assert(x == 20);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assign_through_reference_chosen_by_conditional() {
+    // The dereferenced operand can be any value expression of reference type, not just a place.
+    let src = r#"
+    fn main() {
+        comptime {
+            let mut a = 1;
+            let mut b = 2;
+            let c = true;
+            *(if c { &mut a } else { &mut b }) = 10;
+            assert(a == 10);
+            assert(b == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_assign_through_explicit_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = 10;
+        *(&x) = 20;
+        ^^^^^ Expected type &mut _, found type &Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn cannot_mutate_immutable_variable() {
     let src = r#"
     fn main() {
@@ -176,7 +234,7 @@ fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_oracle() {
+fn reference_behind_generics_returned_from_oracle() {
     let src = r#"
     unconstrained fn main() {
         let y = &mut 10;
@@ -184,7 +242,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         let mul = |x: Field| { *y = *y * x; };
 
         let f = choose_func(add, mul);
-                ^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+                ^^^^^^^^^^^ Reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
 
         f(20);
     }
@@ -199,7 +257,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
+fn reference_behind_generics_returned_from_indirect_oracle() {
     let src = r#"
     unconstrained fn main() {
         foo::<&[(u8, u8); 3]>();
@@ -207,7 +265,7 @@ fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
 
     unconstrained fn foo<T>() {
         let f = get_array::<T>;
-                ^^^^^^^^^ Mutable reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
+                ^^^^^^^^^ Reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
         let _result = f();
     }
 
@@ -260,6 +318,24 @@ fn disallows_mutating_non_mutable_ref_array_index() {
     }
     "#;
     check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn disallows_writing_through_immutable_reborrow_of_mutable_reference() {
+    // `&*p` is an immutable `&T` view even when `p` is `&mut T`. The re-borrow
+    // simplification must not collapse `&*p` to `p` and keep its `&mut` type, which
+    // would let writes through an explicitly immutable reborrow slip through.
+    let src = r#"
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut f;
+        let q = &*p;
+        *q = 5;
+        ^^ Expected type &mut _, found type &u64
+         ^ `q` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors(src);
 }
 
 #[test]
@@ -459,6 +535,52 @@ fn generic_inference_through_mutable_reference_method_auto_ref() {
         let caller = Caller {};
         let mut pc = PublicCall { name: "hello", args: [1, 2, 3] };
         caller.call(&mut pc);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test: calling a `& self` method on a `&mut T` value should
+/// correctly bind generic type parameters so that closure tuple destructuring works.
+#[test]
+fn calling_immutable_self_method_on_mutable_ref_binds_generic_params() {
+    let src = r#"
+    struct Wrapper<T, let N: u32> {
+        storage: [T; N],
+        len: u32,
+    }
+
+    impl<T, let N: u32> Wrapper<T, N> {
+        fn new(storage: [T; N], len: u32) -> Self {
+            Self { storage, len }
+        }
+
+        fn any<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
+            let mut ret = false;
+            for i in 0..self.len {
+                ret |= predicate(self.storage[i]);
+            }
+            ret
+        }
+    }
+
+    fn main() {
+        let w = &mut Wrapper::new([(0u32, 4 as Field), (1, 5), (2, 6)], 3);
+        assert(w.any(|(index, value)| (index == 0) & (value == 4)));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_mutate_mutable_reference_inside_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let mut a = 1;
+
+        let p = &&mut a;
+
+        **p += 1;
     }
     "#;
     assert_no_errors(src);

@@ -11,7 +11,7 @@ use super::value::Value;
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
-use crate::hir::def_map::{CrateDefMap, ModuleData};
+use crate::hir::def_map::{CrateDefMap, ModuleData, ModuleId};
 use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
@@ -19,7 +19,8 @@ use crate::parse_program;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
-/// The stdlib is not made available as a dependency.
+/// The given source is considered the root crate and also the stdlib, in case
+/// builtins need to be tested.
 pub(crate) fn with_interpreter<T>(
     src: &str,
     f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
@@ -42,7 +43,7 @@ pub(crate) fn with_interpreter<T>(
     let mut context = Context::new(file_manager, parsed_files);
     context.def_interner.populate_dummy_operator_traits();
 
-    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+    let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
     let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
@@ -75,9 +76,13 @@ pub(crate) fn with_interpreter<T>(
 
     let errors = elaborator.errors.clone();
 
-    let mut interpreter = elaborator.setup_interpreter();
+    // Mirror `Context::interpret_function`: the interpreter is entered with the module
+    // of the function being run, rather than relying on whatever module the elaborator
+    // happened to leave set after elaborating the program.
+    let source_module = elaborator.interner.function_meta(&main).source_module;
+    let module = ModuleId { krate, local_id: source_module };
 
-    f(&mut interpreter, main, errors.as_ref())
+    elaborator.setup_interpreter_for(module, |interpreter| f(interpreter, main, errors.as_ref()))
 }
 
 /// Evaluate a code snippet by calling the `main` function.

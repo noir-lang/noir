@@ -47,6 +47,9 @@ fn main() -> Result<(), String> {
     generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_comptime_interpret_noir_test_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_noir_test_failure_tests(&mut test_file, &test_dir);
+
     generate_brillig_small_stack_execution_success_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
@@ -128,7 +131,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 6] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -138,6 +141,8 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     "comptime_enums",
     // Testing unreachable instructions
     "brillig_continue_break",
+    // Expected - tests the `std::meta::warn` builtin
+    "comptime_user_warning",
 ];
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
@@ -154,14 +159,15 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 0] = [];
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 6] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
-    // Enums are currently unsupported in comptime code
+    // Enums (and `match`) are currently unsupported in comptime code
     "regression_7323",
+    "match_struct_pattern_field_order",
 ];
 
 const PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
@@ -175,8 +181,13 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
+const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
+    // For some reason at comptime a `comptime` function is considered a constant.
+    "comptime_globals",
+];
+
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -196,6 +207,8 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
+    // The constrained foreign-function proxy can't run in the Brillig-only minimal pipeline.
+    "regression_foreign_proxy_generic",
     // This relies on maximum inliner setting
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
@@ -237,7 +250,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -255,6 +268,9 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     "trait_call_in_global",
     // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
     "regression_7648",
+    // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
+    // directly importable when the expansion is recompiled as a standalone program.
+    "comptime_as_typed_expr_public_type_trait_method",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
@@ -626,6 +642,65 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
                   nargo_execute_comptime_expect_failure(test_program_dir);
               }}
               "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "noir_test_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_NOIR_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+        let test_dir = test_dir.display();
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_test_comptime(test_program_dir);
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "noir_test_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_test_comptime_expect_failure(test_program_dir);
+            }}
+            "#
         )
         .unwrap();
     }

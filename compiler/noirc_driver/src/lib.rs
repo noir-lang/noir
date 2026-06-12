@@ -1,13 +1,18 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+#[cfg(test)]
+use insta as _;
+
 use std::hash::BuildHasher;
 
-use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use abi_gen::{abi_type_from_hir_type, value_to_abi_value};
+use acvm::AcirField;
+use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -15,7 +20,8 @@ use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
-    LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
+    LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
+    NUM_STACK_FRAMES,
 };
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
@@ -36,7 +42,7 @@ use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
+use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -47,7 +53,7 @@ mod stdlib;
 
 pub use abi_gen::gen_abi;
 pub use noirc_frontend::graph::{CrateId, CrateName};
-pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
+pub use stdlib::{stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -60,6 +66,32 @@ pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Note: You can't directly use the value of a constant produced with env! inside a concat! macro.
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
+
+fn parse_num_stack_frames(s: &str) -> Result<usize, String> {
+    let n: usize = s.parse().map_err(|e| format!("'{s}' is not a valid unsigned integer: {e}"))?;
+    if n == 0 {
+        return Err("--num-stack-frames must be at least 1".to_string());
+    }
+    Ok(n)
+}
+
+fn parse_max_stack_frame_size(s: &str) -> Result<usize, String> {
+    let n: usize = s.parse().map_err(|e| format!("'{s}' is not a valid unsigned integer: {e}"))?;
+    if n < MIN_STACK_FRAME_SIZE {
+        return Err(format!(
+            "--max-stack-frame-size must be at least {MIN_STACK_FRAME_SIZE} (got {n})"
+        ));
+    }
+    Ok(n)
+}
+
+fn parse_max_scratch_space(s: &str) -> Result<usize, String> {
+    let n: usize = s.parse().map_err(|e| format!("'{s}' is not a valid unsigned integer: {e}"))?;
+    if n < MIN_SCRATCH_SPACE {
+        return Err(format!("--max-scratch-space must be at least {MIN_SCRATCH_SPACE} (got {n})"));
+    }
+    Ok(n)
+}
 
 #[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
@@ -229,15 +261,15 @@ pub struct CompileOptions {
     pub max_specializations_per_fn: usize,
 
     /// Maximum size of a single Brillig stack frame.
-    #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE)]
+    #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE, value_parser = parse_max_stack_frame_size)]
     pub max_stack_frame_size: usize,
 
     /// Number of Brillig stack frames / call depth limit.
-    #[arg(long, hide = true, default_value_t = NUM_STACK_FRAMES)]
+    #[arg(long, hide = true, default_value_t = NUM_STACK_FRAMES, value_parser = parse_num_stack_frames)]
     pub num_stack_frames: usize,
 
     /// Maximum Brillig scratch space size.
-    #[arg(long, hide = true, default_value_t = MAX_SCRATCH_SPACE)]
+    #[arg(long, hide = true, default_value_t = MAX_SCRATCH_SPACE, value_parser = parse_max_scratch_space)]
     pub max_scratch_space: usize,
 
     /// Skip reading files/folders from the root directory and instead accept the
@@ -581,16 +613,11 @@ pub fn compile_main(
         return Err(compilation_warnings);
     }
 
-    // Make sure we don't hide bugs, only warnings can be silenced.
-    warnings.extend(
-        compilation_warnings
-            .into_iter()
-            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
-    );
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
-        noirc_errors::println_to_stdout!("{}", compiled_program.program);
+        noirc_errors::println_to_stdout!("{}", display_compiled_program(&compiled_program));
     }
 
     Ok((compiled_program, warnings))
@@ -603,7 +630,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
     let mut contracts = def_map.get_all_contracts();
@@ -628,18 +655,21 @@ pub fn compile_contract(
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
     let contract = read_contract(context, module_id, name);
 
-    let mut errors = warnings;
-
     let compiled_contract = match compile_contract_inner(context, contract, options) {
         Ok(contract) => contract,
         Err(mut more_errors) => {
+            let mut errors = warnings;
             errors.append(&mut more_errors);
             return Err(errors);
         }
     };
 
-    if has_errors(&errors, options.deny_warnings) {
-        Err(errors)
+    let compilation_warnings =
+        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
+
+    if options.deny_warnings && !warnings.is_empty() {
+        Err(warnings)
     } else {
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
@@ -655,8 +685,7 @@ pub fn compile_contract(
                 println!("{}", contract_function.bytecode);
             }
         }
-        // errors here is either empty or contains only warnings
-        Ok((compiled_contract, errors))
+        Ok((compiled_contract, warnings))
     }
 }
 
@@ -816,14 +845,20 @@ fn compile_contract_inner(
             .globals
             .iter()
             .map(|(tag, globals)| {
-                let globals: Vec<AbiValue> = globals
+                let globals: Vec<AbiNamedValue> = globals
                     .iter()
                     .map(|global_id| {
-                        let let_statement =
-                            context.def_interner.get_global_let_statement(*global_id).unwrap();
-                        let hir_expression =
-                            context.def_interner.expression(&let_statement.expression);
-                        value_from_hir_expression(context, hir_expression)
+                        let GlobalValue::Resolved(value) =
+                            &context.def_interner.get_global(*global_id).value
+                        else {
+                            unreachable!(
+                                "Global with #[abi(tag)] must be resolved at comptime before ABI emission"
+                            );
+                        };
+                        let global_info = context.def_interner.get_global(*global_id);
+                        let name = global_info.ident.to_string();
+                        let value = value_to_abi_value(value);
+                        AbiNamedValue { name, value }
                     })
                     .collect();
                 (tag.clone(), globals)
@@ -931,12 +966,18 @@ pub fn compile_no_check(
         monomorphize_debug(
             main_function,
             &mut context.def_interner,
+            context.file_manager.as_file_map(),
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )?
     } else {
-        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
+        monomorphize(
+            main_function,
+            &mut context.def_interner,
+            context.file_manager.as_file_map(),
+            force_unconstrained,
+        )?
     };
 
     if options.show_monomorphized {
@@ -1019,6 +1060,18 @@ struct Contract {
     outputs: ContractOutputs,
 }
 
+/// Removes warning diagnostics when `silence_warnings` is set, while always retaining bugs
+/// so that a `silence_warnings` flag cannot hide them.
+fn drop_silenced_warnings(
+    diagnostics: Vec<CustomDiagnostic>,
+    options: &CompileOptions,
+) -> Vec<CustomDiagnostic> {
+    diagnostics
+        .into_iter()
+        .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
+        .collect()
+}
+
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
     match error {
         SsaReport::Warning(warning) => {
@@ -1058,5 +1111,35 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
             let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
+    }
+}
+
+pub fn display_compiled_program(program: &CompiledProgram) -> String {
+    ProgramDisplay { program: &program.program, error_types: &program.abi.error_types }.to_string()
+}
+
+/// Formats an ACIR [Program] together with its ABI error types so that any static
+/// assertion payloads embedded in the program are rendered as a `// message` comment
+/// next to the relevant ACIR/Brillig opcode. This is the same display used by
+/// `nargo compile --print-acir`.
+struct ProgramDisplay<'a, F: AcirField> {
+    program: &'a Program<F>,
+    error_types: &'a BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_types = self
+            .error_types
+            .iter()
+            .filter_map(|(selector, abi_error_type)| {
+                if let AbiErrorType::String { string } = abi_error_type {
+                    Some((*selector, string.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>();
+        display_program(self.program, Some(&error_types), f)
     }
 }

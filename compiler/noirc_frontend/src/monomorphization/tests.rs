@@ -402,6 +402,52 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+fn impl_generic_in_body_only_distinct_monomorphizations() {
+    // When an impl-level generic is referenced only in the method body (not
+    // in the signature, not in the method turbofish), the monomorphization
+    // cache must produce a distinct specialization per impl instantiation
+    // rather than aliasing all callsites to the first-queued body.
+    let src = r#"
+    trait Guard<let N: u32> {
+        fn check(x: Field);
+    }
+
+    struct S {}
+
+    impl<let N: u32> Guard<N> for S {
+        fn check(x: Field) {
+            for _ in 0..N {
+                assert(x == 0);
+            }
+        }
+    }
+
+    pub fn main(x: Field) {
+        <S as Guard<0>>::check(x);
+        <S as Guard<2>>::check(x);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @"
+    fn main$f0(x$l0: Field) -> () {
+        check$f1(x$l0);;
+        check$f2(x$l0);
+    }
+    fn check$f1(x$l1: Field) -> () {
+        for _$l2 in 0 .. 0 {
+            assert((x$l1 == 0));
+        }
+    }
+    fn check$f2(x$l3: Field) -> () {
+        for _$l4 in 0 .. 2 {
+            assert((x$l3 == 0));
+        }
+    }
+    ");
+}
+
+#[test]
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
@@ -1062,6 +1108,49 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
+fn direct_unconstrained_closure_call_rejects_captured_mutable_ref() {
+    // A local closure that captures a `&mut` from constrained code, coerced to
+    // `unconstrained fn[Env](..)` and called directly under `unsafe`, must be rejected.
+    // The captured reference lives in the closure's environment, which monomorphization
+    // inserts as a synthetic first argument after the boundary check, so the environment
+    // type must be validated explicitly.
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        let xr = &mut x;
+        let f: unconstrained fn[(&mut u32,)](u32) -> () = |y| {
+            *xr = y;
+        };
+        // safety: test
+        unsafe { f(7); }
+                 ^ Cannot pass mutable reference `(&mut u32,)` from a constrained runtime to an unconstrained runtime
+        assert(x == 0);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn direct_unconstrained_closure_call_rejects_captured_immutable_ref() {
+    // Even a captured immutable reference is rejected: the closure environment is a
+    // container (a tuple), and only a direct immutable reference `&T` is supported across
+    // the boundary, not one embedded in a container.
+    let src = r#"
+    fn main() {
+        let x: u32 = 5;
+        let xr = &x;
+        let f: unconstrained fn[(&u32,)](u32) -> u32 = |y| {
+            *xr + y
+        };
+        // safety: test
+        let _z = unsafe { f(7) };
+                          ^ Cannot pass `(&u32,)` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
 fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {
@@ -1144,6 +1233,33 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
 }
 
 #[test]
+fn return_enum_from_unconstrained_to_constrained() {
+    // The elaborator rejects this first (see tests/enums.rs); this asserts the
+    // monomorphization defense-in-depth check also rejects an enum return, so the gap
+    // cannot reappear through a boundary-crossing call the elaborator did not lint.
+    let src = r#"
+    enum E {
+        A,
+        B,
+    }
+
+    fn main() {
+        // safety: test
+        unsafe {
+            let _e = choose();
+                     ^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^^^^ Enum `E` cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn choose() -> E {
+        E::A
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[UnstableFeature::Enums], true);
+}
+
+#[test]
 fn evaluates_builtin_zeroed() {
     let src = r#"
     fn main() {
@@ -1179,6 +1295,34 @@ fn evaluates_builtin_zeroed_function() {
         [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
+        [0; 2]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_zeroed_closure_type() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
         [0; 2]
     }
     ");
@@ -1552,4 +1696,110 @@ fn outer_immref_from_brillig_is_rejected() {
         }
     ";
     check_monomorphization_error_using_features(src, &[], true);
+}
+
+const STATIC_ASSERT_STDLIB: &str = "
+    #[builtin(static_assert)]
+    pub fn static_assert<T>(predicate: bool, message: T) {}
+";
+
+#[test]
+fn static_assert_used_as_value_in_let_is_rejected() {
+    let src = r#"
+    fn main() {
+        let f = static_assert;
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_passed_as_argument_is_rejected() {
+    let src = r#"
+    fn main() {
+        call_it(static_assert);
+    }
+
+    fn call_it(f: fn(bool, str<3>) -> ()) {
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_in_block_callee_is_rejected() {
+    // The block expression evaluates to the static_assert function value, which is then called.
+    // Even though the program "looks like" a direct call, the value form goes through monomorphization.
+    let src = r#"
+    fn main() {
+        ({ static_assert })(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn print_oracle_used_as_value_is_rejected() {
+    let src = r#"
+    fn main() {
+        // Safety: test
+        unsafe {
+            let p = print_oracle;
+            p(true, 1);
+        }
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "print"),
+        "expected CannotUseFunctionAsValue for print oracle, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_called_directly_still_works() {
+    let src = r#"
+    fn main() {
+        static_assert(true, "msg");
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
+        .expect("direct call to static_assert should still monomorphize");
+}
+
+const ZEROED_STDLIB: &str = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+";
+
+#[test]
+fn zeroed_array_of_references_does_not_alias() {
+    // Each slot of a zeroed `[&mut Field; N]` must get its own `allocate`. Wrapping a single
+    // `&mut 0` sub-expression in a repeated array literal would make every slot share one
+    // allocation, so a write through one slot would be visible through all the others.
+    let src = r#"
+    fn main() {
+        let _arr: [&mut Field; 3] = zeroed();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _arr$l0 = [(&mut 0), (&mut 0), (&mut 0)]
+    }
+    ");
 }

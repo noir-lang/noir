@@ -104,6 +104,7 @@ describe('noir-compiler/node', () => {
     'workspace',
     'workspace_default_member',
     'regression_9294', // TODO: Requires the 'enums' unstable feature.
+    'match_struct_pattern_field_order', // Requires the 'enums' unstable feature.
     // These depend on the external poseidon library which currently doesn't compile.
     'bench_2_to_17',
     'fold_2_to_17',

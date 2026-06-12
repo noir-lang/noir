@@ -242,25 +242,27 @@ fn differing_merge_cost(
 
 /// Computes a cost estimate for flattening a basic block in a conditional.
 ///
-/// Returns `None` if the block contains instructions that cannot be safely
-/// flattened (side-effectful instructions like constraints, calls, memory ops,
-/// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
+/// Returns `None` if the block contains an instruction that cannot be safely
+/// flattened (side-effectful instructions like constraints, calls, `dec_rc`,
+/// memory ops, div/mod, shifts — see `can_flatten_in_conditional`). Otherwise
+/// returns the estimated Brillig opcode cost.
 ///
-/// Memory management instructions (IncrementRc, DecrementRc, Allocate) are
-/// excluded from the cost — they are safe to flatten but represent overhead
-/// that shouldn't influence the flatten/not-flatten decision.
+/// `Allocate`, `IncrementRc`, and `Noop` are excluded from the cost — they are
+/// safe to execute unconditionally and represent overhead that shouldn't
+/// influence the flatten/not-flatten decision. (`Allocate` and `IncrementRc`
+/// must be skipped before the `can_flatten_in_conditional` call, which treats
+/// reaching them as an ICE.) Hoisting an `inc_rc` only ever raises a reference
+/// count, so the later `array_set` copies rather than mutating in place — sound,
+/// and guarded by the `array_set_rc_invariant` validator.
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
-        // Skip memory management instructions — these are always allowed to flatten
-        // but don't represent meaningful compute that should affect the decision.
+        // Skip memory management instructions that are safe to execute unconditionally —
+        // these don't represent meaningful compute that should affect the decision.
         if matches!(
             instruction,
-            Instruction::Allocate
-                | Instruction::IncrementRc { .. }
-                | Instruction::DecrementRc { .. }
-                | Instruction::Noop
+            Instruction::Allocate | Instruction::IncrementRc { .. } | Instruction::Noop
         ) {
             continue;
         }

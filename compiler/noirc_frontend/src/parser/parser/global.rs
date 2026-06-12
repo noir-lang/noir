@@ -69,17 +69,13 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
-    use insta::assert_snapshot;
 
     use crate::{
         ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern},
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            ItemKind,
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -146,46 +142,36 @@ mod tests {
     fn parse_global_no_value() {
         let src = "
         global foo;
-               ^^^
+               ^^^ Expected the global to have a value
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn parse_global_no_semicolon() {
         let src = "
-        global foo = 1 
-                      ^ 
+        global foo = 1
+                     ^ Expected a ';' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ';' but found end of input");
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn parse_global_missing_identifier() {
         let src = "
         global : u32 = 100;
-               ^
+               ^ Expected an identifier but found ':'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found ':'");
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn parse_global_invalid_syntax_after_ident() {
-        let src = "global N<let X: u32>: u32 = 100;";
-        let (_, errors) = parse_program_with_dummy_file(src);
-        // The parser should recover by skipping to `;` rather than producing cascading errors
-        assert_eq!(errors.len(), 1, "Expected 1 error, got: {errors:?}");
-        let reason = errors[0].reason().unwrap();
-        assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
+        let src = "
+        global N<let X: u32>: u32 = 100;
+               ^ Expected the global to have a value
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]

@@ -158,17 +158,18 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
     fn from(error: &'a DefCollectorErrorKind) -> Diagnostic {
         match error {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
-                let primary_message = format!(
-                    "Duplicate definitions of {} with name {} found",
-                    &typ, first_def
-                );
+                let primary_message =
+                    format!("Duplicate definitions of {typ} with name {first_def} found");
                 {
+                    // The secondaries point at both definitions, which may be of different
+                    // kinds when names clash across namespaces, so they stay kind-neutral
+                    // rather than repeating `typ` (which describes only the second one).
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("Second {} found here", &typ),
+                        "Second definition found here".to_string(),
                         second_def.location(),
                     );
-                    diag.add_secondary(format!("First {} found here", &typ), first_def.location());
+                    diag.add_secondary("First definition found here".to_string(), first_def.location());
                     diag
                 }
             }

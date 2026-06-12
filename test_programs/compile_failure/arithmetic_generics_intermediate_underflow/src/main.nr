@@ -9,7 +9,7 @@ fn seems_fine<let N: u32>(array: [Field; N]) -> [Field; N] {
     // But inside `seems_fine` we pop from the array which
     // requires the length to be greater than zero.
 
-    // error: Could not determine array length `(0 - 1)`
+    // error: `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
     push_zero(pop(array))
 }
 

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_block_mutable_reference_inner_ref_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

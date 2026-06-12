@@ -471,11 +471,11 @@ impl DataFlowGraph {
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
-    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+    pub(crate) fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        let result = self.values.insert(Value::ForeignFunction { name: function.to_owned(), pure });
         self.foreign_functions.insert(function.to_owned(), result);
         result
     }
@@ -852,6 +852,15 @@ impl DataFlowGraph {
     pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
         if let Some(constant) = self.get_numeric_constant(argument) {
             !constant.is_zero()
+        } else {
+            false
+        }
+    }
+
+    /// True that the input is a zero `Value::NumericConstant`
+    pub(crate) fn is_constant_false(&self, argument: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(argument) {
+            constant.is_zero()
         } else {
             false
         }

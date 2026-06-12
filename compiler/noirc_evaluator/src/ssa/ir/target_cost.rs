@@ -22,9 +22,18 @@ impl Instruction {
     ///
     /// Instructions with side effects (constraints, calls, memory ops) cannot be
     /// flattened because they would execute unconditionally in the merged block.
-    /// A few instructions that report side effects are still safe in Brillig conditionals.
-    ///  These instructions are expected to be handled by this method's caller:
-    /// - `Allocate`, `IncrementRc`, `DecrementRc` are not predicate-dependent.
+    ///
+    /// `Allocate` and `IncrementRc` are safe to execute unconditionally, so the
+    /// caller excludes them from the flatten-cost estimate before asking;
+    /// reaching either here is an ICE. Hoisting an `inc_rc` out of a branch only
+    /// ever *raises* an array's runtime reference count, which makes a later
+    /// `array_set` copy rather than mutate in place — always sound (the
+    /// `array_set_rc_invariant` validator rejects any SSA whose result would
+    /// depend on the un-hoisted bump).
+    ///
+    /// `DecrementRc` is **not** safe to hoist: running it on a path that did not
+    /// before *lowers* a reference count, which can enable an unsafe in-place
+    /// mutation. It is reported as non-flattenable.
     ///
     /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
     /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.
@@ -37,11 +46,11 @@ impl Instruction {
                     true
                 }
             }
-            Instruction::Allocate
-            | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => {
-                panic!("ICE: Caller should handle memory ops");
+            Instruction::Allocate | Instruction::IncrementRc { .. } => {
+                panic!("ICE: Caller should handle Allocate and IncrementRc");
             }
+
+            Instruction::DecrementRc { .. } => false,
 
             // Calls are never worth flattening — even pure intrinsics can expand
             // into many Brillig opcodes, making unconditional execution expensive.
@@ -134,7 +143,7 @@ impl Instruction {
                         let results = dfg.instruction_results(id);
                         5 + arguments.len() + results.len()
                     }
-                    Value::ForeignFunction(_) => {
+                    Value::ForeignFunction { .. } => {
                         // TODO: we should differentiate inputs/outputs with array and vector allocations
                         1
                     }

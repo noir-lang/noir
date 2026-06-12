@@ -18,13 +18,13 @@ fn check_trait_implementation_duplicate_method() {
     impl Default2 for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ~~~~~~~ First trait associated item found here
+           ~~~~~~~ First definition found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
            ^^^^^^^ Duplicate definitions of trait associated item with name default found
-           ~~~~~~~ Second trait associated item found here
+           ~~~~~~~ Second definition found here
             x + 2 * y
         }
     }
@@ -168,6 +168,26 @@ fn trait_method_numeric_generic_on_function() {
 
     fn main() {
         foo::<Field>();
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn trait_method_numeric_generic_on_function_direct_dispatch() {
+    let src = r#"
+    trait Bar {
+        fn baz<let N: u32>() -> u32;
+    }
+
+    impl Bar for Field {
+        fn baz<let M: u32>() -> u32 {
+            M
+        }
+    }
+
+    fn main() {
+        let _ = <Field as Bar>::baz::<7>();
     }
     "#;
     check_monomorphization_error(src);

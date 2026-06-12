@@ -55,6 +55,49 @@ fn errors_on_unused_pub_crate_import() {
 }
 
 #[test]
+fn unused_global_clashing_with_function_is_reported_as_global() {
+    // The global and the function share the `values` namespace, so collecting the
+    // function clashes with the already-collected global. The unused warning must
+    // still describe the surviving item (the global) and point at its location,
+    // rather than borrowing the function's kind. The duplicate-definition secondaries
+    // stay kind-neutral ("First/Second definition found here") so they don't mislabel
+    // the global as a function the way the primary's `typ` does.
+    let src = r#"
+    global N: u32 = 10;
+           ^ unused global N
+           ~ unused global
+           ~ First definition found here
+    fn N() {}
+       ^ Duplicate definitions of function with name N found
+       ~ Second definition found here
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+#[should_panic(expected = "Expected some errors but got none")]
+fn cross_namespace_name_clash_misses_unused_warning_but_is_not_an_error() {
+    // A type-namespace item (`struct N`) and a value-namespace item (`fn N`) may legally
+    // share a name within a module, so this is *not* a duplicate-definition error and the
+    // program compiles. The usage tracker keys unused items by name only, so the struct and
+    // the function share one slot: constructing the struct clears it, and the genuinely
+    // unused `fn N` produces no "unused function" warning.
+    //
+    // The absence below is a missing *warning*, not a missing *error*, so there is no miscompilation.
+    // TODO(#11927): The test is here to highlight this gap, until it's fixed in
+    let src = r#"
+    struct N {}
+    fn N() {}
+       ^ unused function N
+    fn main() {
+        let _ = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_unused_function() {
     let src = r#"
     contract some_contract {
@@ -219,7 +262,7 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
         struct Bar {
             field: Field,
         }
-    
+
         #[abi(functions)]
         struct Foo {
             bar: Bar,
@@ -424,6 +467,73 @@ fn allow_dead_code_on_unused_enum() {
 
     fn main() {
     }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_unused_impl_function() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+           ^^^ unused function foo
+           ~~~ unused function
+    }
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_on_unused_impl_function() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = Foo::foo();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_on_used_impl_method() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {
+        Foo {}.foo();
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        #[allow(dead_code)]
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {}
     ";
     assert_no_errors(src);
 }

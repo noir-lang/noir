@@ -23,9 +23,9 @@ use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
+use noirc_frontend::hir::{Context, LspMode};
 use noirc_frontend::parse_program;
 
 use crate::types::{
@@ -438,6 +438,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+    context.activate_lsp_mode(LspMode::SingleFile);
 
     // Here we enable all options because we won't show errors to users, so it's easier to
     // assume all unstable features are enabled.
@@ -631,7 +632,7 @@ fn uri_from_path(path: &Path) -> Option<Url> {
     if let Ok(uri) = Url::from_file_path(path) {
         Some(uri)
     } else if path.starts_with("std") {
-        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+        Some(crate::requests::stdlib_path_to_uri(&path.to_string_lossy()))
     } else {
         None
     }
@@ -665,29 +666,18 @@ mod notification_tests {
     use super::*;
     use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
-        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
-        WorkDoneProgressParams,
+        TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
 
     #[test]
     async fn test_caches_open_files() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+        // Open the document with empty text.
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", "").await;
 
-        // Open the document, fake the text to be empty
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: "".to_string(),
-                },
-            },
-        );
-
-        // Fake the text to change to "global a = 1;"
+        // Then change the in-memory text to "global a = true;" and verify subsequent requests
+        // see the new content, not what's on disk.
         let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {

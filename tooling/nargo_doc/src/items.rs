@@ -509,6 +509,7 @@ pub enum PrimitiveTypeKind {
     FunctionDefinition,
     Module,
     CtString,
+    Location,
 }
 
 impl std::fmt::Display for PrimitiveTypeKind {
@@ -541,6 +542,7 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::FunctionDefinition => "FunctionDefinition",
             PrimitiveTypeKind::Module => "Module",
             PrimitiveTypeKind::CtString => "CtString",
+            PrimitiveTypeKind::Location => "Location",
         };
         write!(f, "{name}")
     }

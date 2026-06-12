@@ -82,8 +82,11 @@ use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
+pub(crate) use cast::evaluate_cast_one_step;
 mod foreign;
 mod infix;
+mod tracker;
+pub use tracker::EvaluationTracker;
 mod unquote;
 
 pub(crate) use builtin::builtin_helpers;
@@ -125,6 +128,11 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Current evaluation depth.
     evaluation_depth: usize,
+
+    /// Whether we are inside an unconstrained context. This is set to true when entering
+    /// an unconstrained function, and it keeps being true in nested calls regardless of
+    /// them being constrained or unconstrained.
+    in_unconstrained: bool,
 }
 
 impl<'local, 'interner> Interpreter<'local, 'interner> {
@@ -132,12 +140,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         current_function: Option<FuncId>,
     ) -> Self {
+        let in_unconstrained = current_function.is_some_and(|function| {
+            elaborator.interner.function_meta(&function).is_unconstrained()
+        });
+
         Self {
             elaborator,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
             evaluation_depth: 0,
+            in_unconstrained,
         }
     }
 
@@ -166,6 +179,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.push_interpreter_call_stack(location)?;
 
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_function_call(function, location);
+        }
+
         let result = self.call_function_inner(function, arguments, location);
 
         self.elaborator.pop_interpreter_call_stack();
@@ -182,7 +199,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let modifiers = self.elaborator.interner.function_modifiers(&function).clone();
+        let meta = self.elaborator.function_meta(function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
@@ -199,13 +217,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // Don't change the current function scope if we're in a #[use_callers_scope] function.
         // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
         let old_function = self.current_function;
-        let modifiers = self.elaborator.interner.function_modifiers(&function);
         if !modifiers.attributes.has_use_callers_scope() {
             self.current_function = Some(function);
         }
 
+        let previous_in_unconstrained = self.in_unconstrained;
+        self.in_unconstrained |= meta.is_unconstrained();
+
         let result = self.call_user_defined_function(function, arguments, location);
+
         self.current_function = old_function;
+        self.in_unconstrained = previous_in_unconstrained;
+
         result
     }
 
@@ -216,7 +239,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let meta = self.elaborator.function_meta(function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
@@ -245,11 +268,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Afterwards, if the function's body is still not known or the function is still
     /// in a Resolving state we issue an error.
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let body_is_unresolved = matches!(
+            self.elaborator.function_meta(function).function_body,
+            FunctionBody::Unresolved(..)
+        );
         match self.elaborator.interner.function(&function).try_as_expr() {
             Some(body) => Ok(body),
             None => {
-                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                if body_is_unresolved {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
@@ -339,11 +365,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
-        let Some(old_module) = old_module else {
-            // The module should always be set by the time we're interpreting comptime code
-            panic!("ICE: Expected local_module to be set when calling a closure");
-        };
-        self.elaborator.replace_module(old_module);
+        self.elaborator.restore_module(old_module);
         result
     }
 
@@ -496,15 +518,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         argument: Value,
         location: Location,
     ) -> IResult<()> {
+        self.define_pattern_inner(pattern, typ, argument, location, false)
+    }
+
+    /// `mutable` is `true` when this pattern is nested inside a `HirPattern::Mutable`,
+    /// in which case each leaf identifier is wrapped in a mutable `Value::Pointer`.
+    /// The wrapping must happen at each leaf rather than at the composite root: wrapping
+    /// the whole tuple/struct value would cause subsequent destructuring to see a
+    /// `Value::Pointer` instead of the expected `Value::Tuple`/`Value::Struct`.
+    fn define_pattern_inner(
+        &mut self,
+        pattern: &HirPattern,
+        typ: &Type,
+        argument: Value,
+        location: Location,
+        mutable: bool,
+    ) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => {
+                let argument = if mutable {
+                    Value::Pointer(Shared::new(argument), true, true)
+                } else {
+                    argument
+                };
                 self.define(identifier.id, argument);
                 Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
-                // Create a mutable reference to store to
-                let argument = Value::Pointer(Shared::new(argument), true, true);
-                self.define_pattern(pattern, typ, argument, location)
+                self.define_pattern_inner(pattern, typ, argument, location, true)
             }
             HirPattern::Tuple(pattern_fields, _) => {
                 let typ = &typ.follow_bindings();
@@ -517,7 +558,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             pattern_fields.iter().zip_eq(type_fields).zip_eq(fields)
                         {
                             let argument = argument.borrow().clone();
-                            self.define_pattern(pattern, typ, argument, location)?;
+                            self.define_pattern_inner(pattern, typ, argument, location, mutable)?;
                         }
                         Ok(())
                     }
@@ -544,7 +585,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                         let field = field.borrow();
                         let field_type = field.get_type().into_owned();
-                        self.define_pattern(field_pattern, &field_type, field.clone(), location)?;
+                        self.define_pattern_inner(
+                            field_pattern,
+                            &field_type,
+                            field.clone(),
+                            location,
+                            mutable,
+                        )?;
                     }
                     Ok(())
                 }
@@ -632,7 +679,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
         self.evaluation_depth += 1;
-        let result = match self.elaborator.interner.expression(&id) {
+
+        let expr = self.elaborator.interner.expression(&id);
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_expression(&expr, self.elaborator.interner.expr_location(&id));
+        }
+        let result = match expr {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
             HirExpression::Block(block) => self.evaluate_block(block),
@@ -666,8 +718,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                let location = self.elaborator.interner.expr_location(&id);
-                Err(InterpreterError::ErrorNodeEncountered { location })
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
             }
         };
         self.evaluation_depth -= 1;
@@ -697,6 +749,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
                     GlobalValue::Resolved(value) => {
+                        // Track the number of times a global was accessed during execution.
+                        // Globals are initialized during compilation; to track their initialization we have to add a tracker
+                        // before we try to interpret a specific call already. During interpretation the body is not revisited.
+                        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+                            tracker.track_location(global_info.location);
+                        }
+
                         // Enum variant globals with generics are instantiated with a Type::Forall
                         // We need to resolve the type, but it has already been done by the elaborator
                         if let Value::Enum(tag, fields, _) = value {
@@ -771,7 +830,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
-        match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
+
+        // `resolve_trait_item` (and the `bind_trait_impl_func_generics_*` helper
+        // it calls) reads `function_meta` directly on both the trait method and
+        // the matching trait impl method. We need to have them resolved first.
+        self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
+
+        // `resolve_trait_item_impl` extends the call expression's stored instantiation
+        // bindings with the resolved impl's bindings (and, for shared default methods,
+        // pins the trait's `Self` to the impl's concrete self type). Snapshot and restore
+        // around the call so the same expression — visited again under a different
+        // monomorphization context — sees the elaboration-time bindings rather than
+        // leftover impl-specific entries from a previous visit. This mirrors the snapshot
+        // logic in `resolve_trait_item_expr` on the monomorphization side.
+        let saved_bindings = self.elaborator.interner.try_get_instantiation_bindings(id).cloned();
+        let resolved = resolve_trait_item(self.elaborator.interner, item.id(), id);
+
+        let result = match resolved? {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
@@ -779,7 +854,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
                 self.evaluate_numeric_generic(value, &expected_type, id)
             }
+        };
+
+        if let Some(saved) = saved_bindings {
+            self.elaborator.interner.store_instantiation_bindings(id, saved);
         }
+        result
     }
 
     fn evaluate_literal(&mut self, literal: HirLiteral, id: ExprId) -> IResult<Value> {
@@ -1205,7 +1285,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        cast::evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression) -> IResult<Value> {
@@ -1305,6 +1385,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Ok(Value::Unit)
             }
             HirStatement::Error => {
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
+            }
+            HirStatement::TraitAssociatedConstant => {
                 let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
@@ -1324,8 +1408,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
-                let message =
-                    message.map(|value| value.display(self.elaborator.interner).to_string());
+                let message = message.map(|value| {
+                    value.display(self.elaborator.interner, self.elaborator.files).to_string()
+                });
                 let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
@@ -1707,7 +1792,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        let contents = arguments[1].0.display(self.elaborator.interner);
+        let contents = arguments[1].0.display(self.elaborator.interner, self.elaborator.files);
         if self.elaborator.interner.is_in_lsp_mode() {
             // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output
@@ -1881,7 +1966,8 @@ impl Context<'_, '_> {
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
         let location = func_meta.location;
-        let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let enabled_unstable_features =
+            &self.required_unstable_features.get(&crate_id).cloned().unwrap_or_default();
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
 
@@ -1891,10 +1977,9 @@ impl Context<'_, '_> {
         let module_id = ModuleId { krate: crate_id, local_id };
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
-        elaborator.replace_module(module_id);
-
-        let mut interpreter = elaborator.setup_interpreter();
-        let instantiation_bindings = TypeBindings::default();
-        interpreter.call_function(main_id, args, instantiation_bindings, location)
+        elaborator.setup_interpreter_for(module_id, |interpreter| {
+            let instantiation_bindings = TypeBindings::default();
+            interpreter.call_function(main_id, args, instantiation_bindings, location)
+        })
     }
 }
