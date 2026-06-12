@@ -415,7 +415,7 @@
 <a href=#415 id=415 data-nosnippet>415</a>            }
 <a href=#416 id=416 data-nosnippet>416</a>        }
 <a href=#417 id=417 data-nosnippet>417</a>        TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } =&gt; <span class="macro">panic!</span>(
-<a href=#418 id=418 data-nosnippet>418</a>            <span class="string">"for_each_terminator_edge_mut called on block edge {block} -&gt; {jmp_target} but {block} does not have any arguments"
+<a href=#418 id=418 data-nosnippet>418</a>            <span class="string">"for_each_terminator_edge_mut called on edge: {block} -&gt; {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
 <a href=#419 id=419 data-nosnippet>419</a>        </span>),
 <a href=#420 id=420 data-nosnippet>420</a>    }
 <a href=#421 id=421 data-nosnippet>421</a>}
