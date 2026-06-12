@@ -36,7 +36,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(self) -> Result<Ssa, RuntimeError> {
         let error_on_failure = true;
-        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
+        let ssa = self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)?;
+
+        #[cfg(debug_assertions)]
+        for function in ssa.functions.values() {
+            evaluate_static_assert_and_assert_constant_post_check(function);
+        }
+
+        Ok(ssa)
     }
 
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
@@ -99,6 +106,31 @@ impl Function {
         }
         Ok(())
     }
+}
+
+/// Post-check condition for [Ssa::evaluate_static_assert_and_assert_constant].
+///
+/// Panics if a call to `static_assert` or `assert_constant` remains in a reachable block.
+/// Unlike the lenient [Ssa::try_evaluate_static_assert_and_assert_constant], the strict
+/// variant either evaluates and removes every such call or errors, so any survivor would
+/// otherwise only be caught at ACIR generation.
+#[cfg(debug_assertions)]
+fn evaluate_static_assert_and_assert_constant_post_check(function: &Function) {
+    use crate::ssa::ir::value::Value;
+
+    super::checks::for_each_instruction(function, |instruction, dfg| {
+        if let Instruction::Call { func, .. } = instruction
+            && let Value::Intrinsic(
+                intrinsic @ (Intrinsic::StaticAssert | Intrinsic::AssertConstant),
+            ) = &dfg[*func]
+        {
+            panic!(
+                "Call to {intrinsic} remains in function {} {} after `static_assert` and `assert_constant` evaluation",
+                function.name(),
+                function.id(),
+            );
+        }
+    });
 }
 
 /// Returns all of a function's block that are part of empty loops.
@@ -527,5 +559,20 @@ mod tests {
         else {
             panic!("Expected a static assert dynamic message failure");
         };
+    }
+
+    #[test]
+    #[should_panic(expected = "remains in function")]
+    #[cfg(debug_assertions)]
+    fn post_check_detects_remaining_assert_constant() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        super::evaluate_static_assert_and_assert_constant_post_check(ssa.main());
     }
 }

@@ -34,8 +34,13 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(self, simplify: bool, validate: bool) -> Result<Ssa, SsaError> {
-        Translator::translate(self, simplify, validate)
+    pub(crate) fn into_ssa(
+        self,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaError> {
+        Translator::translate(self, simplify, validate, allow_malformed)
     }
 }
 
@@ -75,6 +80,7 @@ impl Translator {
         mut parsed_ssa: ParsedSsa,
         simplify: bool,
         validate: bool,
+        allow_malformed: bool,
     ) -> Result<Ssa, SsaError> {
         // Function IDs are assigned by position (`main` is 0, the rest follow in source
         // order), so the stated purity spans are collected here, before `Self::new`
@@ -88,7 +94,7 @@ impl Translator {
             })
             .collect();
 
-        let mut translator = Self::new(&mut parsed_ssa, simplify)?;
+        let mut translator = Self::new(&mut parsed_ssa, simplify, allow_malformed)?;
 
         // Note that the `new` call above removed the main function,
         // so all we are left with are non-main functions.
@@ -107,7 +113,11 @@ impl Translator {
         Ok(ssa)
     }
 
-    fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
+    fn new(
+        parsed_ssa: &mut ParsedSsa,
+        simplify: bool,
+        allow_malformed: bool,
+    ) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
 
         // A FunctionBuilder must be created with a main Function, so here wer remove it
@@ -117,6 +127,7 @@ impl Translator {
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
+        builder.set_allow_malformed_simplify(allow_malformed);
 
         if let Some(purity) = main_function.purity {
             purities.insert(main_id, purity);

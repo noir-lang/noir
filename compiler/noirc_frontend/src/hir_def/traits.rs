@@ -9,7 +9,7 @@ use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
 use crate::{
-    ResolvedGenerics, Type, TypeBindings, TypeVariable,
+    NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -116,6 +116,27 @@ pub struct TraitImpl {
     pub where_clause: Vec<TraitConstraint>,
 }
 
+/// A completed inherent `impl` block, i.e. one that does not implement a trait,
+/// such as `impl<T> Foo<T> where T: Bar { ... }`.
+#[derive(Debug)]
+pub struct Impl {
+    pub location: Location,
+    pub typ: Type,
+
+    pub file: FileId,
+    pub crate_id: CrateId,
+    pub module_id: crate::hir::def_map::ModuleId,
+
+    /// The generics introduced by the impl block, in declaration order
+    /// (e.g. `T` in `impl<T> Foo<T>`).
+    pub generics: ResolvedGenerics,
+
+    pub methods: Vec<FuncId>,
+
+    /// The impl's where clause. Empty if there is no where clause.
+    pub where_clause: Vec<TraitConstraint>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: Type,
@@ -137,6 +158,45 @@ impl TraitConstraint {
             &self.trait_bound.trait_generics.ordered,
             &self.trait_bound.trait_generics.named,
         )
+    }
+
+    /// Whether `self` and `other` denote the same bound, treating an unspecified associated
+    /// type as matching any other unspecified one.
+    ///
+    /// This is weaker than equality, for comparing a constraint against a copy of it that was
+    /// resolved independently — e.g. an inherent impl's where clause copied onto a method, or a
+    /// trait's supertrait bound propagated onto a method. Each resolution fills in any
+    /// associated type the bound leaves unspecified with a *fresh* type variable, so the copies
+    /// aren't `==` even though they're the same bound. Associated types the user bound to a
+    /// concrete type (`Foo<Bar = u32>`) are still compared, so those bounds aren't conflated.
+    pub fn matches_ignoring_unspecified_associated_types(&self, other: &TraitConstraint) -> bool {
+        if self.typ != other.typ
+            || self.trait_bound.trait_id != other.trait_bound.trait_id
+            || self.trait_bound.trait_generics.ordered != other.trait_bound.trait_generics.ordered
+        {
+            return false;
+        }
+
+        let self_named = &self.trait_bound.trait_generics.named;
+        let other_named = &other.trait_bound.trait_generics.named;
+        if self_named.len() != other_named.len() {
+            return false;
+        }
+
+        // An associated type the bound leaves unspecified is filled in with a fresh type
+        // variable each time the bound is resolved, so two copies of the same bound carry
+        // different ones there. Depending on the resolution path that filler is a bare type
+        // variable or a named generic, so accept either (when unbound) as matching, while still
+        // comparing associated types the user bound to a concrete type (e.g. `Foo<Bar = u32>`).
+        let is_unbound = |typ: &Type| match typ {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                var.borrow().is_unbound()
+            }
+            _ => false,
+        };
+        self_named.iter().zip(other_named).all(|(a, b)| {
+            a.name == b.name && (a.typ == b.typ || (is_unbound(&a.typ) && is_unbound(&b.typ)))
+        })
     }
 
     /// Looks up a trait implementation which satisfies this constraint and returns it.
