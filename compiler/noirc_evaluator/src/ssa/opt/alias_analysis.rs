@@ -196,6 +196,12 @@ pub(crate) struct AliasAnalysis {
     /// this count was minted afterwards (e.g. by simplification during a pass's
     /// re-insertion) and is therefore unknown to the analysis.
     value_count: HashMap<FunctionId, u32>,
+
+    /// Values minted after `analyze` that a pass has explicitly taught the
+    /// analysis about via [`Self::register_alias`]. These have indices `>=`
+    /// `value_count` but are nonetheless known, so `ensure_known` accepts them
+    /// while still rejecting un-taught minted values.
+    known_extra: HashSet<GlobalValueId>,
 }
 
 impl AliasAnalysis {
@@ -304,6 +310,56 @@ impl AliasAnalysis {
         }
     }
 
+    /// Teach the frozen analysis that `new` denotes the same memory as the
+    /// existing value `existing`. This is for values minted *after* `analyze`,
+    /// e.g. an instruction result rewritten by simplification during a pass's
+    /// re-insertion (a collapsed `IfElse`, an `array_get` folded to an element):
+    /// the new result is semantically equal to the value it replaced, so it
+    /// joins that value's alias class. Without this the new value sits in its
+    /// own singleton class and alias queries against it are unsound.
+    pub(crate) fn register_alias(
+        &mut self,
+        function: &Function,
+        existing: GlobalValueId,
+        new: GlobalValueId,
+    ) {
+        debug_assert_eq!(existing.func_id(), function.id());
+        debug_assert_eq!(new.func_id(), function.id());
+
+        // Accept `new` in `ensure_known` even though its index is beyond the
+        // frozen `value_count`.
+        self.known_extra.insert(new);
+
+        self.merge_into(existing, new);
+
+        // `new` is the same value as `existing`, so it inherits its site.
+        if let Some(&site) = self.allocation_sites.get(&existing) {
+            self.allocation_sites.insert(new, site);
+        }
+
+        // Class membership changed; the cached sizes are stale.
+        self.class_sizes = None;
+    }
+
+    /// Union `new` into `existing`'s alias class, carrying the class's
+    /// `points_to` edge onto the merged representative so `may_reference`
+    /// queries on `new` follow the same pointee chain. `new` is a freshly
+    /// minted value with no `points_to` of its own.
+    fn merge_into(&mut self, existing: GlobalValueId, new: GlobalValueId) {
+        let root_existing = self.aliases.find(existing);
+        let root_new = self.aliases.find(new);
+        if root_existing == root_new {
+            return;
+        }
+        self.aliases.union(root_existing, root_new);
+        let root = self.aliases.find(root_existing);
+        if let Some(&pointee) =
+            self.points_to.get(&root_existing).or_else(|| self.points_to.get(&root_new))
+        {
+            self.points_to.insert(root, pointee);
+        }
+    }
+
     /// Assert (in debug builds) that `value` existed in its function when the
     /// analysis was computed. A value minted afterwards (e.g. by simplification
     /// during a pass's re-insertion) has an index `>=` the recorded count and is
@@ -315,7 +371,7 @@ impl AliasAnalysis {
             // A function absent from the analysis scope has no recorded values;
             // don't claim to know anything about its values.
             None => false,
-        };
+        } || self.known_extra.contains(&value);
         debug_assert!(
             known,
             "alias query on {value:?}, a value minted after the alias analysis was frozen. \
@@ -495,6 +551,7 @@ impl AliasAnalysisContext {
             untrusted_site_functions: analysis.untrusted_site_functions,
             loop_allocates: analysis.loop_allocates,
             value_count,
+            known_extra: HashSet::default(),
         }
     }
 

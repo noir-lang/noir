@@ -64,7 +64,22 @@ impl Function {
             // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
             let instructions = inserter.function.dfg[block].take_instructions();
             for instruction_id in &instructions {
-                inserter.push_instruction(*instruction_id, block, true);
+                let inserted = inserter.push_instruction(*instruction_id, block, true);
+                // If the inserted ID is same as the original, then no new alias could have been created.
+                if inserted == Some(*instruction_id) {
+                    continue;
+                }
+                // Otherwise simplification may have introduced a new instruction and forwarded the old result.
+                // In this case we must tell the alias analysis that the new result is an alias of the old.
+                for old in inserter.function.dfg.instruction_results(*instruction_id) {
+                    let new = inserter.resolve(*old);
+                    if new != *old && inserter.function.dfg.type_of_value(new).contains_reference()
+                    {
+                        let old = GlobalValueId::new(inserter.function, *old);
+                        let new = GlobalValueId::new(inserter.function, new);
+                        analysis.register_alias(inserter.function, old, new);
+                    }
+                }
             }
             inserter.map_terminator_in_place(block);
         }
@@ -1447,7 +1462,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "a value minted after the alias analysis was frozen")]
     fn nested_ifelse_shared_condition_reinsertion_drops_alias() {
         // Regression test for noir-lang/noir-claude#1005.
         //
@@ -1455,18 +1469,15 @@ mod tests {
         // forwarding rewrites the outer IfElse's then_value from v4 (`load v3`)
         // to v2 (the inner IfElse). On re-insertion `simplify` then collapses
         // the two IfElses that share the `v_cond` then_condition into a single
-        // IfElse, minting a *fresh* result ValueId. The frozen analysis has no
-        // entry for that new id, so it sits in its own singleton alias class.
+        // IfElse, minting a *fresh* result ValueId that the frozen analysis has
+        // no entry for.
         //
-        // In b1, `store Field 99 at <new_id>` must clear `known_values[v0]`,
-        // because the collapsed IfElse aliases v0 (when v_cond == 1 it *is* v0
-        // at runtime). `may_alias(<new_id>, v0)` would silently return false
-        // for the unknown id; the store would then fail to clear it and the
-        // load of v0 would be forwarded to the stale `Field 5` (the observable
-        // miscompilation). The frozen-ness `debug_assert` in `may_alias` turns
-        // that silent miscompile into a panic, which this test expects. The
-        // fix will register the minted value with the analysis, after which
-        // this test should assert the sound output (the load of v0 survives).
+        // In b1, `store Field 99 at <new_id>` must clear `known_values` for the
+        // first allocation, because the collapsed IfElse aliases it (when
+        // v_cond == 1 it *is* that cell at runtime). The pass registers the
+        // minted id against the value it replaced, so `may_alias` sees the
+        // aliasing, the store clears the entry, and the trailing load is NOT
+        // forwarded to the stale `Field 5` — it survives as a real load.
         let src = "
         brillig(inline) fn main f0 {
           b0(v_cond: u1):
@@ -1488,7 +1499,26 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.load_store_forwarding();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = allocate -> &mut Field
+            v3 = allocate -> &mut Field
+            v4 = if v0 then v2 else (if v1) v3
+            v5 = allocate -> &mut &mut Field
+            store v4 at v5
+            v6 = allocate -> &mut Field
+            v7 = if v0 then v2 else (if v1) v6
+            jmp b1()
+          b1():
+            store Field 5 at v2
+            store Field 99 at v7
+            v10 = load v2 -> Field
+            return v10
+        }
+        ");
     }
 
     #[test]
