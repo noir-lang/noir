@@ -665,6 +665,34 @@ mod tests {
     }
 
     #[test]
+    fn loop_carried_alias_via_block_parameter() {
+        // Form 2 of loop-carried aliases: mem2reg_simple has promoted the
+        // `store ref at ref` / `load ref` into a reference-typed block parameter.
+        //
+        // This is the promoted version of `loop_carried_alias_prevents_incorrect_dead_store`:
+        // instead of `store v3 at v2` + `v5 = load v2`, the reference is passed
+        // as a block parameter via jmp.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1(v0)
+          b1(v2: &mut Field):
+            store Field 1 at v1
+            v3 = load v2 -> Field
+            store v3 at v1
+            jmp b1(v1)
+        }
+        ";
+        // v2 is a reference-typed loop header parameter. In the first iteration
+        // v2 == v0, but from the second iteration onward v2 == v1 (passed via jmp).
+        // When v2 == v1, `store Field 1 at v1` writes the value that `load v2` reads.
+        // That store must NOT be eliminated as dead (overwritten by `store v3 at v1`).
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
     fn remove_redundant_loads_from_ref_params() {
         // Loads from reference parameters (not local allocations) should still be
         // forwarded load-to-load when no intervening store invalidates them.
