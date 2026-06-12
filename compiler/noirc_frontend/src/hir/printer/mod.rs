@@ -610,7 +610,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn parent_constraints_contain(&self, constraint: &TraitConstraint) -> bool {
         self.trait_constraints
             .iter()
-            .any(|parent| parent.matches_ignoring_associated_types(constraint))
+            .any(|parent| parent.matches_ignoring_unspecified_associated_types(constraint))
     }
 
     fn show_function(&mut self, func_id: FuncId) {

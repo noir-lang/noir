@@ -169,7 +169,7 @@ impl TraitConstraint {
     /// associated type the bound leaves unspecified with a *fresh* type variable, so the copies
     /// aren't `==` even though they're the same bound. Associated types the user bound to a
     /// concrete type (`Foo<Bar = u32>`) are still compared, so those bounds aren't conflated.
-    pub fn matches_ignoring_associated_types(&self, other: &TraitConstraint) -> bool {
+    pub fn matches_ignoring_unspecified_associated_types(&self, other: &TraitConstraint) -> bool {
         if self.typ != other.typ
             || self.trait_bound.trait_id != other.trait_bound.trait_id
             || self.trait_bound.trait_generics.ordered != other.trait_bound.trait_generics.ordered

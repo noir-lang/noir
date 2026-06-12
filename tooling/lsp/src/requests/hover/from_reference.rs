@@ -522,7 +522,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let is_from_impl = |constraint: &TraitConstraint| {
             impl_where_clause
                 .iter()
-                .any(|parent| parent.matches_ignoring_associated_types(constraint))
+                .any(|parent| parent.matches_ignoring_unspecified_associated_types(constraint))
         };
 
         let trait_constraints: Vec<_> =
