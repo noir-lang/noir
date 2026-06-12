@@ -326,13 +326,25 @@ impl AliasAnalysis {
         debug_assert_eq!(existing.func_id(), function.id());
         debug_assert_eq!(new.func_id(), function.id());
 
-        // `new` is already known when simplification forwarded `existing` to a
+        // `new` can already be known: simplification may forward `existing` to a
         // value that existed at analyze time (e.g. `array_get` folded to an
-        // element). The analysis already has correct information for such a
-        // value, so there is nothing to teach — and re-running the steps below
-        // could clobber its allocation site. Bailing here also makes repeated
-        // calls idempotent.
+        // element), or an earlier call may have registered it (two results that
+        // fold to the same value). In every such case `existing` and `new` must
+        // ALREADY be in the same alias class, because each reference fold is
+        // mirrored by a unification in `analyze_block` (an `IfElse` result with
+        // its branches, an `array_get` result with the array's elements). So
+        // there is nothing to merge, and we must not clobber a known value's
+        // allocation site. Assert the invariant rather than skipping silently:
+        // a future fold rule lacking its matching unification would otherwise
+        // drop the `existing`–`new` relationship undetected.
         if self.is_known(new) {
+            debug_assert_eq!(
+                self.aliases.find(existing),
+                self.aliases.find(new),
+                "register_alias: `new` ({new:?}) is known but not already aliased with \
+                 `existing` ({existing:?}); a simplify fold may lack a matching unification \
+                 in `analyze_block`"
+            );
             return;
         }
         // We are about to fold the fresh value `new` into `existing`'s alias
@@ -1612,13 +1624,15 @@ mod tests {
     }
 
     #[test]
-    fn register_alias_with_an_already_known_new_does_not_merge() {
-        // When `new` already existed at `analyze` time — e.g. simplification
-        // forwarded `existing` to a pre-existing value — `register_alias` must
-        // be a no-op rather than union two unrelated known values. The two
-        // independent oracle results live in distinct classes with no distinct
-        // allocation sites, so a wrongful merge would be observable as
-        // `may_alias` flipping to true.
+    #[should_panic(expected = "is known but not already aliased with")]
+    fn register_alias_rejects_known_new_not_aliased_with_existing() {
+        // Contract: callers only register `new ≡ existing`, and every reference
+        // fold is mirrored by a unification in `analyze_block`, so a known `new`
+        // is always already in `existing`'s class. Registering an already-known
+        // `new` that is NOT aliased with `existing` violates that invariant —
+        // the debug assertion catches it rather than silently dropping the
+        // would-be merge. The two independent oracle results live in distinct
+        // classes, so this trips the assertion.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1632,10 +1646,7 @@ mod tests {
         let mut analysis = analyze_main(&ssa);
         assert!(!analysis.may_alias(ssa.main(), results[0], results[1]));
 
-        // Both results already exist; registering one against the other must
-        // not union their classes.
         analysis.register_alias(ssa.main(), results[0], results[1]);
-        assert!(!analysis.may_alias(ssa.main(), results[0], results[1]));
     }
 
     /// `&T` and `&mut T` can legitimately point to the same memory at runtime.
