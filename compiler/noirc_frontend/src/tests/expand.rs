@@ -29,7 +29,30 @@ fn expands_inherent_impl_with_where_clause() {
     }
     "#;
     let expanded = assert_no_errors_and_to_string(src);
-    insta::assert_snapshot!(expanded);
+    insta::assert_snapshot!(expanded, @r"
+    trait Bar {
+
+    }
+
+    impl Bar for Field {
+
+    }
+
+    struct Foo<T> {
+        x: T,
+    }
+
+    impl<T> Foo<T> where T: Bar {
+        fn get(self) -> T {
+            self.x
+        }
+    }
+
+    fn main() {
+        let foo: Foo<Field> = Foo::<Field> { x: 1_Field};
+        let _: Field = foo.get();
+    }
+    ");
 }
 
 #[test]
@@ -55,7 +78,30 @@ fn expands_inherent_impl_with_colon_bound_generic() {
     }
     "#;
     let expanded = assert_no_errors_and_to_string(src);
-    insta::assert_snapshot!(expanded);
+    insta::assert_snapshot!(expanded, @r"
+    trait Bar {
+
+    }
+
+    impl Bar for Field {
+
+    }
+
+    struct Foo<T> {
+        x: T,
+    }
+
+    impl<T> Foo<T> where T: Bar {
+        fn get(self) -> T {
+            self.x
+        }
+    }
+
+    fn main() {
+        let foo: Foo<Field> = Foo::<Field> { x: 1_Field};
+        let _: Field = foo.get();
+    }
+    ");
 }
 
 #[test]
@@ -89,7 +135,38 @@ fn expands_inherent_impl_method_with_own_where_clause() {
     }
     "#;
     let expanded = assert_no_errors_and_to_string(src);
-    insta::assert_snapshot!(expanded);
+    insta::assert_snapshot!(expanded, @r"
+    trait Bar {
+
+    }
+
+    impl Bar for Field {
+
+    }
+
+    trait Baz {
+
+    }
+
+    impl Baz for Field {
+
+    }
+
+    struct Foo<T> {
+        x: T,
+    }
+
+    impl<T> Foo<T> where T: Bar {
+        fn convert<U>(self, _other: U) -> T where U: Baz {
+            self.x
+        }
+    }
+
+    fn main() {
+        let foo: Foo<Field> = Foo::<Field> { x: 1_Field};
+        let _: Field = foo.convert(2_Field);
+    }
+    ");
 }
 
 #[test]
@@ -118,5 +195,27 @@ fn expands_separate_inherent_impl_blocks_separately() {
     }
     "#;
     let expanded = assert_no_errors_and_to_string(src);
-    insta::assert_snapshot!(expanded);
+    insta::assert_snapshot!(expanded, @r"
+    struct Foo {
+        x: Field,
+    }
+
+    impl Foo {
+        fn a(self) -> Field {
+            self.x
+        }
+    }
+
+    impl Foo {
+        fn b(self) -> Field {
+            self.x
+        }
+    }
+
+    fn main() {
+        let foo: Foo = Foo { x: 1_Field};
+        let _: Field = foo.a();
+        let _: Field = foo.b();
+    }
+    ");
 }
