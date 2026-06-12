@@ -474,7 +474,7 @@ fn self_with_associated_type_method_call_with_inferable_generics() {
     assert_no_errors(src);
 }
 
-/// Turbofish on `Self::AssocType::method::`<T>() is correctly handled.
+/// Turbofish on `Self::AssocType::method::<T>()` is correctly handled.
 /// When turbofish is explicitly provided, it takes precedence over inference.
 #[test]
 fn self_with_associated_type_method_call_turbofish_type_mismatch() {

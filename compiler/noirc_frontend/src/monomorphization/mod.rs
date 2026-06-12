@@ -176,7 +176,7 @@ pub struct Monomorphizer<'interner> {
     force_unconstrained: bool,
 }
 
-/// Using nested `HashMaps` here lets us avoid cloning `HirTypes` when calling .`get()`
+/// Using nested `HashMaps` here lets us avoid cloning `HirTypes` when calling `.get()`
 ///
 /// Maps (interner `FuncId`, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
 ///   -> Map (Canonical Instantiation Bindings) -> monomorphized `FuncId`

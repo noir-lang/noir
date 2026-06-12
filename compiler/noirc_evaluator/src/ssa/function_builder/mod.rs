@@ -55,7 +55,7 @@ pub struct FunctionBuilder {
 impl FunctionBuilder {
     /// Creates a new `FunctionBuilder` to build the function with the given `FunctionId`.
     ///
-    /// This creates the new function internally so there is no need to call .`new_function()`
+    /// This creates the new function internally so there is no need to call `.new_function()`
     /// right after constructing a new `FunctionBuilder`.
     pub fn new(function_name: String, function_id: FunctionId) -> Self {
         let new_function = Function::new(function_name, function_id);

@@ -45,7 +45,7 @@ pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
-/// `Variables`(`AcirVar`) and types such as `Expression` and `Witness`
+/// `Variables(AcirVar)` and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
 pub(crate) struct AcirContext<F: AcirField> {
     brillig_stdlib: BrilligStdLib<F>,

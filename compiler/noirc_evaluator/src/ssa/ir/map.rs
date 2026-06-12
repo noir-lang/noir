@@ -230,7 +230,7 @@ impl<T> std::ops::IndexMut<Id<T>> for DenseMap<T> {
 ///
 /// Note that unlike `DenseMap`, it is possible to panic when retrieving
 /// an element if the element's Id has been invalidated by a previous
-/// call to .`remove()`.
+/// call to `.remove()`.
 #[derive(Debug)]
 pub(crate) struct SparseMap<T> {
     storage: BTreeMap<Id<T>, T>,
