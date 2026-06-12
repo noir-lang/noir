@@ -705,13 +705,13 @@
 <a href=#705 id=705 data-nosnippet>705</a>
 <a href=#706 id=706 data-nosnippet>706</a>            <span class="comment">// Check if namespace
 <a href=#707 id=707 data-nosnippet>707</a>            </span><span class="kw">let </span>found_ns = <span class="kw">if </span>current_module_id_is_type {
-<a href=#708 id=708 data-nosnippet>708</a>                <span class="kw">match </span><span class="self">self</span>.resolve_method(visibility_module, current_module, current_ident) {
+<a href=#708 id=708 data-nosnippet>708</a>                <span class="kw">match </span><span class="self">self</span>.resolve_method(importing_module, current_module, current_ident) {
 <a href=#709 id=709 data-nosnippet>709</a>                    MethodLookupResult::NotFound(method_traits) =&gt; {
 <a href=#710 id=710 data-nosnippet>710</a>                        <span class="comment">// Before returning an error, try to look up as an associated constant
 <a href=#711 id=711 data-nosnippet>711</a>                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">self</span>.try_resolve_trait_constant(
 <a href=#712 id=712 data-nosnippet>712</a>                            <span class="kw-2">&amp;</span>intermediate_item,
 <a href=#713 id=713 data-nosnippet>713</a>                            current_ident,
-<a href=#714 id=714 data-nosnippet>714</a>                            visibility_module,
+<a href=#714 id=714 data-nosnippet>714</a>                            importing_module,
 <a href=#715 id=715 data-nosnippet>715</a>                        ) {
 <a href=#716 id=716 data-nosnippet>716</a>                            <span class="kw">return </span>result.map(|item| PathResolution { item, errors });
 <a href=#717 id=717 data-nosnippet>717</a>                        }
