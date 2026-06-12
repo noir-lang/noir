@@ -604,11 +604,10 @@ mod tests {
 
     #[test]
     fn call_returning_alias_of_local_allocation_prevents_forwarding() {
-        // Bug: When a local allocation is passed to a call, it is removed from
-        // known_values/last_stores but NOT from local_allocations. If the callee
-        // returns an alias to the same memory, stores through the original address
-        // skip the conservative clear (because it's still in local_allocations),
-        // leaving stale entries for the alias.
+        // A call returns an alias of an address that is also stored to directly.
+        // v1 (the returned reference) and v0 (the call argument) point to the
+        // same memory, so a store through v0 must invalidate the cached value
+        // for v1 — otherwise a later load of v1 forwards a stale value.
         let src = "
         brillig(inline) fn main f0 {
           b0():
