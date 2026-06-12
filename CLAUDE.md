@@ -246,7 +246,7 @@ When introducing breaking changes:
 
 Special labels to control CI behavior:
 
-- **`show-bench`**: Print the comparisons of CI benchmarks between the PR commit and the base branch.
+- **`bench-show`**: Print the comparisons of CI benchmarks between the PR commit and the base branch.
 
   - Use when you think that the PR will result in improvements/degradation of compilation time or memory usage.
 
