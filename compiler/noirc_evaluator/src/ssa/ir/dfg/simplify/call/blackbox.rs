@@ -17,6 +17,7 @@ use crate::ssa::ir::{
 };
 
 use super::{SimplifyResult, array_is_constant, make_constant_array, to_u8_vec};
+use crate::ssa::ir::dfg::simplify::bail_malformed;
 
 pub(super) fn simplify_ec_add(
     dfg: &mut DataFlowGraph,
@@ -355,20 +356,34 @@ pub(super) fn simplify_signature(
             // directly (a false predicate forces `true` and is handled above; a witness predicate
             // would make the output depend on the witness, so it is left unsimplified).
             //
-            // The argument arrays are only well-sized for genuine ECDSA calls; SSA built directly
-            // (e.g. by the fuzzer) may carry differently-sized arrays, so a length mismatch declines
-            // to simplify rather than panicking.
-            let Ok(public_key_x): Result<[u8; 32], _> = to_u8_vec(dfg, public_key_x).try_into()
-            else {
-                return SimplifyResult::None;
+            // The keys and signature are fixed-size in the Noir API (and enforced by SSA
+            // validation), so an unexpected length there is malformed input rather than something
+            // to simplify.
+            let public_key_x: [u8; 32] = match to_u8_vec(dfg, public_key_x).try_into() {
+                Ok(bytes) => bytes,
+                Err(bytes) => bail_malformed!(
+                    dfg,
+                    "ecdsa public_key_x: expected 32 bytes, got {}",
+                    bytes.len()
+                ),
             };
-            let Ok(public_key_y): Result<[u8; 32], _> = to_u8_vec(dfg, public_key_y).try_into()
-            else {
-                return SimplifyResult::None;
+            let public_key_y: [u8; 32] = match to_u8_vec(dfg, public_key_y).try_into() {
+                Ok(bytes) => bytes,
+                Err(bytes) => bail_malformed!(
+                    dfg,
+                    "ecdsa public_key_y: expected 32 bytes, got {}",
+                    bytes.len()
+                ),
             };
-            let Ok(signature): Result<[u8; 64], _> = to_u8_vec(dfg, signature).try_into() else {
-                return SimplifyResult::None;
+            let signature: [u8; 64] = match to_u8_vec(dfg, signature).try_into() {
+                Ok(bytes) => bytes,
+                Err(bytes) => {
+                    bail_malformed!(dfg, "ecdsa signature: expected 64 bytes, got {}", bytes.len())
+                }
             };
+            // Unlike the keys and signature, `message_hash` has a generic length in the Noir API
+            // (SSA validation only requires a `u8` array), so a non-32-byte hash is valid SSA the
+            // verifier simply can't fold rather than malformed input: decline instead of bailing.
             let Ok(hashed_message): Result<[u8; 32], _> = to_u8_vec(dfg, hashed_message).try_into()
             else {
                 return SimplifyResult::None;
@@ -643,6 +658,59 @@ mod ecdsa_simplify {
         assert!(
             lowered.contains("call ecdsa_secp256k1"),
             "a witness predicate must not be folded, got:\n{lowered}"
+        );
+    }
+
+    // The public keys and signature are fixed-size in the Noir API; an all-constant call carrying a
+    // wrong-sized one is malformed SSA. By default that panics rather than being silently folded.
+    #[test]
+    #[should_panic(expected = "malformed SSA reached simplify")]
+    fn wrong_sized_pubkey_panics_under_strict_simplify() {
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{short}] : [u8; 31]
+                v1 = make_array [{a}] : [u8; 32]
+                v2 = make_array [{b}] : [u8; 64]
+                v3 = make_array [{a}] : [u8; 32]
+                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
+                return v4
+            }}"#,
+            short = zeros(31),
+            a = zeros(32),
+            b = zeros(64),
+        );
+        // `from_str_simplifying` keeps `allow_malformed_simplify` disabled, so the malformed length
+        // surfaces as a panic during simplification (before validation runs).
+        let _ = Ssa::from_str_simplifying(&src);
+    }
+
+    // With `allow_malformed_simplify` enabled (as the `ssa_fuzzer` does), the same malformed call is
+    // left untouched instead of panicking. Validation is skipped because it would reject the length
+    // too — the point here is only that simplification declines gracefully.
+    #[test]
+    fn wrong_sized_pubkey_is_left_intact_when_malformed_allowed() {
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{short}] : [u8; 31]
+                v1 = make_array [{a}] : [u8; 32]
+                v2 = make_array [{b}] : [u8; 64]
+                v3 = make_array [{a}] : [u8; 32]
+                v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
+                return v4
+            }}"#,
+            short = zeros(31),
+            a = zeros(32),
+            b = zeros(64),
+        );
+        let ssa = Ssa::from_str_impl(&src, true, false, true).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            lowered.contains("call ecdsa_secp256k1"),
+            "a malformed call must be left intact under allow_malformed_simplify, got:\n{lowered}"
         );
     }
 }
