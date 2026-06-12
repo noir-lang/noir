@@ -1029,6 +1029,45 @@ mod tests {
     }
 
     #[test]
+    fn load_through_array_get_alias_keeps_aliased_store_live() {
+        // A store to v0, then v0 is extracted through make_array + array_get as
+        // a fresh ValueId v2, loaded through that alias, then v0 is overwritten.
+        // The load through the alias reads the first store, so that store must
+        // NOT be eliminated as dead by the later store to v0.
+        //
+        // Regression test for noir-lang/noir-claude#798: array_get gives v2 the
+        // allocation site of v0, so `may_alias(v2, v0)` clears `last_stores[v0]`
+        // on the load, the load forwards `Field 1`, and the final store does not
+        // treat `store Field 1 at v0` as a redundant prior write.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            v3 = load v2 -> Field
+            store Field 2 at v0
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The load returns the value through the alias (`Field 1`), never the
+        // uninitialized `Field 0` that DSE of the first store would expose.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            store Field 2 at v0
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
     fn regression_12234_if_else_over_params_does_not_alias_local_allocate() {
         // v5 is either v0 (function param) or v3 (block param fed by v0) —
         // both coming from the external caller. v2 is a local allocate, so
