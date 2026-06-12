@@ -1634,4 +1634,57 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn array_set_folding_to_source_registers_minted_alias() {
+        // Reduced from an ast-fuzzer counterexample (a Brillig loop carrying an
+        // array of references).
+        //
+        // In `f1`, `array_set(v0, i, array_get(v0, i))` writes an element
+        // straight back, so on re-insertion `simplify` folds it to the source
+        // array `v0`. The frozen alias analysis does NOT put the `array_set`
+        // result in `v0`'s class (it only links them through the shared
+        // element/pointee class), so the minted result and `v0` start in
+        // distinct classes. The pass must register the fold against `v0`
+        // regardless — they denote the same array — which `register_alias` does
+        // by merging the classes. This exercises the path where the re-inserted
+        // value is aliased with a value the conservative analysis kept separate.
+        //
+        // `main` owns the reference and passes it into `f1`, since an entry
+        // point cannot take reference parameters directly.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            call f1(v2)
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&mut Field; 1]):
+            v1 = array_get v0, index u32 0 -> &mut Field
+            v2 = array_set v0, index u32 0, value v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The no-op `array_set` in `f1` folds away; the load of the element remains.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            call f1(v2)
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&mut Field; 1]):
+            v2 = array_get v0, index u32 0 -> &mut Field
+            return
+        }
+        ");
+    }
 }
