@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["NamedType","ResolvedTraitBound","Trait","TraitConstant","TraitConstraint","TraitFunction","TraitImpl"]};
+window.SIDEBAR_ITEMS = {"struct":["Impl","NamedType","ResolvedTraitBound","Trait","TraitConstant","TraitConstraint","TraitFunction","TraitImpl"]};

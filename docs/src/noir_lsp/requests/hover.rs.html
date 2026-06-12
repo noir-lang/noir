@@ -224,11 +224,11 @@
 <a href=#224 id=224 data-nosnippet>224</a>    }
 <a href=#225 id=225 data-nosnippet>225</a>
 <a href=#226 id=226 data-nosnippet>226</a>    <span class="attr">#[test]
-<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">async fn </span>hover_on_method_shows_where_clause_including_enclosing_impl_bounds() {
+<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">async fn </span>hover_on_method_shows_only_its_own_where_clause_not_the_impls() {
 <a href=#228 id=228 data-nosnippet>228</a>        <span class="comment">// For an inherent impl, the compiler merges the impl's `where` clause into each
-<a href=#229 id=229 data-nosnippet>229</a>        // method's own constraints during collection, so both `U: Foo` (the method's) and
-<a href=#230 id=230 data-nosnippet>230</a>        // `T: Foo` (the impl's) appear here. They can't be told apart at this point because
-<a href=#231 id=231 data-nosnippet>231</a>        // a method's own `where` clause may also constrain an impl generic.
+<a href=#229 id=229 data-nosnippet>229</a>        // method's own constraints during collection. Hovering a method should show only the
+<a href=#230 id=230 data-nosnippet>230</a>        // method's own `where` clause (`U: Foo`), not the impl's (`T: Foo`), which belongs on
+<a href=#231 id=231 data-nosnippet>231</a>        // the impl shown above the signature.
 <a href=#232 id=232 data-nosnippet>232</a>        </span>assert_hover(
 <a href=#233 id=233 data-nosnippet>233</a>            <span class="string">r#"pub trait Foo {}
 <a href=#234 id=234 data-nosnippet>234</a>
@@ -247,7 +247,7 @@
 <a href=#247 id=247 data-nosnippet>247</a>}"#</span>,
 <a href=#248 id=248 data-nosnippet>248</a>            <span class="string">r#"    two::Wrapper
 <a href=#249 id=249 data-nosnippet>249</a>    impl&lt;T&gt; Wrapper&lt;T&gt;
-<a href=#250 id=250 data-nosnippet>250</a>    pub fn combine&lt;U&gt;(self, other: U) where U: Foo, T: Foo"#</span>,
+<a href=#250 id=250 data-nosnippet>250</a>    pub fn combine&lt;U&gt;(self, other: U) where U: Foo"#</span>,
 <a href=#251 id=251 data-nosnippet>251</a>        )
 <a href=#252 id=252 data-nosnippet>252</a>        .<span class="kw">await</span>;
 <a href=#253 id=253 data-nosnippet>253</a>    }

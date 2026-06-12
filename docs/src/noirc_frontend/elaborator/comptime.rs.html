@@ -325,15 +325,15 @@
 <a href=#325 id=325 data-nosnippet>325</a>        attributes_to_run: <span class="kw-2">&amp;mut </span>CollectedAttributes,
 <a href=#326 id=326 data-nosnippet>326</a>    ) {
 <a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">for </span>((object_type, _impl_module), impls_in_module) <span class="kw">in </span>impls {
-<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">for </span>(generics, where_clause, type_location, methods) <span class="kw">in </span>impls_in_module {
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">for </span>unresolved_impl <span class="kw">in </span>impls_in_module {
 <a href=#329 id=329 data-nosnippet>329</a>                <span class="kw">let </span>impl_target = AttributeImplTarget {
 <a href=#330 id=330 data-nosnippet>330</a>                    object_type: object_type.clone(),
-<a href=#331 id=331 data-nosnippet>331</a>                    generics: generics.clone(),
-<a href=#332 id=332 data-nosnippet>332</a>                    where_clause: where_clause.clone(),
-<a href=#333 id=333 data-nosnippet>333</a>                    type_location: <span class="kw-2">*</span>type_location,
+<a href=#331 id=331 data-nosnippet>331</a>                    generics: unresolved_impl.generics.clone(),
+<a href=#332 id=332 data-nosnippet>332</a>                    where_clause: unresolved_impl.where_clause.clone(),
+<a href=#333 id=333 data-nosnippet>333</a>                    type_location: unresolved_impl.object_type_location,
 <a href=#334 id=334 data-nosnippet>334</a>                };
 <a href=#335 id=335 data-nosnippet>335</a>                <span class="self">self</span>.collect_attributes_on_functions(
-<a href=#336 id=336 data-nosnippet>336</a>                    std::slice::from_ref(methods),
+<a href=#336 id=336 data-nosnippet>336</a>                    std::slice::from_ref(<span class="kw-2">&amp;</span>unresolved_impl.methods),
 <a href=#337 id=337 data-nosnippet>337</a>                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>impl_target),
 <a href=#338 id=338 data-nosnippet>338</a>                    attributes_to_run,
 <a href=#339 id=339 data-nosnippet>339</a>                );
