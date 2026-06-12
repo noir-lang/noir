@@ -1482,4 +1482,40 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn call_with_nested_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [] : [&mut u32; 0]
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut u32; 0]):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The call `call f1(v1)` has a reference but it cannot impact v0.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [] : [&mut u32; 0]
+            call f1(v2)
+            return Field 1
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut u32; 0]):
+            return
+        }
+        ");
+    }
 }
