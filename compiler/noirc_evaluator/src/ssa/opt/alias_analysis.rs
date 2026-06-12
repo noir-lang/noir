@@ -190,12 +190,6 @@ pub(crate) struct AliasAnalysis {
     /// of a loop produces a fresh cell, so the static site must not pin
     /// runtime cells together.
     loop_allocates: HashSet<GlobalValueId>,
-
-    /// Per-function count of `Value`s present when the analysis was computed.
-    /// The analysis is frozen once built, so any `ValueId` with an index `>=`
-    /// this count was minted afterwards (e.g. by simplification during a pass's
-    /// re-insertion) and is therefore unknown to the analysis.
-    value_count: HashMap<FunctionId, u32>,
 }
 
 impl AliasAnalysis {
@@ -222,8 +216,6 @@ impl AliasAnalysis {
         a: GlobalValueId,
         b: GlobalValueId,
     ) -> bool {
-        self.ensure_known(a);
-        self.ensure_known(b);
         if a == b {
             return true;
         }
@@ -245,8 +237,8 @@ impl AliasAnalysis {
             return false;
         }
 
-        let a_root = self.aliases.find(a);
-        let b_root = self.aliases.find(b);
+        let a_root = self.aliases.find_existing(a);
+        let b_root = self.aliases.find_existing(b);
 
         a_root == b_root
     }
@@ -256,7 +248,7 @@ impl AliasAnalysis {
     /// The per-class size table is populated on demand the first time this is
     /// called — consumers that only use [`Self::may_alias`] do not pay for it.
     pub(crate) fn is_aliased(&mut self, value: GlobalValueId) -> bool {
-        let root = self.aliases.find(value);
+        let root = self.aliases.find_existing(value);
         if self.class_sizes.is_none() {
             // Count members per alias class
             self.class_sizes = Some(self.aliases.class_sizes());
@@ -267,10 +259,8 @@ impl AliasAnalysis {
 
     /// Recursively check if `target` can be referenced by `from`
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
-        self.ensure_known(from);
-        self.ensure_known(target);
-        let from_rep = self.aliases.find(from);
-        let target_rep = self.aliases.find(target);
+        let from_rep = self.aliases.find_existing(from);
+        let target_rep = self.aliases.find_existing(target);
         if from_rep == target_rep {
             return !self.get_allocation(from).cannot_equal(&self.get_allocation(target));
         }
@@ -302,31 +292,6 @@ impl AliasAnalysis {
             (Some(sa), Some(sb)) => sa == sb,
             _ => false,
         }
-    }
-
-    /// Whether `value` existed in its function when the analysis was computed.
-    /// A value minted afterwards has an index `>=` the recorded count and is
-    /// unknown to the frozen alias classes.
-    fn is_known(&self, value: GlobalValueId) -> bool {
-        match self.value_count.get(&value.func_id()) {
-            Some(&count) => value.value_id().to_u32() < count,
-            // A function absent from the analysis scope has no recorded values;
-            // don't claim to know anything about its values.
-            None => false,
-        }
-    }
-
-    /// Assert (in debug builds) that `value` is known to the analysis. An
-    /// unknown value — minted after the analysis was frozen and never
-    /// registered — would make alias queries silently return a wrong answer,
-    /// a bug in the calling pass.
-    fn ensure_known(&self, value: GlobalValueId) {
-        debug_assert!(
-            self.is_known(value),
-            "alias query on {value:?}, a value minted after the alias analysis was frozen. \
-             The analysis must be told about new reference values (e.g. via re-insertion \
-             simplification) before they are used in alias queries."
-        );
     }
 
     fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
@@ -490,7 +455,18 @@ impl AliasAnalysisContext {
             analysis.refine_allocation_sites(function, scope.is_entry_point(function.id()));
         }
 
-        let value_count = functions.iter().map(|f| (f.id(), f.dfg.num_values() as u32)).collect();
+        // Make the analysis total: insert every reference-typed value into the
+        // union-find (most are added while processing constraints, but values
+        // never involved in one would otherwise be missing). With the structure
+        // total, a post-analysis lookup of an unknown value is a bug —
+        // see `find_existing` — rather than a silently-created singleton.
+        for function in &functions {
+            for (value_id, _) in function.dfg.values_iter() {
+                if function.dfg.type_of_value(value_id).contains_reference() {
+                    analysis.aliases.make_set(GlobalValueId::new(function, value_id));
+                }
+            }
+        }
 
         AliasAnalysis {
             aliases: analysis.aliases,
@@ -499,7 +475,6 @@ impl AliasAnalysisContext {
             allocation_sites: analysis.allocation_sites,
             untrusted_site_functions: analysis.untrusted_site_functions,
             loop_allocates: analysis.loop_allocates,
-            value_count,
         }
     }
 

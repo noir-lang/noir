@@ -38,6 +38,17 @@ impl<K: Copy + Eq + Hash> UnionFind<K> {
         root
     }
 
+    /// Find the root representative of `v`, panicking if `v` was never inserted.
+    ///
+    /// Unlike [`Self::find`], this never lazily creates a set. Use it once the
+    /// structure is fully populated, so that looking up a value the structure
+    /// does not know about is reported as a bug rather than silently treated as
+    /// a fresh singleton.
+    pub(crate) fn find_existing(&mut self, v: K) -> K {
+        assert!(self.parent.contains_key(&v), "union-find lookup of an unknown value");
+        self.find(v)
+    }
+
     /// Find the root representative of the set containing `v`, without path
     /// compression.
     pub(crate) fn find_immutable(&self, v: K) -> Option<K> {
