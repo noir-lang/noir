@@ -53,6 +53,9 @@ impl<K: Copy + Eq + Hash> UnionFind<K> {
 
     /// Return a map from each class representative to the number of values
     /// in that class.
+    // Only consumer is `AliasAnalysis::is_aliased`, which has no production
+    // caller yet.
+    #[allow(dead_code)]
     pub(crate) fn class_sizes(&self) -> HashMap<K, u32> {
         let mut sizes = HashMap::default();
         for &v in self.parent.keys() {
