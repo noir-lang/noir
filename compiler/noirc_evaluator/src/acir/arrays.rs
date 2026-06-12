@@ -875,7 +875,14 @@ impl Context<'_> {
         };
 
         let value_types = flat_element_types(&array_typ);
-        assert_eq!(len.to_usize() % value_types.len(), 0);
+        if value_types.is_empty() {
+            // An element type with zero flattened width (e.g. `str<0>` or `[T; 0]`)
+            // forces the whole array to flatten to nothing, so there is no per-element
+            // stride to check the length against.
+            assert_eq!(len.to_usize(), 0, "zero-width elements imply a zero flattened length");
+        } else {
+            assert_eq!(len.to_usize() % value_types.len(), 0);
+        }
 
         Ok(AcirValue::DynamicArray(AcirDynamicArray {
             block_id,
