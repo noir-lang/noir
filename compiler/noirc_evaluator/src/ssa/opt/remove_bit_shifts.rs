@@ -394,6 +394,8 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
+    /// We check against rhs bit size because this function does not see lhs,
+    /// but this is effectively lhs bit size because lhs and rhs have the same type.
     fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);

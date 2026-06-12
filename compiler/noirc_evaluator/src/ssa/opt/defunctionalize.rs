@@ -367,7 +367,7 @@ fn find_variants(ssa: &Ssa) -> Variants {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    visit_values_other_than_call_target(func, |value| {
+    visit_values_other_than_call_target(func, |_value_id, value| {
         if let Value::Function(id) = value {
             functions_as_values.insert(*id);
         }
@@ -377,9 +377,9 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
 }
 
 /// Visit all values which are *not* targets of a `Call`.
-fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value)) {
+fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(ValueId, &Value)) {
     let mut process_value = |value_id: ValueId| {
-        f(&func.dfg[value_id]);
+        f(value_id, &func.dfg[value_id]);
     };
 
     for block_id in func.reachable_blocks() {
@@ -823,7 +823,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
 ///   * Any intrinsic or foreign function is passed as a value.
 #[cfg(debug_assertions)]
 fn defunctionalize_pre_check(function: &Function) {
-    visit_values_other_than_call_target(function, |value| match value {
+    visit_values_other_than_call_target(function, |_value_id, value| match value {
         Value::ForeignFunction { name, .. } => panic!("foreign function as value: {name}"),
         Value::Intrinsic(intrinsic) => panic!("intrinsic function as value: {intrinsic}"),
         _ => (),
@@ -832,6 +832,8 @@ fn defunctionalize_pre_check(function: &Function) {
 
 /// Check post-execution properties:
 /// * All blocks which took function parameters should receive a discriminator instead
+/// * No first-class function value remains anywhere other than as a direct call target,
+///   and no value retains a function type (even nested within arrays or references)
 #[cfg(debug_assertions)]
 fn defunctionalize_post_check(func: &Function) {
     for block_id in func.reachable_blocks() {
@@ -848,6 +850,22 @@ fn defunctionalize_post_check(func: &Function) {
             );
         }
     }
+
+    visit_values_other_than_call_target(func, |value_id, value| {
+        assert!(
+            !matches!(value, Value::Function(_)),
+            "First-class function value {value_id} remains after defunctionalization in function {} {}",
+            func.name(),
+            func.id(),
+        );
+        let typ = func.dfg.type_of_value(value_id);
+        assert!(
+            replacement_type(&typ).is_none(),
+            "Value {value_id} of type '{typ}' remains after defunctionalization in function {} {}",
+            func.name(),
+            func.id(),
+        );
+    });
 }
 
 /// Return what type a function value type should be replaced with:
@@ -2676,5 +2694,29 @@ mod tests {
         let variants = filter_apply_function_variants(&signature, caller_runtime, &variants);
         assert_eq!(variants.len(), 3); // blake2s_proxy + oracle_hash_proxy + another_hash
         assert!(variants.iter().all(|(_, runtime)| runtime.is_brillig()));
+    }
+
+    #[test]
+    #[should_panic(expected = "First-class function value")]
+    #[cfg(debug_assertions)]
+    fn post_check_detects_function_passed_as_value() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = call f1(f2, v0) -> Field
+            return v3
+        }
+        acir(inline) fn wrapper f1 {
+          b0(v0: function, v1: Field):
+            v2 = call v0(v1) -> Field
+            return v2
+        }
+        acir(inline) fn id f2 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        super::defunctionalize_post_check(ssa.main());
     }
 }

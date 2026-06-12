@@ -44,6 +44,7 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
+        builder.set_allow_malformed_simplify(true);
         Self { builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
     }
 
@@ -53,6 +54,7 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
+        builder.set_allow_malformed_simplify(true);
         Self { builder, runtime: RuntimeType::Brillig(FrontendInlineType::default()) }
     }
 
@@ -61,6 +63,7 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(runtime);
         builder.simplify = simplifying_enabled;
+        builder.set_allow_malformed_simplify(true);
         Self { builder, runtime }
     }
 

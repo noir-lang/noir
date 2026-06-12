@@ -31,7 +31,37 @@ pub(crate) mod value_merger;
 
 pub(crate) use call::constant_to_radix;
 
-/// Contains the result to `Instruction::simplify`, specifying how the instruction
+/// Bail out of a `simplify_*` routine on input that cannot arise from well-formed SSA — a wrong
+/// argument count, a mismatched type, an unexpected array length, and the like.
+///
+/// Simplification runs during SSA construction, before the validation pass that would reject such
+/// input, so it cannot rely on validation as a backstop. By default this panics at the call site
+/// (preserving a precise stack trace) since the normal pipeline never produces malformed SSA.
+/// When the owning [`DataFlowGraph`]'s `allow_malformed_simplify` is set — only the `ssa_fuzzer`,
+/// which builds malformed SSA on purpose, does this — it instead emits a trace and returns
+/// [`SimplifyResult::None`], leaving the instruction untouched.
+///
+/// Only for checks on the instruction's *inputs*. Invariants on the simplifier's own logic or
+/// output should remain hard `assert!`s, so genuine compiler bugs still surface even under the fuzzer.
+macro_rules! bail_malformed {
+    // Default form, for routines that return `SimplifyResult`: decline by returning `None`.
+    ($dfg:expr, $($arg:tt)*) => {
+        $crate::ssa::ir::dfg::simplify::bail_malformed!(
+            @ret $crate::ssa::ir::dfg::simplify::SimplifyResult::None; $dfg, $($arg)*
+        )
+    };
+    // Explicit-return form, for routines whose decline value is not a bare `SimplifyResult`
+    // (e.g. an `Option<SimplifyResult>` helper returning `Some(SimplifyResult::None)`).
+    (@ret $ret:expr; $dfg:expr, $($arg:tt)*) => {{
+        let msg = format!($($arg)*);
+        assert!($dfg.allow_malformed_simplify, "malformed SSA reached simplify: {msg}");
+        tracing::warn!("malformed SSA reached simplify, leaving instruction unsimplified: {msg}");
+        return $ret;
+    }};
+}
+pub(crate) use bail_malformed;
+
+/// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
 #[derive(Debug)]
 pub(crate) enum SimplifyResult {
@@ -428,20 +458,20 @@ fn try_optimize_array_get_from_previous_instructions(
 /// we can simplify that array set to the array we were looking to perform an array set upon.
 ///
 /// Simple case:
-/// v3 = `array_get` v1, index v2
-/// v5 = `array_set` v1, index v2, value v3
+/// v3 = array_get v1, index v2
+/// v5 = array_set v1, index v2, value v3
 ///
 /// If we could not immediately simplify the array set from its value, we can try to follow
 /// the array set backwards in the case we have constant indices:
 ///
-/// v3 = `array_get` v1, index 1
-/// v5 = `array_set` v1, index 2, value [Field 100, Field 101, Field 102]
-/// v7 = `array_set` mut v5, index 1, value v3
+/// v3 = array_get v1, index 1
+/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
+/// v7 = array_set mut v5, index 1, value v3
 ///
 /// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
 /// to `v1` and see that the previous array set occurs to a different constant index.
 ///
-/// For each `array_set`:
+/// For each array_set:
 /// - If the index is non-constant we fail the optimization since any index may be changed.
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
 /// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.

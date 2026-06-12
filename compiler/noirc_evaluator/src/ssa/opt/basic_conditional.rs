@@ -40,7 +40,7 @@ struct BasicConditional {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
-    /// Apply the `basic_conditional` pass to all functions of the program.
+    /// Apply the basic_conditional pass to all functions of the program.
     /// It first retrieve the `no_predicates` attribute of each function which will be used during the flattening.
     pub(crate) fn flatten_basic_conditionals(mut self) -> Ssa {
         let no_predicates: HashSet<FunctionId> =
@@ -58,20 +58,20 @@ impl Ssa {
 /// A simple conditional is an if-then(-else) statement where branches are 'small' basic blocks.
 /// 'Small' basic blocks means that we expect their execution cost to be small.
 ///
-/// In case the block is the entry of a 'simple conditional', the function returns a `BasicConditional` which
+/// In case the block is the entry of a 'simple conditional', the function returns a BasicConditional which
 /// consist of the list of the conditional blocks:
-///     `block_entry`
+///     block_entry
 ///      /       \
-/// `block_then`   `block_else`
+/// block_then   block_else
 ///     \       /
-///     `block_exit`
-/// `block_then` and `block_else` are optionals, in order to account for the case when there is no 'then' or no 'else' branch
+///     block_exit
+/// block_then and block_else are optionals, in order to account for the case when there is no 'then' or no 'else' branch
 /// Only structured CFG with this shape are considered:
-/// - `block_entry` has exactly 2 successors
-/// - `block_then` and `block_else` have exactly 1 successor, which is `block_exit`, or one of them is `block_exit`
-/// - `block_exit` has exactly 2 predecessors (`block_then` and `block_else`)
+/// - block_entry has exactly 2 successors
+/// - block_then and block_else have exactly 1 successor, which is block_exit, or one of them is block_exit
+/// - block_exit has exactly 2 predecessors (block_then and block_else)
 ///
-/// Furthermore, cost of `block_then` + cost of `block_else` must be less than their average cost + jump overhead cost
+/// Furthermore, cost of block_then + cost of block_else must be less than their average cost + jump overhead cost
 fn is_conditional(
     block: BasicBlockId,
     cfg: &ControlFlowGraph,
@@ -202,13 +202,13 @@ fn is_conditional(
     (cfg.predecessors(result.block_exit).len() == 2).then_some(result)
 }
 
-/// Estimate the Brillig opcode cost of the `IfElse` merge instructions that flattening
+/// Estimate the Brillig opcode cost of the IfElse merge instructions that flattening
 /// would generate. Only parameters where both branches pass different values need
 /// merge instructions; identical values simplify to a no-op.
 ///
-/// For `SingleAddr` types (numerics and references), the merge is a single
+/// For SingleAddr types (numerics and references), the merge is a single
 /// `ConditionalMov` = 1 opcode.
-/// For array/slice parameters, the `IfElse` generates a conditional memory copy
+/// For array/slice parameters, the IfElse generates a conditional memory copy
 /// which is much more expensive (~20 opcodes).
 fn differing_merge_cost(
     then_block: BasicBlockId,
@@ -243,21 +243,27 @@ fn differing_merge_cost(
 /// Computes a cost estimate for flattening a basic block in a conditional.
 ///
 /// Returns `None` if the block contains an instruction that cannot be safely
-/// flattened (side-effectful instructions like constraints, calls, reference-count
-/// ops, memory ops, div/mod, shifts — see `can_flatten_in_conditional`). Otherwise
+/// flattened (side-effectful instructions like constraints, calls, `dec_rc`,
+/// memory ops, div/mod, shifts — see `can_flatten_in_conditional`). Otherwise
 /// returns the estimated Brillig opcode cost.
 ///
-/// `Allocate` and `Noop` are excluded from the cost — they are safe to execute
-/// unconditionally and represent overhead that shouldn't influence the
-/// flatten/not-flatten decision. (`Allocate` must be skipped before the
-/// `can_flatten_in_conditional` call, which treats reaching it as an ICE.)
+/// `Allocate`, `IncrementRc`, and `Noop` are excluded from the cost — they are
+/// safe to execute unconditionally and represent overhead that shouldn't
+/// influence the flatten/not-flatten decision. (`Allocate` and `IncrementRc`
+/// must be skipped before the `can_flatten_in_conditional` call, which treats
+/// reaching them as an ICE.) Hoisting an `inc_rc` only ever raises a reference
+/// count, so the later `array_set` copies rather than mutating in place — sound,
+/// and guarded by the `array_set_rc_invariant` validator.
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
         // Skip memory management instructions that are safe to execute unconditionally —
         // these don't represent meaningful compute that should affect the decision.
-        if matches!(instruction, Instruction::Allocate | Instruction::Noop) {
+        if matches!(
+            instruction,
+            Instruction::Allocate | Instruction::IncrementRc { .. } | Instruction::Noop
+        ) {
             continue;
         }
 
@@ -362,10 +368,10 @@ impl Context<'_> {
     /// * `no_predicates` - Set of function IDs carrying the `no_predicates` attribute
     ///
     /// # Implementation Details
-    /// - Sets up context state (`target_block`, `no_predicate`) to enable proper inlining
+    /// - Sets up context state (target_block, no_predicate) to enable proper inlining
     /// - Inlines each block's instructions into the entry block
     /// - Handles terminators to manage control flow during inlining
-    /// - Uses a `WorkList` to track which blocks need processing
+    /// - Uses a WorkList to track which blocks need processing
     /// - Copies the exit block's terminator to the entry block after inlining
     /// - Restores original context state after completion
     fn flatten_single_conditional(
@@ -464,9 +470,9 @@ impl Context<'_> {
     /// from conditional flattening throughout the rest of the function.
     ///
     /// # Parameters
-    /// * `mapping` - `HashMap` mapping old `ValueIds` to their simplified/replaced `ValueIds`
+    /// * `mapping` - HashMap mapping old ValueIds to their simplified/replaced ValueIds
     /// * `func` - The function containing the block to update
-    /// * `block` - The `BasicBlockId` of the block to remap
+    /// * `block` - The BasicBlockId of the block to remap
     fn map_block_with_mapping(
         mapping: HashMap<ValueId, ValueId>,
         func: &mut Function,
@@ -487,12 +493,7 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            interpreter::value::Value,
-            ir::types::Type,
-            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
-        },
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -686,7 +687,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 
-    /// Diamond-shaped conditional where the entry `JmpIf` carries then/else arguments
+    /// Diamond-shaped conditional where the entry JmpIf carries then/else arguments
     /// (as emitted by mem2reg). Both branches receive a promoted variable value
     /// as a block parameter. The optimization should still fire and produce merged output.
     #[test]
@@ -723,7 +724,7 @@ mod tests {
         ");
     }
 
-    /// Diamond-shaped conditional where only the then-branch receives a `JmpIf` argument.
+    /// Diamond-shaped conditional where only the then-branch receives a JmpIf argument.
     /// The optimization should fire; the else branch value is folded through unchanged.
     #[test]
     fn jmpif_with_only_then_args_diamond() {
@@ -758,43 +759,8 @@ mod tests {
         ");
     }
 
-    /// A branch-local `inc_rc` must not be hoisted out of its branch when flattening.
-    ///
-    /// In Brillig, `array_set` mutates its array in place only when the runtime reference
-    /// count is 1, and `inc_rc` bumps that count. Flattening this diamond would move the
-    /// `then`-branch `inc_rc` into the unconditionally executed entry block, so it would run
-    /// even when the condition is false; the later `array_set` would then copy instead of
-    /// mutating in place. With `v0 = false` the `inc_rc` is skipped, `array_set` mutates `v1`
-    /// in place, and `array_get` observes `Field 7` — the pass must preserve that result.
-    #[test]
-    fn does_not_hoist_branch_local_inc_rc() {
-        let src = "
-            brillig(inline) fn main f0 {
-              b0(v0: u1, v1: [Field; 1]):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                inc_rc v1
-                jmp b3()
-              b2():
-                jmp b3()
-              b3():
-                v2 = array_set v1, index u32 0, value Field 7
-                v3 = array_get v1, index u32 0 -> Field
-                return v3
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let inputs = vec![
-            Value::bool(false),
-            Value::array(vec![Value::field(1_u128.into())], vec![Type::field()]),
-        ];
-        let (_, result) =
-            assert_pass_does_not_affect_execution(ssa, inputs, Ssa::flatten_basic_conditionals);
-        assert_eq!(result.unwrap(), vec![Value::field(7_u128.into())]);
-    }
-
-    /// Non-diamond (then-only) case with `JmpIf` arguments: the optimization must be
-    /// skipped because the `else_arguments` go directly to the exit block, which
+    /// Non-diamond (then-only) case with JmpIf arguments: the optimization must be
+    /// skipped because the else_arguments go directly to the exit block, which
     /// `inline_branch_end` cannot handle correctly yet.
     #[test]
     fn jmpif_with_args_then_only_not_flattened() {

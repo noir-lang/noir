@@ -119,7 +119,7 @@ where
 // translated back to serde field/variant names.
 // ============================================================================
 
-impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
+impl<'de> de::Deserializer<'de> for &mut Deserializer<'_, 'de> {
     type Error = RmpError;
 
     // TODO: when used with self-describing visitors (e.g. `serde_json::Value`,
@@ -509,7 +509,7 @@ impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
     }
 }
 
-impl<'a, 'de> Deserializer<'a, 'de> {
+impl<'de> Deserializer<'_, 'de> {
     /// Resolve a registered `Product` by serde name. Used by
     /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
     /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
@@ -755,7 +755,7 @@ struct TaggedAccessViaParent<'der, 'a, 'de> {
 /// Variable-length sequences and fixed-length tuples — both wire-encoded
 /// as msgpack arrays. `next_element_seed` decrements `remaining` and
 /// deserializes one element through the parent.
-impl<'de, 'der, 'a> SeqAccess<'de> for TaggedAccessViaParent<'der, 'a, 'de> {
+impl<'de> SeqAccess<'de> for TaggedAccessViaParent<'_, '_, 'de> {
     type Error = RmpError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -777,7 +777,7 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedAccessViaParent<'der, 'a, 'de> {
 /// Free-form maps. `next_key_seed` decrements `remaining` and deserializes
 /// the key; `next_value_seed` deserializes the value without
 /// decrementing (it pairs with the just-yielded key).
-impl<'de, 'der, 'a> MapAccess<'de> for TaggedAccessViaParent<'der, 'a, 'de> {
+impl<'de> MapAccess<'de> for TaggedAccessViaParent<'_, '_, 'de> {
     type Error = RmpError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -821,7 +821,7 @@ struct TaggedProductMapAccess<'der, 'a, 'de> {
     remaining: usize,
 }
 
-impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
+impl<'de> MapAccess<'de> for TaggedProductMapAccess<'_, '_, 'de> {
     type Error = RmpError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -909,7 +909,7 @@ struct ArrayProductMapAccess<'der, 'a, 'de> {
     next_position: usize,
 }
 
-impl<'de, 'der, 'a> MapAccess<'de> for ArrayProductMapAccess<'der, 'a, 'de> {
+impl<'de> MapAccess<'de> for ArrayProductMapAccess<'_, '_, 'de> {
     type Error = RmpError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -1009,7 +1009,7 @@ struct TaggedTupleStructAccess<'der, 'a, 'de> {
     next_position: usize,
 }
 
-impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
+impl<'de> SeqAccess<'de> for TaggedTupleStructAccess<'_, '_, 'de> {
     type Error = RmpError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -1085,7 +1085,7 @@ struct TaggedEnumAccess<'der, 'a, 'de> {
     payload_already_consumed: bool,
 }
 
-impl<'de, 'der, 'a> EnumAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
+impl<'de> EnumAccess<'de> for TaggedEnumAccess<'_, '_, 'de> {
     type Error = RmpError;
     type Variant = Self;
 
@@ -1100,7 +1100,7 @@ impl<'de, 'der, 'a> EnumAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
     }
 }
 
-impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
+impl<'de> VariantAccess<'de> for TaggedEnumAccess<'_, '_, 'de> {
     type Error = RmpError;
 
     fn unit_variant(self) -> Result<(), Self::Error> {

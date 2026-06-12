@@ -48,6 +48,11 @@ pub struct FunctionBuilder {
     /// This is true by default unless changed to false after constructing a builder.
     pub simplify: bool,
 
+    /// Whether `simplify_*` routines may decline (rather than panic) on malformed input.
+    /// Propagated onto every function's [`DataFlowGraph`][crate::ssa::ir::dfg::DataFlowGraph].
+    /// `false` by default; only producers of deliberately malformed SSA set it.
+    allow_malformed_simplify: bool,
+
     globals: Arc<GlobalsGraph>,
     purities: Arc<FunctionPurities>,
 }
@@ -66,9 +71,19 @@ impl FunctionBuilder {
             call_stack: CallStackId::root(),
             error_types: BTreeMap::default(),
             simplify: true,
+            allow_malformed_simplify: false,
             globals: Default::default(),
             purities: Default::default(),
         }
+    }
+
+    /// Allow `simplify_*` routines to decline (emit a trace and leave the instruction in place)
+    /// rather than panic when they encounter malformed input. Applies to the current function and
+    /// every function created afterwards. Intended for producers of deliberately malformed SSA,
+    /// such as the `ssa_fuzzer`.
+    pub fn set_allow_malformed_simplify(&mut self, allow: bool) {
+        self.allow_malformed_simplify = allow;
+        self.current_function.dfg.allow_malformed_simplify = allow;
     }
 
     /// Create a function builder with a new function created with the same
@@ -79,6 +94,7 @@ impl FunctionBuilder {
         this.purities = function.dfg.function_purities.clone();
         this.current_function.set_runtime(function.runtime());
         this.current_function.dfg.set_function_purities(this.purities.clone());
+        this.set_allow_malformed_simplify(function.dfg.allow_malformed_simplify);
         this
     }
 
@@ -135,6 +151,7 @@ impl FunctionBuilder {
         self.finished_functions.push(old_function);
 
         self.current_function.dfg.set_function_purities(self.purities.clone());
+        self.current_function.dfg.allow_malformed_simplify = self.allow_malformed_simplify;
         self.apply_globals();
     }
 

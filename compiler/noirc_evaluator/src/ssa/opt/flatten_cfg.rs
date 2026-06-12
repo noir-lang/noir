@@ -176,6 +176,19 @@ impl Ssa {
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
+        // ACIR functions which are neither entry points (`Fold`) nor deferred to the
+        // post-flattening inlining pass (`NoPredicates`) must already have been inlined
+        // into their callers, so no calls to them may remain.
+        #[cfg(debug_assertions)]
+        let must_be_inlined: HashSet<FunctionId> = self
+            .functions
+            .values()
+            .filter(|f| {
+                f.runtime().is_acir() && !f.runtime().is_entry_point() && !f.is_no_predicates()
+            })
+            .map(|f| f.id())
+            .collect();
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -185,7 +198,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function);
+            flatten_cfg_pre_check(function, &must_be_inlined);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -198,13 +211,25 @@ impl Ssa {
 
 /// Pre-check condition for [`Ssa::flatten_cfg`].
 ///
-/// Panics if the ACIR function being flattened has at least 1 loop or contains a
-/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
+/// Panics if the ACIR function being flattened has at least 1 loop, contains a
+/// `ConstrainNotEqual` instruction, or calls an ACIR function in `must_be_inlined`
+/// (one which the inlining pass should have removed before flattening).
+/// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function) {
+fn flatten_cfg_pre_check(function: &Function, must_be_inlined: &HashSet<FunctionId>) {
     super::checks::assert_no_loops(function);
-    super::checks::for_each_instruction(function, |instruction, _dfg| {
+    super::checks::for_each_instruction(function, |instruction, dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
+        if let Instruction::Call { func, .. } = instruction
+            && let Value::Function(callee) = &dfg[*func]
+        {
+            assert!(
+                !must_be_inlined.contains(callee),
+                "Function {} {} calls {callee}, an ACIR function which should have been inlined before flattening",
+                function.name(),
+                function.id(),
+            );
+        }
     });
 }
 
@@ -301,6 +326,13 @@ struct ConditionalBranch {
     condition: ValueId,
 }
 
+/// Indicate the current processed branch
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum BranchPhase {
+    Then,
+    Else,
+}
+
 /// All bookkeeping for a single `jmpif` that is currently being flattened.
 ///
 /// Pushed onto `Context::condition_stack` when a `jmpif` is entered and popped when
@@ -329,6 +361,10 @@ struct ConditionalContext {
     /// When `JmpIf`'s `else_destination` is the exit/merge block (no separate else block),
     /// stores the resolved `else_arguments` so `inline_branch_end` can use them.
     jmpif_else_arguments: Option<Vec<ValueId>>,
+    /// The processing of the conditional branches must start with `Then` before
+    /// `Else`. Tracking on which phase we are allows us to assert the processing
+    /// is done as expected.
+    phase: BranchPhase,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -631,6 +667,7 @@ impl<'f> Context<'f> {
             predicated_values: HashMap::default(),
             local_allocations,
             jmpif_else_arguments,
+            phase: BranchPhase::Then,
         };
         // Clear merge provenance from previous conditionals at this nesting level.
         // Provenance from a previous conditional's merges must not be re-used by
@@ -663,6 +700,12 @@ impl<'f> Context<'f> {
         assert_eq!(self.cfg.successors(*block).len(), 1);
 
         let mut cond_context = self.condition_stack.pop().unwrap();
+        assert_eq!(
+            cond_context.phase,
+            BranchPhase::Then,
+            "ICE: then_stop is expected to process the THEN branch"
+        );
+        cond_context.phase = BranchPhase::Else;
         cond_context.then_branch.last_block = Some(*block);
 
         let condition_call_stack =
@@ -763,10 +806,20 @@ impl<'f> Context<'f> {
             // `then_stop` has not been called, this means that the conditional statement has no else branch
             // so we simply do the `then_stop` now, sandwiched between pushing the context back on the stack,
             // then popping it again after `then_stop` is done popping and pushing.
+            assert_eq!(
+                cond_context.phase,
+                BranchPhase::Then,
+                "ICE: else_stop expect a single THEN branch"
+            );
             self.condition_stack.push(cond_context);
             self.then_stop(block);
             cond_context = self.condition_stack.pop().unwrap();
         }
+        assert_eq!(
+            cond_context.phase,
+            BranchPhase::Else,
+            "ICE: else_stop is expected to process the ELSE branch"
+        );
 
         let mut else_branch = cond_context.else_branch.unwrap();
         self.local_allocations = std::mem::take(&mut cond_context.local_allocations);
@@ -809,24 +862,14 @@ impl<'f> Context<'f> {
         assert_eq!(params.len(), then_args.len());
         // When JmpIf's else_destination is the exit block, the else_arguments were stored
         // in jmpif_else_arguments since there is no separate else block to read them from.
-        let (else_args, else_branch) =
-            match (cond_context.jmpif_else_arguments, cond_context.else_branch) {
-                (Some(args), Some(else_branch)) => (args, else_branch),
-                (None, Some(else_branch)) => {
-                    let last_else = else_branch.last_block.unwrap();
-                    let args =
-                        self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
-                    (args, else_branch)
-                }
-                (Some(args), None) => {
-                    assert!(args.is_empty() && params.is_empty(), "malformed branch");
-                    return;
-                }
-                (None, None) => {
-                    assert!(params.is_empty(), "malformed branch");
-                    return;
-                }
-            };
+        let else_branch = cond_context.else_branch.expect("malformed branch");
+        let else_args = match cond_context.jmpif_else_arguments {
+            Some(args) => args,
+            None => {
+                let last_else = else_branch.last_block.unwrap();
+                self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+            }
+        };
         assert_eq!(params.len(), else_args.len());
 
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
@@ -2277,6 +2320,24 @@ mod tests {
             return v0
         }
         ");
+    }
+
+    #[test]
+    #[should_panic(expected = "should have been inlined before flattening")]
+    fn assumes_inlining_has_run() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.flatten_cfg();
     }
 }
 

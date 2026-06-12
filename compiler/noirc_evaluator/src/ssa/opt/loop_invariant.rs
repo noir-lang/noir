@@ -381,7 +381,7 @@ impl PostDominanceFrontiers {
     fn with_function(func: &mut Function) -> Self {
         let reversed_cfg = ControlFlowGraph::extended_reverse(func);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
-        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
 
         Self { post_dom_frontiers }
@@ -478,6 +478,8 @@ impl<'f> LoopInvariantContext<'f> {
                     let dfg = &self.inserter.function.dfg;
                     // If the block has already been labelled as impure, we don't need to check the current
                     // instruction's side effects.
+                    // Note that purity is dependent on the instruction ordering, which is expected because
+                    // it tells us exactly if there is a side-effect instruction before the current one.
                     if !block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
