@@ -1132,7 +1132,7 @@ impl NodeInterner {
     /// Returns the self types of the direct (inherent) impls defining `method_name` that actually
     /// match `typ` (their self type unifies with it). Used to detect an ambiguous `TypeName::method`
     /// path: `Foo<i32>` and `Foo<u64>` both match `Foo<_>`, but only `u8` matches `u8` even though
-    /// the integers share a method key. See [Methods::matching_direct_method_types].
+    /// the integers share a method key.
     pub fn matching_direct_method_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
         let Some(key) = get_type_method_key(typ) else { return Vec::new() };
         let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
