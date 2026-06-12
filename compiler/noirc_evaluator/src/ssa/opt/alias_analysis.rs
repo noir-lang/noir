@@ -326,13 +326,30 @@ impl AliasAnalysis {
         debug_assert_eq!(existing.func_id(), function.id());
         debug_assert_eq!(new.func_id(), function.id());
 
+        // `new` is already known when simplification forwarded `existing` to a
+        // value that existed at analyze time (e.g. `array_get` folded to an
+        // element). The analysis already has correct information for such a
+        // value, so there is nothing to teach — and re-running the steps below
+        // could clobber its allocation site. Bailing here also makes repeated
+        // calls idempotent.
+        if self.is_known(new) {
+            return;
+        }
+        // We are about to fold the fresh value `new` into `existing`'s alias
+        // class, so `existing` must be a value the analysis already knows.
+        debug_assert!(
+            self.is_known(existing),
+            "register_alias: `existing` ({existing:?}) must already be known"
+        );
+
         // Accept `new` in `ensure_known` even though its index is beyond the
         // frozen `value_count`.
         self.known_extra.insert(new);
 
         self.merge_into(existing, new);
 
-        // `new` is the same value as `existing`, so it inherits its site.
+        // `new` is the same value as `existing` and (being freshly minted) has
+        // no site of its own yet, so it inherits `existing`'s.
         if let Some(&site) = self.allocation_sites.get(&existing) {
             self.allocation_sites.insert(new, site);
         }
@@ -373,20 +390,27 @@ impl AliasAnalysis {
         self.class_sizes = None;
     }
 
-    /// Assert (in debug builds) that `value` existed in its function when the
-    /// analysis was computed. A value minted afterwards (e.g. by simplification
-    /// during a pass's re-insertion) has an index `>=` the recorded count and is
-    /// unknown to the frozen alias classes, so querying it would silently return
-    /// a wrong answer — a bug in the calling pass.
-    fn ensure_known(&self, value: GlobalValueId) {
-        let known = match self.value_count.get(&value.func_id()) {
+    /// Whether `value` existed in its function when the analysis was computed,
+    /// or has since been taught to the analysis via [`Self::register_alias`].
+    /// A value minted afterwards and not registered has an index `>=` the
+    /// recorded count and is unknown to the frozen alias classes.
+    fn is_known(&self, value: GlobalValueId) -> bool {
+        let within_frozen = match self.value_count.get(&value.func_id()) {
             Some(&count) => value.value_id().to_u32() < count,
             // A function absent from the analysis scope has no recorded values;
             // don't claim to know anything about its values.
             None => false,
-        } || self.known_extra.contains(&value);
+        };
+        within_frozen || self.known_extra.contains(&value)
+    }
+
+    /// Assert (in debug builds) that `value` is known to the analysis. An
+    /// unknown value — minted after the analysis was frozen and never
+    /// registered — would make alias queries silently return a wrong answer,
+    /// a bug in the calling pass.
+    fn ensure_known(&self, value: GlobalValueId) {
         debug_assert!(
-            known,
+            self.is_known(value),
             "alias query on {value:?}, a value minted after the alias analysis was frozen. \
              The analysis must be told about new reference values (e.g. via re-insertion \
              simplification) before they are used in alias queries."
