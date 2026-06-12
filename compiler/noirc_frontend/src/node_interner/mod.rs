@@ -293,6 +293,12 @@ pub struct NodeInterner {
     /// share the same global values.
     pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
+    /// Index into [Self::comptime_scopes] of the first scope visible to the comptime function
+    /// currently being interpreted. The visible scopes are the global scope (index zero) together
+    /// with `comptime_scopes[comptime_scope_floor..]`; scopes between them belong to enclosing
+    /// callers and are hidden so a callee cannot see its caller's locals.
+    pub(crate) comptime_scope_floor: usize,
+
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
 
@@ -529,6 +535,7 @@ impl Default for NodeInterner {
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
+            comptime_scope_floor: 1,
             trait_impl_generic_types: HashMap::default(),
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),

@@ -412,23 +412,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
     /// [Self::exit_function] is called.
-    pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
-        // Drain every scope except the global scope
-        let mut scope = Vec::new();
-        if self.elaborator.interner.comptime_scopes.len() > 1 {
-            scope = self.elaborator.interner.comptime_scopes.drain(1..).collect();
-        }
+    ///
+    /// Rather than physically removing the caller's scopes, the scope floor is raised to the top
+    /// of the scope stack so the callee only sees its own scopes plus the global scope. This keeps
+    /// entering a function O(1) regardless of how deep the call stack is.
+    pub(super) fn enter_function(&mut self) -> (bool, usize) {
+        let interner = &mut self.elaborator.interner;
+        let previous_floor =
+            std::mem::replace(&mut interner.comptime_scope_floor, interner.comptime_scopes.len());
         self.push_scope();
-        (std::mem::take(&mut self.in_loop), scope)
+        (std::mem::take(&mut self.in_loop), previous_floor)
     }
 
     /// Resets the per-function state to the value previously returned by [Self::enter_function]
-    pub(super) fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
+    pub(super) fn exit_function(&mut self, state: (bool, usize)) {
         self.in_loop = state.0;
 
-        // Keep only the global scope
-        self.elaborator.interner.comptime_scopes.truncate(1);
-        self.elaborator.interner.comptime_scopes.append(&mut state.1);
+        // Drop every scope this function pushed (the current floor is the length recorded on entry)
+        // before restoring the caller's floor.
+        let interner = &mut self.elaborator.interner;
+        interner.comptime_scopes.truncate(interner.comptime_scope_floor);
+        interner.comptime_scope_floor = state.1;
     }
 
     /// Pushes a new scope to define any variables in.
@@ -611,8 +615,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
-            if let Entry::Occupied(mut entry) = scope.entry(id) {
+        let floor = self.elaborator.interner.comptime_scope_floor;
+        let scopes = &mut self.elaborator.interner.comptime_scopes;
+
+        // Search the current function's scopes from innermost outwards, then fall back to the
+        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
+        // are skipped so a callee cannot mutate its caller's locals.
+        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
+            if let Entry::Occupied(mut entry) = scopes[index].entry(id) {
                 match entry.get() {
                     Value::Pointer(reference, true, _) => {
                         // We can't store to the reference directly, we need to check if the value
@@ -637,8 +647,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Lookup the comptime value of the given definition
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        for scope in self.elaborator.interner.comptime_scopes.iter().rev() {
-            if let Some(value) = scope.get(&id) {
+        let floor = self.elaborator.interner.comptime_scope_floor;
+        let scopes = &self.elaborator.interner.comptime_scopes;
+
+        // Search the current function's scopes from innermost outwards, then fall back to the
+        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
+        // are skipped so a callee cannot see its caller's locals.
+        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
+            if let Some(value) = scopes[index].get(&id) {
                 return Ok(value.clone());
             }
         }
