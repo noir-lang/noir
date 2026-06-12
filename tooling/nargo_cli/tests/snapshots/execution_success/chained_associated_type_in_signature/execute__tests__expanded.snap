@@ -31,7 +31,8 @@ impl Mappable for bool {
 trait Chainable: Mappable<Target = bool> {
     fn chain(self) -> <Self::Target as Mappable>::Target
     where
-        Self::Target: Mappable;
+        Self::Target: Mappable,
+        Self: Mappable;
 }
 
 impl Chainable for Field {

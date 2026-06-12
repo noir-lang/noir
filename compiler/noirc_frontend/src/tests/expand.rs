@@ -219,3 +219,46 @@ fn expands_separate_inherent_impl_blocks_separately() {
     }
     ");
 }
+
+// A method that binds an associated type on the impl's generic (`T: Foo<Assoc = Field>`)
+// keeps that binding: it is distinct from the impl's own `T: Foo` and must not be deduplicated
+// against it just because they share the same type and trait.
+#[test]
+fn expands_method_where_clause_with_associated_type_binding() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+        fn get(self) -> Self::Assoc;
+    }
+
+    impl Foo for Field {
+        type Assoc = Field;
+        fn get(self) -> Field {
+            self
+        }
+    }
+
+    struct W<T> {
+        x: T,
+    }
+
+    impl<T> W<T>
+    where
+        T: Foo,
+    {
+        fn m(self) -> Field
+        where
+            T: Foo<Assoc = Field>,
+        {
+            self.x.get()
+        }
+    }
+
+    fn main() {
+        let w = W { x: 1 };
+        let _ = w.m();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded);
+}
