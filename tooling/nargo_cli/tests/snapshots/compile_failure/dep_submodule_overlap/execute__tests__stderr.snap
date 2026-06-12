@@ -13,20 +13,20 @@ error: Duplicate definitions of import with name MyStruct found
   ┌─ src/main.nr:1:23
   │
 1 │ use reexporting_lib::{MyStruct, lib};
-  │                       -------- First import found here
+  │                       -------- First definition found here
   ·
 4 │ use crate::lib::MyStruct;
-  │                 -------- Second import found here
+  │                 -------- Second definition found here
   │
 
 error: Duplicate definitions of import with name lib found
   ┌─ src/main.nr:1:33
   │
 1 │ use reexporting_lib::{MyStruct, lib};
-  │                                 --- Second import found here
+  │                                 --- Second definition found here
 2 │ 
 3 │ mod lib;
-  │     --- First import found here
+  │     --- First definition found here
   │
 
 error: Could not resolve 'is_struct_zero' in path

@@ -856,7 +856,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// True that the input is a non-zero `Value::NumericConstant`
+    /// True if the input is a non-zero `Value::NumericConstant`
     pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
         if let Some(constant) = self.get_numeric_constant(argument) {
             !constant.is_zero()
@@ -865,7 +865,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// True that the input is a zero `Value::NumericConstant`
+    /// True if the input is a zero `Value::NumericConstant`
     pub(crate) fn is_constant_false(&self, argument: ValueId) -> bool {
         if let Some(constant) = self.get_numeric_constant(argument) {
             constant.is_zero()

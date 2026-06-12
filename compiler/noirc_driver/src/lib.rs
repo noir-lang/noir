@@ -53,7 +53,7 @@ mod stdlib;
 
 pub use abi_gen::gen_abi;
 pub use noirc_frontend::graph::{CrateId, CrateName};
-pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
+pub use stdlib::{stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";

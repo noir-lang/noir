@@ -160,7 +160,7 @@ impl DocItemBuilder<'_> {
         let module_def_id = if let expand_items::Item::PrimitiveType(..) = item {
             None
         } else {
-            Some(item.module_def_id())
+            item.module_def_id()
         };
         let converted_item = match item {
             expand_items::Item::Module(module) => {

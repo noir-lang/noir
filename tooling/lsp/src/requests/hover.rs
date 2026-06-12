@@ -206,6 +206,53 @@ pub fn caller() {
     }
 
     #[test]
+    async fn hover_on_function_with_where_clause() {
+        assert_hover(
+            r#"pub trait Foo {}
+
+pub fn takes_foo<T>(value: T) where T: Foo {
+    let _ = value;
+}
+
+pub fn caller() {
+    >|<takes_foo(1);
+}"#,
+            r#"    two
+    pub fn takes_foo<T>(value: T) where T: Foo"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_method_shows_where_clause_including_enclosing_impl_bounds() {
+        // For an inherent impl, the compiler merges the impl's `where` clause into each
+        // method's own constraints during collection, so both `U: Foo` (the method's) and
+        // `T: Foo` (the impl's) appear here. They can't be told apart at this point because
+        // a method's own `where` clause may also constrain an impl generic.
+        assert_hover(
+            r#"pub trait Foo {}
+
+pub struct Wrapper<T> {
+    value: T,
+}
+
+impl<T> Wrapper<T> where T: Foo {
+    pub fn combine<U>(self, other: U) where U: Foo {
+        let _ = (self, other);
+    }
+}
+
+pub fn caller(w: Wrapper<u32>) {
+    w.>|<combine(1);
+}"#,
+            r#"    two::Wrapper
+    impl<T> Wrapper<T>
+    pub fn combine<U>(self, other: U) where U: Foo, T: Foo"#,
+        )
+        .await;
+    }
+
+    #[test]
     async fn hover_on_struct_method() {
         // cSpell:disable
         assert_hover(
@@ -255,6 +302,19 @@ fn use_struct_method() {
             .expect("Could not resolve root path");
         let workspace_on_src_lib_path = workspace_on_src_lib_path.to_string_lossy();
 
+        // Mirror the production gating: when the stdlib is reachable on disk
+        // (debug build of the monorepo), the hover link is a `file://` URI to
+        // the actual source; otherwise it falls back to the read-only `noir-std:`
+        // scheme. Driving the branch off `stdlib_disk_path()` keeps the test in
+        // sync if the gating condition changes.
+        let expected_bounded_vec_link = match noirc_driver::stdlib_disk_path() {
+            Some(disk_root) => {
+                let path = disk_root.join("collections/bounded_vec.nr");
+                format!("Go to [BoundedVec](file://{}", path.to_string_lossy())
+            }
+            None => "Go to [BoundedVec](noir-std:".to_string(),
+        };
+
         let hover_text = get_hover_text(
             r#"use one::subone;
 use std::collections::bounded_vec::BoundedVec;
@@ -265,7 +325,10 @@ fn instantiate_generic() {
         )
         .await;
         assert!(hover_text.contains("    let x: BoundedVec<SubOneStruct, 3>"));
-        assert!(hover_text.contains("Go to [BoundedVec](noir-std:"));
+        assert!(
+            hover_text.contains(&expected_bounded_vec_link),
+            "expected hover text to contain {expected_bounded_vec_link:?}, got: {hover_text}",
+        );
         assert!(
             hover_text.contains(&format!(
                 "[SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"

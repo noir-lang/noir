@@ -536,8 +536,7 @@ impl HirLValue {
                 if *implicitly_added {
                     lvalue
                 } else {
-                    let lvalue = Box::new(lvalue);
-                    LValue::Dereference(lvalue, *location)
+                    LValue::Dereference(Box::new(lvalue.as_expression()), *location)
                 }
             }
             HirLValue::Error { location } => {

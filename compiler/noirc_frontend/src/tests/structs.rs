@@ -13,10 +13,10 @@ fn duplicate_struct_field() {
     let src = r#"
     pub struct Foo {
         x: i32,
-        ~ First struct field found here
+        ~ First definition found here
         x: i32,
         ^ Duplicate definitions of struct field with name x found
-        ~ Second struct field found here
+        ~ Second definition found here
     }
     "#;
     check_errors(src);

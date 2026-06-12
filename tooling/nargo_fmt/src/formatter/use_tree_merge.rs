@@ -265,7 +265,13 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
     for import in imports {
         let mut tree = match import.prefix.kind {
             PathKind::Crate => tree.insert(Segment::Crate),
-            PathKind::Super => tree.insert(Segment::Super),
+            PathKind::Super(extras) => {
+                let mut subtree = tree.insert(Segment::Super);
+                for _ in 0..extras {
+                    subtree = subtree.insert(Segment::Super);
+                }
+                subtree
+            }
             PathKind::Absolute => tree.insert(Segment::Absolute),
             PathKind::Plain => &mut tree,
             PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
@@ -350,6 +356,13 @@ mod tests {
     fn format_simple_use_with_path_kind() {
         let src = "use  super :: foo ;";
         let expected = "use super::foo;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_merged_use_with_stacked_super() {
+        let src = "use super::super::foo; use super::super::bar;";
+        let expected = "use super::super::{bar, foo};\n";
         assert_format(src, expected);
     }
 
