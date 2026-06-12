@@ -1055,15 +1055,17 @@ mod tests {
 
     #[test]
     fn load_through_array_get_alias_keeps_aliased_store_live() {
-        // A store to v0, then v0 is extracted through make_array + array_get as
-        // a fresh ValueId v2, loaded through that alias, then v0 is overwritten.
-        // The load through the alias reads the first store, so that store must
-        // NOT be eliminated as dead by the later store to v0.
+        // `v0` is extracted through make_array + array_get as a fresh ValueId `v2`, which
+        // therefore aliases `v0`. `v2` is passed to a call, so the callee may read `v0`
+        // through it: the analysis must keep `store Field 1 at v0` live and must not let the
+        // later `store Field 2 at v0` eliminate it as a redundant prior write. The call also
+        // invalidates the cached value, so the following `load` reads `v0` from memory rather
+        // than forwarding — it observes the first store directly.
         //
-        // Regression test for noir-lang/noir-claude#798: array_get gives v2 the
-        // allocation site of v0, so `may_alias(v2, v0)` clears `last_stores[v0]`
-        // on the load, the load forwards `Field 1`, and the final store does not
-        // treat `store Field 1 at v0` as a redundant prior write.
+        // Regression test for noir-lang/noir-claude#798: array_get gives `v2` the allocation
+        // site of `v0`, so `may_reference(v2, v0)` holds. If that aliasing were dropped, the
+        // store would be DSE'd and the load would read uninitialized memory (the program would
+        // error with "loaded before it was first stored") instead of returning `Field 1`.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1071,23 +1073,33 @@ mod tests {
             store Field 1 at v0
             v1 = make_array [v0] : [&mut Field; 1]
             v2 = array_get v1, index u32 0 -> &mut Field
+            call f1(v2)
             v3 = load v2 -> Field
             store Field 2 at v0
             return v3
         }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return
+        }
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.load_store_forwarding();
-        // The load returns the value through the alias (`Field 1`), never the
-        // uninitialized `Field 0` that DSE of the first store would expose.
+        // `store Field 1 at v0` survives, and the load reads it from memory (`Field 1`).
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
             v2 = make_array [v0] : [&mut Field; 1]
+            call f1(v0)
+            v4 = load v0 -> Field
             store Field 2 at v0
-            return Field 1
+            return v4
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return
         }
         ");
     }
