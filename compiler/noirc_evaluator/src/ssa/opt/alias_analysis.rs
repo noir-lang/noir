@@ -196,12 +196,6 @@ pub(crate) struct AliasAnalysis {
     /// this count was minted afterwards (e.g. by simplification during a pass's
     /// re-insertion) and is therefore unknown to the analysis.
     value_count: HashMap<FunctionId, u32>,
-
-    /// Values minted after `analyze` that a pass has explicitly taught the
-    /// analysis about via [`Self::register_alias`]. These have indices `>=`
-    /// `value_count` but are nonetheless known, so `ensure_known` accepts them
-    /// while still rejecting un-taught minted values.
-    known_extra: HashSet<GlobalValueId>,
 }
 
 impl AliasAnalysis {
@@ -310,92 +304,16 @@ impl AliasAnalysis {
         }
     }
 
-    /// Teach the frozen analysis that `new` denotes the same memory as the
-    /// existing value `existing`. This is for values minted *after* `analyze`,
-    /// e.g. an instruction result rewritten by simplification during a pass's
-    /// re-insertion (a collapsed `IfElse`, an `array_get` folded to an element):
-    /// the new result is semantically equal to the value it replaced, so it
-    /// joins that value's alias class. Without this the new value sits in its
-    /// own singleton class and alias queries against it are unsound.
-    pub(crate) fn register_alias(
-        &mut self,
-        function: &Function,
-        existing: GlobalValueId,
-        new: GlobalValueId,
-    ) {
-        debug_assert_eq!(existing.func_id(), function.id());
-        debug_assert_eq!(new.func_id(), function.id());
-        // `existing` is an original instruction result, so it always predates
-        // the analysis.
-        debug_assert!(
-            self.is_known(existing),
-            "register_alias: `existing` ({existing:?}) must already be known"
-        );
-
-        // `new` is whatever `existing` was rewritten to, so the two denote the
-        // same memory; union their classes. This is sound regardless of whether
-        // `new` is freshly minted or already existed: simplification can prove
-        // two values equal that the conservative analysis kept in distinct
-        // classes (e.g. an `array_get`/`IfElse` folding to a value the analysis
-        // never unified with the result), and over-approximating aliasing is
-        // always sound. The union is idempotent when they already share a class.
-        self.known_extra.insert(new);
-        self.merge_into(existing, new);
-
-        // A freshly minted `new` has no allocation site of its own and inherits
-        // `existing`'s. Never overwrite a site that `new` already carries.
-        if let Some(&site) = self.allocation_sites.get(&existing) {
-            self.allocation_sites.entry(new).or_insert(site);
-        }
-
-        self.invalidate_class_sizes(existing, new);
-    }
-
-    /// Union `new` into `existing`'s alias class, carrying the class's
-    /// `points_to` edge onto the merged representative so `may_reference`
-    /// queries on `new` follow the same pointee chain. `new` is a freshly
-    /// minted value with no `points_to` of its own.
-    fn merge_into(&mut self, existing: GlobalValueId, new: GlobalValueId) {
-        let root_existing = self.aliases.find(existing);
-        let root_new = self.aliases.find(new);
-        if root_existing == root_new {
-            return;
-        }
-        self.aliases.union(root_existing, root_new);
-        let root = self.aliases.find(root_existing);
-        if let Some(&pointee) =
-            self.points_to.get(&root_existing).or_else(|| self.points_to.get(&root_new))
-        {
-            self.points_to.insert(root, pointee);
-        }
-    }
-
-    /// Invalidate the cached class sizes affected by merging `a` and `b`.
-    ///
-    /// Only the two values' classes change size, so this could update just
-    /// those entries in place. We instead reset the whole cache: `class_sizes`
-    /// is built lazily by `is_aliased`, which has no production callers, so
-    /// during a real pass run the cache is never populated and this is a no-op.
-    /// Keeping the trivially-correct full reset avoids maintaining an
-    /// invariant for a cache that production never builds. Switch to an
-    /// incremental update here if `is_aliased` ever becomes a production query
-    /// interleaved with merges.
-    fn invalidate_class_sizes(&mut self, _a: GlobalValueId, _b: GlobalValueId) {
-        self.class_sizes = None;
-    }
-
-    /// Whether `value` existed in its function when the analysis was computed,
-    /// or has since been taught to the analysis via [`Self::register_alias`].
-    /// A value minted afterwards and not registered has an index `>=` the
-    /// recorded count and is unknown to the frozen alias classes.
+    /// Whether `value` existed in its function when the analysis was computed.
+    /// A value minted afterwards has an index `>=` the recorded count and is
+    /// unknown to the frozen alias classes.
     fn is_known(&self, value: GlobalValueId) -> bool {
-        let within_frozen = match self.value_count.get(&value.func_id()) {
+        match self.value_count.get(&value.func_id()) {
             Some(&count) => value.value_id().to_u32() < count,
             // A function absent from the analysis scope has no recorded values;
             // don't claim to know anything about its values.
             None => false,
-        };
-        within_frozen || self.known_extra.contains(&value)
+        }
     }
 
     /// Assert (in debug builds) that `value` is known to the analysis. An
@@ -582,7 +500,6 @@ impl AliasAnalysisContext {
             untrusted_site_functions: analysis.untrusted_site_functions,
             loop_allocates: analysis.loop_allocates,
             value_count,
-            known_extra: HashSet::default(),
         }
     }
 
@@ -1562,72 +1479,6 @@ mod tests {
         // Neither ref was involved in a merge → both singletons → not aliased.
         assert!(!analysis.is_aliased(allocs[0]));
         assert!(!analysis.is_aliased(allocs[1]));
-    }
-
-    #[test]
-    fn register_alias_makes_a_minted_value_join_the_existing_class() {
-        // A value minted after `analyze` (modelled here by a fresh block
-        // parameter, standing in for a simplification result during a pass's
-        // re-insertion) is unknown to the frozen analysis. After
-        // `register_alias` folds it into v0's class, alias queries on it mirror
-        // v0: it aliases v0 but not the unrelated v1. Querying it at all also
-        // exercises that `register_alias` marked it known (otherwise the
-        // `ensure_known` debug-assert in `may_alias` would fire).
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
-            return
-        }
-        ";
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let mut analysis = analyze_main(&ssa);
-        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
-
-        // Mint a fresh reference value with an index `>=` the frozen value count.
-        let new = {
-            let main = ssa.main_mut();
-            let entry = main.entry_block();
-            let typ = main.dfg.type_of_value(allocs[0].value_id()).into_owned();
-            let value = main.dfg.add_block_parameter(entry, typ);
-            GlobalValueId::new(main, value)
-        };
-
-        analysis.register_alias(ssa.main(), allocs[0], new);
-        assert!(analysis.may_alias(ssa.main(), new, allocs[0]));
-        assert!(!analysis.may_alias(ssa.main(), new, allocs[1]));
-
-        // Registering the same pair again is idempotent.
-        analysis.register_alias(ssa.main(), allocs[0], new);
-        assert!(analysis.may_alias(ssa.main(), new, allocs[0]));
-        assert!(!analysis.may_alias(ssa.main(), new, allocs[1]));
-    }
-
-    #[test]
-    fn register_alias_merges_even_when_new_already_known() {
-        // `new` may already exist when simplification folds `existing` to a
-        // value the conservative analysis kept in a separate class. Because the
-        // rewrite is semantics-preserving (`existing ≡ new`), `register_alias`
-        // unions their classes regardless — over-approximating aliasing is
-        // sound. Modelled here with two independent oracle results that start in
-        // distinct classes: registering one against the other merges them.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = call oracle_a() -> &mut Field
-            v1 = call oracle_b() -> &mut Field
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let results = collect_call_results_in_main(&ssa);
-        let mut analysis = analyze_main(&ssa);
-        assert!(!analysis.may_alias(ssa.main(), results[0], results[1]));
-
-        analysis.register_alias(ssa.main(), results[0], results[1]);
-        assert!(analysis.may_alias(ssa.main(), results[0], results[1]));
     }
 
     /// `&T` and `&mut T` can legitimately point to the same memory at runtime.

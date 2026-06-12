@@ -37,15 +37,34 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn load_store_forwarding(mut self) -> Ssa {
         let mut analysis = AliasAnalysis::analyze(&self);
+        // Phase 1: forward loads/stores in place, driven by the frozen
+        // analysis. This only removes instructions and remaps operands, so it
+        // never mints values the analysis does not already know about.
         for function in self.functions.values_mut() {
-            function.load_store_forwarding(&mut analysis);
+            function.forward_loads_and_stores(&mut analysis);
+        }
+        // Phase 2: simplify. Re-inserting through the DFG simplify path can mint
+        // new values (e.g. a collapsed `IfElse`), but the alias analysis is no
+        // longer consulted, so the freshly minted values are harmless.
+        for function in self.functions.values_mut() {
+            function.simplify_instructions();
         }
         self
     }
 }
 
 impl Function {
-    pub(crate) fn load_store_forwarding(&mut self, analysis: &mut AliasAnalysis) {
+    /// Forward loads/stores within each block using the whole-program alias
+    /// analysis, applying the results in place: redundant loads and dead stores
+    /// are removed and the remaining operands are remapped to the forwarded
+    /// values. Crucially this never re-inserts instructions, so every
+    /// instruction keeps its id and results and no new values are created — the
+    /// frozen `analysis` stays valid for the whole pass.
+    ///
+    /// Simplification of the forwarded instructions (constant folding, IfElse
+    /// collapse, …) is left to a subsequent [`Function::simplify_instructions`]
+    /// run, which may mint new values but no longer consults the analysis.
+    fn forward_loads_and_stores(&mut self, analysis: &mut AliasAnalysis) {
         let mut inserter = FunctionInserter::new(self);
         let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
 
@@ -59,27 +78,9 @@ impl Function {
                     .retain(|id| !instructions_to_remove.contains(id));
             }
 
-            // Re-insert instructions through the DFG simplify path. This resolves
-            // value mappings from load forwarding AND triggers simplification
-            // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
-            let instructions = inserter.function.dfg[block].take_instructions();
+            let instructions = inserter.function.dfg[block].instructions().to_vec();
             for instruction_id in &instructions {
-                let inserted = inserter.push_instruction(*instruction_id, block, true);
-                // If the inserted ID is same as the original, then no new alias could have been created.
-                if inserted == Some(*instruction_id) {
-                    continue;
-                }
-                // Otherwise simplification may have introduced a new instruction and forwarded the old result.
-                // In this case we must tell the alias analysis that the new result is an alias of the old.
-                for old in inserter.function.dfg.instruction_results(*instruction_id) {
-                    let new = inserter.resolve(*old);
-                    if new != *old && inserter.function.dfg.type_of_value(new).contains_reference()
-                    {
-                        let old = GlobalValueId::new(inserter.function, *old);
-                        let new = GlobalValueId::new(inserter.function, new);
-                        analysis.register_alias(inserter.function, old, new);
-                    }
-                }
+                inserter.map_instruction_in_place(*instruction_id);
             }
             inserter.map_terminator_in_place(block);
         }
