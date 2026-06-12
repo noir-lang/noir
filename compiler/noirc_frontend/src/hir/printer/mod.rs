@@ -75,15 +75,11 @@ struct ItemPrinter<'context, 'string> {
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
 
-    /// Trait constraints in scope.
-    /// These are set when a trait, trait impl or function is visited.
+    /// Trait constraints in scope from an enclosing trait, trait impl, inherent impl, or
+    /// function. A method's own where clause is filtered against these (see
+    /// [`Self::parent_constraints_contain`]) so constraints already shown on the enclosing item
+    /// aren't repeated.
     trait_constraints: Vec<TraitConstraint>,
-    /// The where clause of the inherent impl currently being printed, if any.
-    ///
-    /// Kept separate from `trait_constraints` because an inherent impl's where clause is
-    /// copied onto and re-resolved per method, minting fresh type variables for any associated
-    /// types it introduces; matching a method's constraints against it requires ignoring those.
-    impl_where_clause: Vec<TraitConstraint>,
     /// Keep track of trait impls that have been printed so we don't show a
     /// same trait impl multiple times.
     trait_impls_printed: HashSet<TraitImplId>,
@@ -113,7 +109,6 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             imports,
             self_type: None,
             trait_constraints: Vec::new(),
-            impl_where_clause: Vec::new(),
             trait_impls_printed: HashSet::new(),
         }
     }
@@ -358,8 +353,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.self_type = Some(typ.clone());
 
         // The impl's where clause is also copied onto each method during def collection.
-        // Tracking it here keeps `show_function` from printing it again on each method.
-        self.impl_where_clause = impl_.where_clause.clone();
+        // Tracking it as a parent constraint keeps `show_function` from printing it again on
+        // each method.
+        self.trait_constraints = impl_.where_clause.clone();
 
         for (index, (visibility, func_id)) in impl_.methods.iter().enumerate() {
             if index != 0 {
@@ -376,7 +372,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.self_type = None;
-        self.impl_where_clause.clear();
+        self.trait_constraints.clear();
     }
 
     fn show_trait_impls(&mut self, trait_impls: &[&TraitImpl]) {
@@ -602,22 +598,17 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(";");
     }
 
-    /// Whether a parent trait/impl already declares the given constraint, so it shouldn't be
-    /// repeated on a method's where clause.
+    /// Whether a constraint already in scope from an enclosing item subsumes the given one, so
+    /// it shouldn't be repeated on a method's where clause.
     ///
-    /// Constraints from a parent trait or trait impl are the same resolved objects the method
-    /// carries, so they're matched exactly. An inherent impl's where clause is instead copied
-    /// onto each method during def collection and re-resolved per method, which mints fresh type
-    /// variables for any associated types the constraint introduces (e.g. `<T as Foo>::E`).
-    /// Those make two otherwise-identical constraints compare unequal, so an impl's where clause
-    /// is matched on the parts that identify the constraint — the constrained type, the trait,
-    /// and its ordered generics — rather than on the associated (named) generics.
+    /// Constraints aren't compared by equality: a constraint propagated onto a method (an
+    /// inherent impl's where clause, or a trait's supertrait bound) is re-resolved independently
+    /// and so mints fresh type variables for any associated types it introduces (e.g.
+    /// `<T as Foo>::E`), making two otherwise-identical constraints compare unequal. We instead
+    /// match on the parts that identify the constraint — the constrained type, the trait, and
+    /// its ordered generics — ignoring the associated (named) generics.
     fn parent_constraints_contain(&self, constraint: &TraitConstraint) -> bool {
-        if self.trait_constraints.contains(constraint) {
-            return true;
-        }
-
-        self.impl_where_clause.iter().any(|parent| {
+        self.trait_constraints.iter().any(|parent| {
             parent.typ == constraint.typ
                 && parent.trait_bound.trait_id == constraint.trait_bound.trait_id
                 && parent.trait_bound.trait_generics.ordered
