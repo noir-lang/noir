@@ -156,6 +156,14 @@ impl GlobalValueId {
     pub(crate) fn new(function: &Function, value: ValueId) -> Self {
         GlobalValueId(function.id(), value)
     }
+
+    pub(crate) fn func_id(self) -> FunctionId {
+        self.0
+    }
+
+    pub(crate) fn value_id(self) -> ValueId {
+        self.1
+    }
 }
 
 pub(crate) struct AliasAnalysis {
@@ -225,9 +233,9 @@ impl AliasAnalysis {
         // Note that this check is done only when both `a` and `b` match the given `function`.
         // This is purely for convenience, because the type filter would need access to the SSA
         // to look up types in other functions, which it doesn't currently.
-        if function.id() == a.0 && a.0 == b.0 {
-            let type_a = function.dfg.type_of_value(a.1);
-            let type_b = function.dfg.type_of_value(b.1);
+        if function.id() == a.func_id() && a.func_id() == b.func_id() {
+            let type_a = function.dfg.type_of_value(a.value_id());
+            let type_b = function.dfg.type_of_value(b.value_id());
             if !type_a.canonical_eq(&type_b) {
                 return false;
             }
@@ -302,8 +310,8 @@ impl AliasAnalysis {
     /// unknown to the frozen alias classes, so querying it would silently return
     /// a wrong answer — a bug in the calling pass.
     fn ensure_known(&self, value: GlobalValueId) {
-        let known = match self.value_count.get(&value.0) {
-            Some(&count) => value.1.to_u32() < count,
+        let known = match self.value_count.get(&value.func_id()) {
+            Some(&count) => value.value_id().to_u32() < count,
             // A function absent from the analysis scope has no recorded values;
             // don't claim to know anything about its values.
             None => false,
@@ -345,7 +353,7 @@ impl AliasAnalysis {
     fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
         match allocation_site {
             AllocationLattice::Known(site)
-                if !(self.untrusted_site_functions.contains(&site.0)
+                if !(self.untrusted_site_functions.contains(&site.func_id())
                     || self.loop_allocates.contains(&site)) =>
             {
                 Some(site)
