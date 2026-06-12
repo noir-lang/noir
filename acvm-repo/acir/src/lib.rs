@@ -49,6 +49,7 @@ mod reflection {
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
+    use msgpack_tagged::{MsgpackTagged, Product, Sum, TagRegistry};
     use regex::Regex;
     use serde::{Deserialize, Serialize};
     use serde_generate::CustomCode;
@@ -75,13 +76,15 @@ mod reflection {
     /// This one is simpler. The cost is that msgpack will deserialize
     /// into a JSON-like structure, but since we won't be interpreting it,
     /// it's okay if new tags appear.
-    #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+    #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
     struct ProgramWithoutBrillig<F: AcirField> {
+        #[tag(0)]
         pub functions: Vec<Circuit<F>>,
         /// We want to ignore this field. By setting its type as `unit`
         /// it will not be deserialized, but it will correctly maintain
         /// the position of the others (although in this case it doesn't)
         /// matter since it's the last field.
+        #[tag(1)]
         pub unconstrained_functions: (),
     }
 
@@ -124,10 +127,26 @@ mod reflection {
         tracer.trace_simple_type::<IntegerBitSize>().unwrap();
         tracer.trace_simple_type::<MemoryAddress>().unwrap();
 
+        // The `msgpack_tagged` tag registry mirrors the type graph that
+        // serde-reflection traced above, but additionally carries the
+        // integer tag → field-name (and variant) mapping the C++ codegen
+        // needs for the new int-keyed dispatch branch. We register the
+        // same top-level types as the tracer: `Program<F>` covers the
+        // bulk of the graph via its transitive walk, and
+        // `ProgramWithoutBrillig<F>` is a sibling type that needs its own
+        // entry (its serde name `"ProgramWithoutBrillig"` is distinct
+        // from `"Program"`, and its `unconstrained_functions: ()` field
+        // doesn't introduce any types that Program's walk didn't already
+        // reach).
+        let mut tag_registry = TagRegistry::new();
+        <Program<FieldElement> as MsgpackTagged>::register_into(&mut tag_registry);
+        <ProgramWithoutBrillig<FieldElement> as MsgpackTagged>::register_into(&mut tag_registry);
+
         serde_cpp_codegen(
             "Acir",
             PathBuf::from("./codegen/acir.cpp").as_path(),
             &tracer.registry().unwrap(),
+            &tag_registry,
             CustomCode::default(),
         );
     }
@@ -138,6 +157,11 @@ mod reflection {
         tracer.trace_simple_type::<Witness>().unwrap();
         tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
         tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
+
+        let mut tag_registry = TagRegistry::new();
+        <Witness as MsgpackTagged>::register_into(&mut tag_registry);
+        <WitnessMap<FieldElement> as MsgpackTagged>::register_into(&mut tag_registry);
+        <WitnessStack<FieldElement> as MsgpackTagged>::register_into(&mut tag_registry);
 
         let namespace = "Witnesses";
         let mut code = CustomCode::default();
@@ -152,6 +176,7 @@ mod reflection {
             namespace,
             PathBuf::from("./codegen/witness.cpp").as_path(),
             &tracer.registry().unwrap(),
+            &tag_registry,
             code,
         );
     }
@@ -161,7 +186,13 @@ mod reflection {
     ///
     /// If `should_overwrite()` returns `false` then just check if the old file hash is the
     /// same as the new one, to guard against unintended changes in the serialization format.
-    fn serde_cpp_codegen(namespace: &str, path: &Path, registry: &Registry, code: CustomCode) {
+    fn serde_cpp_codegen(
+        namespace: &str,
+        path: &Path,
+        registry: &Registry,
+        tag_registry: &TagRegistry,
+        code: CustomCode,
+    ) {
         let old_hash = if path.is_file() {
             let old_source = std::fs::read(path).expect("failed to read existing code");
             let old_source = String::from_utf8(old_source).expect("old source not UTF-8");
@@ -172,6 +203,7 @@ mod reflection {
         let msgpack_code = MsgPackCodeGenerator::generate(
             namespace,
             registry,
+            tag_registry,
             code,
             MsgPackCodeConfig::from_env(),
         );
@@ -192,6 +224,7 @@ mod reflection {
         MsgPackCodeGenerator::add_preamble(&mut source);
         MsgPackCodeGenerator::add_helpers(&mut source, namespace);
         MsgPackCodeGenerator::replace_array_with_shared_ptr(&mut source);
+        MsgPackCodeGenerator::add_autogen_header(&mut source);
 
         if !should_overwrite()
             && let Some(old_hash) = old_hash
@@ -262,20 +295,106 @@ mod reflection {
                 // We agreed on the default format to be compact, so it makes sense for Barretenberg to use it for serialization.
                 pack_compact: env_flag("NOIR_CODEGEN_PACK_COMPACT", true),
                 // Barretenberg didn't use serialization outside tests, so they decided they don't want to have this code at all.
-                no_pack: env_flag("NOIR_CODEGEN_NO_PACK", true),
+                // But in the latest code they seem to have kept it again.
+                no_pack: env_flag("NOIR_CODEGEN_NO_PACK", false),
+            }
+        }
+    }
+
+    /// Assert that every product / sum container in the serde-reflection
+    /// `registry` is also present in the `MsgpackTagged` `tag_registry`,
+    /// and that every product is in *canonical* (tag-ascending) source
+    /// order. Panics with a focused message on the first miss.
+    ///
+    /// **Why the coverage check.** The int-keyed dispatch branch in the
+    /// generated C++ needs each field's u8 tag (for structs) and each
+    /// variant's u8 tag (for enums). That metadata only exists on the
+    /// `MsgpackTagged` side. A type in `registry` but not in
+    /// `tag_registry` means somebody added a wire type without deriving
+    /// `MsgpackTagged` — fail loudly at codegen time, not silently at
+    /// runtime.
+    ///
+    /// **Why the order check.** Under `Format::MsgpackCompact` a struct
+    /// is emitted as a fixarray in *source* order; under
+    /// `Format::MsgpackTagged` with the `Array` strategy it's a fixarray
+    /// in *tag-ascending* order. Both shapes look identical to the C++
+    /// decoder (just `msgpack::type::ARRAY`), so byte-different wires
+    /// for the same logical value would silently land on the wrong
+    /// fields if the two orders ever diverge. Forcing
+    /// `tag_order_matches_source` keeps them lockstep — both formats
+    /// produce byte-identical arrays, and the codegen reads positionally
+    /// in tag-ascending order.
+    fn assert_tag_registry_covers(registry: &Registry, tag_registry: &TagRegistry) {
+        use serde_reflection::ContainerFormat;
+        for (name, container) in registry {
+            // Only named-struct and enum containers need an entry in the
+            // `MsgpackTagged` registry: their int-keyed dispatch branch
+            // depends on per-field / per-variant tag metadata. Unit
+            // structs, newtypes, and (currently `unimplemented!`) tuple
+            // structs pass through to their inner type (or are no-ops)
+            // and don't register themselves in `TagRegistry`.
+            let needs_tags =
+                matches!(container, ContainerFormat::Struct(_) | ContainerFormat::Enum(_),);
+            if !needs_tags {
+                continue;
+            }
+            let Some(entry) = tag_registry.get(name) else {
+                panic!(
+                    "MsgpackTagged tag registry is missing {name:?} — the type is on \
+                     the wire (serde-reflection traced it as a struct/enum) but \
+                     doesn't derive `MsgpackTagged`. Add `#[derive(MsgpackTagged)]` \
+                     to the type, and a `register_into` call at the codegen test \
+                     site if the type isn't reachable from a type that's already \
+                     registered.",
+                );
+            };
+            if let Some(p) = entry.tagged().as_product()
+                && !p.tag_order_matches_source
+            {
+                panic!(
+                    "MsgpackTagged product {name:?} declares its fields in an order \
+                     that doesn't match tag-ascending. The C++ codegen can't tell \
+                     `MsgpackCompact` (source-order array) from \
+                     `MsgpackTagged::Array` (tag-ascending array) on the wire — \
+                     reorder the Rust fields so `#[tag(N)]` values are increasing \
+                     in source order, or drop the type from the C++ wire types.",
+                );
             }
         }
     }
 
     /// Generate custom code for the msgpack machinery in Barretenberg.
     /// See https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp
-    struct MsgPackCodeGenerator {
+    struct MsgPackCodeGenerator<'a> {
         config: MsgPackCodeConfig,
         namespace: Vec<String>,
         code: CustomCode,
+        /// Carries the integer-tag metadata produced by `MsgpackTagged`
+        /// derives. The serde-reflection `Registry` only knows field/variant
+        /// *names*; consulting this registry lets us pair each name with its
+        /// stable u8 tag so the generated C++ can dispatch on int-keyed
+        /// `MsgpackTagged` wires the same way the Rust decoder does.
+        tag_registry: &'a TagRegistry,
     }
 
-    impl MsgPackCodeGenerator {
+    impl<'a> MsgPackCodeGenerator<'a> {
+        /// Prepend a banner marking the file as auto-generated and pointing
+        /// readers at the generator. Without it, the committed `.cpp` files
+        /// look hand-written and an unsuspecting editor would lose their
+        /// changes the next time the codegen tests run.
+        pub(crate) fn add_autogen_header(source: &mut String) {
+            let header = "\
+// AUTO-GENERATED — DO NOT EDIT.
+//
+// Generated by the `cpp_codegen` tests in `acvm-repo/acir/src/lib.rs`.
+// To regenerate, run:
+//
+//     NOIR_CODEGEN_OVERWRITE=1 cargo test -p acir cpp_codegen
+//
+";
+            source.insert_str(0, header);
+        }
+
         /// Add the import of the Barretenberg C++ header for msgpack.
         pub(crate) fn add_preamble(source: &mut String) {
             let inc = r#"#include "serde.hpp""#;
@@ -326,6 +445,9 @@ mod reflection {
         ) {
             auto it = kvmap.find(field_name);
             if (it != kvmap.end()) {
+                if (!is_optional && it->second->type == msgpack::type::NIL) {
+                    throw_or_abort("nil value for required field: " + struct_name + "::" + field_name);
+                }
                 try {
                     it->second->convert(field);
                 } catch (const msgpack::type_error&) {
@@ -349,11 +471,95 @@ mod reflection {
                 throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
             }
             auto element = array.ptr[index];
+            if (element.type == msgpack::type::NIL) {
+                throw_or_abort("nil value for required field: " + struct_name + "::" + field_name);
+            }
             try {
                 element.convert(field);
             } catch (const msgpack::type_error&) {
                 std::cerr << element << std::endl;
                 throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            }
+        }
+
+        /// Convert `val` into `field`, or throw a focused error mentioning
+        /// the struct + field name. Used by the int-keyed dispatch path
+        /// where each `switch` case populates one field directly.
+        template<typename T>
+        static void convert_or_throw(
+            msgpack::object const& val,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field
+        ) {
+            try {
+                val.convert(field);
+            } catch (const msgpack::type_error&) {
+                std::cerr << val << std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            }
+        }
+
+        /// Whether `o` is a non-empty MAP whose first key is an integer.
+        /// This is the signature of `Format::MsgpackTagged`: int keys for
+        /// struct field tags and enum variant tags. Legacy `Format::Msgpack`
+        /// keys are always strings, so a positive-integer first key is a
+        /// reliable shape discriminator between the two.
+        static bool is_int_keyed_map(msgpack::object const& o) {
+            return o.type == msgpack::type::MAP
+                && o.via.map.size > 0
+                && o.via.map.ptr[0].key.type == msgpack::type::POSITIVE_INTEGER;
+        }
+
+        /// Iterate an int-keyed MAP and invoke `dispatch(tag, val)` for each
+        /// `(u8, msgpack::object)` entry. The per-tag `switch` inside the
+        /// caller's lambda decides which field (or variant) to populate;
+        /// unknown tags fall through to `default` and are silently skipped,
+        /// matching the `MsgpackTagged` decoder's forward-compat policy
+        /// (`allow_unknown_tags` / retired tags drained).
+        template<typename Dispatch>
+        static void int_map_dispatch(
+            msgpack::object const& o,
+            std::string const& name,
+            Dispatch&& dispatch
+        ) {
+            for (uint32_t i = 0; i < o.via.map.size; ++i) {
+                uint8_t tag;
+                try {
+                    o.via.map.ptr[i].key.convert(tag);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o.via.map.ptr[i].key << std::endl;
+                    throw_or_abort("expected u8 tag in int-keyed map for " + name);
+                }
+                dispatch(tag, o.via.map.ptr[i].val);
+            }
+        }
+
+        /// Cap a `MAP` or `ARRAY` entry count against `active + reserved`.
+        /// Under-length wires are caught downstream (`conv_fld_from_array`
+        /// errors out of bounds; `conv_fld_from_kvmap` errors on missing
+        /// required keys), so we only need the upper bound here.
+        ///
+        /// * Up to `reserved` extra trailing entries are tolerated as
+        ///   retired fields (`#[tagged(reserved(...))]` on the Rust side).
+        /// * Anything beyond that is forward-compat drift that the
+        ///   producer only emits when newer fields were added. The
+        ///   Rust-side cue is `#[tagged(allow_unknown_tags)]`; the
+        ///   message points at it so a reviewer can see the opt-in.
+        static void check_size(
+            uint32_t actual,
+            std::string const& name,
+            uint32_t active,
+            uint32_t reserved
+        ) {
+            uint32_t max_size = active + reserved;
+            if (actual > max_size) {
+                throw_or_abort(
+                    name + " has " + std::to_string(actual) +
+                    " entries but at most " + std::to_string(max_size) +
+                    " are expected (" + std::to_string(active) +
+                    " active + " + std::to_string(reserved) +
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extras");
             }
         }
     };
@@ -376,13 +582,25 @@ mod reflection {
         }
 
         /// Add custom code for msgpack serialization and deserialization.
+        ///
+        /// Walks the serde-reflection `registry` and asserts that every
+        /// product/sum container is also present in the `MsgpackTagged`
+        /// `tag_registry` — every wire type must derive `MsgpackTagged`
+        /// for the int-keyed dispatch to have tag metadata available.
+        /// Products additionally have to be in *canonical* (tag-ascending)
+        /// source order — otherwise `MsgpackCompact` (source-order array)
+        /// and `MsgpackTagged::Array` (tag-ascending array) would produce
+        /// indistinguishable but byte-different wires on the same input,
+        /// and the C++ side can't tell which to expect.
         pub(crate) fn generate(
             namespace: &str,
             registry: &Registry,
+            tag_registry: &'a TagRegistry,
             code: CustomCode,
             config: MsgPackCodeConfig,
         ) -> CustomCode {
-            let mut g = Self { namespace: vec![namespace.to_string()], code, config };
+            assert_tag_registry_covers(registry, tag_registry);
+            let mut g = Self { namespace: vec![namespace.to_string()], code, config, tag_registry };
             for (name, container) in registry {
                 g.generate_container(name, container);
             }
@@ -414,7 +632,17 @@ mod reflection {
                     self.generate_tuple(name, formats);
                 }
                 Struct(fields) => {
-                    self.generate_struct(name, fields);
+                    // Top-level struct — look up its Product in the
+                    // tag registry. `assert_tag_registry_covers` has
+                    // already validated coverage.
+                    let product: Product = self
+                        .tag_registry
+                        .get(name)
+                        .expect("assert_tag_registry_covers should have caught this")
+                        .tagged()
+                        .as_product()
+                        .expect("struct name should map to a Product");
+                    self.generate_struct(name, fields, product);
                 }
                 Enum(variants) => {
                     self.generate_enum(name, variants);
@@ -431,8 +659,12 @@ mod reflection {
             self.msgpack_unpack(name, "");
         }
 
-        /// Regular structs pack into a map.
-        fn generate_struct(&mut self, name: &str, fields: &[Named<Format>]) {
+        /// Regular structs pack into a map. `product` is the
+        /// `MsgpackTagged` metadata for this shape: either the top-level
+        /// type's entry (for ordinary structs) or the variant's payload
+        /// (when recursing into a struct-variant). It carries the
+        /// per-field u8 tag the int-keyed dispatch branch needs.
+        fn generate_struct(&mut self, name: &str, fields: &[Named<Format>], product: Product) {
             // We could use the `MSGPACK_FIELDS` macro with the following:
             // self.msgpack_fields(name, fields.iter().map(|f| f.name.clone()));
             // Unfortunately it doesn't seem to deal with missing optional fields,
@@ -492,14 +724,125 @@ mod reflection {
             });
 
             self.msgpack_unpack(name, &{
-                // Turn the MAP into a `std::map<string, msgpack::object>`,
-                // then look up each field, returning error if one isn't found.
+                // Dispatch on wire shape:
+                //   * MAP with INT first key → `Format::MsgpackTagged`
+                //     (int-keyed: dispatch by u8 tag).
+                //   * MAP with STR keys → legacy `Format::Msgpack`
+                //     (string-keyed: look up by field name).
+                //   * ARRAY → legacy `Format::MsgpackCompact` and also
+                //     `Format::MsgpackTagged::Array` (both emit fields in
+                //     tag-ascending order under the codegen invariant
+                //     `tag_order_matches_source`, so positional indexing
+                //     decodes both correctly).
                 // cSpell:disable
                 let mut body = format!(
                     r#"
     std::string name = "{name}";
     if (o.type == msgpack::type::MAP) {{
-        auto kvmap = Helpers::make_kvmap(o, name);"#
+        if (Helpers::is_int_keyed_map(o)) {{
+            Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {{
+                switch (tag) {{"#
+                );
+                // cSpell:enable
+                for field in fields {
+                    let field_name = &field.name;
+                    let tag = product.tag_for(field_name).unwrap_or_else(|| {
+                        panic!(
+                            "field {field_name:?} of {name:?} is not in the MsgpackTagged \
+                             Product — serde-reflection and #[derive(MsgpackTagged)] disagree \
+                             on which fields are on the wire",
+                        )
+                    });
+                    if is_unit(field) {
+                        // Field is `()` in Rust / `std::monostate` in C++.
+                        // The wire still carries a value at this tag; we
+                        // consume it without binding to any C++ member,
+                        // mirroring `deserialize_unit`'s skip-any semantics.
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#"
+                    case {tag}:
+                        // Field is `std::monostate` — wire entry intentionally discarded.
+                        break;"#
+                        ));
+                        // cSpell:enable
+                        continue;
+                    }
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+                    case {tag}:
+                        Helpers::convert_or_throw(val, name, "{field_name}", {field_name});
+                        break;"#
+                    ));
+                    // cSpell:enable
+                }
+                // Reserved tags: retired in the Rust type via
+                // `#[tagged(reserved(...))]`. The Rust decoder skips
+                // them silently regardless of `allow_unknown_tags`; do
+                // the same here, with an explicit case so the strict
+                // default below can distinguish "retired" from "never
+                // declared".
+                if !product.reserved.is_empty() {
+                    for &reserved_tag in product.reserved {
+                        body.push_str(&format!(
+                            "
+                    case {reserved_tag}:"
+                        ));
+                    }
+                    body.push_str(
+                        r#"
+                        // Reserved tag (retired field) — skip silently.
+                        break;"#,
+                    );
+                }
+                // Default branch: strict by default (reject unknown tags
+                // so a C++ reviewer can see the type-level intent). Opt
+                // into silent forward-compat with `#[tagged(allow_unknown_tags)]`
+                // on the Rust struct.
+                if product.allow_unknown_tags {
+                    body.push_str(
+                        r#"
+                    default:
+                        // `#[tagged(allow_unknown_tags)]` on the Rust side:
+                        // silently skip any tag we don't recognize.
+                        break;"#,
+                    );
+                } else {
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+                    default:
+                        std::cerr << val << std::endl;
+                        throw_or_abort("unknown tag for {name}: " + std::to_string(tag));"#
+                    ));
+                    // cSpell:enable
+                }
+                // cSpell:disable
+                body.push_str(
+                    r#"
+                }
+            });
+        } else {"#,
+                );
+                // cSpell:enable
+                // String-keyed map branch (`Format::Msgpack`): the
+                // lookup is by field name, so extra wire keys would
+                // otherwise pass unnoticed. Same `active + reserved`
+                // ceiling and same `allow_unknown_tags` opt-out as the
+                // ARRAY branch.
+                if !product.allow_unknown_tags {
+                    body.push_str(&format!(
+                        r#"
+            Helpers::check_size(o.via.map.size, name, {active}, {reserved});"#,
+                        active = fields.len(),
+                        reserved = product.reserved.len(),
+                    ));
+                }
+                // cSpell:disable
+                body.push_str(
+                    r#"
+            auto kvmap = Helpers::make_kvmap(o, name);"#,
                 );
                 // cSpell:enable
                 for field in fields {
@@ -511,15 +854,35 @@ mod reflection {
                     // cSpell:disable
                     body.push_str(&format!(
                         r#"
-        Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
+            Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     ));
                     // cSpell:enable
                 }
                 body.push_str(
                     "
+        }
     } else if (o.type == msgpack::type::ARRAY) {
-        auto array = o.via.array; ",
+        auto array = o.via.array;",
                 );
+                // Cap the array length: an older reader of a newer wire
+                // (forward-compat) should reject extra trailing items
+                // unless the type opts into `#[tagged(allow_unknown_tags)]`;
+                // a newer reader of an older wire that retired trailing
+                // fields (backward-compat) gets `reserved.len()` extra
+                // trailing positions tolerated either way.
+                //
+                // Under-length wires are caught downstream by
+                // `Helpers::conv_fld_from_array` (it errors when its
+                // index is past `array.size`), so we only need the
+                // upper bound here.
+                if !product.allow_unknown_tags {
+                    body.push_str(&format!(
+                        r#"
+        Helpers::check_size(array.size, name, {active}, {reserved});"#,
+                        active = fields.len(),
+                        reserved = product.reserved.len(),
+                    ));
+                }
                 for (index, field) in fields.iter().enumerate() {
                     if is_unit(field) {
                         continue;
@@ -570,10 +933,39 @@ mod reflection {
 
         /// Enums serialize as a single element map keyed by the variant type name.
         fn generate_enum(&mut self, name: &str, variants: &BTreeMap<u32, Named<VariantFormat>>) {
+            // Look up the `Sum` upfront — both the per-variant recursion
+            // (each variant's payload Product comes from here) and the
+            // int-keyed `msgpack_unpack` body below need it. Coverage is
+            // already enforced by `assert_tag_registry_covers`.
+            let sum: Sum = self
+                .tag_registry
+                .get(name)
+                .expect("assert_tag_registry_covers should have caught this")
+                .tagged()
+                .as_sum()
+                .expect("enum name should map to a Sum");
+
+            // Resolve a variant's payload Product by its serde name. The
+            // `MsgpackTagged` macro and serde-derive agree on names, so
+            // a miss here is an internal bug.
+            let payload_for = |variant_name: &str| -> Product {
+                sum.variants.iter().find(|v| v.name == variant_name).map_or_else(
+                    || {
+                        panic!(
+                            "variant {variant_name:?} of enum {name:?} is not in the \
+                             MsgpackTagged Sum — serde-reflection and \
+                             #[derive(MsgpackTagged)] disagree on variants",
+                        )
+                    },
+                    |v| v.payload,
+                )
+            };
+
             // Recurse into the variants
             self.namespace.push(name.to_string());
             for variant in variants.values() {
-                self.generate_variant(&variant.name, &variant.value);
+                let payload = payload_for(&variant.name);
+                self.generate_variant(&variant.name, &variant.value, payload);
             }
             self.namespace.pop();
 
@@ -616,9 +1008,15 @@ mod reflection {
                 )
             });
 
-            // Unpack the enum into a map, inspect the key, then unpack the entry value.
-            // See https://c.msgpack.org/cpp/structmsgpack_1_1object.html#a8c7c484d2a6979a833bdb69412ad382c
-            // for how to access the object's content without parsing it.
+            // Unpack the enum:
+            //   * MAP with INT key → `Format::MsgpackTagged` variant
+            //     (int-keyed dispatch on the u8 tag).
+            //   * MAP with STR key → legacy `Format::Msgpack` variant
+            //     (string-keyed dispatch on variant name).
+            //   * STR top-level → legacy `Format::MsgpackCompact` unit
+            //     variant (bare variant-name string).
+            // The 1-entry-size invariant of the MAP cases is enforced
+            // upfront.
             self.msgpack_unpack(name, &{
                 // cSpell:disable
                 let mut body = format!(
@@ -631,26 +1029,177 @@ mod reflection {
     if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {{
         throw_or_abort("expected 1 entry for enum '{name}'; got " + std::to_string(o.via.map.size));
     }}
-    std::string tag;
-    try {{
-        if (o.type == msgpack::type::object_type::MAP) {{
+    if (Helpers::is_int_keyed_map(o)) {{
+        // `Format::MsgpackTagged` — int-keyed variant.
+        uint8_t tag;
+        try {{
             o.via.map.ptr[0].key.convert(tag);
-        }} else {{
-            o.convert(tag);
+        }} catch (const msgpack::type_error&) {{
+            std::cerr << o << std::endl;
+            throw_or_abort("expected u8 variant tag for enum '{name}'");
         }}
-    }} catch(const msgpack::type_error&) {{
-        std::cerr << o << std::endl;
-        throw_or_abort("error converting tag to string for enum '{name}'");
-    }}"#
+        switch (tag) {{"#
                 );
+                // cSpell:enable
+
+                for v in variants.values() {
+                    let variant = &v.name;
+                    let tag = sum.variants.iter().find(|reg_v| reg_v.name == variant).map_or_else(
+                        || {
+                            panic!(
+                                "variant {variant:?} of enum {name:?} is not in the MsgpackTagged \
+                                 Sum — serde-reflection and #[derive(MsgpackTagged)] disagree",
+                            )
+                        },
+                        |reg_v| reg_v.tag,
+                    );
+                    if matches!(v.value, VariantFormat::Unit) {
+                        // Unit variants carry a `nil` payload that the
+                        // variant's empty `msgpack_unpack` would accept,
+                        // but constructing the value and assigning is
+                        // simpler and avoids reading `o.via.map.ptr[0].val`
+                        // (which Barretenberg's `-Werror=unused-variable`
+                        // flags when all variants of an enum are unit).
+                        body.push_str(&format!(
+                            r#"
+            case {tag}: {{
+                {variant} v;
+                value = v;
+                break;
+            }}"#
+                        ));
+                    } else {
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#"
+            case {tag}: {{
+                {variant} v;
+                try {{
+                    o.via.map.ptr[0].val.convert(v);
+                }} catch (const msgpack::type_error&) {{
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into enum variant '{name}::{variant}'");
+                }}
+                value = v;
+                break;
+            }}"#
+                        ));
+                        // cSpell:enable
+                    }
+                }
+
+                // Reserved variant tags: retired variants on the Rust side
+                // (`#[tagged(reserved(...))]` on the enum). If the enum
+                // marks a unit variant with `#[tagged(on_reserved)]`,
+                // legacy wires carrying a retired tag route to that
+                // fallback; otherwise we throw with a "retired" message
+                // that's distinguishable from the "unknown" case below.
+                let lookup_unit_variant = |fallback_tag: u8| -> &str {
+                    sum.variants.iter().find(|v| v.tag == fallback_tag).map_or_else(
+                        || {
+                            panic!(
+                                "MsgpackTagged Sum for enum {name:?} declares a fallback \
+                                 tag {fallback_tag} that doesn't match any registered variant",
+                            )
+                        },
+                        |v| v.name,
+                    )
+                };
+                if !sum.reserved.is_empty() {
+                    for &reserved_tag in sum.reserved {
+                        body.push_str(&format!(
+                            "
+            case {reserved_tag}:"
+                        ));
+                    }
+                    if let Some(fallback_tag) = sum.on_reserved_tag {
+                        let fallback_name = lookup_unit_variant(fallback_tag);
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#" {{
+                // `#[tagged(on_reserved)]` fallback: retired tag routes to
+                // the designated unit variant (payload discarded).
+                {fallback_name} v;
+                value = v;
+                break;
+            }}"#
+                        ));
+                        // cSpell:enable
+                    } else {
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#"
+                std::cerr << o << std::endl;
+                throw_or_abort("retired variant tag for enum '{name}' (declare `#[tagged(on_reserved)]` on a unit variant to route legacy data here): " + std::to_string(tag));"#
+                        ));
+                        // cSpell:enable
+                    }
+                }
+
+                // Default branch for unknown variant tags (not active,
+                // not reserved). Routes to `#[tagged(on_unknown)]` if
+                // set — the forward-compat opt-in for newer producers
+                // introducing variants this code doesn't know about.
+                if let Some(fallback_tag) = sum.on_unknown_tag {
+                    let fallback_name = lookup_unit_variant(fallback_tag);
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+            default: {{
+                // `#[tagged(on_unknown)]` fallback: any tag we don't recognize
+                // (and isn't reserved) routes here.
+                {fallback_name} v;
+                value = v;
+                break;
+            }}"#
+                    ));
+                    // cSpell:enable
+                } else {
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+            default:
+                std::cerr << o << std::endl;
+                throw_or_abort("unknown '{name}' enum variant tag: " + std::to_string(tag));"#
+                    ));
+                    // cSpell:enable
+                }
+                // cSpell:disable
+                body.push_str(
+                    r#"
+        }
+    } else {"#,
+                );
+                // cSpell:enable
+                // Reuse the existing format-string body for the legacy
+                // string-keyed dispatch path. The `format!(name = ...)`
+                // substitution from the previous body is preserved in the
+                // already-appended text; the section below is plain C++
+                // with no further interpolation.
+                body.push_str(&format!(
+                    r#"
+        // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+        // unit variant (bare STR) — both dispatch on the variant name.
+        std::string tag;
+        try {{
+            if (o.type == msgpack::type::object_type::MAP) {{
+                o.via.map.ptr[0].key.convert(tag);
+            }} else {{
+                o.convert(tag);
+            }}
+        }} catch(const msgpack::type_error&) {{
+            std::cerr << o << std::endl;
+            throw_or_abort("error converting tag to string for enum '{name}'");
+        }}"#
+                ));
                 // cSpell:enable
 
                 for (i, v) in variants {
                     let variant = &v.name;
                     body.push_str(&format!(
                         r#"
-    {}if (tag == "{variant}") {{
-        {variant} v;"#,
+        {}if (tag == "{variant}") {{
+            {variant} v;"#,
                         if *i == 0 { "" } else { "else " }
                     ));
 
@@ -658,29 +1207,30 @@ mod reflection {
                         // cSpell:disable
                         body.push_str(&format!(
                             r#"
-        try {{
-            o.via.map.ptr[0].val.convert(v);
-        }} catch (const msgpack::type_error&) {{
-            std::cerr << o << std::endl;
-            throw_or_abort("error converting into enum variant '{name}::{variant}'");
-        }}
-        "#
+            try {{
+                o.via.map.ptr[0].val.convert(v);
+            }} catch (const msgpack::type_error&) {{
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting into enum variant '{name}::{variant}'");
+            }}
+            "#
                         ));
                         // cSpell:enable
                     }
                     // Closing brace of if statement
                     body.push_str(
                         r#"
-        value = v;
-    }"#,
+            value = v;
+        }"#,
                     );
                 }
                 // cSpell:disable
                 body.push_str(&format!(
                     r#"
-    else {{
-        std::cerr << o << std::endl;
-        throw_or_abort("unknown '{name}' enum variant: " + tag);
+        else {{
+            std::cerr << o << std::endl;
+            throw_or_abort("unknown '{name}' enum variant: " + tag);
+        }}
     }}"#
                 ));
                 // cSpell:enable
@@ -689,8 +1239,13 @@ mod reflection {
             });
         }
 
-        /// Generate msgpack code for nested enum variants.
-        fn generate_variant(&mut self, name: &str, variant: &VariantFormat) {
+        /// Generate msgpack code for nested enum variants. `payload` is
+        /// the variant's `MsgpackTagged` `Product`, looked up from the
+        /// parent enum's `Sum`. Only the `Struct` variant case consults
+        /// it (it carries the int-keyed dispatch metadata for that
+        /// variant's named fields); the other cases are tag-irrelevant
+        /// (unit / passthrough newtype / unimplemented tuple).
+        fn generate_variant(&mut self, name: &str, variant: &VariantFormat, payload: Product) {
             match variant {
                 VariantFormat::Variable(_) => {
                     unreachable!("internal construct")
@@ -698,7 +1253,7 @@ mod reflection {
                 VariantFormat::Unit => self.generate_unit_struct(name),
                 VariantFormat::NewType(_format) => self.generate_newtype(name),
                 VariantFormat::Tuple(formats) => self.generate_tuple(name, formats),
-                VariantFormat::Struct(fields) => self.generate_struct(name, fields),
+                VariantFormat::Struct(fields) => self.generate_struct(name, fields, payload),
             }
         }
 

@@ -345,6 +345,7 @@ impl Elaborator<'_> {
         self.push_errors(errors);
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
+        let struct_id = struct_type.borrow().id;
 
         self.unify_or_type_mismatch_with_source(
             &actual_type,
@@ -352,6 +353,10 @@ impl Elaborator<'_> {
             Source::Assignment,
             location,
         );
+
+        // The struct's fields may still be deferred, so resolve them now before
+        // `resolve_constructor_pattern_fields` reads them.
+        self.define_struct_fields_if_undefined(struct_id);
 
         let fields = self.resolve_constructor_pattern_fields(
             fields,
@@ -363,8 +368,6 @@ impl Elaborator<'_> {
             pattern_names,
             parameter_names_in_list,
         );
-
-        let struct_id = struct_type.borrow().id;
 
         self.interner.add_type_reference(struct_id, name_location, is_self_type);
 

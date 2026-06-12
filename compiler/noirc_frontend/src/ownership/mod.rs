@@ -37,6 +37,7 @@
 //! to find the last use of each local variable to identify where moves can occur.
 use crate::{
     ast::UnaryOp,
+    hir_def::expr::Constructor,
     monomorphization::ast::{
         Definition, Expression, Function, Ident, IdentId, LValue, Literal, LocalId, Program, Type,
         Unary,
@@ -346,6 +347,26 @@ impl Context {
         // The match will only destructure the value; it doesn't "use" the variable in a way that
         // requires additional cloning beyond what the last-use analysis already handles.
         for case in &mut match_expr.cases {
+            // The constructors below all bind whole values out of the matched aggregate
+            // (enum/tuple/struct fields), whose uses are protected by the normal last-use
+            // clone analysis at their use sites, so destructuring needs no extra handling here.
+            //
+            // This exhaustive match is a deliberate tripwire: if a constructor that binds a
+            // value out of a *nested* aggregate is ever added (e.g. array/slice patterns like
+            // `[head, tail @ ..]`), this stops compiling and forces a decision. Such bindings
+            // can alias nested array storage the same way an indexed lvalue does, so they must
+            // replicate the nested-array clone handling in `handle_lvalue`'s `LValue::Index`
+            // case, or matched bindings will silently alias the source and observe incorrect
+            // mutations. Do not just add the new variant to this arm — extend the clone logic.
+            match &case.constructor {
+                Constructor::True
+                | Constructor::False
+                | Constructor::Unit
+                | Constructor::Int(_)
+                | Constructor::Tuple(_)
+                | Constructor::Variant(..)
+                | Constructor::Range(..) => {}
+            }
             self.handle_expression(&mut case.branch);
         }
 

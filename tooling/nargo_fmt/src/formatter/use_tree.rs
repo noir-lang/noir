@@ -170,6 +170,13 @@ mod tests {
     }
 
     #[test]
+    fn format_use_with_stacked_super() {
+        let src = "use  super :: super :: foo ;";
+        let expected = "use super::super::foo;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_use_list_two_items() {
         let src = " use foo::{ bar,  baz  };";
         let expected = "use foo::{bar, baz};\n";

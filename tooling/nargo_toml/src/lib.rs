@@ -23,6 +23,7 @@ mod git;
 mod semver;
 
 pub use errors::ManifestError;
+pub use git::list_cached_git_dependencies;
 use git::{clone_git_repo, lock_git_deps};
 
 /// Searches for a `Nargo.toml` file in the current directory and all parent directories.

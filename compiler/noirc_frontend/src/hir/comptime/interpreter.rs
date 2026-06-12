@@ -82,6 +82,7 @@ use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
+pub(crate) use cast::evaluate_cast_one_step;
 mod foreign;
 mod infix;
 mod tracker;
@@ -364,11 +365,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
-        let Some(old_module) = old_module else {
-            // The module should always be set by the time we're interpreting comptime code
-            panic!("ICE: Expected local_module to be set when calling a closure");
-        };
-        self.elaborator.replace_module(old_module);
+        self.elaborator.restore_module(old_module);
         result
     }
 
@@ -1288,7 +1285,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        cast::evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression) -> IResult<Value> {
@@ -1980,10 +1977,9 @@ impl Context<'_, '_> {
         let module_id = ModuleId { krate: crate_id, local_id };
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
-        elaborator.replace_module(module_id);
-
-        let mut interpreter = elaborator.setup_interpreter();
-        let instantiation_bindings = TypeBindings::default();
-        interpreter.call_function(main_id, args, instantiation_bindings, location)
+        elaborator.setup_interpreter_for(module_id, |interpreter| {
+            let instantiation_bindings = TypeBindings::default();
+            interpreter.call_function(main_id, args, instantiation_bindings, location)
+        })
     }
 }

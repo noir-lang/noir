@@ -2232,7 +2232,96 @@ impl Type {
         }
     }
 
+    /// Returns true if this type is, or contains anywhere in its structure, an enum.
+    pub(crate) fn contains_enum(&self) -> bool {
+        self.contains_enum_helper(TypeRecursionContext::default())
+    }
+
+    fn contains_enum_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Quoted(_)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Function(..)
+            | Type::Error => false,
+
+            Type::Reference(typ, _) => typ.contains_enum_helper(type_recursion_context.recur()),
+            Type::Array(typ, length) => {
+                length.contains_enum_helper(type_recursion_context.clone().recur())
+                    || typ.contains_enum_helper(type_recursion_context.recur())
+            }
+            Type::Vector(typ) => typ.contains_enum_helper(type_recursion_context.recur()),
+            Type::FmtString(length, typ) => {
+                length.contains_enum_helper(type_recursion_context.clone().recur())
+                    || typ.contains_enum_helper(type_recursion_context.recur())
+            }
+            Type::Tuple(types) => types
+                .iter()
+                .any(|typ| typ.contains_enum_helper(type_recursion_context.clone().recur())),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if typ.is_enum() {
+                    return true;
+                }
+                if type_recursion_context.insert_data_type(typ.id, generics.clone())
+                    && let Some(fields) = typ.get_fields(generics)
+                {
+                    return fields.iter().any(|(_, field, _)| {
+                        field.contains_enum_helper(type_recursion_context.clone().recur())
+                    });
+                }
+                false
+            }
+            Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    alias
+                        .borrow()
+                        .get_type(generics)
+                        .contains_enum_helper(type_recursion_context.recur())
+                } else {
+                    false
+                }
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        binding.contains_enum_helper(type_recursion_context.recur())
+                    }
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => {
+                to.contains_enum_helper(type_recursion_context.recur())
+            }
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.contains_enum_helper(type_recursion_context.clone().recur())
+                    || rhs.contains_enum_helper(type_recursion_context.recur())
+            }
+        }
+    }
+
     pub(crate) fn contains_type_variable(&self) -> bool {
+        self.contains_type_variable_helper(true)
+    }
+
+    /// True if the type contains an unbound [Type::TypeVariable] (an inference variable that
+    /// unification may still bind). Unlike [Self::contains_type_variable], an unbound
+    /// [Type::NamedGeneric] does not count: named generics are rigid until monomorphization,
+    /// so a type built only from them cannot be changed by unification. A type for which this
+    /// returns false is "rigid" in that sense.
+    pub(crate) fn contains_unbound_type_variable(&self) -> bool {
+        self.contains_type_variable_helper(false)
+    }
+
+    fn contains_type_variable_helper(&self, unbound_named_generic_counts: bool) -> bool {
+        let contains = |typ: &Type| typ.contains_type_variable_helper(unbound_named_generic_counts);
         match self {
             Type::Integer(..)
             | Type::Bool
@@ -2242,42 +2331,31 @@ impl Type {
             | Type::Quoted(..)
             | Type::Error => false,
             Type::Forall(..) => true,
-            Type::Array(typ, length) => {
-                length.contains_type_variable() || typ.contains_type_variable()
-            }
-            Type::Vector(typ) => typ.contains_type_variable(),
-            Type::String(length) => length.contains_type_variable(),
-            Type::FmtString(length, typ) => {
-                length.contains_type_variable() || typ.contains_type_variable()
-            }
+            Type::Array(typ, length) => contains(length) || contains(typ),
+            Type::Vector(typ) => contains(typ),
+            Type::String(length) => contains(length),
+            Type::FmtString(length, typ) => contains(length) || contains(typ),
             Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
-                items.iter().any(|typ| typ.contains_type_variable())
+                items.iter().any(contains)
             }
-            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                match &*type_var.borrow() {
-                    TypeBinding::Bound(binding) => binding.contains_type_variable(),
-                    TypeBinding::Unbound(_, _) => true,
-                }
-            }
+            Type::TypeVariable(type_var) => match &*type_var.borrow() {
+                TypeBinding::Bound(binding) => contains(binding),
+                TypeBinding::Unbound(_, _) => true,
+            },
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => match &*type_var.borrow() {
+                TypeBinding::Bound(binding) => contains(binding),
+                TypeBinding::Unbound(_, _) => unbound_named_generic_counts,
+            },
             Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
-                trait_generics.ordered.iter().any(|typ| typ.contains_type_variable())
-                    || trait_generics
-                        .named
-                        .iter()
-                        .any(|named_type| named_type.typ.contains_type_variable())
+                trait_generics.ordered.iter().any(contains)
+                    || trait_generics.named.iter().any(|named_type| contains(&named_type.typ))
             }
-            Type::CheckedCast { from, to } => {
-                from.contains_type_variable() || to.contains_type_variable()
-            }
+            Type::CheckedCast { from, to } => contains(from) || contains(to),
             Type::Function(args, ret, env, _) => {
-                args.iter().any(|typ| typ.contains_type_variable())
-                    || ret.contains_type_variable()
-                    || env.contains_type_variable()
+                args.iter().any(contains) || contains(ret) || contains(env)
             }
-            Type::Reference(typ, _) => typ.contains_type_variable(),
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.contains_type_variable() || rhs.contains_type_variable()
-            }
+            Type::Reference(typ, _) => contains(typ),
+            Type::InfixExpr(lhs, _, rhs, _) => contains(lhs) || contains(rhs),
         }
     }
 
@@ -2476,27 +2554,26 @@ impl Type {
             Type::CheckedCast { from, to } => {
                 let to_value = to.evaluate_to_integer(target_kind, location)?;
 
-                // if both 'to' and 'from' evaluate to a constant,
-                // return None unless they match
-                let skip_simplifications = false;
-                if let Ok(from_value) =
-                    from.evaluate_to_integer_helper(target_kind, location, skip_simplifications)
-                {
-                    if to_value == from_value {
-                        Ok(to_value)
-                    } else {
-                        let to = *to;
-                        let from = *from;
-                        Err(TypeCheckError::TypeCanonicalizationMismatch {
-                            to,
-                            from,
-                            to_value,
-                            from_value,
-                            location,
-                        })
-                    }
-                } else {
-                    Ok(to_value)
+                // Evaluate `from` without simplifications so that arithmetic errors in
+                // intermediate steps (which simplification may have removed from `to`)
+                // are still caught.
+                let run_simplifications = false;
+                match from.evaluate_to_integer_helper(target_kind, location, run_simplifications) {
+                    // If both `to` and `from` evaluate to a constant they must match
+                    Ok(from_value) if from_value == to_value => Ok(to_value),
+                    Ok(from_value) => Err(TypeCheckError::TypeCanonicalizationMismatch {
+                        to: *to,
+                        from: *from,
+                        to_value,
+                        from_value,
+                        location,
+                    }),
+                    // A definite arithmetic failure (e.g. underflow) in the unsimplified
+                    // expression must be reported even though `to` evaluated successfully.
+                    Err(err) if err.is_constant_arithmetic_failure() => Err(err),
+                    // `from` may contain type variables that were simplified out of `to`,
+                    // in which case it cannot be evaluated to a constant - that is fine.
+                    Err(_) => Ok(to_value),
                 }
             }
             other => Err(TypeCheckError::NonConstantEvaluated { typ: other, location }),
@@ -3272,6 +3349,8 @@ impl BinaryTypeOperator {
             BinaryTypeOperator::Modulo => {
                 if let (Integer::Field(lhs), Integer::Field(rhs)) = (a, b) {
                     Err(TypeCheckError::ModuloOnFields { lhs, rhs, location })
+                } else if b.is_zero() {
+                    Err(TypeCheckError::ModuloByZero { lhs: a, rhs: b, location })
                 } else {
                     (a % b).ok_or_else(make_error)
                 }

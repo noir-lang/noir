@@ -1179,7 +1179,7 @@ mod tests {
     #[test]
     fn keeps_unused_databus_return_value() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           return_data: v0
           b0():
             v0 = make_array [Field 0] : [Field; 1]
@@ -1223,7 +1223,7 @@ mod tests {
     #[test]
     fn removes_unused_known_small_bit_shifts() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v1 = shl v0, u32 2
             v2 = shr v0, u32 3
@@ -1234,8 +1234,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             return
         }
@@ -1304,7 +1304,7 @@ mod tests {
     #[test]
     fn does_not_remove_used_jmpif_arg() {
         let src = r#"
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [u8 1, u8 2] : [u8; 2]
             v2 = make_array [u8 3, u8 4] : [u8; 2]

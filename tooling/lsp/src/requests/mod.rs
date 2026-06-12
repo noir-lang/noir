@@ -553,10 +553,29 @@ pub(crate) fn to_lsp_location(
     if let Ok(uri) = Url::from_file_path(path.clone()) {
         Some(Location { uri, range })
     } else if path.starts_with("std/") {
-        Some(Location { uri: Url::from_str(&format!("noir-std://{path}")).unwrap(), range })
+        Some(Location { uri: stdlib_path_to_uri(&path), range })
     } else {
         None
     }
+}
+
+/// Map a canonical stdlib path (e.g. `std/array.nr`) to a URI for the LSP client.
+/// When the stdlib source is reachable on disk (debug builds compiled from the
+/// monorepo), emits a `file://` URI so editors open the real file and edits land
+/// on disk. Otherwise falls back to `noir-std://`, which the client resolves
+/// through the `nargo/stdSourceCode` custom request into a read-only document.
+pub(crate) fn stdlib_path_to_uri(stdlib_path: &str) -> Url {
+    if let Some(rest) = stdlib_path.strip_prefix("std/")
+        && let Some(disk_root) = noirc_driver::stdlib_disk_path()
+    {
+        let resolved = disk_root.join(rest);
+        if resolved.is_file()
+            && let Ok(uri) = Url::from_file_path(&resolved)
+        {
+            return uri;
+        }
+    }
+    Url::from_str(&format!("noir-std://{stdlib_path}")).unwrap()
 }
 
 pub(crate) fn on_shutdown(

@@ -1084,7 +1084,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.local_module = Some(trait_impl.module_id);
+        let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
@@ -1101,9 +1101,10 @@ impl<'context> Elaborator<'context> {
             if trait_impl.inherited_default_method_func_ids.contains(function) {
                 continue;
             }
-            self.local_module = Some(*module);
+            let previous_method_module = self.replace_local_module(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
+            self.local_module = previous_method_module;
             self.push_errors(errors);
         }
 
@@ -1119,6 +1120,7 @@ impl<'context> Elaborator<'context> {
         self.current_trait_impl = None;
         self.current_trait = None;
         self.generics.clear();
+        self.local_module = previous_local_module;
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
@@ -1134,7 +1136,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.local_module = Some(alias.module_id);
+        let previous_local_module = self.replace_local_module(alias.module_id);
 
         let previous_in_comptime_context =
             std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
@@ -1193,6 +1195,7 @@ impl<'context> Elaborator<'context> {
 
         self.current_item = None;
         self.in_comptime_context = previous_in_comptime_context;
+        self.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -1354,7 +1357,7 @@ pub mod test_utils {
             hir::{
                 Context, ParsedFiles,
                 def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
-                def_map::{CrateDefMap, ModuleData},
+                def_map::{CrateDefMap, ModuleData, ModuleId},
             },
         };
         use fm::{FileId, FileManager};
@@ -1422,29 +1425,26 @@ pub mod test_utils {
             return Err(ElaboratorError::Compile(errors));
         }
 
-        let mut interpreter = elaborator.setup_interpreter();
+        // Mirror `Context::interpret_function`: enter the interpreter with the module of the
+        // function being run rather than relying on the module the elaborator happened to leave set.
+        let source_module = elaborator.interner.function_meta(&main).source_module;
+        let module = ModuleId { krate, local_id: source_module };
 
         // The most straightforward way to convert the interpreter result into
         // an acceptable monomorphized AST expression seems to be converting it
         // into HIR first and then processing it with the monomorphizer
-        let expr_id = match interpreter.call_function(
-            main,
-            Vec::new(),
-            Default::default(),
-            Location::dummy(),
-        ) {
-            Err(e) => return Err(ElaboratorError::Interpret(e)),
-            Ok(value) => {
-                match value.into_runtime_hir_expression(
-                    elaborator.interner,
-                    elaborator.files,
+        let expr_id = elaborator.setup_interpreter_for(module, |interpreter| match interpreter
+            .call_function(main, Vec::new(), Default::default(), Location::dummy())
+        {
+            Err(e) => Err(ElaboratorError::Interpret(e)),
+            Ok(value) => value
+                .into_runtime_hir_expression(
+                    interpreter.elaborator.interner,
+                    interpreter.elaborator.files,
                     Location::dummy(),
-                ) {
-                    Err(e) => return Err(ElaboratorError::HIRConvert(e)),
-                    Ok(expr_id) => expr_id,
-                }
-            }
-        };
+                )
+                .map_err(ElaboratorError::HIRConvert),
+        })?;
 
         let mut monomorphizer = Monomorphizer::new(
             elaborator.interner,

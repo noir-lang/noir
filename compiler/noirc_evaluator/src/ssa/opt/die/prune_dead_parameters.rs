@@ -329,7 +329,7 @@ mod tests {
         let src = r#"
         g0 = u32 2825334515
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) impure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v4 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v4
@@ -374,10 +374,10 @@ mod tests {
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @"
         g0 = u32 2825334515
-        
-        brillig(inline) predicate_pure fn main f0 {
+
+        brillig(inline) impure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v3 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v3
@@ -391,7 +391,7 @@ mod tests {
           b3():
             return u1 0
         }
-        "#);
+        ");
     }
 
     #[test]

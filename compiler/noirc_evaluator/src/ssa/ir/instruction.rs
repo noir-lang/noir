@@ -199,13 +199,14 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             // These imply a check that the vector is non-empty and should fail otherwise.
-            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
+            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsVector
             | Intrinsic::VectorPushBack
             | Intrinsic::VectorPushFront
+            | Intrinsic::VectorInsert
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -219,13 +220,16 @@ impl Intrinsic {
         }
     }
 
-    /// Returns true if this intrinsic can modify its input array in Brillig
-    /// due to copy-on-write optimization when the reference count is 1.
+    /// Returns true if eliding the ownership pass's `Clone` around this intrinsic's
+    /// argument would be unsafe in Brillig, even though the intrinsic is otherwise
+    /// "pure" (no observable side effects). Two cases qualify:
     ///
-    /// This is used to ensure we don't skip clones for these operations,
-    /// even though they're technically "pure" (no observable side effects).
-    /// Without proper reference counting, the caller's array could be corrupted.
-    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+    /// * Vector mutators (`push`/`pop`/`insert`/`remove`) can write through the input
+    ///   pointer when the copy-on-write reference count is 1.
+    /// * `StrAsBytes` and `ArrayAsStrUnchecked` simplify to their input value, so the
+    ///   returned array aliases the source. A later array_set against the result
+    ///   would, under RC=1 COW, mutate the source as well.
+    pub(crate) fn unsafe_for_clone_elision_in_brillig(&self) -> bool {
         matches!(
             self,
             Intrinsic::VectorPushBack
@@ -234,6 +238,8 @@ impl Intrinsic {
                 | Intrinsic::VectorPopFront
                 | Intrinsic::VectorInsert
                 | Intrinsic::VectorRemove
+                | Intrinsic::StrAsBytes
+                | Intrinsic::ArrayAsStrUnchecked
         )
     }
 
@@ -251,10 +257,13 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -926,12 +935,9 @@ impl Binary {
             | BinaryOp::Mul { unchecked: false } => {
                 match dfg.type_of_value(self.rhs).unwrap_numeric() {
                     NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
+                    // Non-field integer arithmetic can overflow or underflow, so it needs a
+                    // predicate to guard the side effect.
+                    NumericType::Unsigned { .. } | NumericType::Signed { .. } => true,
                 }
             }
             BinaryOp::Shl | BinaryOp::Shr => {

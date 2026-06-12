@@ -339,7 +339,10 @@ pub enum PathKind {
     Crate,
     Absolute,
     Plain,
-    Super,
+    /// One or more stacked `super` qualifiers. The payload is the number of *extra* `super`s
+    /// beyond the first, so `super::` is `Super(0)` and `super::super::` is `Super(1)`. Every
+    /// `usize` is therefore a valid value.
+    Super(usize),
     /// This path is a Crate or Dep path which always points to the given crate.
     /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
     Resolved(CrateId),
@@ -642,10 +645,16 @@ impl AssignOpKind {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
+    /// A path like `foo::bar`
     Path(Path),
+    /// `object.field_name`
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
+    /// `array[index]`
     Index { array: Box<LValue>, index: Expression, location: Location },
-    Dereference(Box<LValue>, Location),
+    /// A dereference `*expression`. Its target can be any expression.
+    /// However, during elaboration we check that its type is a mutable reference.
+    Dereference(Box<Expression>, Location),
+    /// An LValue wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
 }
 
@@ -733,10 +742,10 @@ impl LValue {
                     index: index.clone(),
                 }))
             }
-            LValue::Dereference(lvalue, _span) => {
+            LValue::Dereference(expr, _span) => {
                 ExpressionKind::Prefix(Box::new(crate::ast::PrefixExpression {
                     operator: crate::ast::UnaryOp::Dereference { implicitly_added: false },
-                    rhs: lvalue.as_expression(),
+                    rhs: expr.as_ref().clone(),
                 }))
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
@@ -766,10 +775,7 @@ impl LValue {
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    Some(LValue::Dereference(
-                        Box::new(LValue::from_expression(prefix.rhs)?),
-                        location,
-                    ))
+                    Some(LValue::Dereference(Box::new(prefix.rhs), location))
                 } else {
                     None
                 }
@@ -1044,7 +1050,15 @@ impl Display for PathKind {
         match self {
             PathKind::Crate => write!(f, "crate"),
             PathKind::Absolute => write!(f, ""),
-            PathKind::Super => write!(f, "super"),
+            PathKind::Super(extras) => {
+                for i in 0..=*extras {
+                    if i > 0 {
+                        write!(f, "::")?;
+                    }
+                    write!(f, "super")?;
+                }
+                Ok(())
+            }
             PathKind::Plain => write!(f, "plain"),
             PathKind::Resolved(_) => write!(f, "$crate"),
         }

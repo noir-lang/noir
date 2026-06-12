@@ -1,0 +1,6 @@
+error: variant tag 0 is used more than once
+  --> tests/compile_fail/enum_duplicate_variant_tag.rs:10:5
+   |
+10 | /     #[tag(0)]
+11 | |     Second,
+   | |__________^

@@ -21,7 +21,7 @@ pub(crate) struct LocationIndices {
 impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
         // Some location spans are empty: maybe they are from fictitious nodes?
-        if location.span.start() == location.span.end() {
+        if location.span.is_empty() {
             return;
         }
 

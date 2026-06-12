@@ -141,7 +141,7 @@ impl Elaborator<'_> {
             UnresolvedFunctions,
         )>,
     ) {
-        self.local_module = Some(local_module);
+        let previous_local_module = self.replace_local_module(local_module);
 
         for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
@@ -170,6 +170,8 @@ impl Elaborator<'_> {
 
             self.generics.clear();
         }
+
+        self.local_module = previous_local_module;
     }
 
     /// Registers each trait impl method as an unresolved meta, capturing the trait
@@ -363,6 +365,17 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
+
+        self.run_lint(|_| {
+            lints::databus_visibility_on_return(
+                func,
+                func.def.return_visibility,
+                func.def.return_visibility_location,
+                is_entry_point,
+            )
+            .map(Into::into)
+        });
+
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
             let output = true;
@@ -427,7 +440,6 @@ impl Elaborator<'_> {
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             return_visibility_location: func.def.return_visibility_location,
-            has_body: !func.def.body.is_empty(),
             trait_constraints,
             extra_trait_constraints,
             is_entry_point,
@@ -493,10 +505,12 @@ impl Elaborator<'_> {
         }
     }
 
-    /// True if the `pub` keyword is allowed on parameters in this function
-    /// `pub` on function parameters is only allowed for entry point functions
+    /// True if the `pub` keyword is allowed on parameters in this function.
+    /// `pub` on function parameters is only allowed for entry point functions: a `#[fold]`
+    /// function is compiled to its own circuit but is only ever called internally, so its
+    /// inputs are not public inputs of the program.
     fn pub_allowed(&self, func: &NoirFunction, in_contract: bool, is_crate_root: bool) -> bool {
-        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
+        func.is_entry_point(in_contract, is_crate_root)
     }
 
     /// Resolves function parameters and validates their types for entry points.
@@ -546,7 +560,7 @@ impl Elaborator<'_> {
                 .map(Into::into)
             });
             self.run_lint(|_| {
-                lints::databus_on_non_entry_point(
+                lints::databus_visibility_on_parameter(
                     func,
                     visibility,
                     visibility_location,
@@ -589,6 +603,12 @@ impl Elaborator<'_> {
                 &mut parameter_names_in_list,
             );
 
+            if is_entry_point && !is_identifier_pattern(&pattern) {
+                self.push_err(TypeCheckError::InvalidPatternForEntryPoint {
+                    location: pattern.location(),
+                });
+            }
+
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
@@ -626,12 +646,13 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
         self.run_lint(|_| {
-            let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
-            lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
+            lints::unnecessary_pub_return(func, modifiers, func.is_entry_point).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_marked_as_comptime(modifiers, func).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_parameter_is_reference(func, modifiers).map(Into::into));
         self.run_lint(|_| {
             lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
         });
@@ -671,7 +692,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = Some(func_meta.source_module);
+        let previous_local_module = self.replace_local_module(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
         self.current_trait = func_meta.trait_id;
@@ -788,5 +809,16 @@ impl Elaborator<'_> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+        self.local_module = previous_local_module;
+    }
+}
+
+/// Whether a pattern binds the whole value to a single name. ABI generation requires this for
+/// entry point parameters since each parameter is keyed by a single name.
+fn is_identifier_pattern(pattern: &HirPattern) -> bool {
+    match pattern {
+        HirPattern::Identifier(_) => true,
+        HirPattern::Mutable(inner, _) => is_identifier_pattern(inner),
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }

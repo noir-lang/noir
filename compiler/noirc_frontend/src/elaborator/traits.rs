@@ -205,6 +205,7 @@ struct TraitScopeState {
     generics: GenericsState,
     current_trait: Option<TraitId>,
     self_type: Option<Type>,
+    local_module: Option<crate::hir::def_map::LocalModuleId>,
 }
 
 impl Elaborator<'_> {
@@ -220,6 +221,7 @@ impl Elaborator<'_> {
             generics: self.enter_generics_scope(),
             current_trait: self.current_trait,
             self_type: self.self_type.clone(),
+            local_module: self.local_module,
         };
 
         self.local_module = Some(module_id);
@@ -238,6 +240,7 @@ impl Elaborator<'_> {
         self.exit_generics_scope(state.generics);
         self.current_trait = state.current_trait;
         self.self_type = state.self_type;
+        self.local_module = state.local_module;
     }
 }
 
@@ -839,8 +842,6 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
-        self.local_module = Some(unresolved_trait.module_id);
-
         let mut functions = vec![];
 
         for item in &unresolved_trait.trait_def.items {
@@ -1272,6 +1273,38 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+        }
+
+        // A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
+        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
+        // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
+        // `<Self::Target as Mappable>::Target` has a single answer via the real impl
+        // (`<bool as Mappable>::Target = u32`). Bind each such implicit generic to that answer so
+        // the trait method's signature matches the impl method's already-normalized signature.
+        // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
+        // assumes the projection's object is `Self` rather than a further associated type.
+        for constraint in &trait_fn_meta.trait_constraints {
+            let object_type = constraint.typ.substitute(&bindings);
+            let trait_bound = &constraint.trait_bound;
+            let ordered = vecmap(&trait_bound.trait_generics.ordered, |generic| {
+                generic.substitute(&bindings)
+            });
+            for named_arg in &trait_bound.trait_generics.named {
+                let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named_arg.typ else {
+                    continue;
+                };
+                if bindings.contains_key(&type_var.id()) {
+                    continue;
+                }
+                if let Some(normalized) = elaborator.normalize_rigid_associated_type(
+                    &object_type,
+                    trait_bound.trait_id,
+                    &ordered,
+                    named_arg.name.as_str(),
+                ) {
+                    bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), normalized));
+                }
+            }
         }
 
         // There is special handling expected for parent traits. Say we have code like this:

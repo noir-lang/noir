@@ -171,7 +171,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     }
 
     fn show_item_with_visibility(&mut self, item: Item, visibility: ItemVisibility) {
-        let module_def_id = item.module_def_id();
+        let Some(module_def_id) = item.module_def_id() else { return };
         let reference_id = module_def_id_to_reference_id(module_def_id);
         self.show_doc_comments(reference_id);
         self.show_module_def_id_attributes(module_def_id);

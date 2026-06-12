@@ -1049,7 +1049,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 0, u32 0)
               b1(v3: u32, v35: u32, v36: u32):
@@ -1089,7 +1089,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move_swap() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 1, u32 0)
               b1(v0: u32, v1: u32, v2: u32):

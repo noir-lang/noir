@@ -915,14 +915,16 @@ impl<'a> NodeFinder<'a> {
                     module_data = root_module_data;
                     skip_prelude_items = true;
                 }
-                PathKind::Super => {
-                    let Some(parent) = module_data.parent else {
-                        return;
-                    };
-                    let Some(parent_module_data) = def_map.get(parent) else {
-                        return;
-                    };
-                    module_data = parent_module_data;
+                PathKind::Super(extras) => {
+                    for _ in 0..=extras {
+                        let Some(parent) = module_data.parent else {
+                            return;
+                        };
+                        let Some(parent_module_data) = def_map.get(parent) else {
+                            return;
+                        };
+                        module_data = parent_module_data;
+                    }
                     skip_prelude_items = true;
                 }
                 PathKind::Absolute => (),
@@ -1159,7 +1161,8 @@ impl<'a> NodeFinder<'a> {
                 let typ = self.get_lvalue_type(array)?;
                 get_array_element_type(typ)
             }
-            LValue::Dereference(lvalue, ..) => self.get_lvalue_type(lvalue),
+            LValue::Dereference(expr, ..) => LValue::from_expression(expr.as_ref().clone())
+                .and_then(|lvalue| self.get_lvalue_type(&lvalue)),
             LValue::Interned(..) => None,
         }
     }
@@ -1687,9 +1690,11 @@ impl Visitor for NodeFinder<'_> {
         true
     }
 
-    fn visit_lvalue_dereference(&mut self, lvalue: &LValue, span: Span) -> bool {
+    fn visit_lvalue_dereference(&mut self, expr: &Expression, span: Span) -> bool {
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(lvalue) {
+            if let Some(typ) = LValue::from_expression(expr.clone())
+                .and_then(|lvalue| self.get_lvalue_type(&lvalue))
+            {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(

@@ -22,7 +22,7 @@ mod optimizers;
 mod simulator;
 pub mod validator;
 
-pub use simulator::CircuitSimulator;
+pub use simulator::{CircuitSimulator, SimulationFailure};
 
 /// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.

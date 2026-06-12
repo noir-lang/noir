@@ -11,6 +11,7 @@ use crate::{
     serialization::{self, deserialize_any_format, serialize_with_format},
 };
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -26,33 +27,42 @@ use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(allow_unknown_tags)]
 pub struct Program<F: AcirField> {
+    #[tag(0)]
     pub functions: Vec<Circuit<F>>,
+    #[tag(1)]
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
 /// is dictated by the construction of a [crate::native_types::WitnessMap]
-#[derive(Clone, PartialEq, Eq, Default, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Default, Hash, Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(allow_unknown_tags)]
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
+    #[tag(0)]
     pub function_name: String,
     /// The circuit opcodes representing the relationship between witness values.
     ///
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
+    #[tag(1)]
     pub opcodes: Vec<Opcode<F>>,
     /// The set of private inputs to the circuit.
+    #[tag(2)]
     pub private_parameters: BTreeSet<Witness>,
     // ACIR distinguishes between the public inputs which are provided externally or calculated within the circuit and returned.
     // The elements of these sets may not be mutually exclusive, i.e. a parameter may be returned from the circuit.
     // All public inputs (parameters and return values) must be provided to the verifier at verification time.
     /// The set of public inputs provided by the prover.
+    #[tag(3)]
     pub public_parameters: PublicInputs,
     /// The set of public inputs calculated within the circuit.
+    #[tag(4)]
     pub return_values: PublicInputs,
     /// Maps opcode locations to failed assertion payloads.
     /// The data in the payload is embedded in the circuit to provide useful feedback to users
@@ -61,24 +71,30 @@ pub struct Circuit<F: AcirField> {
     // Note: This should be a BTreeMap, but serde-reflect is creating invalid
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
+    #[tag(5)]
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
 /// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionOrMemory<F> {
+    #[tag(0)]
     Expression(Expression<F>),
+    #[tag(1)]
     Memory(BlockId),
 }
 
 /// Payload tied to an assertion failure.
 /// This data allows users to specify feedback upon a constraint not being satisfied in the circuit.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct AssertionPayload<F> {
     /// Selector that maps a hash of either a constant string or an internal compiler error type
     /// to an ABI type. The ABI type should then be used to appropriately resolve the payload data.
+    #[tag(0)]
     pub error_selector: u64,
     /// The dynamic payload data.
     ///
@@ -86,6 +102,7 @@ pub struct AssertionPayload<F> {
     /// in this payload can be decoded into the given ABI type.
     /// The payload is expected to be empty in the case of a constant string
     /// as the string can be contained entirely within the error type and ABI type.
+    #[tag(1)]
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
@@ -123,15 +140,23 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
+    #[tag(0)]
     Acir(usize),
     // TODO(https://github.com/noir-lang/noir/issues/5792): We can not get rid of this enum field entirely just yet as this format is still
     // used for resolving assert messages which is a breaking serialization change.
-    Brillig { acir_index: usize, brillig_index: usize },
+    #[tag(1)]
+    Brillig {
+        #[tag(0)]
+        acir_index: usize,
+        #[tag(1)]
+        brillig_index: usize,
+    },
 }
 
 /// Opcodes are locatable so that callers can
@@ -241,7 +266,7 @@ impl<F: AcirField> Circuit<F> {
     }
 }
 
-impl<F: Serialize + AcirField> Program<F> {
+impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     /// Compress a serialized [Program].
     fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
         let mut compressed: Vec<u8> = Vec::new();
@@ -276,7 +301,7 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> Program<F> {
     /// Decompress and deserialize bytes into a [Program].
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
@@ -411,7 +436,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
@@ -431,6 +456,7 @@ mod tests {
     use super::{Circuit, Compression};
     use crate::circuit::Program;
     use acir_field::{AcirField, FieldElement};
+    use msgpack_tagged::MsgpackTagged;
     use serde::{Deserialize, Serialize};
 
     #[test]
@@ -445,7 +471,7 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
-        fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField>(
+        fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField + MsgpackTagged>(
             program: Program<F>,
         ) -> (Program<F>, Program<F>) {
             let bytes = Program::serialize_program(&program);
@@ -523,9 +549,23 @@ mod tests {
         );
     }
 
+    /// This test is a reminder that when we slap `#[derive(MsgpackTagged)]` on type,
+    /// we only get immediate compilation errors for non-generic fields that
+    /// don't implement `MsgpackTagged`; for generic types like `Circuit<F>`
+    /// in `Program<F>`, we may or may not have an implementation, depending on `F`.
+    ///
+    /// A test like this brings out all the concrete missing implementations by
+    /// choosing a particular `F`.
+    #[test]
+    fn ensure_program_is_msgpack_tagged() {
+        fn assert_impl<T: MsgpackTagged>() {}
+        assert_impl::<Program<FieldElement>>();
+    }
+
     /// Property based testing for serialization
     mod props {
         use acir_field::FieldElement;
+        use msgpack_tagged::MsgpackTagged;
         use proptest::prelude::*;
         use proptest::test_runner::{TestCaseResult, TestRunner};
 
@@ -557,6 +597,11 @@ mod tests {
             }
         }
 
+        impl MsgpackTagged for TestField {
+            const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::empty_product();
+            fn register_into(_reg: &mut msgpack_tagged::TagRegistry) {}
+        }
+
         /// Override the maximum size of collections created by `proptest`.
         #[allow(unsafe_code)]
         fn run_with_max_size_range<T, F>(cases: u32, f: F)
@@ -583,11 +628,15 @@ mod tests {
             result.unwrap();
         }
 
+        /// Round-trip a `Program` through each `Format` variant chosen
+        /// arbitrarily. Uses `serialize_with_format` + `deserialize_any_format`
+        /// so the framing-byte dispatch is exercised too — picks the right
+        /// encoder/decoder pair per format under one test name.
         #[test]
-        fn prop_program_msgpack_roundtrip() {
-            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
-                let bz = msgpack_serialize(&program, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_program_arb_roundtrip() {
+            run_with_max_size_range(100, |(program, format): (Program<TestField>, Format)| {
+                let bz = serialize_with_format(&program, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -604,10 +653,10 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_stack_msgpack_roundtrip() {
-            run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
-                let bz = msgpack_serialize(&witness, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_witness_stack_arb_roundtrip() {
+            run_with_max_size_range(10, |(witness, format): (WitnessStack<TestField>, Format)| {
+                let bz = serialize_with_format(&witness, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -624,10 +673,10 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_map_msgpack_roundtrip() {
-            run_with_max_size_range(10, |(witness, compact): (WitnessMap<TestField>, bool)| {
-                let bz = msgpack_serialize(&witness, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_witness_map_arb_roundtrip() {
+            run_with_max_size_range(10, |(witness, format): (WitnessMap<TestField>, Format)| {
+                let bz = serialize_with_format(&witness, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

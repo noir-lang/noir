@@ -1,0 +1,6 @@
+[package]
+name = "arithmetic_generics_intermediate_underflow_simplified"
+type = "bin"
+authors = [""]
+
+[dependencies]

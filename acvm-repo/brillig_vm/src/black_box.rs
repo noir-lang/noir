@@ -151,21 +151,21 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     BlackBoxResolutionError::Failed(bb_func, "Invalid signature length".to_string())
                 })?;
 
-            let hashed_msg = to_u8_vec(read_heap_array(memory, hashed_msg));
+            let hashed_msg: [u8; 32] =
+                to_u8_vec(read_heap_array(memory, hashed_msg)).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        bb_func,
+                        "Invalid hashed message length".to_string(),
+                    )
+                })?;
 
             let result = match op {
-                BlackBoxOp::EcdsaSecp256k1 { .. } => ecdsa_secp256k1_verify(
-                    &hashed_msg.try_into().unwrap(),
-                    &public_key_x,
-                    &public_key_y,
-                    &signature,
-                )?,
-                BlackBoxOp::EcdsaSecp256r1 { .. } => ecdsa_secp256r1_verify(
-                    &hashed_msg.try_into().unwrap(),
-                    &public_key_x,
-                    &public_key_y,
-                    &signature,
-                )?,
+                BlackBoxOp::EcdsaSecp256k1 { .. } => {
+                    ecdsa_secp256k1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
+                }
+                BlackBoxOp::EcdsaSecp256r1 { .. } => {
+                    ecdsa_secp256r1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
+                }
                 _ => unreachable!("`BlackBoxOp` is guarded against being a non-ecdsa operation"),
             };
 
@@ -339,6 +339,91 @@ fn to_be_radix<F: AcirField>(
     }
 
     Ok(limbs)
+}
+
+#[cfg(test)]
+mod ecdsa_tests {
+    use acir::brillig::lengths::SemiFlattenedLength;
+    use acir::brillig::{BlackBoxOp, HeapArray, MemoryAddress};
+    use acvm_blackbox_solver::{BlackBoxResolutionError, StubbedBlackBoxSolver};
+
+    use crate::Memory;
+    use crate::black_box::evaluate_black_box;
+    use crate::memory::MemoryValue;
+
+    use acir::FieldElement;
+
+    /// Writes a byte array into memory and returns a [HeapArray] pointing at it.
+    ///
+    /// `pointer_addr` holds the address of the items, `items_addr` is where the
+    /// bytes are stored. `len` is the size advertised by the heap array, which is
+    /// allowed to differ from `bytes.len()` so tests can exercise mismatched sizes.
+    fn write_heap_array(
+        memory: &mut Memory<FieldElement>,
+        pointer_addr: u32,
+        items_addr: u32,
+        bytes: &[u8],
+        len: u32,
+    ) -> HeapArray {
+        let pointer = MemoryAddress::direct(pointer_addr);
+        memory.write_ref(pointer, MemoryAddress::direct(items_addr));
+        let values: Vec<MemoryValue<FieldElement>> = bytes.iter().map(|&b| b.into()).collect();
+        memory.write_slice(MemoryAddress::direct(items_addr), &values);
+        HeapArray { pointer, size: SemiFlattenedLength(len) }
+    }
+
+    /// A `hashed_msg` of the wrong length must surface a recoverable
+    /// [BlackBoxResolutionError], not panic the VM.
+    #[test]
+    fn ecdsa_secp256k1_rejects_wrong_hashed_msg_length() {
+        let mut memory = Memory::default();
+
+        // Valid lengths for the keys and signature so evaluation reaches the
+        // `hashed_msg` length check.
+        let public_key_x = write_heap_array(&mut memory, 0, 1000, &[0u8; 32], 32);
+        let public_key_y = write_heap_array(&mut memory, 1, 2000, &[0u8; 32], 32);
+        let signature = write_heap_array(&mut memory, 2, 3000, &[0u8; 64], 64);
+        // A 31-byte hashed message: one short of the expected 32.
+        let hashed_msg = write_heap_array(&mut memory, 3, 4000, &[0u8; 31], 31);
+
+        let op = BlackBoxOp::EcdsaSecp256k1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result: MemoryAddress::direct(5),
+        };
+
+        let result = evaluate_black_box(&op, &StubbedBlackBoxSolver, &mut memory);
+        assert!(
+            matches!(result, Err(BlackBoxResolutionError::Failed(..))),
+            "expected a recoverable error, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn ecdsa_secp256r1_rejects_wrong_hashed_msg_length() {
+        let mut memory = Memory::default();
+
+        let public_key_x = write_heap_array(&mut memory, 0, 1000, &[0u8; 32], 32);
+        let public_key_y = write_heap_array(&mut memory, 1, 2000, &[0u8; 32], 32);
+        let signature = write_heap_array(&mut memory, 2, 3000, &[0u8; 64], 64);
+        let hashed_msg = write_heap_array(&mut memory, 3, 4000, &[0u8; 31], 31);
+
+        let op = BlackBoxOp::EcdsaSecp256r1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result: MemoryAddress::direct(5),
+        };
+
+        let result = evaluate_black_box(&op, &StubbedBlackBoxSolver, &mut memory);
+        assert!(
+            matches!(result, Err(BlackBoxResolutionError::Failed(..))),
+            "expected a recoverable error, got {result:?}"
+        );
+    }
 }
 
 #[cfg(test)]

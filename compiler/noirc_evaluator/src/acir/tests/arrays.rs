@@ -364,7 +364,7 @@ fn zero_length_array_dynamic_predicate() {
 #[test]
 fn non_homogenous_array_dynamic_access() {
     let src = r#"
-    acir(inline) pure fn main f0 {
+    acir(inline) predicate_pure fn main f0 {
       b0(v0: [(Field, [Field; 3], [Field; 3]); 4], v1: u32):
         v2 = array_get v0, index v1 -> [Field; 3]
         return v2
@@ -410,7 +410,7 @@ fn non_homogenous_array_dynamic_access() {
 #[test]
 fn make_dynamic_array_value_types() {
     let src = r#"
-    acir(inline) pure fn main f0 {
+    acir(inline) predicate_pure fn main f0 {
       b0(v0: [[([Field; 2], u8); 3]; 4], v1: u32, v2: [([Field; 2], u8); 3]):
         v3, v4 = call as_vector(v0) -> (u32, [[([Field; 2], u8); 3]])
         v5 = array_set v4, index v1, value v2

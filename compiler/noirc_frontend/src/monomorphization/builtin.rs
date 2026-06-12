@@ -188,13 +188,26 @@ impl Monomorphizer<'_> {
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type, location);
-                ast::Expression::Literal(ast::Literal::Repeated {
-                    element: Box::new(element),
-                    length: *length,
-                    is_vector: false,
-                    typ: ast::Type::Array(*length, element_type.clone()),
-                })
+                let typ = ast::Type::Array(*length, element_type.clone());
+                if element_type.contains_reference() {
+                    // A reference lowers to a single `allocate`, so a repeated array literal would
+                    // make every slot share one allocation. Author N independent elements instead
+                    // so each slot gets its own cell, matching the `Tuple` arm below.
+                    let contents =
+                        vecmap(0..*length, |_| self.zeroed_value_of_type(element_type, location));
+                    ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                        contents,
+                        typ,
+                    }))
+                } else {
+                    let element = self.zeroed_value_of_type(element_type, location);
+                    ast::Expression::Literal(ast::Literal::Repeated {
+                        element: Box::new(element),
+                        length: *length,
+                        is_vector: false,
+                        typ,
+                    })
+                }
             }
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str(vec![0; *length as usize]))
@@ -260,7 +273,17 @@ impl Monomorphizer<'_> {
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
-        let parameters = vecmap(parameter_types, |parameter_type| {
+        let mut parameters = Vec::with_capacity(parameter_types.len() + 1);
+        if !matches!(env_type.as_ref(), ast::Type::Unit) {
+            parameters.push((
+                self.next_local_id(),
+                true,
+                "env".into(),
+                env_type.clone(),
+                Visibility::Private,
+            ));
+        }
+        parameters.extend(parameter_types.iter().map(|parameter_type| {
             (
                 self.next_local_id(),
                 false,
@@ -268,7 +291,7 @@ impl Monomorphizer<'_> {
                 Rc::new(parameter_type.clone()),
                 Visibility::Private,
             )
-        });
+        }));
 
         let body = self.zeroed_value_of_type(&ret_type, location);
 

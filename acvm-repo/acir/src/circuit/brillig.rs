@@ -30,15 +30,20 @@ use super::opcodes::BlockId;
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
 use brillig::Opcode as BrilligOpcode;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Inputs for the Brillig VM. These are the initial inputs
 /// that the Brillig VM will use to start.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligInputs<F> {
+    #[tag(0)]
     Single(Expression<F>),
+    #[tag(1)]
     Array(Vec<Expression<F>>),
+    #[tag(2)]
     MemoryArray(BlockId),
 }
 
@@ -57,10 +62,13 @@ impl<F: AcirField> std::fmt::Display for BrilligInputs<F> {
 
 /// Outputs for the Brillig VM. Once the VM has completed
 /// execution, this will be the object that is returned.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOutputs {
+    #[tag(0)]
     Simple(Witness),
+    #[tag(1)]
     Array(Vec<Witness>),
 }
 
@@ -80,19 +88,22 @@ impl std::fmt::Display for BrilligOutputs {
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligFunctionId].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Debug, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(allow_unknown_tags)]
 pub struct BrilligBytecode<F> {
     #[serde(default)] // For backwards compatibility
+    #[tag(0)]
     pub function_name: String,
+    #[tag(1)]
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
 
 /// Id for the function being called.
 /// Indexes into the table of Brillig function's specified in a [program][super::Program]
-#[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default, PartialOrd, Ord,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy, Default, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
 pub struct BrilligFunctionId(pub u32);

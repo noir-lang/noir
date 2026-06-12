@@ -476,7 +476,8 @@ impl<F: AcirField> Memory<F> {
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
         let resolved_addr = assert_usize(self.resolve(address));
-        self.resize_to_fit(resolved_addr + 1);
+        // Saturate avoids errors, and leave them to `resize_to_fit`
+        self.resize_to_fit(resolved_addr.saturating_add(1));
         self.inner[resolved_addr] = value;
         if address == STACK_POINTER_ADDRESS
             && let MemoryValue::U32(sp) = value

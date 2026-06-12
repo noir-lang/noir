@@ -48,6 +48,6 @@ document.getElementById('submit').addEventListener('click', async () => {
     show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
     // docs:end:verify
   } catch {
-    show('logs', 'Oh 💔');
+    show('logs', 'Something went wrong');
   }
 });

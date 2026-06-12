@@ -138,12 +138,22 @@ fn forward_loads_and_stores_in_block(
                 instruction.for_each_value(|v| call_values.push(v));
                 for value in call_values {
                     let value = inserter.resolve(value);
-                    if !inserter.function.dfg.type_of_value(value).contains_reference() {
+                    let typ = inserter.function.dfg.type_of_value(value);
+                    if !typ.contains_reference() {
                         continue;
                     }
                     let value = GlobalValueId::new(inserter.function, value);
-                    // check against `a` for consistency with other checks, but here it does not matter.
-                    known_values.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
+                    // We check against the original address `a` for consistency with the other
+                    // handlers, but here it does not matter.
+
+                    // A call can only *write* through an argument that exposes a mutable
+                    // reference, so cached loaded values are only invalidated by those.
+                    if typ.contains_mutable_reference() {
+                        known_values.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
+                    }
+                    // Any reference argument, mutable or not, can be *read* by the callee,
+                    // so a prior store to an aliasing address is observable and must be kept
+                    // live rather than eliminated as a dead store.
                     last_stores.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
                 }
             }
@@ -651,6 +661,34 @@ mod tests {
         // must NOT be eliminated as a dead store, because `load v5` (where v5
         // is loaded from v2, which aliases v3 after `store v3 at v2`) reads
         // through the alias in the next iteration.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn loop_carried_alias_via_block_parameter() {
+        // Form 2 of loop-carried aliases: mem2reg_simple has promoted the
+        // `store ref at ref` / `load ref` into a reference-typed block parameter.
+        //
+        // This is the promoted version of `loop_carried_alias_prevents_incorrect_dead_store`:
+        // instead of `store v3 at v2` + `v5 = load v2`, the reference is passed
+        // as a block parameter via jmp.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1(v0)
+          b1(v2: &mut Field):
+            store Field 1 at v1
+            v3 = load v2 -> Field
+            store v3 at v1
+            jmp b1(v1)
+        }
+        ";
+        // v2 is a reference-typed loop header parameter. In the first iteration
+        // v2 == v0, but from the second iteration onward v2 == v1 (passed via jmp).
+        // When v2 == v1, `store Field 1 at v1` writes the value that `load v2` reads.
+        // That store must NOT be eliminated as dead (overwritten by `store v3 at v1`).
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
@@ -1363,6 +1401,120 @@ mod tests {
             v4 = if v0 then v2 else (if v3) v1
             store Field 2 at v4
             return Field 2
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_immutable_reference_does_not_invalidate_cache() {
+        // A call that only receives an immutable reference cannot write through
+        // it, so cached values for that address must remain valid after the call
+        // and the second load can be forwarded to v1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The call only holds an immutable reference; it cannot modify v0's
+        // memory. The second load is forwarded to v1.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            return v1
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_immutable_reference_keeps_observed_store_live() {
+        // A call that receives an immutable reference can still *read* through it.
+        // A store before such a call is therefore observable and must not be
+        // eliminated as dead when a later store overwrites the same address.
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1378.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0(v0: &mut Field, v1: &Field):
+            store Field 1 at v0
+            call f1(v1)
+            store Field 2 at v0
+            return
+        }
+        acir(inline) fn reader f1 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The `store Field 1 at v0` is read by the call through the immutable
+        // alias v1, so it must survive.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn foo f0 {
+          b0(v0: &mut Field, v1: &Field):
+            store Field 1 at v0
+            call f1(v1)
+            store Field 2 at v0
+            return
+        }
+        acir(inline) fn reader f1 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_nested_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [] : [&mut u32; 0]
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut u32; 0]):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The call `call f1(v1)` has a reference but it cannot impact v0.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [] : [&mut u32; 0]
+            call f1(v2)
+            return Field 1
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut u32; 0]):
+            return
         }
         ");
     }

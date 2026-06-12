@@ -335,6 +335,18 @@ impl Type {
         }
     }
 
+    /// True if this is a mutable reference type or
+    /// if it is a composite type which contains a mutable reference.
+    pub(crate) fn contains_mutable_reference(&self) -> bool {
+        match self {
+            Type::Reference(element, mutable) => *mutable || element.contains_mutable_reference(),
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().any(|elem| elem.contains_mutable_reference())
+            }
+        }
+    }
+
     /// True if this is a function type or if it is a composite type which contains a function.
     pub(crate) fn contains_function(&self) -> bool {
         match self {

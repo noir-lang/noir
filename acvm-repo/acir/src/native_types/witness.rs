@@ -1,9 +1,9 @@
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// An index that represents the position a witness value will take
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Witness(pub u32);
 

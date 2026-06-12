@@ -993,8 +993,8 @@ fn lvalue_with_file(lvalue: LValue, file: FileId) -> LValue {
             index: expression_with_file(index, file),
             location: location_with_file(location, file),
         },
-        LValue::Dereference(lvalue, location) => LValue::Dereference(
-            Box::new(lvalue_with_file(*lvalue, file)),
+        LValue::Dereference(expr, location) => LValue::Dereference(
+            Box::new(expression_with_file(*expr, file)),
             location_with_file(location, file),
         ),
         LValue::Interned(interned_expression_kind, location) => {

@@ -308,6 +308,7 @@ mod tests {
         circuit::{Circuit, brillig::BrilligFunctionId},
         native_types::{Expression, Witness},
     };
+    use test_case::test_case;
 
     #[test]
     fn correctly_calculates_memory_block_implied_max_bits() {
@@ -714,5 +715,50 @@ mod tests {
         BLACKBOX::RANGE input: w2, bits: 64
         BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ");
+    }
+
+    // A MultiScalarMul only implicitly range-constrains its scalars when it is enabled, i.e. when
+    // the predicate is the constant 1. A constant-0 predicate disables the opcode, and a witness
+    // predicate can be assigned 0 by the prover; in both cases barretenberg imposes no constraint
+    // on the scalars, so the optimizer must not treat the MSM as a source of implied ranges and the
+    // explicit RANGE opcodes must survive.
+    #[test_case("0"; "constant zero predicate")]
+    #[test_case("w7"; "witness predicate")]
+    fn msm_disabled_predicate_retains_explicit_range(predicate: &str) {
+        // `w7` is declared regardless; an unused private parameter is harmless for the constant case.
+        let src = format!(
+            "
+            private parameters: [w1, w2, w3, w4, w5, w6, w7]
+            public parameters: []
+            return values: []
+            BLACKBOX::RANGE input: w1, bits: 128
+            BLACKBOX::RANGE input: w2, bits: 128
+            BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: {predicate}, outputs: [w5, w6]
+            "
+        );
+        let circuit = Circuit::from_str(&src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+
+        // The disabled MSM must not contribute any implied range; the constraint on each scalar must
+        // come from its explicit RANGE opcode.
+        for scalar in [Witness(1), Witness(2)] {
+            let info = optimizer.infos.get(&scalar).expect("scalar should have range info");
+            assert_eq!(info.num_bits, 128, "only the explicit 128-bit range should apply");
+            assert!(
+                !info.is_implied,
+                "constraint should come from the explicit RANGE, not the MSM"
+            );
+        }
+
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+
+        // Nothing is removed: the optimized circuit is identical to the input.
+        let expected = Circuit::<FieldElement>::from_str(&src).unwrap().to_string();
+        assert_eq!(optimized_circuit.to_string(), expected, "no opcode should be removed");
     }
 }

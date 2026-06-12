@@ -232,6 +232,8 @@ pub enum OpcodeResolutionError<F> {
         "{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen"
     )]
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
+    #[error("Brillig function {function_id} returned data inconsistent with its call outputs")]
+    BrilligOutputsMismatch { function_id: BrilligFunctionId },
     #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}")]
     PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
     #[error("(--pedantic): Memory operations are expected to be 0 or 1, but found: {operation}")]

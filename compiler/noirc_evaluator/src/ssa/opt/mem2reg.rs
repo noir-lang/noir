@@ -36,6 +36,9 @@ impl Ssa {
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.mem2reg();
+
+            #[cfg(debug_assertions)]
+            mem2reg_post_check(function);
         }
         self
     }
@@ -46,17 +49,30 @@ impl Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
                 function.mem2reg();
+
+                #[cfg(debug_assertions)]
+                mem2reg_post_check(function);
             }
         }
         self
     }
 }
 
+/// Post-check condition for [Function::mem2reg].
+///
+/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
+/// passing a different number of arguments (or differently typed arguments) than its
+/// destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn mem2reg_post_check(function: &Function) {
+    crate::ssa::validation::validate_terminators(function);
+}
+
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let mut dom_frontiers = None;
         let blocks = post_order.into_vec_reverse();
 
@@ -139,8 +155,12 @@ type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 /// Contains the starting & ending values of each variable in one block
 #[derive(Default)]
 struct BlockState {
-    /// Maps each variable visible in this block to its starting value in the block. This is always
-    /// a block parameter or a forwarded value from a previous block.
+    /// Maps each variable visible in this block to its starting value in the block. This is
+    /// normally a block parameter or a value forwarded from a previous block.
+    ///
+    /// In the block where a variable is declared the variable is not yet defined at block entry,
+    /// so it is mapped to its own allocate result as a placeholder. `abstract_interpret_block`
+    /// overwrites this with the real value once it processes the variable's initial `Store`.
     entry_state: BTreeMap<ValueId, ValueId>,
 
     /// Maps each variable modified within this block to the value it is set to at the end of
@@ -274,7 +294,9 @@ fn compute_entry_state(
         .iter()
         .filter_map(|(var, decl_block)| {
             let value = if block == *decl_block {
-                // Declaration block: use original allocate result
+                // Declaration block: the variable is not yet defined at block entry, so map it to
+                // its own allocate result as a placeholder. `abstract_interpret_block` replaces it
+                // with the real value when it processes the variable's initial `Store`.
                 *var
             } else if param_locations[var].contains(&block) {
                 // IDF block: add a block parameter for this variable

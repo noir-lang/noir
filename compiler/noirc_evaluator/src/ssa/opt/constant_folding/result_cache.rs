@@ -110,7 +110,7 @@ impl InstructionResultCache {
     pub(super) fn get(
         &self,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         id: InstructionId,
         instruction: &Instruction,
         predicate: Option<ValueId>,
@@ -144,7 +144,7 @@ impl InstructionResultCache {
 
     pub(super) fn cache(
         &mut self,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
@@ -232,8 +232,21 @@ impl InstructionResultCache {
 
         // Should we consider calls to vector_push_back and similar to be mutating operations as well?
         match instruction {
-            Store { value, .. } | ArraySet { array: value, .. } => {
-                // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
+            // A mutable `array_set` writes through its input array's backing store in place rather
+            // than producing a fresh array, so the input is no longer safe to reuse. In ACIR the
+            // `mutable` flag is only set by `mutable_array_set_optimization`, which runs after
+            // constant folding; keying off the flag (rather than the runtime) keeps this invalidation
+            // correct even if that ordering ever changes. In Brillig in-place mutation happens under
+            // copy-on-write regardless of the flag, which the runtime-guarded arm below handles.
+            ArraySet { array: value, mutable: true, .. } => {
+                remove_if_array(value);
+            }
+            // In Brillig, `array_set`/`store` may mutate their array operand in place under
+            // copy-on-write, so the operand is not safe for reuse. In ACIR these are value-semantic:
+            // a non-mutable `array_set` produces a fresh array, and a `store` cannot lead to in-place
+            // mutation because the only source of mutable sets (`mutable_array_set_optimization`)
+            // runs after mem2reg has removed all loads/stores, so the two never coexist.
+            Store { value, .. } | ArraySet { array: value, .. } if dfg.runtime().is_brillig() => {
                 remove_if_array(value);
             }
             Call { arguments, func } if dfg.runtime().is_brillig() => {
@@ -263,7 +276,7 @@ pub(super) struct ResultCache {
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
+    fn cache(&mut self, block: BasicBlockId, dom: &DominatorTree, results: Vec<ValueId>) {
         let overwrite = match self.result {
             None => true,
             Some((origin, _)) => origin != block && dom.dominates(block, origin),
@@ -283,7 +296,7 @@ impl ResultCache {
     pub(super) fn get(
         &self,
         block: BasicBlockId,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
         let (origin, results) = self.result.as_ref()?;

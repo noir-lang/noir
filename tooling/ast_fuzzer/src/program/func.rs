@@ -394,6 +394,7 @@ impl<'a> FunctionContext<'a> {
                 return Ok(Some(VariableId::Local(id)));
             }
         }
+
         // If we're looking for a mutable reference, we have to choose some
         // mutable local variable and take a reference over it.
         // We can't use a global for this, because they are immutable.
@@ -413,6 +414,12 @@ impl<'a> FunctionContext<'a> {
                 })
                 .map(|id| id.map(VariableId::Local));
         }
+
+        // If we are looking for a read-only reference, we can choose anything that has the target type.
+        if let Type::Reference(typ, false) = typ {
+            return self.choose_producer(u, typ);
+        }
+
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
     }
 
@@ -724,6 +731,11 @@ impl<'a> FunctionContext<'a> {
                 } else {
                     self.indirect_ref_mut((src_expr, src_dyn), typ.as_ref().clone())
                 };
+                Ok(Some((expr, src_dyn)))
+            }
+            // Read-only reference over the source type.
+            (_, Type::Reference(typ, false)) if typ.as_ref() == src_type => {
+                let expr = expr::ref_with_mut(src_expr, typ.as_ref().clone(), false);
                 Ok(Some((expr, src_dyn)))
             }
             // Index a non-empty array.
@@ -1313,9 +1325,18 @@ impl<'a> FunctionContext<'a> {
             .filter(|(_, (mutable, _, typ))| {
                 // We banned reassigning variables which contain mutable references in ACIR (#8790)
                 *mutable && (self.unconstrained() || !types::contains_reference(typ))
-                // We can always assign to &mut references via deref,
-                // even if they are not themselves mutable.
-                || matches!(typ, Type::Reference(_, true))
+                // We can deref-assign to `&mut` references even if they are not
+                // themselves mutable, but only when the pointee does not itself
+                // contain a reference. In constrained code the frontend rejects
+                // assigning a reference-containing value (`*r = (&mut x, ..)`),
+                // and the AST fuzzer bypasses that check, so SSA-gen would fail
+                // while flattening tries to merge the reference.
+                || match typ {
+                    Type::Reference(inner, true) => {
+                        self.unconstrained() || !types::contains_reference(inner)
+                    }
+                    _ => false,
+                }
             })
             .filter(|(id, (_, _, typ))| {
                 // Preserve the non-dynamic state of references.

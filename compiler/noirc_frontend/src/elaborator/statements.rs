@@ -800,38 +800,70 @@ impl Elaborator<'_> {
                 let array_type = typ.clone();
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
             }
-            LValue::Dereference(lvalue, location) => {
-                let (lvalue, reference_type, mut mutable, statements) =
-                    self.elaborate_lvalue(*lvalue, false);
-                let lvalue = Box::new(lvalue);
-
+            LValue::Dereference(operand, location) => {
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
-                if is_assignment_target {
-                    // The final dereference must be a mutable reference since we're storing to it
-                    let expected_type = Type::Reference(Box::new(element_type.clone()), true);
-                    self.unify_or_type_mismatch(&reference_type, &expected_type, location);
+                // If the operand is itself a place (e.g. `*x`, `**x`, `*arr[i]`) we elaborate it
+                // as an lvalue, preserving the existing lowering. Otherwise it is an arbitrary
+                // value expression that evaluates to a reference (e.g. `*(&mut x)`); we evaluate it
+                // and bind it to a fresh local so the inner lvalue is a simple identifier.
+                if let Some(place) = LValue::from_expression((*operand).clone()) {
+                    let (lvalue, reference_type, mut mutable, statements) =
+                        self.elaborate_lvalue(place, false);
+
+                    self.unify_dereference_reference(
+                        &reference_type,
+                        &element_type,
+                        is_assignment_target,
+                        location,
+                    );
+
+                    // Check mutability after unification so that type variables are resolved first
+                    if let Type::Reference(_, is_mutable) =
+                        reference_type.follow_bindings_shallow().as_ref()
+                    {
+                        mutable = *is_mutable;
+                    }
+
+                    let lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(lvalue),
+                        element_type: element_type.clone(),
+                        location,
+                        implicitly_added: false,
+                    };
+                    (lvalue, element_type, mutable, statements)
                 } else {
-                    // Intermediate dereferences can be immutable
-                    let expected_type = Type::Reference(Box::new(element_type.clone()), false);
-                    self.unify_with_reference_coercion(&reference_type, &expected_type, location);
-                }
+                    let (reference, reference_type) = self.elaborate_expression(*operand);
 
-                // Check mutability after unification so that type variables are resolved first
-                if let Type::Reference(_, is_mutable) =
-                    reference_type.follow_bindings_shallow().as_ref()
-                {
-                    mutable = *is_mutable;
-                }
+                    self.unify_dereference_reference(
+                        &reference_type,
+                        &element_type,
+                        is_assignment_target,
+                        location,
+                    );
 
-                let typ = element_type.clone();
-                let lvalue = HirLValue::Dereference {
-                    lvalue,
-                    element_type,
-                    location,
-                    implicitly_added: false,
-                };
-                (lvalue, typ, mutable, statements)
+                    let mutable = matches!(
+                        reference_type.follow_bindings_shallow().as_ref(),
+                        Type::Reference(_, true)
+                    );
+
+                    if is_assignment_target && !mutable {
+                        // The operand isn't a mutable reference; the unification above already
+                        // reported the mismatch. Returning an error lvalue avoids emitting a
+                        // second diagnostic that would mention the synthesized binding below.
+                        return (HirLValue::Error { location }, Type::Error, false, Vec::new());
+                    }
+
+                    let (binding, ident_lvalue) =
+                        self.fresh_reference_binding(reference, reference_type, location);
+                    let lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(ident_lvalue),
+                        element_type: element_type.clone(),
+                        location,
+                        implicitly_added: false,
+                    };
+                    (lvalue, element_type, mutable, vec![binding])
+                }
             }
             LValue::Interned(id, location) => {
                 let lvalue = self.interner.get_lvalue(id, location);
@@ -874,6 +906,49 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
+    /// Unifies the type of a dereference's operand against the expected reference type. A
+    /// dereference used as the final assignment target must be a mutable reference; intermediate
+    /// dereferences may be immutable.
+    fn unify_dereference_reference(
+        &mut self,
+        reference_type: &Type,
+        element_type: &Type,
+        is_assignment_target: bool,
+        location: Location,
+    ) {
+        if is_assignment_target {
+            let expected_type = Type::Reference(Box::new(element_type.clone()), true);
+            self.unify_or_type_mismatch(reference_type, &expected_type, location);
+        } else {
+            let expected_type = Type::Reference(Box::new(element_type.clone()), false);
+            self.unify_with_reference_coercion(reference_type, &expected_type, location);
+        }
+    }
+
+    /// Binds `reference` (a value of reference type) to a fresh local and returns the binding
+    /// statement together with an [`HirLValue`] referring to it. This lets a dereference whose
+    /// operand is an arbitrary reference-producing expression reuse the same lowering as `*ident`.
+    fn fresh_reference_binding(
+        &mut self,
+        reference: ExprId,
+        typ: Type,
+        location: Location,
+    ) -> (StmtId, HirLValue) {
+        let counter = self.next_lvalue_index_counter();
+        let id = self.interner.push_definition(
+            format!("deref_{counter}"),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
+        let ident = HirIdent::non_trait_method(id, location);
+        let pattern = HirPattern::Identifier(ident.clone());
+        let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ.clone(), reference));
+        let let_ = self.interner.push_stmt_full(let_, location);
+        (let_, HirLValue::Ident(ident, typ))
+    }
+
     fn fresh_definition_for_side_effect_extraction(
         &mut self,
         expr: ExprId,

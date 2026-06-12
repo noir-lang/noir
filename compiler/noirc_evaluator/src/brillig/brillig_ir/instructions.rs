@@ -123,6 +123,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             result.bit_size,
             operation
         );
+        assert!(
+            lhs.bit_size == rhs.bit_size,
+            "Binary operation {operation:?} on mismatched bit sizes: lhs {}, rhs {}",
+            lhs.bit_size,
+            rhs.bit_size
+        );
 
         if let BrilligBinaryOp::Modulo = operation {
             self.modulo(result, lhs, rhs);

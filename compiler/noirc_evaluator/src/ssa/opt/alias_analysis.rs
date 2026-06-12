@@ -654,7 +654,7 @@ impl AliasAnalysisContext {
         }
 
         let mut allocations = vec![AllocationLattice::Undef; params.len()];
-        let mut meet_arguments = |args: &[ValueId]| {
+        let mut join_arguments = |args: &[ValueId]| {
             for (i, &arg) in args.iter().enumerate() {
                 let l = self.get_allocation(GlobalValueId::new(function, arg));
                 allocations[i] = allocations[i].join(l);
@@ -670,15 +670,15 @@ impl AliasAnalysisContext {
                     ..
                 } => {
                     if *then_destination == block_id {
-                        meet_arguments(then_arguments);
+                        join_arguments(then_arguments);
                     }
                     if *else_destination == block_id {
-                        meet_arguments(else_arguments);
+                        join_arguments(else_arguments);
                     }
                 }
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
                     debug_assert_eq!(*destination, block_id);
-                    meet_arguments(arguments);
+                    join_arguments(arguments);
                 }
                 TerminatorInstruction::Return { .. }
                 | TerminatorInstruction::Unreachable { .. } => {

@@ -26,6 +26,8 @@ use acvm::{
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+#[cfg(debug_assertions)]
+pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
@@ -1084,85 +1086,6 @@ impl<'f> Validator<'f> {
         }
     }
 
-    fn validate_block_terminator(&self, block: BasicBlockId) {
-        let terminator = self.function.dfg[block]
-            .terminator()
-            .expect("Block is expected to have a terminator instruction");
-
-        let entry_block = self.function.entry_block();
-        match terminator {
-            TerminatorInstruction::JmpIf {
-                condition,
-                then_destination,
-                then_arguments,
-                else_destination,
-                else_arguments,
-                call_stack: _,
-            } => {
-                let condition_type = self.function.dfg.type_of_value(*condition);
-                assert_ne!(
-                    *then_destination, entry_block,
-                    "Entry block cannot be the target of a jump"
-                );
-                assert_ne!(
-                    *else_destination, entry_block,
-                    "Entry block cannot be the target of a jump"
-                );
-                assert_eq!(
-                    *condition_type,
-                    Type::bool(),
-                    "JmpIf conditions should have boolean type"
-                );
-                self.check_jump_arguments_match_block_parameters(
-                    *then_destination,
-                    then_arguments,
-                    "jmpif then branch",
-                );
-                self.check_jump_arguments_match_block_parameters(
-                    *else_destination,
-                    else_arguments,
-                    "jmpif else branch",
-                );
-            }
-            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
-                self.check_jump_arguments_match_block_parameters(*destination, arguments, "jmp");
-            }
-            TerminatorInstruction::Return { return_values, .. } => {
-                if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
-                    assert_eq!(
-                        *return_values,
-                        vec![return_data_id],
-                        "Databus return_data does not match return terminator"
-                    );
-                }
-            }
-            TerminatorInstruction::Unreachable { .. } => (),
-        }
-    }
-
-    fn check_jump_arguments_match_block_parameters(
-        &self,
-        destination: BasicBlockId,
-        arguments: &[ValueId],
-        kind: &str,
-    ) {
-        let block_parameters = self.function.dfg.block_parameters(destination);
-        assert_eq!(
-            arguments.len(),
-            block_parameters.len(),
-            "Number of arguments in {kind} must match number of block parameters"
-        );
-        for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
-            let argument_type = self.function.dfg.type_of_value(*argument);
-            let parameter_type = self.function.dfg.type_of_value(*parameter);
-            assert!(
-                argument_type.canonical_eq(&parameter_type),
-                "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
-            );
-        }
-    }
-
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
@@ -1176,7 +1099,7 @@ impl<'f> Validator<'f> {
                 self.check_calls_in_unconstrained(*instruction);
                 self.check_calls_in_constrained(*instruction);
             }
-            self.validate_block_terminator(block);
+            validate_block_terminator(self.function, block);
         }
     }
 
@@ -1230,14 +1153,109 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     validator.run();
 }
 
+/// Validates every reachable block's terminator: see [validate_block_terminator].
+///
+/// This is a general SSA well-formedness property which must hold at every point in the
+/// pipeline, so passes which rewrite block parameters or terminator arguments (e.g.
+/// mem2reg, remove_redundant_params) call this in their debug post-checks.
+#[cfg(debug_assertions)]
+pub(crate) fn validate_terminators(function: &Function) {
+    for block in function.reachable_blocks() {
+        validate_block_terminator(function, block);
+    }
+}
+
+/// Validates that the block has a terminator, that no jump targets the entry block, that
+/// `JmpIf` conditions are boolean, that `Jmp`/`JmpIf` arguments match the destination
+/// block's parameters (in arity and canonical type), and that a `Return` returns the
+/// databus when one is present.
+fn validate_block_terminator(function: &Function, block: BasicBlockId) {
+    let terminator = function.dfg[block]
+        .terminator()
+        .expect("Block is expected to have a terminator instruction");
+
+    let entry_block = function.entry_block();
+    match terminator {
+        TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            call_stack: _,
+        } => {
+            let condition_type = function.dfg.type_of_value(*condition);
+            assert_ne!(
+                *then_destination, entry_block,
+                "Entry block cannot be the target of a jump"
+            );
+            assert_ne!(
+                *else_destination, entry_block,
+                "Entry block cannot be the target of a jump"
+            );
+            assert_eq!(*condition_type, Type::bool(), "JmpIf conditions should have boolean type");
+            check_jump_arguments_match_block_parameters(
+                function,
+                *then_destination,
+                then_arguments,
+                "jmpif then branch",
+            );
+            check_jump_arguments_match_block_parameters(
+                function,
+                *else_destination,
+                else_arguments,
+                "jmpif else branch",
+            );
+        }
+        TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
+            assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
+            check_jump_arguments_match_block_parameters(function, *destination, arguments, "jmp");
+        }
+        TerminatorInstruction::Return { return_values, .. } => {
+            if let Some(return_data_id) = function.dfg.data_bus.return_data {
+                assert_eq!(
+                    *return_values,
+                    vec![return_data_id],
+                    "Databus return_data does not match return terminator"
+                );
+            }
+        }
+        TerminatorInstruction::Unreachable { .. } => (),
+    }
+}
+
+fn check_jump_arguments_match_block_parameters(
+    function: &Function,
+    destination: BasicBlockId,
+    arguments: &[ValueId],
+    kind: &str,
+) {
+    let block_parameters = function.dfg.block_parameters(destination);
+    assert_eq!(
+        arguments.len(),
+        block_parameters.len(),
+        "Number of arguments in {kind} must match number of block parameters"
+    );
+    for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
+        let argument_type = function.dfg.type_of_value(*argument);
+        let parameter_type = function.dfg.type_of_value(*parameter);
+        assert!(
+            argument_type.canonical_eq(&parameter_type),
+            "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
+        );
+    }
+}
+
 /// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
 /// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
 /// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
-/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// of those passes regresses we want this to fail at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
 #[cfg(debug_assertions)]
-pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<()> {
+    use crate::errors::RuntimeError;
+
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
             continue;
@@ -1245,20 +1263,22 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
         for block_id in func.reachable_blocks() {
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                assert!(
-                    !matches!(
-                        instruction,
-                        Instruction::Load { .. }
-                            | Instruction::Store { .. }
-                            | Instruction::Allocate
-                    ),
-                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
-                     pipeline; mem2reg + flatten_cfg should have removed it",
-                    func.name()
-                );
+                if matches!(
+                    instruction,
+                    Instruction::Load { .. } | Instruction::Store { .. } | Instruction::Allocate
+                ) {
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                         pipeline; mem2reg + flatten_cfg should have removed it",
+                        func.name()
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
     }
+    Ok(())
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1426,7 +1446,7 @@ mod tests {
     #[should_panic(expected = "Cannot use `lt` with field elements")]
     fn disallows_comparing_fields_with_lt() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v2 = lt Field 1, Field 2
             return
@@ -1612,7 +1632,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_in_range() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 42 as u8
             return v0
@@ -1624,7 +1644,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_out_of_range_with_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -1651,7 +1671,7 @@ mod tests {
     #[should_panic(expected = "Constant too large")]
     fn cast_from_field_constant_too_large() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 300 as u8
             return v0
@@ -1664,7 +1684,7 @@ mod tests {
     #[should_panic(expected = "Invalid cast from Field")]
     fn cast_from_raw_field() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = add Field 255, Field 1
             v1 = cast v0 as u8
@@ -1678,7 +1698,7 @@ mod tests {
     #[should_panic(expected = "assertion")]
     fn cast_after_unsafe_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -2854,5 +2874,37 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
+    fn detects_terminator_argument_arity_mismatch() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1(v0: Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        super::validate_terminators(ssa.main());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
+    fn detects_terminator_argument_type_mismatch() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u1 1)
+          b1(v0: Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        super::validate_terminators(ssa.main());
     }
 }

@@ -69,7 +69,7 @@ impl Elaborator<'_> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = self.local_module.replace(global.module_id);
+        let old_module = self.replace_local_module(global.module_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -97,6 +97,12 @@ impl Elaborator<'_> {
             }
         }
 
+        let has_abi_attribute = let_stmt
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)));
+        let abi_type_location = let_stmt.r#type.as_ref().map(|t| t.location);
+
         // Non-comptime globals must be immutable. Comptime globals can be mutable during
         // compile-time execution, but all globals are immutable at runtime.
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
@@ -110,6 +116,17 @@ impl Elaborator<'_> {
         // All data in globals must be owned.
         if let_statement.r#type.contains_reference() {
             self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        // Globals marked with `#[abi(tag)]` are emitted directly into the contract's ABI, so
+        // their types must be representable in the ABI. We reuse `program_validity` (in input
+        // mode) since the set of ABI-representable value types coincides with what a `main`
+        // entry-point accepts as a parameter.
+        if has_abi_attribute
+            && let Some(invalid_type) = let_statement.r#type.program_validity(false)
+        {
+            let location = abi_type_location.unwrap_or(location);
+            self.push_err(ResolverError::NonAbiTypeInAbiGlobal { invalid_type, location });
         }
 
         let let_statement = HirStatement::Let(let_statement);

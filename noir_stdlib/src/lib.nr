@@ -23,6 +23,7 @@ pub mod mem;
 pub mod panic;
 pub mod hint;
 
+mod integer;
 mod primitive_docs;
 mod internal;
 

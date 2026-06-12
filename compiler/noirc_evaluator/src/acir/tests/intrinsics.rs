@@ -973,7 +973,7 @@ fn vector_remove_affected_by_predicate() {
 #[test]
 fn as_vector_for_composite_vector() {
     let src = "
-    acir(inline) predicate_pure fn main f0 {
+    acir(inline) pure fn main f0 {
       b0():
         v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [(Field, Field); 2]
         v4, v5 = call as_vector(v3) -> (u32, [(Field, Field)])
@@ -1134,6 +1134,123 @@ fn recursive_aggregation_proof_type_truncation_poc() {
     let message = err.to_string();
     assert!(
         message.contains("proof_type") && message.contains("does not fit into a u32"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn vector_push_back_with_wrong_element_count_is_an_error() {
+    // The vector's logical element is a tuple of two fields, but only one value is pushed.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2] : [(Field, Field)]
+        v2, v3 = call vector_push_back(u32 1, v0, Field 5) -> (u32, [(Field, Field)])
+        return v2
+    }
+    ";
+    let err = try_ssa_to_acir(src).expect_err("expected an error for mismatched element count");
+    let message = err.to_string();
+    assert!(
+        message.contains("vector_push_back received 1 element values")
+            && message.contains("consists of 2 values"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn vector_push_front_with_wrong_element_count_is_an_error() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2] : [(Field, Field)]
+        v2, v3 = call vector_push_front(u32 1, v0, Field 5) -> (u32, [(Field, Field)])
+        return v2
+    }
+    ";
+    let err = try_ssa_to_acir(src).expect_err("expected an error for mismatched element count");
+    let message = err.to_string();
+    assert!(
+        message.contains("vector_push_front received 1 element values")
+            && message.contains("consists of 2 values"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn vector_insert_with_wrong_element_count_is_an_error() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2] : [(Field, Field)]
+        v2, v3 = call vector_insert(u32 1, v0, u32 0, Field 5) -> (u32, [(Field, Field)])
+        return v2
+    }
+    ";
+    let err = try_ssa_to_acir(src).expect_err("expected an error for mismatched element count");
+    let message = err.to_string();
+    assert!(
+        message.contains("vector_insert received 1 element values")
+            && message.contains("consists of 2 values"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn vector_pop_back_with_wrong_result_count_is_an_error() {
+    // Popping from a vector of two-field tuples must produce 2 + 2 results,
+    // but only 3 result ids are declared.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2] : [(Field, Field)]
+        v2, v3, v4 = call vector_pop_back(u32 1, v0) -> (u32, [(Field, Field)], Field)
+        return v2
+    }
+    ";
+    let err = try_ssa_to_acir(src).expect_err("expected an error for mismatched result count");
+    let message = err.to_string();
+    assert!(
+        message.contains("vector_pop_back received 3 result values")
+            && message.contains("expected 4"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn vector_pop_front_with_wrong_result_count_is_an_error() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2] : [(Field, Field)]
+        v2, v3, v4 = call vector_pop_front(u32 1, v0) -> (Field, u32, [(Field, Field)])
+        return v3
+    }
+    ";
+    let err = try_ssa_to_acir(src).expect_err("expected an error for mismatched result count");
+    let message = err.to_string();
+    assert!(
+        message.contains("vector_pop_front received 3 result values")
+            && message.contains("expected 4"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn vector_remove_with_wrong_result_count_is_an_error() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2] : [(Field, Field)]
+        v2, v3, v4 = call vector_remove(u32 1, v0, u32 0) -> (u32, [(Field, Field)], Field)
+        return v2
+    }
+    ";
+    let err = try_ssa_to_acir(src).expect_err("expected an error for mismatched result count");
+    let message = err.to_string();
+    assert!(
+        message.contains("vector_remove received 3 result values")
+            && message.contains("expected 4"),
         "unexpected error message: {message}"
     );
 }

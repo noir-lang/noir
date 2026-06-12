@@ -28,6 +28,24 @@ fn errors_if_oracle_declaration_has_function_body() {
 }
 
 #[test]
+fn deny_oracle_attribute_on_comptime() {
+    let src = r#"
+        #[oracle(foo)]
+        ^^^^^^^^^^^^^^ Usage of the `#[oracle]` function attribute is not allowed on comptime functions
+        pub unconstrained comptime fn foo(x: Field, y: Field) {}
+                                      ~~~ Oracle functions cannot be marked `comptime`
+
+        fn main() {
+            // safety: test
+            unsafe {
+                foo(1, 2);
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_oracle_returns_multiple_vectors() {
     let src = r#"
     #[oracle(oracle_call)]
@@ -149,6 +167,80 @@ fn errors_if_oracle_returns_reference_in_struct() {
     "#;
     //check_errors(src);
     check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_mutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &mut Field) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_oracle_has_immutable_reference_parameter() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: &Field) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_in_tuple() {
+    let src = r#"
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: (Field, &Field)) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_in_struct() {
+    let src = r#"
+    pub struct Foo {
+        field: &Field,
+    }
+
+    #[oracle(oracle_call)]
+    pub unconstrained fn oracle_call(x: Foo) {}
+                                     ^ Oracle functions cannot accept references as parameters
+    "#;
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_behind_generics() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 10;
+        pass_ref(&mut x);
+        ^^^^^^^^ Reference `&mut Field` cannot be passed to an oracle function
+    }
+
+    #[oracle(pass_ref)]
+    unconstrained fn pass_ref<T>(x: T) {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn errors_if_oracle_has_reference_parameter_nested_in_container_behind_generics() {
+    let src = r#"
+    unconstrained fn main() {
+        let mut x = 10;
+        pass_ref((1, &mut x));
+        ^^^^^^^^ Reference `(Field, &mut Field)` cannot be passed to an oracle function
+    }
+
+    #[oracle(pass_ref)]
+    unconstrained fn pass_ref<T>(x: (Field, T)) {}
+    "#;
+    check_monomorphization_error(src);
 }
 
 #[test]
