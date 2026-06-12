@@ -1570,6 +1570,74 @@ mod tests {
         assert!(!analysis.is_aliased(allocs[1]));
     }
 
+    #[test]
+    fn register_alias_makes_a_minted_value_join_the_existing_class() {
+        // A value minted after `analyze` (modelled here by a fresh block
+        // parameter, standing in for a simplification result during a pass's
+        // re-insertion) is unknown to the frozen analysis. After
+        // `register_alias` folds it into v0's class, alias queries on it mirror
+        // v0: it aliases v0 but not the unrelated v1. Querying it at all also
+        // exercises that `register_alias` marked it known (otherwise the
+        // `ensure_known` debug-assert in `may_alias` would fire).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            return
+        }
+        ";
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+
+        // Mint a fresh reference value with an index `>=` the frozen value count.
+        let new = {
+            let main = ssa.main_mut();
+            let entry = main.entry_block();
+            let typ = main.dfg.type_of_value(allocs[0].value_id()).into_owned();
+            let value = main.dfg.add_block_parameter(entry, typ);
+            GlobalValueId::new(main, value)
+        };
+
+        analysis.register_alias(ssa.main(), allocs[0], new);
+        assert!(analysis.may_alias(ssa.main(), new, allocs[0]));
+        assert!(!analysis.may_alias(ssa.main(), new, allocs[1]));
+
+        // Registering the same pair again is idempotent.
+        analysis.register_alias(ssa.main(), allocs[0], new);
+        assert!(analysis.may_alias(ssa.main(), new, allocs[0]));
+        assert!(!analysis.may_alias(ssa.main(), new, allocs[1]));
+    }
+
+    #[test]
+    fn register_alias_with_an_already_known_new_does_not_merge() {
+        // When `new` already existed at `analyze` time — e.g. simplification
+        // forwarded `existing` to a pre-existing value — `register_alias` must
+        // be a no-op rather than union two unrelated known values. The two
+        // independent oracle results live in distinct classes with no distinct
+        // allocation sites, so a wrongful merge would be observable as
+        // `may_alias` flipping to true.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let results = collect_call_results_in_main(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(!analysis.may_alias(ssa.main(), results[0], results[1]));
+
+        // Both results already exist; registering one against the other must
+        // not union their classes.
+        analysis.register_alias(ssa.main(), results[0], results[1]);
+        assert!(!analysis.may_alias(ssa.main(), results[0], results[1]));
+    }
+
     /// `&T` and `&mut T` can legitimately point to the same memory at runtime.
     /// Types are canonicalized throughout the analysis so the `may_alias` type guard
     /// treats them as equivalent.
