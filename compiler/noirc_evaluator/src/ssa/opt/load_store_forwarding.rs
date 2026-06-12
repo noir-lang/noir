@@ -765,11 +765,14 @@ mod tests {
     }
 
     // --- Regression tests for issues #12217-#12232 ---
-    // Multi-block tests: the pass skips these entirely (single-block restriction).
+    // Multi-block loop-aliasing cases. The pass processes every block with
+    // state reset at block entry, so a loop-carried alias established across
+    // the back-edge is never forwarded — the relevant load/store pairs sit in
+    // different iterations (i.e. across the block boundary).
 
     #[test]
     fn regression_12217_loop_alias_via_call_input() {
-        // Loop-carried alias established via function call input. Multi-block -> skipped.
+        // Loop-carried alias established via function call input. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -797,7 +800,7 @@ mod tests {
 
     #[test]
     fn regression_12219_loop_alias_via_call_return() {
-        // Loop-carried alias via returned reference from call. Multi-block -> skipped.
+        // Loop-carried alias via returned reference from call. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -825,7 +828,7 @@ mod tests {
 
     #[test]
     fn regression_12220_loop_alias_via_array_get() {
-        // Loop-carried alias via array_get with variable index. Multi-block -> skipped.
+        // Loop-carried alias via array_get with variable index. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_idx: u32):
@@ -850,7 +853,7 @@ mod tests {
 
     #[test]
     fn regression_12221_loop_alias_via_jmpif() {
-        // Loop-carried alias via jmpif passing ref to non-header block. Multi-block -> skipped.
+        // Loop-carried alias via jmpif passing ref to non-header block. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_cond: u1):
@@ -877,7 +880,7 @@ mod tests {
 
     #[test]
     fn regression_12222_loop_nested_refs_form1() {
-        // Array containing references stored in loop (Form 1 misses nested refs). Multi-block -> skipped.
+        // Array containing references stored in loop (Form 1 misses nested refs). Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -903,7 +906,7 @@ mod tests {
 
     #[test]
     fn regression_12223_loop_nested_refs_form2() {
-        // Loop header block param of array-of-refs type (Form 2 misses nested refs). Multi-block -> skipped.
+        // Loop header block param of array-of-refs type (Form 2 misses nested refs). Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
