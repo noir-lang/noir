@@ -67,9 +67,11 @@ fn simple_function_call() {
     }
 }
 
+/// ```text
 /// main() { f1() + f2() } -> 8 + 4 => 12
 /// f1() { let var = f2(); var + var } -> 4 + 4 => 8
 /// f2(v2) { v2 + v2 } -> 2 + 2 => 4
+/// ```
 ///
 /// ```text
 ///   brillig(inline) fn main f0 {

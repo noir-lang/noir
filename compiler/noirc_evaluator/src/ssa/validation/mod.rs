@@ -1153,11 +1153,11 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     validator.run();
 }
 
-/// Validates every reachable block's terminator: see [validate_block_terminator].
+/// Validates every reachable block's terminator: see [`validate_block_terminator`].
 ///
 /// This is a general SSA well-formedness property which must hold at every point in the
 /// pipeline, so passes which rewrite block parameters or terminator arguments (e.g.
-/// mem2reg, remove_redundant_params) call this in their debug post-checks.
+/// mem2reg, `remove_redundant_params`) call this in their debug post-checks.
 #[cfg(debug_assertions)]
 pub(crate) fn validate_terminators(function: &Function) {
     for block in function.reachable_blocks() {

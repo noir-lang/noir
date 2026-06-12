@@ -58,7 +58,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Function::mem2reg].
+/// Post-check condition for [`Function::mem2reg`].
 ///
 /// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
 /// passing a different number of arguments (or differently typed arguments) than its

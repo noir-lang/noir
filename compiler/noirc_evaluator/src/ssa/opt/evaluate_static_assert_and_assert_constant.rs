@@ -108,10 +108,10 @@ impl Function {
     }
 }
 
-/// Post-check condition for [Ssa::evaluate_static_assert_and_assert_constant].
+/// Post-check condition for [`Ssa::evaluate_static_assert_and_assert_constant`].
 ///
 /// Panics if a call to `static_assert` or `assert_constant` remains in a reachable block.
-/// Unlike the lenient [Ssa::try_evaluate_static_assert_and_assert_constant], the strict
+/// Unlike the lenient [`Ssa::try_evaluate_static_assert_and_assert_constant`], the strict
 /// variant either evaluates and removes every such call or errors, so any survivor would
 /// otherwise only be caught at ACIR generation.
 #[cfg(debug_assertions)]

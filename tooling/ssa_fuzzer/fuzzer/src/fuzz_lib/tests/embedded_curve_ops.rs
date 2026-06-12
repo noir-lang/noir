@@ -18,7 +18,7 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 /// }
 /// ```
 /// lo = 1
-/// [nargo_tests] Circuit output: Field(8902249110305491597038405103722863701255802573786510474664632793109847672620)
+/// [`nargo_tests`] Circuit output: Field(8902249110305491597038405103722863701255802573786510474664632793109847672620)
 #[test]
 fn smoke_test_embedded_curve_add() {
     let _ = env_logger::try_init();

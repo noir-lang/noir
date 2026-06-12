@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// }
 /// ```
 /// "a" = 0
-/// [nargo_tests] Circuit output: 0x01
+/// [`nargo_tests`] Circuit output: 0x01
 #[test]
 fn test_other_function_mutates_reference() {
     let _ = env_logger::try_init();
