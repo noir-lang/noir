@@ -226,6 +226,13 @@ impl DataFlowGraph {
         self.values.iter()
     }
 
+    /// The number of `Value`s in this DFG. Since `ValueId`s are handed out
+    /// densely, every existing `ValueId` has an index strictly less than this,
+    /// and any value created later receives an index `>=` this count.
+    pub(crate) fn num_values(&self) -> usize {
+        self.values.len()
+    }
+
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()

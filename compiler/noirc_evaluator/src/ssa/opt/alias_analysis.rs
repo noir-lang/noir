@@ -182,6 +182,12 @@ pub(crate) struct AliasAnalysis {
     /// of a loop produces a fresh cell, so the static site must not pin
     /// runtime cells together.
     loop_allocates: HashSet<GlobalValueId>,
+
+    /// Per-function count of `Value`s present when the analysis was computed.
+    /// The analysis is frozen once built, so any `ValueId` with an index `>=`
+    /// this count was minted afterwards (e.g. by simplification during a pass's
+    /// re-insertion) and is therefore unknown to the analysis.
+    value_count: HashMap<FunctionId, u32>,
 }
 
 impl AliasAnalysis {
@@ -208,6 +214,8 @@ impl AliasAnalysis {
         a: GlobalValueId,
         b: GlobalValueId,
     ) -> bool {
+        self.ensure_known(a);
+        self.ensure_known(b);
         if a == b {
             return true;
         }
@@ -251,6 +259,8 @@ impl AliasAnalysis {
 
     /// Recursively check if `target` can be referenced by `from`
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
+        self.ensure_known(from);
+        self.ensure_known(target);
         let from_rep = self.aliases.find(from);
         let target_rep = self.aliases.find(target);
         if from_rep == target_rep {
@@ -284,6 +294,26 @@ impl AliasAnalysis {
             (Some(sa), Some(sb)) => sa == sb,
             _ => false,
         }
+    }
+
+    /// Assert (in debug builds) that `value` existed in its function when the
+    /// analysis was computed. A value minted afterwards (e.g. by simplification
+    /// during a pass's re-insertion) has an index `>=` the recorded count and is
+    /// unknown to the frozen alias classes, so querying it would silently return
+    /// a wrong answer — a bug in the calling pass.
+    fn ensure_known(&self, value: GlobalValueId) {
+        let known = match self.value_count.get(&value.0) {
+            Some(&count) => value.1.to_u32() < count,
+            // A function absent from the analysis scope has no recorded values;
+            // don't claim to know anything about its values.
+            None => false,
+        };
+        debug_assert!(
+            known,
+            "alias query on {value:?}, a value minted after the alias analysis was frozen. \
+             The analysis must be told about new reference values (e.g. via re-insertion \
+             simplification) before they are used in alias queries."
+        );
     }
 
     fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
@@ -447,6 +477,8 @@ impl AliasAnalysisContext {
             analysis.refine_allocation_sites(function, scope.is_entry_point(function.id()));
         }
 
+        let value_count = functions.iter().map(|f| (f.id(), f.dfg.num_values() as u32)).collect();
+
         AliasAnalysis {
             aliases: analysis.aliases,
             points_to: analysis.points_to,
@@ -454,6 +486,7 @@ impl AliasAnalysisContext {
             allocation_sites: analysis.allocation_sites,
             untrusted_site_functions: analysis.untrusted_site_functions,
             loop_allocates: analysis.loop_allocates,
+            value_count,
         }
     }
 
