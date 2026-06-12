@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(choose: bool, do_pop: bool) -> pub Field {
+    let mut v: [Field] = if choose {
+        [1_Field].as_vector()
+    } else {
+        [2_Field, 3_Field].as_vector()
+    };
+    if do_pop {
+        let (new_v, _): ([Field], Field) = v.pop_back();
+        v = new_v;
+    };
+    if v.len() == 0_u32 {
+        0_Field
+    } else {
+        v[0_u32]
+    }
+}

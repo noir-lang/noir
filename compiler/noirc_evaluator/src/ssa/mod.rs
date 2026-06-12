@@ -213,7 +213,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
                 validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
                 Ok(())
             }),
-        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
+        SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,
             "Lower refs at ACIR/Brillig boundary",
@@ -424,7 +424,7 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
-        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
+        SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.

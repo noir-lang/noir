@@ -139,6 +139,28 @@ pub(super) fn oracle_not_marked_unconstrained(
     }
 }
 
+/// Oracle definitions (functions with the `#[oracle]` attribute) cannot be marked as comptime.
+///
+/// An oracle is resolved at runtime by the external oracle handler, whereas a `comptime` function
+/// is evaluated at compile time, so the two are fundamentally incompatible.
+pub(super) fn oracle_marked_as_comptime(
+    modifiers: &FunctionModifiers,
+    func: &FuncMeta,
+) -> Option<ResolverError> {
+    if !modifiers.is_comptime {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_oracle() {
+        let ident = func_meta_name_ident(func, modifiers);
+        let location = attribute.location;
+        Some(ResolverError::OracleMarkedAsComptime { ident, location })
+    } else {
+        None
+    }
+}
+
 /// Oracle functions cannot return more than 1 vector in their output.
 ///
 /// This is currently a limitation with the AVM: to return multiple vectors
@@ -253,6 +275,25 @@ pub(super) fn oracle_returns_reference(
     }
 }
 
+/// Oracle functions cannot accept references as parameters.
+///
+/// Oracle are foreign functions running in an unknown execution context which
+/// does not have access to Brillig internal memory
+pub(super) fn oracle_parameter_is_reference(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    let reference_parameter = func.parameters.iter().find(|(_, typ, _)| typ.contains_reference());
+    reference_parameter.map(|(pattern, _, _)| ResolverError::OracleParameterIsReference {
+        location: pattern.location(),
+    })
+}
+
 /// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
 pub(super) fn pure_attribute_only_on_oracle(
     func: &FuncMeta,
@@ -324,6 +365,8 @@ pub(super) fn unconstrained_function_args(
 /// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
+/// * cannot return enums: their tag is an unconstrained `Field` witness, so a malicious prover
+///   could supply an out-of-range tag and force the wrong match arm in the constrained caller.
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
@@ -334,6 +377,8 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
+    } else if return_type.contains_enum() {
+        Some(TypeCheckError::UnconstrainedEnumReturnToConstrained { location })
     } else {
         None
     }

@@ -1396,6 +1396,15 @@ impl<F: AcirField> AcirContext<F> {
             Some(value) => {
                 let mut values = Vec::new();
                 self.initialize_array_inner(&mut values, value)?;
+                if values.len() != len {
+                    return Err(InternalError::General {
+                        message: format!(
+                            "Attempted to initialize an array of flattened length {len} with {} values",
+                            values.len()
+                        ),
+                        call_stack: self.get_call_stack(),
+                    });
+                }
                 values
             }
         };
@@ -1577,6 +1586,28 @@ mod tests {
     #[should_panic = "Field cannot represent this power of two"]
     fn power_of_two_panics_on_overflow() {
         power_of_two::<FieldElement>(FieldElement::max_num_bits());
+    }
+
+    #[test]
+    fn initialize_array_rejects_length_mismatch() {
+        use crate::acir::AcirValue;
+        use crate::errors::InternalError;
+        use crate::ssa::ir::types::NumericType;
+        use acvm::acir::brillig::lengths::FlattenedLength;
+        use acvm::acir::circuit::opcodes::{BlockId, BlockType};
+
+        let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+        let var = context.add_constant(FieldElement::one());
+        let value = AcirValue::Array(im::vector![AcirValue::Var(var, NumericType::NativeField)]);
+
+        // Claim a flattened length of 2 but provide only a single value.
+        let result = context.initialize_array(
+            BlockId(0),
+            FlattenedLength(2),
+            Some(value),
+            BlockType::Memory,
+        );
+        assert!(matches!(result, Err(InternalError::General { .. })));
     }
 
     proptest! {

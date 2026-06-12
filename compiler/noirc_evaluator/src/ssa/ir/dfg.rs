@@ -857,6 +857,15 @@ impl DataFlowGraph {
         }
     }
 
+    /// True that the input is a zero `Value::NumericConstant`
+    pub(crate) fn is_constant_false(&self, argument: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(argument) {
+            constant.is_zero()
+        } else {
+            false
+        }
+    }
+
     pub(crate) fn is_global(&self, value: ValueId) -> bool {
         matches!(self.values[value], Value::Global(_))
     }

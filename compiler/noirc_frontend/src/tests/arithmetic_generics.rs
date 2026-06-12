@@ -7,10 +7,11 @@ use test_case::test_case;
 
 use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::test_utils::get_monomorphized;
-use crate::tests::{assert_no_errors, check_errors, get_program_errors};
+use crate::tests::{
+    assert_no_errors, check_errors, check_monomorphization_error, get_program_errors,
+};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -61,6 +62,48 @@ fn checked_casts_do_not_prevent_canonicalization() {
 }
 
 #[test]
+fn arithmetic_generics_intermediate_underflow_simplified_out_of_to() {
+    // The type expression `(N - 1) + 1` creates a CheckedCast where:
+    //   from = (N - 1) + 1   (unsimplified, preserves intermediate steps)
+    //   to   = N             (simplified via (X - M) + M -> X)
+    //
+    // With N = 0, the `(0 - 1)` subexpression of `from` underflows u32 even though
+    // the simplified `to` side evaluates to 0 without error. The underflow in the
+    // unsimplified expression must still be reported.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; (N - 1) + 1] {
+            let result: [Field; N] = [0; N];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<0>();
+                     ^^^^^^^^^^^^^^^^^^^^^^ Invalid array length
+                     ~~~~~~~~~~~~~~~~~~~~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
+fn arithmetic_generics_intermediate_expression_with_no_underflow() {
+    // Companion to `arithmetic_generics_intermediate_underflow_simplified_out_of_to`:
+    // with N = 5 no intermediate step of `(N - 1) + 1` over/underflows, so the
+    // program must compile.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; (N - 1) + 1] {
+            let result: [Field; N] = [0; N];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<5>();
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u32> {}
@@ -83,13 +126,12 @@ fn arithmetic_generics_checked_cast_zeros() {
     let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
+    if let MonomorphizationError::CheckedCastEvaluationFailed { ref err, location: _ } =
         monomorphization_error
     {
-        let TypeCheckError::OverflowingBinaryOp { op, lhs, rhs, .. } = err else {
-            panic!("Expected FailingBinaryOp, but found: {err:?}");
+        let TypeCheckError::ModuloByZero { lhs, rhs, .. } = err else {
+            panic!("Expected ModuloByZero, but found: {err:?}");
         };
-        assert_eq!(op, &BinaryTypeOperator::Modulo);
         assert_eq!(*lhs, Integer::U32(0));
         assert_eq!(*rhs, Integer::U32(0));
     } else {
@@ -120,7 +162,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
+    if let MonomorphizationError::CheckedCastEvaluationFailed { ref err, location: _ } =
         monomorphization_error
     {
         match err {
@@ -133,6 +175,47 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     } else {
         panic!("unexpected error: {monomorphization_error:?}");
     }
+}
+
+#[test]
+fn arithmetic_generics_checked_cast_fails_to_evaluate_destination() {
+    // A CheckedCast whose destination type fails to evaluate (here `N % N`
+    // with N = 0) must be a compilation error, even when the value is never
+    // forced to a runtime value elsewhere.
+    let source = r#"
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+            W {}
+        }
+
+        fn main() {
+            let w_0: W<0> = W {};
+            let _w = foo(w_0);
+                     ^^^ Modulo by zero: 0 % 0
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
+fn arithmetic_generics_checked_cast_fails_to_evaluate_field_destination() {
+    // Same as `arithmetic_generics_checked_cast_fails_to_evaluate_destination`
+    // but with a `Field` generic, where modulo is rejected outright.
+    let source = r#"
+        struct W<let N: Field> {}
+
+        fn foo<let N: Field>(_x: W<N>) -> W<(N - N) % (N - N)> {
+            W {}
+        }
+
+        fn main() {
+            let w_0: W<0Field> = W {};
+            let _w = foo(w_0);
+                     ^^^ Modulo on Field elements: 0 % 0
+        }
+    "#;
+    check_monomorphization_error(source);
 }
 
 #[test]
@@ -427,4 +510,30 @@ fn field_arithmetic_generic_large_value() {
         }
     "#;
     assert_no_errors(src);
+}
+#[test]
+fn arithmetic_generics_modulo_by_zero_in_array_length() {
+    // With N = 0, the `N % N` subexpressions modulo by zero when the array
+    // length is evaluated at monomorphization.
+    let source = r#"
+        fn foo<let N: u32>() -> [Field; ((N % N) + 1) - (N % N)] {
+            let result: [Field; 1] = [0];
+            result
+        }
+
+        fn main() {
+            let _x = foo::<0>();
+        }
+    "#;
+
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
+
+    let MonomorphizationError::UnknownArrayLength { ref err, .. } = monomorphization_error else {
+        panic!("unexpected error: {monomorphization_error:?}");
+    };
+    let TypeCheckError::ModuloByZero { lhs, rhs, .. } = err else {
+        panic!("Expected ModuloByZero, but found: {err:?}");
+    };
+    assert_eq!(*lhs, Integer::U32(0));
+    assert_eq!(*rhs, Integer::U32(0));
 }

@@ -59,7 +59,9 @@ use crate::{
     token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
+use self::builtin_helpers::{
+    DeterministicHasher, eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex,
+};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -2136,7 +2138,7 @@ fn expr_as_lambda(
                 parameters,
                 Type::Vector(Box::new(Type::Tuple(vec![
                     Type::Quoted(QuotedType::Expr),
-                    Type::Quoted(QuotedType::UnresolvedType),
+                    option_unresolved_type.clone(),
                 ]))),
             ));
 
@@ -3097,7 +3099,7 @@ fn quoted_hash(
     // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
     let tokens_string = tokens_to_string(&tokens, interner, files);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = DeterministicHasher::new();
     tokens_string.hash(&mut hasher);
     Ok(Value::field(hasher.finish().into()))
 }

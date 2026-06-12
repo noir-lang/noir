@@ -568,13 +568,16 @@ impl<W: Write> Interpreter<'_, W> {
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        // The vector might contain more elements than its length.
-        // We want the last valid element, ignoring any extras following it.
-        // We don't ever access the extras, so we might as well remove any.
-        vector_elements.truncate(element_types.len() * length as usize);
-        let mut popped_elements =
-            vecmap(0..element_types.len(), |_| vector_elements.pop().unwrap());
-        popped_elements.reverse();
+        // The vector might contain more elements than its semantic length when it is the result of
+        // merging vectors of different lengths: its backing array is padded out to the larger
+        // capacity. The popped element lives at the semantic last index, but the backing capacity
+        // only shrinks by one element, matching how `vector_pop_front`/`vector_remove` and ACIR
+        // codegen keep the trailing capacity. Truncating to the semantic length here instead would
+        // make a later merge over-read this result when the semantic length is below the capacity.
+        let width = element_types.len();
+        let last_index = width * (length as usize - 1);
+        let popped_elements = vector_elements[last_index..last_index + width].to_vec();
+        vector_elements.truncate(vector_elements.len() - width);
 
         let new_length = Value::u32(length - 1);
         let new_vector = Value::vector(vector_elements, element_types);

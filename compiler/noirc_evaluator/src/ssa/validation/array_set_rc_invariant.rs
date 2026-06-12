@@ -30,21 +30,60 @@
 //!    predecessor-arg edges backward to a fixed point. Only aliasing introduced
 //!    by the values that flow *into* `vX`'s binding is included. Filtered to
 //!    drop values that can't represent pre-mutation storage: `array_set` /
-//!    `Call` results (always fresh), iteration-local `MakeArray`s (back-edge
-//!    args), and instruction results defined in the array_set's own block at
-//!    an index after the array_set (they can land in the backward set
-//!    through a forward-then-back round-trip, but don't exist as storage
-//!    at the array_set's program point yet).
-//! 2. **inc_rc precedence / back-edge-participant.** If some `inc_rc` on an
-//!    alias-set member either RPO-precedes the array_set or sits on a
-//!    non-source alias that's also a loop back-edge arg, accept — the
-//!    frontend is deliberately managing iteration aliasing.
-//! 3. **Forward walk.** Otherwise, walk the CFG forward from the array_set with
-//!    the alias-set as the initial use-set. At each block-parameter crossing
-//!    we both **kill** params that the predecessor rebinds to a non-alias and
-//!    **add** params whose arg is still an alias (so alias propagation stays
-//!    accurate as the walk crosses joins and loops). The walk maintains two
-//!    additional pieces of state:
+//!    `Call` results (always fresh), iteration-local fresh results (`MakeArray`
+//!    or `Call` on back-edge args), instruction results defined in the
+//!    array_set's own block at an index after the array_set (they can land in
+//!    the backward set through a forward-then-back round-trip, but don't exist
+//!    as storage at the array_set's program point yet), and **swap-excluded
+//!    siblings** — when `vX` is a loop-header parameter swapped onto a sibling
+//!    parameter that is freshly re-allocated each iteration, the sibling is a
+//!    distinct per-iteration storage and is dropped (see
+//!    [`Context::swap_excluded_aliases`]).
+//! 2. **Fast full-accept.** Accept the array_set outright (skipping the
+//!    forward walk) when some `inc_rc` on an alias-set member protects it on
+//!    every path by a cheap test: an `inc_rc` earlier in the array_set's own
+//!    block, in a block that **dominates** it, or — for a non-source alias —
+//!    on a loop **back-edge** (the back-edge-participant relaxation, where the
+//!    frontend is deliberately managing iteration aliasing). See
+//!    [`Context::some_inc_rc_precedes`].
+//! 3. **Per-member coverage → use-set.** Otherwise narrow the alias-set to the
+//!    members that are *not* provably protected, and seed the forward walk
+//!    with only those ([`Context::unprotected_aliases`]). Coverage is per
+//!    member: thread the source's storage backward through the CFG
+//!    ([`Context::compute_uncovered_values`]) and drop a member when, on every
+//!    path where it can be the source's storage at the array_set, that storage
+//!    is RC-bumped by an `inc_rc` or is an iteration-local fresh allocation (a
+//!    `MakeArray`/`Call` re-executed each loop iteration). Dropping covered
+//!    members is what stops the forward walk from flagging a read of, say, an
+//!    `inc_rc`'d sibling on a path where the array_set never mutates that
+//!    storage. An empty use-set means every member is protected — accept.
+//! 4. **Protected-participant filter.** A second narrowing inside the forward
+//!    walk: drop every use-set member (other than the source) that both
+//!    carries its own `inc_rc` and is a loop back-edge *participant* (it
+//!    flows — directly or through forward edges — into a back-edge arg
+//!    position). Being in the alias-set means the value flows *into* the
+//!    source, so combined with its back-edge participation the `inc_rc` is
+//!    loop-carried: it runs before the value crosses the back-edge that
+//!    re-binds it onto the source, so by the time the value's storage
+//!    equals the source's it is RC ≥ 2 and the array_set copies. Reads of
+//!    it therefore can't observe an in-place mutation. The gate is **per
+//!    value** on that value's own `inc_rc`: a back-edge position fed by an
+//!    `inc_rc`'d value on one predecessor edge and an unprotected value on
+//!    another drops only the protected value, leaving the unprotected one
+//!    for the walk to flag. Restricting to alias-set members is the
+//!    soundness guard — a value that merely *receives* the source's storage
+//!    (a forward successor, not in the source's backward set) has its
+//!    `inc_rc` run *after* the array_set and so is not protected; it stays
+//!    in the use-set. This is what lets the verifier accept the latch-block
+//!    shape (an `inc_rc v` placed before `v` is threaded *forward* into the
+//!    latch that then closes the loop) without the unsoundness of crediting
+//!    an `inc_rc` to a value the array_set actually mutates first.
+//! 5. **Forward walk.** Walk the CFG forward from the array_set with the
+//!    use-set as the initial set of live aliases. At each block-parameter
+//!    crossing we both **kill** params that the predecessor rebinds to a
+//!    non-alias and **add** params whose arg is still an alias (so alias
+//!    propagation stays accurate as the walk crosses joins and loops). The
+//!    walk maintains two additional pieces of state:
 //!
 //!    - **`derived`**, the set of values that may share the source's storage
 //!      through transitive in-place chain mutations. Seeded with the
@@ -56,8 +95,14 @@
 //!      positions" if any chain link uses a dynamic index.
 //!
 //!    An `array_get` on a use-set member is a hazard iff its read index is
-//!    covered by `tainted_indices`. Non-`array_get` uses are always hazards.
-//!    An `inc_rc v` with `v ∈ use_set ∪ derived` lifts the storage's RC,
+//!    covered by `tainted_indices`. An `array_set` on a use-set member is
+//!    index-aware too: it produces a copy of the source with one index
+//!    overwritten, so it observes (copies forward) only the indices it does
+//!    *not* write — a hazard iff some `tainted_indices` position differs
+//!    from its write index (a same-index write overwrites the mutation and
+//!    is not a hazard; it instead extends the chain). All other uses are
+//!    always hazards. An `inc_rc v` with `v ∈ use_set ∪ derived` lifts the
+//!    storage's RC,
 //!    so chain writes after it run on fresh storage — `derived` is cleared
 //!    at that point. `tainted_indices` is *not* cleared: prior chain writes
 //!    have already mutated the source's storage.
@@ -81,12 +126,23 @@
 //!   `end_to_end_sibling_args_across_jmp_is_false_negative` tests pin this
 //!   down as documented false negatives.
 //! - **Nested-array `MakeArray`**, **`IfElse` on arrays**, **non-inlined
-//!   `Call` returns**, **`Store`/`Load` on ineligible (nested-ref)
-//!   allocates** — same as before.
+//!   `Call` returns**, and **`Store`/`Load` on ineligible (nested-ref)
+//!   allocates** are likewise not tracked.
+//! - **Iteration-local fresh array read back within one iteration.** The
+//!   freshness wall (step 3) credits a `MakeArray`/`Call` that shares a loop
+//!   with the array_set as distinct per-iteration storage, which is sound
+//!   only because the result is normally threaded forward rather than the
+//!   freshly-allocated source being re-read after its in-place mutation. A
+//!   hand-written loop body that allocates an array, mutates it in place, and
+//!   then reads the *same* value back within the same iteration would not be
+//!   flagged. The frontend threads the `array_set` result instead of
+//!   re-reading the source, so it does not emit this shape; crediting
+//!   freshness only ever *accepts* more, so this can only be a false negative,
+//!   never a false positive.
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use acvm::FieldElement;
 
@@ -142,11 +198,15 @@ fn verify_function(function: &Function) -> RtResult<()> {
 
             let alias_set = ctx.alias_set_for(array, block_id, idx);
 
-            // Cheap check first: if any `inc_rc` on an alias-set member
-            // precedes this `array_set` in flow order, treat the aliasing
-            // as already protected. See `some_inc_rc_precedes` for the
-            // rationale (relaxed from dominance to RPO precedence).
-            if ctx.some_inc_rc_precedes(&alias_set, array, block_id, idx) {
+            // Narrow the alias-set to the members that are *not* provably
+            // protected on every path to this `array_set`. An empty result
+            // means every member is RC-bumped or freshly allocated before the
+            // array_set on all paths, so the in-place mutation is never
+            // observable — accept without the forward walk. A covered member
+            // (e.g. an `inc_rc`'d sibling) is dropped so the forward walk does
+            // not falsely flag a read of storage the array_set never mutates.
+            let use_set = ctx.unprotected_aliases(&alias_set, array, block_id, idx);
+            if use_set.is_empty() {
                 continue;
             }
 
@@ -161,7 +221,8 @@ fn verify_function(function: &Function) -> RtResult<()> {
             // (RC=1) and a downstream instruction will observe the
             // pre-mutation contents through an aliased name.
             if let Some(hit) = ctx.find_reachable_aliased_use(
-                &alias_set,
+                &use_set,
+                array,
                 *instruction_id,
                 block_id,
                 idx,
@@ -192,8 +253,25 @@ fn verify_function(function: &Function) -> RtResult<()> {
 /// checks read from these structures rather than re-scanning the function.
 struct Context<'f> {
     function: &'f Function,
-    /// Dominator tree. Mutable because `dominates` populates an internal cache.
+    /// Control-flow graph. Used by [`Context::some_inc_rc_precedes`] to walk
+    /// predecessors backward when checking whether the `inc_rc`-carrying
+    /// blocks collectively cover every path to an `array_set`.
+    cfg: ControlFlowGraph,
+    /// Dominator tree. Used by [`Context::some_inc_rc_precedes`] as a fast
+    /// path: a single `inc_rc` block that dominates the `array_set` covers
+    /// every path without the backward value walk.
     dom_tree: DominatorTree,
+    /// Array values that allocate fresh storage at their definition
+    /// (`make_array` / `Call` results). Used as a freshness wall by
+    /// [`Context::compute_uncovered_values`].
+    fresh_array_values: HashSet<ValueId>,
+    /// The block set of each loop in the function. The freshness wall only
+    /// credits a fresh allocation when its defining block and the array_set's
+    /// block lie in a common loop — i.e. the allocation re-executes every
+    /// iteration that reaches the array_set, so its storage is distinct per
+    /// iteration. A one-time allocation outside any shared loop is mutated in
+    /// place exactly once, so reading it back is a genuine hazard.
+    loop_blocks: Vec<BTreeSet<BasicBlockId>>,
     /// For each array-typed value `V`, the set of values that may share
     /// `V`'s storage **at `V`'s program point** — the source itself plus
     /// anything that flows backward into it through block-parameter →
@@ -228,26 +306,32 @@ struct Context<'f> {
     ///   documented gap. In practice the frontend's array-returning
     ///   functions allocate fresh storage.
     non_aliasing_array_values: HashSet<ValueId>,
-    /// `MakeArray` results that appear as a jmp/jmpif arg on at least one
-    /// loop back-edge. Such a `make_array` re-executes on every loop
-    /// iteration and represents fresh storage per iteration, so any
-    /// back-edge that puts it in a loop-header parameter's class is
-    /// conflating distinct runtime storages across iterations. Filtered
-    /// out of the alias-set on lookup — see [`Context::alias_set_for`].
+    /// Back-edge args that re-allocate distinct storage every iteration:
+    /// `MakeArray` results (re-executes each iteration) and `Call` results
+    /// (the callee allocates fresh). `array_set` results are excluded —
+    /// they may mutate in place, so they aren't guaranteed-fresh. Two uses:
     ///
-    /// `MakeArray` results that are *not* back-edge args are kept in the
-    /// alias-set: they represent a one-time allocation whose storage
-    /// the array_set may mutate in place.
-    iteration_local_make_arrays: HashSet<ValueId>,
+    /// - [`Context::alias_set_for`] drops such values from the alias-set:
+    ///   a back-edge that puts one in a loop-header parameter's class is
+    ///   conflating distinct runtime storages across iterations. (`Call`
+    ///   results are also dropped there by
+    ///   [`Context::non_aliasing_array_values`]; the overlap is harmless.)
+    /// - the swap freshening guard in [`Context::new`] requires the
+    ///   swapped-out sibling to be one of these — see
+    ///   [`Context::swap_excluded_aliases`].
+    ///
+    /// Values that are *not* back-edge args are kept in the alias-set:
+    /// they represent a one-time allocation whose storage the array_set
+    /// may mutate in place.
+    iteration_local_fresh: HashSet<ValueId>,
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
     inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
     /// Values that appear at least once as a jmp/jmpif arg on a loop
     /// back-edge. Used by both:
     ///
-    /// - [`Context::iteration_local_make_arrays`] (computed via the
-    ///   intersection `make_array_values ∩ back_edge_args` in
-    ///   [`Context::new`]); and
+    /// - [`Context::iteration_local_fresh`] (the back-edge args that are
+    ///   `make_array` or `Call` results, computed in [`Context::new`]); and
     /// - the **back-edge-participant relaxation** in
     ///   [`Context::some_inc_rc_precedes`]: an `inc_rc` on a non-source
     ///   alias that's also a back-edge arg is taken as a codegen
@@ -260,6 +344,68 @@ struct Context<'f> {
     /// set in the first place — so this signal only needs to cover
     /// loop back-edges.
     back_edge_args: HashSet<ValueId>,
+    /// The backward-alias closure of [`Context::back_edge_args`]: every
+    /// value that flows (directly or through forward block-parameter
+    /// edges) into a loop back-edge arg position. A value `v` is a
+    /// back-edge *participant* when its storage can become a loop-header
+    /// parameter's storage across a back-edge — even when `v` itself is
+    /// not the literal arg, but reaches one through a forward edge first
+    /// (e.g. `inc_rc v; jmp latch(v)` then `latch: jmp header(v)`, where
+    /// only the latch's param is the literal back-edge arg).
+    ///
+    /// Used by the **protected-participant filter** in
+    /// [`Context::find_reachable_aliased_use`]: a value that is in the
+    /// array_set source's alias-set (so it flows *into* the source),
+    /// is a back-edge participant, and carries its own `inc_rc` is
+    /// RC ≥ 2 whenever it equals the source's storage (the `inc_rc` is
+    /// loop-carried — it runs before the value crosses the back-edge onto
+    /// the source), so reads of it can't observe an in-place mutation and
+    /// it is dropped from the forward walk's use-set.
+    ///
+    /// The filter is gated **per value** on that value's own `inc_rc`:
+    /// membership in this set alone never exonerates anything. This is
+    /// what keeps it sound where widening the relaxation to "some
+    /// participant has an `inc_rc`" would not — a back-edge position fed
+    /// by an `inc_rc`'d value on one predecessor edge and an unprotected
+    /// value on another only drops the protected value, leaving the
+    /// unprotected one for the forward walk to flag.
+    back_edge_participants: HashSet<ValueId>,
+    /// **Swap exclusions.** For a loop-header parameter `P`, the set of
+    /// sibling parameters `Q` that `P` is rebound to on the loop
+    /// back-edge (`P ← Q`, the array-variable swap `c4 = c3`) while `Q`
+    /// is simultaneously rebound to a freshly-allocated, iteration-local
+    /// value — a `make_array` (`c3 = [..]`) or a `Call` result
+    /// (`c3 = f()`), but never an `array_set` result (which may be an
+    /// in-place mutation, not a fresh allocation). Such a `Q` is a *distinct
+    /// per-iteration storage* that `P` only *becomes* in a later
+    /// iteration — never the storage this iteration's `array_set` on `P`
+    /// mutates (the swap rotates a fresh allocation into `P` while the
+    /// mutated storage is left behind, dead). `Q` is dropped from `P`'s
+    /// alias-set in [`Context::alias_set_for`], which makes the forward
+    /// walk both **kill** `P` where the back-edge rebinds it to `Q` and
+    /// decline to **add** a fresh alias of `Q` past any later edge (the
+    /// inclusive-range *peel* re-runs the same swap on a *forward* exit
+    /// edge — excluding `Q` at the seed covers that edge too, which a
+    /// kill keyed on the back-edge alone could not).
+    ///
+    /// Guarded by a **back-edge-only** check: if `Q` also flows into `P`
+    /// on a forward edge, `P` and `Q` can already alias *within* an
+    /// iteration (the array_set would mutate `Q`'s live storage), so the
+    /// exclusion would be unsound and is not recorded. The freshening
+    /// requirement on `Q` is the second guard — a loop-invariant `Q`
+    /// swapped into `P` would make `P_k = Q_{k-1} = Q_k` and genuinely
+    /// alias.
+    ///
+    /// **Forward propagation.** After recording, exclusions are pushed
+    /// forward across non-back-edge parameter edges to a fixed point: on a
+    /// forward edge `R ← P`, `R` *is* `P` within the same iteration, so `R`
+    /// inherits `P`'s exclusions. This carries an exclusion from a swapped
+    /// loop-header parameter onto a successor parameter seeded from it — e.g.
+    /// an inner-loop header (the array_set's source) fed from the swapped
+    /// outer-loop parameter — so `Q` is dropped for the inner source too.
+    /// Back-edges are excluded from propagation: across one, `R` is a *prior*
+    /// iteration's `P`, a distinct storage.
+    swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>>,
 }
 
 impl<'f> Context<'f> {
@@ -280,17 +426,20 @@ impl<'f> Context<'f> {
         // which represent fresh-per-iteration storage and so don't
         // carry the array_set's pre-mutation aliasing forward through
         // the loop header.
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
         let back_edges: HashSet<(BasicBlockId, BasicBlockId)> =
-            Loops::find_all(function, LoopOrder::InsideOut)
-                .yet_to_unroll
-                .iter()
-                .map(|l| (l.back_edge_start, l.header))
-                .collect();
+            loops.yet_to_unroll.iter().map(|l| (l.back_edge_start, l.header)).collect();
+        // The block set of each loop, used by the freshness wall in
+        // [`Context::compute_uncovered_values`] to decide whether a fresh
+        // allocation re-executes on every iteration that reaches an array_set.
+        let loop_blocks: Vec<BTreeSet<BasicBlockId>> =
+            loops.yet_to_unroll.iter().map(|l| l.blocks.clone()).collect();
 
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut make_array_values: HashSet<ValueId> = HashSet::default();
+        let mut call_result_values: HashSet<ValueId> = HashSet::default();
         let mut back_edge_args: HashSet<ValueId> = HashSet::default();
         // For each destination block, the list of `(predecessor, args)`
         // pairs collected from terminators. Used to drive the backward
@@ -309,8 +458,9 @@ impl<'f> Context<'f> {
                     inc_rc_locations.entry(*value).or_default().push((block_id, idx));
                 }
 
+                let is_call = matches!(instruction, Instruction::Call { .. });
                 let is_non_aliasing =
-                    matches!(instruction, Instruction::ArraySet { .. } | Instruction::Call { .. });
+                    is_call || matches!(instruction, Instruction::ArraySet { .. });
                 let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
                 for &result in function.dfg.instruction_results(*instruction_id) {
                     if function.dfg.type_of_value(result).contains_an_array() {
@@ -320,6 +470,9 @@ impl<'f> Context<'f> {
                         }
                         if is_make_array {
                             make_array_values.insert(result);
+                        }
+                        if is_call {
+                            call_result_values.insert(result);
                         }
                     }
                 }
@@ -363,25 +516,176 @@ impl<'f> Context<'f> {
             }
         }
 
-        // A `make_array` is iteration-local iff its result appears on a
-        // loop back-edge: that's the signal that it re-executes each
-        // iteration, so the storage the loop-header parameter receives
-        // through the back-edge is freshly allocated rather than the
-        // same storage the array_set may mutate in place.
-        let iteration_local_make_arrays: HashSet<ValueId> =
-            make_array_values.intersection(&back_edge_args).copied().collect();
-
         let backward_aliases = compute_backward_aliases(function, &rpo, &incoming_edges);
+
+        // Backward-alias closure of the literal back-edge args: every
+        // value that can become a loop-header parameter's storage across
+        // a back-edge, including those that only reach the back-edge arg
+        // position through a forward edge first. A literal back-edge arg
+        // that is a block parameter contributes its whole backward set;
+        // an instruction result or function parameter contributes only
+        // itself (its backward set is the singleton).
+        let mut back_edge_participants: HashSet<ValueId> = HashSet::default();
+        for &arg in &back_edge_args {
+            back_edge_participants.insert(arg);
+            if let Some(arg_set) = backward_aliases.get(&arg) {
+                back_edge_participants.extend(arg_set.iter().copied());
+            }
+        }
+
+        // A back-edge arg is iteration-local *fresh* if it re-allocates
+        // distinct storage every iteration: a `make_array` (re-executes)
+        // or a `Call` result (the callee allocates fresh — the same
+        // assumption [`Context::non_aliasing_array_values`] makes).
+        // `array_set` results are deliberately *excluded*: an `array_set`
+        // may mutate its source in place, so its result can be the *same*
+        // storage as a prior iteration's, breaking the distinct-generation
+        // guarantee the swap exclusion relies on.
+        let iteration_local_fresh: HashSet<ValueId> = back_edge_args
+            .iter()
+            .copied()
+            .filter(|v| make_array_values.contains(v) || call_result_values.contains(v))
+            .collect();
+
+        // Array values that allocate **fresh** storage at their definition:
+        // `make_array` (a new array) and `Call` results (the callee allocates;
+        // the same heuristic [`Context::non_aliasing_array_values`] makes).
+        // `array_set` results are excluded — they may mutate in place rather
+        // than allocate. Used by the freshness wall in
+        // [`Context::compute_uncovered_values`]: storage that is freshly
+        // allocated on a path has no other live alias, so an in-place mutation
+        // there cannot be observed through one.
+        let fresh_array_values: HashSet<ValueId> =
+            make_array_values.union(&call_result_values).copied().collect();
+
+        // Swap exclusions. For every loop back-edge `be_start → header`,
+        // inspect each array-typed header parameter at `source_pos`: if
+        // the back-edge rebinds it to a *sibling* header parameter
+        // (`source ← sibling`) whose own back-edge arg is an
+        // iteration-local fresh allocation, and the source and sibling
+        // receive distinct storage on every forward edge into the header,
+        // record the sibling as excluded from the source's alias-set. See
+        // [`Context::swap_excluded_aliases`].
+        let mut swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
+        for &(be_start, header) in &back_edges {
+            let Some(edges) = incoming_edges.get(&header) else { continue };
+            let Some(be_args) =
+                edges.iter().find(|(pred, _)| *pred == be_start).map(|(_, args)| args)
+            else {
+                continue;
+            };
+            let params = function.dfg.block_parameters(header);
+            for (source_pos, &source_param) in params.iter().enumerate() {
+                if !function.dfg.type_of_value(source_param).contains_an_array() {
+                    continue;
+                }
+                let Some(&sibling) = be_args.get(source_pos) else { continue };
+                // `source_param ← sibling` must be a genuine swap to a
+                // *different* sibling header parameter (not self-threading,
+                // not a result).
+                if sibling == source_param {
+                    continue;
+                }
+                let Some(sibling_pos) = params.iter().position(|&pp| pp == sibling) else {
+                    continue;
+                };
+                // The sibling's own back-edge arg must be an
+                // iteration-local fresh allocation (the `c3 = [..]` or
+                // `c3 = f()` half of the swap).
+                if !be_args.get(sibling_pos).is_some_and(|a| iteration_local_fresh.contains(a)) {
+                    continue;
+                }
+                // Loop-entry guard. On every *forward* edge into the
+                // header, the source param and the sibling must receive
+                // **distinct** storage, or they can already alias at the
+                // array_set in the entry iteration (`source_0 = sibling_0`)
+                // and the exclusion would mask a real hazard. Two ways
+                // that can happen:
+                //
+                // - the sibling flows into the source's forward arg
+                //   (`sibling ∈ backward(source_forward_arg)`) — the
+                //   source *is* the sibling from the start.
+                // - the source's and sibling's forward args share a
+                //   backward-set member — e.g. `jmp header(v, v)` feeds the
+                //   same `v` to both, so they're runtime-equal even though
+                //   the directed backward walk keeps them in separate sets.
+                let backward_set = |v: ValueId| -> im::HashSet<ValueId> {
+                    backward_aliases.get(&v).cloned().unwrap_or_else(|| im::HashSet::unit(v))
+                };
+                let entry_aliased = edges
+                    .iter()
+                    .filter(|(pred, _)| !back_edges.contains(&(*pred, header)))
+                    .any(|(_, args)| {
+                        let Some(&source_forward_arg) = args.get(source_pos) else {
+                            return false;
+                        };
+                        let source_forward_aliases = backward_set(source_forward_arg);
+                        if source_forward_aliases.contains(&sibling) {
+                            return true;
+                        }
+                        args.get(sibling_pos).is_some_and(|&sibling_forward_arg| {
+                            let sibling_forward_aliases = backward_set(sibling_forward_arg);
+                            source_forward_aliases
+                                .iter()
+                                .any(|x| sibling_forward_aliases.contains(x))
+                        })
+                    });
+                if entry_aliased {
+                    continue;
+                }
+                swap_excluded_aliases.entry(source_param).or_default().insert(sibling);
+            }
+        }
+
+        // Propagate swap exclusions forward across non-back-edge
+        // block-parameter edges. On a forward edge `P ← A`, `P` is `A` within
+        // the same iteration, so `P`'s storage is `A`'s storage; a sibling
+        // distinct from `A`'s per-iteration storage is therefore distinct from
+        // `P`'s too. This carries an exclusion recorded on a loop-header
+        // parameter to a successor parameter seeded from it — e.g. an
+        // inner-loop header (the array_set source) fed from the swapped
+        // outer-loop parameter — so `alias_set_for` drops the sibling for the
+        // inner source as well. Back-edges are excluded: across one, `P` is a
+        // *prior* iteration's `A`, a distinct storage.
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (dest, edges) in &incoming_edges {
+                let params = function.dfg.block_parameters(*dest);
+                for (i, &param) in params.iter().enumerate() {
+                    for (pred, args) in edges {
+                        if back_edges.contains(&(*pred, *dest)) {
+                            continue;
+                        }
+                        let Some(&arg) = args.get(i) else { continue };
+                        let Some(arg_excl) = swap_excluded_aliases.get(&arg).cloned() else {
+                            continue;
+                        };
+                        let entry = swap_excluded_aliases.entry(param).or_default();
+                        for x in arg_excl {
+                            if x != param && entry.insert(x) {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         Self {
             function,
+            cfg,
             dom_tree,
+            fresh_array_values,
+            loop_blocks,
             backward_aliases,
             array_value_defs,
             non_aliasing_array_values,
-            iteration_local_make_arrays,
+            iteration_local_fresh,
             inc_rc_locations,
             back_edge_args,
+            back_edge_participants,
+            swap_excluded_aliases,
         }
     }
 
@@ -406,16 +710,15 @@ impl<'f> Context<'f> {
     ///   create a real alias, and we'd miss that. In practice the
     ///   frontend's array-returning functions allocate fresh storage.
     ///
-    /// Also drop **iteration-local `MakeArray` results** — those that
-    /// appear on at least one loop back-edge
-    /// ([`Context::iteration_local_make_arrays`]). A `make_array` on a
-    /// back-edge re-executes each iteration and allocates fresh
-    /// storage, so the loop-header parameter it feeds on the back-edge
-    /// holds a *different* allocation in the next iteration than the
-    /// one this iteration's `array_set` may have mutated.
-    /// **Non-back-edge `MakeArray` results stay in the alias-set** —
-    /// they represent a one-time allocation whose storage the
-    /// array_set can mutate in place.
+    /// Also drop **iteration-local fresh results** — `MakeArray` (or
+    /// `Call`) results that appear on at least one loop back-edge
+    /// ([`Context::iteration_local_fresh`]). Such a value re-allocates
+    /// fresh storage each iteration, so the loop-header parameter it
+    /// feeds on the back-edge holds a *different* allocation in the next
+    /// iteration than the one this iteration's `array_set` may have
+    /// mutated. **Non-back-edge `MakeArray` results stay in the
+    /// alias-set** — they represent a one-time allocation whose storage
+    /// the array_set can mutate in place.
     ///
     /// **Post-array_set-in-same-block filter.** Drop instruction
     /// results whose defining position is in `array_set_block` at an
@@ -454,7 +757,10 @@ impl<'f> Context<'f> {
                 if self.non_aliasing_array_values.contains(&v) {
                     return false;
                 }
-                if self.iteration_local_make_arrays.contains(&v) {
+                if self.iteration_local_fresh.contains(&v) {
+                    return false;
+                }
+                if self.swap_excluded_aliases.get(&source).is_some_and(|qs| qs.contains(&v)) {
                     return false;
                 }
                 if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&v)
@@ -468,59 +774,63 @@ impl<'f> Context<'f> {
             .collect()
     }
 
-    /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` exists at a
-    /// program point that precedes the `array_set` in flow order — either
-    /// in a strictly-earlier position within the same block, or in a
-    /// different block whose reverse-post-order index is smaller.
+    /// The subset of `alias_set` whose members are **not** provably protected
+    /// on every path to the `array_set` — the use-set the forward walk must
+    /// check. An empty result means every member is protected, so the
+    /// `array_set` can be accepted without the forward walk.
     ///
-    /// # Why RPO precedence, not dominance
+    /// A member is dropped (provably protected) when, on every runtime path,
+    /// the storage it represents is either RC-bumped by an `inc_rc` (so the
+    /// array_set copies) or an iteration-local fresh allocation (so it has no
+    /// other live alias). Dropping covered members is what stops the forward
+    /// walk from flagging a read of an `inc_rc`'d sibling on a path where the
+    /// array_set never mutates that storage (the alias-set-merging
+    /// false-positive). Keeping the uncovered members preserves real hazards,
+    /// such as the issue SSA where the source itself is uncovered and read
+    /// after the array_set.
+    fn unprotected_aliases(
+        &self,
+        alias_set: &im::HashSet<ValueId>,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> im::HashSet<ValueId> {
+        // Fast full-accept short-circuits cover the whole array_set at once.
+        if self.some_inc_rc_precedes(alias_set, source, array_set_block, array_set_idx) {
+            return im::HashSet::new();
+        }
+        // Otherwise compute per-member coverage and keep only uncovered members.
+        let uncovered = self.compute_uncovered_values(source, array_set_block, array_set_idx);
+        alias_set.iter().copied().filter(|m| uncovered.contains(m)).collect()
+    }
+
+    /// Fast, whole-array_set acceptance predicate: returns `true` when some
+    /// `inc_rc` on an alias-set member protects the `array_set` on **every**
+    /// path. This is the cheap common case; per-path coverage that this misses
+    /// (e.g. `inc_rc` on one arm and a fresh allocation on the other) is
+    /// handled by [`Context::compute_uncovered_values`].
     ///
-    /// The strict invariant would be "the `inc_rc` dominates the
-    /// `array_set`" — i.e., is on *every* path. But the frontend in
-    /// practice emits **path-specific** `inc_rc`s: each path that creates
-    /// an alias gets its own `inc_rc`, with no single dominating one. See
-    /// e.g. `brillig_array_ifelse` where `b1` has `inc_rc v8` and `b4` has
-    /// `inc_rc v2`, neither dominating the `array_set` in `b6`. On every
-    /// runtime path the alias is either covered by an `inc_rc` or the
-    /// values are freshly allocated, but the verifier can't observe
-    /// path-specific freshness with the current alias-set model.
+    /// Three acceptances, each sound on every path:
     ///
-    /// We weaken the check accordingly: presence of *any* `inc_rc` on an
-    /// alias-set member, anywhere earlier in flow, is taken as the
-    /// frontend signalling "I'm aware of this aliasing and have handled
-    /// it." Absence of any such `inc_rc` *combined* with a forward aliased
-    /// read (checked separately) still flags as a hazard, which is the
-    /// shape PR-12671 had. The back-edge-participant relaxation below
-    /// widens this further to cover `inc_rc`s placed after the
-    /// array_set, where iteration aliasing makes the bump's program
-    /// point misleading.
+    /// - **Same-block, before the array_set.** The block is on every path to
+    ///   its own array_set, so an earlier `inc_rc` always runs first.
+    /// - **Dominating block.** An `inc_rc` whose block dominates the array_set
+    ///   is on every path to it (e.g. an `inc_rc` in a loop pre-header).
+    /// - **Back-edge-participant relaxation.** An `inc_rc` on a *non-source*
+    ///   alias that appears as a jmp/jmpif arg on a loop **back-edge** is taken
+    ///   as a codegen signal regardless of program-point order: the frontend
+    ///   is deliberately managing iteration aliasing, and the bump's program
+    ///   point can come *after* the array_set — it is the back-edge thread-back
+    ///   that delivers the protection to the next iteration. Forward-edge cases
+    ///   don't need this because [`Context::backward_aliases`] keeps the
+    ///   forward-edge value out of the source's alias-set in the first place.
     ///
-    /// # Back-edge-participant relaxation
+    /// Mere RPO precedence is *not* one of these: a sibling-branch `inc_rc`
+    /// precedes in RPO yet the other branch reaches the array_set without it
+    /// (`end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`).
     ///
-    /// In addition to RPO precedence, an `inc_rc` is also accepted when
-    /// it lives on an alias-set member that:
-    ///
-    /// - is **not** the array_set's own source (an `inc_rc` on the
-    ///   source itself, *after* the array_set, doesn't protect that
-    ///   array_set — it would be suspicious frontend output rather
-    ///   than a signal); and
-    /// - appears as a jmp/jmpif arg on a loop **back-edge** somewhere
-    ///   in the function ([`Context::back_edge_args`]).
-    ///
-    /// The intuition: when the frontend emits an `inc_rc` on a
-    /// non-source alias that's threaded back through a loop, it's
-    /// deliberately managing iteration aliasing. The bump's program
-    /// point can come *after* the array_set in source order — it's
-    /// the back-edge thread-back that delivers the protection to the
-    /// next iteration. Forward-edge cases (e.g. re-seeding a value
-    /// with a global on a non-loop branch) don't need this relaxation
-    /// because [`Context::backward_aliases`] is precise enough to keep
-    /// the forward-edge value out of the source's alias-set in the
-    /// first place.
-    ///
-    /// Well-formed SSA contains no `DecrementRc`, so we don't need to
-    /// worry about a `dec_rc` intervening between the `inc_rc` and the
-    /// `array_set`.
+    /// Well-formed SSA contains no `DecrementRc`, so we don't need to worry
+    /// about a `dec_rc` intervening between the `inc_rc` and the `array_set`.
     fn some_inc_rc_precedes(
         &self,
         alias_set: &im::HashSet<ValueId>,
@@ -532,13 +842,6 @@ impl<'f> Context<'f> {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
             };
-            // Back-edge-participant relaxation: an `inc_rc` on a
-            // non-source alias that's also a loop back-edge arg is a
-            // codegen signal regardless of program-point order. The
-            // backward-alias walk already handles forward-edge
-            // threading precisely (the forward-edge value simply isn't
-            // in the source's backward set), so this relaxation only
-            // needs to cover back-edge iteration aliasing.
             if *value != source && self.back_edge_args.contains(value) {
                 return true;
             }
@@ -547,9 +850,7 @@ impl<'f> Context<'f> {
                     if inc_idx < array_set_idx {
                         return true;
                     }
-                } else if self.dom_tree.reverse_post_order_cmp(inc_block, array_set_block)
-                    == Ordering::Less
-                {
+                } else if self.dom_tree.dominates(inc_block, array_set_block) {
                     return true;
                 }
             }
@@ -557,13 +858,213 @@ impl<'f> Context<'f> {
         false
     }
 
+    /// Whether `value` is a fresh allocation whose storage is distinct on
+    /// every iteration that reaches the array_set in `array_set_block` — i.e.
+    /// a `make_array`/`Call` result whose defining block shares a loop with
+    /// `array_set_block`, so it re-executes each iteration. A fresh allocation
+    /// outside any shared loop is a one-time storage that the array_set
+    /// mutates exactly once; reading it back through the same name would
+    /// observe that mutation, so it does **not** count as protection.
+    fn is_iteration_local_fresh(&self, value: ValueId, array_set_block: BasicBlockId) -> bool {
+        if !self.fresh_array_values.contains(&value) {
+            return false;
+        }
+        let Some(&(def_block, _)) = self.array_value_defs.get(&value) else {
+            return false;
+        };
+        self.loop_blocks
+            .iter()
+            .any(|blocks| blocks.contains(&def_block) && blocks.contains(&array_set_block))
+    }
+
+    /// The set of values that lie on at least one **uncovered** backward path
+    /// from the array_set — a path on which the threaded source storage reaches
+    /// a function parameter / unthreadable root without crossing an `inc_rc` or
+    /// iteration-local-fresh wall. The caller intersects this with the
+    /// alias-set to obtain the forward walk's use-set; an empty intersection
+    /// means every member is protected, so the array_set is accepted.
+    ///
+    /// The walk threads the *exact* source storage backward: across a
+    /// block-parameter edge it follows the predecessor's argument, and at an
+    /// `array_set` result it continues with that `array_set`'s `array` operand
+    /// (the result shares the operand's storage). This recognizes path-specific
+    /// protection a block-level cut cannot — `inc_rc` on one arm of a diamond
+    /// and a fresh `make_array` on the other, threaded through a loop (the
+    /// `func_1`/`v20` fuzzer shape).
+    ///
+    /// It is computed over the `(block, value)` threading graph in two phases,
+    /// iteratively (the predecessor chain can be thousands of blocks deep on
+    /// large functions, which recursion would risk overflowing):
+    ///
+    /// 1. **Build.** From the seed `(array_set_block, source)`, expand each
+    ///    state to its backward successors. A wall (`inc_rc` on the value, or
+    ///    an iteration-local fresh allocation) is a covered sink. Reaching a
+    ///    block with no predecessors, or a value defined by an unthreadable
+    ///    instruction (a non-iteration-local allocation, or an `array_get` of a
+    ///    nested array), or an edge whose argument can't be resolved, is an
+    ///    *uncovered terminal*. `seed_idx` limits the `inc_rc` wall to bumps
+    ///    *before* the array_set in its own block; any other block on a path
+    ///    executes fully before the array_set, so an `inc_rc` anywhere in it
+    ///    counts.
+    /// 2. **Propagate.** A state is uncovered if it is an uncovered terminal or
+    ///    has an uncovered successor; iterate to a fixed point. A cycle with no
+    ///    uncovered terminal stays covered (a back-edge introduces no new
+    ///    entry-originating path).
+    ///
+    /// Crediting freshness only ever shrinks the use-set, so it can add
+    /// false-negatives (a freshly-allocated array read back through its own
+    /// name after an in-place mutation — a shape the frontend does not emit)
+    /// but never false-positives.
+    fn compute_uncovered_values(
+        &self,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> HashSet<ValueId> {
+        struct Node {
+            successors: Vec<(BasicBlockId, ValueId)>,
+            uncovered_terminal: bool,
+        }
+
+        // Phase 1: build the backward threading graph.
+        let mut graph: HashMap<(BasicBlockId, ValueId), Node> = HashMap::default();
+        let mut worklist: Vec<(BasicBlockId, ValueId, Option<usize>)> =
+            vec![(array_set_block, source, Some(array_set_idx))];
+
+        while let Some((block, value, seed_idx)) = worklist.pop() {
+            if graph.contains_key(&(block, value)) {
+                continue;
+            }
+
+            // Wall: an iteration-local `make_array`/`Call` result is newly
+            // allocated storage on this path, distinct each iteration.
+            if self.is_iteration_local_fresh(value, array_set_block) {
+                graph
+                    .insert((block, value), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            // Wall: an `inc_rc` on the threaded value in this block.
+            if let Some(locations) = self.inc_rc_locations.get(&value)
+                && locations
+                    .iter()
+                    .any(|&(b, i)| b == block && seed_idx.is_none_or(|limit| i < limit))
+            {
+                graph
+                    .insert((block, value), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            // If `value` is defined in this block, the walk stops here.
+            if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&value)
+                && def_block == block
+            {
+                let inst_id = self.function.dfg[block].instructions()[def_idx];
+                // An `array_set` result shares its operand's storage; continue
+                // threading with the operand.
+                if let Instruction::ArraySet { array, .. } = self.function.dfg[inst_id] {
+                    graph.insert(
+                        (block, value),
+                        Node { successors: vec![(block, array)], uncovered_terminal: false },
+                    );
+                    worklist.push((block, array, seed_idx));
+                    continue;
+                }
+                // A non-iteration-local allocation or other instruction we
+                // cannot thread: an uncovered terminal.
+                graph.insert((block, value), Node { successors: vec![], uncovered_terminal: true });
+                continue;
+            }
+
+            // Flows in from predecessors.
+            let preds: Vec<BasicBlockId> = self.cfg.predecessors(block).collect();
+            if preds.is_empty() {
+                // Reached the entry / a source-less block unwalled.
+                graph.insert((block, value), Node { successors: vec![], uncovered_terminal: true });
+                continue;
+            }
+            // If `value` is a parameter of this block, follow each predecessor's
+            // argument at that position; otherwise the same value flows in from
+            // every predecessor.
+            let params = self.function.dfg.block_parameters(block);
+            let param_pos = params.iter().position(|&p| p == value);
+            let mut successors = Vec::new();
+            let mut uncovered_terminal = false;
+            for &pred in &preds {
+                let next = match param_pos {
+                    Some(i) => match self.edge_arg(pred, block, i) {
+                        Some(arg) => arg,
+                        // An unresolvable edge argument: conservatively treat
+                        // as uncovered rather than silently dropping the path.
+                        None => {
+                            uncovered_terminal = true;
+                            continue;
+                        }
+                    },
+                    None => value,
+                };
+                successors.push((pred, next));
+                worklist.push((pred, next, None));
+            }
+            graph.insert((block, value), Node { successors, uncovered_terminal });
+        }
+
+        // Phase 2: propagate "uncovered" from terminals to a fixed point.
+        let mut uncovered: HashSet<(BasicBlockId, ValueId)> =
+            graph.iter().filter(|(_, n)| n.uncovered_terminal).map(|(k, _)| *k).collect();
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (state, node) in &graph {
+                if !uncovered.contains(state)
+                    && node.successors.iter().any(|s| uncovered.contains(s))
+                {
+                    uncovered.insert(*state);
+                    changed = true;
+                }
+            }
+        }
+
+        uncovered.into_iter().map(|(_, value)| value).collect()
+    }
+
+    /// The argument passed to parameter position `i` of `dest` on the edge
+    /// from `pred`. `None` if `pred`'s terminator does not target `dest` or has
+    /// no argument at that position.
+    fn edge_arg(&self, pred: BasicBlockId, dest: BasicBlockId, i: usize) -> Option<ValueId> {
+        match self.function.dfg[pred].terminator()? {
+            TerminatorInstruction::Jmp { destination, arguments, .. } if *destination == dest => {
+                arguments.get(i).copied()
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                if *then_destination == dest {
+                    then_arguments.get(i).copied()
+                } else if *else_destination == dest {
+                    else_arguments.get(i).copied()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Forward CFG walk from after the `array_set` looking for a
     /// non-terminator instruction that reads a value still in the alias
     /// use-set.
     ///
-    /// **Use-set evolution.** Starts as `alias_set` and only shrinks. Kills
-    /// are applied **during propagation** to each successor — see
-    /// [`Context::succ_use_set`] for the kill rules.
+    /// **Use-set evolution.** Starts as `alias_set` — which is **already
+    /// narrowed** to the uncovered members by [`Context::unprotected_aliases`]
+    /// before this is called, so provably-protected aliases never enter the
+    /// walk — and only shrinks from there. Kills are applied **during
+    /// propagation** to each successor — see [`Context::succ_use_set`] for the
+    /// kill rules.
     ///
     /// **What counts as a use.** Only non-terminator operands. Terminator
     /// arguments are the legitimate threading mechanism the invariant
@@ -594,8 +1095,12 @@ impl<'f> Context<'f> {
     /// is a hazard iff `tainted_indices` covers `idx`. With both indices
     /// constant, that's a set-membership test; otherwise (either side
     /// dynamic, or `tainted_indices == None`) the verifier conservatively
-    /// flags. Non-`array_get` uses on a `use_set` member are always
-    /// flagged — the SSA-vs-runtime divergence isn't index-local for them.
+    /// flags. An `array_set v, idx, _` with `v ∈ use_set` is index-aware in
+    /// the same way: it copies forward every position except `idx`, so it
+    /// is a hazard iff some `tainted_indices` position differs from `idx`
+    /// (a same-index write overwrites the mutation and extends the chain
+    /// instead). All other uses on a `use_set` member are always flagged —
+    /// the SSA-vs-runtime divergence isn't index-local for them.
     ///
     /// **IncrementRc clears `derived`.** A program-point `inc_rc v` with
     /// `v ∈ use_set ∪ derived` lifts the storage's RC ≥ 2, so any
@@ -613,6 +1118,7 @@ impl<'f> Context<'f> {
     fn find_reachable_aliased_use(
         &self,
         alias_set: &im::HashSet<ValueId>,
+        source: ValueId,
         array_set_id: InstructionId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
@@ -620,9 +1126,57 @@ impl<'f> Context<'f> {
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
+        // Protected-participant set. Exclude a non-source alias `v` when
+        // all three hold:
+        //
+        // 1. `v ∈ alias_set` — `v` is in `source`'s backward set, i.e. it
+        //    actually *flows into* `source`. This is the soundness guard:
+        //    a value that only *receives* `source`'s storage (a forward
+        //    successor) is not in the backward set, so its `inc_rc` runs
+        //    *after* the array_set and cannot protect it. Requiring
+        //    membership keeps such values in the use-set to be flagged.
+        // 2. `v` carries its own `inc_rc` — combined with (3), the bump
+        //    runs before `v` crosses the back-edge that re-binds it onto
+        //    `source`'s loop-header parameter, so by the time `v`'s
+        //    storage equals `source`'s it is RC ≥ 2 and the array_set
+        //    copies rather than mutating in place.
+        // 3. `v` is a loop back-edge participant
+        //    ([`Context::back_edge_participants`]) — its storage reaches
+        //    `source` through a back-edge (possibly via a forward edge
+        //    into the back-edge arg first), which is what makes the
+        //    `inc_rc` loop-carried.
+        //
+        // The gate is **per value** on that value's own `inc_rc` — a
+        // sibling's `inc_rc` never exonerates an unprotected value. A
+        // back-edge position fed by an `inc_rc`'d value on one predecessor
+        // edge and an unprotected value on another protects only the
+        // former; the latter stays in the use-set for the walk to flag.
+        //
+        // The removal is **sticky**: protected members are kept out of the
+        // use-set for the whole walk, not just the initial seed. A
+        // protected participant that is itself a loop-header parameter
+        // would otherwise be re-introduced the moment another in-use alias
+        // flows into its position (the add-rule in
+        // [`Context::succ_use_set`]); excluding it there too keeps it out.
+        // Dropping it from the seed also lets the per-arg kill rule drop
+        // the loop-header parameter on the back-edge, since the value
+        // threaded back is this protected participant rather than a
+        // still-live alias.
+        let protected: im::HashSet<ValueId> = alias_set
+            .iter()
+            .copied()
+            .filter(|&v| {
+                v != source
+                    && self.inc_rc_locations.contains_key(&v)
+                    && self.back_edge_participants.contains(&v)
+            })
+            .collect();
+        let use_set: im::HashSet<ValueId> =
+            alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
+
         let array_set_result = self.function.dfg.instruction_results(array_set_id)[0];
         let initial_state = WalkState {
-            use_set: alias_set.clone(),
+            use_set,
             derived: im::HashSet::unit(array_set_result),
             tainted: write_index_const.map(im::HashSet::unit),
         };
@@ -679,18 +1233,39 @@ impl<'f> Context<'f> {
                     // skip if encountered.
                     Instruction::DecrementRc { .. } => {}
                     Instruction::ArraySet { array, index, value, .. } => {
-                        if state.use_set.contains(array) {
-                            return Some(AliasedUse { instruction: inst_id, value: *array });
+                        let array_in_use = state.use_set.contains(array);
+                        if array_in_use {
+                            // Index-aware, mirroring the `array_get` rule below.
+                            // `array_set v, i, x` produces a *copy* of `v` with
+                            // index `i` overwritten, so it only observes (copies
+                            // forward) the indices it does **not** write. It can
+                            // therefore surface the source's in-place mutation
+                            // only if it copies a tainted index — i.e. some
+                            // tainted index differs from this write index. A
+                            // write to the (sole) tainted index overwrites the
+                            // mutation and observes nothing. A dynamic write or
+                            // read index, or fully-tainted (`None`) storage, is
+                            // flagged conservatively.
+                            let write_idx = self.function.dfg.get_numeric_constant(*index);
+                            let observes_tainted = match (&state.tainted, write_idx) {
+                                (None, _) | (_, None) => true,
+                                (Some(t), Some(c)) => t.iter().any(|i| *i != c),
+                            };
+                            if observes_tainted {
+                                return Some(AliasedUse { instruction: inst_id, value: *array });
+                            }
                         }
                         if self.function.dfg.type_of_value(*value).contains_an_array()
                             && state.use_set.contains(value)
                         {
                             return Some(AliasedUse { instruction: inst_id, value: *value });
                         }
-                        // Chain extension: this array_set writes through a
-                        // value that may share the source's storage with
-                        // this iteration's earlier in-place mutations.
-                        if state.derived.contains(array) {
+                        // Chain extension: a write through a value that may
+                        // share the source's storage — a `derived` member, or a
+                        // `use_set` member whose write we just cleared as
+                        // non-observing — keeps mutating that storage, so record
+                        // its write index and track the result.
+                        if state.derived.contains(array) || array_in_use {
                             match (
                                 state.tainted.as_mut(),
                                 self.function.dfg.get_numeric_constant(*index),
@@ -744,7 +1319,7 @@ impl<'f> Context<'f> {
             let Some(terminator) = self.function.dfg[block].terminator() else { continue };
             match terminator {
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                    let next = self.succ_walk_state(*destination, arguments, &state);
+                    let next = self.succ_walk_state(*destination, arguments, &state, &protected);
                     worklist.push(WalkFrame { block: *destination, start_idx: 0, state: next });
                 }
                 TerminatorInstruction::JmpIf {
@@ -755,14 +1330,14 @@ impl<'f> Context<'f> {
                     ..
                 } => {
                     let then_state =
-                        self.succ_walk_state(*then_destination, then_arguments, &state);
+                        self.succ_walk_state(*then_destination, then_arguments, &state, &protected);
                     worklist.push(WalkFrame {
                         block: *then_destination,
                         start_idx: 0,
                         state: then_state,
                     });
                     let else_state =
-                        self.succ_walk_state(*else_destination, else_arguments, &state);
+                        self.succ_walk_state(*else_destination, else_arguments, &state, &protected);
                     worklist.push(WalkFrame {
                         block: *else_destination,
                         start_idx: 0,
@@ -786,10 +1361,11 @@ impl<'f> Context<'f> {
         dest: BasicBlockId,
         arguments: &[ValueId],
         state: &WalkState,
+        protected: &im::HashSet<ValueId>,
     ) -> WalkState {
         WalkState {
-            use_set: self.succ_use_set(dest, arguments, &state.use_set),
-            derived: self.succ_use_set(dest, arguments, &state.derived),
+            use_set: self.succ_use_set(dest, arguments, &state.use_set, protected),
+            derived: self.succ_use_set(dest, arguments, &state.derived, protected),
             tainted: state.tainted.clone(),
         }
     }
@@ -807,9 +1383,13 @@ impl<'f> Context<'f> {
     ///      result, excluded at lookup time): drop it.
     ///    - **Add.** If the param is not in `use_set` but the arg is,
     ///      this edge introduces a fresh alias: the param at `dest`'s
-    ///      entry shares storage with an alias-set member, so add it.
-    ///      This keeps alias propagation accurate at joins and loop
-    ///      back-edges.
+    ///      entry shares storage with an alias-set member, so add it —
+    ///      *unless* the param is a protected back-edge participant
+    ///      ([`Context::find_reachable_aliased_use`]), which must stay out
+    ///      of the use-set for the whole walk (its own `inc_rc` keeps it
+    ///      RC ≥ 2). Without this exclusion a protected participant that
+    ///      is itself a loop-header parameter would be re-introduced the
+    ///      moment any in-use alias flowed into its position.
     ///    - Otherwise (both in or both out), no change.
     ///    Only array-typed params participate.
     ///
@@ -824,6 +1404,7 @@ impl<'f> Context<'f> {
         dest: BasicBlockId,
         arguments: &[ValueId],
         use_set: &im::HashSet<ValueId>,
+        protected: &im::HashSet<ValueId>,
     ) -> im::HashSet<ValueId> {
         let mut result = use_set.clone();
 
@@ -840,7 +1421,9 @@ impl<'f> Context<'f> {
                     result.remove(&param);
                 }
                 (false, true) => {
-                    result.insert(param);
+                    if !protected.contains(&param) {
+                        result.insert(param);
+                    }
                 }
                 _ => {}
             }
@@ -1079,6 +1662,355 @@ mod tests {
             "expected ArraySetAliasViolation, got {err:?}",
         );
     }
+    /// A read value that carries its own `inc_rc` **and** is a loop
+    /// back-edge participant is **still a hazard** when it merely
+    /// *receives* the source's storage on a forward edge. Here `array_set s`
+    /// (b1) mutates `s` in place, then `p := s` (b1 → b2) and `p` is read by
+    /// the `call` in b2. `p` has an `inc_rc` and is a back-edge arg (b3 → b2),
+    /// but the `inc_rc` runs *after* the mutation and `p` flows *out of* the
+    /// source (`p ← s`), not into it — so the bump can't protect the
+    /// array_set. The read observes the in-place mutation; the verifier must
+    /// reject.
+    ///
+    /// This pins the soundness boundary of the protected-participant filter:
+    /// it excludes a value only when that value is in the *source's*
+    /// alias-set (flows *into* the source, so its `inc_rc` is loop-carried
+    /// before the mutation).
+    #[test]
+    fn end_to_end_forward_threaded_read_with_inc_rc_participant_is_rejected() {
+        let src = r#"
+            brillig(inline) fn f f0 {
+              b0(v0: u1, vs: [u32; 1]):
+                jmp b1(vs)
+              b1(s: [u32; 1]):
+                v1 = array_set s, index u32 0, value u32 9
+                jmp b2(s)
+              b2(p: [u32; 1]):
+                inc_rc p
+                v2 = call f0(v0, p) -> u1
+                jmpif v0 then: b3(), else: b4()
+              b3():
+                jmp b2(p)
+              b4():
+                jmp b1(v1)
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Inclusive-range (`..=`) peel, accepted by the index-aware
+    /// `array_set`-use rule. This is the SSA the frontend emits for
+    ///
+    /// ```ignore
+    /// for _ in 254_u8..=255_u8 { c4[0] = 9; c4 = c3; c3 = [b[0]]; }
+    /// ```
+    ///
+    /// An inclusive range lowers to an exclusive loop plus a duplicated
+    /// **peel** of the final iteration (see `codegen_for` in `ssa_gen`).
+    /// Here `b1`/`b2` are the loop and `b4` is the peel; the loop variable
+    /// `v29` (`c4`) is `array_set` in *both*, at the **same** constant
+    /// index `0`. The forward walk from the loop's `array_set v29` (`b2`)
+    /// reaches the peel's `array_set v29` (`b4`) — but that write
+    /// *overwrites* index `0`, the only tainted index, so it can't observe
+    /// the loop's in-place mutation. Index-aware handling of `array_set`
+    /// uses (the same `tainted`-index test the `array_get` rule uses)
+    /// therefore accepts it, matching the runtime: the program executes
+    /// identically under Brillig and comptime.
+    ///
+    /// This is *not* peel detection — there's no reliable post-`mem2reg`
+    /// marker for a peel block. It's a precise consequence of `array_set`
+    /// semantics (a write observes only the indices it doesn't overwrite),
+    /// so it also covers the corresponding `..` case and any other shape
+    /// where the aliased write hits the same index. A peel whose duplicated
+    /// body *reads* a tainted index some other way (e.g. an `array_get` or
+    /// a `call`) is still flagged.
+    #[test]
+    fn end_to_end_inclusive_range_peel_array_set_same_index_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u8 1] : [u8; 1]
+                v4 = make_array [u8 2] : [u8; 1]
+                v7 = make_array [u8 3] : [u8; 1]
+                jmp b1(u8 254, v1, v4)
+              b1(v10: u8, v28: [u8; 1], v29: [u8; 1]):
+                v13 = lt v10, u8 255
+                jmpif v13 then: b2(), else: b3()
+              b2():
+                v18 = array_set v29, index u32 0, value u8 9
+                v20 = make_array [u8 3] : [u8; 1]
+                v21 = unchecked_add v10, u8 1
+                jmp b1(v21, v20, v28)
+              b3():
+                jmpif u1 1 then: b4(), else: b5(v28, v29)
+              b4():
+                v25 = array_set v29, index u32 0, value u8 9
+                v27 = make_array [u8 3] : [u8; 1]
+                jmp b5(v27, v28)
+              b5(v30: [u8; 1], v31: [u8; 1]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the peel's array_set v29 (b4) overwrites index 0 — the only index the loop's \
+             array_set v29 (b2) tainted — so it observes no in-place mutation",
+        );
+    }
+
+    /// Multi-index inclusive-range (`..=`) peel with the swap `c4 = c3`.
+    /// SSA for
+    ///
+    /// ```ignore
+    /// for _ in 254_u8..=255_u8 { c4[0] = 9; c4[1] = 19; c4 = c3; c3 = [b[0], b[1]]; }
+    /// ```
+    ///
+    /// Same peel shape as
+    /// [`Self::end_to_end_inclusive_range_peel_array_set_same_index_is_accepted`],
+    /// but the loop body writes **both** indices, so the index-aware
+    /// `array_set`-use rule alone can't rescue it (the peel's single-index
+    /// write copies the other tainted index forward). It is accepted by the
+    /// **swap exclusion** instead: on the back-edge `jmp b1(v28, v27, v37)`
+    /// the source param `v38` (`c4`) is rebound to its sibling `v37` (`c3`),
+    /// whose own back-edge arg `v27` is an iteration-local `make_array` — so
+    /// `v37` is a distinct per-iteration storage and is dropped from
+    /// `backward(v38)`. With `v37` gone, the walk kills `v38` on the
+    /// back-edge, and the peel's `array_set v38` (`b4`) — which sources the
+    /// same header param — never sees it in the use-set. The loop body
+    /// mutates one storage while the peel mutates a different one and both
+    /// writes are dead; Brillig and comptime agree.
+    #[test]
+    fn end_to_end_multi_index_inclusive_range_peel_swap_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v2 = make_array [u8 1, u8 11] : [u8; 2]
+                v6 = make_array [u8 2, u8 12] : [u8; 2]
+                v10 = make_array [u8 3, u8 13] : [u8; 2]
+                jmp b1(u8 254, v2, v6)
+              b1(v13: u8, v37: [u8; 2], v38: [u8; 2]):
+                v16 = lt v13, u8 255
+                jmpif v16 then: b2(), else: b3()
+              b2():
+                v22 = array_set v38, index u32 0, value u8 9
+                v25 = array_set v22, index u32 1, value u8 19
+                v27 = make_array [u8 3, u8 13] : [u8; 2]
+                v28 = unchecked_add v13, u8 1
+                jmp b1(v28, v27, v37)
+              b3():
+                jmpif u1 1 then: b4(), else: b5(v37, v38)
+              b4():
+                v32 = array_set v38, index u32 0, value u8 9
+                v34 = array_set v32, index u32 1, value u8 19
+                v36 = make_array [u8 3, u8 13] : [u8; 2]
+                jmp b5(v36, v37)
+              b5(v39: [u8; 2], v40: [u8; 2]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the back-edge swap v38 ← v37 with v37 freshened by the iteration-local \
+             make_array v27 drops v37 from v38's alias-set, so the walk kills v38 on the \
+             back-edge and the peel's array_set v38 (b4) — sourcing the same header param — \
+             is not flagged",
+        );
+    }
+
+    /// The general form (no peel): a swap `c4 = c3` followed by a
+    /// whole-array read. SSA for
+    ///
+    /// ```ignore
+    /// for _ in 253_u8..255_u8 { c4[0] = 9; c4[1] = 19; c4 = c3; c3 = [b[0], b[1]]; }
+    /// println(c4);
+    /// ```
+    ///
+    /// This is an **exclusive** (`..`) loop — *no peel* — exercising the
+    /// swap exclusion directly. On the back-edge `jmp b1(v27, v26, v30)`
+    /// the source param `v31` (`c4`) is rebound to its sibling `v30` (`c3`),
+    /// whose own back-edge arg `v26` is an iteration-local `make_array`, so
+    /// `v30` is dropped from `backward(v31)`. The walk then kills `v31` on
+    /// the back-edge, and the loop-exit `call f1(v31)` (`b3`, the `println`)
+    /// reads a value no longer in the use-set. The loop's `array_set v31`
+    /// mutates `c4`'s storage, but its result is discarded and `v31` is
+    /// rebound to a fresh `c3`-derived array — the mutated storage is dead,
+    /// and a whole-array read of the swapped-in value observes nothing.
+    /// There is no `inc_rc` (the frontend correctly omitted it — the
+    /// storages are genuinely distinct); Brillig and comptime agree.
+    #[test]
+    fn end_to_end_loop_swap_then_whole_array_read_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v2 = make_array [u8 1, u8 11] : [u8; 2]
+                v6 = make_array [u8 2, u8 12] : [u8; 2]
+                jmp b1(u8 253, v2, v6)
+              b1(v13: u8, v30: [u8; 2], v31: [u8; 2]):
+                v14 = lt v13, u8 255
+                jmpif v14 then: b2(), else: b3()
+              b2():
+                v21 = array_set v31, index u32 0, value u8 9
+                v24 = array_set v21, index u32 1, value u8 19
+                v26 = make_array [u8 3, u8 13] : [u8; 2]
+                v27 = unchecked_add v13, u8 1
+                jmp b1(v27, v26, v30)
+              b3():
+                call f1(v31)
+                return
+            }
+            brillig(inline) fn observe f1 {
+              b0(v0: [u8; 2]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the back-edge swap v31 ← v30 with v30 freshened by the iteration-local \
+             make_array v26 drops v30 from v31's alias-set, so the walk kills v31 on the \
+             back-edge and the loop-exit whole-array read call f1(v31) is not flagged",
+        );
+    }
+
+    /// **Swap-exclusion soundness canary — freshening guard.** The swap
+    /// `v3 ← v2` (`P ← Q`) is present on the back-edge, but `v2`'s own
+    /// back-edge arg is `v2` itself (loop-**invariant** `c3`, not a fresh
+    /// `make_array`). Then `P_k = Q_{k-1} = Q_0 = Q_k`, so `P` and `Q`
+    /// genuinely share storage from the first swap on: the in-loop
+    /// `array_set v3` mutates it and `array_get v2` observes the mutation.
+    /// The exclusion must **not** fire (its freshening precondition fails),
+    /// and the verifier must reject. Guards against dropping `v2` purely
+    /// because it's swapped into the source.
+    #[test]
+    fn end_to_end_swap_with_loop_invariant_sibling_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                v1 = make_array [u8 2] : [u8; 1]
+                jmp b1(u8 0, v0, v1)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v17 = array_get v2, index u32 0 -> u8
+                constrain v17 == u8 1
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v2, v2)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// **Swap-exclusion soundness canary — loop-entry guard.** The swap
+    /// `v3 ← v2` with `v2` freshened by an iteration-local `make_array`
+    /// (`v9`) *does* satisfy the freshening precondition, but the
+    /// pre-header feeds the **same** array `v0` to both header params
+    /// (`jmp b1(.., v0, v0)`), so `P_0 = Q_0 = v0`: at the entry
+    /// iteration the `array_set v3` mutates the storage that `array_get
+    /// v2` then reads. The directed backward walk keeps `v2` and `v3` in
+    /// separate sets, so without the loop-entry guard the exclusion would
+    /// fire and mask this hazard. It must **not** fire; the verifier must
+    /// reject.
+    #[test]
+    fn end_to_end_swap_with_sibling_same_value_entry_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                jmp b1(u8 0, v0, v0)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v17 = array_get v2, index u32 0 -> u8
+                constrain v17 == u8 1
+                v9 = make_array [u8 3] : [u8; 1]
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v9, v2)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// The swap freshening accepts a `Call` result, not only a
+    /// `make_array`. Same shape as
+    /// [`Self::end_to_end_loop_swap_then_whole_array_read_is_accepted`],
+    /// but the sibling `v2` (`c3`) is freshened by `v20 = call f1()`
+    /// (`c3 = f()`) rather than a literal `make_array`. A `Call` result is
+    /// a fresh per-iteration allocation (the same assumption the
+    /// non-aliasing filter makes), so `v2` is dropped from `v3`'s
+    /// alias-set, the walk kills `v3` on the back-edge, and the loop-exit
+    /// `call f2(v3)` is not flagged.
+    #[test]
+    fn end_to_end_swap_freshened_by_call_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                v1 = make_array [u8 2] : [u8; 1]
+                jmp b1(u8 0, v0, v1)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v20 = call f1() -> [u8; 1]
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v20, v2)
+              b3():
+                call f2(v3)
+                return
+            }
+            brillig(inline) fn alloc f1 {
+              b0():
+                v0 = make_array [u8 7] : [u8; 1]
+                return v0
+            }
+            brillig(inline) fn observe f2 {
+              b0(v0: [u8; 1]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v2 is freshened on the back-edge by a Call result (v20), a fresh per-iteration \
+             allocation, so the swap exclusion drops v2 from v3's alias-set and the loop-exit \
+             read call f2(v3) is not flagged",
+        );
+    }
+
+    /// **Swap-exclusion soundness canary — `array_set` results are not
+    /// fresh.** The sibling `v2` (`c3`) is freshened on the back-edge by
+    /// `v20 = array_set v2, …` — an `array_set` result, which may be an
+    /// **in-place** mutation rather than a new allocation. So
+    /// `v2_k = v2_{k-1}`'s storage, and after the swap `v3` aliases it: the
+    /// in-loop `array_set v3` mutates the storage that `array_get v2` then
+    /// reads. The exclusion must **not** fire (an `array_set` result is
+    /// excluded from `iteration_local_fresh`), and the verifier must
+    /// reject. Guards against widening the freshening to all
+    /// non-aliasing results.
+    #[test]
+    fn end_to_end_swap_freshened_by_array_set_result_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [u8 1] : [u8; 1]
+                v1 = make_array [u8 2] : [u8; 1]
+                jmp b1(u8 0, v0, v1)
+              b1(v10: u8, v2: [u8; 1], v3: [u8; 1]):
+                v12 = lt v10, u8 5
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                v15 = array_set v3, index u32 0, value u8 9
+                v17 = array_get v2, index u32 0 -> u8
+                constrain v17 == u8 1
+                v20 = array_set v2, index u32 0, value u8 5
+                v18 = unchecked_add v10, u8 1
+                jmp b1(v18, v20, v2)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
 
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
@@ -1174,6 +2106,233 @@ mod tests {
         assert_verifier_accepts(src);
     }
 
+    /// A branch-local `inc_rc` does **not** protect an `array_set` reached on a
+    /// path that skips it. `inc_rc v1` lives only on the `then` path (b1), but
+    /// the `array_set v1` in the join block b3 is also reachable via b2, which
+    /// has no `inc_rc`. On the `v0 = false` path `v1` has RC 1, so the
+    /// `array_set` mutates it in place and the following `array_get v1` observes
+    /// the mutation. The verifier must reject — a non-dominating `inc_rc`
+    /// cannot vouch for the array_set.
+    #[test]
+    fn end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Branch-local `inc_rc`s that **collectively** cover every path do
+    /// protect the `array_set`, even when no single one dominates it. Both
+    /// arms of the diamond (b1 *and* b2) bump `v1` before the join block b3
+    /// holds `array_set v1` and a read of `v1`. Neither `inc_rc` dominates b3
+    /// on its own, but every path to the array_set passes through one of
+    /// them, so `v1` has RC ≥ 2 on every path and the `array_set` always
+    /// copies. The verifier must accept.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case: the frontend emits one `inc_rc` per branch feeding a join, which
+    /// a single-block dominance check would wrongly reject. It is the exact
+    /// counterpart of
+    /// `end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`
+    /// — adding the second arm's `inc_rc` is what flips it from a hazard to
+    /// safe.
+    #[test]
+    fn end_to_end_branch_local_inc_rcs_on_all_arms_protect_array_set_in_join_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                inc_rc v1
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "inc_rc v1 on both arms collectively cover every path to the array_set; \
+             neither dominates b3 alone, but together they form a cut",
+        );
+    }
+
+    /// Path-specific protection mixing `inc_rc` and freshness across a loop.
+    /// The loop body block b5 holds `array_set v7` on its parameter and reads
+    /// `v7` (on the next iteration, via the back-edge). `v7` is fed by two
+    /// arms: b2 passes the loop-invariant `v1` after an `inc_rc v1`, while b3
+    /// passes a freshly allocated `make_array`. On every path the storage
+    /// `array_set v7` may mutate is either RC-bumped (`v1` via b2) or freshly
+    /// allocated this iteration (`v4` via b3), so no read ever observes an
+    /// in-place mutation through an alias. The verifier must accept.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case. It is the reason a coverage check that only recognizes `inc_rc`
+    /// blocks is insufficient: the b3 arm carries no `inc_rc`, only a fresh
+    /// allocation, so freshness must count as protection on that path.
+    #[test]
+    fn end_to_end_loop_param_protected_by_inc_rc_and_freshness_on_alternate_arms_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmp b1(u32 0)
+              b1(v2: u32):
+                v3 = eq v2, u32 5
+                jmpif v3 then: b6(), else: b4()
+              b4():
+                jmpif v0 then: b2(), else: b3()
+              b2():
+                inc_rc v1
+                jmp b5(v1)
+              b3():
+                v4 = make_array [Field 0] : [Field; 1]
+                jmp b5(v4)
+              b5(v7: [Field; 1]):
+                v8 = array_get v7, index u32 0 -> Field
+                v9 = array_set v7, index u32 0, value Field 7
+                v10 = add v2, u32 1
+                jmp b1(v10)
+              b6():
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "every path to array_set v7 either bumps RC (inc_rc v1 on the b2 arm) or \
+             allocates fresh storage (make_array on the b3 arm)",
+        );
+    }
+
+    /// A covered alias that flows into the source must be dropped from the
+    /// forward walk's use-set, not flagged. `v3` (the array_set source) is fed
+    /// by `v2` on the b1 arm — where `v2` is `inc_rc`'d, so on that arm the
+    /// array_set copies and `v2` is never mutated — and by the function
+    /// parameter `v1` on the b2 arm (uncovered). The later `array_get v2` reads
+    /// the *covered* sibling: on the arm where `v3 = v2` the bump protects it,
+    /// and on the arm where `v3 = v1` the array_set mutates `v1`, not `v2`. So
+    /// the read is never a hazard and the verifier must accept — even though
+    /// `v2` is in the source's alias-set and is read after the array_set.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case. Seeding the forward walk with the *whole* alias-set (including the
+    /// covered `v2`) would falsely flag the `array_get v2`; keeping only the
+    /// uncovered members (`v3`/`v1`) avoids it. The source's own b2 arm stays
+    /// uncovered, so `some_inc_rc_precedes` does not accept the array_set
+    /// outright — the per-member coverage is what makes the difference.
+    #[test]
+    fn end_to_end_inc_rc_covered_alias_read_after_array_set_is_dropped_and_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1], v2: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v2
+                jmp b3(v2)
+              b2():
+                jmp b3(v1)
+              b3(v3: [Field; 1]):
+                v5 = array_set v3, index u32 0, value Field 7
+                v6 = array_get v2, index u32 0 -> Field
+                return v6
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the read is of v2, an inc_rc-covered alias of the source; only the \
+             uncovered members (v3/v1) belong in the forward walk's use-set",
+        );
+    }
+
+    /// Swap exclusion must reach an inner-loop array_set seeded from the
+    /// swapped outer-loop parameter. The outer loop (header b1) rotates its
+    /// array params on the back-edge — `a ← b` while `b ← make_array` — so the
+    /// swap filter records `b` (v4) as excluded from `a` (v3): they are
+    /// distinct per-iteration storage. The inner loop's parameter `c` (v7) is
+    /// seeded from `a` on the forward edge b2→b3, and the inner body does
+    /// `array_set c` and then reads `b`. Because `c = a` within the iteration,
+    /// `b` is distinct from `c` too, so the read is never a hazard. The
+    /// verifier must accept — which requires the swap exclusion on `a` to
+    /// propagate forward onto `c`.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// false-positive (confirmed valid via `--release`): without the forward
+    /// propagation, `b` stays in `c`'s alias-set and the `array_get b` is
+    /// wrongly flagged.
+    #[test]
+    fn end_to_end_swap_exclusion_propagates_to_inner_loop_source_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 1] : [Field; 1]
+                jmp b1(v1, v2, u32 0)
+              b1(v3: [Field; 1], v4: [Field; 1], v5: u32):
+                v6 = lt v5, u32 3
+                jmpif v6 then: b2(), else: b8()
+              b2():
+                jmp b3(v3, u32 0)
+              b3(v7: [Field; 1], v8: u32):
+                v9 = lt v8, u32 3
+                jmpif v9 then: b4(), else: b6()
+              b4():
+                v10 = array_set v7, index u32 0, value Field 7
+                v11 = array_get v4, index u32 0 -> Field
+                v12 = add v8, u32 1
+                jmp b3(v10, v12)
+              b6():
+                v14 = make_array [Field 2] : [Field; 1]
+                v15 = add v5, u32 1
+                jmp b1(v4, v14, v15)
+              b8():
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "b (v4) is swap-excluded from a (v3); a is forwarded to the inner-loop \
+             source c (v7), so the exclusion must propagate and the array_get v4 is safe",
+        );
+    }
+
+    /// The linear analog of `make_array_with_forward_read` but via a `Call`
+    /// result: `v2 = v1 = v0` is the same fresh call-allocated storage,
+    /// `array_set v2` mutates it in place, and `array_get v1` reads it back —
+    /// a genuine hazard. A `Call` result must NOT be blanket-credited as
+    /// distinct-per-iteration freshness (it is one-time storage here), so the
+    /// verifier must reject, exactly as it does for the `make_array` analog.
+    #[test]
+    fn end_to_end_call_result_aliased_via_forward_block_param_with_forward_read_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = call f1() -> [Field; 1]
+                jmp b1(v0)
+              b1(v1: [Field; 1]):
+                jmp b2(v1)
+              b2(v2: [Field; 1]):
+                v3 = array_set v2, index u32 0, value Field 7
+                v4 = array_get v1, index u32 0 -> Field
+                return v4
+            }
+            brillig(inline) fn alloc f1 {
+              b0():
+                v0 = make_array [Field 0] : [Field; 1]
+                return v0
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
     /// Index-aware filter: a constant-index `array_set` followed by a
     /// constant-index `array_get` on the same alias at a **different**
     /// index is safe. In-place mutation at one position doesn't affect
@@ -1239,11 +2398,14 @@ mod tests {
         assert_verifier_rejects(src);
     }
 
-    /// The index filter applies *only* to `array_get`. A non-`array_get`
-    /// use of the alias (here a second `array_set` on the same source
-    /// with a different constant index) is still flagged conservatively,
-    /// because the SSA-vs-runtime divergence isn't local to the read
-    /// index for those use kinds.
+    /// A second `array_set` on the alias at a **different** constant index
+    /// is a hazard: it produces a copy of the source, so it observes
+    /// (copies forward) the source's tainted index `0` at its non-written
+    /// positions. The index-aware `array_set`-use rule flags it precisely
+    /// because the write index `1` differs from the tainted index `0`.
+    /// (Compare
+    /// [`Self::end_to_end_inclusive_range_peel_array_set_same_index_is_accepted`],
+    /// where the write hits the same index and is accepted.)
     #[test]
     fn end_to_end_array_set_followed_by_another_array_set_on_alias_is_rejected() {
         let src = r#"
@@ -1255,6 +2417,29 @@ mod tests {
                 return v7
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// Counterpart to the different-index case: a second `array_set` on the
+    /// alias at the **same** constant index as the source overwrites the
+    /// only tainted index, so it observes none of the source's in-place
+    /// mutation and is accepted — the `array_set`-use analogue of the
+    /// disjoint-`array_get` rule. At runtime `v3`'s write to index 0 is
+    /// dead (overwritten by `v5`), and `v7` reads `v5`'s result.
+    #[test]
+    fn end_to_end_array_set_followed_by_another_array_set_same_index_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                v3 = array_set v0, index u32 0, value u32 99
+                v5 = array_set v0, index u32 0, value u32 88
+                v7 = array_get v5, index u32 0 -> u32
+                return v7
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the second array_set on v0 writes the same index 0 the first tainted, overwriting \
+             it rather than observing the in-place mutation",
+        );
     }
 
     /// Chain of `array_set`s on the same backing storage where the read
@@ -1717,6 +2902,157 @@ mod tests {
         );
     }
 
+    /// End-to-end regression for an AST-fuzzer-discovered pattern where
+    /// the `inc_rc`'d value reaches the loop back-edge through a *latch*
+    /// block rather than as the literal back-edge arg. Source-level shape
+    /// (`func_1` from the minimized repro):
+    ///
+    /// ```ignore
+    /// for _ in 0..2 {
+    ///     c.0 = if a { c.0[0] = 40; b.3 } else { [50; 1] };
+    /// }
+    /// assert(b.3[0] == 10);
+    /// ```
+    ///
+    /// The loop variable `v28` (`c.0`) is path-dependent: on the first
+    /// iteration it is the forward seed `v6`, and the `array_set v28`
+    /// mutates that (dead-after) storage; on later iterations it is `v4`
+    /// (`b.3`), threaded back as `v4 → v23 → v28`. The frontend emits
+    /// `inc_rc v4` in `b4` right before threading `v4` forward into the
+    /// latch `b6`, so by the time `v4` re-enters as `v28` its `RC ≥ 2`
+    /// and the `array_set` copies — the post-loop `array_get v4` reads
+    /// pristine storage.
+    ///
+    /// The literal back-edge arg is `v23` (the latch param), not `v4`, so
+    /// the back-edge-participant relaxation in
+    /// [`Context::some_inc_rc_precedes`] does not fire. Acceptance comes
+    /// from the protected-participant filter in
+    /// [`Context::find_reachable_aliased_use`]: `v4` is a back-edge
+    /// participant (it flows into `v23` through the forward `b4 → b6`
+    /// edge) and carries its own `inc_rc`, so it is dropped from the
+    /// use-set; the per-arg kill rule then drops `v28` along the
+    /// back-edge and the `array_get v4` is never flagged.
+    #[test]
+    fn end_to_end_inc_rcd_value_reaches_back_edge_through_latch_is_accepted() {
+        let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: u1, v4: [i32; 1], v6: [i32; 1]):
+                jmp b1(u32 0, v6)
+              b1(v14: u32, v28: [i32; 1]):
+                v15 = lt v14, u32 2
+                jmpif v15 then: b2(), else: b3()
+              b2():
+                jmpif v0 then: b4(), else: b5()
+              b3():
+                v25 = array_get v4, index u32 0 -> i32
+                constrain v25 == i32 10, "HNJ"
+                return
+              b4():
+                v20 = array_set v28, index u32 0, value i32 40
+                inc_rc v4
+                jmp b6(v4, v20)
+              b5():
+                v22 = make_array [i32 50] : [i32; 1]
+                jmp b6(v22, v28)
+              b6(v23: [i32; 1], v29: [i32; 1]):
+                v24 = unchecked_add v14, u32 1
+                jmp b1(v24, v23)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v4 is a back-edge participant (flows into the latch param v23 via the forward b4->b6 edge) with its own inc_rc, so the protected-participant filter drops it and the array_get v4 is never flagged",
+        );
+    }
+
+    /// Soundness counterpart to
+    /// [`end_to_end_inc_rcd_value_reaches_back_edge_through_latch_is_accepted`]:
+    /// a latch `b6` joins two predecessors that feed the loop's back-edge
+    /// position, one carrying an `inc_rc`'d value (`v0`) and the other an
+    /// unprotected entry parameter (`v1`) with no `inc_rc`. On the path
+    /// through `b5` the loop variable becomes `v1`, and `array_set v4`
+    /// mutates `v1`'s storage in place (RC = 1); the post-loop
+    /// `array_get v1` then observes that mutation — a genuine hazard.
+    ///
+    /// The protected-participant filter must **not** be fooled into
+    /// exonerating `v1` because its *sibling* `v0` is protected: the
+    /// filter is gated per value on that value's own `inc_rc`. `v1` has
+    /// none, so it stays in the use-set and the walk flags the read.
+    /// (Widening the relaxation to "some back-edge participant has an
+    /// `inc_rc`" would wrongly accept this.)
+    #[test]
+    fn end_to_end_latch_join_with_unprotected_sibling_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [i32; 1], v1: [i32; 1], v2: u1):
+                jmp b1(u32 0, v0)
+              b1(v3: u32, v4: [i32; 1]):
+                v5 = lt v3, u32 2
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v6 = array_set v4, index u32 0, value i32 40
+                jmpif v2 then: b4(), else: b5()
+              b3():
+                v7 = array_get v1, index u32 0 -> i32
+                return
+              b4():
+                inc_rc v0
+                jmp b6(v0)
+              b5():
+                jmp b6(v1)
+              b6(v8: [i32; 1]):
+                v9 = unchecked_add v3, u32 1
+                jmp b1(v9, v8)
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern (minimized):
+    /// the protected back-edge participant is itself an inner-loop-header
+    /// parameter that an in-use alias flows into, so the forward walk's
+    /// add-rule would otherwise re-introduce it.
+    ///
+    /// `v78` (the inner-loop-header param read by the `call` in `b7`) is in
+    /// `v85`'s backward alias-set — via `v85 <- v79 <- v91 <- v78`, where the
+    /// `b7 -> b11` edge crosses `v78` into the source column (`v91`). It
+    /// carries its own `inc_rc` and is a back-edge participant (it reaches
+    /// the `b11 -> b6` back-edge arg `v91`). The `inc_rc` is therefore
+    /// loop-carried: by the time `v78`'s storage comes around to be the
+    /// `array_set v85` source it is RC >= 2, so the array_set copies and the
+    /// `call`'s read is safe.
+    ///
+    /// The removal must be **sticky**: `v78` is dropped from the seed, but
+    /// without excluding it from the add-rule too it is re-introduced the
+    /// moment the in-use alias `v72` flows into it at `b6`, and the `call`
+    /// is flagged. (`v72`, the second outer column, is the live carrier that
+    /// survives the outer back-edge and re-feeds `v78`.)
+    #[test]
+    fn end_to_end_sticky_removal_of_inner_loop_header_participant_is_accepted() {
+        let src = r#"
+            brillig(inline) fn f f0 {
+              b0(v0: u1, v72i: [u32; 1], v73i: [u32; 1]):
+                jmp b1(v72i, v73i)
+              b1(v72: [u32; 1], v73: [u32; 1]):
+                jmpif v0 then: b6(v72, v73), else: b3()
+              b3():
+                return u1 0
+              b6(v78: [u32; 1], v79: [u32; 1]):
+                jmpif v0 then: b7(), else: b12(v78, v79)
+              b7():
+                inc_rc v78
+                v51 = call f0(v0, v78, v79) -> u1
+                jmp b11(v79, v78)
+              b11(v90: [u32; 1], v91: [u32; 1]):
+                jmp b6(v90, v91)
+              b12(v84: [u32; 1], v85: [u32; 1]):
+                v66 = array_set v85, index u32 0, value u32 9
+                jmp b1(v84, v66)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v78 is an inner-loop-header param in v85's backward set with its own loop-carried inc_rc and back-edge participation; sticky removal keeps it out of the use-set so the add-rule can't re-introduce it for the call to read",
+        );
+    }
+
     /// End-to-end regression for an AST-fuzzer-discovered minimal shape:
     /// two array-typed function entry parameters flow into the same
     /// downstream block parameter via a *forward* if-else sibling join
@@ -1891,7 +3227,7 @@ mod tests {
     /// `make_array` defined in the same block as (and *after*) the
     /// `array_set`, whose result feeds the loop-header parameter on the
     /// loop's back-edge. The make_array is iteration-local (back-edge
-    /// arg), so the `iteration_local_make_arrays` filter drops it from
+    /// arg), so the `iteration_local_fresh` filter drops it from
     /// the alias-set: the per-arg kill at the back-edge then sees the
     /// arg ∉ use_set and correctly drops the loop-header parameter, so
     /// the walk terminates without flagging the loop-body reads.
@@ -2025,7 +3361,7 @@ mod tests {
     /// runtime the parameter is rebound to a fresh `make_array` on
     /// every back-edge crossing, so the iteration-aliasing is illusory.
     ///
-    /// The `iteration_local_make_arrays` filter drops a `make_array`
+    /// The `iteration_local_fresh` filter drops a `make_array`
     /// result that appears on a loop back-edge: the make_array always
     /// allocates fresh top-level storage, so it
     /// can't represent the pre-mutation storage of any array_set source.
@@ -2283,7 +3619,7 @@ mod tests {
     }
 
     /// Minimal SSA pinning down the **unique necessity** of the
-    /// [`Context::iteration_local_make_arrays`] filter. The other
+    /// [`Context::iteration_local_fresh`] filter. The other
     /// "value can't share storage at the array_set's program point"
     /// filters — `non_aliasing_array_values` (ArraySet/Call results),
     /// `post-array_set-in-same-block`, and the walk's `def-block-entry`
@@ -2316,7 +3652,7 @@ mod tests {
     ///   in use_set, the rule sees the arg as "still an alias" and
     ///   keeps `v1`. The subsequent `array_get v1` in `b1` then flags.
     ///
-    /// `iteration_local_make_arrays` filters `v4` at alias-set
+    /// `iteration_local_fresh` filters `v4` at alias-set
     /// construction time so it's never in the use_set in the first
     /// place. The kill rule on `b3 → b1` then correctly fires, `v1`
     /// is dropped, and the walk terminates without flagging.
@@ -2338,25 +3674,26 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v4 is a make_array on the b3 → b1 back-edge — iteration-local fresh storage. The iteration_local_make_arrays filter drops it from v1's alias-set, enabling the per-arg kill at the back-edge to correctly fire on v1. Without this filter, the walk would falsely flag the b1.array_get v1 on re-entry.",
+            "v4 is a make_array on the b3 → b1 back-edge — iteration-local fresh storage. The iteration_local_fresh filter drops it from v1's alias-set, enabling the per-arg kill at the back-edge to correctly fire on v1. Without this filter, the walk would falsely flag the b1.array_get v1 on re-entry.",
         );
     }
 
     /// Five `inc_rc` placements, each isolated on its own array parameter
     /// so the inc_rcs don't accidentally cover for each other. Tests the
-    /// **relaxed** precedence check (any `inc_rc` earlier in RPO suffices;
-    /// it does **not** need to dominate the array_set's block):
+    /// precedence check, which requires the `inc_rc` to be on **every** path
+    /// to the array_set — either earlier in the same block, or in a block
+    /// that **dominates** the array_set's block:
     ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **precedes**.
-    ///   - `v1`: inc_rc in entry block → **precedes**.
-    ///   - `v2`: inc_rc in a sibling branch (b1) → **precedes** under the
-    ///     relaxed check (sibling blocks come earlier in RPO than the
-    ///     common-successor block); would fail a strict dominance check.
+    ///   - `v1`: inc_rc in entry block (dominates everything) → **precedes**.
+    ///   - `v2`: inc_rc in a sibling branch (b1) → does **not** precede.
+    ///     b1 doesn't dominate the common-successor block b3 (the b2 path
+    ///     skips the inc_rc), so the bump can't vouch for the array_set.
     ///   - `v3`: same-block, inc_rc *later* than the array_set → does
     ///     **not** precede (same-block comparison still requires earlier
     ///     position).
     ///   - `v4`: no inc_rc anywhere → does **not** precede.
     #[test]
-    fn inc_rc_precedence_recognizes_earlier_in_flow_positions() {
+    fn inc_rc_precedence_requires_dominating_position() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0(v0: [u32; 2], v1: [u32; 2], v2: [u32; 2], v3: [u32; 2], v4: [u32; 2], v5: u1):
@@ -2398,7 +3735,7 @@ mod tests {
             } else if *source == v1 {
                 (true, "v1: entry-block inc_rc")
             } else if *source == v2 {
-                (true, "v2: inc_rc in sibling branch (precedes in RPO)")
+                (false, "v2: inc_rc in sibling branch does not dominate")
             } else if *source == v3 {
                 (false, "v3: same-block later inc_rc")
             } else if *source == v4 {
@@ -2442,11 +3779,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             !has_use,
@@ -2479,11 +3824,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             has_use,
@@ -2524,11 +3877,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             !has_use,
@@ -2619,16 +3980,99 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
+        let ArraySetSite {
+            block, idx, instruction_id, source, alias_set, write_index_const, ..
+        } = first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .find_reachable_aliased_use(
+                &alias_set,
+                source,
+                instruction_id,
+                block,
+                idx,
+                write_index_const,
+            )
             .is_some();
         assert!(
             !has_use,
             "b2's v5 is rebound to v4 (the array_set's result, excluded from alias-set), so it is killed and array_get v5 is not aliased"
         );
+    }
+
+    /// The `array_set` mutates the loop-invariant function parameter `v0`
+    /// **directly** and discards its result (`v6` is unused); the aliased
+    /// `array_get v0` (b2) is reachable from the `array_set` (b5) only by
+    /// crossing the loop back-edge `b5 → b1 → b2` into the next iteration.
+    /// The alias-set is therefore the singleton `{v0}`, and the hazard is
+    /// surfaced purely by the forward walk returning to a read of the same
+    /// un-threaded value — no block-parameter threading is involved, unlike
+    /// `end_to_end_pr_12671_repro_is_rejected`, whose `array_set` is on a
+    /// loop-carried copy and whose result is threaded back.
+    ///
+    /// The write index is dynamic (`v1`), so `tainted == None` and every
+    /// aliased read is flagged. This is the loop/back-edge analogue of the
+    /// straight-line `end_to_end_array_set_dynamic_index_with_array_get_is_rejected`.
+    #[test]
+    fn end_to_end_array_set_dynamic_index_across_back_edge_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                jmp b1(u32 0)
+              b1(v1: u32):
+                v2 = lt v1, u32 2
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                v3 = array_get v0, index u32 0 -> u32
+                v4 = eq v1, u32 1
+                jmpif v4 then: b4(), else: b5()
+              b4():
+                v5 = array_get v0, index u32 1 -> u32
+                constrain v3 == v5, "iter 1 v0[0] should equal v0[1]=99 after mutation"
+                jmp b5()
+              b5():
+                v6 = array_set v0, index v1, value u32 99
+                v7 = unchecked_add v1, u32 1
+                jmp b1(v7)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Same direct-on-parameter, result-discarded loop shape as
+    /// `end_to_end_array_set_dynamic_index_across_back_edge_is_rejected`.
+    /// Here the `array_set v0` (b5) writes a **constant** index `0` and the
+    /// back-edge-reachable `array_get v0` (b2) reads that same index `0`.
+    /// The read's index is covered by the mutation's `tainted` set, so it
+    /// is flagged. This is the loop/back-edge analogue of the straight-line
+    /// `end_to_end_array_set_array_get_matching_constant_indices_is_rejected`,
+    /// confirming the index-aware `tainted`-set check fires across a loop
+    /// back-edge and not only within a single block.
+    #[test]
+    fn end_to_end_array_set_matching_constant_index_across_back_edge_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                jmp b1(u32 0)
+              b1(v1: u32):
+                v2 = lt v1, u32 2
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                v3 = array_get v0, index u32 0 -> u32
+                v4 = eq v1, u32 1
+                jmpif v4 then: b4(), else: b5()
+              b4():
+                constrain v3 == u32 99, "iter 1 v0[0] should be 99 after iter 0 mutated it in-place"
+                jmp b5()
+              b5():
+                v6 = array_set v0, index u32 0, value u32 99
+                v7 = unchecked_add v1, u32 1
+                jmp b1(v7)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
     }
 
     /// A located `array_set` plus everything the per-array_set verifier
