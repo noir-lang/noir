@@ -1463,22 +1463,15 @@ mod tests {
     }
 
     #[test]
-    fn nested_ifelse_shared_condition_reinsertion_drops_alias() {
+    fn store_through_nested_ifelse_reference_alias_blocks_forwarding() {
         // Regression test for noir-lang/noir-claude#1005.
         //
-        // The alias analysis is computed once and frozen. In b0, load
-        // forwarding rewrites the outer IfElse's then_value from v4 (`load v3`)
-        // to v2 (the inner IfElse). On re-insertion `simplify` then collapses
-        // the two IfElses that share the `v_cond` then_condition into a single
-        // IfElse, minting a *fresh* result ValueId that the frozen analysis has
-        // no entry for.
-        //
-        // In b1, `store Field 99 at <new_id>` must clear `known_values` for the
-        // first allocation, because the collapsed IfElse aliases it (when
-        // v_cond == 1 it *is* that cell at runtime). The pass registers the
-        // minted id against the value it replaced, so `may_alias` sees the
-        // aliasing, the store clears the entry, and the trailing load is NOT
-        // forwarded to the stale `Field 5` — it survives as a real load.
+        // `v6` selects — through a nested `IfElse` over references — between
+        // `v0` (reachable via `v3`) and a fresh allocation `v5`. When `v_cond`
+        // is true `v6` *is* `v0` at runtime, so `store Field 99 at v6` may write
+        // `v0`. Forwarding must treat `v6` as a possible alias of `v0`: the
+        // trailing `load v0` must NOT be forwarded to the stale `Field 5` stored
+        // just before it — it has to remain a real load.
         let src = "
         brillig(inline) fn main f0 {
           b0(v_cond: u1):
@@ -1637,22 +1630,15 @@ mod tests {
     }
 
     #[test]
-    fn array_set_folding_to_source_registers_minted_alias() {
+    fn array_set_writing_element_back_folds_to_source() {
         // Reduced from an ast-fuzzer counterexample (a Brillig loop carrying an
-        // array of references).
+        // array of references). `main` owns the reference and passes it into
+        // `f1`, since an entry point cannot take reference parameters directly.
         //
         // In `f1`, `array_set(v0, i, array_get(v0, i))` writes an element
-        // straight back, so on re-insertion `simplify` folds it to the source
-        // array `v0`. The frozen alias analysis does NOT put the `array_set`
-        // result in `v0`'s class (it only links them through the shared
-        // element/pointee class), so the minted result and `v0` start in
-        // distinct classes. The pass must register the fold against `v0`
-        // regardless — they denote the same array — which `register_alias` does
-        // by merging the classes. This exercises the path where the re-inserted
-        // value is aliased with a value the conservative analysis kept separate.
-        //
-        // `main` owns the reference and passes it into `f1`, since an entry
-        // point cannot take reference parameters directly.
+        // straight back — a no-op that folds to the source array `v0`. The pass
+        // must handle this reference array soundly: the `array_set` is removed
+        // and nothing is forwarded incorrectly.
         let src = "
         brillig(inline) fn main f0 {
           b0():
