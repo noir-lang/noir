@@ -2880,15 +2880,15 @@ mod tests {
     #[cfg(debug_assertions)]
     #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
     fn detects_terminator_argument_arity_mismatch() {
-        let main_id = FunctionId::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let destination = builder.insert_block();
-        builder.add_block_parameter(destination, Type::field());
-        builder.terminate_with_jmp(destination, Vec::new());
-        builder.switch_to_block(destination);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1(v0: Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         super::validate_terminators(ssa.main());
     }
 
@@ -2896,18 +2896,15 @@ mod tests {
     #[cfg(debug_assertions)]
     #[should_panic(expected = "Argument type in jmp must match block parameter type")]
     fn detects_terminator_argument_type_mismatch() {
-        use acvm::{AcirField, FieldElement};
-
-        let main_id = FunctionId::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let destination = builder.insert_block();
-        builder.add_block_parameter(destination, Type::field());
-        let argument = builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        builder.terminate_with_jmp(destination, vec![argument]);
-        builder.switch_to_block(destination);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u1 1)
+          b1(v0: Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         super::validate_terminators(ssa.main());
     }
 }
