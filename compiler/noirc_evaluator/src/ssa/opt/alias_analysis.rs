@@ -325,45 +325,27 @@ impl AliasAnalysis {
     ) {
         debug_assert_eq!(existing.func_id(), function.id());
         debug_assert_eq!(new.func_id(), function.id());
-
-        // `new` can already be known: simplification may forward `existing` to a
-        // value that existed at analyze time (e.g. `array_get` folded to an
-        // element), or an earlier call may have registered it (two results that
-        // fold to the same value). In every such case `existing` and `new` must
-        // ALREADY be in the same alias class, because each reference fold is
-        // mirrored by a unification in `analyze_block` (an `IfElse` result with
-        // its branches, an `array_get` result with the array's elements). So
-        // there is nothing to merge, and we must not clobber a known value's
-        // allocation site. Assert the invariant rather than skipping silently:
-        // a future fold rule lacking its matching unification would otherwise
-        // drop the `existing`–`new` relationship undetected.
-        if self.is_known(new) {
-            debug_assert_eq!(
-                self.aliases.find(existing),
-                self.aliases.find(new),
-                "register_alias: `new` ({new:?}) is known but not already aliased with \
-                 `existing` ({existing:?}); a simplify fold may lack a matching unification \
-                 in `analyze_block`"
-            );
-            return;
-        }
-        // We are about to fold the fresh value `new` into `existing`'s alias
-        // class, so `existing` must be a value the analysis already knows.
+        // `existing` is an original instruction result, so it always predates
+        // the analysis.
         debug_assert!(
             self.is_known(existing),
             "register_alias: `existing` ({existing:?}) must already be known"
         );
 
-        // Accept `new` in `ensure_known` even though its index is beyond the
-        // frozen `value_count`.
+        // `new` is whatever `existing` was rewritten to, so the two denote the
+        // same memory; union their classes. This is sound regardless of whether
+        // `new` is freshly minted or already existed: simplification can prove
+        // two values equal that the conservative analysis kept in distinct
+        // classes (e.g. an `array_get`/`IfElse` folding to a value the analysis
+        // never unified with the result), and over-approximating aliasing is
+        // always sound. The union is idempotent when they already share a class.
         self.known_extra.insert(new);
-
         self.merge_into(existing, new);
 
-        // `new` is the same value as `existing` and (being freshly minted) has
-        // no site of its own yet, so it inherits `existing`'s.
+        // A freshly minted `new` has no allocation site of its own and inherits
+        // `existing`'s. Never overwrite a site that `new` already carries.
         if let Some(&site) = self.allocation_sites.get(&existing) {
-            self.allocation_sites.insert(new, site);
+            self.allocation_sites.entry(new).or_insert(site);
         }
 
         self.invalidate_class_sizes(existing, new);
@@ -1624,15 +1606,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "is known but not already aliased with")]
-    fn register_alias_rejects_known_new_not_aliased_with_existing() {
-        // Contract: callers only register `new ≡ existing`, and every reference
-        // fold is mirrored by a unification in `analyze_block`, so a known `new`
-        // is always already in `existing`'s class. Registering an already-known
-        // `new` that is NOT aliased with `existing` violates that invariant —
-        // the debug assertion catches it rather than silently dropping the
-        // would-be merge. The two independent oracle results live in distinct
-        // classes, so this trips the assertion.
+    fn register_alias_merges_even_when_new_already_known() {
+        // `new` may already exist when simplification folds `existing` to a
+        // value the conservative analysis kept in a separate class. Because the
+        // rewrite is semantics-preserving (`existing ≡ new`), `register_alias`
+        // unions their classes regardless — over-approximating aliasing is
+        // sound. Modelled here with two independent oracle results that start in
+        // distinct classes: registering one against the other merges them.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1647,6 +1627,7 @@ mod tests {
         assert!(!analysis.may_alias(ssa.main(), results[0], results[1]));
 
         analysis.register_alias(ssa.main(), results[0], results[1]);
+        assert!(analysis.may_alias(ssa.main(), results[0], results[1]));
     }
 
     /// `&T` and `&mut T` can legitimately point to the same memory at runtime.
