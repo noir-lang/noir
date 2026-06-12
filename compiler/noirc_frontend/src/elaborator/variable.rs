@@ -1018,7 +1018,8 @@ fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Typ
         Type::Alias(type_alias, generics) => {
             get_type_alias_generics(&type_alias.borrow(), &generics)
         }
-        // Primitive types have no generics
+        Type::String(length) => vec![*length],
+        Type::FmtString(length, element) => vec![*length, *element],
         _ => Vec::new(),
     }
 }
