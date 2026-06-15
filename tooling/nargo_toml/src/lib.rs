@@ -506,9 +506,7 @@ fn resolve_package_from_toml(
             let assume_default_entry = false;
             package_config.resolve_to_package(&nargo_toml.root_dir, processed, assume_default_entry)
         }
-        Config::Workspace { .. } => {
-            Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
-        }
+        Config::Workspace { .. } => Err(ManifestError::UnexpectedWorkspace(toml_path.clone())),
     };
     let pos =
         processed.iter().position(|toml| toml == str_path).expect("added package must be here");
