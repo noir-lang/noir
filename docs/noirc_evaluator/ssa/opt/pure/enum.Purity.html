@@ -9,7 +9,7 @@ This applies to functions with <code>constrain</code> in them. So long as their
 parameters are the same, the <code>constrain</code> should be to the same values
 so the function is conceptually pure from a deduplication perspective
 even though it can still interact with the <code>enable_side_effects</code>/predicate variable.</p>
-<p>PureWithPredicate functions can only be deduplicated with identical predicates
+<p><code>PureWithPredicate</code> functions can only be deduplicated with identical predicates
 or a predicate that is a subset of the original.</p>
 </div><section id="variant.Impure" class="variant"><a href="#variant.Impure" class="anchor">§</a><h3 class="code-header">Impure</h3></section><div class="docblock"><p>This function is impure and cannot be deduplicated even with identical inputs.
 This is most commonly the case for any function taking or returning a

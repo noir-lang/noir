@@ -10,14 +10,14 @@ all transitive Brillig function dependencies.</p>
 <h2 id="parameters"><a class="doc-anchor" href="#parameters">§</a>Parameters</h2>
 <ul>
 <li>func: The SSA <a href="../../ssa/ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a> to compile as the entry point.</li>
-<li>arguments: Brillig-compatible <a href="../brillig_ir/artifact/enum.BrilligParameter.html" title="enum noirc_evaluator::brillig::brillig_ir::artifact::BrilligParameter">BrilligParameter</a> inputs to the function</li>
+<li>arguments: Brillig-compatible <a href="../brillig_ir/artifact/enum.BrilligParameter.html" title="enum noirc_evaluator::brillig::brillig_ir::artifact::BrilligParameter"><code>BrilligParameter</code></a> inputs to the function</li>
 <li>brillig: The <a href="../struct.Brillig.html" title="struct noirc_evaluator::brillig::Brillig">context structure</a> of all known Brillig artifacts for dependency resolution.</li>
 <li>options: Brillig compilation options (e.g., debug trace settings).</li>
 </ul>
 <h2 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h2>
 <ul>
-<li>Ok(<a href="../brillig_ir/artifact/struct.GeneratedBrillig.html" title="struct noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig">GeneratedBrillig</a>): Fully linked artifact for the entry point that can be executed as a Brillig program.</li>
-<li>Err(<a href="../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>): If the return value exceeds the witness limit or linking fails</li>
+<li>Ok(<a href="../brillig_ir/artifact/struct.GeneratedBrillig.html" title="struct noirc_evaluator::brillig::brillig_ir::artifact::GeneratedBrillig"><code>GeneratedBrillig</code></a>): Fully linked artifact for the entry point that can be executed as a Brillig program.</li>
+<li>Err(<a href="../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError"><code>RuntimeError</code></a>): If the return value exceeds the witness limit or linking fails</li>
 </ul>
 <h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
 <ul>

@@ -263,9 +263,9 @@
 <a href=#263 id=263 data-nosnippet>263</a>
 <a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// Convert a `Vec&lt;[AcirVar]&gt;` into a `Vec&lt;[AcirValue]&gt;` using the given result ids.
 <a href=#265 id=265 data-nosnippet>265</a>    /// If the type of a result id is an array, several acir vars are collected into
-<a href=#266 id=266 data-nosnippet>266</a>    /// a single [AcirValue::Array] of the same length.
+<a href=#266 id=266 data-nosnippet>266</a>    /// a single [`AcirValue::Array`] of the same length.
 <a href=#267 id=267 data-nosnippet>267</a>    /// If the type of a result id is a vector, the vector length must precede it and we can
-<a href=#268 id=268 data-nosnippet>268</a>    /// convert to an [AcirValue::Array] when the length is known (constant).
+<a href=#268 id=268 data-nosnippet>268</a>    /// convert to an [`AcirValue::Array`] when the length is known (constant).
 <a href=#269 id=269 data-nosnippet>269</a>    </span><span class="kw">fn </span>convert_vars_to_values(
 <a href=#270 id=270 data-nosnippet>270</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#271 id=271 data-nosnippet>271</a>        vars: Vec&lt;AcirVar&gt;,
@@ -299,10 +299,10 @@
 <a href=#299 id=299 data-nosnippet>299</a>        values
 <a href=#300 id=300 data-nosnippet>300</a>    }
 <a href=#301 id=301 data-nosnippet>301</a>
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="doccomment">/// Recursive helper for [Self::convert_vars_to_values].
-<a href=#303 id=303 data-nosnippet>303</a>    /// If the given result_type is an array of length N, this will create an [AcirValue::Array] with
+<a href=#302 id=302 data-nosnippet>302</a>    <span class="doccomment">/// Recursive helper for [`Self::convert_vars_to_values`].
+<a href=#303 id=303 data-nosnippet>303</a>    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
 <a href=#304 id=304 data-nosnippet>304</a>    /// the first N elements of the given iterator. Otherwise, the result is a single
-<a href=#305 id=305 data-nosnippet>305</a>    /// [AcirValue::Var] wrapping the first element of the iterator.
+<a href=#305 id=305 data-nosnippet>305</a>    /// [`AcirValue::Var`] wrapping the first element of the iterator.
 <a href=#306 id=306 data-nosnippet>306</a>    </span><span class="kw">fn </span>convert_var_type_to_values(
 <a href=#307 id=307 data-nosnippet>307</a>        result_type: <span class="kw-2">&amp;</span>Type,
 <a href=#308 id=308 data-nosnippet>308</a>        vars: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = AcirVar&gt;,

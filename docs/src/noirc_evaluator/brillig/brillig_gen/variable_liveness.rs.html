@@ -22,7 +22,7 @@
 <a href=#22 id=22 data-nosnippet>22</a>
 <a href=#23 id=23 data-nosnippet>23</a><span class="kw">use </span><span class="kw">super</span>::constant_allocation::{ConstantAllocation, InstructionLocation};
 <a href=#24 id=24 data-nosnippet>24</a>
-<a href=#25 id=25 data-nosnippet>25</a><span class="doccomment">/// A set of [ValueId]s referring to SSA variables (not functions).
+<a href=#25 id=25 data-nosnippet>25</a><span class="doccomment">/// A set of [`ValueId`]s referring to SSA variables (not functions).
 <a href=#26 id=26 data-nosnippet>26</a></span><span class="kw">type </span>Variables = HashSet&lt;ValueId&gt;;
 <a href=#27 id=27 data-nosnippet>27</a><span class="doccomment">/// The set variables which are dead after a given instruction (in a given block).
 <a href=#28 id=28 data-nosnippet>28</a></span><span class="kw">type </span>LastUses = HashMap&lt;InstructionId, Variables&gt;;
@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>    </span>start: BasicBlockId,
 <a href=#39 id=39 data-nosnippet>39</a>}
 <a href=#40 id=40 data-nosnippet>40</a>
-<a href=#41 id=41 data-nosnippet>41</a><span class="doccomment">/// Check if the [Value] behind the [ValueId] requires register allocation (like a function parameter),
+<a href=#41 id=41 data-nosnippet>41</a><span class="doccomment">/// Check if the [Value] behind the [`ValueId`] requires register allocation (like a function parameter),
 <a href=#42 id=42 data-nosnippet>42</a>/// rather than a global value like a user-defined function, intrinsic, or foreign function.
 <a href=#43 id=43 data-nosnippet>43</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>is_variable(value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
 <a href=#44 id=44 data-nosnippet>44</a>    <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[value_id];
@@ -53,7 +53,7 @@
 <a href=#53 id=53 data-nosnippet>53</a>    }
 <a href=#54 id=54 data-nosnippet>54</a>}
 <a href=#55 id=55 data-nosnippet>55</a>
-<a href=#56 id=56 data-nosnippet>56</a><span class="doccomment">/// Collect all [ValueId]s used in an [Instruction] which refer to variables (not functions).
+<a href=#56 id=56 data-nosnippet>56</a><span class="doccomment">/// Collect all [`ValueId`]s used in an [Instruction] which refer to variables (not functions).
 <a href=#57 id=57 data-nosnippet>57</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>variables_used_in_instruction(
 <a href=#58 id=58 data-nosnippet>58</a>    instruction: <span class="kw-2">&amp;</span>Instruction,
 <a href=#59 id=59 data-nosnippet>59</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>    used
 <a href=#70 id=70 data-nosnippet>70</a>}
 <a href=#71 id=71 data-nosnippet>71</a>
-<a href=#72 id=72 data-nosnippet>72</a><span class="doccomment">/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+<a href=#72 id=72 data-nosnippet>72</a><span class="doccomment">/// Collect all [`ValueId`]s returned by an [Instruction] which refer to variables (not functions).
 <a href=#73 id=73 data-nosnippet>73</a></span><span class="kw">fn </span>variables_returned_by_instruction(
 <a href=#74 id=74 data-nosnippet>74</a>    instruction_id: InstructionId,
 <a href=#75 id=75 data-nosnippet>75</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -81,7 +81,7 @@
 <a href=#81 id=81 data-nosnippet>81</a>        .collect()
 <a href=#82 id=82 data-nosnippet>82</a>}
 <a href=#83 id=83 data-nosnippet>83</a>
-<a href=#84 id=84 data-nosnippet>84</a><span class="doccomment">/// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
+<a href=#84 id=84 data-nosnippet>84</a><span class="doccomment">/// Collect all [`ValueId`]s used in an [`BasicBlock`] which refer to [Variables].
 <a href=#85 id=85 data-nosnippet>85</a>///
 <a href=#86 id=86 data-nosnippet>86</a>/// Includes all the variables in the parameters, instructions and the terminator.
 <a href=#87 id=87 data-nosnippet>87</a></span><span class="kw">fn </span>variables_used_in_block(block: <span class="kw-2">&amp;</span>BasicBlock, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; Variables {
@@ -182,7 +182,7 @@
 <a href=#182 id=182 data-nosnippet>182</a>        <span class="self">self</span>.param_definitions.get(block_id).cloned().unwrap_or_default()
 <a href=#183 id=183 data-nosnippet>183</a>    }
 <a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="doccomment">/// Compute [VariableLiveness::param_definitions].
+<a href=#185 id=185 data-nosnippet>185</a>    <span class="doccomment">/// Compute [`VariableLiveness::param_definitions`].
 <a href=#186 id=186 data-nosnippet>186</a>    ///
 <a href=#187 id=187 data-nosnippet>187</a>    /// Append the parameters of each block to the parameter definition list of
 <a href=#188 id=188 data-nosnippet>188</a>    /// its immediate dominator.
@@ -203,7 +203,7 @@
 <a href=#203 id=203 data-nosnippet>203</a>        <span class="self">self
 <a href=#204 id=204 data-nosnippet>204</a>    </span>}
 <a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a>    <span class="doccomment">/// Compute [VariableLiveness::live_in].
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="doccomment">/// Compute [`VariableLiveness::live_in`].
 <a href=#207 id=207 data-nosnippet>207</a>    ///
 <a href=#208 id=208 data-nosnippet>208</a>    /// Collect the variables which are alive before each block.
 <a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">fn </span>compute_live_in_of_blocks(
@@ -311,7 +311,7 @@
 <a href=#311 id=311 data-nosnippet>311</a>        }
 <a href=#312 id=312 data-nosnippet>312</a>    }
 <a href=#313 id=313 data-nosnippet>313</a>
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="doccomment">/// Compute [VariableLiveness::last_uses].
+<a href=#314 id=314 data-nosnippet>314</a>    <span class="doccomment">/// Compute [`VariableLiveness::last_uses`].
 <a href=#315 id=315 data-nosnippet>315</a>    ///
 <a href=#316 id=316 data-nosnippet>316</a>    /// For each block, starting from the terminator than going backwards through the instructions,
 <a href=#317 id=317 data-nosnippet>317</a>    /// take note of the first (technically last) instruction the value is used in.
@@ -373,7 +373,7 @@
 <a href=#373 id=373 data-nosnippet>373</a>        <span class="self">self
 <a href=#374 id=374 data-nosnippet>374</a>    </span>}
 <a href=#375 id=375 data-nosnippet>375</a>
-<a href=#376 id=376 data-nosnippet>376</a>    <span class="doccomment">/// Compute [VariableLiveness::max_live_count].
+<a href=#376 id=376 data-nosnippet>376</a>    <span class="doccomment">/// Compute [`VariableLiveness::max_live_count`].
 <a href=#377 id=377 data-nosnippet>377</a>    ///
 <a href=#378 id=378 data-nosnippet>378</a>    /// Walk each block instruction-by-instruction, tracking the set of variables
 <a href=#379 id=379 data-nosnippet>379</a>    /// simultaneously alive: start with `live_in` plus block param definitions,

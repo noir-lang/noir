@@ -77,8 +77,8 @@
 <a href=#77 id=77 data-nosnippet>77</a>        }
 <a href=#78 id=78 data-nosnippet>78</a>    }
 <a href=#79 id=79 data-nosnippet>79</a>
-<a href=#80 id=80 data-nosnippet>80</a>    <span class="doccomment">/// Computes the width of this chunk considering it's inside an ExpressionList.
-<a href=#81 id=81 data-nosnippet>81</a>    /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInList's
+<a href=#80 id=80 data-nosnippet>80</a>    <span class="doccomment">/// Computes the width of this chunk considering it's inside an `ExpressionList`.
+<a href=#81 id=81 data-nosnippet>81</a>    /// The only thing that changes here compared to `width` is that a `LambdaAsLastExpressionInList`'s
 <a href=#82 id=82 data-nosnippet>82</a>    /// width is considered to be only the first line, so we can avoid splitting the entire call
 <a href=#83 id=83 data-nosnippet>83</a>    /// arguments into separate lines.
 <a href=#84 id=84 data-nosnippet>84</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>width_inside_an_expression_list(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -141,9 +141,9 @@
 <a href=#141 id=141 data-nosnippet>141</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ChunkGroup {
 <a href=#142 id=142 data-nosnippet>142</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) chunks: Vec&lt;Chunk&gt;,
 <a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a>    <span class="doccomment">/// If `true`, when formatting in multiple lines, and after a SpaceOrLine,
+<a href=#144 id=144 data-nosnippet>144</a>    <span class="doccomment">/// If `true`, when formatting in multiple lines, and after a `SpaceOrLine`,
 <a href=#145 id=145 data-nosnippet>145</a>    /// a line will be written.
-<a href=#146 id=146 data-nosnippet>146</a>    /// If `false`, when formatting in multiple lines, and after a SpaceOrLine,
+<a href=#146 id=146 data-nosnippet>146</a>    /// If `false`, when formatting in multiple lines, and after a `SpaceOrLine`,
 <a href=#147 id=147 data-nosnippet>147</a>    /// a space will be inserted and the next chunk will go in the same line if
 <a href=#148 id=148 data-nosnippet>148</a>    /// it fits that line.
 <a href=#149 id=149 data-nosnippet>149</a>    ///
@@ -246,7 +246,7 @@
 <a href=#246 id=246 data-nosnippet>246</a>        }));
 <a href=#247 id=247 data-nosnippet>247</a>    }
 <a href=#248 id=248 data-nosnippet>248</a>
-<a href=#249 id=249 data-nosnippet>249</a>    <span class="doccomment">/// Appends a TextChunk to this chunks chunks. However, if the last chunk is a group,
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="doccomment">/// Appends a `TextChunk` to this chunks chunks. However, if the last chunk is a group,
 <a href=#250 id=250 data-nosnippet>250</a>    /// it's appended to that group's last text.
 <a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>text_attached_to_last_group(<span class="kw-2">&amp;mut </span><span class="self">self</span>, chunk: TextChunk) {
 <a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">if </span>chunk.width == <span class="number">0 </span>{
@@ -302,7 +302,7 @@
 <a href=#302 id=302 data-nosnippet>302</a>        <span class="self">self</span>.push(Chunk::Line { two });
 <a href=#303 id=303 data-nosnippet>303</a>    }
 <a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>    <span class="doccomment">/// Appends a SpaceOrLine chunk, which means that it's a space when this group is
+<a href=#305 id=305 data-nosnippet>305</a>    <span class="doccomment">/// Appends a `SpaceOrLine` chunk, which means that it's a space when this group is
 <a href=#306 id=306 data-nosnippet>306</a>    /// formatted in a single line, or a line when it's formatted in multiple lines.
 <a href=#307 id=307 data-nosnippet>307</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>space_or_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
 <a href=#308 id=308 data-nosnippet>308</a>        <span class="self">self</span>.push(Chunk::SpaceOrLine);
@@ -340,8 +340,8 @@
 <a href=#340 id=340 data-nosnippet>340</a>        <span class="self">self</span>.force_multiple_lines || <span class="self">self</span>.chunks.iter().any(|chunk| chunk.has_newlines())
 <a href=#341 id=341 data-nosnippet>341</a>    }
 <a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="doccomment">/// Determines if this group has a LambdaAsLastExpressionInList chunk.
-<a href=#344 id=344 data-nosnippet>344</a>    /// Note that if this group is a MethodCall, this is checked for the ExpressionList group
+<a href=#343 id=343 data-nosnippet>343</a>    <span class="doccomment">/// Determines if this group has a `LambdaAsLastExpressionInList` chunk.
+<a href=#344 id=344 data-nosnippet>344</a>    /// Note that if this group is a `MethodCall`, this is checked for the `ExpressionList` group
 <a href=#345 id=345 data-nosnippet>345</a>    /// inside it.
 <a href=#346 id=346 data-nosnippet>346</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_lambda_as_last_expression_in_list(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="self">self</span>.chunks.iter().any(|chunk| {
@@ -420,8 +420,8 @@
 <a href=#420 id=420 data-nosnippet>420</a>        }
 <a href=#421 id=421 data-nosnippet>421</a>    }
 <a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a>    <span class="doccomment">/// Returns the width of text until we hit a Line or LineOrSpace, together
-<a href=#424 id=424 data-nosnippet>424</a>    /// with whether we hit a Line or LineOrSpace.
+<a href=#423 id=423 data-nosnippet>423</a>    <span class="doccomment">/// Returns the width of text until we hit a Line or `LineOrSpace`, together
+<a href=#424 id=424 data-nosnippet>424</a>    /// with whether we hit a Line or `LineOrSpace`.
 <a href=#425 id=425 data-nosnippet>425</a>    </span><span class="kw">fn </span>width_until_line(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (usize, bool) {
 <a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span><span class="kw-2">mut </span>width = <span class="number">0</span>;
 <a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">for </span>chunk <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.chunks {
@@ -471,8 +471,8 @@
 <a href=#471 id=471 data-nosnippet>471</a>        <span class="bool-val">false
 <a href=#472 id=472 data-nosnippet>472</a>    </span>}
 <a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>    <span class="doccomment">/// Assuming this is a MethodCall group, if the ExpressionList nested in it
-<a href=#475 id=475 data-nosnippet>475</a>    /// has a LambdaAsLastExpressionInList, returns its `first_line_width`.
+<a href=#474 id=474 data-nosnippet>474</a>    <span class="doccomment">/// Assuming this is a `MethodCall` group, if the `ExpressionList` nested in it
+<a href=#475 id=475 data-nosnippet>475</a>    /// has a `LambdaAsLastExpressionInList`, returns its `first_line_width`.
 <a href=#476 id=476 data-nosnippet>476</a>    </span><span class="kw">fn </span>method_call_lambda_first_line_width(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
 <a href=#477 id=477 data-nosnippet>477</a>        <span class="kw">for </span>chunk <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.chunks {
 <a href=#478 id=478 data-nosnippet>478</a>            <span class="kw">let </span>Chunk::Group(group) = chunk <span class="kw">else </span>{
@@ -522,7 +522,7 @@
 <a href=#522 id=522 data-nosnippet>522</a>    /// `prefix_width` is the width of whatever is before the actual expression list.
 <a href=#523 id=523 data-nosnippet>523</a>    /// For example, for an array this is 1 (for "["), for a vector it's 2 ("@["), etc.
 <a href=#524 id=524 data-nosnippet>524</a>    </span>ExpressionList { prefix_width: usize, expressions_count: usize },
-<a href=#525 id=525 data-nosnippet>525</a>    <span class="doccomment">/// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
+<a href=#525 id=525 data-nosnippet>525</a>    <span class="doccomment">/// This is a chunk for a lambda argument that is the last expression of an `ExpressionList`.
 <a href=#526 id=526 data-nosnippet>526</a>    /// `first_line_width` is the width of the first line of the lambda argument: the parameters
 <a href=#527 id=527 data-nosnippet>527</a>    /// list and the left bracket.
 <a href=#528 id=528 data-nosnippet>528</a>    </span>LambdaAsLastExpressionInList { first_line_width: usize, indentation: <span class="prelude-ty">Option</span>&lt;i32&gt; },
@@ -566,7 +566,7 @@
 <a href=#566 id=566 data-nosnippet>566</a>    }
 <a href=#567 id=567 data-nosnippet>567</a>}
 <a href=#568 id=568 data-nosnippet>568</a>
-<a href=#569 id=569 data-nosnippet>569</a><span class="doccomment">/// Interface for creating TextChunks.
+<a href=#569 id=569 data-nosnippet>569</a><span class="doccomment">/// Interface for creating `TextChunks`.
 <a href=#570 id=570 data-nosnippet>570</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ChunkFormatter&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'b </span><span class="kw-2">mut </span>Formatter&lt;<span class="lifetime">'a</span>&gt;);
 <a href=#571 id=571 data-nosnippet>571</a>
 <a href=#572 id=572 data-nosnippet>572</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; ChunkFormatter&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; {
@@ -623,7 +623,7 @@
 <a href=#623 id=623 data-nosnippet>623</a>}
 <a href=#624 id=624 data-nosnippet>624</a>
 <a href=#625 id=625 data-nosnippet>625</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Formatter&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#626 id=626 data-nosnippet>626</a>    <span class="doccomment">/// Returns an object that has a `chunk` method to get a TextChunk.
+<a href=#626 id=626 data-nosnippet>626</a>    <span class="doccomment">/// Returns an object that has a `chunk` method to get a `TextChunk`.
 <a href=#627 id=627 data-nosnippet>627</a>    /// This method exists so that we can't mix the two operation modes:
 <a href=#628 id=628 data-nosnippet>628</a>    /// using the formatter directly while writing to the buffer, or creating text chunks.
 <a href=#629 id=629 data-nosnippet>629</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>chunk_formatter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ChunkFormatter&lt;<span class="lifetime">'a</span>, <span class="lifetime">'_</span>&gt; {
@@ -1293,7 +1293,7 @@
 <a href=#1293 id=1293 data-nosnippet>1293</a>        }
 <a href=#1294 id=1294 data-nosnippet>1294</a>    }
 <a href=#1295 id=1295 data-nosnippet>1295</a>
-<a href=#1296 id=1296 data-nosnippet>1296</a>    <span class="doccomment">/// Returns a new GroupTag that is unique compared to other `new_group_tag` calls.
+<a href=#1296 id=1296 data-nosnippet>1296</a>    <span class="doccomment">/// Returns a new `GroupTag` that is unique compared to other `new_group_tag` calls.
 <a href=#1297 id=1297 data-nosnippet>1297</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_group_tag(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; GroupTag {
 <a href=#1298 id=1298 data-nosnippet>1298</a>        <span class="kw">let </span>tag = GroupTag(<span class="self">self</span>.group_tag_counter);
 <a href=#1299 id=1299 data-nosnippet>1299</a>        <span class="self">self</span>.group_tag_counter += <span class="number">1</span>;

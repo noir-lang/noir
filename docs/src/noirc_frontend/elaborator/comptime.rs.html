@@ -118,7 +118,7 @@
 <a href=#118 id=118 data-nosnippet>118</a>
 <a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// Elaborate an expression from the middle of a comptime scope within a module.
 <a href=#120 id=120 data-nosnippet>120</a>    ///
-<a href=#121 id=121 data-nosnippet>121</a>    /// Similar to [Self::elaborate_item_from_comptime_in_function], but for module-level comptime code.
+<a href=#121 id=121 data-nosnippet>121</a>    /// Similar to [`Self::elaborate_item_from_comptime_in_function`], but for module-level comptime code.
 <a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">pub fn </span>elaborate_item_from_comptime_in_module&lt;<span class="lifetime">'a</span>, T&gt;(
 <a href=#123 id=123 data-nosnippet>123</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#124 id=124 data-nosnippet>124</a>        module: ModuleId,
@@ -206,7 +206,7 @@
 <a href=#206 id=206 data-nosnippet>206</a>    /// definitions naturally shadow outer ones.
 <a href=#207 id=207 data-nosnippet>207</a>    ///
 <a href=#208 id=208 data-nosnippet>208</a>    /// Within a single scope, bindings are registered in ascending
-<a href=#209 id=209 data-nosnippet>209</a>    /// [crate::node_interner::DefinitionId] order. `DefinitionId`s are minted monotonically
+<a href=#209 id=209 data-nosnippet>209</a>    /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
 <a href=#210 id=210 data-nosnippet>210</a>    /// as definitions are collected, so this matches source order: when a name is shadowed
 <a href=#211 id=211 data-nosnippet>211</a>    /// within a comptime block (`let x = ...; let x = ...;`) the last `let` is registered
 <a href=#212 id=212 data-nosnippet>212</a>    /// last and wins, just as it does at runtime. Iterating the scope's `FxHashMap`
@@ -533,14 +533,14 @@
 <a href=#533 id=533 data-nosnippet>533</a>    <span class="doccomment">/// Elaborate and type-check arguments passed to an attribute function.
 <a href=#534 id=534 data-nosnippet>534</a>    ///
 <a href=#535 id=535 data-nosnippet>535</a>    /// Attribute functions have a special calling convention:
-<a href=#536 id=536 data-nosnippet>536</a>    /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
+<a href=#536 id=536 data-nosnippet>536</a>    /// - First parameter must match the type of the attributed item (e.g., `FunctionDefinition`)
 <a href=#537 id=537 data-nosnippet>537</a>    /// - Remaining parameters are provided explicitly in the attribute syntax
 <a href=#538 id=538 data-nosnippet>538</a>    /// - If the function has `#[varargs]`, extra arguments are collected into a vector
 <a href=#539 id=539 data-nosnippet>539</a>    ///
 <a href=#540 id=540 data-nosnippet>540</a>    /// This function:
 <a href=#541 id=541 data-nosnippet>541</a>    /// 1. Validates the first parameter matches the item type
 <a href=#542 id=542 data-nosnippet>542</a>    /// 2. Elaborates and type-checks each argument expression
-<a href=#543 id=543 data-nosnippet>543</a>    /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
+<a href=#543 id=543 data-nosnippet>543</a>    /// 3. Handles special cases like [`TraitDefinition`][crate::QuotedType::TraitDefinition] arguments
 <a href=#544 id=544 data-nosnippet>544</a>    /// 4. Collects varargs into a vector if applicable
 <a href=#545 id=545 data-nosnippet>545</a>    </span><span class="kw">fn </span>handle_attribute_arguments(
 <a href=#546 id=546 data-nosnippet>546</a>        interpreter: <span class="kw-2">&amp;mut </span>Interpreter,
@@ -670,7 +670,7 @@
 <a href=#670 id=670 data-nosnippet>670</a>    <span class="doccomment">/// Add a generated item to the collected items (unquoting) for further elaboration.
 <a href=#671 id=671 data-nosnippet>671</a>    ///
 <a href=#672 id=672 data-nosnippet>672</a>    /// Supported item kinds:
-<a href=#673 id=673 data-nosnippet>673</a>    /// - [Functions][ItemKind::Function], [TraitImpls][ItemKind::TraitImpl],
+<a href=#673 id=673 data-nosnippet>673</a>    /// - [Functions][ItemKind::Function], [`TraitImpls`][ItemKind::TraitImpl],
 <a href=#674 id=674 data-nosnippet>674</a>    ///   [Globals][ItemKind::Global], [Structs][ItemKind::Struct],
 <a href=#675 id=675 data-nosnippet>675</a>    ///   [Enums][ItemKind::Enum], [Impls][ItemKind::Impl]
 <a href=#676 id=676 data-nosnippet>676</a>    ///

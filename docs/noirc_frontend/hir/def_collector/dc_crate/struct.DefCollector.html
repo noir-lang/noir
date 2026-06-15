@@ -9,7 +9,7 @@
     ast: <a class="struct" href="../../../parser/struct.SortedModule.html" title="struct noirc_frontend::parser::SortedModule">SortedModule</a>,
     root_file_id: FileId,
     options: <a class="type" href="../../../elaborator/type.FrontendOptions.html" title="type noirc_frontend::elaborator::FrontendOptions">FrontendOptions</a>&lt;'_&gt;,
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.CompilationError.html" title="enum noirc_frontend::hir::def_collector::dc_crate::CompilationError">CompilationError</a>&gt;</h4></section></summary><div class="docblock"><p>Collect all of the definitions in a given crate into a CrateDefMap
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.CompilationError.html" title="enum noirc_frontend::hir::def_collector::dc_crate::CompilationError">CompilationError</a>&gt;</h4></section></summary><div class="docblock"><p>Collect all of the definitions in a given crate into a <code>CrateDefMap</code>
 Modules which are not a part of the module hierarchy starting with
 the root module, will be ignored.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.collect_defs_and_elaborate" class="method"><a class="src rightside" href="../../../../src/noirc_frontend/hir/def_collector/dc_crate.rs.html#499-569">Source</a><h4 class="code-header">pub fn <a href="#method.collect_defs_and_elaborate" class="fn">collect_defs_and_elaborate</a>(

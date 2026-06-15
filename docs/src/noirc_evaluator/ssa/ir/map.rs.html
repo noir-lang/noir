@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>/// either a `DenseMap&lt;T&gt;` or `SparseMap&lt;T&gt;`.
 <a href=#13 id=13 data-nosnippet>13</a>///
 <a href=#14 id=14 data-nosnippet>14</a>/// Note that there is nothing in an Id binding it to a particular
-<a href=#15 id=15 data-nosnippet>15</a>/// DenseMap or SparseMap. If an Id was created to correspond to one
+<a href=#15 id=15 data-nosnippet>15</a>/// `DenseMap` or `SparseMap`. If an Id was created to correspond to one
 <a href=#16 id=16 data-nosnippet>16</a>/// particular map type, users need to take care not to use it with
 <a href=#17 id=17 data-nosnippet>17</a>/// another map where it will likely be invalid.
 <a href=#18 id=18 data-nosnippet>18</a></span><span class="attr">#[derive(Serialize, Deserialize)]
@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Creates a test Id with the given index.
 <a href=#41 id=41 data-nosnippet>41</a>    /// The name of this function makes it apparent it should only
 <a href=#42 id=42 data-nosnippet>42</a>    /// be used for testing. Obtaining Ids in this way should be avoided
-<a href=#43 id=43 data-nosnippet>43</a>    /// as unlike DenseMap::push and SparseMap::push, the Ids created
+<a href=#43 id=43 data-nosnippet>43</a>    /// as unlike `DenseMap::push` and `SparseMap::push`, the Ids created
 <a href=#44 id=44 data-nosnippet>44</a>    /// here are likely invalid for any particularly map.
 <a href=#45 id=45 data-nosnippet>45</a>    </span><span class="attr">#[cfg(test)]
 <a href=#46 id=46 data-nosnippet>46</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>test_new(index: u32) -&gt; <span class="self">Self </span>{
@@ -123,7 +123,7 @@
 <a href=#123 id=123 data-nosnippet>123</a>    </span>InvalidId(String),
 <a href=#124 id=124 data-nosnippet>124</a>}
 <a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a><span class="doccomment">/// The implementation of display and FromStr allows serializing and deserializing an `Id&lt;T&gt;` to a string.
+<a href=#126 id=126 data-nosnippet>126</a><span class="doccomment">/// The implementation of display and `FromStr` allows serializing and deserializing an `Id&lt;T&gt;` to a string.
 <a href=#127 id=127 data-nosnippet>127</a>/// This is useful when used as key in a map that has to be serialized to JSON/TOML.
 <a href=#128 id=128 data-nosnippet>128</a></span><span class="kw">impl </span>FromStr <span class="kw">for </span>Id&lt;<span class="kw">super</span>::basic_block::BasicBlock&gt; {
 <a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">type </span><span class="prelude-val">Err </span>= IdDisplayFromStrErr;
@@ -168,11 +168,11 @@
 <a href=#168 id=168 data-nosnippet>168</a>    }
 <a href=#169 id=169 data-nosnippet>169</a>}
 <a href=#170 id=170 data-nosnippet>170</a>
-<a href=#171 id=171 data-nosnippet>171</a><span class="doccomment">/// A DenseMap is a Vec wrapper where each element corresponds
+<a href=#171 id=171 data-nosnippet>171</a><span class="doccomment">/// A `DenseMap` is a Vec wrapper where each element corresponds
 <a href=#172 id=172 data-nosnippet>172</a>/// to a unique ID that can be used to access the element. No direct
 <a href=#173 id=173 data-nosnippet>173</a>/// access to indices is provided. Since IDs must be stable and correspond
 <a href=#174 id=174 data-nosnippet>174</a>/// to indices in the internal Vec, operations that would change element
-<a href=#175 id=175 data-nosnippet>175</a>/// ordering like pop, remove, swap_remove, etc, are not possible.
+<a href=#175 id=175 data-nosnippet>175</a>/// ordering like pop, remove, `swap_remove`, etc, are not possible.
 <a href=#176 id=176 data-nosnippet>176</a></span><span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
 <a href=#177 id=177 data-nosnippet>177</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DenseMap&lt;T&gt; {
 <a href=#178 id=178 data-nosnippet>178</a>    storage: Vec&lt;T&gt;,
@@ -221,16 +221,16 @@
 <a href=#221 id=221 data-nosnippet>221</a>    }
 <a href=#222 id=222 data-nosnippet>222</a>}
 <a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a><span class="doccomment">/// A SparseMap is a HashMap wrapper where each element corresponds
+<a href=#224 id=224 data-nosnippet>224</a><span class="doccomment">/// A `SparseMap` is a `HashMap` wrapper where each element corresponds
 <a href=#225 id=225 data-nosnippet>225</a>/// to a unique ID that can be used to access the element. No direct
 <a href=#226 id=226 data-nosnippet>226</a>/// access to indices is provided.
 <a href=#227 id=227 data-nosnippet>227</a>///
-<a href=#228 id=228 data-nosnippet>228</a>/// Unlike DenseMap, SparseMap's IDs are stored within the structure
+<a href=#228 id=228 data-nosnippet>228</a>/// Unlike `DenseMap`, `SparseMap`'s IDs are stored within the structure
 <a href=#229 id=229 data-nosnippet>229</a>/// and are thus stable after element removal.
 <a href=#230 id=230 data-nosnippet>230</a>///
-<a href=#231 id=231 data-nosnippet>231</a>/// Note that unlike DenseMap, it is possible to panic when retrieving
+<a href=#231 id=231 data-nosnippet>231</a>/// Note that unlike `DenseMap`, it is possible to panic when retrieving
 <a href=#232 id=232 data-nosnippet>232</a>/// an element if the element's Id has been invalidated by a previous
-<a href=#233 id=233 data-nosnippet>233</a>/// call to .remove().
+<a href=#233 id=233 data-nosnippet>233</a>/// call to `.remove()`.
 <a href=#234 id=234 data-nosnippet>234</a></span><span class="attr">#[derive(Debug)]
 <a href=#235 id=235 data-nosnippet>235</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SparseMap&lt;T&gt; {
 <a href=#236 id=236 data-nosnippet>236</a>    storage: BTreeMap&lt;Id&lt;T&gt;, T&gt;,
@@ -284,7 +284,7 @@
 <a href=#284 id=284 data-nosnippet>284</a>
 <a href=#285 id=285 data-nosnippet>285</a><span class="kw">impl</span>&lt;T&gt; AtomicCounter&lt;T&gt; {
 <a href=#286 id=286 data-nosnippet>286</a>    <span class="doccomment">/// Create a new counter starting after the given Id.
-<a href=#287 id=287 data-nosnippet>287</a>    /// Use AtomicCounter::default() to start at zero.
+<a href=#287 id=287 data-nosnippet>287</a>    /// Use `AtomicCounter::default()` to start at zero.
 <a href=#288 id=288 data-nosnippet>288</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>starting_after(id: Id&lt;T&gt;) -&gt; <span class="self">Self </span>{
 <a href=#289 id=289 data-nosnippet>289</a>        <span class="self">Self </span>{ next: AtomicU32::new(id.index + <span class="number">1</span>), _marker: Default::default() }
 <a href=#290 id=290 data-nosnippet>290</a>    }

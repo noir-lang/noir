@@ -3,10 +3,10 @@ Roughly, the passes are separated into the <code>optimizers</code> which try to 
 and the <code>transformers</code> which adapt the opcodes to the proving backend.</p>
 <h2 id="optimizers"><a class="doc-anchor" href="#optimizers">§</a>Optimizers</h2>
 <ul>
-<li>GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)</li>
-<li>UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)</li>
-<li>RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.</li>
-<li>CommonSubexpressionOptimizer: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.</li>
+<li><code>GeneralOptimizer</code>: simple pass which simplifies <code>AssertZero</code> opcodes when possible (e.g remove terms with null coefficient)</li>
+<li><code>UnusedMemoryOptimizer</code>: simple pass which removes <code>MemoryInit</code> opcodes when they are not used (e.g no corresponding <code>MemoryOp</code> opcode)</li>
+<li><code>RangeOptimizer</code>: forward pass to collect range check information, and backward pass to remove the ones that are redundant.</li>
+<li><code>CommonSubexpressionOptimizer</code>: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.</li>
 </ul>
 <p>ACIR generation is performed by calling the <code>Ssa::into_acir</code> method, providing any necessary brillig bytecode.
 The compiled program will be returned as an <code>Artifacts</code> type.</p>

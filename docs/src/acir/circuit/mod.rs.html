@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a><span class="kw">use </span><span class="self">self</span>::{brillig::BrilligBytecode, opcodes::BlockId};
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a><span class="doccomment">/// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
-<a href=#29 id=29 data-nosnippet>29</a>/// circuits is dictated by construction of the [crate::native_types::WitnessStack].
+<a href=#29 id=29 data-nosnippet>29</a>/// circuits is dictated by construction of the [`crate::native_types::WitnessStack`].
 <a href=#30 id=30 data-nosnippet>30</a></span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 <a href=#31 id=31 data-nosnippet>31</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 <a href=#32 id=32 data-nosnippet>32</a>#[tagged(allow_unknown_tags)]
@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>}
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a><span class="doccomment">/// Representation of a single ACIR circuit. The execution trace of this structure
-<a href=#41 id=41 data-nosnippet>41</a>/// is dictated by the construction of a [crate::native_types::WitnessMap]
+<a href=#41 id=41 data-nosnippet>41</a>/// is dictated by the construction of a [`crate::native_types::WitnessMap`]
 <a href=#42 id=42 data-nosnippet>42</a></span><span class="attr">#[derive(Clone, PartialEq, Eq, Default, Hash, Serialize, Deserialize, MsgpackTagged)]
 <a href=#43 id=43 data-nosnippet>43</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 <a href=#44 id=44 data-nosnippet>44</a>#[tagged(allow_unknown_tags)]
@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">pub </span>payload: Vec&lt;ExpressionOrMemory&lt;F&gt;&gt;,
 <a href=#107 id=107 data-nosnippet>107</a>}
 <a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// Value for differentiating error types. Used internally by an [AssertionPayload].
+<a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// Value for differentiating error types. Used internally by an [`AssertionPayload`].
 <a href=#110 id=110 data-nosnippet>110</a></span><span class="attr">#[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 <a href=#111 id=111 data-nosnippet>111</a></span><span class="kw">pub struct </span>ErrorSelector(u64);
 <a href=#112 id=112 data-nosnippet>112</a>
@@ -213,7 +213,7 @@
 <a href=#213 id=213 data-nosnippet>213</a>    </span>InvalidOpcodeLocationString(String),
 <a href=#214 id=214 data-nosnippet>214</a>}
 <a href=#215 id=215 data-nosnippet>215</a>
-<a href=#216 id=216 data-nosnippet>216</a><span class="doccomment">/// The implementation of display and FromStr allows serializing and deserializing a OpcodeLocation to a string.
+<a href=#216 id=216 data-nosnippet>216</a><span class="doccomment">/// The implementation of display and `FromStr` allows serializing and deserializing a `OpcodeLocation` to a string.
 <a href=#217 id=217 data-nosnippet>217</a>/// This is useful when used as key in a map that has to be serialized to JSON/TOML, for example when mapping an opcode to its metadata.
 <a href=#218 id=218 data-nosnippet>218</a></span><span class="kw">impl </span>FromStr <span class="kw">for </span>OpcodeLocation {
 <a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">type </span><span class="prelude-val">Err </span>= OpcodeLocationFromStrError;

@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a>//!
 <a href=#6 id=6 data-nosnippet>6</a>//! In Brillig, `array_set vX, i, x` may modify `vX`'s storage in place at runtime
 <a href=#7 id=7 data-nosnippet>7</a>//! when `vX`'s reference count is 1. SSA-level semantics still says `vX` is unchanged
-<a href=#8 id=8 data-nosnippet>8</a>//! and the array_set produces a fresh value; the in-place mutation is a runtime
+<a href=#8 id=8 data-nosnippet>8</a>//! and the `array_set` produces a fresh value; the in-place mutation is a runtime
 <a href=#9 id=9 data-nosnippet>9</a>//! optimization that's only sound when no later use can observe `vX`'s pre-mutation
 <a href=#10 id=10 data-nosnippet>10</a>//! contents through aliasing.
 <a href=#11 id=11 data-nosnippet>11</a>//!
@@ -26,22 +26,22 @@
 <a href=#26 id=26 data-nosnippet>26</a>//! For each `array_set vX, …`:
 <a href=#27 id=27 data-nosnippet>27</a>//!
 <a href=#28 id=28 data-nosnippet>28</a>//! 1. **Backward alias-set.** Compute the set of values that may share `vX`'s
-<a href=#29 id=29 data-nosnippet>29</a>//!    storage *at the array_set's program point* by walking block-parameter →
+<a href=#29 id=29 data-nosnippet>29</a>//!    storage *at the `array_set`'s program point* by walking block-parameter →
 <a href=#30 id=30 data-nosnippet>30</a>//!    predecessor-arg edges backward to a fixed point. Only aliasing introduced
 <a href=#31 id=31 data-nosnippet>31</a>//!    by the values that flow *into* `vX`'s binding is included. Filtered to
 <a href=#32 id=32 data-nosnippet>32</a>//!    drop values that can't represent pre-mutation storage: `array_set` /
 <a href=#33 id=33 data-nosnippet>33</a>//!    `Call` results (always fresh), iteration-local fresh results (`MakeArray`
 <a href=#34 id=34 data-nosnippet>34</a>//!    or `Call` on back-edge args), instruction results defined in the
-<a href=#35 id=35 data-nosnippet>35</a>//!    array_set's own block at an index after the array_set (they can land in
+<a href=#35 id=35 data-nosnippet>35</a>//!    `array_set`'s own block at an index after the `array_set` (they can land in
 <a href=#36 id=36 data-nosnippet>36</a>//!    the backward set through a forward-then-back round-trip, but don't exist
-<a href=#37 id=37 data-nosnippet>37</a>//!    as storage at the array_set's program point yet), and **swap-excluded
+<a href=#37 id=37 data-nosnippet>37</a>//!    as storage at the `array_set`'s program point yet), and **swap-excluded
 <a href=#38 id=38 data-nosnippet>38</a>//!    siblings** — when `vX` is a loop-header parameter swapped onto a sibling
 <a href=#39 id=39 data-nosnippet>39</a>//!    parameter that is freshly re-allocated each iteration, the sibling is a
 <a href=#40 id=40 data-nosnippet>40</a>//!    distinct per-iteration storage and is dropped (see
 <a href=#41 id=41 data-nosnippet>41</a>//!    [`Context::swap_excluded_aliases`]).
-<a href=#42 id=42 data-nosnippet>42</a>//! 2. **Fast full-accept.** Accept the array_set outright (skipping the
+<a href=#42 id=42 data-nosnippet>42</a>//! 2. **Fast full-accept.** Accept the `array_set` outright (skipping the
 <a href=#43 id=43 data-nosnippet>43</a>//!    forward walk) when some `inc_rc` on an alias-set member protects it on
-<a href=#44 id=44 data-nosnippet>44</a>//!    every path by a cheap test: an `inc_rc` earlier in the array_set's own
+<a href=#44 id=44 data-nosnippet>44</a>//!    every path by a cheap test: an `inc_rc` earlier in the `array_set`'s own
 <a href=#45 id=45 data-nosnippet>45</a>//!    block, in a block that **dominates** it, or — for a non-source alias —
 <a href=#46 id=46 data-nosnippet>46</a>//!    on a loop **back-edge** (the back-edge-participant relaxation, where the
 <a href=#47 id=47 data-nosnippet>47</a>//!    frontend is deliberately managing iteration aliasing). See
@@ -51,11 +51,11 @@
 <a href=#51 id=51 data-nosnippet>51</a>//!    with only those ([`Context::unprotected_aliases`]). Coverage is per
 <a href=#52 id=52 data-nosnippet>52</a>//!    member: thread the source's storage backward through the CFG
 <a href=#53 id=53 data-nosnippet>53</a>//!    ([`Context::compute_uncovered_values`]) and drop a member when, on every
-<a href=#54 id=54 data-nosnippet>54</a>//!    path where it can be the source's storage at the array_set, that storage
+<a href=#54 id=54 data-nosnippet>54</a>//!    path where it can be the source's storage at the `array_set`, that storage
 <a href=#55 id=55 data-nosnippet>55</a>//!    is RC-bumped by an `inc_rc` or is an iteration-local fresh allocation (a
 <a href=#56 id=56 data-nosnippet>56</a>//!    `MakeArray`/`Call` re-executed each loop iteration). Dropping covered
 <a href=#57 id=57 data-nosnippet>57</a>//!    members is what stops the forward walk from flagging a read of, say, an
-<a href=#58 id=58 data-nosnippet>58</a>//!    `inc_rc`'d sibling on a path where the array_set never mutates that
+<a href=#58 id=58 data-nosnippet>58</a>//!    `inc_rc`'d sibling on a path where the `array_set` never mutates that
 <a href=#59 id=59 data-nosnippet>59</a>//!    storage. An empty use-set means every member is protected — accept.
 <a href=#60 id=60 data-nosnippet>60</a>//! 4. **Protected-participant filter.** A second narrowing inside the forward
 <a href=#61 id=61 data-nosnippet>61</a>//!    walk: drop every use-set member (other than the source) that both
@@ -65,7 +65,7 @@
 <a href=#65 id=65 data-nosnippet>65</a>//!    source, so combined with its back-edge participation the `inc_rc` is
 <a href=#66 id=66 data-nosnippet>66</a>//!    loop-carried: it runs before the value crosses the back-edge that
 <a href=#67 id=67 data-nosnippet>67</a>//!    re-binds it onto the source, so by the time the value's storage
-<a href=#68 id=68 data-nosnippet>68</a>//!    equals the source's it is RC ≥ 2 and the array_set copies. Reads of
+<a href=#68 id=68 data-nosnippet>68</a>//!    equals the source's it is RC ≥ 2 and the `array_set` copies. Reads of
 <a href=#69 id=69 data-nosnippet>69</a>//!    it therefore can't observe an in-place mutation. The gate is **per
 <a href=#70 id=70 data-nosnippet>70</a>//!    value** on that value's own `inc_rc`: a back-edge position fed by an
 <a href=#71 id=71 data-nosnippet>71</a>//!    `inc_rc`'d value on one predecessor edge and an unprotected value on
@@ -73,12 +73,12 @@
 <a href=#73 id=73 data-nosnippet>73</a>//!    for the walk to flag. Restricting to alias-set members is the
 <a href=#74 id=74 data-nosnippet>74</a>//!    soundness guard — a value that merely *receives* the source's storage
 <a href=#75 id=75 data-nosnippet>75</a>//!    (a forward successor, not in the source's backward set) has its
-<a href=#76 id=76 data-nosnippet>76</a>//!    `inc_rc` run *after* the array_set and so is not protected; it stays
+<a href=#76 id=76 data-nosnippet>76</a>//!    `inc_rc` run *after* the `array_set` and so is not protected; it stays
 <a href=#77 id=77 data-nosnippet>77</a>//!    in the use-set. This is what lets the verifier accept the latch-block
 <a href=#78 id=78 data-nosnippet>78</a>//!    shape (an `inc_rc v` placed before `v` is threaded *forward* into the
 <a href=#79 id=79 data-nosnippet>79</a>//!    latch that then closes the loop) without the unsoundness of crediting
-<a href=#80 id=80 data-nosnippet>80</a>//!    an `inc_rc` to a value the array_set actually mutates first.
-<a href=#81 id=81 data-nosnippet>81</a>//! 5. **Forward walk.** Walk the CFG forward from the array_set with the
+<a href=#80 id=80 data-nosnippet>80</a>//!    an `inc_rc` to a value the `array_set` actually mutates first.
+<a href=#81 id=81 data-nosnippet>81</a>//! 5. **Forward walk.** Walk the CFG forward from the `array_set` with the
 <a href=#82 id=82 data-nosnippet>82</a>//!    use-set as the initial set of live aliases. At each block-parameter
 <a href=#83 id=83 data-nosnippet>83</a>//!    crossing we both **kill** params that the predecessor rebinds to a
 <a href=#84 id=84 data-nosnippet>84</a>//!    non-alias and **add** params whose arg is still an alias (so alias
@@ -87,10 +87,10 @@
 <a href=#87 id=87 data-nosnippet>87</a>//!
 <a href=#88 id=88 data-nosnippet>88</a>//!    - **`derived`**, the set of values that may share the source's storage
 <a href=#89 id=89 data-nosnippet>89</a>//!      through transitive in-place chain mutations. Seeded with the
-<a href=#90 id=90 data-nosnippet>90</a>//!      array_set's own result; extended by every later `array_set` whose
+<a href=#90 id=90 data-nosnippet>90</a>//!      `array_set`'s own result; extended by every later `array_set` whose
 <a href=#91 id=91 data-nosnippet>91</a>//!      `array` operand is already in `derived`.
 <a href=#92 id=92 data-nosnippet>92</a>//!    - **`tainted_indices`**, the storage positions any chain link may
-<a href=#93 id=93 data-nosnippet>93</a>//!      already have written. Seeded with the array_set's own write index
+<a href=#93 id=93 data-nosnippet>93</a>//!      already have written. Seeded with the `array_set`'s own write index
 <a href=#94 id=94 data-nosnippet>94</a>//!      (when constant) and widened by chain-link writes; collapsed to "all
 <a href=#95 id=95 data-nosnippet>95</a>//!      positions" if any chain link uses a dynamic index.
 <a href=#96 id=96 data-nosnippet>96</a>//!
@@ -130,7 +130,7 @@
 <a href=#130 id=130 data-nosnippet>130</a>//!   allocates** are likewise not tracked.
 <a href=#131 id=131 data-nosnippet>131</a>//! - **Iteration-local fresh array read back within one iteration.** The
 <a href=#132 id=132 data-nosnippet>132</a>//!   freshness wall (step 3) credits a `MakeArray`/`Call` that shares a loop
-<a href=#133 id=133 data-nosnippet>133</a>//!   with the array_set as distinct per-iteration storage, which is sound
+<a href=#133 id=133 data-nosnippet>133</a>//!   with the `array_set` as distinct per-iteration storage, which is sound
 <a href=#134 id=134 data-nosnippet>134</a>//!   only because the result is normally threaded forward rather than the
 <a href=#135 id=135 data-nosnippet>135</a>//!   freshly-allocated source being re-read after its in-place mutation. A
 <a href=#136 id=136 data-nosnippet>136</a>//!   hand-written loop body that allocates an array, mutates it in place, and
@@ -266,9 +266,9 @@
 <a href=#266 id=266 data-nosnippet>266</a>    /// [`Context::compute_uncovered_values`].
 <a href=#267 id=267 data-nosnippet>267</a>    </span>fresh_array_values: HashSet&lt;ValueId&gt;,
 <a href=#268 id=268 data-nosnippet>268</a>    <span class="doccomment">/// The block set of each loop in the function. The freshness wall only
-<a href=#269 id=269 data-nosnippet>269</a>    /// credits a fresh allocation when its defining block and the array_set's
+<a href=#269 id=269 data-nosnippet>269</a>    /// credits a fresh allocation when its defining block and the `array_set`'s
 <a href=#270 id=270 data-nosnippet>270</a>    /// block lie in a common loop — i.e. the allocation re-executes every
-<a href=#271 id=271 data-nosnippet>271</a>    /// iteration that reaches the array_set, so its storage is distinct per
+<a href=#271 id=271 data-nosnippet>271</a>    /// iteration that reaches the `array_set`, so its storage is distinct per
 <a href=#272 id=272 data-nosnippet>272</a>    /// iteration. A one-time allocation outside any shared loop is mutated in
 <a href=#273 id=273 data-nosnippet>273</a>    /// place exactly once, so reading it back is a genuine hazard.
 <a href=#274 id=274 data-nosnippet>274</a>    </span>loop_blocks: Vec&lt;BTreeSet&lt;BasicBlockId&gt;&gt;,
@@ -321,7 +321,7 @@
 <a href=#321 id=321 data-nosnippet>321</a>    ///   [`Context::swap_excluded_aliases`].
 <a href=#322 id=322 data-nosnippet>322</a>    ///
 <a href=#323 id=323 data-nosnippet>323</a>    /// Values that are *not* back-edge args are kept in the alias-set:
-<a href=#324 id=324 data-nosnippet>324</a>    /// they represent a one-time allocation whose storage the array_set
+<a href=#324 id=324 data-nosnippet>324</a>    /// they represent a one-time allocation whose storage the `array_set`
 <a href=#325 id=325 data-nosnippet>325</a>    /// may mutate in place.
 <a href=#326 id=326 data-nosnippet>326</a>    </span>iteration_local_fresh: HashSet&lt;ValueId&gt;,
 <a href=#327 id=327 data-nosnippet>327</a>    <span class="doccomment">/// `inc_rc value` instructions indexed by their operand. Each entry is
@@ -355,7 +355,7 @@
 <a href=#355 id=355 data-nosnippet>355</a>    ///
 <a href=#356 id=356 data-nosnippet>356</a>    /// Used by the **protected-participant filter** in
 <a href=#357 id=357 data-nosnippet>357</a>    /// [`Context::find_reachable_aliased_use`]: a value that is in the
-<a href=#358 id=358 data-nosnippet>358</a>    /// array_set source's alias-set (so it flows *into* the source),
+<a href=#358 id=358 data-nosnippet>358</a>    /// `array_set` source's alias-set (so it flows *into* the source),
 <a href=#359 id=359 data-nosnippet>359</a>    /// is a back-edge participant, and carries its own `inc_rc` is
 <a href=#360 id=360 data-nosnippet>360</a>    /// RC ≥ 2 whenever it equals the source's storage (the `inc_rc` is
 <a href=#361 id=361 data-nosnippet>361</a>    /// loop-carried — it runs before the value crosses the back-edge onto
@@ -390,7 +390,7 @@
 <a href=#390 id=390 data-nosnippet>390</a>    ///
 <a href=#391 id=391 data-nosnippet>391</a>    /// Guarded by a **back-edge-only** check: if `Q` also flows into `P`
 <a href=#392 id=392 data-nosnippet>392</a>    /// on a forward edge, `P` and `Q` can already alias *within* an
-<a href=#393 id=393 data-nosnippet>393</a>    /// iteration (the array_set would mutate `Q`'s live storage), so the
+<a href=#393 id=393 data-nosnippet>393</a>    /// iteration (the `array_set` would mutate `Q`'s live storage), so the
 <a href=#394 id=394 data-nosnippet>394</a>    /// exclusion would be unsound and is not recorded. The freshening
 <a href=#395 id=395 data-nosnippet>395</a>    /// requirement on `Q` is the second guard — a loop-invariant `Q`
 <a href=#396 id=396 data-nosnippet>396</a>    /// swapped into `P` would make `P_k = Q_{k-1} = Q_k` and genuinely
@@ -401,7 +401,7 @@
 <a href=#401 id=401 data-nosnippet>401</a>    /// forward edge `R ← P`, `R` *is* `P` within the same iteration, so `R`
 <a href=#402 id=402 data-nosnippet>402</a>    /// inherits `P`'s exclusions. This carries an exclusion from a swapped
 <a href=#403 id=403 data-nosnippet>403</a>    /// loop-header parameter onto a successor parameter seeded from it — e.g.
-<a href=#404 id=404 data-nosnippet>404</a>    /// an inner-loop header (the array_set's source) fed from the swapped
+<a href=#404 id=404 data-nosnippet>404</a>    /// an inner-loop header (the `array_set`'s source) fed from the swapped
 <a href=#405 id=405 data-nosnippet>405</a>    /// outer-loop parameter — so `Q` is dropped for the inner source too.
 <a href=#406 id=406 data-nosnippet>406</a>    /// Back-edges are excluded from propagation: across one, `R` is a *prior*
 <a href=#407 id=407 data-nosnippet>407</a>    /// iteration's `P`, a distinct storage.
@@ -705,7 +705,7 @@
 <a href=#705 id=705 data-nosnippet>705</a>    ///   refuse to kill the receiving param, letting the alias leak past
 <a href=#706 id=706 data-nosnippet>706</a>    ///   the loop.
 <a href=#707 id=707 data-nosnippet>707</a>    /// - **`Call` result** is typically a fresh array allocated by the
-<a href=#708 id=708 data-nosnippet>708</a>    ///   callee, so it isn't a real alias of the array_set's source.
+<a href=#708 id=708 data-nosnippet>708</a>    ///   callee, so it isn't a real alias of the `array_set`'s source.
 <a href=#709 id=709 data-nosnippet>709</a>    ///   This is a heuristic — a function that returns its input *would*
 <a href=#710 id=710 data-nosnippet>710</a>    ///   create a real alias, and we'd miss that. In practice the
 <a href=#711 id=711 data-nosnippet>711</a>    ///   frontend's array-returning functions allocate fresh storage.
@@ -718,14 +718,14 @@
 <a href=#718 id=718 data-nosnippet>718</a>    /// iteration than the one this iteration's `array_set` may have
 <a href=#719 id=719 data-nosnippet>719</a>    /// mutated. **Non-back-edge `MakeArray` results stay in the
 <a href=#720 id=720 data-nosnippet>720</a>    /// alias-set** — they represent a one-time allocation whose storage
-<a href=#721 id=721 data-nosnippet>721</a>    /// the array_set can mutate in place.
+<a href=#721 id=721 data-nosnippet>721</a>    /// the `array_set` can mutate in place.
 <a href=#722 id=722 data-nosnippet>722</a>    ///
 <a href=#723 id=723 data-nosnippet>723</a>    /// **Post-array_set-in-same-block filter.** Drop instruction
 <a href=#724 id=724 data-nosnippet>724</a>    /// results whose defining position is in `array_set_block` at an
 <a href=#725 id=725 data-nosnippet>725</a>    /// index *greater than* `array_set_idx`. Such a value doesn't exist
-<a href=#726 id=726 data-nosnippet>726</a>    /// at the array_set's program point yet — it's literally about to
+<a href=#726 id=726 data-nosnippet>726</a>    /// at the `array_set`'s program point yet — it's literally about to
 <a href=#727 id=727 data-nosnippet>727</a>    /// be allocated on a later instruction — so it can't represent the
-<a href=#728 id=728 data-nosnippet>728</a>    /// storage the array_set might mutate. It can land in the backward
+<a href=#728 id=728 data-nosnippet>728</a>    /// storage the `array_set` might mutate. It can land in the backward
 <a href=#729 id=729 data-nosnippet>729</a>    /// set through a round-trip: `make_array → forward-arg → block
 <a href=#730 id=730 data-nosnippet>730</a>    /// param → back-edge → source's param`. Dropping it at lookup time
 <a href=#731 id=731 data-nosnippet>731</a>    /// makes the per-arg kill in [`Context::succ_use_set`] correctly
@@ -735,7 +735,7 @@
 <a href=#735 id=735 data-nosnippet>735</a>    /// (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`): `v_a`
 <a href=#736 id=736 data-nosnippet>736</a>    /// is *this* check's source, so its forward uses are exactly what
 <a href=#737 id=737 data-nosnippet>737</a>    /// we want to look for. The post-array_set filter can't fire on the
-<a href=#738 id=738 data-nosnippet>738</a>    /// source because the source must be defined before the array_set
+<a href=#738 id=738 data-nosnippet>738</a>    /// source because the source must be defined before the `array_set`
 <a href=#739 id=739 data-nosnippet>739</a>    /// that uses it.
 <a href=#740 id=740 data-nosnippet>740</a>    </span><span class="kw">fn </span>alias_set_for(
 <a href=#741 id=741 data-nosnippet>741</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -781,13 +781,13 @@
 <a href=#781 id=781 data-nosnippet>781</a>    ///
 <a href=#782 id=782 data-nosnippet>782</a>    /// A member is dropped (provably protected) when, on every runtime path,
 <a href=#783 id=783 data-nosnippet>783</a>    /// the storage it represents is either RC-bumped by an `inc_rc` (so the
-<a href=#784 id=784 data-nosnippet>784</a>    /// array_set copies) or an iteration-local fresh allocation (so it has no
+<a href=#784 id=784 data-nosnippet>784</a>    /// `array_set` copies) or an iteration-local fresh allocation (so it has no
 <a href=#785 id=785 data-nosnippet>785</a>    /// other live alias). Dropping covered members is what stops the forward
 <a href=#786 id=786 data-nosnippet>786</a>    /// walk from flagging a read of an `inc_rc`'d sibling on a path where the
-<a href=#787 id=787 data-nosnippet>787</a>    /// array_set never mutates that storage (the alias-set-merging
+<a href=#787 id=787 data-nosnippet>787</a>    /// `array_set` never mutates that storage (the alias-set-merging
 <a href=#788 id=788 data-nosnippet>788</a>    /// false-positive). Keeping the uncovered members preserves real hazards,
 <a href=#789 id=789 data-nosnippet>789</a>    /// such as the issue SSA where the source itself is uncovered and read
-<a href=#790 id=790 data-nosnippet>790</a>    /// after the array_set.
+<a href=#790 id=790 data-nosnippet>790</a>    /// after the `array_set`.
 <a href=#791 id=791 data-nosnippet>791</a>    </span><span class="kw">fn </span>unprotected_aliases(
 <a href=#792 id=792 data-nosnippet>792</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#793 id=793 data-nosnippet>793</a>        alias_set: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
@@ -812,21 +812,21 @@
 <a href=#812 id=812 data-nosnippet>812</a>    ///
 <a href=#813 id=813 data-nosnippet>813</a>    /// Three acceptances, each sound on every path:
 <a href=#814 id=814 data-nosnippet>814</a>    ///
-<a href=#815 id=815 data-nosnippet>815</a>    /// - **Same-block, before the array_set.** The block is on every path to
-<a href=#816 id=816 data-nosnippet>816</a>    ///   its own array_set, so an earlier `inc_rc` always runs first.
-<a href=#817 id=817 data-nosnippet>817</a>    /// - **Dominating block.** An `inc_rc` whose block dominates the array_set
+<a href=#815 id=815 data-nosnippet>815</a>    /// - **Same-block, before the `array_set`.** The block is on every path to
+<a href=#816 id=816 data-nosnippet>816</a>    ///   its own `array_set`, so an earlier `inc_rc` always runs first.
+<a href=#817 id=817 data-nosnippet>817</a>    /// - **Dominating block.** An `inc_rc` whose block dominates the `array_set`
 <a href=#818 id=818 data-nosnippet>818</a>    ///   is on every path to it (e.g. an `inc_rc` in a loop pre-header).
 <a href=#819 id=819 data-nosnippet>819</a>    /// - **Back-edge-participant relaxation.** An `inc_rc` on a *non-source*
 <a href=#820 id=820 data-nosnippet>820</a>    ///   alias that appears as a jmp/jmpif arg on a loop **back-edge** is taken
 <a href=#821 id=821 data-nosnippet>821</a>    ///   as a codegen signal regardless of program-point order: the frontend
 <a href=#822 id=822 data-nosnippet>822</a>    ///   is deliberately managing iteration aliasing, and the bump's program
-<a href=#823 id=823 data-nosnippet>823</a>    ///   point can come *after* the array_set — it is the back-edge thread-back
+<a href=#823 id=823 data-nosnippet>823</a>    ///   point can come *after* the `array_set` — it is the back-edge thread-back
 <a href=#824 id=824 data-nosnippet>824</a>    ///   that delivers the protection to the next iteration. Forward-edge cases
 <a href=#825 id=825 data-nosnippet>825</a>    ///   don't need this because [`Context::backward_aliases`] keeps the
 <a href=#826 id=826 data-nosnippet>826</a>    ///   forward-edge value out of the source's alias-set in the first place.
 <a href=#827 id=827 data-nosnippet>827</a>    ///
 <a href=#828 id=828 data-nosnippet>828</a>    /// Mere RPO precedence is *not* one of these: a sibling-branch `inc_rc`
-<a href=#829 id=829 data-nosnippet>829</a>    /// precedes in RPO yet the other branch reaches the array_set without it
+<a href=#829 id=829 data-nosnippet>829</a>    /// precedes in RPO yet the other branch reaches the `array_set` without it
 <a href=#830 id=830 data-nosnippet>830</a>    /// (`end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`).
 <a href=#831 id=831 data-nosnippet>831</a>    ///
 <a href=#832 id=832 data-nosnippet>832</a>    /// Well-formed SSA contains no `DecrementRc`, so we don't need to worry
@@ -859,10 +859,10 @@
 <a href=#859 id=859 data-nosnippet>859</a>    </span>}
 <a href=#860 id=860 data-nosnippet>860</a>
 <a href=#861 id=861 data-nosnippet>861</a>    <span class="doccomment">/// Whether `value` is a fresh allocation whose storage is distinct on
-<a href=#862 id=862 data-nosnippet>862</a>    /// every iteration that reaches the array_set in `array_set_block` — i.e.
+<a href=#862 id=862 data-nosnippet>862</a>    /// every iteration that reaches the `array_set` in `array_set_block` — i.e.
 <a href=#863 id=863 data-nosnippet>863</a>    /// a `make_array`/`Call` result whose defining block shares a loop with
 <a href=#864 id=864 data-nosnippet>864</a>    /// `array_set_block`, so it re-executes each iteration. A fresh allocation
-<a href=#865 id=865 data-nosnippet>865</a>    /// outside any shared loop is a one-time storage that the array_set
+<a href=#865 id=865 data-nosnippet>865</a>    /// outside any shared loop is a one-time storage that the `array_set`
 <a href=#866 id=866 data-nosnippet>866</a>    /// mutates exactly once; reading it back through the same name would
 <a href=#867 id=867 data-nosnippet>867</a>    /// observe that mutation, so it does **not** count as protection.
 <a href=#868 id=868 data-nosnippet>868</a>    </span><span class="kw">fn </span>is_iteration_local_fresh(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId, array_set_block: BasicBlockId) -&gt; bool {
@@ -878,11 +878,11 @@
 <a href=#878 id=878 data-nosnippet>878</a>    }
 <a href=#879 id=879 data-nosnippet>879</a>
 <a href=#880 id=880 data-nosnippet>880</a>    <span class="doccomment">/// The set of values that lie on at least one **uncovered** backward path
-<a href=#881 id=881 data-nosnippet>881</a>    /// from the array_set — a path on which the threaded source storage reaches
+<a href=#881 id=881 data-nosnippet>881</a>    /// from the `array_set` — a path on which the threaded source storage reaches
 <a href=#882 id=882 data-nosnippet>882</a>    /// a function parameter / unthreadable root without crossing an `inc_rc` or
 <a href=#883 id=883 data-nosnippet>883</a>    /// iteration-local-fresh wall. The caller intersects this with the
 <a href=#884 id=884 data-nosnippet>884</a>    /// alias-set to obtain the forward walk's use-set; an empty intersection
-<a href=#885 id=885 data-nosnippet>885</a>    /// means every member is protected, so the array_set is accepted.
+<a href=#885 id=885 data-nosnippet>885</a>    /// means every member is protected, so the `array_set` is accepted.
 <a href=#886 id=886 data-nosnippet>886</a>    ///
 <a href=#887 id=887 data-nosnippet>887</a>    /// The walk threads the *exact* source storage backward: across a
 <a href=#888 id=888 data-nosnippet>888</a>    /// block-parameter edge it follows the predecessor's argument, and at an
@@ -903,8 +903,8 @@
 <a href=#903 id=903 data-nosnippet>903</a>    ///    instruction (a non-iteration-local allocation, or an `array_get` of a
 <a href=#904 id=904 data-nosnippet>904</a>    ///    nested array), or an edge whose argument can't be resolved, is an
 <a href=#905 id=905 data-nosnippet>905</a>    ///    *uncovered terminal*. `seed_idx` limits the `inc_rc` wall to bumps
-<a href=#906 id=906 data-nosnippet>906</a>    ///    *before* the array_set in its own block; any other block on a path
-<a href=#907 id=907 data-nosnippet>907</a>    ///    executes fully before the array_set, so an `inc_rc` anywhere in it
+<a href=#906 id=906 data-nosnippet>906</a>    ///    *before* the `array_set` in its own block; any other block on a path
+<a href=#907 id=907 data-nosnippet>907</a>    ///    executes fully before the `array_set`, so an `inc_rc` anywhere in it
 <a href=#908 id=908 data-nosnippet>908</a>    ///    counts.
 <a href=#909 id=909 data-nosnippet>909</a>    /// 2. **Propagate.** A state is uncovered if it is an uncovered terminal or
 <a href=#910 id=910 data-nosnippet>910</a>    ///    has an uncovered successor; iterate to a fixed point. A cycle with no
@@ -1080,9 +1080,9 @@
 <a href=#1080 id=1080 data-nosnippet>1080</a>    /// `use_set` to make the filter sound in the presence of `array_set`
 <a href=#1081 id=1081 data-nosnippet>1081</a>    /// chains:
 <a href=#1082 id=1082 data-nosnippet>1082</a>    ///
-<a href=#1083 id=1083 data-nosnippet>1083</a>    /// - **`derived`** tracks values that may share the array_set's source
+<a href=#1083 id=1083 data-nosnippet>1083</a>    /// - **`derived`** tracks values that may share the `array_set`'s source
 <a href=#1084 id=1084 data-nosnippet>1084</a>    ///   storage at runtime through transitive in-place mutations. Seeded
-<a href=#1085 id=1085 data-nosnippet>1085</a>    ///   with the array_set's own result; grown on every later `array_set`
+<a href=#1085 id=1085 data-nosnippet>1085</a>    ///   with the `array_set`'s own result; grown on every later `array_set`
 <a href=#1086 id=1086 data-nosnippet>1086</a>    ///   whose `array` operand is already in `derived`; propagated across
 <a href=#1087 id=1087 data-nosnippet>1087</a>    ///   block-param edges the same way the alias use-set is.
 <a href=#1088 id=1088 data-nosnippet>1088</a>    /// - **`tainted_indices`** tracks the set of storage positions any
@@ -1102,7 +1102,7 @@
 <a href=#1102 id=1102 data-nosnippet>1102</a>    /// instead). All other uses on a `use_set` member are always flagged —
 <a href=#1103 id=1103 data-nosnippet>1103</a>    /// the SSA-vs-runtime divergence isn't index-local for them.
 <a href=#1104 id=1104 data-nosnippet>1104</a>    ///
-<a href=#1105 id=1105 data-nosnippet>1105</a>    /// **IncrementRc clears `derived`.** A program-point `inc_rc v` with
+<a href=#1105 id=1105 data-nosnippet>1105</a>    /// **`IncrementRc` clears `derived`.** A program-point `inc_rc v` with
 <a href=#1106 id=1106 data-nosnippet>1106</a>    /// `v ∈ use_set ∪ derived` lifts the storage's RC ≥ 2, so any
 <a href=#1107 id=1107 data-nosnippet>1107</a>    /// subsequent `array_set` on a chain participant runs on fresh
 <a href=#1108 id=1108 data-nosnippet>1108</a>    /// storage and can no longer clobber the source. We clear `derived`
@@ -1110,7 +1110,7 @@
 <a href=#1110 id=1110 data-nosnippet>1110</a>    /// to the shared storage is still observable through `use_set` reads.
 <a href=#1111 id=1111 data-nosnippet>1111</a>    ///
 <a href=#1112 id=1112 data-nosnippet>1112</a>    /// **Cycle detection.** Re-entering a block with a state that's a
-<a href=#1113 id=1113 data-nosnippet>1113</a>    /// (use_set, derived, tainted_indices)-subset of the frontier we've
+<a href=#1113 id=1113 data-nosnippet>1113</a>    /// (`use_set`, derived, tainted_indices)-subset of the frontier we've
 <a href=#1114 id=1114 data-nosnippet>1114</a>    /// already explored adds no new information. Each component is
 <a href=#1115 id=1115 data-nosnippet>1115</a>    /// unioned into the frontier on entry; for `tainted_indices`, `None`
 <a href=#1116 id=1116 data-nosnippet>1116</a>    /// is the absorbing element (a previously-`None` frontier covers any
@@ -1379,7 +1379,7 @@
 <a href=#1379 id=1379 data-nosnippet>1379</a>    ///    `dest.params[i]`, look at the corresponding `arguments[i]`:
 <a href=#1380 id=1380 data-nosnippet>1380</a>    ///    - **Kill.** If the param is in `use_set` and the arg is not, the
 <a href=#1381 id=1381 data-nosnippet>1381</a>    ///      param is rebound to a value that no longer aliases the
-<a href=#1382 id=1382 data-nosnippet>1382</a>    ///      array_set's source (most commonly the array_set's own
+<a href=#1382 id=1382 data-nosnippet>1382</a>    ///      `array_set`'s source (most commonly the `array_set`'s own
 <a href=#1383 id=1383 data-nosnippet>1383</a>    ///      result, excluded at lookup time): drop it.
 <a href=#1384 id=1384 data-nosnippet>1384</a>    ///    - **Add.** If the param is not in `use_set` but the arg is,
 <a href=#1385 id=1385 data-nosnippet>1385</a>    ///      this edge introduces a fresh alias: the param at `dest`'s
@@ -1477,8 +1477,8 @@
 <a href=#1477 id=1477 data-nosnippet>1477</a>/// time (in [`Context::alias_set_for`]) rather than refusing to chase
 <a href=#1478 id=1478 data-nosnippet>1478</a>/// through it here. Otherwise a chain
 <a href=#1479 id=1479 data-nosnippet>1479</a>/// `v1 = array_set v0 ; v2 = array_set v1 ; v3 = array_set v2` would
-<a href=#1480 id=1480 data-nosnippet>1480</a>/// pull `v0` into the source of every later array_set, and an
-<a href=#1481 id=1481 data-nosnippet>1481</a>/// `inc_rc v0` that legitimately protects only `v1`'s array_set would
+<a href=#1480 id=1480 data-nosnippet>1480</a>/// pull `v0` into the source of every later `array_set`, and an
+<a href=#1481 id=1481 data-nosnippet>1481</a>/// `inc_rc v0` that legitimately protects only `v1`'s `array_set` would
 <a href=#1482 id=1482 data-nosnippet>1482</a>/// falsely appear to protect `v3` as well. See
 <a href=#1483 id=1483 data-nosnippet>1483</a>/// `alias_set_does_not_walk_array_set_chains` for a worked example —
 <a href=#1484 id=1484 data-nosnippet>1484</a>/// the chain isn't visible to the backward walk anyway because
@@ -1548,12 +1548,12 @@
 <a href=#1548 id=1548 data-nosnippet>1548</a></span><span class="attr">#[derive(Clone)]
 <a href=#1549 id=1549 data-nosnippet>1549</a></span><span class="kw">struct </span>WalkState {
 <a href=#1550 id=1550 data-nosnippet>1550</a>    <span class="doccomment">/// Alias-set members live at this point: values that may share the
-<a href=#1551 id=1551 data-nosnippet>1551</a>    /// array_set's source storage *at the array_set's program point*. A
+<a href=#1551 id=1551 data-nosnippet>1551</a>    /// `array_set`'s source storage *at the `array_set`'s program point*. A
 <a href=#1552 id=1552 data-nosnippet>1552</a>    /// non-terminator read of one of these is the hazard the walk is
 <a href=#1553 id=1553 data-nosnippet>1553</a>    /// looking for.
 <a href=#1554 id=1554 data-nosnippet>1554</a>    </span>use_set: im::HashSet&lt;ValueId&gt;,
 <a href=#1555 id=1555 data-nosnippet>1555</a>    <span class="doccomment">/// Values that may share the source's storage through transitive
-<a href=#1556 id=1556 data-nosnippet>1556</a>    /// in-place chain mutations. Seeded with the array_set's own result;
+<a href=#1556 id=1556 data-nosnippet>1556</a>    /// in-place chain mutations. Seeded with the `array_set`'s own result;
 <a href=#1557 id=1557 data-nosnippet>1557</a>    /// extended by every later `array_set` whose `array` operand is
 <a href=#1558 id=1558 data-nosnippet>1558</a>    /// already in `derived`.
 <a href=#1559 id=1559 data-nosnippet>1559</a>    </span>derived: im::HashSet&lt;ValueId&gt;,
@@ -1599,7 +1599,7 @@
 <a href=#1599 id=1599 data-nosnippet>1599</a><span class="doccomment">/// One entry on the forward reachable-use walk's worklist: a block to
 <a href=#1600 id=1600 data-nosnippet>1600</a>/// enter, the instruction index to start at within that block, and the
 <a href=#1601 id=1601 data-nosnippet>1601</a>/// walk's evolving state. `start_idx &gt; 0` denotes the very first frame,
-<a href=#1602 id=1602 data-nosnippet>1602</a>/// which continues inside the array_set's own block past the array_set
+<a href=#1602 id=1602 data-nosnippet>1602</a>/// which continues inside the `array_set`'s own block past the `array_set`
 <a href=#1603 id=1603 data-nosnippet>1603</a>/// instruction itself; all later frames enter at block start.
 <a href=#1604 id=1604 data-nosnippet>1604</a></span><span class="kw">struct </span>WalkFrame {
 <a href=#1605 id=1605 data-nosnippet>1605</a>    block: BasicBlockId,
@@ -1669,7 +1669,7 @@
 <a href=#1669 id=1669 data-nosnippet>1669</a>    /// the `call` in b2. `p` has an `inc_rc` and is a back-edge arg (b3 → b2),
 <a href=#1670 id=1670 data-nosnippet>1670</a>    /// but the `inc_rc` runs *after* the mutation and `p` flows *out of* the
 <a href=#1671 id=1671 data-nosnippet>1671</a>    /// source (`p ← s`), not into it — so the bump can't protect the
-<a href=#1672 id=1672 data-nosnippet>1672</a>    /// array_set. The read observes the in-place mutation; the verifier must
+<a href=#1672 id=1672 data-nosnippet>1672</a>    /// `array_set`. The read observes the in-place mutation; the verifier must
 <a href=#1673 id=1673 data-nosnippet>1673</a>    /// reject.
 <a href=#1674 id=1674 data-nosnippet>1674</a>    ///
 <a href=#1675 id=1675 data-nosnippet>1675</a>    /// This pins the soundness boundary of the protected-participant filter:
@@ -2082,7 +2082,7 @@
 <a href=#2082 id=2082 data-nosnippet>2082</a>    }
 <a href=#2083 id=2083 data-nosnippet>2083</a>
 <a href=#2084 id=2084 data-nosnippet>2084</a>    <span class="doccomment">/// End-to-end: same PR-12671 SSA but with an `inc_rc v0` placed in the
-<a href=#2085 id=2085 data-nosnippet>2085</a>    /// pre-header. `inc_rc v0` dominates the array_set, so the check
+<a href=#2085 id=2085 data-nosnippet>2085</a>    /// pre-header. `inc_rc v0` dominates the `array_set`, so the check
 <a href=#2086 id=2086 data-nosnippet>2086</a>    /// short-circuits and the verifier must accept.
 <a href=#2087 id=2087 data-nosnippet>2087</a>    </span><span class="attr">#[test]
 <a href=#2088 id=2088 data-nosnippet>2088</a>    </span><span class="kw">fn </span>end_to_end_pr_12671_repro_with_inc_rc_is_accepted() {
@@ -2112,7 +2112,7 @@
 <a href=#2112 id=2112 data-nosnippet>2112</a>    /// has no `inc_rc`. On the `v0 = false` path `v1` has RC 1, so the
 <a href=#2113 id=2113 data-nosnippet>2113</a>    /// `array_set` mutates it in place and the following `array_get v1` observes
 <a href=#2114 id=2114 data-nosnippet>2114</a>    /// the mutation. The verifier must reject — a non-dominating `inc_rc`
-<a href=#2115 id=2115 data-nosnippet>2115</a>    /// cannot vouch for the array_set.
+<a href=#2115 id=2115 data-nosnippet>2115</a>    /// cannot vouch for the `array_set`.
 <a href=#2116 id=2116 data-nosnippet>2116</a>    </span><span class="attr">#[test]
 <a href=#2117 id=2117 data-nosnippet>2117</a>    </span><span class="kw">fn </span>end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected() {
 <a href=#2118 id=2118 data-nosnippet>2118</a>        <span class="kw">let </span>src = <span class="string">r#"
@@ -2136,7 +2136,7 @@
 <a href=#2136 id=2136 data-nosnippet>2136</a>    /// protect the `array_set`, even when no single one dominates it. Both
 <a href=#2137 id=2137 data-nosnippet>2137</a>    /// arms of the diamond (b1 *and* b2) bump `v1` before the join block b3
 <a href=#2138 id=2138 data-nosnippet>2138</a>    /// holds `array_set v1` and a read of `v1`. Neither `inc_rc` dominates b3
-<a href=#2139 id=2139 data-nosnippet>2139</a>    /// on its own, but every path to the array_set passes through one of
+<a href=#2139 id=2139 data-nosnippet>2139</a>    /// on its own, but every path to the `array_set` passes through one of
 <a href=#2140 id=2140 data-nosnippet>2140</a>    /// them, so `v1` has RC ≥ 2 on every path and the `array_set` always
 <a href=#2141 id=2141 data-nosnippet>2141</a>    /// copies. The verifier must accept.
 <a href=#2142 id=2142 data-nosnippet>2142</a>    ///
@@ -2217,20 +2217,20 @@
 <a href=#2217 id=2217 data-nosnippet>2217</a>    }
 <a href=#2218 id=2218 data-nosnippet>2218</a>
 <a href=#2219 id=2219 data-nosnippet>2219</a>    <span class="doccomment">/// A covered alias that flows into the source must be dropped from the
-<a href=#2220 id=2220 data-nosnippet>2220</a>    /// forward walk's use-set, not flagged. `v3` (the array_set source) is fed
+<a href=#2220 id=2220 data-nosnippet>2220</a>    /// forward walk's use-set, not flagged. `v3` (the `array_set` source) is fed
 <a href=#2221 id=2221 data-nosnippet>2221</a>    /// by `v2` on the b1 arm — where `v2` is `inc_rc`'d, so on that arm the
-<a href=#2222 id=2222 data-nosnippet>2222</a>    /// array_set copies and `v2` is never mutated — and by the function
+<a href=#2222 id=2222 data-nosnippet>2222</a>    /// `array_set` copies and `v2` is never mutated — and by the function
 <a href=#2223 id=2223 data-nosnippet>2223</a>    /// parameter `v1` on the b2 arm (uncovered). The later `array_get v2` reads
 <a href=#2224 id=2224 data-nosnippet>2224</a>    /// the *covered* sibling: on the arm where `v3 = v2` the bump protects it,
-<a href=#2225 id=2225 data-nosnippet>2225</a>    /// and on the arm where `v3 = v1` the array_set mutates `v1`, not `v2`. So
+<a href=#2225 id=2225 data-nosnippet>2225</a>    /// and on the arm where `v3 = v1` the `array_set` mutates `v1`, not `v2`. So
 <a href=#2226 id=2226 data-nosnippet>2226</a>    /// the read is never a hazard and the verifier must accept — even though
-<a href=#2227 id=2227 data-nosnippet>2227</a>    /// `v2` is in the source's alias-set and is read after the array_set.
+<a href=#2227 id=2227 data-nosnippet>2227</a>    /// `v2` is in the source's alias-set and is read after the `array_set`.
 <a href=#2228 id=2228 data-nosnippet>2228</a>    ///
 <a href=#2229 id=2229 data-nosnippet>2229</a>    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
 <a href=#2230 id=2230 data-nosnippet>2230</a>    /// case. Seeding the forward walk with the *whole* alias-set (including the
 <a href=#2231 id=2231 data-nosnippet>2231</a>    /// covered `v2`) would falsely flag the `array_get v2`; keeping only the
 <a href=#2232 id=2232 data-nosnippet>2232</a>    /// uncovered members (`v3`/`v1`) avoids it. The source's own b2 arm stays
-<a href=#2233 id=2233 data-nosnippet>2233</a>    /// uncovered, so `some_inc_rc_precedes` does not accept the array_set
+<a href=#2233 id=2233 data-nosnippet>2233</a>    /// uncovered, so `some_inc_rc_precedes` does not accept the `array_set`
 <a href=#2234 id=2234 data-nosnippet>2234</a>    /// outright — the per-member coverage is what makes the difference.
 <a href=#2235 id=2235 data-nosnippet>2235</a>    </span><span class="attr">#[test]
 <a href=#2236 id=2236 data-nosnippet>2236</a>    </span><span class="kw">fn </span>end_to_end_inc_rc_covered_alias_read_after_array_set_is_dropped_and_accepted() {
@@ -2255,7 +2255,7 @@
 <a href=#2255 id=2255 data-nosnippet>2255</a>        );
 <a href=#2256 id=2256 data-nosnippet>2256</a>    }
 <a href=#2257 id=2257 data-nosnippet>2257</a>
-<a href=#2258 id=2258 data-nosnippet>2258</a>    <span class="doccomment">/// Swap exclusion must reach an inner-loop array_set seeded from the
+<a href=#2258 id=2258 data-nosnippet>2258</a>    <span class="doccomment">/// Swap exclusion must reach an inner-loop `array_set` seeded from the
 <a href=#2259 id=2259 data-nosnippet>2259</a>    /// swapped outer-loop parameter. The outer loop (header b1) rotates its
 <a href=#2260 id=2260 data-nosnippet>2260</a>    /// array params on the back-edge — `a ← b` while `b ← make_array` — so the
 <a href=#2261 id=2261 data-nosnippet>2261</a>    /// swap filter records `b` (v4) as excluded from `a` (v3): they are
@@ -2444,7 +2444,7 @@
 <a href=#2444 id=2444 data-nosnippet>2444</a>
 <a href=#2445 id=2445 data-nosnippet>2445</a>    <span class="doccomment">/// Chain of `array_set`s on the same backing storage where the read
 <a href=#2446 id=2446 data-nosnippet>2446</a>    /// is at an index hit by a *later* link in the chain. The first
-<a href=#2447 id=2447 data-nosnippet>2447</a>    /// array_set's write index alone is disjoint from the read, so the
+<a href=#2447 id=2447 data-nosnippet>2447</a>    /// `array_set`'s write index alone is disjoint from the read, so the
 <a href=#2448 id=2448 data-nosnippet>2448</a>    /// pre-chain-aware filter would have skipped — but a downstream
 <a href=#2449 id=2449 data-nosnippet>2449</a>    /// chain link writes the read's index on the same storage, so the
 <a href=#2450 id=2450 data-nosnippet>2450</a>    /// read does observe the in-place mutation. The chain-aware filter
@@ -2464,9 +2464,9 @@
 <a href=#2464 id=2464 data-nosnippet>2464</a>    }
 <a href=#2465 id=2465 data-nosnippet>2465</a>
 <a href=#2466 id=2466 data-nosnippet>2466</a>    <span class="doccomment">/// Variant of the chain hazard with an `inc_rc` on the *source*
-<a href=#2467 id=2467 data-nosnippet>2467</a>    /// placed *after* the chain. The inc_rc cannot undo the damage that
+<a href=#2467 id=2467 data-nosnippet>2467</a>    /// placed *after* the chain. The `inc_rc` cannot undo the damage that
 <a href=#2468 id=2468 data-nosnippet>2468</a>    /// the in-place chain writes have already done to `v0`'s storage;
-<a href=#2469 id=2469 data-nosnippet>2469</a>    /// `tainted_indices` survives the inc_rc and the read at the
+<a href=#2469 id=2469 data-nosnippet>2469</a>    /// `tainted_indices` survives the `inc_rc` and the read at the
 <a href=#2470 id=2470 data-nosnippet>2470</a>    /// tainted index is still a hazard.
 <a href=#2471 id=2471 data-nosnippet>2471</a>    </span><span class="attr">#[test]
 <a href=#2472 id=2472 data-nosnippet>2472</a>    </span><span class="kw">fn </span>end_to_end_chain_with_late_inc_rc_on_source_is_rejected() {
@@ -2484,7 +2484,7 @@
 <a href=#2484 id=2484 data-nosnippet>2484</a>    }
 <a href=#2485 id=2485 data-nosnippet>2485</a>
 <a href=#2486 id=2486 data-nosnippet>2486</a>    <span class="doccomment">/// Variant of the chain hazard with `inc_rc` on the *last* chain link
-<a href=#2487 id=2487 data-nosnippet>2487</a>    /// placed before the read. The inc_rc still doesn't help — by the
+<a href=#2487 id=2487 data-nosnippet>2487</a>    /// placed before the read. The `inc_rc` still doesn't help — by the
 <a href=#2488 id=2488 data-nosnippet>2488</a>    /// time it runs, the chain has already in-place mutated the storage
 <a href=#2489 id=2489 data-nosnippet>2489</a>    /// at index 1 of `v0`. `tainted_indices` survives.
 <a href=#2490 id=2490 data-nosnippet>2490</a>    </span><span class="attr">#[test]
@@ -2594,7 +2594,7 @@
 <a href=#2594 id=2594 data-nosnippet>2594</a>    }
 <a href=#2595 id=2595 data-nosnippet>2595</a>
 <a href=#2596 id=2596 data-nosnippet>2596</a>    <span class="doccomment">/// Direct shape that the `MakeArray`-non-aliasing filter must NOT
-<a href=#2597 id=2597 data-nosnippet>2597</a>    /// silence: the array_set's *source* is itself a `make_array` result,
+<a href=#2597 id=2597 data-nosnippet>2597</a>    /// silence: the `array_set`'s *source* is itself a `make_array` result,
 <a href=#2598 id=2598 data-nosnippet>2598</a>    /// and the same `make_array` is read forward via `array_get`. The
 <a href=#2599 id=2599 data-nosnippet>2599</a>    /// source-self-preservation rule in [`Context::alias_set_for`] keeps
 <a href=#2600 id=2600 data-nosnippet>2600</a>    /// the source in its own alias-set regardless of the filter, so the
@@ -2614,7 +2614,7 @@
 <a href=#2614 id=2614 data-nosnippet>2614</a>
 <a href=#2615 id=2615 data-nosnippet>2615</a>    <span class="doccomment">/// Aliased shape that the `MakeArray`-non-aliasing filter must NOT
 <a href=#2616 id=2616 data-nosnippet>2616</a>    /// silence: a `make_array` is threaded forward into a block parameter
-<a href=#2617 id=2617 data-nosnippet>2617</a>    /// via a *forward* edge (no loop), the parameter is the array_set's
+<a href=#2617 id=2617 data-nosnippet>2617</a>    /// via a *forward* edge (no loop), the parameter is the `array_set`'s
 <a href=#2618 id=2618 data-nosnippet>2618</a>    /// source, and the original `make_array` value is read forward. The
 <a href=#2619 id=2619 data-nosnippet>2619</a>    /// `make_array` represents the same one-time allocation that the
 <a href=#2620 id=2620 data-nosnippet>2620</a>    /// `array_set` may mutate in place at runtime — so dropping it from
@@ -2645,7 +2645,7 @@
 <a href=#2645 id=2645 data-nosnippet>2645</a>    /// as an aliased read of the function arg's storage. At runtime
 <a href=#2646 id=2646 data-nosnippet>2646</a>    /// the loop param at the loop exit is always the global (last
 <a href=#2647 id=2647 data-nosnippet>2647</a>    /// back-edge binding), and the global has been `inc_rc`'d, so its
-<a href=#2648 id=2648 data-nosnippet>2648</a>    /// `RC ≥ 2` from iter 1+ and the array_set never mutates it; iter
+<a href=#2648 id=2648 data-nosnippet>2648</a>    /// `RC ≥ 2` from iter 1+ and the `array_set` never mutates it; iter
 <a href=#2649 id=2649 data-nosnippet>2649</a>    /// 0's mutation hits the function arg's caller-side storage,
 <a href=#2650 id=2650 data-nosnippet>2650</a>    /// which is no longer referenced after iter 0's back-edge re-bind.
 <a href=#2651 id=2651 data-nosnippet>2651</a>    /// The back-edge-participant relaxation accepts the SSA: the global
@@ -2686,7 +2686,7 @@
 <a href=#2686 id=2686 data-nosnippet>2686</a>    /// loop variable with the *original* argument on the back-edge.
 <a href=#2687 id=2687 data-nosnippet>2687</a>    /// The original argument has its `inc_rc` emitted in the loop body
 <a href=#2688 id=2688 data-nosnippet>2688</a>    /// (right before the back-edge), so iter 1+ sees `RC ≥ 2` on it
-<a href=#2689 id=2689 data-nosnippet>2689</a>    /// and the array_set allocates fresh. Iter 0's array_set mutates
+<a href=#2689 id=2689 data-nosnippet>2689</a>    /// and the `array_set` allocates fresh. Iter 0's `array_set` mutates
 <a href=#2690 id=2690 data-nosnippet>2690</a>    /// the fresh local copy, which is no longer referenced after the
 <a href=#2691 id=2691 data-nosnippet>2691</a>    /// back-edge re-bind — so the apparent post-array_set read of the
 <a href=#2692 id=2692 data-nosnippet>2692</a>    /// loop variable (the next iteration's `array_get` on the loop
@@ -2738,7 +2738,7 @@
 <a href=#2738 id=2738 data-nosnippet>2738</a>    /// The back-edge-participant relaxation in
 <a href=#2739 id=2739 data-nosnippet>2739</a>    /// [`Context::some_inc_rc_precedes`] handles this uniformly: `v0`
 <a href=#2740 id=2740 data-nosnippet>2740</a>    /// is a non-source alias with an `inc_rc` and appears as a back-edge
-<a href=#2741 id=2741 data-nosnippet>2741</a>    /// arg (on the outer back-edge), so the array_set is accepted.
+<a href=#2741 id=2741 data-nosnippet>2741</a>    /// arg (on the outer back-edge), so the `array_set` is accepted.
 <a href=#2742 id=2742 data-nosnippet>2742</a>    </span><span class="attr">#[test]
 <a href=#2743 id=2743 data-nosnippet>2743</a>    </span><span class="kw">fn </span>end_to_end_nested_loop_outer_back_edge_inc_rcd_arg_filtered_for_inner_source() {
 <a href=#2744 id=2744 data-nosnippet>2744</a>        <span class="kw">let </span>src = <span class="string">r#"
@@ -2781,9 +2781,9 @@
 <a href=#2781 id=2781 data-nosnippet>2781</a>    <span class="doccomment">/// End-to-end regression for an AST-fuzzer-discovered pattern: a
 <a href=#2782 id=2782 data-nosnippet>2782</a>    /// function arg that's *both* forward-threaded into an unrelated
 <a href=#2783 id=2783 data-nosnippet>2783</a>    /// early-return branch *and* back-edge-threaded into the outer loop
-<a href=#2784 id=2784 data-nosnippet>2784</a>    /// that carries an inner-loop array_set. The inc_rc in the
+<a href=#2784 id=2784 data-nosnippet>2784</a>    /// that carries an inner-loop `array_set`. The `inc_rc` in the
 <a href=#2785 id=2785 data-nosnippet>2785</a>    /// outer-loop body guarantees `RC ≥ 2` by the time the inner source
-<a href=#2786 id=2786 data-nosnippet>2786</a>    /// actually equals the arg at runtime, so the array_set on it is
+<a href=#2786 id=2786 data-nosnippet>2786</a>    /// actually equals the arg at runtime, so the `array_set` on it is
 <a href=#2787 id=2787 data-nosnippet>2787</a>    /// forced to allocate fresh.
 <a href=#2788 id=2788 data-nosnippet>2788</a>    </span><span class="attr">#[test]
 <a href=#2789 id=2789 data-nosnippet>2789</a>    </span><span class="kw">fn </span>end_to_end_inc_rcd_arg_forward_in_unrelated_branch_and_back_to_outer_loop_is_accepted() {
@@ -2829,9 +2829,9 @@
 <a href=#2829 id=2829 data-nosnippet>2829</a>    /// post-loop forward edge.
 <a href=#2830 id=2830 data-nosnippet>2830</a>    ///
 <a href=#2831 id=2831 data-nosnippet>2831</a>    /// At runtime `v25` is always `v0` (or only `v1` on a path where
-<a href=#2832 id=2832 data-nosnippet>2832</a>    /// the array_set never fired), and the `inc_rc v0` inside the
+<a href=#2832 id=2832 data-nosnippet>2832</a>    /// the `array_set` never fired), and the `inc_rc v0` inside the
 <a href=#2833 id=2833 data-nosnippet>2833</a>    /// loop body ensures `RC(v0) ≥ 2` for every iteration where the
-<a href=#2834 id=2834 data-nosnippet>2834</a>    /// array_set is on `v0`. The verifier doesn't reason path-
+<a href=#2834 id=2834 data-nosnippet>2834</a>    /// `array_set` is on `v0`. The verifier doesn't reason path-
 <a href=#2835 id=2835 data-nosnippet>2835</a>    /// sensitively, but `inc_rc v0` *is* on an alias (`v0 != v24`)
 <a href=#2836 id=2836 data-nosnippet>2836</a>    /// that participates in the loop's back-edge — that's a deliberate
 <a href=#2837 id=2837 data-nosnippet>2837</a>    /// codegen signal that aliasing is being managed. The
@@ -3017,7 +3017,7 @@
 <a href=#3017 id=3017 data-nosnippet>3017</a>    /// carries its own `inc_rc` and is a back-edge participant (it reaches
 <a href=#3018 id=3018 data-nosnippet>3018</a>    /// the `b11 -&gt; b6` back-edge arg `v91`). The `inc_rc` is therefore
 <a href=#3019 id=3019 data-nosnippet>3019</a>    /// loop-carried: by the time `v78`'s storage comes around to be the
-<a href=#3020 id=3020 data-nosnippet>3020</a>    /// `array_set v85` source it is RC &gt;= 2, so the array_set copies and the
+<a href=#3020 id=3020 data-nosnippet>3020</a>    /// `array_set v85` source it is RC &gt;= 2, so the `array_set` copies and the
 <a href=#3021 id=3021 data-nosnippet>3021</a>    /// `call`'s read is safe.
 <a href=#3022 id=3022 data-nosnippet>3022</a>    ///
 <a href=#3023 id=3023 data-nosnippet>3023</a>    /// The removal must be **sticky**: `v78` is dropped from the seed, but
@@ -3056,7 +3056,7 @@
 <a href=#3056 id=3056 data-nosnippet>3056</a>    <span class="doccomment">/// End-to-end regression for an AST-fuzzer-discovered minimal shape:
 <a href=#3057 id=3057 data-nosnippet>3057</a>    /// two array-typed function entry parameters flow into the same
 <a href=#3058 id=3058 data-nosnippet>3058</a>    /// downstream block parameter via a *forward* if-else sibling join
-<a href=#3059 id=3059 data-nosnippet>3059</a>    /// (no loops, no inc_rc anywhere). Source-level shape:
+<a href=#3059 id=3059 data-nosnippet>3059</a>    /// (no loops, no `inc_rc` anywhere). Source-level shape:
 <a href=#3060 id=3060 data-nosnippet>3060</a>    ///
 <a href=#3061 id=3061 data-nosnippet>3061</a>    /// ```ignore
 <a href=#3062 id=3062 data-nosnippet>3062</a>    /// fn main(a, mut b, c) -&gt; Field {
@@ -3226,10 +3226,10 @@
 <a href=#3226 id=3226 data-nosnippet>3226</a>    <span class="doccomment">/// End-to-end regression for an AST-fuzzer-discovered shape: a
 <a href=#3227 id=3227 data-nosnippet>3227</a>    /// `make_array` defined in the same block as (and *after*) the
 <a href=#3228 id=3228 data-nosnippet>3228</a>    /// `array_set`, whose result feeds the loop-header parameter on the
-<a href=#3229 id=3229 data-nosnippet>3229</a>    /// loop's back-edge. The make_array is iteration-local (back-edge
+<a href=#3229 id=3229 data-nosnippet>3229</a>    /// loop's back-edge. The `make_array` is iteration-local (back-edge
 <a href=#3230 id=3230 data-nosnippet>3230</a>    /// arg), so the `iteration_local_fresh` filter drops it from
 <a href=#3231 id=3231 data-nosnippet>3231</a>    /// the alias-set: the per-arg kill at the back-edge then sees the
-<a href=#3232 id=3232 data-nosnippet>3232</a>    /// arg ∉ use_set and correctly drops the loop-header parameter, so
+<a href=#3232 id=3232 data-nosnippet>3232</a>    /// arg ∉ `use_set` and correctly drops the loop-header parameter, so
 <a href=#3233 id=3233 data-nosnippet>3233</a>    /// the walk terminates without flagging the loop-body reads.
 <a href=#3234 id=3234 data-nosnippet>3234</a>    </span><span class="attr">#[test]
 <a href=#3235 id=3235 data-nosnippet>3235</a>    </span><span class="kw">fn </span>end_to_end_loop_back_edge_with_post_array_set_make_array_is_accepted() {
@@ -3263,15 +3263,15 @@
 <a href=#3263 id=3263 data-nosnippet>3263</a>    /// forward-then-back round-trip: a `make_array` defined *after* an
 <a href=#3264 id=3264 data-nosnippet>3264</a>    /// `array_set` in the same block (`b13`) gets threaded forward to
 <a href=#3265 id=3265 data-nosnippet>3265</a>    /// a different block (`b14`) and from there *back* to the
-<a href=#3266 id=3266 data-nosnippet>3266</a>    /// array_set's source's parameter (`v29`) via a loop back-edge
+<a href=#3266 id=3266 data-nosnippet>3266</a>    /// `array_set`'s source's parameter (`v29`) via a loop back-edge
 <a href=#3267 id=3267 data-nosnippet>3267</a>    /// `b8 → b4`. Without the filter, that round-trip would pull the
-<a href=#3268 id=3268 data-nosnippet>3268</a>    /// make_array (`v24`) into the source's backward set, the per-arg
+<a href=#3268 id=3268 data-nosnippet>3268</a>    /// `make_array` (`v24`) into the source's backward set, the per-arg
 <a href=#3269 id=3269 data-nosnippet>3269</a>    /// kill on the `b13 → b14(v24, _)` edge would see `v24 ∈ use_set`
 <a href=#3270 id=3270 data-nosnippet>3270</a>    /// and refuse to kill `v26`, the next `b8 → b4(v26)` would see
 <a href=#3271 id=3271 data-nosnippet>3271</a>    /// `v26 ∈ use_set` and refuse to kill `v29`, and the walk would
 <a href=#3272 id=3272 data-nosnippet>3272</a>    /// flag the loop-header's `array_get v29` as an aliased read —
 <a href=#3273 id=3273 data-nosnippet>3273</a>    /// even though at runtime `v24` is fresh storage that didn't exist
-<a href=#3274 id=3274 data-nosnippet>3274</a>    /// at the array_set's program point and can't carry pre-mutation
+<a href=#3274 id=3274 data-nosnippet>3274</a>    /// at the `array_set`'s program point and can't carry pre-mutation
 <a href=#3275 id=3275 data-nosnippet>3275</a>    /// aliasing forward.
 <a href=#3276 id=3276 data-nosnippet>3276</a>    ///
 <a href=#3277 id=3277 data-nosnippet>3277</a>    /// Source-level shape:
@@ -3352,9 +3352,9 @@
 <a href=#3352 id=3352 data-nosnippet>3352</a>    /// `make_array` defined in the outer-loop body *before* the inner
 <a href=#3353 id=3353 data-nosnippet>3353</a>    /// loop's `array_set`, whose result is threaded back to the outer
 <a href=#3354 id=3354 data-nosnippet>3354</a>    /// loop's header on the back-edge. The outer header's parameter
-<a href=#3355 id=3355 data-nosnippet>3355</a>    /// would acquire the make_array via the backward chain (outer
-<a href=#3356 id=3356 data-nosnippet>3356</a>    /// header → outer back-edge → make_array), pulling the make_array
-<a href=#3357 id=3357 data-nosnippet>3357</a>    /// into the inner array_set's alias-set. The per-arg kill on the
+<a href=#3355 id=3355 data-nosnippet>3355</a>    /// would acquire the `make_array` via the backward chain (outer
+<a href=#3356 id=3356 data-nosnippet>3356</a>    /// header → outer back-edge → `make_array`), pulling the `make_array`
+<a href=#3357 id=3357 data-nosnippet>3357</a>    /// into the inner `array_set`'s alias-set. The per-arg kill on the
 <a href=#3358 id=3358 data-nosnippet>3358</a>    /// outer back-edge would then see the `make_array` in the use-set
 <a href=#3359 id=3359 data-nosnippet>3359</a>    /// and refuse to kill the outer header parameter, letting the
 <a href=#3360 id=3360 data-nosnippet>3360</a>    /// walk reach an earlier-in-source `array_get` — even though at
@@ -3362,9 +3362,9 @@
 <a href=#3362 id=3362 data-nosnippet>3362</a>    /// every back-edge crossing, so the iteration-aliasing is illusory.
 <a href=#3363 id=3363 data-nosnippet>3363</a>    ///
 <a href=#3364 id=3364 data-nosnippet>3364</a>    /// The `iteration_local_fresh` filter drops a `make_array`
-<a href=#3365 id=3365 data-nosnippet>3365</a>    /// result that appears on a loop back-edge: the make_array always
+<a href=#3365 id=3365 data-nosnippet>3365</a>    /// result that appears on a loop back-edge: the `make_array` always
 <a href=#3366 id=3366 data-nosnippet>3366</a>    /// allocates fresh top-level storage, so it
-<a href=#3367 id=3367 data-nosnippet>3367</a>    /// can't represent the pre-mutation storage of any array_set source.
+<a href=#3367 id=3367 data-nosnippet>3367</a>    /// can't represent the pre-mutation storage of any `array_set` source.
 <a href=#3368 id=3368 data-nosnippet>3368</a>    /// (Aliasing through *nested-array elements* of a `make_array` is a
 <a href=#3369 id=3369 data-nosnippet>3369</a>    /// documented gap — see the module-level docs.)
 <a href=#3370 id=3370 data-nosnippet>3370</a>    </span><span class="attr">#[test]
@@ -3414,7 +3414,7 @@
 <a href=#3414 id=3414 data-nosnippet>3414</a>    /// directly via `array_get`.
 <a href=#3415 id=3415 data-nosnippet>3415</a>    ///
 <a href=#3416 id=3416 data-nosnippet>3416</a>    /// Without the array_set-results filter, the alias-set would include
-<a href=#3417 id=3417 data-nosnippet>3417</a>    /// the second array_set's result; the per-arg kill rule at the
+<a href=#3417 id=3417 data-nosnippet>3417</a>    /// the second `array_set`'s result; the per-arg kill rule at the
 <a href=#3418 id=3418 data-nosnippet>3418</a>    /// back-edge would then see that result in the use-set and refuse to
 <a href=#3419 id=3419 data-nosnippet>3419</a>    /// kill the parameter, letting the alias leak to the loop exit and
 <a href=#3420 id=3420 data-nosnippet>3420</a>    /// producing a false positive on the post-loop `array_get`.
@@ -3442,7 +3442,7 @@
 <a href=#3442 id=3442 data-nosnippet>3442</a>        );
 <a href=#3443 id=3443 data-nosnippet>3443</a>    }
 <a href=#3444 id=3444 data-nosnippet>3444</a>
-<a href=#3445 id=3445 data-nosnippet>3445</a>    <span class="doccomment">/// End-to-end: the poseidon-style "array_set then call returning a
+<a href=#3445 id=3445 data-nosnippet>3445</a>    <span class="doccomment">/// End-to-end: the poseidon-style "`array_set` then call returning a
 <a href=#3446 id=3446 data-nosnippet>3446</a>    /// fresh array threaded back via the loop's back-edge". Reduced from
 <a href=#3447 id=3447 data-nosnippet>3447</a>    /// `bench_2_to_17` (stdlib's `poseidon2::hash_internal`):
 <a href=#3448 id=3448 data-nosnippet>3448</a>    ///
@@ -3536,7 +3536,7 @@
 <a href=#3536 id=3536 data-nosnippet>3536</a>    /// alias-set is just `{v6}`. The walk never reaches `v0` via the
 <a href=#3537 id=3537 data-nosnippet>3537</a>    /// chain, and the absence of `inc_rc v4` correctly surfaces the
 <a href=#3538 id=3538 data-nosnippet>3538</a>    /// violation. (Note: this test uses `last_array_set`, whose source
-<a href=#3539 id=3539 data-nosnippet>3539</a>    /// is `v4`; the third array_set's source is `v4`, whose alias-set
+<a href=#3539 id=3539 data-nosnippet>3539</a>    /// is `v4`; the third `array_set`'s source is `v4`, whose alias-set
 <a href=#3540 id=3540 data-nosnippet>3540</a>    /// is `{v4}` — see the assertion below.)
 <a href=#3541 id=3541 data-nosnippet>3541</a>    </span><span class="attr">#[test]
 <a href=#3542 id=3542 data-nosnippet>3542</a>    </span><span class="kw">fn </span>alias_set_does_not_walk_array_set_chains() {
@@ -3620,7 +3620,7 @@
 <a href=#3620 id=3620 data-nosnippet>3620</a>
 <a href=#3621 id=3621 data-nosnippet>3621</a>    <span class="doccomment">/// Minimal SSA pinning down the **unique necessity** of the
 <a href=#3622 id=3622 data-nosnippet>3622</a>    /// [`Context::iteration_local_fresh`] filter. The other
-<a href=#3623 id=3623 data-nosnippet>3623</a>    /// "value can't share storage at the array_set's program point"
+<a href=#3623 id=3623 data-nosnippet>3623</a>    /// "value can't share storage at the `array_set`'s program point"
 <a href=#3624 id=3624 data-nosnippet>3624</a>    /// filters — `non_aliasing_array_values` (ArraySet/Call results),
 <a href=#3625 id=3625 data-nosnippet>3625</a>    /// `post-array_set-in-same-block`, and the walk's `def-block-entry`
 <a href=#3626 id=3626 data-nosnippet>3626</a>    /// kill — *don't* cover this case.
@@ -3644,16 +3644,16 @@
 <a href=#3644 id=3644 data-nosnippet>3644</a>    /// - `non_aliasing_array_values`: only filters `ArraySet`/`Call`
 <a href=#3645 id=3645 data-nosnippet>3645</a>    ///   results, not `MakeArray`s.
 <a href=#3646 id=3646 data-nosnippet>3646</a>    /// - `post-array_set-in-same-block`: `v4`'s def-block is `b1`, not
-<a href=#3647 id=3647 data-nosnippet>3647</a>    ///   the array_set's block `b2`, so this filter never fires.
+<a href=#3647 id=3647 data-nosnippet>3647</a>    ///   the `array_set`'s block `b2`, so this filter never fires.
 <a href=#3648 id=3648 data-nosnippet>3648</a>    /// - `def-block-entry kill` in [`Context::succ_use_set`]: fires
 <a href=#3649 id=3649 data-nosnippet>3649</a>    ///   when *entering* the param's def-block. The walk reaches the
 <a href=#3650 id=3650 data-nosnippet>3650</a>    ///   back-edge `b3 → b1` first, and the kill rule (rule 1) checks
 <a href=#3651 id=3651 data-nosnippet>3651</a>    ///   `arg ∈ use_set` *before* rule 2 drops `v4`. With `v4` still
-<a href=#3652 id=3652 data-nosnippet>3652</a>    ///   in use_set, the rule sees the arg as "still an alias" and
+<a href=#3652 id=3652 data-nosnippet>3652</a>    ///   in `use_set`, the rule sees the arg as "still an alias" and
 <a href=#3653 id=3653 data-nosnippet>3653</a>    ///   keeps `v1`. The subsequent `array_get v1` in `b1` then flags.
 <a href=#3654 id=3654 data-nosnippet>3654</a>    ///
 <a href=#3655 id=3655 data-nosnippet>3655</a>    /// `iteration_local_fresh` filters `v4` at alias-set
-<a href=#3656 id=3656 data-nosnippet>3656</a>    /// construction time so it's never in the use_set in the first
+<a href=#3656 id=3656 data-nosnippet>3656</a>    /// construction time so it's never in the `use_set` in the first
 <a href=#3657 id=3657 data-nosnippet>3657</a>    /// place. The kill rule on `b3 → b1` then correctly fires, `v1`
 <a href=#3658 id=3658 data-nosnippet>3658</a>    /// is dropped, and the walk terminates without flagging.
 <a href=#3659 id=3659 data-nosnippet>3659</a>    </span><span class="attr">#[test]
@@ -3679,19 +3679,19 @@
 <a href=#3679 id=3679 data-nosnippet>3679</a>    }
 <a href=#3680 id=3680 data-nosnippet>3680</a>
 <a href=#3681 id=3681 data-nosnippet>3681</a>    <span class="doccomment">/// Five `inc_rc` placements, each isolated on its own array parameter
-<a href=#3682 id=3682 data-nosnippet>3682</a>    /// so the inc_rcs don't accidentally cover for each other. Tests the
+<a href=#3682 id=3682 data-nosnippet>3682</a>    /// so the `inc_rcs` don't accidentally cover for each other. Tests the
 <a href=#3683 id=3683 data-nosnippet>3683</a>    /// precedence check, which requires the `inc_rc` to be on **every** path
-<a href=#3684 id=3684 data-nosnippet>3684</a>    /// to the array_set — either earlier in the same block, or in a block
-<a href=#3685 id=3685 data-nosnippet>3685</a>    /// that **dominates** the array_set's block:
-<a href=#3686 id=3686 data-nosnippet>3686</a>    ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **precedes**.
-<a href=#3687 id=3687 data-nosnippet>3687</a>    ///   - `v1`: inc_rc in entry block (dominates everything) → **precedes**.
-<a href=#3688 id=3688 data-nosnippet>3688</a>    ///   - `v2`: inc_rc in a sibling branch (b1) → does **not** precede.
+<a href=#3684 id=3684 data-nosnippet>3684</a>    /// to the `array_set` — either earlier in the same block, or in a block
+<a href=#3685 id=3685 data-nosnippet>3685</a>    /// that **dominates** the `array_set`'s block:
+<a href=#3686 id=3686 data-nosnippet>3686</a>    ///   - `v0`: same-block, `inc_rc` *earlier* than the `array_set` → **precedes**.
+<a href=#3687 id=3687 data-nosnippet>3687</a>    ///   - `v1`: `inc_rc` in entry block (dominates everything) → **precedes**.
+<a href=#3688 id=3688 data-nosnippet>3688</a>    ///   - `v2`: `inc_rc` in a sibling branch (b1) → does **not** precede.
 <a href=#3689 id=3689 data-nosnippet>3689</a>    ///     b1 doesn't dominate the common-successor block b3 (the b2 path
-<a href=#3690 id=3690 data-nosnippet>3690</a>    ///     skips the inc_rc), so the bump can't vouch for the array_set.
-<a href=#3691 id=3691 data-nosnippet>3691</a>    ///   - `v3`: same-block, inc_rc *later* than the array_set → does
+<a href=#3690 id=3690 data-nosnippet>3690</a>    ///     skips the `inc_rc`), so the bump can't vouch for the `array_set`.
+<a href=#3691 id=3691 data-nosnippet>3691</a>    ///   - `v3`: same-block, `inc_rc` *later* than the `array_set` → does
 <a href=#3692 id=3692 data-nosnippet>3692</a>    ///     **not** precede (same-block comparison still requires earlier
 <a href=#3693 id=3693 data-nosnippet>3693</a>    ///     position).
-<a href=#3694 id=3694 data-nosnippet>3694</a>    ///   - `v4`: no inc_rc anywhere → does **not** precede.
+<a href=#3694 id=3694 data-nosnippet>3694</a>    ///   - `v4`: no `inc_rc` anywhere → does **not** precede.
 <a href=#3695 id=3695 data-nosnippet>3695</a>    </span><span class="attr">#[test]
 <a href=#3696 id=3696 data-nosnippet>3696</a>    </span><span class="kw">fn </span>inc_rc_precedence_requires_dominating_position() {
 <a href=#3697 id=3697 data-nosnippet>3697</a>        <span class="kw">let </span>src = <span class="string">r#"
@@ -3844,7 +3844,7 @@
 <a href=#3844 id=3844 data-nosnippet>3844</a>        </span>);
 <a href=#3845 id=3845 data-nosnippet>3845</a>    }
 <a href=#3846 id=3846 data-nosnippet>3846</a>
-<a href=#3847 id=3847 data-nosnippet>3847</a>    <span class="doccomment">/// Diamond-with-back-edges CFG: two predecessors of the array_set's
+<a href=#3847 id=3847 data-nosnippet>3847</a>    <span class="doccomment">/// Diamond-with-back-edges CFG: two predecessors of the `array_set`'s
 <a href=#3848 id=3848 data-nosnippet>3848</a>    /// block (`b3`) each kill a *different* alias-set member (`b1` kills
 <a href=#3849 id=3849 data-nosnippet>3849</a>    /// `v3`, `b2` kills `v4`). The forward walk re-enters `b3` via
 <a href=#3850 id=3850 data-nosnippet>3850</a>    /// `b3 → b4 → b1 → b3` with use-set `{v4, v0, v1}` and via
@@ -3854,7 +3854,7 @@
 <a href=#3854 id=3854 data-nosnippet>3854</a>    ///
 <a href=#3855 id=3855 data-nosnippet>3855</a>    /// No aliased read exists; the walk should return `false`. A bug in the
 <a href=#3856 id=3856 data-nosnippet>3856</a>    /// merge logic would surface either as non-termination or as a false
-<a href=#3857 id=3857 data-nosnippet>3857</a>    /// positive on the array_set's own source `v5` (re-killed on each cycle
+<a href=#3857 id=3857 data-nosnippet>3857</a>    /// positive on the `array_set`'s own source `v5` (re-killed on each cycle
 <a href=#3858 id=3858 data-nosnippet>3858</a>    /// entry).
 <a href=#3859 id=3859 data-nosnippet>3859</a>    </span><span class="attr">#[test]
 <a href=#3860 id=3860 data-nosnippet>3860</a>    </span><span class="kw">fn </span>reachable_use_walk_merges_use_sets_across_paths() {
@@ -3957,7 +3957,7 @@
 <a href=#3957 id=3957 data-nosnippet>3957</a>        );
 <a href=#3958 id=3958 data-nosnippet>3958</a>    }
 <a href=#3959 id=3959 data-nosnippet>3959</a>
-<a href=#3960 id=3960 data-nosnippet>3960</a>    <span class="doccomment">/// Counterpart of the above: when the jmp arg is the array_set's own
+<a href=#3960 id=3960 data-nosnippet>3960</a>    <span class="doccomment">/// Counterpart of the above: when the jmp arg is the `array_set`'s own
 <a href=#3961 id=3961 data-nosnippet>3961</a>    /// result (`v5`), the destination's parameter `v6` is rebound to a
 <a href=#3962 id=3962 data-nosnippet>3962</a>    /// value that is *not* in the alias-set (the result was excluded at
 <a href=#3963 id=3963 data-nosnippet>3963</a>    /// lookup time). The kill must fire so `v6` is removed from the

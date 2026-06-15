@@ -30,7 +30,7 @@ the <a href="../remove_if_else/index.html" title="mod noirc_evaluator::ssa::opt:
 to only use the values from <code>v_set</code> when <code>v_cond</code> is true.</p>
 <p>Note 1: this optimization applies to both arrays and vectors. For arrays the length is
 statically known from the type. For vectors the capacity must be determinable via
-<a href="../../ir/dfg/struct.DataFlowGraph.html#method.try_get_vector_capacity" title="method noirc_evaluator::ssa::ir::dfg::DataFlowGraph::try_get_vector_capacity">DataFlowGraph::try_get_vector_capacity</a> (e.g. the vector traces back to a <code>make_array</code>).</p>
+<a href="../../ir/dfg/struct.DataFlowGraph.html#method.try_get_vector_capacity" title="method noirc_evaluator::ssa::ir::dfg::DataFlowGraph::try_get_vector_capacity"><code>DataFlowGraph::try_get_vector_capacity</code></a> (e.g. the vector traces back to a <code>make_array</code>).</p>
 <p>Note 2: because the optimization expands to multiple <code>array_get</code> and a <code>make_array</code> instruction,
 for large arrays this might result in too many <code>array_get</code> instructions that slow down SSA optimization.
 For this reason, only small arrays (up to <code>MAX_ARRAY_SEMI_FLATTENED_LENGTH</code> elements) are optimized by this pass.</p>

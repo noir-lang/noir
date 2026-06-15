@@ -56,8 +56,8 @@
 <a href=#56 id=56 data-nosnippet>56</a>/// }
 <a href=#57 id=57 data-nosnippet>57</a>/// ```
 <a href=#58 id=58 data-nosnippet>58</a>///
-<a href=#59 id=59 data-nosnippet>59</a>/// the array, first represented as an [AcirValue::Array], will be put in
-<a href=#60 id=60 data-nosnippet>60</a>/// an [AcirValue::DynamicArray]:
+<a href=#59 id=59 data-nosnippet>59</a>/// the array, first represented as an [`AcirValue::Array`], will be put in
+<a href=#60 id=60 data-nosnippet>60</a>/// an [`AcirValue::DynamicArray`]:
 <a href=#61 id=61 data-nosnippet>61</a>///
 <a href=#62 id=62 data-nosnippet>62</a>/// ```acir
 <a href=#63 id=63 data-nosnippet>63</a>/// private parameters: [w0, w1, w2, w3]
@@ -68,7 +68,7 @@
 <a href=#68 id=68 data-nosnippet>68</a>/// ASSERT w4 = w5
 <a href=#69 id=69 data-nosnippet>69</a>/// ```
 <a href=#70 id=70 data-nosnippet>70</a>///
-<a href=#71 id=71 data-nosnippet>71</a>/// Every dynamic array has an associated [BlockId] where its contents are stored,
+<a href=#71 id=71 data-nosnippet>71</a>/// Every dynamic array has an associated [`BlockId`] where its contents are stored,
 <a href=#72 id=72 data-nosnippet>72</a>/// in this case `b0`. Then the block can be read or written using dynamic indexes.
 <a href=#73 id=73 data-nosnippet>73</a>///
 <a href=#74 id=74 data-nosnippet>74</a>/// Dynamic arrays might result from other operations. For example:
@@ -137,7 +137,7 @@
 <a href=#137 id=137 data-nosnippet>137</a>    /// }
 <a href=#138 id=138 data-nosnippet>138</a>    /// ```
 <a href=#139 id=139 data-nosnippet>139</a>    ///
-<a href=#140 id=140 data-nosnippet>140</a>    /// the array will be represented as an [AcirValue::Array]
+<a href=#140 id=140 data-nosnippet>140</a>    /// the array will be represented as an [`AcirValue::Array`]
 <a href=#141 id=141 data-nosnippet>141</a>    /// but we can see that it's simply a list of variables:
 <a href=#142 id=142 data-nosnippet>142</a>    ///
 <a href=#143 id=143 data-nosnippet>143</a>    /// ```acir
@@ -147,15 +147,15 @@
 <a href=#147 id=147 data-nosnippet>147</a>    /// BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2]], outputs: []
 <a href=#148 id=148 data-nosnippet>148</a>    /// ```
 <a href=#149 id=149 data-nosnippet>149</a>    ///
-<a href=#150 id=150 data-nosnippet>150</a>    /// The length of the inner vector is a [acvm::acir::brillig::lengths::SemiFlattenedLength].
+<a href=#150 id=150 data-nosnippet>150</a>    /// The length of the inner vector is a [`acvm::acir::brillig::lengths::SemiFlattenedLength`].
 <a href=#151 id=151 data-nosnippet>151</a>    ///
 <a href=#152 id=152 data-nosnippet>152</a>    /// Compare this with `DynamicArray` below.
 <a href=#153 id=153 data-nosnippet>153</a>    </span>Array(im::Vector&lt;AcirValue&gt;),
 <a href=#154 id=154 data-nosnippet>154</a>    <span class="doccomment">/// Represents an array whose size is not known during compile time,
 <a href=#155 id=155 data-nosnippet>155</a>    /// and which might be indexed with a dynamic index.
 <a href=#156 id=156 data-nosnippet>156</a>    ///
-<a href=#157 id=157 data-nosnippet>157</a>    /// See [AcirDynamicArray] for more details and how this differs from
-<a href=#158 id=158 data-nosnippet>158</a>    /// [AcirValue::Array].
+<a href=#157 id=157 data-nosnippet>157</a>    /// See [`AcirDynamicArray`] for more details and how this differs from
+<a href=#158 id=158 data-nosnippet>158</a>    /// [`AcirValue::Array`].
 <a href=#159 id=159 data-nosnippet>159</a>    </span>DynamicArray(AcirDynamicArray),
 <a href=#160 id=160 data-nosnippet>160</a>}
 <a href=#161 id=161 data-nosnippet>161</a>
@@ -180,12 +180,12 @@
 <a href=#180 id=180 data-nosnippet>180</a>        }
 <a href=#181 id=181 data-nosnippet>181</a>    }
 <a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a>    <span class="doccomment">/// Fetch a flat list of ([AcirVar], [AcirType]).
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="doccomment">/// Fetch a flat list of ([`AcirVar`], [`AcirType`]).
 <a href=#184 id=184 data-nosnippet>184</a>    ///
 <a href=#185 id=185 data-nosnippet>185</a>    /// # Panics
-<a href=#186 id=186 data-nosnippet>186</a>    /// If [AcirValue::DynamicArray] is supplied or an inner element of an [AcirValue::Array].
-<a href=#187 id=187 data-nosnippet>187</a>    /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
-<a href=#188 id=188 data-nosnippet>188</a>    /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
+<a href=#186 id=186 data-nosnippet>186</a>    /// If [`AcirValue::DynamicArray`] is supplied or an inner element of an [`AcirValue::Array`].
+<a href=#187 id=187 data-nosnippet>187</a>    /// This is because an [`AcirValue::DynamicArray`] is simply a pointer to an array
+<a href=#188 id=188 data-nosnippet>188</a>    /// and fetching its internal [`AcirValue::Var`] would require laying down opcodes to read its content.
 <a href=#189 id=189 data-nosnippet>189</a>    /// This method should only be used where dynamic arrays are not a possible type.
 <a href=#190 id=190 data-nosnippet>190</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten(<span class="self">self</span>) -&gt; Vec&lt;(AcirVar, NumericType)&gt; {
 <a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">match </span><span class="self">self </span>{

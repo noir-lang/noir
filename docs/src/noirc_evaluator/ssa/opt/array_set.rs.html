@@ -88,7 +88,7 @@
 <a href=#88 id=88 data-nosnippet>88</a>    </span>}
 <a href=#89 id=89 data-nosnippet>89</a>}
 <a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a><span class="doccomment">/// Pre-check condition for [Function::array_set_optimization].
+<a href=#91 id=91 data-nosnippet>91</a><span class="doccomment">/// Pre-check condition for [`Function::array_set_optimization`].
 <a href=#92 id=92 data-nosnippet>92</a>///
 <a href=#93 id=93 data-nosnippet>93</a>/// Panics if:
 <a href=#94 id=94 data-nosnippet>94</a>///   - There already exists a mutable array set instruction.
@@ -299,8 +299,8 @@
 <a href=#299 id=299 data-nosnippet>299</a>        "</span>);
 <a href=#300 id=300 data-nosnippet>300</a>    }
 <a href=#301 id=301 data-nosnippet>301</a>
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="doccomment">/// ArraySet on a constant array must use merging with the MakeArray when the
-<a href=#303 id=303 data-nosnippet>303</a>    /// side-effects predicate is different for both instructions, because the array_set may
+<a href=#302 id=302 data-nosnippet>302</a>    <span class="doccomment">/// `ArraySet` on a constant array must use merging with the `MakeArray` when the
+<a href=#303 id=303 data-nosnippet>303</a>    /// side-effects predicate is different for both instructions, because the `array_set` may
 <a href=#304 id=304 data-nosnippet>304</a>    /// not actually execute.
 <a href=#305 id=305 data-nosnippet>305</a>    </span><span class="attr">#[test]
 <a href=#306 id=306 data-nosnippet>306</a>    </span><span class="kw">fn </span>merge_folds_array_set_chain_when_side_effects_predicate_is_unknown() {
@@ -364,7 +364,7 @@
 <a href=#364 id=364 data-nosnippet>364</a>        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
 <a href=#365 id=365 data-nosnippet>365</a>    }
 <a href=#366 id=366 data-nosnippet>366</a>
-<a href=#367 id=367 data-nosnippet>367</a>    <span class="doccomment">/// ArraySet cannot fold into a param, only into a MakeArray
+<a href=#367 id=367 data-nosnippet>367</a>    <span class="doccomment">/// `ArraySet` cannot fold into a param, only into a `MakeArray`
 <a href=#368 id=368 data-nosnippet>368</a>    </span><span class="attr">#[test]
 <a href=#369 id=369 data-nosnippet>369</a>    </span><span class="kw">fn </span>does_not_fold_array_set_on_non_constant_array() {
 <a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">let </span>src = <span class="string">r#"

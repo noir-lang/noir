@@ -20,7 +20,7 @@
 <a href=#20 id=20 data-nosnippet>20</a>//! v2 = array_get v1, index 0 -&gt; Field
 <a href=#21 id=21 data-nosnippet>21</a>//! ```
 <a href=#22 id=22 data-nosnippet>22</a>//!
-<a href=#23 id=23 data-nosnippet>23</a>//! it would be wrong to replace `v2` with "42" as the previous array_set might not have
+<a href=#23 id=23 data-nosnippet>23</a>//! it would be wrong to replace `v2` with "42" as the previous `array_set` might not have
 <a href=#24 id=24 data-nosnippet>24</a>//! been executed.
 <a href=#25 id=25 data-nosnippet>25</a>//!
 <a href=#26 id=26 data-nosnippet>26</a>//! However, in this case:
@@ -174,7 +174,7 @@
 <a href=#174 id=174 data-nosnippet>174</a>    }
 <a href=#175 id=175 data-nosnippet>175</a>}
 <a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a><span class="doccomment">/// The result of the array_get optimization.
+<a href=#177 id=177 data-nosnippet>177</a><span class="doccomment">/// The result of the `array_get` optimization.
 <a href=#178 id=178 data-nosnippet>178</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ArrayGetOptimizationResult {
 <a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// The `array_get` can be replaced with the given value.
 <a href=#180 id=180 data-nosnippet>180</a>    </span>Value(ValueId),

@@ -5,11 +5,11 @@
 <p>This function maintains the grouping set in <a href="type.Variants.html" title="type noirc_evaluator::ssa::opt::defunctionalize::Variants">Variants</a>, meaning an apply
 function is grouped by functions that share a target signature and caller runtime.</p>
 <p>An apply function is only created if there are multiple function variants
-for a specific (<a href="../../ir/function/struct.Signature.html" title="struct noirc_evaluator::ssa::ir::function::Signature">Signature</a>, <a href="../../ir/function/enum.RuntimeType.html" title="enum noirc_evaluator::ssa::ir::function::RuntimeType">RuntimeType</a>) group.
+for a specific (<a href="../../ir/function/struct.Signature.html" title="struct noirc_evaluator::ssa::ir::function::Signature">Signature</a>, <a href="../../ir/function/enum.RuntimeType.html" title="enum noirc_evaluator::ssa::ir::function::RuntimeType"><code>RuntimeType</code></a>) group.
 Otherwise, if there is a single variant that function is simply reused.</p>
 <p>If there are no variants a dummy function is created.
 A dummy function acts as a safe no-op to continue compilation even though there are no variants
-for a first-class function call. For more information you can reference <a href="fn.create_dummy_function.html" title="fn noirc_evaluator::ssa::opt::defunctionalize::create_dummy_function">create_dummy_function</a>.</p>
+for a first-class function call. For more information you can reference <a href="fn.create_dummy_function.html" title="fn noirc_evaluator::ssa::opt::defunctionalize::create_dummy_function"><code>create_dummy_function</code></a>.</p>
 <h2 id="arguments"><a class="doc-anchor" href="#arguments">§</a>Arguments</h2>
 <ul>
 <li><code>ssa</code>: A mutable reference to the full <a href="../../ssa_gen/struct.Ssa.html" title="struct noirc_evaluator::ssa::ssa_gen::Ssa">Ssa</a> structure containing all functions.</li>
@@ -17,10 +17,10 @@ for a first-class function call. For more information you can reference <a href=
 </ul>
 <h2 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h2>
 <ul>
-<li><a href="type.ApplyFunctions.html" title="type noirc_evaluator::ssa::opt::defunctionalize::ApplyFunctions">ApplyFunctions</a> keyed by each function’s signature <em>before</em> functions are changed
+<li><a href="type.ApplyFunctions.html" title="type noirc_evaluator::ssa::opt::defunctionalize::ApplyFunctions"><code>ApplyFunctions</code></a> keyed by each function’s signature <em>before</em> functions are changed
 into field types. The inner apply function itself will have its defunctionalized type,
 with function values represented as field values.</li>
-<li>[HashMap&lt;FunctionId, Purity&gt;] with purities that must be set to all functions in the SSA,
+<li><code>HashMap&lt;FunctionId, Purity&gt;</code> with purities that must be set to all functions in the SSA,
 as this function might have created dummy pure functions.</li>
 </ul>
 </div></details></section></div></main></body></html>

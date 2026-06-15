@@ -50,7 +50,7 @@
 <a href=#50 id=50 data-nosnippet>50</a>
 <a href=#51 id=51 data-nosnippet>51</a><span class="doccomment">/// Defines an operation within an ACIR circuit
 <a href=#52 id=52 data-nosnippet>52</a>///
-<a href=#53 id=53 data-nosnippet>53</a>/// Expects a type parameter `F` which implements [AcirField].
+<a href=#53 id=53 data-nosnippet>53</a>/// Expects a type parameter `F` which implements [`AcirField`].
 <a href=#54 id=54 data-nosnippet>54</a></span><span class="attr">#[allow(clippy::large_enum_variant)]
 <a href=#55 id=55 data-nosnippet>55</a>#[derive(Clone, PartialEq, Eq, Hash)]
 <a href=#56 id=56 data-nosnippet>56</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
@@ -86,7 +86,7 @@
 <a href=#86 id=86 data-nosnippet>86</a>    /// Often used for exposing more efficient implementations of
 <a href=#87 id=87 data-nosnippet>87</a>    /// SNARK-unfriendly computations.
 <a href=#88 id=88 data-nosnippet>88</a>    ///
-<a href=#89 id=89 data-nosnippet>89</a>    /// All black box function inputs are specified as [FunctionInput],
+<a href=#89 id=89 data-nosnippet>89</a>    /// All black box function inputs are specified as [`FunctionInput`],
 <a href=#90 id=90 data-nosnippet>90</a>    /// and they have one or several witnesses as output.
 <a href=#91 id=91 data-nosnippet>91</a>    ///
 <a href=#92 id=92 data-nosnippet>92</a>    /// Some more advanced computations assume that the proving system has an
@@ -101,10 +101,10 @@
 <a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// Atomic operation on a block of memory
 <a href=#102 id=102 data-nosnippet>102</a>    ///
 <a href=#103 id=103 data-nosnippet>103</a>    /// ACIR is able to address any array of witnesses. Each array is assigned
-<a href=#104 id=104 data-nosnippet>104</a>    /// an id ([BlockId]) and needs to be initialized with the [Opcode::MemoryInit] opcode.
+<a href=#104 id=104 data-nosnippet>104</a>    /// an id ([`BlockId`]) and needs to be initialized with the [`Opcode::MemoryInit`] opcode.
 <a href=#105 id=105 data-nosnippet>105</a>    /// Then it is possible to read and write from/to an array by providing the
 <a href=#106 id=106 data-nosnippet>106</a>    /// index and the value we read/write as arithmetic expressions. Note that
-<a href=#107 id=107 data-nosnippet>107</a>    /// ACIR arrays all have a known fixed length (given in the [Opcode::MemoryInit]
+<a href=#107 id=107 data-nosnippet>107</a>    /// ACIR arrays all have a known fixed length (given in the [`Opcode::MemoryInit`]
 <a href=#108 id=108 data-nosnippet>108</a>    /// opcode below)
 <a href=#109 id=109 data-nosnippet>109</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
 <a href=#110 id=110 data-nosnippet>110</a>    </span>MemoryOp {
@@ -118,8 +118,8 @@
 <a href=#118 id=118 data-nosnippet>118</a>
 <a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// Initialize an ACIR array from a vector of witnesses.
 <a href=#120 id=120 data-nosnippet>120</a>    ///
-<a href=#121 id=121 data-nosnippet>121</a>    /// There must be only one MemoryInit per block_id, and MemoryOp opcodes must
-<a href=#122 id=122 data-nosnippet>122</a>    /// come after the MemoryInit.
+<a href=#121 id=121 data-nosnippet>121</a>    /// There must be only one `MemoryInit` per `block_id`, and `MemoryOp` opcodes must
+<a href=#122 id=122 data-nosnippet>122</a>    /// come after the `MemoryInit`.
 <a href=#123 id=123 data-nosnippet>123</a>    </span><span class="attr">#[tag(<span class="number">3</span>)]
 <a href=#124 id=124 data-nosnippet>124</a>    </span>MemoryInit {
 <a href=#125 id=125 data-nosnippet>125</a>        <span class="doccomment">/// Identifier of the array

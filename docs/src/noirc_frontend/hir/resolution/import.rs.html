@@ -210,11 +210,11 @@
 <a href=#210 id=210 data-nosnippet>210</a>    TypedPathSegment::without_generics(segment.ident, segment.location)
 <a href=#211 id=211 data-nosnippet>211</a>}
 <a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a><span class="doccomment">/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
-<a href=#214 id=214 data-nosnippet>214</a>/// and a [ModuleId] where that `TypedPath` should be resolved.
+<a href=#213 id=213 data-nosnippet>213</a><span class="doccomment">/// Given a `TypedPath` and a [`ModuleId`] it's being used in, this function returns a `TypedPath`
+<a href=#214 id=214 data-nosnippet>214</a>/// and a [`ModuleId`] where that `TypedPath` should be resolved.
 <a href=#215 id=215 data-nosnippet>215</a>///
-<a href=#216 id=216 data-nosnippet>216</a>/// For a [PathKind::Absolute] with a value such as `::foo::bar::baz`, the path will be turned into a
-<a href=#217 id=217 data-nosnippet>217</a>/// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
+<a href=#216 id=216 data-nosnippet>216</a>/// For a [`PathKind::Absolute`] with a value such as `::foo::bar::baz`, the path will be turned into a
+<a href=#217 id=217 data-nosnippet>217</a>/// [`PathKind::Plain`] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
 <a href=#218 id=218 data-nosnippet>218</a>/// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
 <a href=#219 id=219 data-nosnippet>219</a>/// up with the module where it should be looked up. If the module cannot be found, and error is
 <a href=#220 id=220 data-nosnippet>220</a>/// returned.
@@ -237,7 +237,7 @@
 <a href=#237 id=237 data-nosnippet>237</a><span class="doccomment">/// Returns `true` if the first segment of a `TypedPath` in the `starting_module`
 <a href=#238 id=238 data-nosnippet>238</a>/// should always be visible to the `importing_module`.
 <a href=#239 id=239 data-nosnippet>239</a>///
-<a href=#240 id=240 data-nosnippet>240</a>/// Assumes that we have called [resolve_path_kind] before.
+<a href=#240 id=240 data-nosnippet>240</a>/// Assumes that we have called [`resolve_path_kind`] before.
 <a href=#241 id=241 data-nosnippet>241</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>first_segment_is_always_visible(
 <a href=#242 id=242 data-nosnippet>242</a>    path: <span class="kw-2">&amp;</span>TypedPath,
 <a href=#243 id=243 data-nosnippet>243</a>    importing_module: ModuleId,
@@ -260,7 +260,7 @@
 <a href=#260 id=260 data-nosnippet>260</a>}
 <a href=#261 id=261 data-nosnippet>261</a>
 <a href=#262 id=262 data-nosnippet>262</a><span class="kw">impl </span>PathResolutionTargetResolver&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-<a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// Resolve a `TypedPath` based on its [PathKind] to the target [ModuleId].
+<a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// Resolve a `TypedPath` based on its [`PathKind`] to the target [`ModuleId`].
 <a href=#264 id=264 data-nosnippet>264</a>    </span><span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
 <a href=#265 id=265 data-nosnippet>265</a>        <span class="kw">match </span>path.kind {
 <a href=#266 id=266 data-nosnippet>266</a>            PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path, <span class="self">self</span>.importing_module.krate),
@@ -339,7 +339,7 @@
 <a href=#339 id=339 data-nosnippet>339</a>
 <a href=#340 id=340 data-nosnippet>340</a>    <span class="doccomment">/// Resolve a path such as `super::foo::bar` or `super::super::foo::bar`:
 <a href=#341 id=341 data-nosnippet>341</a>    /// * walk up `extras + 1` parents of the current importing module (one per `super`)
-<a href=#342 id=342 data-nosnippet>342</a>    /// * return the path still with [PathKind::Super], paired up with the ancestor module
+<a href=#342 id=342 data-nosnippet>342</a>    /// * return the path still with [`PathKind::Super`], paired up with the ancestor module
 <a href=#343 id=343 data-nosnippet>343</a>    </span><span class="kw">fn </span>resolve_super_path(
 <a href=#344 id=344 data-nosnippet>344</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#345 id=345 data-nosnippet>345</a>        path: TypedPath,
@@ -376,7 +376,7 @@
 <a href=#376 id=376 data-nosnippet>376</a>        <span class="self">Self </span>{ importing_module, def_maps, usage_tracker, references_tracker }
 <a href=#377 id=377 data-nosnippet>377</a>    }
 <a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
 <a href=#380 id=380 data-nosnippet>380</a>    ///
 <a href=#381 id=381 data-nosnippet>381</a>    /// This is very similar to `Elaborator::resolve_name_in_module`.
 <a href=#382 id=382 data-nosnippet>382</a>    </span><span class="kw">fn </span>resolve_name_in_module(

@@ -5,10 +5,10 @@
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>noirc_errors::{Location, Span};
 <a href=#7 id=7 data-nosnippet>7</a>
-<a href=#8 id=8 data-nosnippet>8</a><span class="doccomment">/// A HirStatement is the result of performing name resolution on
+<a href=#8 id=8 data-nosnippet>8</a><span class="doccomment">/// A `HirStatement` is the result of performing name resolution on
 <a href=#9 id=9 data-nosnippet>9</a>/// the Statement AST node. Unlike the AST node, any nested nodes
-<a href=#10 id=10 data-nosnippet>10</a>/// are referred to indirectly via ExprId or StmtId, which can be
-<a href=#11 id=11 data-nosnippet>11</a>/// used to retrieve the relevant node via the NodeInterner.
+<a href=#10 id=10 data-nosnippet>10</a>/// are referred to indirectly via `ExprId` or `StmtId`, which can be
+<a href=#11 id=11 data-nosnippet>11</a>/// used to retrieve the relevant node via the `NodeInterner`.
 <a href=#12 id=12 data-nosnippet>12</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#13 id=13 data-nosnippet>13</a></span><span class="kw">pub enum </span>HirStatement {
 <a href=#14 id=14 data-nosnippet>14</a>    Let(HirLetStatement),
@@ -160,8 +160,8 @@
 <a href=#160 id=160 data-nosnippet>160</a>    Index {
 <a href=#161 id=161 data-nosnippet>161</a>        array: Box&lt;HirLValue&gt;,
 <a href=#162 id=162 data-nosnippet>162</a>        <span class="doccomment">/// `index` is required to be an identifier to simplify sequencing of side-effects.
-<a href=#163 id=163 data-nosnippet>163</a>        /// However we also store types and locations on ExprIds which makes these necessary
-<a href=#164 id=164 data-nosnippet>164</a>        /// for evaluating/compiling HirIdents so we don't directly require a HirIdent type here.
+<a href=#163 id=163 data-nosnippet>163</a>        /// However we also store types and locations on `ExprIds` which makes these necessary
+<a href=#164 id=164 data-nosnippet>164</a>        /// for evaluating/compiling `HirIdents` so we don't directly require a `HirIdent` type here.
 <a href=#165 id=165 data-nosnippet>165</a>        </span>index: ExprId,
 <a href=#166 id=166 data-nosnippet>166</a>        typ: Type,
 <a href=#167 id=167 data-nosnippet>167</a>        location: Location,

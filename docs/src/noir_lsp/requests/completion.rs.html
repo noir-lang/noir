@@ -115,11 +115,11 @@
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Type parameters in the current scope. These are collected when entering
 <a href=#116 id=116 data-nosnippet>116</a>    /// a struct, a function, etc., and cleared afterwards.
 <a href=#117 id=117 data-nosnippet>117</a>    </span>type_parameters: HashSet&lt;String&gt;,
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// ModuleDefIds we already suggested, so we don't offer these for auto-import.
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// `ModuleDefIds` we already suggested, so we don't offer these for auto-import.
 <a href=#119 id=119 data-nosnippet>119</a>    </span>suggested_module_def_ids: HashSet&lt;ModuleDefId&gt;,
 <a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// How many nested `mod` we are in deep
 <a href=#121 id=121 data-nosnippet>121</a>    </span>nesting: usize,
-<a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// The line where an auto_import must be inserted
+<a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// The line where an `auto_import` must be inserted
 <a href=#123 id=123 data-nosnippet>123</a>    </span>auto_import_line: usize,
 <a href=#124 id=124 data-nosnippet>124</a>    use_segment_positions: UseSegmentPositions,
 <a href=#125 id=125 data-nosnippet>125</a>    self_type: <span class="prelude-ty">Option</span>&lt;Type&gt;,
@@ -2025,70 +2025,72 @@
 <a href=#2025 id=2025 data-nosnippet>2025</a>///
 <a href=#2026 id=2026 data-nosnippet>2026</a>/// For example:
 <a href=#2027 id=2027 data-nosnippet>2027</a>///
-<a href=#2028 id=2028 data-nosnippet>2028</a>/// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
-<a href=#2029 id=2029 data-nosnippet>2029</a>/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
-<a href=#2030 id=2030 data-nosnippet>2030</a>///
-<a href=#2031 id=2031 data-nosnippet>2031</a>/// // "ro" matches "root", but "merkle" comes before it, so no match
-<a href=#2032 id=2032 data-nosnippet>2032</a>/// name_matches("compute_merkle_root", "ro_mer") == false
-<a href=#2033 id=2033 data-nosnippet>2033</a>///
-<a href=#2034 id=2034 data-nosnippet>2034</a>/// // neither "compute" nor "merkle" nor "root" start with "oot"
-<a href=#2035 id=2035 data-nosnippet>2035</a>/// name_matches("compute_merkle_root", "oot") == false
-<a href=#2036 id=2036 data-nosnippet>2036</a></span><span class="kw">fn </span>name_matches(name: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#2037 id=2037 data-nosnippet>2037</a>    <span class="kw">let </span>name = name.to_case(Case::Snake);
-<a href=#2038 id=2038 data-nosnippet>2038</a>    <span class="kw">let </span>name_parts: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = name.split(<span class="string">'_'</span>).collect();
-<a href=#2039 id=2039 data-nosnippet>2039</a>
-<a href=#2040 id=2040 data-nosnippet>2040</a>    <span class="kw">let </span><span class="kw-2">mut </span>last_index: i32 = -<span class="number">1</span>;
-<a href=#2041 id=2041 data-nosnippet>2041</a>    <span class="kw">for </span>prefix_part <span class="kw">in </span>prefix.split(<span class="string">'_'</span>) {
-<a href=#2042 id=2042 data-nosnippet>2042</a>        <span class="comment">// Look past parts we already matched
-<a href=#2043 id=2043 data-nosnippet>2043</a>        </span><span class="kw">let </span>offset = <span class="kw">if </span>last_index &gt;= <span class="number">0 </span>{ last_index <span class="kw">as </span>usize + <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
-<a href=#2044 id=2044 data-nosnippet>2044</a>
-<a href=#2045 id=2045 data-nosnippet>2045</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>name_part_index) =
-<a href=#2046 id=2046 data-nosnippet>2046</a>            name_parts.iter().skip(offset).position(|name_part| name_part.starts_with(prefix_part))
-<a href=#2047 id=2047 data-nosnippet>2047</a>        {
-<a href=#2048 id=2048 data-nosnippet>2048</a>            <span class="comment">// Need to adjust the index if we skipped some segments
-<a href=#2049 id=2049 data-nosnippet>2049</a>            </span>name_part_index += offset;
-<a href=#2050 id=2050 data-nosnippet>2050</a>
-<a href=#2051 id=2051 data-nosnippet>2051</a>            <span class="kw">if </span>last_index &gt;= name_part_index <span class="kw">as </span>i32 {
-<a href=#2052 id=2052 data-nosnippet>2052</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2053 id=2053 data-nosnippet>2053</a>            }
-<a href=#2054 id=2054 data-nosnippet>2054</a>            last_index = name_part_index <span class="kw">as </span>i32;
-<a href=#2055 id=2055 data-nosnippet>2055</a>        } <span class="kw">else </span>{
-<a href=#2056 id=2056 data-nosnippet>2056</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#2057 id=2057 data-nosnippet>2057</a>        }
-<a href=#2058 id=2058 data-nosnippet>2058</a>    }
-<a href=#2059 id=2059 data-nosnippet>2059</a>
-<a href=#2060 id=2060 data-nosnippet>2060</a>    <span class="bool-val">true
-<a href=#2061 id=2061 data-nosnippet>2061</a></span>}
-<a href=#2062 id=2062 data-nosnippet>2062</a>
-<a href=#2063 id=2063 data-nosnippet>2063</a><span class="kw">fn </span>module_def_id_from_reference_id(reference_id: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleDefId&gt; {
-<a href=#2064 id=2064 data-nosnippet>2064</a>    <span class="kw">match </span>reference_id {
-<a href=#2065 id=2065 data-nosnippet>2065</a>        ReferenceId::Module(module_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::ModuleId(module_id)),
-<a href=#2066 id=2066 data-nosnippet>2066</a>        ReferenceId::Type(type_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TypeId(type_id)),
-<a href=#2067 id=2067 data-nosnippet>2067</a>        ReferenceId::Trait(trait_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TraitId(trait_id)),
-<a href=#2068 id=2068 data-nosnippet>2068</a>        ReferenceId::TraitAssociatedType(id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TraitAssociatedTypeId(id)),
-<a href=#2069 id=2069 data-nosnippet>2069</a>        ReferenceId::Function(func_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::FunctionId(func_id)),
-<a href=#2070 id=2070 data-nosnippet>2070</a>        ReferenceId::Alias(type_alias_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TypeAliasId(type_alias_id)),
-<a href=#2071 id=2071 data-nosnippet>2071</a>        ReferenceId::StructMember(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#2072 id=2072 data-nosnippet>2072</a>        | ReferenceId::EnumVariant(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#2073 id=2073 data-nosnippet>2073</a>        | ReferenceId::Global(<span class="kw">_</span>)
-<a href=#2074 id=2074 data-nosnippet>2074</a>        | ReferenceId::Local(<span class="kw">_</span>)
-<a href=#2075 id=2075 data-nosnippet>2075</a>        | ReferenceId::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-<a href=#2076 id=2076 data-nosnippet>2076</a>    }
-<a href=#2077 id=2077 data-nosnippet>2077</a>}
-<a href=#2078 id=2078 data-nosnippet>2078</a>
-<a href=#2079 id=2079 data-nosnippet>2079</a><span class="attr">#[cfg(test)]
-<a href=#2080 id=2080 data-nosnippet>2080</a></span><span class="kw">mod </span>completion_name_matches_tests {
-<a href=#2081 id=2081 data-nosnippet>2081</a>    <span class="kw">use </span><span class="kw">crate</span>::requests::completion::name_matches;
-<a href=#2082 id=2082 data-nosnippet>2082</a>
-<a href=#2083 id=2083 data-nosnippet>2083</a>    <span class="attr">#[test]
-<a href=#2084 id=2084 data-nosnippet>2084</a>    </span><span class="kw">fn </span>test_name_matches() {
-<a href=#2085 id=2085 data-nosnippet>2085</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"foo"</span>, <span class="string">"foo"</span>));
-<a href=#2086 id=2086 data-nosnippet>2086</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"foo_bar"</span>, <span class="string">"bar"</span>));
-<a href=#2087 id=2087 data-nosnippet>2087</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"FooBar"</span>, <span class="string">"foo"</span>));
-<a href=#2088 id=2088 data-nosnippet>2088</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"FooBar"</span>, <span class="string">"bar"</span>));
-<a href=#2089 id=2089 data-nosnippet>2089</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"FooBar"</span>, <span class="string">"foo_bar"</span>));
-<a href=#2090 id=2090 data-nosnippet>2090</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"bar_baz"</span>, <span class="string">"bar_b"</span>));
-<a href=#2091 id=2091 data-nosnippet>2091</a>
-<a href=#2092 id=2092 data-nosnippet>2092</a>        <span class="macro">assert!</span>(!name_matches(<span class="string">"foo_bar"</span>, <span class="string">"o_b"</span>));
-<a href=#2093 id=2093 data-nosnippet>2093</a>    }
-<a href=#2094 id=2094 data-nosnippet>2094</a>}</code></pre></div></section></main></body></html>
+<a href=#2028 id=2028 data-nosnippet>2028</a>/// ```text
+<a href=#2029 id=2029 data-nosnippet>2029</a>/// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
+<a href=#2030 id=2030 data-nosnippet>2030</a>/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
+<a href=#2031 id=2031 data-nosnippet>2031</a>///
+<a href=#2032 id=2032 data-nosnippet>2032</a>/// // "ro" matches "root", but "merkle" comes before it, so no match
+<a href=#2033 id=2033 data-nosnippet>2033</a>/// name_matches("compute_merkle_root", "ro_mer") == false
+<a href=#2034 id=2034 data-nosnippet>2034</a>///
+<a href=#2035 id=2035 data-nosnippet>2035</a>/// // neither "compute" nor "merkle" nor "root" start with "oot"
+<a href=#2036 id=2036 data-nosnippet>2036</a>/// name_matches("compute_merkle_root", "oot") == false
+<a href=#2037 id=2037 data-nosnippet>2037</a>/// ```
+<a href=#2038 id=2038 data-nosnippet>2038</a></span><span class="kw">fn </span>name_matches(name: <span class="kw-2">&amp;</span>str, prefix: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#2039 id=2039 data-nosnippet>2039</a>    <span class="kw">let </span>name = name.to_case(Case::Snake);
+<a href=#2040 id=2040 data-nosnippet>2040</a>    <span class="kw">let </span>name_parts: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = name.split(<span class="string">'_'</span>).collect();
+<a href=#2041 id=2041 data-nosnippet>2041</a>
+<a href=#2042 id=2042 data-nosnippet>2042</a>    <span class="kw">let </span><span class="kw-2">mut </span>last_index: i32 = -<span class="number">1</span>;
+<a href=#2043 id=2043 data-nosnippet>2043</a>    <span class="kw">for </span>prefix_part <span class="kw">in </span>prefix.split(<span class="string">'_'</span>) {
+<a href=#2044 id=2044 data-nosnippet>2044</a>        <span class="comment">// Look past parts we already matched
+<a href=#2045 id=2045 data-nosnippet>2045</a>        </span><span class="kw">let </span>offset = <span class="kw">if </span>last_index &gt;= <span class="number">0 </span>{ last_index <span class="kw">as </span>usize + <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
+<a href=#2046 id=2046 data-nosnippet>2046</a>
+<a href=#2047 id=2047 data-nosnippet>2047</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>name_part_index) =
+<a href=#2048 id=2048 data-nosnippet>2048</a>            name_parts.iter().skip(offset).position(|name_part| name_part.starts_with(prefix_part))
+<a href=#2049 id=2049 data-nosnippet>2049</a>        {
+<a href=#2050 id=2050 data-nosnippet>2050</a>            <span class="comment">// Need to adjust the index if we skipped some segments
+<a href=#2051 id=2051 data-nosnippet>2051</a>            </span>name_part_index += offset;
+<a href=#2052 id=2052 data-nosnippet>2052</a>
+<a href=#2053 id=2053 data-nosnippet>2053</a>            <span class="kw">if </span>last_index &gt;= name_part_index <span class="kw">as </span>i32 {
+<a href=#2054 id=2054 data-nosnippet>2054</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2055 id=2055 data-nosnippet>2055</a>            }
+<a href=#2056 id=2056 data-nosnippet>2056</a>            last_index = name_part_index <span class="kw">as </span>i32;
+<a href=#2057 id=2057 data-nosnippet>2057</a>        } <span class="kw">else </span>{
+<a href=#2058 id=2058 data-nosnippet>2058</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#2059 id=2059 data-nosnippet>2059</a>        }
+<a href=#2060 id=2060 data-nosnippet>2060</a>    }
+<a href=#2061 id=2061 data-nosnippet>2061</a>
+<a href=#2062 id=2062 data-nosnippet>2062</a>    <span class="bool-val">true
+<a href=#2063 id=2063 data-nosnippet>2063</a></span>}
+<a href=#2064 id=2064 data-nosnippet>2064</a>
+<a href=#2065 id=2065 data-nosnippet>2065</a><span class="kw">fn </span>module_def_id_from_reference_id(reference_id: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleDefId&gt; {
+<a href=#2066 id=2066 data-nosnippet>2066</a>    <span class="kw">match </span>reference_id {
+<a href=#2067 id=2067 data-nosnippet>2067</a>        ReferenceId::Module(module_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::ModuleId(module_id)),
+<a href=#2068 id=2068 data-nosnippet>2068</a>        ReferenceId::Type(type_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TypeId(type_id)),
+<a href=#2069 id=2069 data-nosnippet>2069</a>        ReferenceId::Trait(trait_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TraitId(trait_id)),
+<a href=#2070 id=2070 data-nosnippet>2070</a>        ReferenceId::TraitAssociatedType(id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TraitAssociatedTypeId(id)),
+<a href=#2071 id=2071 data-nosnippet>2071</a>        ReferenceId::Function(func_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::FunctionId(func_id)),
+<a href=#2072 id=2072 data-nosnippet>2072</a>        ReferenceId::Alias(type_alias_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TypeAliasId(type_alias_id)),
+<a href=#2073 id=2073 data-nosnippet>2073</a>        ReferenceId::StructMember(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#2074 id=2074 data-nosnippet>2074</a>        | ReferenceId::EnumVariant(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#2075 id=2075 data-nosnippet>2075</a>        | ReferenceId::Global(<span class="kw">_</span>)
+<a href=#2076 id=2076 data-nosnippet>2076</a>        | ReferenceId::Local(<span class="kw">_</span>)
+<a href=#2077 id=2077 data-nosnippet>2077</a>        | ReferenceId::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+<a href=#2078 id=2078 data-nosnippet>2078</a>    }
+<a href=#2079 id=2079 data-nosnippet>2079</a>}
+<a href=#2080 id=2080 data-nosnippet>2080</a>
+<a href=#2081 id=2081 data-nosnippet>2081</a><span class="attr">#[cfg(test)]
+<a href=#2082 id=2082 data-nosnippet>2082</a></span><span class="kw">mod </span>completion_name_matches_tests {
+<a href=#2083 id=2083 data-nosnippet>2083</a>    <span class="kw">use </span><span class="kw">crate</span>::requests::completion::name_matches;
+<a href=#2084 id=2084 data-nosnippet>2084</a>
+<a href=#2085 id=2085 data-nosnippet>2085</a>    <span class="attr">#[test]
+<a href=#2086 id=2086 data-nosnippet>2086</a>    </span><span class="kw">fn </span>test_name_matches() {
+<a href=#2087 id=2087 data-nosnippet>2087</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"foo"</span>, <span class="string">"foo"</span>));
+<a href=#2088 id=2088 data-nosnippet>2088</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"foo_bar"</span>, <span class="string">"bar"</span>));
+<a href=#2089 id=2089 data-nosnippet>2089</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"FooBar"</span>, <span class="string">"foo"</span>));
+<a href=#2090 id=2090 data-nosnippet>2090</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"FooBar"</span>, <span class="string">"bar"</span>));
+<a href=#2091 id=2091 data-nosnippet>2091</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"FooBar"</span>, <span class="string">"foo_bar"</span>));
+<a href=#2092 id=2092 data-nosnippet>2092</a>        <span class="macro">assert!</span>(name_matches(<span class="string">"bar_baz"</span>, <span class="string">"bar_b"</span>));
+<a href=#2093 id=2093 data-nosnippet>2093</a>
+<a href=#2094 id=2094 data-nosnippet>2094</a>        <span class="macro">assert!</span>(!name_matches(<span class="string">"foo_bar"</span>, <span class="string">"o_b"</span>));
+<a href=#2095 id=2095 data-nosnippet>2095</a>    }
+<a href=#2096 id=2096 data-nosnippet>2096</a>}</code></pre></div></section></main></body></html>

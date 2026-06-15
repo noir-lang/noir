@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a>//! Specifically, it manages Brillig function pointers, stdlib calls, and global usage.
 <a href=#3 id=3 data-nosnippet>3</a>//!
 <a href=#4 id=4 data-nosnippet>4</a>//! ## Design
-<a href=#5 id=5 data-nosnippet>5</a>//! - Keep a single [SharedContext] struct across all ACIR artifacts so Brillig
+<a href=#5 id=5 data-nosnippet>5</a>//! - Keep a single [`SharedContext`] struct across all ACIR artifacts so Brillig
 <a href=#6 id=6 data-nosnippet>6</a>//!   functions are deduplicated and pointers remain consistent.
 <a href=#7 id=7 data-nosnippet>7</a>//! - Track both generated Brillig artifacts and stdlib Brillig functions
 <a href=#8 id=8 data-nosnippet>8</a>//!   (the latter do not originate from SSA function IDs).
@@ -11,7 +11,7 @@
 <a href=#11 id=11 data-nosnippet>11</a>//!   call sites in the generated ACIR.
 <a href=#12 id=12 data-nosnippet>12</a>//!
 <a href=#13 id=13 data-nosnippet>13</a>//! ## Preconditions
-<a href=#14 id=14 data-nosnippet>14</a>//! - Caller must provide a valid [BrilligStdLib] and a global usage map.
+<a href=#14 id=14 data-nosnippet>14</a>//! - Caller must provide a valid [`BrilligStdLib`] and a global usage map.
 <a href=#15 id=15 data-nosnippet>15</a>//!
 <a href=#16 id=16 data-nosnippet>16</a>//! ## Post-conditions
 <a href=#17 id=17 data-nosnippet>17</a>//! - Brillig artifacts are deduplicated, callable by their [function IDs][BrilligFunctionId].
@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>}
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a><span class="kw">impl</span>&lt;F: AcirField&gt; SharedContext&lt;F&gt; {
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="doccomment">/// Create a new [SharedContext] with a stdlib and a precomputed global usage map.
+<a href=#73 id=73 data-nosnippet>73</a>    <span class="doccomment">/// Create a new [`SharedContext`] with a stdlib and a precomputed global usage map.
 <a href=#74 id=74 data-nosnippet>74</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(
 <a href=#75 id=75 data-nosnippet>75</a>        brillig_stdlib: BrilligStdLib&lt;F&gt;,
 <a href=#76 id=76 data-nosnippet>76</a>        used_globals: HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt;,
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>        <span class="self">Self </span>{ brillig_stdlib, used_globals, ..Default::default() }
 <a href=#79 id=79 data-nosnippet>79</a>    }
 <a href=#80 id=80 data-nosnippet>80</a>
-<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Lookup a previously generated Brillig function pointer by ([FunctionId], Vec&lt;[BrilligParameter]&gt;).
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Lookup a previously generated Brillig function pointer by ([`FunctionId`], Vec&lt;[`BrilligParameter`]&gt;).
 <a href=#82 id=82 data-nosnippet>82</a>    /// Returns `None` if a pointer has not yet been registered.
 <a href=#83 id=83 data-nosnippet>83</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>generated_brillig_pointer(
 <a href=#84 id=84 data-nosnippet>84</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,

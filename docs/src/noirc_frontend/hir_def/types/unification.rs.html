@@ -74,7 +74,7 @@
 <a href=#74 id=74 data-nosnippet>74</a><span class="kw">impl </span>Type {
 <a href=#75 id=75 data-nosnippet>75</a>    <span class="doccomment">/// Try to unify this type with another, setting any type variables found
 <a href=#76 id=76 data-nosnippet>76</a>    /// equal to the other type in the process. When comparing types, unification
-<a href=#77 id=77 data-nosnippet>77</a>    /// (including try_unify) are almost always preferred over Type::eq as unification
+<a href=#77 id=77 data-nosnippet>77</a>    /// (including `try_unify`) are almost always preferred over `Type::eq` as unification
 <a href=#78 id=78 data-nosnippet>78</a>    /// will correctly handle generic types.
 <a href=#79 id=79 data-nosnippet>79</a>    </span><span class="kw">pub fn </span>unify(<span class="kw-2">&amp;</span><span class="self">self</span>, expected: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Result</span>&lt;(), UnificationError&gt; {
 <a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
@@ -316,7 +316,7 @@
 <a href=#316 id=316 data-nosnippet>316</a>    }
 <a href=#317 id=317 data-nosnippet>317</a>
 <a href=#318 id=318 data-nosnippet>318</a>    <span class="doccomment">/// Try to unify a type variable to `self`.
-<a href=#319 id=319 data-nosnippet>319</a>    /// This is a helper function factored out from try_unify.
+<a href=#319 id=319 data-nosnippet>319</a>    /// This is a helper function factored out from `try_unify`.
 <a href=#320 id=320 data-nosnippet>320</a>    </span><span class="kw">fn </span>try_unify_to_type_variable(
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#322 id=322 data-nosnippet>322</a>        type_variable: <span class="kw-2">&amp;</span>TypeVariable,
@@ -439,7 +439,7 @@
 <a href=#439 id=439 data-nosnippet>439</a>        <span class="prelude-val">Err</span>(UnificationError)
 <a href=#440 id=440 data-nosnippet>440</a>    }
 <a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>    <span class="doccomment">/// Try to unify the following equations, unless prohibited by DoNotMoveConstants flag:
+<a href=#442 id=442 data-nosnippet>442</a>    <span class="doccomment">/// Try to unify the following equations, unless prohibited by `DoNotMoveConstants` flag:
 <a href=#443 id=443 data-nosnippet>443</a>    /// - `(..a..) + 1 = (..b..)` -&gt; `(..a..) = (..b..) - 1`
 <a href=#444 id=444 data-nosnippet>444</a>    /// - `(..a..) - 1 = (..b..)` -&gt; `(..a..) = (..b..) + 1`
 <a href=#445 id=445 data-nosnippet>445</a>    /// - `(..a..) = (..b..) + 1` -&gt; `(..b..) = (..a..) - 1`

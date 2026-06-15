@@ -136,7 +136,7 @@
 <a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_data_array(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;(u32, ValueId)&gt; {
 <a href=#137 id=137 data-nosnippet>137</a>        <span class="self">self</span>.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
 <a href=#138 id=138 data-nosnippet>138</a>    }
-<a href=#139 id=139 data-nosnippet>139</a>    <span class="doccomment">/// Construct a databus from call_data and return_data data bus builders
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="doccomment">/// Construct a databus from `call_data` and `return_data` data bus builders
 <a href=#140 id=140 data-nosnippet>140</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_data_bus(
 <a href=#141 id=141 data-nosnippet>141</a>        call_data: Vec&lt;DataBusBuilder&gt;,
 <a href=#142 id=142 data-nosnippet>142</a>        return_data: DataBusBuilder,

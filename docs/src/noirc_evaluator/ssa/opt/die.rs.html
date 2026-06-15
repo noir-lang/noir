@@ -2,16 +2,16 @@
 <a href=#2 id=2 data-nosnippet>2</a>//! which the results are unused.
 <a href=#3 id=3 data-nosnippet>3</a>//!
 <a href=#4 id=4 data-nosnippet>4</a>//! DIE also tracks which block parameters are unused.
-<a href=#5 id=5 data-nosnippet>5</a>//! Unused parameters are then pruned by the [prune_dead_parameters] pass.
+<a href=#5 id=5 data-nosnippet>5</a>//! Unused parameters are then pruned by the [`prune_dead_parameters`] pass.
 <a href=#6 id=6 data-nosnippet>6</a>//!
 <a href=#7 id=7 data-nosnippet>7</a>//! ## Design
 <a href=#8 id=8 data-nosnippet>8</a>//! - Instructions are scanned in reverse (within each block), keeping track of
 <a href=#9 id=9 data-nosnippet>9</a>//!   used values. If the current instruction is safe for removal (no side effects)
 <a href=#10 id=10 data-nosnippet>10</a>//!   and its results are all unused the instruction will be marked for removal.
 <a href=#11 id=11 data-nosnippet>11</a>//!   Traversing in reverse enables removing entire unused chains of computation.
-<a href=#12 id=12 data-nosnippet>12</a>//! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
+<a href=#12 id=12 data-nosnippet>12</a>//! - The pass also tracks unused [`IncrementRc`][Instruction::IncrementRc] and [`DecrementRc`][Instruction::DecrementRc] instructions.
 <a href=#13 id=13 data-nosnippet>13</a>//!   As these instructions contain side effects we only remove them after analyzing an entire function to see if their values are unused.
-<a href=#14 id=14 data-nosnippet>14</a>//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
+<a href=#14 id=14 data-nosnippet>14</a>//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [`prune_dead_parameters`] pass
 <a href=#15 id=15 data-nosnippet>15</a>//!   to maintain separation of concerns and SSA consistency.
 <a href=#16 id=16 data-nosnippet>16</a>//! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
 <a href=#17 id=17 data-nosnippet>17</a>//!   once there are no more unused parameters.
@@ -32,8 +32,8 @@
 <a href=#32 id=32 data-nosnippet>32</a>//!
 <a href=#33 id=33 data-nosnippet>33</a>//! [Store][Instruction::Store] instructions are never removed by DIE in either runtime.
 <a href=#34 id=34 data-nosnippet>34</a>//! Deciding when a store is dead requires reasoning about reference aliasing, which the
-<a href=#35 id=35 data-nosnippet>35</a>//! reverse traversal cannot do soundly: an earlier instruction such as [IfElse][Instruction::IfElse],
-<a href=#36 id=36 data-nosnippet>36</a>//! [MakeArray][Instruction::MakeArray]/[ArrayGet][Instruction::ArrayGet], or a call returning a
+<a href=#35 id=35 data-nosnippet>35</a>//! reverse traversal cannot do soundly: an earlier instruction such as [`IfElse`][Instruction::IfElse],
+<a href=#36 id=36 data-nosnippet>36</a>//! [`MakeArray`][Instruction::MakeArray]/[`ArrayGet`][Instruction::ArrayGet], or a call returning a
 <a href=#37 id=37 data-nosnippet>37</a>//! reference argument may produce a value that aliases the address, and reads through that alias
 <a href=#38 id=38 data-nosnippet>38</a>//! sit later in source order. Mem2reg, which has a proper alias-tracking model, is responsible
 <a href=#39 id=39 data-nosnippet>39</a>//! for removing dead stores.
@@ -197,14 +197,14 @@
 <a href=#197 id=197 data-nosnippet>197</a>    used_values: HashSet&lt;ValueId&gt;,
 <a href=#198 id=198 data-nosnippet>198</a>    instructions_to_remove: HashSet&lt;InstructionId&gt;,
 <a href=#199 id=199 data-nosnippet>199</a>
-<a href=#200 id=200 data-nosnippet>200</a>    <span class="doccomment">/// IncrementRc &amp; DecrementRc instructions must be revisited after the main DIE pass since
+<a href=#200 id=200 data-nosnippet>200</a>    <span class="doccomment">/// `IncrementRc` &amp; `DecrementRc` instructions must be revisited after the main DIE pass since
 <a href=#201 id=201 data-nosnippet>201</a>    /// they technically contain side-effects but we still want to remove them if their
 <a href=#202 id=202 data-nosnippet>202</a>    /// `value` parameter is not used elsewhere.
 <a href=#203 id=203 data-nosnippet>203</a>    </span>rc_instructions: Vec&lt;(InstructionId, BasicBlockId)&gt;,
 <a href=#204 id=204 data-nosnippet>204</a>
 <a href=#205 id=205 data-nosnippet>205</a>    <span class="doccomment">/// A per-block list indicating which block parameters are still considered alive.
 <a href=#206 id=206 data-nosnippet>206</a>    ///
-<a href=#207 id=207 data-nosnippet>207</a>    /// Each entry maps a [BasicBlockId] to a `Vec&lt;bool&gt;`, where the `i`th boolean corresponds to
+<a href=#207 id=207 data-nosnippet>207</a>    /// Each entry maps a [`BasicBlockId`] to a `Vec&lt;bool&gt;`, where the `i`th boolean corresponds to
 <a href=#208 id=208 data-nosnippet>208</a>    /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
 <a href=#209 id=209 data-nosnippet>209</a>    /// be preserved. A value of `false` means it is unused and can be pruned.
 <a href=#210 id=210 data-nosnippet>210</a>    ///
@@ -1382,7 +1382,7 @@
 <a href=#1382 id=1382 data-nosnippet>1382</a>    /// alias-establishing instruction. `v6 = if cond then v0 else v1` makes `v6`
 <a href=#1383 id=1383 data-nosnippet>1383</a>    /// alias `v0` (or `v1`), so `load v6` is effectively a load of the address being
 <a href=#1384 id=1384 data-nosnippet>1384</a>    /// stored to; removing the intervening `store at v0` would leave the load reading
-<a href=#1385 id=1385 data-nosnippet>1385</a>    /// uninitialized memory. The reverse traversal cannot detect this since the IfElse
+<a href=#1385 id=1385 data-nosnippet>1385</a>    /// uninitialized memory. The reverse traversal cannot detect this since the `IfElse`
 <a href=#1386 id=1386 data-nosnippet>1386</a>    /// has not been visited when DIE inspects the store, which is the core reason DIE
 <a href=#1387 id=1387 data-nosnippet>1387</a>    /// cannot soundly remove stores in general.
 <a href=#1388 id=1388 data-nosnippet>1388</a>    </span><span class="attr">#[test]

@@ -10,7 +10,7 @@
     bit_size: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.u32.html">u32</a>,
 )</h4></section></summary><div class="docblock"><p>Insert constraints ensuring that the operation does not overflow the bit size of the result
 We assume that:
-lhs and rhs are signed integers of bit size bit_size
+lhs and rhs are signed integers of bit size <code>bit_size</code>
 result is the result of the operation, casted into an unsigned integer and not reduced</p>
 <p>overflow check for signed integer is less straightforward than for unsigned integers.
 We first compute the sign of the operands, and then we use the following rules:

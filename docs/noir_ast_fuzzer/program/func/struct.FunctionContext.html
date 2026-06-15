@@ -313,7 +313,7 @@ identifier of a vector or an array.</p>
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to the <code>vector_insert</code> builtin function.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.avoid_index_out_of_bounds" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2395-2401">Source</a><h4 class="code-header">fn <a href="#method.avoid_index_out_of_bounds" class="fn">avoid_index_out_of_bounds</a>(&amp;self, u: &amp;mut Unstructured&lt;'_&gt;) -&gt; Result&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>&gt;</h4></section></summary><div class="docblock"><p>Random decision whether to allow “Index out of bounds” errors to happen
 on a specific array or vector access operation.</p>
-<p>If <a href="../../struct.Config.html#structfield.avoid_index_out_of_bounds" title="field noir_ast_fuzzer::Config::avoid_index_out_of_bounds">Config::avoid_index_out_of_bounds</a> is turned on, then this is always <code>true</code>.</p>
+<p>If <a href="../../struct.Config.html#structfield.avoid_index_out_of_bounds" title="field noir_ast_fuzzer::Config::avoid_index_out_of_bounds"><code>Config::avoid_index_out_of_bounds</code></a> is turned on, then this is always <code>true</code>.</p>
 <p>It also returns <code>true</code> when <code>in_no_dynamic</code> mode is on, because an overflowing
 index might not be simplified out of the SSA in ACIR, and end up being considered
 a dynamic index, and leave reference allocations until ACIR gen, where they fail.</p>

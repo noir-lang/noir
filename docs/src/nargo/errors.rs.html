@@ -59,7 +59,7 @@
 <a href=#59 id=59 data-nosnippet>59</a>}
 <a href=#60 id=60 data-nosnippet>60</a>
 <a href=#61 id=61 data-nosnippet>61</a><span class="kw">impl</span>&lt;F: AcirField&gt; NargoError&lt;F&gt; {
-<a href=#62 id=62 data-nosnippet>62</a>    <span class="doccomment">/// Extracts the user defined failure message from the ExecutionError
+<a href=#62 id=62 data-nosnippet>62</a>    <span class="doccomment">/// Extracts the user defined failure message from the `ExecutionError`
 <a href=#63 id=63 data-nosnippet>63</a>    /// If one exists.
 <a href=#64 id=64 data-nosnippet>64</a>    ///
 <a href=#65 id=65 data-nosnippet>65</a>    /// We want to extract the user defined error so that we can compare it
@@ -257,8 +257,8 @@
 <a href=#257 id=257 data-nosnippet>257</a>    <span class="prelude-val">Some</span>(error.with_call_stack(source_locations))
 <a href=#258 id=258 data-nosnippet>258</a>}
 <a href=#259 id=259 data-nosnippet>259</a>
-<a href=#260 id=260 data-nosnippet>260</a><span class="doccomment">/// Map the given OpcodeResolutionError to the corresponding ExecutionError
-<a href=#261 id=261 data-nosnippet>261</a>/// In case of resulting in an ExecutionError::AssertionFailedThis it propagates the payload
+<a href=#260 id=260 data-nosnippet>260</a><span class="doccomment">/// Map the given `OpcodeResolutionError` to the corresponding `ExecutionError`
+<a href=#261 id=261 data-nosnippet>261</a>/// In case of resulting in an `ExecutionError::AssertionFailedThis` it propagates the payload
 <a href=#262 id=262 data-nosnippet>262</a></span><span class="kw">pub fn </span>execution_error_from&lt;F: AcirField&gt;(
 <a href=#263 id=263 data-nosnippet>263</a>    error: OpcodeResolutionError&lt;F&gt;,
 <a href=#264 id=264 data-nosnippet>264</a>    call_stack: <span class="kw-2">&amp;</span>[ResolvedOpcodeLocation],

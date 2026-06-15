@@ -14,8 +14,8 @@
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">mod </span>toml;
 <a href=#15 id=15 data-nosnippet>15</a>
 <a href=#16 id=16 data-nosnippet>16</a><span class="doccomment">/// This is what all formats eventually transform into
-<a href=#17 id=17 data-nosnippet>17</a>/// For example, a toml file will parse into TomlTypes
-<a href=#18 id=18 data-nosnippet>18</a>/// and those TomlTypes will be mapped to Value
+<a href=#17 id=17 data-nosnippet>17</a>/// For example, a toml file will parse into `TomlTypes`
+<a href=#18 id=18 data-nosnippet>18</a>/// and those `TomlTypes` will be mapped to Value
 <a href=#19 id=19 data-nosnippet>19</a></span><span class="attr">#[derive(Debug, Clone, Serialize, PartialEq)]
 <a href=#20 id=20 data-nosnippet>20</a></span><span class="kw">pub enum </span>InputValue {
 <a href=#21 id=21 data-nosnippet>21</a>    Field(FieldElement),
@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>}
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a><span class="kw">impl </span>InputValue {
-<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// Checks whether the ABI type matches the InputValue type
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// Checks whether the ABI type matches the `InputValue` type
 <a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_type_mismatch(
 <a href=#68 id=68 data-nosnippet>68</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#69 id=69 data-nosnippet>69</a>        abi_param: <span class="kw-2">&amp;</span>AbiType,
@@ -185,7 +185,7 @@
 <a href=#185 id=185 data-nosnippet>185</a>        }
 <a href=#186 id=186 data-nosnippet>186</a>    }
 <a href=#187 id=187 data-nosnippet>187</a>
-<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// Checks whether the ABI type matches the InputValue type.
+<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// Checks whether the ABI type matches the `InputValue` type.
 <a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">pub fn </span>matches_abi(<span class="kw-2">&amp;</span><span class="self">self</span>, abi_param: <span class="kw-2">&amp;</span>AbiType) -&gt; bool {
 <a href=#190 id=190 data-nosnippet>190</a>        <span class="self">self</span>.find_type_mismatch(abi_param, String::new()).is_ok()
 <a href=#191 id=191 data-nosnippet>191</a>    }

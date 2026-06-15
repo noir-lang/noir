@@ -41,7 +41,7 @@
 <a href=#41 id=41 data-nosnippet>41</a>    </span>NumericConstant { constant: FieldElement, typ: NumericType },
 <a href=#42 id=42 data-nosnippet>42</a>
 <a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// This Value refers to a function in the IR.
-<a href=#44 id=44 data-nosnippet>44</a>    /// Functions always have the type Type::Function.
+<a href=#44 id=44 data-nosnippet>44</a>    /// Functions always have the type `Type::Function`.
 <a href=#45 id=45 data-nosnippet>45</a>    /// If the argument or return types are needed, users should retrieve
 <a href=#46 id=46 data-nosnippet>46</a>    /// their types via the Call instruction's arguments or the Call instruction's
 <a href=#47 id=47 data-nosnippet>47</a>    /// result types respectively.
@@ -52,7 +52,7 @@
 <a href=#52 id=52 data-nosnippet>52</a>    </span>Intrinsic(Intrinsic),
 <a href=#53 id=53 data-nosnippet>53</a>
 <a href=#54 id=54 data-nosnippet>54</a>    <span class="doccomment">/// This Value refers to an external function in the IR.
-<a href=#55 id=55 data-nosnippet>55</a>    /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
+<a href=#55 id=55 data-nosnippet>55</a>    /// `ForeignFunction`'s always have the type `Type::Function` and have similar semantics to Function,
 <a href=#56 id=56 data-nosnippet>56</a>    /// other than generating different backend operations and being only accessible through Brillig.
 <a href=#57 id=57 data-nosnippet>57</a>    ///
 <a href=#58 id=58 data-nosnippet>58</a>    /// `pure` is `true` when the user marked the oracle declaration with `#[pure]`.
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>
 <a href=#79 id=79 data-nosnippet>79</a><span class="doccomment">/// Like `HashMap&lt;ValueId, ValueId&gt;` but handles:
 <a href=#80 id=80 data-nosnippet>80</a>/// 1. recursion (if v0 -&gt; v1 and v1 -&gt; v2, then v0 -&gt; v2)
-<a href=#81 id=81 data-nosnippet>81</a>/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
+<a href=#81 id=81 data-nosnippet>81</a>/// 2. self-mapping values (a value mapped to itself won't be inserted into the `HashMap`)
 <a href=#82 id=82 data-nosnippet>82</a></span><span class="attr">#[derive(Default, Debug)]
 <a href=#83 id=83 data-nosnippet>83</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ValueMapping {
 <a href=#84 id=84 data-nosnippet>84</a>    map: HashMap&lt;ValueId, ValueId&gt;,

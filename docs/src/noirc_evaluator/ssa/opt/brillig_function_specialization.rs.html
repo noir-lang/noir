@@ -191,7 +191,7 @@
 <a href=#191 id=191 data-nosnippet>191</a>    key_to_callsites
 <a href=#192 id=192 data-nosnippet>192</a>}
 <a href=#193 id=193 data-nosnippet>193</a>
-<a href=#194 id=194 data-nosnippet>194</a><span class="doccomment">/// Try to build a [SpecializationKey] for a call instruction.
+<a href=#194 id=194 data-nosnippet>194</a><span class="doccomment">/// Try to build a [`SpecializationKey`] for a call instruction.
 <a href=#195 id=195 data-nosnippet>195</a>/// Returns `None` if no argument is a numeric constant.
 <a href=#196 id=196 data-nosnippet>196</a></span><span class="kw">fn </span>try_build_specialization_key(
 <a href=#197 id=197 data-nosnippet>197</a>    caller_fn: <span class="kw-2">&amp;</span>Function,
@@ -351,7 +351,7 @@
 <a href=#351 id=351 data-nosnippet>351</a>}
 <a href=#352 id=352 data-nosnippet>352</a>
 <a href=#353 id=353 data-nosnippet>353</a><span class="doccomment">/// Scan the given functions for call sites that match a surviving specialization key
-<a href=#354 id=354 data-nosnippet>354</a>/// and append them to `key_to_callsites`. This lets [rewrite_call_sites] handle both
+<a href=#354 id=354 data-nosnippet>354</a>/// and append them to `key_to_callsites`. This lets [`rewrite_call_sites`] handle both
 <a href=#355 id=355 data-nosnippet>355</a>/// original callers and clones in one pass.
 <a href=#356 id=356 data-nosnippet>356</a></span><span class="kw">fn </span>collect_matching_callsites(
 <a href=#357 id=357 data-nosnippet>357</a>    functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,

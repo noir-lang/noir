@@ -23,7 +23,7 @@ values were written to memory.</p>
 unprocessed responses returned from the external foreign call handler.</li>
 </ul>
 </div><span id="structfield.foreign_call_results" class="structfield section-header"><a href="#structfield.foreign_call_results" class="anchor field">§</a><code>foreign_call_results: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;ForeignCallResult&lt;F&gt;&gt;</code></span><div class="docblock"><p>Accumulates the outputs of all foreign calls during a Brillig process.
-The list is appended onto by the caller upon reaching a <a href="enum.VMStatus.html#variant.ForeignCallWait" title="variant brillig_vm::VMStatus::ForeignCallWait">VMStatus::ForeignCallWait</a>.</p>
+The list is appended onto by the caller upon reaching a <a href="enum.VMStatus.html#variant.ForeignCallWait" title="variant brillig_vm::VMStatus::ForeignCallWait"><code>VMStatus::ForeignCallWait</code></a>.</p>
 </div><span id="structfield.bytecode" class="structfield section-header"><a href="#structfield.bytecode" class="anchor field">§</a><code>bytecode: &amp;'a [Opcode&lt;F&gt;]</code></span><div class="docblock"><p>Executable opcodes.</p>
 </div><span id="structfield.status" class="structfield section-header"><a href="#structfield.status" class="anchor field">§</a><code>status: <a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</code></span><div class="docblock"><p>Status of the VM.</p>
 </div><span id="structfield.memory" class="structfield section-header"><a href="#structfield.memory" class="anchor field">§</a><code>memory: <a class="struct" href="struct.Memory.html" title="struct brillig_vm::Memory">Memory</a>&lt;F&gt;</code></span><div class="docblock"><p>Memory of the VM.</p>
@@ -38,7 +38,7 @@ If the field is <code>None</code> then fuzzing is inactive.</p>
     destination_value_types: &amp;[HeapValueType],
     inputs: &amp;[ValueOrArray],
     input_value_types: &amp;[HeapValueType],
-) -&gt; &amp;<a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</h4></section></summary><div class="docblock"><p>Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].</p>
+) -&gt; &amp;<a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</h4></section></summary><div class="docblock"><p>Handles the execution of a single [<code>ForeignCall</code> opcode][acir::brillig::Opcode::ForeignCall].</p>
 <p>This method performs the following steps:</p>
 <ol>
 <li>Checks if the foreign call results are already available. If not, it resolves the input
@@ -56,7 +56,7 @@ matches the expected types and sizes:
 <li>Increments the foreign call counter and advances the program counter.</li>
 </ol>
 <h5 id="parameters"><a class="doc-anchor" href="#parameters">§</a>Parameters</h5>
-<p>The borrowed fields of a [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+<p>The borrowed fields of a [<code>ForeignCall</code> opcode][acir::brillig::Opcode::ForeignCall].
 They are listed again below:</p>
 <ul>
 <li><code>function</code>: Name of the foreign function being called.</li>
@@ -67,10 +67,10 @@ They are listed again below:</p>
 </ul>
 <h5 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h5>
 <ul>
-<li><a href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a> indicating the next state of the VM:
+<li><a href="enum.VMStatus.html" title="enum brillig_vm::VMStatus"><code>VMStatus</code></a> indicating the next state of the VM:
 <ul>
-<li><a href="enum.VMStatus.html#variant.ForeignCallWait" title="variant brillig_vm::VMStatus::ForeignCallWait">VMStatus::ForeignCallWait</a> if the results are not yet available.</li>
-<li><a href="enum.VMStatus.html#variant.Finished" title="variant brillig_vm::VMStatus::Finished">VMStatus::Finished</a> or <a href="enum.VMStatus.html#variant.Failure" title="variant brillig_vm::VMStatus::Failure">VMStatus::Failure</a> depending on whether writing the results succeeded.</li>
+<li><a href="enum.VMStatus.html#variant.ForeignCallWait" title="variant brillig_vm::VMStatus::ForeignCallWait"><code>VMStatus::ForeignCallWait</code></a> if the results are not yet available.</li>
+<li><a href="enum.VMStatus.html#variant.Finished" title="variant brillig_vm::VMStatus::Finished"><code>VMStatus::Finished</code></a> or <a href="enum.VMStatus.html#variant.Failure" title="variant brillig_vm::VMStatus::Failure"><code>VMStatus::Failure</code></a> depending on whether writing the results succeeded.</li>
 </ul>
 </li>
 </ul>
@@ -190,7 +190,7 @@ indicating that the VM encountered an invalid state.</p>
 <p>Used by the debugger to alter memory.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.get_call_stack" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#299-303">Source</a><h4 class="code-header">pub fn <a href="#method.get_call_stack" class="fn">get_call_stack</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>&gt;</h4></section></summary><div class="docblock"><p>Returns the VM’s current call stack, including the actual program
 counter in the last position of the returned vector.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.get_call_stack_no_current_counter" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#308-310">Source</a><h4 class="code-header">pub fn <a href="#method.get_call_stack_no_current_counter" class="fn">get_call_stack_no_current_counter</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>&gt;</h4></section></summary><div class="docblock"><p>Returns the VM’s call stack, but unlike <a href="struct.VM.html#method.get_call_stack" title="method brillig_vm::VM::get_call_stack">Self::get_call_stack</a> without the attaching
+</div></details><details class="toggle method-toggle" open><summary><section id="method.get_call_stack_no_current_counter" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#308-310">Source</a><h4 class="code-header">pub fn <a href="#method.get_call_stack_no_current_counter" class="fn">get_call_stack_no_current_counter</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>&gt;</h4></section></summary><div class="docblock"><p>Returns the VM’s call stack, but unlike <a href="struct.VM.html#method.get_call_stack" title="method brillig_vm::VM::get_call_stack"><code>Self::get_call_stack</code></a> without the attaching
 the program counter in the last position of the returned vector.
 This is meant only for fetching the call stack after execution has completed.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.process_opcode" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#313-320">Source</a><h4 class="code-header">pub fn <a href="#method.process_opcode" class="fn">process_opcode</a>(&amp;mut self) -&gt; &amp;<a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</h4></section></summary><div class="docblock"><p>Process a single opcode and modify the program counter.</p>
@@ -215,7 +215,7 @@ The stack frame for function calls is handled during codegen.</li>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.increment_program_counter" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#531-533">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.increment_program_counter" class="fn">increment_program_counter</a>(&amp;mut self) -&gt; &amp;<a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</h4></section></summary><div class="docblock"><p>Increments the program counter by 1.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.set_program_counter" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#538-545">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.set_program_counter" class="fn">set_program_counter</a>(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>) -&gt; &amp;<a class="enum" href="enum.VMStatus.html" title="enum brillig_vm::VMStatus">VMStatus</a>&lt;F&gt;</h4></section></summary><div class="docblock"><p>Sets the program counter to <code>value</code>.
 If the program counter no longer points to an opcode
-in the bytecode, then the VMStatus reports <code>Finished</code>.</p>
+in the bytecode, then the <code>VMStatus</code> reports <code>Finished</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.process_binary_field_op" class="method"><a class="src rightside" href="../src/brillig_vm/lib.rs.html#549-563">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.process_binary_field_op" class="fn">process_binary_field_op</a>(
     &amp;mut self,
     op: BinaryFieldOp,

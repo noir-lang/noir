@@ -20,18 +20,18 @@
 <a href=#20 id=20 data-nosnippet>20</a>    /// Below we outline the expected inputs.
 <a href=#21 id=21 data-nosnippet>21</a>    ///
 <a href=#22 id=22 data-nosnippet>22</a>    /// For regular printing:
-<a href=#23 id=23 data-nosnippet>23</a>    /// [print_newline][acvm::acir::brillig::ForeignCallParam::Single]: 0 for print, 1 for println
-<a href=#24 id=24 data-nosnippet>24</a>    /// [value_to_print][acvm::acir::brillig::ForeignCallParam::Array]: The field values representing the actual value to print
-<a href=#25 id=25 data-nosnippet>25</a>    /// [type_metadata][acvm::acir::brillig::ForeignCallParam::Array]: Field values representing the JSON encoded type, which tells us how to print the above value
-<a href=#26 id=26 data-nosnippet>26</a>    /// [is_fmt_str][acvm::acir::brillig::ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
+<a href=#23 id=23 data-nosnippet>23</a>    /// [`print_newline`][acvm::acir::brillig::ForeignCallParam::Single]: 0 for print, 1 for println
+<a href=#24 id=24 data-nosnippet>24</a>    /// [`value_to_print`][acvm::acir::brillig::ForeignCallParam::Array]: The field values representing the actual value to print
+<a href=#25 id=25 data-nosnippet>25</a>    /// [`type_metadata`][acvm::acir::brillig::ForeignCallParam::Array]: Field values representing the JSON encoded type, which tells us how to print the above value
+<a href=#26 id=26 data-nosnippet>26</a>    /// [`is_fmt_str`][acvm::acir::brillig::ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
 <a href=#27 id=27 data-nosnippet>27</a>    ///
 <a href=#28 id=28 data-nosnippet>28</a>    /// For printing a format string:
-<a href=#29 id=29 data-nosnippet>29</a>    /// [print_newline][acvm::acir::brillig::ForeignCallParam::Single]: 0 for print, 1 for println
+<a href=#29 id=29 data-nosnippet>29</a>    /// [`print_newline`][acvm::acir::brillig::ForeignCallParam::Single]: 0 for print, 1 for println
 <a href=#30 id=30 data-nosnippet>30</a>    /// [message][acvm::acir::brillig::ForeignCallParam::Array]: The fmtstr as a regular string
-<a href=#31 id=31 data-nosnippet>31</a>    /// [num_values][acvm::acir::brillig::ForeignCallParam::Single]: Number of values in the fmtstr
-<a href=#32 id=32 data-nosnippet>32</a>    /// [[value_to_print][acvm::acir::brillig::ForeignCallParam::Array]; N]: Array of the field values for each value in the fmtstr
-<a href=#33 id=33 data-nosnippet>33</a>    /// [[type_metadata][acvm::acir::brillig::ForeignCallParam::Array]; N]: Array of field values representing the JSON encoded types
-<a href=#34 id=34 data-nosnippet>34</a>    /// [is_fmt_str][acvm::acir::brillig::ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
+<a href=#31 id=31 data-nosnippet>31</a>    /// [`num_values`][acvm::acir::brillig::ForeignCallParam::Single]: Number of values in the fmtstr
+<a href=#32 id=32 data-nosnippet>32</a>    /// [[`value_to_print`][acvm::acir::brillig::ForeignCallParam::Array]; N]: Array of the field values for each value in the fmtstr
+<a href=#33 id=33 data-nosnippet>33</a>    /// [[`type_metadata`][acvm::acir::brillig::ForeignCallParam::Array]; N]: Array of field values representing the JSON encoded types
+<a href=#34 id=34 data-nosnippet>34</a>    /// [`is_fmt_str`][acvm::acir::brillig::ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
 <a href=#35 id=35 data-nosnippet>35</a>    </span><span class="kw">fn </span>execute(
 <a href=#36 id=36 data-nosnippet>36</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#37 id=37 data-nosnippet>37</a>        foreign_call: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;,

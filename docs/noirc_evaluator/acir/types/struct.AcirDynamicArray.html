@@ -9,15 +9,15 @@ and which might be indexed with a dynamic index.</p>
 <div class="example-wrap"><pre class="language-noir"><code>fn main(array: [Field; 3], index: u32) -&gt; pub Field {
     array[index]
 }</code></pre></div>
-<p>the array, first represented as an <a href="enum.AcirValue.html#variant.Array" title="variant noirc_evaluator::acir::types::AcirValue::Array">AcirValue::Array</a>, will be put in
-an <a href="enum.AcirValue.html#variant.DynamicArray" title="variant noirc_evaluator::acir::types::AcirValue::DynamicArray">AcirValue::DynamicArray</a>:</p>
+<p>the array, first represented as an <a href="enum.AcirValue.html#variant.Array" title="variant noirc_evaluator::acir::types::AcirValue::Array"><code>AcirValue::Array</code></a>, will be put in
+an <a href="enum.AcirValue.html#variant.DynamicArray" title="variant noirc_evaluator::acir::types::AcirValue::DynamicArray"><code>AcirValue::DynamicArray</code></a>:</p>
 <div class="example-wrap"><pre class="language-acir"><code>private parameters: [w0, w1, w2, w3]
 public parameters: []
 return values: [w4]
 INIT b0 = [w0, w1, w2]
 READ w5 = b0[w3]
 ASSERT w4 = w5</code></pre></div>
-<p>Every dynamic array has an associated [BlockId] where its contents are stored,
+<p>Every dynamic array has an associated [<code>BlockId</code>] where its contents are stored,
 in this case <code>b0</code>. Then the block can be read or written using dynamic indexes.</p>
 <p>Dynamic arrays might result from other operations. For example:</p>
 <ul>

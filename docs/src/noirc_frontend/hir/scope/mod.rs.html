@@ -16,12 +16,12 @@
 <a href=#16 id=16 data-nosnippet>16</a>
 <a href=#17 id=17 data-nosnippet>17</a>*/
 <a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a></span><span class="doccomment">/// This implementation uses the terminology Scope and ScopeTree
+<a href=#19 id=19 data-nosnippet>19</a></span><span class="doccomment">/// This implementation uses the terminology Scope and `ScopeTree`
 <a href=#20 id=20 data-nosnippet>20</a>/// A Scope is map between Keys and Values, it is possible to search for a Key in Scope, returning a mutable copy
-<a href=#21 id=21 data-nosnippet>21</a>/// A ScopeTree is a Vector of Scopes, searching for Key in ScopeTree will recursively search from the last scope until the first scope
+<a href=#21 id=21 data-nosnippet>21</a>/// A `ScopeTree` is a Vector of Scopes, searching for Key in `ScopeTree` will recursively search from the last scope until the first scope
 <a href=#22 id=22 data-nosnippet>22</a>/// to find the Key, returning None, if the Key is in None of the Scopes.
-<a href=#23 id=23 data-nosnippet>23</a>/// A ScopeTree is useful for implementing the scoping logic around for-loops, if statements and ClosureCalls.
-<a href=#24 id=24 data-nosnippet>24</a>/// Implementers will usually store a Vector of ScopeTrees to implement the logic needed for FunctionCalls
+<a href=#23 id=23 data-nosnippet>23</a>/// A `ScopeTree` is useful for implementing the scoping logic around for-loops, if statements and `ClosureCalls`.
+<a href=#24 id=24 data-nosnippet>24</a>/// Implementers will usually store a Vector of `ScopeTrees` to implement the logic needed for `FunctionCalls`
 <a href=#25 id=25 data-nosnippet>25</a></span><span class="kw">pub struct </span>Scope&lt;K, V&gt;(<span class="kw">pub </span>HashMap&lt;K, V&gt;);
 <a href=#26 id=26 data-nosnippet>26</a>
 <a href=#27 id=27 data-nosnippet>27</a><span class="kw">impl</span>&lt;K: std::hash::Hash + Eq + Clone, V&gt; Scope&lt;K, V&gt; {
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>    }
 <a href=#62 id=62 data-nosnippet>62</a>}
 <a href=#63 id=63 data-nosnippet>63</a>
-<a href=#64 id=64 data-nosnippet>64</a><span class="doccomment">/// ScopeTree allows one to specify that maps within the same vector are scope extensions
+<a href=#64 id=64 data-nosnippet>64</a><span class="doccomment">/// `ScopeTree` allows one to specify that maps within the same vector are scope extensions
 <a href=#65 id=65 data-nosnippet>65</a>/// This allows one to extend the scope and then remove the extension, without affecting the unextended
 <a href=#66 id=66 data-nosnippet>66</a>/// part of the scope
 <a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub struct </span>ScopeTree&lt;K, V&gt;(<span class="kw">pub </span>Vec&lt;Scope&lt;K, V&gt;&gt;);
@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="self">self</span>.extend_current_scope_tree();
 <a href=#166 id=166 data-nosnippet>166</a>    }
 <a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// Ends the current scope - this should correspond with the end of a BlockExpression.
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// Ends the current scope - this should correspond with the end of a `BlockExpression`.
 <a href=#169 id=169 data-nosnippet>169</a>    </span><span class="kw">pub fn </span>end_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Scope&lt;K, V&gt; {
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="self">self</span>.remove_scope_tree_extension()
 <a href=#171 id=171 data-nosnippet>171</a>    }

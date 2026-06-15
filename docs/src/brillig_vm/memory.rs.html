@@ -95,7 +95,7 @@
 <a href=#95 id=95 data-nosnippet>95</a>    </span>)]
 <a href=#96 id=96 data-nosnippet>96</a>    </span>MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
 <a href=#97 id=97 data-nosnippet>97</a>    <span class="doccomment">/// The memory value is not an integer and cannot be interpreted as one.
-<a href=#98 id=98 data-nosnippet>98</a>    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [MemoryValue::to_u128].
+<a href=#98 id=98 data-nosnippet>98</a>    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [`MemoryValue::to_u128`].
 <a href=#99 id=99 data-nosnippet>99</a>    </span><span class="attr">#[error(<span class="string">"Value is not an integer"</span>)]
 <a href=#100 id=100 data-nosnippet>100</a>    </span>NotAnInteger,
 <a href=#101 id=101 data-nosnippet>101</a>}
@@ -390,10 +390,10 @@
 <a href=#390 id=390 data-nosnippet>390</a>    <span class="doccomment">/// Cached stack pointer to avoid a memory read + enum match on every
 <a href=#391 id=391 data-nosnippet>391</a>    /// relative address resolution.
 <a href=#392 id=392 data-nosnippet>392</a>    ///
-<a href=#393 id=393 data-nosnippet>393</a>    /// The canonical value lives in memory slot [STACK_POINTER_ADDRESS]
+<a href=#393 id=393 data-nosnippet>393</a>    /// The canonical value lives in memory slot [`STACK_POINTER_ADDRESS`]
 <a href=#394 id=394 data-nosnippet>394</a>    /// and must remain there for downstream ZK VM proving. We mirror it here
-<a href=#395 id=395 data-nosnippet>395</a>    /// because [Self::resolve] is called on every memory access
-<a href=#396 id=396 data-nosnippet>396</a>    /// with a relative address. Updated on writes to slot [STACK_POINTER_ADDRESS]
+<a href=#395 id=395 data-nosnippet>395</a>    /// because [`Self::resolve`] is called on every memory access
+<a href=#396 id=396 data-nosnippet>396</a>    /// with a relative address. Updated on writes to slot [`STACK_POINTER_ADDRESS`]
 <a href=#397 id=397 data-nosnippet>397</a>    /// which are more rare than reads.
 <a href=#398 id=398 data-nosnippet>398</a>    </span>stack_pointer: u32,
 <a href=#399 id=399 data-nosnippet>399</a>}

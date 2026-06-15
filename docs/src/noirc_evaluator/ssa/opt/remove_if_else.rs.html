@@ -34,7 +34,7 @@
 <a href=#34 id=34 data-nosnippet>34</a>//! ```
 <a href=#35 id=35 data-nosnippet>35</a>//!
 <a href=#36 id=36 data-nosnippet>36</a>//! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
-<a href=#37 id=37 data-nosnippet>37</a>//! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
+<a href=#37 id=37 data-nosnippet>37</a>//! at the basic block level into simple ternary operations returning a value, using these `IfElse` instructions,
 <a href=#38 id=38 data-nosnippet>38</a>//! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
 <a href=#39 id=39 data-nosnippet>39</a>//! `Instruction::IfElse` only for arrays and vectors. The remove-if-else pass is used for array and vectors
 <a href=#40 id=40 data-nosnippet>40</a>//! in order to track their lengths, depending on existing vector intrinsics which modify vectors,
@@ -73,7 +73,7 @@
 <a href=#73 id=73 data-nosnippet>73</a>//! }
 <a href=#74 id=74 data-nosnippet>74</a>//! ```
 <a href=#75 id=75 data-nosnippet>75</a>//!
-<a href=#76 id=76 data-nosnippet>76</a>//! The IfElse instruction is then replaced by these instruction during the remove if-else pass:
+<a href=#76 id=76 data-nosnippet>76</a>//! The `IfElse` instruction is then replaced by these instruction during the remove if-else pass:
 <a href=#77 id=77 data-nosnippet>77</a>//! ```ssa
 <a href=#78 id=78 data-nosnippet>78</a>//! v13 = cast v0 as u32
 <a href=#79 id=79 data-nosnippet>79</a>//! v14 = cast v6 as u32
@@ -124,7 +124,7 @@
 <a href=#124 id=124 data-nosnippet>124</a><span class="kw">impl </span>Ssa {
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Replaces all `Instruction::IfElse` instructions with the result of a
 <a href=#126 id=126 data-nosnippet>126</a>    /// value merger of the then and else values. The specifics of the value merger
-<a href=#127 id=127 data-nosnippet>127</a>    /// depends on the type but is expected to be an equivalent value to the IfElse.
+<a href=#127 id=127 data-nosnippet>127</a>    /// depends on the type but is expected to be an equivalent value to the `IfElse`.
 <a href=#128 id=128 data-nosnippet>128</a>    /// For example, on integers, the merger will be:
 <a href=#129 id=129 data-nosnippet>129</a>    /// `then_condition * then_value + !then_condition * else_value`
 <a href=#130 id=130 data-nosnippet>130</a>    /// which should zero out the branch that was not taken.
@@ -515,7 +515,7 @@
 <a href=#515 id=515 data-nosnippet>515</a>    });
 <a href=#516 id=516 data-nosnippet>516</a>}
 <a href=#517 id=517 data-nosnippet>517</a>
-<a href=#518 id=518 data-nosnippet>518</a><span class="doccomment">/// Post-check condition for [Function::remove_if_else].
+<a href=#518 id=518 data-nosnippet>518</a><span class="doccomment">/// Post-check condition for [`Function::remove_if_else`].
 <a href=#519 id=519 data-nosnippet>519</a>///
 <a href=#520 id=520 data-nosnippet>520</a>/// Succeeds if:
 <a href=#521 id=521 data-nosnippet>521</a>///   - `func` is a Brillig function, OR

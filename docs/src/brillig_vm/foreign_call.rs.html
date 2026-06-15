@@ -16,7 +16,7 @@
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use crate</span>::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 <a href=#17 id=17 data-nosnippet>17</a>
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">impl</span>&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;&gt; VM&lt;<span class="lifetime">'_</span>, F, B&gt; {
-<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Handles the execution of a single [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Handles the execution of a single [`ForeignCall` opcode][acir::brillig::Opcode::ForeignCall].
 <a href=#20 id=20 data-nosnippet>20</a>    ///
 <a href=#21 id=21 data-nosnippet>21</a>    /// This method performs the following steps:
 <a href=#22 id=22 data-nosnippet>22</a>    /// 1. Checks if the foreign call results are already available. If not, it resolves the input
@@ -31,7 +31,7 @@
 <a href=#31 id=31 data-nosnippet>31</a>    /// 3. Increments the foreign call counter and advances the program counter.
 <a href=#32 id=32 data-nosnippet>32</a>    ///
 <a href=#33 id=33 data-nosnippet>33</a>    /// # Parameters
-<a href=#34 id=34 data-nosnippet>34</a>    /// The borrowed fields of a [ForeignCall opcode][acir::brillig::Opcode::ForeignCall].
+<a href=#34 id=34 data-nosnippet>34</a>    /// The borrowed fields of a [`ForeignCall` opcode][acir::brillig::Opcode::ForeignCall].
 <a href=#35 id=35 data-nosnippet>35</a>    /// They are listed again below:
 <a href=#36 id=36 data-nosnippet>36</a>    /// - `function`: Name of the foreign function being called.
 <a href=#37 id=37 data-nosnippet>37</a>    /// - `destinations`: Pointers or heap structures where the return values will be written.
@@ -40,9 +40,9 @@
 <a href=#40 id=40 data-nosnippet>40</a>    /// - `input_value_types`: Expected type layout for each input.
 <a href=#41 id=41 data-nosnippet>41</a>    ///
 <a href=#42 id=42 data-nosnippet>42</a>    /// # Returns
-<a href=#43 id=43 data-nosnippet>43</a>    /// - [VMStatus] indicating the next state of the VM:
-<a href=#44 id=44 data-nosnippet>44</a>    ///   - [VMStatus::ForeignCallWait] if the results are not yet available.
-<a href=#45 id=45 data-nosnippet>45</a>    ///   - [VMStatus::Finished] or [VMStatus::Failure] depending on whether writing the results succeeded.
+<a href=#43 id=43 data-nosnippet>43</a>    /// - [`VMStatus`] indicating the next state of the VM:
+<a href=#44 id=44 data-nosnippet>44</a>    ///   - [`VMStatus::ForeignCallWait`] if the results are not yet available.
+<a href=#45 id=45 data-nosnippet>45</a>    ///   - [`VMStatus::Finished`] or [`VMStatus::Failure`] depending on whether writing the results succeeded.
 <a href=#46 id=46 data-nosnippet>46</a>    ///
 <a href=#47 id=47 data-nosnippet>47</a>    /// # Panics
 <a href=#48 id=48 data-nosnippet>48</a>    /// - If `inputs` and `input_value_types` lengths do not match.

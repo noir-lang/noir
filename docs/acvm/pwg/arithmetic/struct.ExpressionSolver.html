@@ -33,7 +33,7 @@ Used as a fallback when the single-pass approach cannot handle the expression
 q is a constant and a,b are witnesses
 If both a and b have known values (in the provided map), it returns the value q<em>a</em>b
 If only one of a or b has a known value, it returns the linear term c*w where c is a constant and w is the unknown witness
-If both a and b are unknown, it returns MulTerm::TooManyUnknowns</p>
+If both a and b are unknown, it returns <code>MulTerm::TooManyUnknowns</code></p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.solve_fan_in_term_helper" class="method"><a class="src rightside" href="../../../src/acvm/pwg/arithmetic.rs.html#231-239">Source</a><h4 class="code-header">fn <a href="#method.solve_fan_in_term_helper" class="fn">solve_fan_in_term_helper</a>&lt;F: <a class="trait" href="../../trait.AcirField.html" title="trait acvm::AcirField">AcirField</a>&gt;(
     term: &amp;(F, Witness),
     witness_assignments: &amp;WitnessMap&lt;F&gt;,

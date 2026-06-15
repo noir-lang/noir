@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>//!
 <a href=#4 id=4 data-nosnippet>4</a>//! # Usage
 <a href=#5 id=5 data-nosnippet>5</a>//!
-<a href=#6 id=6 data-nosnippet>6</a>//! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
+<a href=#6 id=6 data-nosnippet>6</a>//! ACIR generation is performed by calling the [`Ssa::into_acir`] method, providing any necessary brillig bytecode.
 <a href=#7 id=7 data-nosnippet>7</a>//! The compiled program will be returned as an [`Artifacts`] type.
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a></span><span class="kw">use </span>noirc_artifacts::ssa::{InternalWarning, SsaReport};
@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>    <span class="doccomment">/// Maps SSA values to `AcirVar`'s.
 <a href=#61 id=61 data-nosnippet>61</a>    ///
 <a href=#62 id=62 data-nosnippet>62</a>    /// This is needed so that we only create a single
-<a href=#63 id=63 data-nosnippet>63</a>    /// AcirVar per SSA value. Before creating an `AcirVar`
+<a href=#63 id=63 data-nosnippet>63</a>    /// `AcirVar` per SSA value. Before creating an `AcirVar`
 <a href=#64 id=64 data-nosnippet>64</a>    /// for an SSA value, we check this map. If an `AcirVar`
 <a href=#65 id=65 data-nosnippet>65</a>    /// already exists for this Value, we return the `AcirVar`.
 <a href=#66 id=66 data-nosnippet>66</a>    </span>ssa_values: HashMap&lt;Id&lt;Value&gt;, AcirValue&gt;,
@@ -74,37 +74,37 @@
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>    <span class="doccomment">/// Track initialized acir dynamic arrays
 <a href=#76 id=76 data-nosnippet>76</a>    ///
-<a href=#77 id=77 data-nosnippet>77</a>    /// An acir array must start with a MemoryInit ACIR opcodes
-<a href=#78 id=78 data-nosnippet>78</a>    /// and then have MemoryOp opcodes
-<a href=#79 id=79 data-nosnippet>79</a>    /// This set is used to ensure that a MemoryOp opcode is only pushed to the circuit
-<a href=#80 id=80 data-nosnippet>80</a>    /// if there is already a MemoryInit opcode.
+<a href=#77 id=77 data-nosnippet>77</a>    /// An acir array must start with a `MemoryInit` ACIR opcodes
+<a href=#78 id=78 data-nosnippet>78</a>    /// and then have `MemoryOp` opcodes
+<a href=#79 id=79 data-nosnippet>79</a>    /// This set is used to ensure that a `MemoryOp` opcode is only pushed to the circuit
+<a href=#80 id=80 data-nosnippet>80</a>    /// if there is already a `MemoryInit` opcode.
 <a href=#81 id=81 data-nosnippet>81</a>    </span>initialized_arrays: HashSet&lt;BlockId&gt;,
 <a href=#82 id=82 data-nosnippet>82</a>
-<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// Maps SSA values to BlockId's
-<a href=#84 id=84 data-nosnippet>84</a>    /// A BlockId is an ACIR structure which identifies a memory block
+<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// Maps SSA values to `BlockId`'s
+<a href=#84 id=84 data-nosnippet>84</a>    /// A `BlockId` is an ACIR structure which identifies a memory block
 <a href=#85 id=85 data-nosnippet>85</a>    /// Each acir memory block corresponds to a different SSA array.
 <a href=#86 id=86 data-nosnippet>86</a>    </span>memory_blocks: HashMap&lt;Id&lt;Value&gt;, BlockId&gt;,
 <a href=#87 id=87 data-nosnippet>87</a>
-<a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// The BlockId dedicated to return_data
-<a href=#89 id=89 data-nosnippet>89</a>    /// It is not managed by memory_blocks to ensure getting always a fresh block for return_data, even if
+<a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// The `BlockId` dedicated to `return_data`
+<a href=#89 id=89 data-nosnippet>89</a>    /// It is not managed by `memory_blocks` to ensure getting always a fresh block for `return_data`, even if
 <a href=#90 id=90 data-nosnippet>90</a>    /// the SSA array has already been initialized to a block.
 <a href=#91 id=91 data-nosnippet>91</a>    </span>return_data_block_id: <span class="prelude-ty">Option</span>&lt;BlockId&gt;,
 <a href=#92 id=92 data-nosnippet>92</a>
-<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Maps SSA values to BlockId's used internally for computing the accurate flattened
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Maps SSA values to `BlockId`'s used internally for computing the accurate flattened
 <a href=#94 id=94 data-nosnippet>94</a>    /// index of non-homogenous arrays.
 <a href=#95 id=95 data-nosnippet>95</a>    /// See [arrays] for more information about the purpose of the type sizes array.
 <a href=#96 id=96 data-nosnippet>96</a>    ///
-<a href=#97 id=97 data-nosnippet>97</a>    /// A BlockId is an ACIR structure which identifies a memory block
+<a href=#97 id=97 data-nosnippet>97</a>    /// A `BlockId` is an ACIR structure which identifies a memory block
 <a href=#98 id=98 data-nosnippet>98</a>    /// Each memory blocks corresponds to a different SSA value
 <a href=#99 id=99 data-nosnippet>99</a>    /// which utilizes this internal memory for ACIR generation.
 <a href=#100 id=100 data-nosnippet>100</a>    </span>element_type_sizes_blocks: HashMap&lt;Id&lt;Value&gt;, BlockId&gt;,
 <a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a>    <span class="doccomment">/// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="doccomment">/// Maps type sizes to `BlockId`. This is used to reuse the same `BlockId` if different
 <a href=#103 id=103 data-nosnippet>103</a>    /// non-homogenous arrays end up having the same type sizes layout.
 <a href=#104 id=104 data-nosnippet>104</a>    </span>type_sizes_to_blocks: HashMap&lt;Vec&lt;u32&gt;, BlockId&gt;,
 <a href=#105 id=105 data-nosnippet>105</a>
-<a href=#106 id=106 data-nosnippet>106</a>    <span class="doccomment">/// Number of the next BlockId, it is used to construct
-<a href=#107 id=107 data-nosnippet>107</a>    /// a new BlockId
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="doccomment">/// Number of the next `BlockId`, it is used to construct
+<a href=#107 id=107 data-nosnippet>107</a>    /// a new `BlockId`
 <a href=#108 id=108 data-nosnippet>108</a>    </span>max_block_id: u32,
 <a href=#109 id=109 data-nosnippet>109</a>
 <a href=#110 id=110 data-nosnippet>110</a>    data_bus: DataBus,
@@ -876,11 +876,11 @@
 <a href=#876 id=876 data-nosnippet>876</a>        <span class="self">self</span>.acir_context.truncate_var(var, bit_size, max_bit_size)
 <a href=#877 id=877 data-nosnippet>877</a>    }
 <a href=#878 id=878 data-nosnippet>878</a>
-<a href=#879 id=879 data-nosnippet>879</a>    <span class="doccomment">/// Fetch a flat list of [AcirVar].
+<a href=#879 id=879 data-nosnippet>879</a>    <span class="doccomment">/// Fetch a flat list of [`AcirVar`].
 <a href=#880 id=880 data-nosnippet>880</a>    ///
-<a href=#881 id=881 data-nosnippet>881</a>    /// Flattens an [AcirValue] into a vector of `AcirVar`.
+<a href=#881 id=881 data-nosnippet>881</a>    /// Flattens an [`AcirValue`] into a vector of `AcirVar`.
 <a href=#882 id=882 data-nosnippet>882</a>    ///
-<a href=#883 id=883 data-nosnippet>883</a>    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
+<a href=#883 id=883 data-nosnippet>883</a>    /// This is an extension of [`AcirValue::flatten`] that also supports [`AcirValue::DynamicArray`].
 <a href=#884 id=884 data-nosnippet>884</a>    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
 <a href=#885 id=885 data-nosnippet>885</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
 <a href=#886 id=886 data-nosnippet>886</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>var],

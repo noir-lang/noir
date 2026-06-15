@@ -31,8 +31,8 @@ model this by <em>excluding</em> the result from each alias-set at lookup
 time (in <a href="struct.Context.html#method.alias_set_for" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::alias_set_for"><code>Context::alias_set_for</code></a>) rather than refusing to chase
 through it here. Otherwise a chain
 <code>v1 = array_set v0 ; v2 = array_set v1 ; v3 = array_set v2</code> would
-pull <code>v0</code> into the source of every later array_set, and an
-<code>inc_rc v0</code> that legitimately protects only <code>v1</code>’s array_set would
+pull <code>v0</code> into the source of every later <code>array_set</code>, and an
+<code>inc_rc v0</code> that legitimately protects only <code>v1</code>’s <code>array_set</code> would
 falsely appear to protect <code>v3</code> as well. See
 <code>alias_set_does_not_walk_array_set_chains</code> for a worked example —
 the chain isn’t visible to the backward walk anyway because

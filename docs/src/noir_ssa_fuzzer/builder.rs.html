@@ -31,14 +31,14 @@
 <a href=#31 id=31 data-nosnippet>31</a></span><span class="kw">pub type </span>InstructionWithOneArg = <span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>FuzzerBuilder, TypedValue) -&gt; TypedValue;
 <a href=#32 id=32 data-nosnippet>32</a>
 <a href=#33 id=33 data-nosnippet>33</a><span class="doccomment">/// Builder for generating fuzzed SSA functions
-<a href=#34 id=34 data-nosnippet>34</a>/// Contains a FunctionBuilder and tracks the current numeric type being used
+<a href=#34 id=34 data-nosnippet>34</a>/// Contains a `FunctionBuilder` and tracks the current numeric type being used
 <a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub struct </span>FuzzerBuilder {
 <a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) builder: FunctionBuilder,
 <a href=#37 id=37 data-nosnippet>37</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) runtime: RuntimeType,
 <a href=#38 id=38 data-nosnippet>38</a>}
 <a href=#39 id=39 data-nosnippet>39</a>
 <a href=#40 id=40 data-nosnippet>40</a><span class="kw">impl </span>FuzzerBuilder {
-<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// Creates a new FuzzerBuilder in ACIR context
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// Creates a new `FuzzerBuilder` in ACIR context
 <a href=#42 id=42 data-nosnippet>42</a>    </span><span class="kw">pub fn </span>new_acir(simplifying_enabled: bool) -&gt; <span class="self">Self </span>{
 <a href=#43 id=43 data-nosnippet>43</a>        <span class="kw">let </span>main_id: Id&lt;Function&gt; = Id::new(<span class="number">0</span>);
 <a href=#44 id=44 data-nosnippet>44</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
@@ -48,7 +48,7 @@
 <a href=#48 id=48 data-nosnippet>48</a>        <span class="self">Self </span>{ builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
 <a href=#49 id=49 data-nosnippet>49</a>    }
 <a href=#50 id=50 data-nosnippet>50</a>
-<a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// Creates a new FuzzerBuilder in Brillig context
+<a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// Creates a new `FuzzerBuilder` in Brillig context
 <a href=#52 id=52 data-nosnippet>52</a>    </span><span class="kw">pub fn </span>new_brillig(simplifying_enabled: bool) -&gt; <span class="self">Self </span>{
 <a href=#53 id=53 data-nosnippet>53</a>        <span class="kw">let </span>main_id: Id&lt;Function&gt; = Id::new(<span class="number">0</span>);
 <a href=#54 id=54 data-nosnippet>54</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
@@ -67,7 +67,7 @@
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="self">Self </span>{ builder, runtime }
 <a href=#68 id=68 data-nosnippet>68</a>    }
 <a href=#69 id=69 data-nosnippet>69</a>
-<a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// Compiles the built function into a CompiledProgram, to run it with nargo execute
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// Compiles the built function into a `CompiledProgram`, to run it with nargo execute
 <a href=#71 id=71 data-nosnippet>71</a>    </span><span class="kw">pub fn </span>compile(
 <a href=#72 id=72 data-nosnippet>72</a>        <span class="self">self</span>,
 <a href=#73 id=73 data-nosnippet>73</a>        compile_options: CompileOptions,
@@ -298,7 +298,7 @@
 <a href=#298 id=298 data-nosnippet>298</a>
 <a href=#299 id=299 data-nosnippet>299</a>    <span class="doccomment">/// Inserts a new parameter to the current SSA block and returns its value
 <a href=#300 id=300 data-nosnippet>300</a>    ///
-<a href=#301 id=301 data-nosnippet>301</a>    /// b0() -&gt; b0(new_parameter: parameter_type)
+<a href=#301 id=301 data-nosnippet>301</a>    /// `b0() -&gt; b0(new_parameter: parameter_type)`
 <a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">pub fn </span>add_block_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, typ: Type) -&gt; TypedValue {
 <a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>id = <span class="self">self</span>.builder.add_block_parameter(block, typ.clone().into());
 <a href=#304 id=304 data-nosnippet>304</a>        TypedValue::new(id, typ)
@@ -351,7 +351,7 @@
 <a href=#351 id=351 data-nosnippet>351</a>        <span class="self">self</span>.builder.insert_store(memory_addr.value_id, value.value_id);
 <a href=#352 id=352 data-nosnippet>352</a>    }
 <a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="doccomment">/// Creates a new function with the given name and id with inline type InlineType::Inline
+<a href=#354 id=354 data-nosnippet>354</a>    <span class="doccomment">/// Creates a new function with the given name and id with inline type `InlineType::Inline`
 <a href=#355 id=355 data-nosnippet>355</a>    /// Sets the same runtime as the builder
 <a href=#356 id=356 data-nosnippet>356</a>    </span><span class="kw">pub fn </span>new_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String, function_id: Id&lt;Function&gt;) {
 <a href=#357 id=357 data-nosnippet>357</a>        <span class="comment">// maybe use different inline type
@@ -419,7 +419,7 @@
 <a href=#419 id=419 data-nosnippet>419</a>        TypedValue::new(res, array_elements_type)
 <a href=#420 id=420 data-nosnippet>420</a>    }
 <a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>    <span class="doccomment">/// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
+<a href=#422 id=422 data-nosnippet>422</a>    <span class="doccomment">/// Inserts a `to_le_radix` intrinsic call that decomposes a field into little-endian radix representation
 <a href=#423 id=423 data-nosnippet>423</a>    ///
 <a href=#424 id=424 data-nosnippet>424</a>    /// # Arguments
 <a href=#425 id=425 data-nosnippet>425</a>    /// * `field_value` - The field value to decompose (must be a field type)
@@ -451,7 +451,7 @@
 <a href=#451 id=451 data-nosnippet>451</a>        TypedValue::new(result[<span class="number">0</span>], result_type)
 <a href=#452 id=452 data-nosnippet>452</a>    }
 <a href=#453 id=453 data-nosnippet>453</a>
-<a href=#454 id=454 data-nosnippet>454</a>    <span class="doccomment">/// Inserts a from_le_radix hand-written function that composes a field from little-endian radix representation
+<a href=#454 id=454 data-nosnippet>454</a>    <span class="doccomment">/// Inserts a `from_le_radix` hand-written function that composes a field from little-endian radix representation
 <a href=#455 id=455 data-nosnippet>455</a>    ///
 <a href=#456 id=456 data-nosnippet>456</a>    /// # Arguments
 <a href=#457 id=457 data-nosnippet>457</a>    /// * `array` - The array of u8 values to compose into a field
@@ -615,7 +615,7 @@
 <a href=#615 id=615 data-nosnippet>615</a>        TypedValue::new(result[<span class="number">0</span>], return_type)
 <a href=#616 id=616 data-nosnippet>616</a>    }
 <a href=#617 id=617 data-nosnippet>617</a>
-<a href=#618 id=618 data-nosnippet>618</a>    <span class="doccomment">/// Inserts a aes128_encrypt intrinsic call
+<a href=#618 id=618 data-nosnippet>618</a>    <span class="doccomment">/// Inserts a `aes128_encrypt` intrinsic call
 <a href=#619 id=619 data-nosnippet>619</a>    ///
 <a href=#620 id=620 data-nosnippet>620</a>    /// # Arguments
 <a href=#621 id=621 data-nosnippet>621</a>    /// * `input` - The array of u8 values to encrypt
@@ -730,7 +730,7 @@
 <a href=#730 id=730 data-nosnippet>730</a>    <span class="doccomment">/// Inserts an array get instruction
 <a href=#731 id=731 data-nosnippet>731</a>    ///
 <a href=#732 id=732 data-nosnippet>732</a>    /// Index must be u32
-<a href=#733 id=733 data-nosnippet>733</a>    /// If safe_index is true, index will be taken modulo the array length
+<a href=#733 id=733 data-nosnippet>733</a>    /// If `safe_index` is true, index will be taken modulo the array length
 <a href=#734 id=734 data-nosnippet>734</a>    </span><span class="kw">pub fn </span>insert_array_get(
 <a href=#735 id=735 data-nosnippet>735</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#736 id=736 data-nosnippet>736</a>        array: TypedValue,
@@ -755,7 +755,7 @@
 <a href=#755 id=755 data-nosnippet>755</a>    <span class="doccomment">/// Inserts an array set instruction
 <a href=#756 id=756 data-nosnippet>756</a>    ///
 <a href=#757 id=757 data-nosnippet>757</a>    /// Index must be u32
-<a href=#758 id=758 data-nosnippet>758</a>    /// If safe_index is true, index will be taken modulo the array length
+<a href=#758 id=758 data-nosnippet>758</a>    /// If `safe_index` is true, index will be taken modulo the array length
 <a href=#759 id=759 data-nosnippet>759</a>    </span><span class="kw">pub fn </span>insert_array_set(
 <a href=#760 id=760 data-nosnippet>760</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#761 id=761 data-nosnippet>761</a>        array: TypedValue,

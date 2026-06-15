@@ -27,9 +27,9 @@
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a><span class="doccomment">/// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's return values.
 <a href=#29 id=29 data-nosnippet>29</a>///
-<a href=#30 id=30 data-nosnippet>30</a>/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-<a href=#31 id=31 data-nosnippet>31</a>/// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
-<a href=#32 id=32 data-nosnippet>32</a>/// @returns {WitnessMap} A witness map containing the circuit's return values.
+<a href=#30 id=30 data-nosnippet>30</a>/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+<a href=#31 id=31 data-nosnippet>31</a>/// @param {`WitnessMap`} `witness_map` - The completed witness map after executing the circuit.
+<a href=#32 id=32 data-nosnippet>32</a>/// @returns {`WitnessMap`} A witness map containing the circuit's return values.
 <a href=#33 id=33 data-nosnippet>33</a></span><span class="attr">#[wasm_bindgen(js_name = getReturnWitness)]
 <a href=#34 id=34 data-nosnippet>34</a></span><span class="kw">pub fn </span>get_return_witness(
 <a href=#35 id=35 data-nosnippet>35</a>    <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/4428): These need to be updated to match the same interfaces
@@ -61,9 +61,9 @@
 <a href=#61 id=61 data-nosnippet>61</a>
 <a href=#62 id=62 data-nosnippet>62</a><span class="doccomment">/// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's public parameters.
 <a href=#63 id=63 data-nosnippet>63</a>///
-<a href=#64 id=64 data-nosnippet>64</a>/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-<a href=#65 id=65 data-nosnippet>65</a>/// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
-<a href=#66 id=66 data-nosnippet>66</a>/// @returns {WitnessMap} A witness map containing the circuit's public parameters.
+<a href=#64 id=64 data-nosnippet>64</a>/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+<a href=#65 id=65 data-nosnippet>65</a>/// @param {`WitnessMap`} `witness_map` - The completed witness map after executing the circuit.
+<a href=#66 id=66 data-nosnippet>66</a>/// @returns {`WitnessMap`} A witness map containing the circuit's public parameters.
 <a href=#67 id=67 data-nosnippet>67</a></span><span class="attr">#[wasm_bindgen(js_name = getPublicParametersWitness)]
 <a href=#68 id=68 data-nosnippet>68</a></span><span class="kw">pub fn </span>get_public_parameters_witness(
 <a href=#69 id=69 data-nosnippet>69</a>    program: Vec&lt;u8&gt;,
@@ -92,9 +92,9 @@
 <a href=#92 id=92 data-nosnippet>92</a>
 <a href=#93 id=93 data-nosnippet>93</a><span class="doccomment">/// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's public inputs.
 <a href=#94 id=94 data-nosnippet>94</a>///
-<a href=#95 id=95 data-nosnippet>95</a>/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-<a href=#96 id=96 data-nosnippet>96</a>/// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
-<a href=#97 id=97 data-nosnippet>97</a>/// @returns {WitnessMap} A witness map containing the circuit's public inputs.
+<a href=#95 id=95 data-nosnippet>95</a>/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+<a href=#96 id=96 data-nosnippet>96</a>/// @param {`WitnessMap`} `witness_map` - The completed witness map after executing the circuit.
+<a href=#97 id=97 data-nosnippet>97</a>/// @returns {`WitnessMap`} A witness map containing the circuit's public inputs.
 <a href=#98 id=98 data-nosnippet>98</a></span><span class="attr">#[wasm_bindgen(js_name = getPublicWitness)]
 <a href=#99 id=99 data-nosnippet>99</a></span><span class="kw">pub fn </span>get_public_witness(
 <a href=#100 id=100 data-nosnippet>100</a>    program: Vec&lt;u8&gt;,

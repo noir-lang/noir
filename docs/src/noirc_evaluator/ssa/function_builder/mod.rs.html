@@ -32,7 +32,7 @@
 <a href=#32 id=32 data-nosnippet>32</a>
 <a href=#33 id=33 data-nosnippet>33</a><span class="doccomment">/// The per-function context for each ssa function being generated.
 <a href=#34 id=34 data-nosnippet>34</a>///
-<a href=#35 id=35 data-nosnippet>35</a>/// This is split from the global SsaBuilder context to allow each function
+<a href=#35 id=35 data-nosnippet>35</a>/// This is split from the global `SsaBuilder` context to allow each function
 <a href=#36 id=36 data-nosnippet>36</a>/// to be potentially built concurrently.
 <a href=#37 id=37 data-nosnippet>37</a>///
 <a href=#38 id=38 data-nosnippet>38</a>/// Contrary to the name, this struct has the capacity to build as many
@@ -58,10 +58,10 @@
 <a href=#58 id=58 data-nosnippet>58</a>}
 <a href=#59 id=59 data-nosnippet>59</a>
 <a href=#60 id=60 data-nosnippet>60</a><span class="kw">impl </span>FunctionBuilder {
-<a href=#61 id=61 data-nosnippet>61</a>    <span class="doccomment">/// Creates a new FunctionBuilder to build the function with the given FunctionId.
+<a href=#61 id=61 data-nosnippet>61</a>    <span class="doccomment">/// Creates a new `FunctionBuilder` to build the function with the given `FunctionId`.
 <a href=#62 id=62 data-nosnippet>62</a>    ///
-<a href=#63 id=63 data-nosnippet>63</a>    /// This creates the new function internally so there is no need to call .new_function()
-<a href=#64 id=64 data-nosnippet>64</a>    /// right after constructing a new FunctionBuilder.
+<a href=#63 id=63 data-nosnippet>63</a>    /// This creates the new function internally so there is no need to call `.new_function()`
+<a href=#64 id=64 data-nosnippet>64</a>    /// right after constructing a new `FunctionBuilder`.
 <a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">pub fn </span>new(function_name: String, function_id: FunctionId) -&gt; <span class="self">Self </span>{
 <a href=#66 id=66 data-nosnippet>66</a>        <span class="kw">let </span>new_function = Function::new(function_name, function_id);
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="self">Self </span>{
@@ -99,8 +99,8 @@
 <a href=#99 id=99 data-nosnippet>99</a>    }
 <a href=#100 id=100 data-nosnippet>100</a>
 <a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// Set the runtime of the initial function that is created internally after constructing
-<a href=#102 id=102 data-nosnippet>102</a>    /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
-<a href=#103 id=103 data-nosnippet>103</a>    /// This should only be used immediately following construction of a FunctionBuilder
+<a href=#102 id=102 data-nosnippet>102</a>    /// the `FunctionBuilder`. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
+<a href=#103 id=103 data-nosnippet>103</a>    /// This should only be used immediately following construction of a `FunctionBuilder`
 <a href=#104 id=104 data-nosnippet>104</a>    /// and will panic if there are any already finished functions.
 <a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">pub fn </span>set_runtime(<span class="kw-2">&amp;mut </span><span class="self">self</span>, runtime: RuntimeType) {
 <a href=#106 id=106 data-nosnippet>106</a>        <span class="macro">assert_eq!</span>(
@@ -130,9 +130,9 @@
 <a href=#130 id=130 data-nosnippet>130</a>
 <a href=#131 id=131 data-nosnippet>131</a>    <span class="doccomment">/// Finish the current function and create a new function.
 <a href=#132 id=132 data-nosnippet>132</a>    ///
-<a href=#133 id=133 data-nosnippet>133</a>    /// A FunctionBuilder can always only work on one function at a time, so care
+<a href=#133 id=133 data-nosnippet>133</a>    /// A `FunctionBuilder` can always only work on one function at a time, so care
 <a href=#134 id=134 data-nosnippet>134</a>    /// should be taken not to finish a function that is still in progress by calling
-<a href=#135 id=135 data-nosnippet>135</a>    /// new_function before the current function is finished.
+<a href=#135 id=135 data-nosnippet>135</a>    /// `new_function` before the current function is finished.
 <a href=#136 id=136 data-nosnippet>136</a>    </span><span class="kw">fn </span>new_function_with_type(
 <a href=#137 id=137 data-nosnippet>137</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#138 id=138 data-nosnippet>138</a>        name: String,
@@ -170,7 +170,7 @@
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="self">self</span>.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type));
 <a href=#171 id=171 data-nosnippet>171</a>    }
 <a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// Consume the FunctionBuilder returning all the functions it has generated.
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// Consume the `FunctionBuilder` returning all the functions it has generated.
 <a href=#174 id=174 data-nosnippet>174</a>    </span><span class="kw">pub fn </span>finish(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
 <a href=#175 id=175 data-nosnippet>175</a>        <span class="self">self</span>.finished_functions.push(<span class="self">self</span>.current_function);
 <a href=#176 id=176 data-nosnippet>176</a>
@@ -199,7 +199,7 @@
 <a href=#199 id=199 data-nosnippet>199</a>        <span class="self">self</span>.numeric_constant(value.into(), NumericType::NativeField)
 <a href=#200 id=200 data-nosnippet>200</a>    }
 <a href=#201 id=201 data-nosnippet>201</a>
-<a href=#202 id=202 data-nosnippet>202</a>    <span class="doccomment">/// Insert a numeric constant into the current function of type Type::length_type()
+<a href=#202 id=202 data-nosnippet>202</a>    <span class="doccomment">/// Insert a numeric constant into the current function of type `Type::length_type()`
 <a href=#203 id=203 data-nosnippet>203</a>    </span><span class="kw">pub fn </span>length_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw">impl </span>Into&lt;FieldElement&gt;) -&gt; ValueId {
 <a href=#204 id=204 data-nosnippet>204</a>        <span class="self">self</span>.numeric_constant(value.into(), NumericType::length_type())
 <a href=#205 id=205 data-nosnippet>205</a>    }
@@ -253,7 +253,7 @@
 <a href=#253 id=253 data-nosnippet>253</a>
 <a href=#254 id=254 data-nosnippet>254</a>    <span class="doccomment">/// Switch to inserting instructions in the given block.
 <a href=#255 id=255 data-nosnippet>255</a>    /// Expects the given block to be within the same function. If you want to insert
-<a href=#256 id=256 data-nosnippet>256</a>    /// instructions into a new function, call new_function instead.
+<a href=#256 id=256 data-nosnippet>256</a>    /// instructions into a new function, call `new_function` instead.
 <a href=#257 id=257 data-nosnippet>257</a>    </span><span class="kw">pub fn </span>switch_to_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId) {
 <a href=#258 id=258 data-nosnippet>258</a>        <span class="self">self</span>.current_block = block;
 <a href=#259 id=259 data-nosnippet>259</a>    }
@@ -415,7 +415,7 @@
 <a href=#415 id=415 data-nosnippet>415</a>        <span class="self">self</span>.insert_instruction(Instruction::DecrementRc { value }, <span class="prelude-val">None</span>);
 <a href=#416 id=416 data-nosnippet>416</a>    }
 <a href=#417 id=417 data-nosnippet>417</a>
-<a href=#418 id=418 data-nosnippet>418</a>    <span class="doccomment">/// Insert an enable_side_effects_if instruction. These are normally only automatically
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="doccomment">/// Insert an `enable_side_effects_if` instruction. These are normally only automatically
 <a href=#419 id=419 data-nosnippet>419</a>    /// inserted during the flattening pass when branching is removed.
 <a href=#420 id=420 data-nosnippet>420</a>    </span><span class="kw">pub fn </span>insert_enable_side_effects_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId) {
 <a href=#421 id=421 data-nosnippet>421</a>        <span class="self">self</span>.insert_instruction(Instruction::EnableSideEffectsIf { condition }, <span class="prelude-val">None</span>);
@@ -497,13 +497,13 @@
 <a href=#497 id=497 data-nosnippet>497</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
 <a href=#498 id=498 data-nosnippet>498</a>    }
 <a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a>    <span class="doccomment">/// Returns a ValueId pointing to the given function or imports the function
+<a href=#500 id=500 data-nosnippet>500</a>    <span class="doccomment">/// Returns a `ValueId` pointing to the given function or imports the function
 <a href=#501 id=501 data-nosnippet>501</a>    /// into the current function if it was not already, and returns that ID.
 <a href=#502 id=502 data-nosnippet>502</a>    </span><span class="kw">pub fn </span>import_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FunctionId) -&gt; ValueId {
 <a href=#503 id=503 data-nosnippet>503</a>        <span class="self">self</span>.current_function.dfg.import_function(function)
 <a href=#504 id=504 data-nosnippet>504</a>    }
 <a href=#505 id=505 data-nosnippet>505</a>
-<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// Returns a `ValueId` pointing to the given oracle/foreign function or imports the oracle
 <a href=#507 id=507 data-nosnippet>507</a>    /// into the current function if it was not already, and returns that ID.
 <a href=#508 id=508 data-nosnippet>508</a>    </span><span class="kw">pub fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str, pure: bool) -&gt; ValueId {
 <a href=#509 id=509 data-nosnippet>509</a>        <span class="self">self</span>.current_function.dfg.import_foreign_function(function, pure)
@@ -546,7 +546,7 @@
 <a href=#546 id=546 data-nosnippet>546</a>    }
 <a href=#547 id=547 data-nosnippet>547</a>
 <a href=#548 id=548 data-nosnippet>548</a>    <span class="doccomment">/// Increment or decrement the given value's reference count if it is an array.
-<a href=#549 id=549 data-nosnippet>549</a>    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
+<a href=#549 id=549 data-nosnippet>549</a>    /// If it is not an array, this does nothing. Note that `inc_rc` and `dec_rc` instructions
 <a href=#550 id=550 data-nosnippet>550</a>    /// are ignored outside of unconstrained code.
 <a href=#551 id=551 data-nosnippet>551</a>    ///
 <a href=#552 id=552 data-nosnippet>552</a>    /// If there is an `original` value it indicates that we're now decrementing it,

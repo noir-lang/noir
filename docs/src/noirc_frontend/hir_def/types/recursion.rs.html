@@ -18,7 +18,7 @@
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">impl </span>TypeRecursionContext {
 <a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Increases the recursion depth.
 <a href=#20 id=20 data-nosnippet>20</a>    ///
-<a href=#21 id=21 data-nosnippet>21</a>    /// Panics if it would go beyond [TYPE_RECURSION_LIMIT].
+<a href=#21 id=21 data-nosnippet>21</a>    /// Panics if it would go beyond [`TYPE_RECURSION_LIMIT`].
 <a href=#22 id=22 data-nosnippet>22</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>recur(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
 <a href=#23 id=23 data-nosnippet>23</a>        <span class="kw">if </span><span class="self">self</span>.depth &gt;= TYPE_RECURSION_LIMIT {
 <a href=#24 id=24 data-nosnippet>24</a>            <span class="macro">panic!</span>(<span class="string">"Type recursion limit reached - types are too large"</span>);

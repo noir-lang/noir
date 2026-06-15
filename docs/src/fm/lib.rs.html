@@ -115,7 +115,7 @@
 <a href=#115 id=115 data-nosnippet>115</a>    }
 <a href=#116 id=116 data-nosnippet>116</a>
 <a href=#117 id=117 data-nosnippet>117</a>    <span class="doccomment">/// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
-<a href=#118 id=118 data-nosnippet>118</a>    /// "some_dir/package_name/src/main.nr"
+<a href=#118 id=118 data-nosnippet>118</a>    /// "`some_dir/package_name/src/main.nr`"
 <a href=#119 id=119 data-nosnippet>119</a>    </span><span class="kw">pub fn </span>find_by_path_suffix(<span class="kw-2">&amp;</span><span class="self">self</span>, suffix: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;FileId&gt;, Vec&lt;PathBuf&gt;&gt; {
 <a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>suffix = Path::new(suffix);
 <a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">if </span>suffix.as_os_str().is_empty() {

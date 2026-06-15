@@ -120,7 +120,7 @@
 <a href=#120 id=120 data-nosnippet>120</a>        }
 <a href=#121 id=121 data-nosnippet>121</a>    }
 <a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Resolves the [Location] of the definition for a given [HirExpression]
+<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Resolves the [Location] of the definition for a given [`HirExpression`]
 <a href=#124 id=124 data-nosnippet>124</a>    ///
 <a href=#125 id=125 data-nosnippet>125</a>    /// Note: current the code returns None because some expressions are not yet implemented.
 <a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>resolve_expression_location(
@@ -156,7 +156,7 @@
 <a href=#156 id=156 data-nosnippet>156</a>        }
 <a href=#157 id=157 data-nosnippet>157</a>    }
 <a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a>    <span class="doccomment">/// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="doccomment">/// Resolves the [Location] of the definition for a given [`crate::hir_def::expr::HirMemberAccess`]
 <a href=#160 id=160 data-nosnippet>160</a>    /// This is used to resolve the location of a struct member access.
 <a href=#161 id=161 data-nosnippet>161</a>    /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
 <a href=#162 id=162 data-nosnippet>162</a>    /// to the location of the definition of `bar` in the struct `foo`.
@@ -179,7 +179,7 @@
 <a href=#179 id=179 data-nosnippet>179</a>        )
 <a href=#180 id=180 data-nosnippet>180</a>    }
 <a href=#181 id=181 data-nosnippet>181</a>
-<a href=#182 id=182 data-nosnippet>182</a>    <span class="doccomment">/// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait] based on [Location] of [TraitImpl][crate::hir_def::traits::TraitImpl]
+<a href=#182 id=182 data-nosnippet>182</a>    <span class="doccomment">/// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait] based on [Location] of [`TraitImpl`][crate::hir_def::traits::TraitImpl]
 <a href=#183 id=183 data-nosnippet>183</a>    /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
 <a href=#184 id=184 data-nosnippet>184</a>    ///
 <a href=#185 id=185 data-nosnippet>185</a>    /// Example:
@@ -193,7 +193,7 @@
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="self">self</span>.traits.get(<span class="kw-2">&amp;</span>trait_impl.trait_id).map(|trait_| trait_.location)
 <a href=#194 id=194 data-nosnippet>194</a>    }
 <a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>    <span class="doccomment">/// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [TraitFunction][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [TraitFunction][crate::hir_def::traits::TraitFunction] call.
+<a href=#196 id=196 data-nosnippet>196</a>    <span class="doccomment">/// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [`TraitFunction`][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [`TraitFunction`][crate::hir_def::traits::TraitFunction] call.
 <a href=#197 id=197 data-nosnippet>197</a>    ///
 <a href=#198 id=198 data-nosnippet>198</a>    /// This is used by LSP to resolve the location.
 <a href=#199 id=199 data-nosnippet>199</a>    ///

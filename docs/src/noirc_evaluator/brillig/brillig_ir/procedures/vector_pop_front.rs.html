@@ -10,7 +10,7 @@
 <a href=#10 id=10 data-nosnippet>10</a>};
 <a href=#11 id=11 data-nosnippet>11</a>
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-<a href=#13 id=13 data-nosnippet>13</a>    <span class="doccomment">/// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorPopFront].
+<a href=#13 id=13 data-nosnippet>13</a>    <span class="doccomment">/// Copy arguments to [`ScratchSpace`] and call [`ProcedureId::VectorPopFront`].
 <a href=#14 id=14 data-nosnippet>14</a>    ///
 <a href=#15 id=15 data-nosnippet>15</a>    /// Pops items from the front of a vector, returning the new vector.
 <a href=#16 id=16 data-nosnippet>16</a>    /// The procedure assumes that there are constraints to prevent 0 size vectors from being popped.
@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>    }
 <a href=#39 id=39 data-nosnippet>39</a>}
 <a href=#40 id=40 data-nosnippet>40</a>
-<a href=#41 id=41 data-nosnippet>41</a><span class="doccomment">/// Compile [ProcedureId::VectorPopFront].
+<a href=#41 id=41 data-nosnippet>41</a><span class="doccomment">/// Compile [`ProcedureId::VectorPopFront`].
 <a href=#42 id=42 data-nosnippet>42</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_pop_front_procedure&lt;F: AcirField + DebugToString&gt;(
 <a href=#43 id=43 data-nosnippet>43</a>    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 <a href=#44 id=44 data-nosnippet>44</a>) {

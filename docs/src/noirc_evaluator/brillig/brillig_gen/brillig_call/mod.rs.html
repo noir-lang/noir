@@ -26,18 +26,18 @@
 <a href=#26 id=26 data-nosnippet>26</a>    <span class="doccomment">/// Allocates a variable to hold the result of an external function call (e.g., foreign or black box).
 <a href=#27 id=27 data-nosnippet>27</a>    /// For more information about foreign function calls in Brillig take a look at the [foreign call opcode][acvm::acir::brillig::Opcode::ForeignCall].
 <a href=#28 id=28 data-nosnippet>28</a>    ///
-<a href=#29 id=29 data-nosnippet>29</a>    /// This is typically used during Brillig codegen for calls to [Value::ForeignFunction], where
+<a href=#29 id=29 data-nosnippet>29</a>    /// This is typically used during Brillig codegen for calls to [`Value::ForeignFunction`], where
 <a href=#30 id=30 data-nosnippet>30</a>    /// external host functions return values back into the program.
 <a href=#31 id=31 data-nosnippet>31</a>    ///
 <a href=#32 id=32 data-nosnippet>32</a>    /// Numeric types and fixed-sized array results are directly allocated.
 <a href=#33 id=33 data-nosnippet>33</a>    ///
 <a href=#34 id=34 data-nosnippet>34</a>    /// As vectors are determined at runtime they are allocated differently:
-<a href=#35 id=35 data-nosnippet>35</a>    /// - Allocates memory for a [BrilligVariable::BrilligVector], which holds a pointer and dynamic size.
+<a href=#35 id=35 data-nosnippet>35</a>    /// - Allocates memory for a [`BrilligVariable::BrilligVector`], which holds a pointer and dynamic size.
 <a href=#36 id=36 data-nosnippet>36</a>    /// - Initializes the pointer using the free memory pointer.
 <a href=#37 id=37 data-nosnippet>37</a>    /// - The actual size will be updated after the foreign function call returns.
 <a href=#38 id=38 data-nosnippet>38</a>    ///
 <a href=#39 id=39 data-nosnippet>39</a>    /// # Returns
-<a href=#40 id=40 data-nosnippet>40</a>    /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
+<a href=#40 id=40 data-nosnippet>40</a>    /// A [`BrilligVariable`] representing the allocated memory structure to store the foreign call's result.
 <a href=#41 id=41 data-nosnippet>41</a>    ///
 <a href=#42 id=42 data-nosnippet>42</a>    /// # Panics
 <a href=#43 id=43 data-nosnippet>43</a>    /// If there is a vector among the output variables _and_ it's followed by another vector:
@@ -169,7 +169,7 @@
 <a href=#169 id=169 data-nosnippet>169</a>        }
 <a href=#170 id=170 data-nosnippet>170</a>    }
 <a href=#171 id=171 data-nosnippet>171</a>
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="doccomment">/// Internal method to codegen an [crate::ssa::ir::instruction::Instruction::Call] to a [Value::Function]
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="doccomment">/// Internal method to codegen an [`crate::ssa::ir::instruction::Instruction::Call`] to a [`Value::Function`]
 <a href=#173 id=173 data-nosnippet>173</a>    </span><span class="kw">fn </span>convert_ssa_function_call(
 <a href=#174 id=174 data-nosnippet>174</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#175 id=175 data-nosnippet>175</a>        func_id: FunctionId,

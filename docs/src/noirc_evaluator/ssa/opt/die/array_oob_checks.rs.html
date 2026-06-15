@@ -16,7 +16,7 @@
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">impl </span>Context {
 <a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
 <a href=#18 id=18 data-nosnippet>18</a>    /// Returns `true` if at least one check was inserted.
-<a href=#19 id=19 data-nosnippet>19</a>    /// Because some ArrayGet might happen in groups (for composite types), if just
+<a href=#19 id=19 data-nosnippet>19</a>    /// Because some `ArrayGet` might happen in groups (for composite types), if just
 <a href=#20 id=20 data-nosnippet>20</a>    /// some of the instructions in a group are used but not all of them, no check
 <a href=#21 id=21 data-nosnippet>21</a>    /// is inserted, so this method might return `false`.
 <a href=#22 id=22 data-nosnippet>22</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>replace_array_instructions_with_out_of_bounds_checks(

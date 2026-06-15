@@ -43,7 +43,7 @@ b1(v0: Field):
     return v2</code></pre></div>
 <p>Call to <code>f1</code> in another function:</p>
 <div class="example-wrap"><pre class="language-text"><code>v0 = call f1(Field 5, Field 10) -&gt; Field</code></pre></div>
-<p>After pruning::</p>
+<p>After <code>pruning::</code></p>
 <div class="example-wrap"><pre class="language-text"><code>brillig(inline) fn f1:
   b0():
     jmp b1(Field 1)

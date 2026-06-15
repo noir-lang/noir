@@ -1441,7 +1441,7 @@
 <a href=#1441 id=1441 data-nosnippet>1441</a>///    whether it appears in a tagged field. (Skipped fields like
 <a href=#1442 id=1442 data-nosnippet>1442</a>///    `_phantom: PhantomData&lt;T&gt;` still reference T at the type level, so
 <a href=#1443 id=1443 data-nosnippet>1443</a>///    `Self: 'static` requires `T: 'static` even though we don't tag the
-<a href=#1444 id=1444 data-nosnippet>1444</a>///    PhantomData field.)
+<a href=#1444 id=1444 data-nosnippet>1444</a>///    `PhantomData` field.)
 <a href=#1445 id=1445 data-nosnippet>1445</a>/// 2. **`&lt;TaggedFieldType&gt;: MsgpackTagged` for each tagged field's type.**
 <a href=#1446 id=1446 data-nosnippet>1446</a>///    Per-field-type bounds compose with hand-written impls that have unusual
 <a href=#1447 id=1447 data-nosnippet>1447</a>///    bounds: if `MyType&lt;A, B&gt;: MsgpackTagged` requires `A: SomeOtherTrait`,

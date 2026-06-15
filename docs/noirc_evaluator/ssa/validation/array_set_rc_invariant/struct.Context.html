@@ -24,9 +24,9 @@ every path without the backward value walk.</p>
 (<code>make_array</code> / <code>Call</code> results). Used as a freshness wall by
 <a href="struct.Context.html#method.compute_uncovered_values" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::compute_uncovered_values"><code>Context::compute_uncovered_values</code></a>.</p>
 </div><span id="structfield.loop_blocks" class="structfield section-header"><a href="#structfield.loop_blocks" class="anchor field">§</a><code>loop_blocks: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/collections/btree/set/struct.BTreeSet.html" title="struct alloc::collections::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;&gt;</code></span><div class="docblock"><p>The block set of each loop in the function. The freshness wall only
-credits a fresh allocation when its defining block and the array_set’s
+credits a fresh allocation when its defining block and the <code>array_set</code>’s
 block lie in a common loop — i.e. the allocation re-executes every
-iteration that reaches the array_set, so its storage is distinct per
+iteration that reaches the <code>array_set</code>, so its storage is distinct per
 iteration. A one-time allocation outside any shared loop is mutated in
 place exactly once, so reading it back is a genuine hazard.</p>
 </div><span id="structfield.backward_aliases" class="structfield section-header"><a href="#structfield.backward_aliases" class="anchor field">§</a><code>backward_aliases: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;</code></span><div class="docblock"><p>For each array-typed value <code>V</code>, the set of values that may share
@@ -75,7 +75,7 @@ swapped-out sibling to be one of these — see
 <a href="struct.Context.html#structfield.swap_excluded_aliases" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::swap_excluded_aliases"><code>Context::swap_excluded_aliases</code></a>.</li>
 </ul>
 <p>Values that are <em>not</em> back-edge args are kept in the alias-set:
-they represent a one-time allocation whose storage the array_set
+they represent a one-time allocation whose storage the <code>array_set</code>
 may mutate in place.</p>
 </div><span id="structfield.inc_rc_locations" class="structfield section-header"><a href="#structfield.inc_rc_locations" class="anchor field">§</a><code>inc_rc_locations: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>)&gt;&gt;</code></span><div class="docblock"><p><code>inc_rc value</code> instructions indexed by their operand. Each entry is
 the <code>(block, instruction-position-within-block)</code> of one <code>inc_rc</code>.</p>
@@ -105,7 +105,7 @@ not the literal arg, but reaches one through a forward edge first
 only the latch’s param is the literal back-edge arg).</p>
 <p>Used by the <strong>protected-participant filter</strong> in
 <a href="struct.Context.html#method.find_reachable_aliased_use" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::find_reachable_aliased_use"><code>Context::find_reachable_aliased_use</code></a>: a value that is in the
-array_set source’s alias-set (so it flows <em>into</em> the source),
+<code>array_set</code> source’s alias-set (so it flows <em>into</em> the source),
 is a back-edge participant, and carries its own <code>inc_rc</code> is
 RC ≥ 2 whenever it equals the source’s storage (the <code>inc_rc</code> is
 loop-carried — it runs before the value crosses the back-edge onto
@@ -137,7 +137,7 @@ edge — excluding <code>Q</code> at the seed covers that edge too, which a
 kill keyed on the back-edge alone could not).</p>
 <p>Guarded by a <strong>back-edge-only</strong> check: if <code>Q</code> also flows into <code>P</code>
 on a forward edge, <code>P</code> and <code>Q</code> can already alias <em>within</em> an
-iteration (the array_set would mutate <code>Q</code>’s live storage), so the
+iteration (the <code>array_set</code> would mutate <code>Q</code>’s live storage), so the
 exclusion would be unsound and is not recorded. The freshening
 requirement on <code>Q</code> is the second guard — a loop-invariant <code>Q</code>
 swapped into <code>P</code> would make <code>P_k = Q_{k-1} = Q_k</code> and genuinely
@@ -147,7 +147,7 @@ forward across non-back-edge parameter edges to a fixed point: on a
 forward edge <code>R ← P</code>, <code>R</code> <em>is</em> <code>P</code> within the same iteration, so <code>R</code>
 inherits <code>P</code>’s exclusions. This carries an exclusion from a swapped
 loop-header parameter onto a successor parameter seeded from it — e.g.
-an inner-loop header (the array_set’s source) fed from the swapped
+an inner-loop header (the <code>array_set</code>’s source) fed from the swapped
 outer-loop parameter — so <code>Q</code> is dropped for the inner source too.
 Back-edges are excluded from propagation: across one, <code>R</code> is a <em>prior</em>
 iteration’s <code>P</code>, a distinct storage.</p>
@@ -172,7 +172,7 @@ the per-arg kill rule in <a href="struct.Context.html#method.succ_use_set" title
 refuse to kill the receiving param, letting the alias leak past
 the loop.</li>
 <li><strong><code>Call</code> result</strong> is typically a fresh array allocated by the
-callee, so it isn’t a real alias of the array_set’s source.
+callee, so it isn’t a real alias of the <code>array_set</code>’s source.
 This is a heuristic — a function that returns its input <em>would</em>
 create a real alias, and we’d miss that. In practice the
 frontend’s array-returning functions allocate fresh storage.</li>
@@ -185,13 +185,13 @@ feeds on the back-edge holds a <em>different</em> allocation in the next
 iteration than the one this iteration’s <code>array_set</code> may have
 mutated. <strong>Non-back-edge <code>MakeArray</code> results stay in the
 alias-set</strong> — they represent a one-time allocation whose storage
-the array_set can mutate in place.</p>
+the <code>array_set</code> can mutate in place.</p>
 <p><strong>Post-array_set-in-same-block filter.</strong> Drop instruction
 results whose defining position is in <code>array_set_block</code> at an
 index <em>greater than</em> <code>array_set_idx</code>. Such a value doesn’t exist
-at the array_set’s program point yet — it’s literally about to
+at the <code>array_set</code>’s program point yet — it’s literally about to
 be allocated on a later instruction — so it can’t represent the
-storage the array_set might mutate. It can land in the backward
+storage the <code>array_set</code> might mutate. It can land in the backward
 set through a round-trip: <code>make_array → forward-arg → block param → back-edge → source's param</code>. Dropping it at lookup time
 makes the per-arg kill in <a href="struct.Context.html#method.succ_use_set" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::succ_use_set"><code>Context::succ_use_set</code></a> correctly
 fire on the forward edge where the future-value is passed.</p>
@@ -199,7 +199,7 @@ fire on the forward edge where the future-value is passed.</p>
 (e.g. a chain <code>v_a = array_set _ ; v_b = array_set v_a</code>): <code>v_a</code>
 is <em>this</em> check’s source, so its forward uses are exactly what
 we want to look for. The post-array_set filter can’t fire on the
-source because the source must be defined before the array_set
+source because the source must be defined before the <code>array_set</code>
 that uses it.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.unprotected_aliases" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#791-805">Source</a><h4 class="code-header">fn <a href="#method.unprotected_aliases" class="fn">unprotected_aliases</a>(
     &amp;self,
@@ -213,13 +213,13 @@ check. An empty result means every member is protected, so the
 <code>array_set</code> can be accepted without the forward walk.</p>
 <p>A member is dropped (provably protected) when, on every runtime path,
 the storage it represents is either RC-bumped by an <code>inc_rc</code> (so the
-array_set copies) or an iteration-local fresh allocation (so it has no
+<code>array_set</code> copies) or an iteration-local fresh allocation (so it has no
 other live alias). Dropping covered members is what stops the forward
 walk from flagging a read of an <code>inc_rc</code>’d sibling on a path where the
-array_set never mutates that storage (the alias-set-merging
+<code>array_set</code> never mutates that storage (the alias-set-merging
 false-positive). Keeping the uncovered members preserves real hazards,
 such as the issue SSA where the source itself is uncovered and read
-after the array_set.</p>
+after the <code>array_set</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.some_inc_rc_precedes" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#834-859">Source</a><h4 class="code-header">fn <a href="#method.some_inc_rc_precedes" class="fn">some_inc_rc_precedes</a>(
     &amp;self,
     alias_set: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
@@ -233,21 +233,21 @@ path. This is the cheap common case; per-path coverage that this misses
 handled by <a href="struct.Context.html#method.compute_uncovered_values" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::compute_uncovered_values"><code>Context::compute_uncovered_values</code></a>.</p>
 <p>Three acceptances, each sound on every path:</p>
 <ul>
-<li><strong>Same-block, before the array_set.</strong> The block is on every path to
-its own array_set, so an earlier <code>inc_rc</code> always runs first.</li>
-<li><strong>Dominating block.</strong> An <code>inc_rc</code> whose block dominates the array_set
+<li><strong>Same-block, before the <code>array_set</code>.</strong> The block is on every path to
+its own <code>array_set</code>, so an earlier <code>inc_rc</code> always runs first.</li>
+<li><strong>Dominating block.</strong> An <code>inc_rc</code> whose block dominates the <code>array_set</code>
 is on every path to it (e.g. an <code>inc_rc</code> in a loop pre-header).</li>
 <li><strong>Back-edge-participant relaxation.</strong> An <code>inc_rc</code> on a <em>non-source</em>
 alias that appears as a jmp/jmpif arg on a loop <strong>back-edge</strong> is taken
 as a codegen signal regardless of program-point order: the frontend
 is deliberately managing iteration aliasing, and the bump’s program
-point can come <em>after</em> the array_set — it is the back-edge thread-back
+point can come <em>after</em> the <code>array_set</code> — it is the back-edge thread-back
 that delivers the protection to the next iteration. Forward-edge cases
 don’t need this because <a href="struct.Context.html#structfield.backward_aliases" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::backward_aliases"><code>Context::backward_aliases</code></a> keeps the
 forward-edge value out of the source’s alias-set in the first place.</li>
 </ul>
 <p>Mere RPO precedence is <em>not</em> one of these: a sibling-branch <code>inc_rc</code>
-precedes in RPO yet the other branch reaches the array_set without it
+precedes in RPO yet the other branch reaches the <code>array_set</code> without it
 (<code>end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected</code>).</p>
 <p>Well-formed SSA contains no <code>DecrementRc</code>, so we don’t need to worry
 about a <code>dec_rc</code> intervening between the <code>inc_rc</code> and the <code>array_set</code>.</p>
@@ -256,10 +256,10 @@ about a <code>dec_rc</code> intervening between the <code>inc_rc</code> and the 
     value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     array_set_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
 ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Whether <code>value</code> is a fresh allocation whose storage is distinct on
-every iteration that reaches the array_set in <code>array_set_block</code> — i.e.
+every iteration that reaches the <code>array_set</code> in <code>array_set_block</code> — i.e.
 a <code>make_array</code>/<code>Call</code> result whose defining block shares a loop with
 <code>array_set_block</code>, so it re-executes each iteration. A fresh allocation
-outside any shared loop is a one-time storage that the array_set
+outside any shared loop is a one-time storage that the <code>array_set</code>
 mutates exactly once; reading it back through the same name would
 observe that mutation, so it does <strong>not</strong> count as protection.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.compute_uncovered_values" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#918-1029">Source</a><h4 class="code-header">fn <a href="#method.compute_uncovered_values" class="fn">compute_uncovered_values</a>(
@@ -268,11 +268,11 @@ observe that mutation, so it does <strong>not</strong> count as protection.</p>
     array_set_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     array_set_idx: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
 ) -&gt; HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>The set of values that lie on at least one <strong>uncovered</strong> backward path
-from the array_set — a path on which the threaded source storage reaches
+from the <code>array_set</code> — a path on which the threaded source storage reaches
 a function parameter / unthreadable root without crossing an <code>inc_rc</code> or
 iteration-local-fresh wall. The caller intersects this with the
 alias-set to obtain the forward walk’s use-set; an empty intersection
-means every member is protected, so the array_set is accepted.</p>
+means every member is protected, so the <code>array_set</code> is accepted.</p>
 <p>The walk threads the <em>exact</em> source storage backward: across a
 block-parameter edge it follows the predecessor’s argument, and at an
 <code>array_set</code> result it continues with that <code>array_set</code>’s <code>array</code> operand
@@ -291,8 +291,8 @@ block with no predecessors, or a value defined by an unthreadable
 instruction (a non-iteration-local allocation, or an <code>array_get</code> of a
 nested array), or an edge whose argument can’t be resolved, is an
 <em>uncovered terminal</em>. <code>seed_idx</code> limits the <code>inc_rc</code> wall to bumps
-<em>before</em> the array_set in its own block; any other block on a path
-executes fully before the array_set, so an <code>inc_rc</code> anywhere in it
+<em>before</em> the <code>array_set</code> in its own block; any other block on a path
+executes fully before the <code>array_set</code>, so an <code>inc_rc</code> anywhere in it
 counts.</li>
 <li><strong>Propagate.</strong> A state is uncovered if it is an uncovered terminal or
 has an uncovered successor; iterate to a fixed point. A cycle with no
@@ -340,9 +340,9 @@ source, not a hazard.</p>
 <code>use_set</code> to make the filter sound in the presence of <code>array_set</code>
 chains:</p>
 <ul>
-<li><strong><code>derived</code></strong> tracks values that may share the array_set’s source
+<li><strong><code>derived</code></strong> tracks values that may share the <code>array_set</code>’s source
 storage at runtime through transitive in-place mutations. Seeded
-with the array_set’s own result; grown on every later <code>array_set</code>
+with the <code>array_set</code>’s own result; grown on every later <code>array_set</code>
 whose <code>array</code> operand is already in <code>derived</code>; propagated across
 block-param edges the same way the alias use-set is.</li>
 <li><strong><code>tainted_indices</code></strong> tracks the set of storage positions any
@@ -361,14 +361,14 @@ is a hazard iff some <code>tainted_indices</code> position differs from <code>id
 (a same-index write overwrites the mutation and extends the chain
 instead). All other uses on a <code>use_set</code> member are always flagged —
 the SSA-vs-runtime divergence isn’t index-local for them.</p>
-<p><strong>IncrementRc clears <code>derived</code>.</strong> A program-point <code>inc_rc v</code> with
+<p><strong><code>IncrementRc</code> clears <code>derived</code>.</strong> A program-point <code>inc_rc v</code> with
 <code>v ∈ use_set ∪ derived</code> lifts the storage’s RC ≥ 2, so any
 subsequent <code>array_set</code> on a chain participant runs on fresh
 storage and can no longer clobber the source. We clear <code>derived</code>
 at that point. <code>tainted_indices</code> is <em>not</em> cleared — past damage
 to the shared storage is still observable through <code>use_set</code> reads.</p>
 <p><strong>Cycle detection.</strong> Re-entering a block with a state that’s a
-(use_set, derived, tainted_indices)-subset of the frontier we’ve
+(<code>use_set</code>, derived, tainted_indices)-subset of the frontier we’ve
 already explored adds no new information. Each component is
 unioned into the frontier on entry; for <code>tainted_indices</code>, <code>None</code>
 is the absorbing element (a previously-<code>None</code> frontier covers any
@@ -399,7 +399,7 @@ with <code>arguments</code>.</p>
 <ul>
 <li><strong>Kill.</strong> If the param is in <code>use_set</code> and the arg is not, the
 param is rebound to a value that no longer aliases the
-array_set’s source (most commonly the array_set’s own
+<code>array_set</code>’s source (most commonly the <code>array_set</code>’s own
 result, excluded at lookup time): drop it.</li>
 <li><strong>Add.</strong> If the param is not in <code>use_set</code> but the arg is,
 this edge introduces a fresh alias: the param at <code>dest</code>’s

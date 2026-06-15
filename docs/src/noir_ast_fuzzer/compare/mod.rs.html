@@ -24,7 +24,7 @@
 <a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">fn </span>programs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>Program&gt;;
 <a href=#25 id=25 data-nosnippet>25</a>}
 <a href=#26 id=26 data-nosnippet>26</a>
-<a href=#27 id=27 data-nosnippet>27</a><span class="doccomment">/// Subset of [SsaEvaluatorOptions] that we want to vary.
+<a href=#27 id=27 data-nosnippet>27</a><span class="doccomment">/// Subset of [`SsaEvaluatorOptions`] that we want to vary.
 <a href=#28 id=28 data-nosnippet>28</a>///
 <a href=#29 id=29 data-nosnippet>29</a>/// It exists to reduce noise in the printed results, compared to showing the full `SsaEvaluatorOptions`.
 <a href=#30 id=30 data-nosnippet>30</a></span><span class="attr">#[derive(Debug, Clone, Default)]
@@ -39,7 +39,7 @@
 <a href=#39 id=39 data-nosnippet>39</a>}
 <a href=#40 id=40 data-nosnippet>40</a>
 <a href=#41 id=41 data-nosnippet>41</a><span class="kw">impl </span>CompareOptions {
-<a href=#42 id=42 data-nosnippet>42</a>    <span class="doccomment">/// Copy fields into an [SsaEvaluatorOptions] instance.
+<a href=#42 id=42 data-nosnippet>42</a>    <span class="doccomment">/// Copy fields into an [`SsaEvaluatorOptions`] instance.
 <a href=#43 id=43 data-nosnippet>43</a>    </span><span class="kw">pub fn </span>onto(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>options: SsaEvaluatorOptions) -&gt; SsaEvaluatorOptions {
 <a href=#44 id=44 data-nosnippet>44</a>        options.inliner_aggressiveness = <span class="self">self</span>.inliner_aggressiveness;
 <a href=#45 id=45 data-nosnippet>45</a>        options
@@ -94,7 +94,7 @@
 <a href=#94 id=94 data-nosnippet>94</a>
 <a href=#95 id=95 data-nosnippet>95</a><span class="doccomment">/// Possible outcomes of the differential execution of two equivalent programs.
 <a href=#96 id=96 data-nosnippet>96</a>///
-<a href=#97 id=97 data-nosnippet>97</a>/// Use [CompareResult::return_value_or_err] to do the final comparison between
+<a href=#97 id=97 data-nosnippet>97</a>/// Use [`CompareResult::return_value_or_err`] to do the final comparison between
 <a href=#98 id=98 data-nosnippet>98</a>/// the execution result.
 <a href=#99 id=99 data-nosnippet>99</a></span><span class="kw">pub enum </span>CompareResult&lt;T, E&gt; {
 <a href=#100 id=100 data-nosnippet>100</a>    BothFailed(FailedOutput&lt;E&gt;, FailedOutput&lt;E&gt;),

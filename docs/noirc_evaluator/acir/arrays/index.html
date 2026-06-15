@@ -5,13 +5,13 @@ Our responsibility here is to preserve correctness while ensuring memory access 
 <h3 id="design"><a class="doc-anchor" href="#design">§</a>Design</h3>
 <p>ACIR does not have a first-class array type. Instead, all arrays are
 represented as contiguous regions in linear memory, identified by a
-[BlockId]. This module provides helpers for translating SSA array
+[<code>BlockId</code>]. This module provides helpers for translating SSA array
 operations into ACIR memory reads and writes.</p>
 <p>ACIR generation use two different array types for representing arrays:</p>
 <p><a href="../types/enum.AcirValue.html#variant.Array" title="variant noirc_evaluator::acir::types::AcirValue::Array">Constant arrays</a></p>
 <ul>
 <li>Known at compile time.</li>
-<li>Reads and writes may be folded into an <a href="../types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a> where possible.</li>
+<li>Reads and writes may be folded into an <a href="../types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue"><code>AcirValue</code></a> where possible.</li>
 <li>Useful for optimization (e.g., constant element lookups do not require laying down opcodes)</li>
 </ul>
 <p><a href="../types/enum.AcirValue.html#variant.DynamicArray" title="variant noirc_evaluator::acir::types::AcirValue::DynamicArray">Dynamic arrays</a></p>
@@ -49,7 +49,7 @@ fn main(x: [Foo; 4]) -&gt; pub [Field; 3] {
 the true starting index of <code>x[3].bar.inner</code> is <code>25</code>.</p>
 <p>To determine which field within the array we are attempting to access, we use an element type sizes array that stores
 the flat starting index for each SSA field. Since tuples are flattened in SSA, each tuple field gets its own entry.
-For an array like <code>[(Field, [Field; 3], [Field; 3]); 4]</code>, the element_type_sizes array would be:</p>
+For an array like <code>[(Field, [Field; 3], [Field; 3]); 4]</code>, the <code>element_type_sizes</code> array would be:</p>
 <p>[0, 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25]</p>
 <p>Where:</p>
 <ul>
@@ -85,11 +85,11 @@ This ensures the memory remains unchanged when the write is disabled. In the cas
 <h5 id="reads"><a class="doc-anchor" href="#reads">§</a>Reads</h5>
 <p>If we perform an array read under a false predicate we will read from <code>offset</code>. As arrays are not always homogenous
 the result at index <code>offset</code> may contain a value that will overflow the resulting type of the array read.
-When we read a value from a non-homogenous array, we multiply any resulting <a href="../types/enum.AcirValue.html#variant.Var" title="variant noirc_evaluator::acir::types::AcirValue::Var">AcirValue::Var</a> by the predicate
+When we read a value from a non-homogenous array, we multiply any resulting <a href="../types/enum.AcirValue.html#variant.Var" title="variant noirc_evaluator::acir::types::AcirValue::Var"><code>AcirValue::Var</code></a> by the predicate
 to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
 For homogenous arrays, the fallback <code>offset</code> will produce a value with a compatible type.</p>
 <h4 id="zero-length-arrays"><a class="doc-anchor" href="#zero-length-arrays">§</a>Zero-Length Arrays</h4>
 <p>Arrays of length 0 are valid in the SSA but must never generate ACIR
 memory operations as they may produce runtime errors. These operations are special cased to always fail with an
 index out of bounds error (with respect to side effects) and ensures they do not produce illegal memory accesses.</p>
-</div></details><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ElementTypeSizesArrayShift.html" title="enum noirc_evaluator::acir::arrays::ElementTypeSizesArrayShift">Element<wbr>Type<wbr>Sizes<wbr>Array<wbr>Shift</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Represents a shift in the size of the element type sizes array.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.array_has_constant_element_size.html" title="fn noirc_evaluator::acir::arrays::array_has_constant_element_size">array_<wbr>has_<wbr>constant_<wbr>element_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Returns whether the array’s elements have a constant size.</dd><dt><a class="fn" href="fn.calculate_element_type_sizes_array.html" title="fn noirc_evaluator::acir::arrays::calculate_element_type_sizes_array">calculate_<wbr>element_<wbr>type_<wbr>sizes_<wbr>array</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Calculates the element type sizes lookup array for heterogeneous arrays/vectors.</dd><dt><a class="fn" href="fn.flattened_value_size.html" title="fn noirc_evaluator::acir::arrays::flattened_value_size">flattened_<wbr>value_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Calculates the total flattened size of an <a href="../types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>.</dd></dl></section></div></main></body></html>
+</div></details><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ElementTypeSizesArrayShift.html" title="enum noirc_evaluator::acir::arrays::ElementTypeSizesArrayShift">Element<wbr>Type<wbr>Sizes<wbr>Array<wbr>Shift</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Represents a shift in the size of the element type sizes array.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.array_has_constant_element_size.html" title="fn noirc_evaluator::acir::arrays::array_has_constant_element_size">array_<wbr>has_<wbr>constant_<wbr>element_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Returns whether the array’s elements have a constant size.</dd><dt><a class="fn" href="fn.calculate_element_type_sizes_array.html" title="fn noirc_evaluator::acir::arrays::calculate_element_type_sizes_array">calculate_<wbr>element_<wbr>type_<wbr>sizes_<wbr>array</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Calculates the element type sizes lookup array for heterogeneous arrays/vectors.</dd><dt><a class="fn" href="fn.flattened_value_size.html" title="fn noirc_evaluator::acir::arrays::flattened_value_size">flattened_<wbr>value_<wbr>size</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Calculates the total flattened size of an <a href="../types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue"><code>AcirValue</code></a>.</dd></dl></section></div></main></body></html>

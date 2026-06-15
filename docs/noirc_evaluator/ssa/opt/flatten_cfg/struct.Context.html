@@ -32,10 +32,10 @@ the other branch since there is no such value.</p>
 <p><code>Not</code> instructions are inserted constantly by this pass and this map helps keep
 us from unnecessarily inserting extra instructions, and keeps IDs unique which
 helps simplifications.</p>
-</div><span id="structfield.merge_provenance" class="structfield section-header"><a href="#structfield.merge_provenance" class="anchor field">§</a><code>merge_provenance: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="struct" href="struct.MergeProvenance.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::MergeProvenance">MergeProvenance</a>&gt;</code></span><div class="docblock"><p>Maps merge result ValueId to the provenance of the IfElse that produced it.
+</div><span id="structfield.merge_provenance" class="structfield section-header"><a href="#structfield.merge_provenance" class="anchor field">§</a><code>merge_provenance: FxHashMap&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="struct" href="struct.MergeProvenance.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::MergeProvenance">MergeProvenance</a>&gt;</code></span><div class="docblock"><p>Maps merge result <code>ValueId</code> to the provenance of the <code>IfElse</code> that produced it.
 Used to detect and collapse redundant nested merges in <code>inline_branch_end</code>.
 See <a href="struct.Context.html#method.try_collapse_merge" title="method noirc_evaluator::ssa::opt::flatten_cfg::Context::try_collapse_merge"><code>Context::try_collapse_merge</code></a> for the four patterns this enables.</p>
-</div><span id="structfield.no_predicate" class="structfield section-header"><a href="#structfield.no_predicate" class="anchor field">§</a><code>no_predicate: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></code></span><div class="docblock"><p>Flag to tell the context to not issue ‘enable_side_effect’ instructions during flattening.</p>
+</div><span id="structfield.no_predicate" class="structfield section-header"><a href="#structfield.no_predicate" class="anchor field">§</a><code>no_predicate: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></code></span><div class="docblock"><p>Flag to tell the context to not issue ‘<code>enable_side_effect</code>’ instructions during flattening.</p>
 <p>It is set with an attribute when defining a function that cannot fail whatsoever to avoid
 the overhead of handling side effects.</p>
 <p>It can also be set to true when no instruction is known to fail.</p>
@@ -55,10 +55,10 @@ The method is adapted from <code>flatten_cfg</code>, tailored to do flatten only
 </ul>
 <h5 id="implementation-details"><a class="doc-anchor" href="#implementation-details">§</a>Implementation Details</h5>
 <ul>
-<li>Sets up context state (target_block, no_predicate) to enable proper inlining</li>
+<li>Sets up context state (<code>target_block</code>, <code>no_predicate</code>) to enable proper inlining</li>
 <li>Inlines each block’s instructions into the entry block</li>
 <li>Handles terminators to manage control flow during inlining</li>
-<li>Uses a WorkList to track which blocks need processing</li>
+<li>Uses a <code>WorkList</code> to track which blocks need processing</li>
 <li>Copies the exit block’s terminator to the entry block after inlining</li>
 <li>Restores original context state after completion</li>
 </ul>
@@ -72,9 +72,9 @@ according to the provided mapping. This is used to propagate value simplificatio
 from conditional flattening throughout the rest of the function.</p>
 <h5 id="parameters-1"><a class="doc-anchor" href="#parameters-1">§</a>Parameters</h5>
 <ul>
-<li><code>mapping</code> - HashMap mapping old ValueIds to their simplified/replaced ValueIds</li>
+<li><code>mapping</code> - <code>HashMap</code> mapping old <code>ValueIds</code> to their simplified/replaced <code>ValueIds</code></li>
 <li><code>func</code> - The function containing the block to update</li>
-<li><code>block</code> - The BasicBlockId of the block to remap</li>
+<li><code>block</code> - The <code>BasicBlockId</code> of the block to remap</li>
 </ul>
 </div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#390-1255">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#396-414">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.new" class="fn">new</a>(
     function: &amp;'f mut <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
@@ -89,22 +89,22 @@ from conditional flattening throughout the rest of the function.</p>
 until all blocks have been flattened.</p>
 <p>We follow the terminator of each block to determine which blocks to process next:</p>
 <ul>
-<li>If the terminator is a ‘JumpIf’, we assume we are entering a conditional statement and
-add the start blocks of the ‘then_branch’, ‘else_branch’ and the ‘exit’ block to the queue.</li>
+<li>If the terminator is a ‘<code>JumpIf</code>’, we assume we are entering a conditional statement and
+add the start blocks of the ‘<code>then_branch</code>’, ‘<code>else_branch</code>’ and the ‘exit’ block to the queue.</li>
 <li>Other blocks will have only one successor, so we will process them iteratively,
 until we reach one block already in the queue, added when entering a conditional statement,
-i.e. the ‘else_branch’ or the ‘exit’. In that case we switch to the next block in the queue,
+i.e. the ‘<code>else_branch</code>’ or the ‘exit’. In that case we switch to the next block in the queue,
 instead of the successor.</li>
 </ul>
 <p>This process ensures that the blocks are always processed in this order:</p>
 <ul>
-<li>if_entry -&gt; then_branch -&gt; else_branch -&gt; exit</li>
+<li><code>if_entry</code> -&gt; <code>then_branch</code> -&gt; <code>else_branch</code> -&gt; exit</li>
 </ul>
-<p>In case of nested if statements, for instance in the ‘then_branch’, it will be:</p>
+<p>In case of nested if statements, for instance in the ‘<code>then_branch</code>’, it will be:</p>
 <ul>
-<li>if_entry -&gt; then_branch -&gt; if_entry_2 -&gt; then_branch_2 -&gt; exit_2 -&gt; else_branch -&gt; exit</li>
+<li><code>if_entry</code> -&gt; <code>then_branch</code> -&gt; <code>if_entry_2</code> -&gt; <code>then_branch_2</code> -&gt; <code>exit_2</code> -&gt; <code>else_branch</code> -&gt; exit</li>
 </ul>
-<p>Information about the nested if statements is stored in the ‘condition_stack’ which
+<p>Information about the nested if statements is stored in the ‘<code>condition_stack</code>’ which
 is popped/pushed when entering/leaving a conditional statement.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.link_condition" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#449-458">Source</a><h4 class="code-header">fn <a href="#method.link_condition" class="fn">link_condition</a>(&amp;mut self, condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Returns the updated condition so that
 it is ‘AND-ed’ with the previous condition (if any)</p>
@@ -112,7 +112,7 @@ it is ‘AND-ed’ with the previous condition (if any)</p>
 <p>The conditions are in a stack, they are added as conditional branches are encountered
 so the last one is the current condition.
 When processing a conditional branch, we first follow the ‘then’ branch and only after we
-process the ‘else’ branch. At that point, the <code>ConditionalContext</code> has the ‘else_branch’</p>
+process the ‘else’ branch. At that point, the <code>ConditionalContext</code> has the ‘<code>else_branch</code>’</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.is_call_to_no_predicate_function" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#474-485">Source</a><h4 class="code-header">fn <a href="#method.is_call_to_no_predicate_function" class="fn">is_call_to_no_predicate_function</a>(
     &amp;self,
     no_predicates: &amp;HashSet&lt;<a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>&gt;&gt;,
@@ -140,12 +140,12 @@ to push them in the target block.</p>
 and prepare any arguments for the next-to-be-inlined block to consume.</p>
 <p>For a normal block, it would be its successor.</p>
 <p>For blocks related to a conditional statement, we ensure to process
-the ‘then_branch’, then the ‘else_branch’ (if it exists), and finally the exit block.</p>
+the ‘<code>then_branch</code>’, then the ‘<code>else_branch</code>’ (if it exists), and finally the exit block.</p>
 <p>The update of the context is done by the functions <code>if_start</code>, <code>then_stop</code> and <code>else_stop</code>
-which perform the business logic when entering a conditional statement, finishing the ‘then_branch’
-and the ‘else_branch’, respectively.</p>
+which perform the business logic when entering a conditional statement, finishing the ‘<code>then_branch</code>’
+and the ‘<code>else_branch</code>’, respectively.</p>
 <p>We know if a block is related to the conditional statement if is referenced by the <code>work_list</code>.
-Indeed, the start blocks of the ‘then_branch’ and ‘else_branch’ are added to the <code>work_list</code> when
+Indeed, the start blocks of the ‘<code>then_branch</code>’ and ‘<code>else_branch</code>’ are added to the <code>work_list</code> when
 starting to process a conditional statement.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.if_start" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#637-692">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.if_start" class="fn">if_start</a>(
     &amp;mut self,
@@ -157,15 +157,15 @@ starting to process a conditional statement.</p>
     call_stack: CallStackId,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt; <a href="#" class="tooltip" data-notable-ty="Vec&lt;BasicBlockId&gt;">ⓘ</a></h4></section></summary><div class="docblock"><p>Process a conditional statement by creating a <code>ConditionalContext</code>
 with information about the branch, and storing it in the dedicated stack.
-Local allocations are moved to the ‘then_branch’ of the <code>ConditionalContext</code>.
-Returns the blocks corresponding to the ‘then_branch’, ‘else_branch’,
+Local allocations are moved to the ‘<code>then_branch</code>’ of the <code>ConditionalContext</code>.
+Returns the blocks corresponding to the ‘<code>then_branch</code>’, ‘<code>else_branch</code>’,
 and exit block of the conditional statement, so that they will be processed in this order.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.then_stop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#699-726">Source</a><h4 class="code-header">fn <a href="#method.then_stop" class="fn">then_stop</a>(&amp;mut self, block: &amp;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>)</h4></section></summary><div class="docblock"><p>Switch context to the ‘else_branch’:</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.then_stop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#699-726">Source</a><h4 class="code-header">fn <a href="#method.then_stop" class="fn">then_stop</a>(&amp;mut self, block: &amp;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>)</h4></section></summary><div class="docblock"><p>Switch context to the ‘<code>else_branch</code>’:</p>
 <ul>
-<li>Negates the condition for the ‘else_branch’ and set it in the <code>ConditionalContext</code></li>
-<li>Move the local allocations to the ‘else_branch’</li>
+<li>Negates the condition for the ‘<code>else_branch</code>’ and set it in the <code>ConditionalContext</code></li>
+<li>Move the local allocations to the ‘<code>else_branch</code>’</li>
 <li>Reset the predicated values to their old mapping in the inserter</li>
-<li>Issues the ‘enable_side_effect’ instruction</li>
+<li>Issues the ‘<code>enable_side_effect</code>’ instruction</li>
 </ul>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.not_instruction" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#729-737">Source</a><h4 class="code-header">fn <a href="#method.not_instruction" class="fn">not_instruction</a>(
     &amp;mut self,
@@ -179,12 +179,12 @@ and exit block of the conditional statement, so that they will be processed in t
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>)&gt;</h4></section></summary><div class="docblock"><p>Attempt to collapse a redundant nested merge where one value is shared.</p>
 <p>When nested <code>jmpif</code> blocks thread the same value through their arguments,
 the outer merge is redundant. This detects four patterns:</p>
-<p><strong>Group 1 — shared else_value (y):</strong></p>
+<p><strong>Group 1 — shared <code>else_value</code> (y):</strong></p>
 <ul>
 <li><code>IfElse(c1, IfElse(c2, x, _, y), _, y)</code> → <code>IfElse(c2, x, NOT(c2), y)</code></li>
 <li><code>IfElse(c1, y, _, IfElse(c2, x, _, y))</code> → <code>IfElse(c2, x, NOT(c2), y)</code></li>
 </ul>
-<p><strong>Group 2 — shared then_value (x):</strong></p>
+<p><strong>Group 2 — shared <code>then_value</code> (x):</strong></p>
 <ul>
 <li><code>IfElse(c1, x, _, IfElse(_, x, c2e, z))</code> → <code>IfElse(c2e, z, NOT(c2e), x)</code></li>
 <li><code>IfElse(c1, IfElse(_, x, c2e, z), _, x)</code> → <code>IfElse(c2e, z, NOT(c2e), x)</code></li>
@@ -194,7 +194,7 @@ the outer merge is redundant. This detects four patterns:</p>
 <ul>
 <li>Retrieves the local allocations from the Conditional Context</li>
 <li>Reset the predicated values to their old mapping in the inserter</li>
-<li>Issues the ‘enable_side_effect’ instruction</li>
+<li>Issues the ‘<code>enable_side_effect</code>’ instruction</li>
 <li>Joins the arguments from both branches</li>
 </ul>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.inline_branch_end" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#854-936">Source</a><h4 class="code-header">fn <a href="#method.inline_branch_end" class="fn">inline_branch_end</a>(
@@ -205,11 +205,11 @@ the outer merge is redundant. This detects four patterns:</p>
 join back together. In particular this function must handle merging block arguments from
 all of the join point’s predecessors, and it must handle any differing side effects from
 each branch.</p>
-<p>The merge of arguments is done by inserting an ‘IfElse’ instructions which returns
-the argument from the ‘then_branch’ or the ‘else_branch’ depending the the condition.</p>
+<p>The merge of arguments is done by inserting an ‘<code>IfElse</code>’ instructions which returns
+the argument from the ‘<code>then_branch</code>’ or the ‘<code>else_branch</code>’ depending the the condition.</p>
 <p>The arguments are prepared for the destination to consume in the next immediate inlining.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.predicate_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#940-949">Source</a><h4 class="code-header">fn <a href="#method.predicate_value" class="fn">predicate_value</a>(&amp;mut self, value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, predicated_value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>)</h4></section></summary><div class="docblock"><p>Map the value to its predicated value in the current conditional context, and store the previous mapping
-to the ‘predicated_values’ map if not already stored.</p>
+to the ‘<code>predicated_values</code>’ map if not already stored.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.reset_predicated_values" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#952-956">Source</a><h4 class="code-header">fn <a href="#method.reset_predicated_values" class="fn">reset_predicated_values</a>(
     &amp;mut self,
     conditional_context: &amp;mut <a class="struct" href="struct.ConditionalContext.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalContext">ConditionalContext</a>,
@@ -219,7 +219,7 @@ to the ‘predicated_values’ map if not already stored.</p>
     instruction: <a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>,
     call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert a new instruction into the target block.
-Unlike push_instruction, this function will not map any ValueIds.
+Unlike <code>push_instruction</code>, this function will not map any <code>ValueIds</code>.
 within the given instruction, nor will it modify self.values in any way.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.insert_instruction_with_typevars" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#974-987">Source</a><h4 class="code-header">fn <a href="#method.insert_instruction_with_typevars" class="fn">insert_instruction_with_typevars</a>(
     &amp;mut self,
@@ -228,16 +228,16 @@ within the given instruction, nor will it modify self.values in any way.</p>
     call_stack: CallStackId,
 ) -&gt; <a class="enum" href="../../ir/dfg/enum.InsertInstructionResult.html" title="enum noirc_evaluator::ssa::ir::dfg::InsertInstructionResult">InsertInstructionResult</a>&lt;'_&gt;</h4></section></summary><div class="docblock"><p>Inserts a new instruction into the target block, using the given
 control type variables to specify result types if needed.
-Unlike push_instruction, this function will not map any ValueIds.
+Unlike <code>push_instruction</code>, this function will not map any <code>ValueIds</code>.
 within the given instruction, nor will it modify self.values in any way.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.insert_current_side_effects_enabled" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#994-1007">Source</a><h4 class="code-header">fn <a href="#method.insert_current_side_effects_enabled" class="fn">insert_current_side_effects_enabled</a>(&amp;mut self)</h4></section></summary><div class="docblock"><p>Checks the branch condition on the top of the stack and uses it to build and insert an
 <code>EnableSideEffectsIf</code> instruction into the target block.</p>
 <p>If the stack is empty, a “true” u1 constant is taken to be the active condition. This is
 necessary for re-enabling side-effects when re-emerging to a branch depth of 0.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.push_instruction" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1015-1033">Source</a><h4 class="code-header">fn <a href="#method.push_instruction" class="fn">push_instruction</a>(&amp;mut self, id: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;)</h4></section></summary><div class="docblock"><p>Push the given instruction to the end of the target block of the current function.</p>
-<p>Note that each ValueId of the instruction will be mapped via <code>self.inserter.resolve</code>.
+<p>Note that each <code>ValueId</code> of the instruction will be mapped via <code>self.inserter.resolve</code>.
 As a result, the instruction that will be pushed will actually be a new instruction
-with a different InstructionId from the original. The results of the given instruction
+with a different <code>InstructionId</code> from the original. The results of the given instruction
 will also be mapped to the results of the new instruction.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.handle_instruction_side_effects" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1040-1114">Source</a><h4 class="code-header">fn <a href="#method.handle_instruction_side_effects" class="fn">handle_instruction_side_effects</a>(
     &amp;mut self,
@@ -275,7 +275,7 @@ if their branch is taken.</p>
     call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>‘Cast’ the ‘condition’ to ‘value’ type</p>
 <p>This is needed because we need to multiply the condition with several values
-in order to ‘nullify’ side-effects when the ‘condition’ is false (in ‘handle_instruction_side_effects’ function).</p>
+in order to ‘nullify’ side-effects when the ‘condition’ is false (in ‘<code>handle_instruction_side_effects</code>’ function).</p>
 <p>Since the condition is a boolean, it can be safely casted to any other type.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.mul_by_condition" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1242-1254">Source</a><h4 class="code-header">fn <a href="#method.mul_by_condition" class="fn">mul_by_condition</a>(
     &amp;mut self,

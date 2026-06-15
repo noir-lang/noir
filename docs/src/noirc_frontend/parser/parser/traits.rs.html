@@ -16,8 +16,8 @@
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span><span class="kw">super</span>::parse_many::without_separator;
 <a href=#17 id=17 data-nosnippet>17</a>
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
-<a href=#20 id=20 data-nosnippet>20</a>    ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
+<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Trait = 'trait' identifier Generics ( ':' `TraitBounds` )? `WhereClause` `TraitBody`
+<a href=#20 id=20 data-nosnippet>20</a>    ///       | 'trait' identifier Generics '=' `TraitBounds` `WhereClause` ';'
 <a href=#21 id=21 data-nosnippet>21</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_trait(
 <a href=#22 id=22 data-nosnippet>22</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#23 id=23 data-nosnippet>23</a>        attributes: Vec&lt;(Attribute, Location)&gt;,
@@ -129,7 +129,7 @@
 <a href=#129 id=129 data-nosnippet>129</a>        (noir_trait, noir_impl)
 <a href=#130 id=130 data-nosnippet>130</a>    }
 <a href=#131 id=131 data-nosnippet>131</a>
-<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
+<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// `TraitBody` = '{' ( `OuterDocComments` `TraitItem` )* '}'
 <a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">fn </span>parse_trait_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;Documented&lt;TraitItem&gt;&gt; {
 <a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_left_brace() {
 <a href=#135 id=135 data-nosnippet>135</a>            <span class="self">self</span>.expected_token(Token::LeftBrace);
@@ -150,10 +150,10 @@
 <a href=#150 id=150 data-nosnippet>150</a>        })
 <a href=#151 id=151 data-nosnippet>151</a>    }
 <a href=#152 id=152 data-nosnippet>152</a>
-<a href=#153 id=153 data-nosnippet>153</a>    <span class="doccomment">/// TraitItem
-<a href=#154 id=154 data-nosnippet>154</a>    ///     = TraitType
-<a href=#155 id=155 data-nosnippet>155</a>    ///     | TraitConstant
-<a href=#156 id=156 data-nosnippet>156</a>    ///     | TraitFunction
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="doccomment">/// `TraitItem`
+<a href=#154 id=154 data-nosnippet>154</a>    ///     = `TraitType`
+<a href=#155 id=155 data-nosnippet>155</a>    ///     | `TraitConstant`
+<a href=#156 id=156 data-nosnippet>156</a>    ///     | `TraitFunction`
 <a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">fn </span>parse_trait_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItem&gt; {
 <a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(item) = <span class="self">self</span>.parse_trait_type() {
 <a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(item);
@@ -170,7 +170,7 @@
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="prelude-val">None
 <a href=#171 id=171 data-nosnippet>171</a>    </span>}
 <a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// TraitType = 'type' identifier ( ':' TraitBounds ) ';'
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// `TraitType` = 'type' identifier ( ':' `TraitBounds` ) ';'
 <a href=#174 id=174 data-nosnippet>174</a>    </span><span class="kw">fn </span>parse_trait_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItem&gt; {
 <a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Type) {
 <a href=#176 id=176 data-nosnippet>176</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -191,7 +191,7 @@
 <a href=#191 id=191 data-nosnippet>191</a>        <span class="prelude-val">Some</span>(TraitItem::Type { name, bounds })
 <a href=#192 id=192 data-nosnippet>192</a>    }
 <a href=#193 id=193 data-nosnippet>193</a>
-<a href=#194 id=194 data-nosnippet>194</a>    <span class="doccomment">/// TraitConstant = 'let' identifier ':' Type ( '=' Expression )? ';'
+<a href=#194 id=194 data-nosnippet>194</a>    <span class="doccomment">/// `TraitConstant` = 'let' identifier ':' Type ( '=' Expression )? ';'
 <a href=#195 id=195 data-nosnippet>195</a>    </span><span class="kw">fn </span>parse_trait_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItem&gt; {
 <a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Let) {
 <a href=#197 id=197 data-nosnippet>197</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -229,7 +229,7 @@
 <a href=#229 id=229 data-nosnippet>229</a>        <span class="prelude-val">Some</span>(TraitItem::Constant { name, typ })
 <a href=#230 id=230 data-nosnippet>230</a>    }
 <a href=#231 id=231 data-nosnippet>231</a>
-<a href=#232 id=232 data-nosnippet>232</a>    <span class="doccomment">/// TraitFunction = Modifiers Function
+<a href=#232 id=232 data-nosnippet>232</a>    <span class="doccomment">/// `TraitFunction` = Modifiers Function
 <a href=#233 id=233 data-nosnippet>233</a>    </span><span class="kw">fn </span>parse_trait_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItem&gt; {
 <a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span>modifiers = <span class="self">self</span>.parse_modifiers(
 <a href=#235 id=235 data-nosnippet>235</a>            <span class="bool-val">false</span>, <span class="comment">// allow mut

@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>
 <a href=#71 id=71 data-nosnippet>71</a><span class="doccomment">/// Human-readable label for a given pipeline step:
 <a href=#72 id=72 data-nosnippet>72</a>/// - step 0 is the initial SSA, before any pass has run;
-<a href=#73 id=73 data-nosnippet>73</a>/// - step N (1 ≤ N ≤ passes.len()) is the SSA after running
+<a href=#73 id=73 data-nosnippet>73</a>/// - step N (1 ≤ N ≤ `passes.len()`) is the SSA after running
 <a href=#74 id=74 data-nosnippet>74</a>///   `passes[N - 1]`.
 <a href=#75 id=75 data-nosnippet>75</a></span><span class="kw">fn </span>step_msg(passes: <span class="kw-2">&amp;</span>[SsaPass&lt;<span class="lifetime">'_</span>&gt;], step: usize) -&gt; String {
 <a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">if </span>step == <span class="number">0 </span>{ <span class="string">"Initial SSA"</span>.to_string() } <span class="kw">else </span>{ passes[step - <span class="number">1</span>].msg().to_string() }

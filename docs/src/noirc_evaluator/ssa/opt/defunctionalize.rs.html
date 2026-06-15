@@ -10,7 +10,7 @@
 <a href=#10 id=10 data-nosnippet>10</a>//! dispatch `apply` function.
 <a href=#11 id=11 data-nosnippet>11</a>//!
 <a href=#12 id=12 data-nosnippet>12</a>//! ## How the pass works:
-<a href=#13 id=13 data-nosnippet>13</a>//! - Every function used as a value (e.g., passed as a parameter) is assigned a unique [NumericType::NativeField] value.
+<a href=#13 id=13 data-nosnippet>13</a>//! - Every function used as a value (e.g., passed as a parameter) is assigned a unique [`NumericType::NativeField`] value.
 <a href=#14 id=14 data-nosnippet>14</a>//!   This value now represents the first-class function's ID.
 <a href=#15 id=15 data-nosnippet>15</a>//! - All call instructions with non-literal targets are replaced by calls to an `apply` function.
 <a href=#16 id=16 data-nosnippet>16</a>//! - The `apply` function is a dispatcher. It takes the function ID as its first argument
@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>/// }
 <a href=#70 id=70 data-nosnippet>70</a>/// ```
 <a href=#71 id=71 data-nosnippet>71</a>/// Apply functions generally take the function to apply as their first parameter. This is a Field value
-<a href=#72 id=72 data-nosnippet>72</a>/// obtained by converting the FunctionId into a Field. The remaining parameters of apply are the
+<a href=#72 id=72 data-nosnippet>72</a>/// obtained by converting the `FunctionId` into a Field. The remaining parameters of apply are the
 <a href=#73 id=73 data-nosnippet>73</a>/// arguments to forward to this function when calling it internally.
 <a href=#74 id=74 data-nosnippet>74</a></span><span class="attr">#[derive(Debug, Clone, Copy)]
 <a href=#75 id=75 data-nosnippet>75</a></span><span class="kw">struct </span>ApplyFunction {
@@ -78,15 +78,15 @@
 <a href=#78 id=78 data-nosnippet>78</a>}
 <a href=#79 id=79 data-nosnippet>79</a>
 <a href=#80 id=80 data-nosnippet>80</a><span class="doccomment">/// All functions used as a value that share the same signature and runtime type
-<a href=#81 id=81 data-nosnippet>81</a>/// Maps ([Signature], Caller [RuntimeType]) -&gt; Vec&lt;([FunctionId], Callee [RuntimeType])&gt;
+<a href=#81 id=81 data-nosnippet>81</a>/// Maps ([Signature], Caller [`RuntimeType`]) -&gt; Vec&lt;([`FunctionId`], Callee [`RuntimeType`])&gt;
 <a href=#82 id=82 data-nosnippet>82</a></span><span class="kw">type </span>Variants = BTreeMap&lt;(Signature, RuntimeType), Vec&lt;(FunctionId, RuntimeType)&gt;&gt;;
 <a href=#83 id=83 data-nosnippet>83</a><span class="doccomment">/// All generated apply functions for each grouping of function variants.
-<a href=#84 id=84 data-nosnippet>84</a>/// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
-<a href=#85 id=85 data-nosnippet>85</a>/// Maps ([Signature], [RuntimeType]) -&gt; [ApplyFunction]
+<a href=#84 id=84 data-nosnippet>84</a>/// Each apply function is handles a specific ([Signature], [`RuntimeType`]) group.
+<a href=#85 id=85 data-nosnippet>85</a>/// Maps ([Signature], [`RuntimeType`]) -&gt; [`ApplyFunction`]
 <a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">type </span>ApplyFunctions = HashMap&lt;(Signature, RuntimeType), ApplyFunction&gt;;
 <a href=#87 id=87 data-nosnippet>87</a>
 <a href=#88 id=88 data-nosnippet>88</a><span class="doccomment">/// Performs defunctionalization on all functions
-<a href=#89 id=89 data-nosnippet>89</a>/// This is done by changing all functions as value to be a number (FieldElement)
+<a href=#89 id=89 data-nosnippet>89</a>/// This is done by changing all functions as value to be a number (`FieldElement`)
 <a href=#90 id=90 data-nosnippet>90</a>/// And creating apply functions that dispatch to the correct target by runtime comparisons with constants
 <a href=#91 id=91 data-nosnippet>91</a></span><span class="attr">#[derive(Debug, Clone)]
 <a href=#92 id=92 data-nosnippet>92</a></span><span class="kw">struct </span>DefunctionalizationContext {
@@ -311,7 +311,7 @@
 <a href=#311 id=311 data-nosnippet>311</a>
 <a href=#312 id=312 data-nosnippet>312</a><span class="doccomment">/// Collects all functions used as values that can be called by their signatures.
 <a href=#313 id=313 data-nosnippet>313</a>///
-<a href=#314 id=314 data-nosnippet>314</a>/// Groups all [FunctionId]s used as values by their [Signature] and caller [RuntimeType],
+<a href=#314 id=314 data-nosnippet>314</a>/// Groups all [`FunctionId`]s used as values by their [Signature] and caller [`RuntimeType`],
 <a href=#315 id=315 data-nosnippet>315</a>/// producing a mapping from these tuples to the list of target functions that may be dynamically dispatched.
 <a href=#316 id=316 data-nosnippet>316</a>///
 <a href=#317 id=317 data-nosnippet>317</a>/// # Arguments
@@ -436,22 +436,22 @@
 <a href=#436 id=436 data-nosnippet>436</a>/// function is grouped by functions that share a target signature and caller runtime.
 <a href=#437 id=437 data-nosnippet>437</a>///
 <a href=#438 id=438 data-nosnippet>438</a>/// An apply function is only created if there are multiple function variants
-<a href=#439 id=439 data-nosnippet>439</a>/// for a specific ([Signature], [RuntimeType]) group.
+<a href=#439 id=439 data-nosnippet>439</a>/// for a specific ([Signature], [`RuntimeType`]) group.
 <a href=#440 id=440 data-nosnippet>440</a>/// Otherwise, if there is a single variant that function is simply reused.
 <a href=#441 id=441 data-nosnippet>441</a>///
 <a href=#442 id=442 data-nosnippet>442</a>/// If there are no variants a dummy function is created.
 <a href=#443 id=443 data-nosnippet>443</a>/// A dummy function acts as a safe no-op to continue compilation even though there are no variants
-<a href=#444 id=444 data-nosnippet>444</a>/// for a first-class function call. For more information you can reference [create_dummy_function].
+<a href=#444 id=444 data-nosnippet>444</a>/// for a first-class function call. For more information you can reference [`create_dummy_function`].
 <a href=#445 id=445 data-nosnippet>445</a>///
 <a href=#446 id=446 data-nosnippet>446</a>/// # Arguments
 <a href=#447 id=447 data-nosnippet>447</a>/// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
 <a href=#448 id=448 data-nosnippet>448</a>/// - `variants_map`:  [Variants]
 <a href=#449 id=449 data-nosnippet>449</a>///
 <a href=#450 id=450 data-nosnippet>450</a>/// # Returns
-<a href=#451 id=451 data-nosnippet>451</a>/// - [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+<a href=#451 id=451 data-nosnippet>451</a>/// - [`ApplyFunctions`] keyed by each function's signature _before_ functions are changed
 <a href=#452 id=452 data-nosnippet>452</a>///   into field types. The inner apply function itself will have its defunctionalized type,
 <a href=#453 id=453 data-nosnippet>453</a>///   with function values represented as field values.
-<a href=#454 id=454 data-nosnippet>454</a>/// - [HashMap&lt;FunctionId, Purity&gt;] with purities that must be set to all functions in the SSA,
+<a href=#454 id=454 data-nosnippet>454</a>/// - `HashMap&lt;FunctionId, Purity&gt;` with purities that must be set to all functions in the SSA,
 <a href=#455 id=455 data-nosnippet>455</a>///   as this function might have created dummy pure functions.
 <a href=#456 id=456 data-nosnippet>456</a></span><span class="kw">fn </span>create_apply_functions(
 <a href=#457 id=457 data-nosnippet>457</a>    ssa: <span class="kw-2">&amp;mut </span>Ssa,
@@ -554,7 +554,7 @@
 <a href=#554 id=554 data-nosnippet>554</a>        .collect()
 <a href=#555 id=555 data-nosnippet>555</a>}
 <a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a><span class="doccomment">/// Transforms a [FunctionId] into a [FieldElement]
+<a href=#557 id=557 data-nosnippet>557</a><span class="doccomment">/// Transforms a [`FunctionId`] into a [`FieldElement`]
 <a href=#558 id=558 data-nosnippet>558</a></span><span class="kw">fn </span>function_id_to_field(function_id: FunctionId) -&gt; FieldElement {
 <a href=#559 id=559 data-nosnippet>559</a>    u128::from(function_id.to_u32()).into()
 <a href=#560 id=560 data-nosnippet>560</a>}
@@ -579,7 +579,7 @@
 <a href=#579 id=579 data-nosnippet>579</a>}
 <a href=#580 id=580 data-nosnippet>580</a>
 <a href=#581 id=581 data-nosnippet>581</a><span class="doccomment">/// Creates a single apply function to enable dispatch across multiple function variants
-<a href=#582 id=582 data-nosnippet>582</a>/// that share the same [Signature] and [RuntimeType].
+<a href=#582 id=582 data-nosnippet>582</a>/// that share the same [Signature] and [`RuntimeType`].
 <a href=#583 id=583 data-nosnippet>583</a>///
 <a href=#584 id=584 data-nosnippet>584</a>/// This function is responsible for generating an entry point that dispatches between several
 <a href=#585 id=585 data-nosnippet>585</a>/// concrete functions at runtime based on a target field value. It builds a sequence of
@@ -593,11 +593,11 @@
 <a href=#593 id=593 data-nosnippet>593</a>/// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
 <a href=#594 id=594 data-nosnippet>594</a>/// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced with a field type.
 <a href=#595 id=595 data-nosnippet>595</a>/// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
-<a href=#596 id=596 data-nosnippet>596</a>/// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
+<a href=#596 id=596 data-nosnippet>596</a>/// - `function_ids`: A non-empty list of [`FunctionId`]s representing concrete functions to dispatch between.
 <a href=#597 id=597 data-nosnippet>597</a>///   This method will panic if `function_ids` is empty.
 <a href=#598 id=598 data-nosnippet>598</a>///
 <a href=#599 id=599 data-nosnippet>599</a>/// # Returns
-<a href=#600 id=600 data-nosnippet>600</a>/// The [FunctionId] of the new apply function
+<a href=#600 id=600 data-nosnippet>600</a>/// The [`FunctionId`] of the new apply function
 <a href=#601 id=601 data-nosnippet>601</a>///
 <a href=#602 id=602 data-nosnippet>602</a>/// # Panics
 <a href=#603 id=603 data-nosnippet>603</a>/// If the `function_ids` argument has fewer than two elements, implying that no apply function is necessary.
@@ -746,7 +746,7 @@
 <a href=#746 id=746 data-nosnippet>746</a>/// This is especially useful in cases where we cannot statically resolve the function reference,
 <a href=#747 id=747 data-nosnippet>747</a>/// but want to continue compiling the rest of the program safely.
 <a href=#748 id=748 data-nosnippet>748</a>///
-<a href=#749 id=749 data-nosnippet>749</a>/// Returns the [FunctionId] of the newly created dummy function.
+<a href=#749 id=749 data-nosnippet>749</a>/// Returns the [`FunctionId`] of the newly created dummy function.
 <a href=#750 id=750 data-nosnippet>750</a></span><span class="kw">fn </span>create_dummy_function(
 <a href=#751 id=751 data-nosnippet>751</a>    ssa: <span class="kw-2">&amp;mut </span>Ssa,
 <a href=#752 id=752 data-nosnippet>752</a>    signature: Signature,
@@ -2018,7 +2018,7 @@
 <a href=#2018 id=2018 data-nosnippet>2018</a>        "</span>);
 <a href=#2019 id=2019 data-nosnippet>2019</a>    }
 <a href=#2020 id=2020 data-nosnippet>2020</a>
-<a href=#2021 id=2021 data-nosnippet>2021</a>    <span class="doccomment">/// This test expands [acir_variant_in_brillig_last_function_to_dispatch] by having multiple
+<a href=#2021 id=2021 data-nosnippet>2021</a>    <span class="doccomment">/// This test expands [`acir_variant_in_brillig_last_function_to_dispatch`] by having multiple
 <a href=#2022 id=2022 data-nosnippet>2022</a>    /// ACIR variants be at the end of the proposed variant dispatch table
 <a href=#2023 id=2023 data-nosnippet>2023</a>    </span><span class="attr">#[test]
 <a href=#2024 id=2024 data-nosnippet>2024</a>    </span><span class="kw">fn </span>acir_variant_in_brillig_multiple_at_end_are_skipped() {

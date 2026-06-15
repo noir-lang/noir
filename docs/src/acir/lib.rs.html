@@ -364,7 +364,7 @@
 <a href=#364 id=364 data-nosnippet>364</a>    }
 <a href=#365 id=365 data-nosnippet>365</a>
 <a href=#366 id=366 data-nosnippet>366</a>    <span class="doccomment">/// Generate custom code for the msgpack machinery in Barretenberg.
-<a href=#367 id=367 data-nosnippet>367</a>    /// See https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp
+<a href=#367 id=367 data-nosnippet>367</a>    /// See &lt;https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp&gt;
 <a href=#368 id=368 data-nosnippet>368</a>    </span><span class="kw">struct </span>MsgPackCodeGenerator&lt;<span class="lifetime">'a</span>&gt; {
 <a href=#369 id=369 data-nosnippet>369</a>        config: MsgPackCodeConfig,
 <a href=#370 id=370 data-nosnippet>370</a>        namespace: Vec&lt;String&gt;,
@@ -569,7 +569,7 @@
 <a href=#569 id=569 data-nosnippet>569</a>            source.insert_str(pos, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"namespace {namespace} {{{helpers}}}\n\n"</span>));
 <a href=#570 id=570 data-nosnippet>570</a>        }
 <a href=#571 id=571 data-nosnippet>571</a>
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="doccomment">/// Reduce the opcode size in C++ by doing what Adam came up with in https://github.com/zefchain/serde-reflection/issues/75
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="doccomment">/// Reduce the opcode size in C++ by doing what Adam came up with in &lt;https://github.com/zefchain/serde-reflection/issues/75&gt;
 <a href=#573 id=573 data-nosnippet>573</a>        </span><span class="kw">fn </span>replace_array_with_shared_ptr(source: <span class="kw-2">&amp;mut </span>String) {
 <a href=#574 id=574 data-nosnippet>574</a>            <span class="comment">// Capture `std::array&lt;$TYPE, $LEN&gt;`
 <a href=#575 id=575 data-nosnippet>575</a>            </span><span class="kw">let </span>re = Regex::new(<span class="string">r#"std::array&lt;\s*([^,&lt;&gt;]+?)\s*,\s*([0-9]+)\s*&gt;"#</span>)

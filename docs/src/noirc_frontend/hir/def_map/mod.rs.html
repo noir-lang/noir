@@ -92,8 +92,8 @@
 <a href=#92 id=92 data-nosnippet>92</a>    ///
 <a href=#93 id=93 data-nosnippet>93</a>    /// # Arguments
 <a href=#94 id=94 data-nosnippet>94</a>    ///
-<a href=#95 id=95 data-nosnippet>95</a>    /// - `krate`: The [CrateId] of the crate for which this `CrateDefMap` refers to.
-<a href=#96 id=96 data-nosnippet>96</a>    /// - `root_module`: The [ModuleData] for the root module of the crate.
+<a href=#95 id=95 data-nosnippet>95</a>    /// - `krate`: The [`CrateId`] of the crate for which this `CrateDefMap` refers to.
+<a href=#96 id=96 data-nosnippet>96</a>    /// - `root_module`: The [`ModuleData`] for the root module of the crate.
 <a href=#97 id=97 data-nosnippet>97</a>    </span><span class="kw">pub fn </span>new(krate: CrateId, root_module: ModuleData) -&gt; CrateDefMap {
 <a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span><span class="kw-2">mut </span>modules = Arena::default();
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>root = LocalModuleId::new(modules.insert(root_module));
@@ -153,7 +153,7 @@
 <a href=#153 id=153 data-nosnippet>153</a>        <span class="self">self</span>.root
 <a href=#154 id=154 data-nosnippet>154</a>    }
 <a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// Returns a reference to the [ModuleData] stored at [LocalModuleId] `id` or `None` if none exists.
+<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// Returns a reference to the [`ModuleData`] stored at [`LocalModuleId`] `id` or `None` if none exists.
 <a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, id: LocalModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleData&gt; {
 <a href=#158 id=158 data-nosnippet>158</a>        <span class="self">self</span>.modules.get(id.<span class="number">0</span>)
 <a href=#159 id=159 data-nosnippet>159</a>    }
@@ -366,7 +366,7 @@
 <a href=#366 id=366 data-nosnippet>366</a>    }
 <a href=#367 id=367 data-nosnippet>367</a>}
 <a href=#368 id=368 data-nosnippet>368</a>
-<a href=#369 id=369 data-nosnippet>369</a><span class="doccomment">/// Given a FileId, fetch the File, from the FileManager and parse it's content
+<a href=#369 id=369 data-nosnippet>369</a><span class="doccomment">/// Given a `FileId`, fetch the File, from the `FileManager` and parse it's content
 <a href=#370 id=370 data-nosnippet>370</a></span><span class="kw">pub fn </span>parse_file(fm: <span class="kw-2">&amp;</span>FileManager, file_id: FileId) -&gt; (ParsedModule, Vec&lt;ParserError&gt;) {
 <a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">let </span>file_source = fm.fetch_file(file_id).expect(<span class="string">"File does not exist"</span>);
 <a href=#372 id=372 data-nosnippet>372</a>    parse_program(file_source, file_id)

@@ -175,7 +175,7 @@
 <a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">pub </span>force_brillig: bool,
 <a href=#176 id=176 data-nosnippet>176</a>
 <a href=#177 id=177 data-nosnippet>177</a>    <span class="doccomment">/// Enable printing results of comptime evaluation: provide a path suffix
-<a href=#178 id=178 data-nosnippet>178</a>    /// for the module to debug, e.g. "package_name/src/main.nr"
+<a href=#178 id=178 data-nosnippet>178</a>    /// for the module to debug, e.g. "`package_name/src/main.nr`"
 <a href=#179 id=179 data-nosnippet>179</a>    </span><span class="attr">#[arg(long)]
 <a href=#180 id=180 data-nosnippet>180</a>    </span><span class="kw">pub </span>debug_comptime_in_file: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#181 id=181 data-nosnippet>181</a>
@@ -583,7 +583,7 @@
 <a href=#583 id=583 data-nosnippet>583</a>/// On success this returns the compiled program alongside any warnings that were found.
 <a href=#584 id=584 data-nosnippet>584</a>/// On error this returns the non-empty list of warnings and errors.
 <a href=#585 id=585 data-nosnippet>585</a>///
-<a href=#586 id=586 data-nosnippet>586</a>/// See [compile_no_check] for further information about the use of `cached_program`.
+<a href=#586 id=586 data-nosnippet>586</a>/// See [`compile_no_check`] for further information about the use of `cached_program`.
 <a href=#587 id=587 data-nosnippet>587</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#588 id=588 data-nosnippet>588</a></span><span class="kw">pub fn </span>compile_main(
 <a href=#589 id=589 data-nosnippet>589</a>    context: <span class="kw-2">&amp;mut </span>Context,
@@ -948,7 +948,7 @@
 <a href=#948 id=948 data-nosnippet>948</a>/// already been applied.
 <a href=#949 id=949 data-nosnippet>949</a>///
 <a href=#950 id=950 data-nosnippet>950</a>/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-<a href=#951 id=951 data-nosnippet>951</a>/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
+<a href=#951 id=951 data-nosnippet>951</a>/// That comparison is based on on [`CompiledProgram::hash`] which is a persisted version of the hash of the input
 <a href=#952 id=952 data-nosnippet>952</a>/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
 <a href=#953 id=953 data-nosnippet>953</a>/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 <a href=#954 id=954 data-nosnippet>954</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all, fields(function_name = context.function_name(<span class="kw-2">&amp;</span>main_function)))]
@@ -1052,9 +1052,9 @@
 <a href=#1052 id=1052 data-nosnippet>1052</a>}
 <a href=#1053 id=1053 data-nosnippet>1053</a>
 <a href=#1054 id=1054 data-nosnippet>1054</a><span class="doccomment">/// A 'contract' in Noir source code with a given name, functions and events.
-<a href=#1055 id=1055 data-nosnippet>1055</a>/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+<a href=#1055 id=1055 data-nosnippet>1055</a>/// This is not an AST node, it is just a convenient form to return for `CrateDefMap::get_all_contracts`.
 <a href=#1056 id=1056 data-nosnippet>1056</a></span><span class="kw">struct </span>Contract {
-<a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+<a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via `CrateDefMap::get_module_path`
 <a href=#1058 id=1058 data-nosnippet>1058</a>    </span>name: String,
 <a href=#1059 id=1059 data-nosnippet>1059</a>    functions: Vec&lt;ContractFunctionMeta&gt;,
 <a href=#1060 id=1060 data-nosnippet>1060</a>    outputs: ContractOutputs,

@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>}
 <a href=#62 id=62 data-nosnippet>62</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>bail_malformed;
 <a href=#63 id=63 data-nosnippet>63</a>
-<a href=#64 id=64 data-nosnippet>64</a><span class="doccomment">/// Contains the result to Instruction::simplify, specifying how the instruction
+<a href=#64 id=64 data-nosnippet>64</a><span class="doccomment">/// Contains the result to `Instruction::simplify`, specifying how the instruction
 <a href=#65 id=65 data-nosnippet>65</a>/// should be simplified.
 <a href=#66 id=66 data-nosnippet>66</a></span><span class="attr">#[derive(Debug)]
 <a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>SimplifyResult {
@@ -458,20 +458,20 @@
 <a href=#458 id=458 data-nosnippet>458</a>/// we can simplify that array set to the array we were looking to perform an array set upon.
 <a href=#459 id=459 data-nosnippet>459</a>///
 <a href=#460 id=460 data-nosnippet>460</a>/// Simple case:
-<a href=#461 id=461 data-nosnippet>461</a>/// v3 = array_get v1, index v2
-<a href=#462 id=462 data-nosnippet>462</a>/// v5 = array_set v1, index v2, value v3
+<a href=#461 id=461 data-nosnippet>461</a>/// v3 = `array_get` v1, index v2
+<a href=#462 id=462 data-nosnippet>462</a>/// v5 = `array_set` v1, index v2, value v3
 <a href=#463 id=463 data-nosnippet>463</a>///
 <a href=#464 id=464 data-nosnippet>464</a>/// If we could not immediately simplify the array set from its value, we can try to follow
 <a href=#465 id=465 data-nosnippet>465</a>/// the array set backwards in the case we have constant indices:
 <a href=#466 id=466 data-nosnippet>466</a>///
-<a href=#467 id=467 data-nosnippet>467</a>/// v3 = array_get v1, index 1
-<a href=#468 id=468 data-nosnippet>468</a>/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
-<a href=#469 id=469 data-nosnippet>469</a>/// v7 = array_set mut v5, index 1, value v3
+<a href=#467 id=467 data-nosnippet>467</a>/// v3 = `array_get` v1, index 1
+<a href=#468 id=468 data-nosnippet>468</a>/// v5 = `array_set` v1, index 2, value [Field 100, Field 101, Field 102]
+<a href=#469 id=469 data-nosnippet>469</a>/// v7 = `array_set` mut v5, index 1, value v3
 <a href=#470 id=470 data-nosnippet>470</a>///
 <a href=#471 id=471 data-nosnippet>471</a>/// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
 <a href=#472 id=472 data-nosnippet>472</a>/// to `v1` and see that the previous array set occurs to a different constant index.
 <a href=#473 id=473 data-nosnippet>473</a>///
-<a href=#474 id=474 data-nosnippet>474</a>/// For each array_set:
+<a href=#474 id=474 data-nosnippet>474</a>/// For each `array_set`:
 <a href=#475 id=475 data-nosnippet>475</a>/// - If the index is non-constant we fail the optimization since any index may be changed.
 <a href=#476 id=476 data-nosnippet>476</a>/// - If the index is constant and is our target index, we conservatively fail the optimization.
 <a href=#477 id=477 data-nosnippet>477</a>/// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.

@@ -6,7 +6,7 @@
 so it can be named from rustdoc; the only stable entry point is still the
 free function. A builder for strategy customization will land later
 (mirroring the serializer’s plan).</p>
-<p>The inner reader is fixed to <code>&amp;'de [u8]</code> (wrapped in rmp_serde’s
+<p>The inner reader is fixed to <code>&amp;'de [u8]</code> (wrapped in <code>rmp_serde</code>’s
 <code>ReadReader</code>, the shape <code>RmpDeserializer::new</code> constructs). We don’t
 keep the reader generic because two interception paths need to grab a
 snapshot of the unread byte slice — <code>deserialize_option</code>’s peek-via-

@@ -108,10 +108,10 @@
 <a href=#108 id=108 data-nosnippet>108</a>    }
 <a href=#109 id=109 data-nosnippet>109</a>}
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a><span class="doccomment">/// Post-check condition for [Ssa::evaluate_static_assert_and_assert_constant].
+<a href=#111 id=111 data-nosnippet>111</a><span class="doccomment">/// Post-check condition for [`Ssa::evaluate_static_assert_and_assert_constant`].
 <a href=#112 id=112 data-nosnippet>112</a>///
 <a href=#113 id=113 data-nosnippet>113</a>/// Panics if a call to `static_assert` or `assert_constant` remains in a reachable block.
-<a href=#114 id=114 data-nosnippet>114</a>/// Unlike the lenient [Ssa::try_evaluate_static_assert_and_assert_constant], the strict
+<a href=#114 id=114 data-nosnippet>114</a>/// Unlike the lenient [`Ssa::try_evaluate_static_assert_and_assert_constant`], the strict
 <a href=#115 id=115 data-nosnippet>115</a>/// variant either evaluates and removes every such call or errors, so any survivor would
 <a href=#116 id=116 data-nosnippet>116</a>/// otherwise only be caught at ACIR generation.
 <a href=#117 id=117 data-nosnippet>117</a></span><span class="attr">#[cfg(debug_assertions)]
@@ -225,7 +225,7 @@
 <a href=#225 id=225 data-nosnippet>225</a>}
 <a href=#226 id=226 data-nosnippet>226</a>
 <a href=#227 id=227 data-nosnippet>227</a><span class="doccomment">/// Evaluate a call to `static_assert`, returning an error if the value is false
-<a href=#228 id=228 data-nosnippet>228</a>/// or not constant (see assert_constant).
+<a href=#228 id=228 data-nosnippet>228</a>/// or not constant (see `assert_constant`).
 <a href=#229 id=229 data-nosnippet>229</a>///
 <a href=#230 id=230 data-nosnippet>230</a>/// When it passes, Ok(false) is returned. This signifies a
 <a href=#231 id=231 data-nosnippet>231</a>/// success but also that the instruction need not be reinserted into the block being unrolled

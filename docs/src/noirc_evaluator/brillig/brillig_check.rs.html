@@ -41,7 +41,7 @@
 <a href=#41 id=41 data-nosnippet>41</a>
 <a href=#42 id=42 data-nosnippet>42</a><span class="doccomment">/// Go through opcodes and collect advisories, indicating opcodes which are potentially unused.
 <a href=#43 id=43 data-nosnippet>43</a>///
-<a href=#44 id=44 data-nosnippet>44</a>/// At the moment this relies on the CFG still available from the SSA via the [FunctionContext].
+<a href=#44 id=44 data-nosnippet>44</a>/// At the moment this relies on the CFG still available from the SSA via the [`FunctionContext`].
 <a href=#45 id=45 data-nosnippet>45</a>/// Unfortunately this doesn't work for the artifacts created by `compile_procedures`,
 <a href=#46 id=46 data-nosnippet>46</a>/// which use looping in the bytecode level. To handle them in isolation, we would need to
 <a href=#47 id=47 data-nosnippet>47</a>/// reconstruct the CFG from unresolved jump labels, and then establish a post order from that.
@@ -187,7 +187,7 @@
 <a href=#187 id=187 data-nosnippet>187</a>    }
 <a href=#188 id=188 data-nosnippet>188</a>}
 <a href=#189 id=189 data-nosnippet>189</a>
-<a href=#190 id=190 data-nosnippet>190</a><span class="doccomment">/// Go through the labels in the [BrilligContext] and collect the opcode locations
+<a href=#190 id=190 data-nosnippet>190</a><span class="doccomment">/// Go through the labels in the [`BrilligContext`] and collect the opcode locations
 <a href=#191 id=191 data-nosnippet>191</a>/// where each block starts and ends.
 <a href=#192 id=192 data-nosnippet>192</a>///
 <a href=#193 id=193 data-nosnippet>193</a>/// # Assumptions on the label set
@@ -757,7 +757,7 @@
 <a href=#757 id=757 data-nosnippet>757</a>/// variants (so any future change to that classification flows through here
 <a href=#758 id=758 data-nosnippet>758</a>/// automatically), with [`BlackBoxOp::ToRadix`] handled explicitly because
 <a href=#759 id=759 data-nosnippet>759</a>/// the brillig VM validates its `radix` argument against `[2, 256]` at
-<a href=#760 id=760 data-nosnippet>760</a>/// runtime and ToRadix has no ACIR analog.
+<a href=#760 id=760 data-nosnippet>760</a>/// runtime and `ToRadix` has no ACIR analog.
 <a href=#761 id=761 data-nosnippet>761</a></span><span class="kw">fn </span>is_fallible_black_box_op(op: <span class="kw-2">&amp;</span>BlackBoxOp) -&gt; bool {
 <a href=#762 id=762 data-nosnippet>762</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(func) = black_box_op_to_acir_func(op) {
 <a href=#763 id=763 data-nosnippet>763</a>        func.has_side_effects()

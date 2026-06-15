@@ -119,7 +119,7 @@
 <a href=#119 id=119 data-nosnippet>119</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#120 id=120 data-nosnippet>120</a></span><span class="kw">pub struct </span>ReferenceValue {
 <a href=#121 id=121 data-nosnippet>121</a>    <span class="doccomment">/// This is included mostly for debugging to distinguish different
-<a href=#122 id=122 data-nosnippet>122</a>    /// ReferenceValues which store the same element.
+<a href=#122 id=122 data-nosnippet>122</a>    /// `ReferenceValues` which store the same element.
 <a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">pub </span>original_id: ValueId,
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// A value of `None` here means this allocation is currently uninitialized
@@ -136,8 +136,8 @@
 <a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">pub </span>elements: Shared&lt;Vec&lt;Value&gt;&gt;,
 <a href=#137 id=137 data-nosnippet>137</a>
 <a href=#138 id=138 data-nosnippet>138</a>    <span class="doccomment">/// The `Shared` type contains its own reference count but we need to track
-<a href=#139 id=139 data-nosnippet>139</a>    /// the reference count separate to ensure it is only changed by IncrementRc and
-<a href=#140 id=140 data-nosnippet>140</a>    /// DecrementRc instructions.
+<a href=#139 id=139 data-nosnippet>139</a>    /// the reference count separate to ensure it is only changed by `IncrementRc` and
+<a href=#140 id=140 data-nosnippet>140</a>    /// `DecrementRc` instructions.
 <a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">pub </span>rc: Shared&lt;u32&gt;,
 <a href=#142 id=142 data-nosnippet>142</a>
 <a href=#143 id=143 data-nosnippet>143</a>    <span class="kw">pub </span>element_types: Arc&lt;CompositeType&gt;,

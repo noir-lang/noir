@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>
 <a href=#71 id=71 data-nosnippet>71</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// Registers all functions, impl methods, and trait impl methods for *lazy*
-<a href=#73 id=73 data-nosnippet>73</a>    /// metadata resolution. Each entry captures the elaborator context (self_type,
+<a href=#73 id=73 data-nosnippet>73</a>    /// metadata resolution. Each entry captures the elaborator context (`self_type`,
 <a href=#74 id=74 data-nosnippet>74</a>    /// outer generics, trait/impl ids) needed to resolve the meta later. Trait
 <a href=#75 id=75 data-nosnippet>75</a>    /// impls are also prepared here so that `&lt;Object as Trait&gt;::Type` references
 <a href=#76 id=76 data-nosnippet>76</a>    /// inside any signature can be looked up during meta resolution.
@@ -255,19 +255,19 @@
 <a href=#255 id=255 data-nosnippet>255</a>        <span class="self">self</span>.resolve_unresolved_function_meta(func_id, info);
 <a href=#256 id=256 data-nosnippet>256</a>    }
 <a href=#257 id=257 data-nosnippet>257</a>
-<a href=#258 id=258 data-nosnippet>258</a>    <span class="doccomment">/// Lazily resolves a function's [FuncMeta] if needed, then returns it.
+<a href=#258 id=258 data-nosnippet>258</a>    <span class="doccomment">/// Lazily resolves a function's [`FuncMeta`] if needed, then returns it.
 <a href=#259 id=259 data-nosnippet>259</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_meta(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func_id: FuncId) -&gt; <span class="kw-2">&amp;</span>FuncMeta {
 <a href=#260 id=260 data-nosnippet>260</a>        <span class="self">self</span>.define_function_meta_if_undefined(func_id);
 <a href=#261 id=261 data-nosnippet>261</a>        <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id)
 <a href=#262 id=262 data-nosnippet>262</a>    }
 <a href=#263 id=263 data-nosnippet>263</a>
-<a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// Mutable counterpart of [Self::function_meta].
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// Mutable counterpart of [`Self::function_meta`].
 <a href=#265 id=265 data-nosnippet>265</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_meta_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func_id: FuncId) -&gt; <span class="kw-2">&amp;mut </span>FuncMeta {
 <a href=#266 id=266 data-nosnippet>266</a>        <span class="self">self</span>.define_function_meta_if_undefined(func_id);
 <a href=#267 id=267 data-nosnippet>267</a>        <span class="self">self</span>.interner.function_meta_mut(<span class="kw-2">&amp;</span>func_id)
 <a href=#268 id=268 data-nosnippet>268</a>    }
 <a href=#269 id=269 data-nosnippet>269</a>
-<a href=#270 id=270 data-nosnippet>270</a>    <span class="doccomment">/// Runs `f` with the function's resolved [FuncMeta].
+<a href=#270 id=270 data-nosnippet>270</a>    <span class="doccomment">/// Runs `f` with the function's resolved [`FuncMeta`].
 <a href=#271 id=271 data-nosnippet>271</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>with_function_meta&lt;R&gt;(
 <a href=#272 id=272 data-nosnippet>272</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#273 id=273 data-nosnippet>273</a>        func_id: FuncId,
@@ -342,10 +342,10 @@
 <a href=#342 id=342 data-nosnippet>342</a>    ///
 <a href=#343 id=343 data-nosnippet>343</a>    /// This resolves the function's signature including generics, parameters, return type,
 <a href=#344 id=344 data-nosnippet>344</a>    /// and trait constraints. The function body is stored unresolved and will be elaborated
-<a href=#345 id=345 data-nosnippet>345</a>    /// later by [Self::elaborate_function].
+<a href=#345 id=345 data-nosnippet>345</a>    /// later by [`Self::elaborate_function`].
 <a href=#346 id=346 data-nosnippet>346</a>    ///
 <a href=#347 id=347 data-nosnippet>347</a>    /// Prerequisite: any implicit generics from enclosing impls have already been added
-<a href=#348 id=348 data-nosnippet>348</a>    /// to scope via [Self::add_generics].
+<a href=#348 id=348 data-nosnippet>348</a>    /// to scope via [`Self::add_generics`].
 <a href=#349 id=349 data-nosnippet>349</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#350 id=350 data-nosnippet>350</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>define_function_meta(
 <a href=#351 id=351 data-nosnippet>351</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -492,7 +492,7 @@
 <a href=#492 id=492 data-nosnippet>492</a>
 <a href=#493 id=493 data-nosnippet>493</a>    <span class="doccomment">/// Adds function generics and associated generics (from where clause) to scope.
 <a href=#494 id=494 data-nosnippet>494</a>    ///
-<a href=#495 id=495 data-nosnippet>495</a>    /// Returns (generics, associated_generics_trait_constraints) where generics contains
+<a href=#495 id=495 data-nosnippet>495</a>    /// Returns (generics, `associated_generics_trait_constraints`) where generics contains
 <a href=#496 id=496 data-nosnippet>496</a>    /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
 <a href=#497 id=497 data-nosnippet>497</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#498 id=498 data-nosnippet>498</a>    </span><span class="kw">fn </span>add_function_generics_to_scope(
@@ -548,8 +548,8 @@
 <a href=#548 id=548 data-nosnippet>548</a>
 <a href=#549 id=549 data-nosnippet>549</a>    <span class="doccomment">/// Resolves function parameters and validates their types for entry points.
 <a href=#550 id=550 data-nosnippet>550</a>    ///
-<a href=#551 id=551 data-nosnippet>551</a>    /// Returns (parameters, parameter_types, parameter_idents) where generics and
-<a href=#552 id=552 data-nosnippet>552</a>    /// trait_constraints may be extended due to `impl Trait` desugaring.
+<a href=#551 id=551 data-nosnippet>551</a>    /// Returns (parameters, `parameter_types`, `parameter_idents`) where generics and
+<a href=#552 id=552 data-nosnippet>552</a>    /// `trait_constraints` may be extended due to `impl Trait` desugaring.
 <a href=#553 id=553 data-nosnippet>553</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#554 id=554 data-nosnippet>554</a>    </span><span class="kw">fn </span>resolve_function_parameters(
 <a href=#555 id=555 data-nosnippet>555</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -650,7 +650,7 @@
 <a href=#650 id=650 data-nosnippet>650</a>    }
 <a href=#651 id=651 data-nosnippet>651</a>
 <a href=#652 id=652 data-nosnippet>652</a>    <span class="doccomment">/// Only sized types are valid to be used as main's parameters or the parameters to a contract
-<a href=#653 id=653 data-nosnippet>653</a>    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
+<a href=#653 id=653 data-nosnippet>653</a>    /// function. If the given type is not sized (e.g. contains a vector or `NamedGeneric` type), an
 <a href=#654 id=654 data-nosnippet>654</a>    /// error is issued.
 <a href=#655 id=655 data-nosnippet>655</a>    </span><span class="kw">fn </span>check_if_type_is_valid_for_program(
 <a href=#656 id=656 data-nosnippet>656</a>        typ: <span class="kw-2">&amp;</span>Type,
@@ -703,7 +703,7 @@
 <a href=#703 id=703 data-nosnippet>703</a>    ///
 <a href=#704 id=704 data-nosnippet>704</a>    /// This is the second pass of function elaboration that processes the function body,
 <a href=#705 id=705 data-nosnippet>705</a>    /// resolves all expressions and statements, performs type checking, and verifies
-<a href=#706 id=706 data-nosnippet>706</a>    /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
+<a href=#706 id=706 data-nosnippet>706</a>    /// trait constraints. The function metadata must already be defined by [`Self::define_function_meta`].
 <a href=#707 id=707 data-nosnippet>707</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#708 id=708 data-nosnippet>708</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId) {
 <a href=#709 id=709 data-nosnippet>709</a>        <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.func_meta.get_mut(<span class="kw-2">&amp;</span>id);

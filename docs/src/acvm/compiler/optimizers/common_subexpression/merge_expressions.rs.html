@@ -28,15 +28,15 @@
 <a href=#28 id=28 data-nosnippet>28</a>    }
 <a href=#29 id=29 data-nosnippet>29</a>
 <a href=#30 id=30 data-nosnippet>30</a>    <span class="doccomment">/// This pass analyzes the circuit and identifies intermediate variables that are
-<a href=#31 id=31 data-nosnippet>31</a>    /// only used in two AssertZero opcodes. It then merges the opcode which produces the
+<a href=#31 id=31 data-nosnippet>31</a>    /// only used in two `AssertZero` opcodes. It then merges the opcode which produces the
 <a href=#32 id=32 data-nosnippet>32</a>    /// intermediate variable into the second one that uses it
 <a href=#33 id=33 data-nosnippet>33</a>    ///
 <a href=#34 id=34 data-nosnippet>34</a>    /// The first pass maps witnesses to the indices of the opcodes using them.
 <a href=#35 id=35 data-nosnippet>35</a>    /// Public inputs are not considered because they cannot be simplified.
-<a href=#36 id=36 data-nosnippet>36</a>    /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
+<a href=#36 id=36 data-nosnippet>36</a>    /// Witnesses used by `MemoryInit` opcodes are put in a separate map and marked as used by a Brillig call
 <a href=#37 id=37 data-nosnippet>37</a>    /// if the memory block is an input to the call.
 <a href=#38 id=38 data-nosnippet>38</a>    ///
-<a href=#39 id=39 data-nosnippet>39</a>    /// The second pass looks for AssertZero opcodes having a witness which is only used by another arithmetic opcode.
+<a href=#39 id=39 data-nosnippet>39</a>    /// The second pass looks for `AssertZero` opcodes having a witness which is only used by another arithmetic opcode.
 <a href=#40 id=40 data-nosnippet>40</a>    /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
 <a href=#41 id=41 data-nosnippet>41</a>    /// For instance, if we have 'w1' used only by these two opcodes,
 <a href=#42 id=42 data-nosnippet>42</a>    /// `5*w2*w3` and `w1`:
@@ -270,9 +270,9 @@
 <a href=#270 id=270 data-nosnippet>270</a>    </span>}
 <a href=#271 id=271 data-nosnippet>271</a>
 <a href=#272 id=272 data-nosnippet>272</a>    <span class="doccomment">/// Returns the 'updated' opcode at the given index in the circuit
-<a href=#273 id=273 data-nosnippet>273</a>    /// The modifications to the circuits are stored with 'deleted_gates' and 'modified_gates'
+<a href=#273 id=273 data-nosnippet>273</a>    /// The modifications to the circuits are stored with '`deleted_gates`' and '`modified_gates`'
 <a href=#274 id=274 data-nosnippet>274</a>    /// These structures are used to give the 'updated' opcode.
-<a href=#275 id=275 data-nosnippet>275</a>    /// For instance, if the opcode has been deleted inside 'deleted_gates', then it returns None.
+<a href=#275 id=275 data-nosnippet>275</a>    /// For instance, if the opcode has been deleted inside '`deleted_gates`', then it returns None.
 <a href=#276 id=276 data-nosnippet>276</a>    </span><span class="kw">fn </span>get_opcode(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Opcode&lt;F&gt;&gt; {
 <a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">if </span><span class="self">self</span>.deleted_gates.contains(<span class="kw-2">&amp;</span>index) {
 <a href=#278 id=278 data-nosnippet>278</a>            <span class="kw">return </span><span class="prelude-val">None</span>;

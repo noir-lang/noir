@@ -4,21 +4,21 @@
     memory: &amp;mut <a class="struct" href="../struct.Memory.html" title="struct brillig_vm::Memory">Memory</a>&lt;F&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, BlackBoxResolutionError&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Evaluates a black box function inside the VM, performing the actual native computation.</p>
 <p>Delegates the execution to the corresponding cryptographic or arithmetic
-function, depending on the [BlackBoxOp] variant.
+function, depending on the [<code>BlackBoxOp</code>] variant.
 Handles input conversion, writing the result to memory, and error propagation.</p>
 <h2 id="arguments"><a class="doc-anchor" href="#arguments">§</a>Arguments</h2>
 <ul>
 <li>op: The black box operation to evaluate.</li>
-<li>solver: An implementation of [BlackBoxFunctionSolver] providing external function behavior.</li>
+<li>solver: An implementation of [<code>BlackBoxFunctionSolver</code>] providing external function behavior.</li>
 <li>memory: The VM memory from which inputs are read and to which results are written.</li>
-<li>bigint_solver: A solver used for big integer operations.</li>
+<li><code>bigint_solver</code>: A solver used for big integer operations.</li>
 </ul>
 <h2 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h2>
 <ul>
 <li>Ok(()) if evaluation succeeds.</li>
-<li>Err([BlackBoxResolutionError]) if an error occurs during execution or input is invalid.</li>
+<li>Err([<code>BlackBoxResolutionError</code>]) if an error occurs during execution or input is invalid.</li>
 </ul>
 <h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
-<p>If any required memory value cannot be converted to the expected type (e.g., <a href="../enum.MemoryValue.html#method.expect_u8" title="method brillig_vm::MemoryValue::expect_u8">expect_u8</a>)
+<p>If any required memory value cannot be converted to the expected type (e.g., <a href="../enum.MemoryValue.html#method.expect_u8" title="method brillig_vm::MemoryValue::expect_u8"><code>expect_u8</code></a>)
 or if the [radix decomposition][BlackBoxOp::ToRadix] constraints are violated internally, such as an invalid radix range (e.g., radix of 1).</p>
 </div></details></section></div></main></body></html>

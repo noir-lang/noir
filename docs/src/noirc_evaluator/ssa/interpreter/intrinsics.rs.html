@@ -790,7 +790,7 @@
 <a href=#790 id=790 data-nosnippet>790</a>    <span class="prelude-val">Ok</span>(Value::array(<span class="macro">vec!</span>[x, y], <span class="macro">vec!</span>[Type::field(), Type::field()]))
 <a href=#791 id=791 data-nosnippet>791</a>}
 <a href=#792 id=792 data-nosnippet>792</a>
-<a href=#793 id=793 data-nosnippet>793</a><span class="doccomment">/// Convert a vector of [Value] to a flattened vector of [FieldElement] for printing.
+<a href=#793 id=793 data-nosnippet>793</a><span class="doccomment">/// Convert a vector of [Value] to a flattened vector of [`FieldElement`] for printing.
 <a href=#794 id=794 data-nosnippet>794</a>///
 <a href=#795 id=795 data-nosnippet>795</a>/// It takes a vector, rather than individual values, so that it can try to
 <a href=#796 id=796 data-nosnippet>796</a>/// pair up `u32` fields indicating the size of a `Vector` with its elements
@@ -848,7 +848,7 @@
 <a href=#848 id=848 data-nosnippet>848</a>    fields
 <a href=#849 id=849 data-nosnippet>849</a>}
 <a href=#850 id=850 data-nosnippet>850</a>
-<a href=#851 id=851 data-nosnippet>851</a><span class="doccomment">/// Parse a [Value] as [PrintableType].
+<a href=#851 id=851 data-nosnippet>851</a><span class="doccomment">/// Parse a [Value] as [`PrintableType`].
 <a href=#852 id=852 data-nosnippet>852</a></span><span class="kw">fn </span>value_to_printable_type(value: <span class="kw-2">&amp;</span>Value) -&gt; IResult&lt;PrintableType&gt; {
 <a href=#853 id=853 data-nosnippet>853</a>    <span class="kw">let </span>name = <span class="string">"type_metadata"</span>;
 <a href=#854 id=854 data-nosnippet>854</a>    <span class="kw">let </span>json = value_to_string(name, value)<span class="question-mark">?</span>;

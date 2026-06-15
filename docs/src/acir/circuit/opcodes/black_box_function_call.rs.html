@@ -90,10 +90,10 @@
 <a href=#90 id=90 data-nosnippet>90</a>    },
 <a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Performs the bitwise AND of `lhs` and `rhs`. `bit_size` must be the same for
 <a href=#92 id=92 data-nosnippet>92</a>    /// both inputs.
-<a href=#93 id=93 data-nosnippet>93</a>    /// - lhs: (witness, bit_size)
-<a href=#94 id=94 data-nosnippet>94</a>    /// - rhs: (witness, bit_size)
+<a href=#93 id=93 data-nosnippet>93</a>    /// - lhs: (witness, `bit_size`)
+<a href=#94 id=94 data-nosnippet>94</a>    /// - rhs: (witness, `bit_size`)
 <a href=#95 id=95 data-nosnippet>95</a>    /// - output: a witness whose value is constrained to be lhs AND rhs, as
-<a href=#96 id=96 data-nosnippet>96</a>    ///   bit_size bit integers
+<a href=#96 id=96 data-nosnippet>96</a>    ///   `bit_size` bit integers
 <a href=#97 id=97 data-nosnippet>97</a>    </span><span class="attr">#[tag(<span class="number">1</span>)]
 <a href=#98 id=98 data-nosnippet>98</a>    </span>AND {
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="attr">#[tag(<span class="number">0</span>)]
@@ -107,10 +107,10 @@
 <a href=#107 id=107 data-nosnippet>107</a>    },
 <a href=#108 id=108 data-nosnippet>108</a>    <span class="doccomment">/// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
 <a href=#109 id=109 data-nosnippet>109</a>    /// both inputs.
-<a href=#110 id=110 data-nosnippet>110</a>    /// - lhs: (witness, bit_size)
-<a href=#111 id=111 data-nosnippet>111</a>    /// - rhs: (witness, bit_size)
+<a href=#110 id=110 data-nosnippet>110</a>    /// - lhs: (witness, `bit_size`)
+<a href=#111 id=111 data-nosnippet>111</a>    /// - rhs: (witness, `bit_size`)
 <a href=#112 id=112 data-nosnippet>112</a>    /// - output: a witness whose value is constrained to be lhs XOR rhs, as
-<a href=#113 id=113 data-nosnippet>113</a>    ///   bit_size bit integers
+<a href=#113 id=113 data-nosnippet>113</a>    ///   `bit_size` bit integers
 <a href=#114 id=114 data-nosnippet>114</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
 <a href=#115 id=115 data-nosnippet>115</a>    </span>XOR {
 <a href=#116 id=116 data-nosnippet>116</a>        <span class="attr">#[tag(<span class="number">0</span>)]
@@ -124,7 +124,7 @@
 <a href=#124 id=124 data-nosnippet>124</a>    },
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Range constraint to ensure that a witness
 <a href=#126 id=126 data-nosnippet>126</a>    /// can be represented in the specified number of bits.
-<a href=#127 id=127 data-nosnippet>127</a>    /// - input: (witness, bit_size)
+<a href=#127 id=127 data-nosnippet>127</a>    /// - input: (witness, `bit_size`)
 <a href=#128 id=128 data-nosnippet>128</a>    </span><span class="attr">#[tag(<span class="number">3</span>)]
 <a href=#129 id=129 data-nosnippet>129</a>    </span>RANGE {
 <a href=#130 id=130 data-nosnippet>130</a>        <span class="attr">#[tag(<span class="number">0</span>)]
@@ -197,7 +197,7 @@
 <a href=#197 id=197 data-nosnippet>197</a>    },
 <a href=#198 id=198 data-nosnippet>198</a>    <span class="doccomment">/// Verifies a ECDSA signature over the secp256r1 curve.
 <a href=#199 id=199 data-nosnippet>199</a>    ///
-<a href=#200 id=200 data-nosnippet>200</a>    /// Same as EcdsaSecp256k1, but done over another curve.
+<a href=#200 id=200 data-nosnippet>200</a>    /// Same as `EcdsaSecp256k1`, but done over another curve.
 <a href=#201 id=201 data-nosnippet>201</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
 <a href=#202 id=202 data-nosnippet>202</a>    </span>EcdsaSecp256r1 {
 <a href=#203 id=203 data-nosnippet>203</a>        <span class="attr">#[tag(<span class="number">0</span>)]
@@ -298,9 +298,9 @@
 <a href=#298 id=298 data-nosnippet>298</a>    /// It delays the expensive part of verification out of the SNARK
 <a href=#299 id=299 data-nosnippet>299</a>    /// and leaves it to the final verifier outside of the SNARK circuit.
 <a href=#300 id=300 data-nosnippet>300</a>    ///
-<a href=#301 id=301 data-nosnippet>301</a>    /// This opcode also verifies that the key_hash is indeed a hash of verification_key,
+<a href=#301 id=301 data-nosnippet>301</a>    /// This opcode also verifies that the `key_hash` is indeed a hash of `verification_key`,
 <a href=#302 id=302 data-nosnippet>302</a>    /// allowing the user to use the verification key as private inputs and only
-<a href=#303 id=303 data-nosnippet>303</a>    /// have the key_hash as public input, which is more performant.
+<a href=#303 id=303 data-nosnippet>303</a>    /// have the `key_hash` as public input, which is more performant.
 <a href=#304 id=304 data-nosnippet>304</a>    ///
 <a href=#305 id=305 data-nosnippet>305</a>    /// **Warning: the key hash logic does not need to be part of the black box and subject to be removed.**
 <a href=#306 id=306 data-nosnippet>306</a>    ///

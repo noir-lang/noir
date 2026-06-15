@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a>//! Source file -[Lexing]-&gt; Tokens -[Parsing]-&gt; Ast -[Name Resolution]-&gt; Hir -[Type Checking]-&gt; Hir -[Monomorphization]-&gt; Monomorphized Ast
 <a href=#6 id=6 data-nosnippet>6</a>//! ```
 <a href=#7 id=7 data-nosnippet>7</a>//!
-<a href=#8 id=8 data-nosnippet>8</a>//! After the monomorphized ast is created, it is passed to the noirc_evaluator crate to convert it to SSA form,
+<a href=#8 id=8 data-nosnippet>8</a>//! After the monomorphized ast is created, it is passed to the `noirc_evaluator` crate to convert it to SSA form,
 <a href=#9 id=9 data-nosnippet>9</a>//! perform optimizations, convert to ACIR and eventually prove/verify the program.
 <a href=#10 id=10 data-nosnippet>10</a></span><span class="attr">#![forbid(unsafe_code)]
 <a href=#11 id=11 data-nosnippet>11</a>#![warn(unused_crate_dependencies, unused_extern_crates)]

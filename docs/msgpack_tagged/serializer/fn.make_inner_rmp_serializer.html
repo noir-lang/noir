@@ -14,10 +14,10 @@ wrapper intercepts <code>Vec&lt;T&gt;::serialize</code> via the default
 a <code>fixarray</code> header directly and routes each element through this
 wrapper, so the inner’s <code>ForceIterables</code> is never consulted.</p>
 <p>We could override <code>collect_seq</code> to forward byte-shaped iterators
-to <code>inner.collect_seq</code> — but rmp_serde’s detection heuristic is
+to <code>inner.collect_seq</code> — but <code>rmp_serde</code>’s detection heuristic is
 purely size-based: any iterator over pointer-sized items (<code>&amp;u8</code>,
 <code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>&amp;T</code>, …) matches. For items that <em>aren’t</em>
-actually <code>u8</code>, rmp_serde’s <code>OnlyBytes</code> probe rejects, and rmp_serde
+actually <code>u8</code>, <code>rmp_serde</code>’s <code>OnlyBytes</code> probe rejects, and <code>rmp_serde</code>
 falls back to its <strong>own</strong> <code>serialize_seq</code> — which doesn’t route
 through our wrapper. That would silently bypass <code>MsgpackTagged</code>
 interception for any tagged type wrapped in <code>Box</code>/<code>&amp;</code>/etc. inside
@@ -33,6 +33,6 @@ reliably <code>bin</code> for that field.</p>
 hooking it up via <code>serialize_bytes</code> for the same reason. Only if a
 generic byte-iter intercept becomes truly necessary should we
 override <code>collect_seq</code> here — and at that point we’d need to
-<strong>also replicate rmp_serde’s <code>OnlyBytes</code> probe</strong> so the
+<strong>also replicate <code>rmp_serde</code>’s <code>OnlyBytes</code> probe</strong> so the
 reference-bypass risk above is closed.</p>
 </div></details></section></div></main></body></html>

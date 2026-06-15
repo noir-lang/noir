@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>//!
 <a href=#4 id=4 data-nosnippet>4</a>//! # Usage
 <a href=#5 id=5 data-nosnippet>5</a>//!
-<a href=#6 id=6 data-nosnippet>6</a>//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+<a href=#6 id=6 data-nosnippet>6</a>//! Brillig generation is performed by calling the [`Ssa::to_brillig`] method.
 <a href=#7 id=7 data-nosnippet>7</a>//! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 <a href=#8 id=8 data-nosnippet>8</a></span><span class="kw">mod </span>brillig_check;
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
@@ -487,7 +487,7 @@
 <a href=#487 id=487 data-nosnippet>487</a>            .collect()
 <a href=#488 id=488 data-nosnippet>488</a>    }
 <a href=#489 id=489 data-nosnippet>489</a>
-<a href=#490 id=490 data-nosnippet>490</a>    <span class="doccomment">/// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (start_offset=2).
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="doccomment">/// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (`start_offset=2`).
 <a href=#491 id=491 data-nosnippet>491</a>    /// Two params (v0, v1) use 2 slots, leaving 2 free. Computing v2, v3 fills the
 <a href=#492 id=492 data-nosnippet>492</a>    /// frame. Computing v4 requires a constant temp that pushes past 4, forcing a spill.
 <a href=#493 id=493 data-nosnippet>493</a>    ///

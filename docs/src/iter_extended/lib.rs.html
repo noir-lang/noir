@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a></span><span class="kw">use </span>std::collections::BTreeMap;
 <a href=#5 id=5 data-nosnippet>5</a>
-<a href=#6 id=6 data-nosnippet>6</a><span class="doccomment">/// Equivalent to .into_iter().map(f).collect::&lt;Vec&lt;_&gt;&gt;()
+<a href=#6 id=6 data-nosnippet>6</a><span class="doccomment">/// Equivalent to `.into_iter().map(f).collect::&lt;Vec&lt;_&gt;&gt;()`
 <a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">pub fn </span>vecmap&lt;T, U, F&gt;(iterable: T, f: F) -&gt; Vec&lt;U&gt;
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">where
 <a href=#9 id=9 data-nosnippet>9</a>    </span>T: IntoIterator,
@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>    iterable.into_iter().map(f).collect()
 <a href=#13 id=13 data-nosnippet>13</a>}
 <a href=#14 id=14 data-nosnippet>14</a>
-<a href=#15 id=15 data-nosnippet>15</a><span class="doccomment">/// Equivalent to .into_iter().map(f).collect::&lt;Result&lt;Vec&lt;_&gt;,_&gt;&gt;()
+<a href=#15 id=15 data-nosnippet>15</a><span class="doccomment">/// Equivalent to `.into_iter().map(f).collect::&lt;Result&lt;Vec&lt;_&gt;,_&gt;&gt;()`
 <a href=#16 id=16 data-nosnippet>16</a></span><span class="kw">pub fn </span>try_vecmap&lt;T, U, E, F&gt;(iterable: T, f: F) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;U&gt;, E&gt;
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">where
 <a href=#18 id=18 data-nosnippet>18</a>    </span>T: IntoIterator,
@@ -21,7 +21,7 @@
 <a href=#21 id=21 data-nosnippet>21</a>    iterable.into_iter().map(f).collect()
 <a href=#22 id=22 data-nosnippet>22</a>}
 <a href=#23 id=23 data-nosnippet>23</a>
-<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// Equivalent to .into_iter().map(f).collect::&lt;BTreeMap&lt;K, V&gt;&gt;()
+<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// Equivalent to `.into_iter().map(f).collect::&lt;BTreeMap&lt;K, V&gt;&gt;()`
 <a href=#25 id=25 data-nosnippet>25</a></span><span class="kw">pub fn </span>btree_map&lt;T, K, V, F&gt;(iterable: T, f: F) -&gt; BTreeMap&lt;K, V&gt;
 <a href=#26 id=26 data-nosnippet>26</a><span class="kw">where
 <a href=#27 id=27 data-nosnippet>27</a>    </span>T: IntoIterator,
@@ -31,7 +31,7 @@
 <a href=#31 id=31 data-nosnippet>31</a>    iterable.into_iter().map(f).collect()
 <a href=#32 id=32 data-nosnippet>32</a>}
 <a href=#33 id=33 data-nosnippet>33</a>
-<a href=#34 id=34 data-nosnippet>34</a><span class="doccomment">/// Equivalent to .into_iter().map(f).collect::&lt;Result&lt;BTreeMap&lt;_, _&gt;,_&gt;&gt;()
+<a href=#34 id=34 data-nosnippet>34</a><span class="doccomment">/// Equivalent to `.into_iter().map(f).collect::&lt;Result&lt;BTreeMap&lt;_, _&gt;,_&gt;&gt;()`
 <a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub fn </span>try_btree_map&lt;T, K, V, E, F&gt;(iterable: T, f: F) -&gt; <span class="prelude-ty">Result</span>&lt;BTreeMap&lt;K, V&gt;, E&gt;
 <a href=#36 id=36 data-nosnippet>36</a><span class="kw">where
 <a href=#37 id=37 data-nosnippet>37</a>    </span>T: IntoIterator,

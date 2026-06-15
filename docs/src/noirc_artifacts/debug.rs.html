@@ -360,7 +360,7 @@
 <a href=#360 id=360 data-nosnippet>360</a>    <span class="doccomment">/// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
 <a href=#361 id=361 data-nosnippet>361</a>    ///
 <a href=#362 id=362 data-nosnippet>362</a>    /// The [`OpcodeLocation`]s are generated with the ACIR, but passing the ACIR through a transformation step
-<a href=#363 id=363 data-nosnippet>363</a>    /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
+<a href=#363 id=363 data-nosnippet>363</a>    /// renders the old `OpcodeLocation`s invalid. The `AcirTransformationMap` is able to map the old `OpcodeLocation` to the new ones.
 <a href=#364 id=364 data-nosnippet>364</a>    /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
 <a href=#365 id=365 data-nosnippet>365</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>, update_map))]
 <a href=#366 id=366 data-nosnippet>366</a>    </span><span class="kw">pub fn </span>update_acir(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update_map: AcirTransformationMap) {
@@ -403,7 +403,7 @@
 <a href=#403 id=403 data-nosnippet>403</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.locations
 <a href=#404 id=404 data-nosnippet>404</a>    }
 <a href=#405 id=405 data-nosnippet>405</a>
-<a href=#406 id=406 data-nosnippet>406</a>    <span class="doccomment">/// Construct a [CallStack] from a [CallStackId]
+<a href=#406 id=406 data-nosnippet>406</a>    <span class="doccomment">/// Construct a [`CallStack`] from a [`CallStackId`]
 <a href=#407 id=407 data-nosnippet>407</a>    </span><span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId) -&gt; CallStack {
 <a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
 <a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.locations[call_stack.index()].parent {

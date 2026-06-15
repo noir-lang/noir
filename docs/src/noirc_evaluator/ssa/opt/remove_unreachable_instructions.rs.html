@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>//! return u8 0
 <a href=#70 id=70 data-nosnippet>70</a>//! ```
 <a href=#71 id=71 data-nosnippet>71</a>//!
-<a href=#72 id=72 data-nosnippet>72</a>//! ## Handling of array_get and array_set
+<a href=#72 id=72 data-nosnippet>72</a>//! ## Handling of `array_get` and `array_set`
 <a href=#73 id=73 data-nosnippet>73</a>//!
 <a href=#74 id=74 data-nosnippet>74</a>//! If an array operation in ACIR is guaranteed to produce an index-out-of-bounds:
 <a href=#75 id=75 data-nosnippet>75</a>//!
@@ -133,12 +133,12 @@
 <a href=#133 id=133 data-nosnippet>133</a>//! [`Function::remove_unreachable_instructions`].
 <a href=#134 id=134 data-nosnippet>134</a>//!
 <a href=#135 id=135 data-nosnippet>135</a>//! ## Preconditions:
-<a href=#136 id=136 data-nosnippet>136</a>//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`] and
-<a href=#137 id=137 data-nosnippet>137</a>//!   [make_constrain_not_equal][`super::make_constrain_not_equal`]; see the `Constrain` and
+<a href=#136 id=136 data-nosnippet>136</a>//! - this pass must run *after* [`flatten_cfg`][`super::flatten_cfg`] and
+<a href=#137 id=137 data-nosnippet>137</a>//!   [`make_constrain_not_equal`][`super::make_constrain_not_equal`]; see the `Constrain` and
 <a href=#138 id=138 data-nosnippet>138</a>//!   `ConstrainNotEqual` handling in [`Function::remove_unreachable_instructions`] for why.
 <a href=#139 id=139 data-nosnippet>139</a>//!   Nothing may re-introduce branches or predicated constraints between those passes and this
 <a href=#140 id=140 data-nosnippet>140</a>//!   one.
-<a href=#141 id=141 data-nosnippet>141</a>//! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
+<a href=#141 id=141 data-nosnippet>141</a>//! - the [inlining][`super::inlining`] and [`flatten_cfg`][`super::flatten_cfg`] must
 <a href=#142 id=142 data-nosnippet>142</a>//!   not run after this pass as they can't handle the `unreachable` terminator.
 <a href=#143 id=143 data-nosnippet>143</a></span><span class="kw">use </span>std::sync::Arc;
 <a href=#144 id=144 data-nosnippet>144</a>

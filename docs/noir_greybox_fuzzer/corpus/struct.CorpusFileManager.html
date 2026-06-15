@@ -9,7 +9,7 @@
     package_name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.str.html">str</a>,
     harness_name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.str.html">str</a>,
     abi: Abi,
-) -&gt; Self</h4></section></summary><div class="docblock"><p>Creates a new CorpusFileManager for a specific package and test harness</p>
+) -&gt; Self</h4></section></summary><div class="docblock"><p>Creates a new <code>CorpusFileManager</code> for a specific package and test harness</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.load_corpus_from_disk" class="method"><a class="src rightside" href="../../src/noir_greybox_fuzzer/corpus.rs.html#95-139">Source</a><h4 class="code-header">pub fn <a href="#method.load_corpus_from_disk" class="fn">load_corpus_from_disk</a>(&amp;mut self) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;</h4></section></summary><div class="docblock"><p>Loads all corpus files from disk into memory, parsing them as JSON inputs.
 Creates the corpus directory if it doesn’t exist.
 Returns an error if directory creation fails or if any files can’t be parsed.</p>

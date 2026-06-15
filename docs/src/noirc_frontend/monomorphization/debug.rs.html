@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>    }
 <a href=#70 id=70 data-nosnippet>70</a>
 <a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// Update instrumentation code inserted on variable assignment. We need to
-<a href=#72 id=72 data-nosnippet>72</a>    /// register the variable instance, its type and replace the source_var_id
+<a href=#72 id=72 data-nosnippet>72</a>    /// register the variable instance, its type and replace the `source_var_id`
 <a href=#73 id=73 data-nosnippet>73</a>    /// with the ID of the registration. Multiple registrations of the same
 <a href=#74 id=74 data-nosnippet>74</a>    /// variable are possible if using generic functions, hence the temporary ID
 <a href=#75 id=75 data-nosnippet>75</a>    /// created when injecting the instrumentation code can map to multiple IDs
@@ -97,7 +97,7 @@
 <a href=#97 id=97 data-nosnippet>97</a>    }
 <a href=#98 id=98 data-nosnippet>98</a>
 <a href=#99 id=99 data-nosnippet>99</a>    <span class="doccomment">/// Update instrumentation code for a variable being dropped out of scope.
-<a href=#100 id=100 data-nosnippet>100</a>    /// Given the source_var_id we search for the last assigned debug var_id and
+<a href=#100 id=100 data-nosnippet>100</a>    /// Given the `source_var_id` we search for the last assigned debug `var_id` and
 <a href=#101 id=101 data-nosnippet>101</a>    /// replace it instead.
 <a href=#102 id=102 data-nosnippet>102</a>    </span><span class="kw">fn </span>patch_debug_var_drop(
 <a href=#103 id=103 data-nosnippet>103</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -121,7 +121,7 @@
 <a href=#121 id=121 data-nosnippet>121</a>    }
 <a href=#122 id=122 data-nosnippet>122</a>
 <a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Update instrumentation code inserted when assigning to a member of an
-<a href=#124 id=124 data-nosnippet>124</a>    /// existing variable. Same as above for replacing the source_var_id, but also
+<a href=#124 id=124 data-nosnippet>124</a>    /// existing variable. Same as above for replacing the `source_var_id`, but also
 <a href=#125 id=125 data-nosnippet>125</a>    /// we need to resolve the path and the type of the member being assigned.
 <a href=#126 id=126 data-nosnippet>126</a>    /// For this last part, we need to resolve the mapping from field names in
 <a href=#127 id=127 data-nosnippet>127</a>    /// structs to positions in the runtime tuple, since all structs are

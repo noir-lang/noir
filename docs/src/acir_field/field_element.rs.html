@@ -317,11 +317,11 @@
 <a href=#317 id=317 data-nosnippet>317</a>
 <a href=#318 id=318 data-nosnippet>318</a>    <span class="doccomment">/// Returns true if this field element can be represented as an i128.
 <a href=#319 id=319 data-nosnippet>319</a>    ///
-<a href=#320 id=320 data-nosnippet>320</a>    /// An i128 can represent values in the range [i128::MIN, i128::MAX], which corresponds
+<a href=#320 id=320 data-nosnippet>320</a>    /// An i128 can represent values in the range [`i128::MIN`, `i128::MAX`], which corresponds
 <a href=#321 id=321 data-nosnippet>321</a>    /// to field elements in [0, 2^127 - 1] (positive) and [p - 2^127, p - 1] (negative),
 <a href=#322 id=322 data-nosnippet>322</a>    /// where p is the field modulus. The positive value 2^127 does not fit (it exceeds
-<a href=#323 id=323 data-nosnippet>323</a>    /// i128::MAX), but the field element representing -2^127 (i.e. p - 2^127) does fit
-<a href=#324 id=324 data-nosnippet>324</a>    /// (it is i128::MIN).
+<a href=#323 id=323 data-nosnippet>323</a>    /// `i128::MAX`), but the field element representing -2^127 (i.e. p - 2^127) does fit
+<a href=#324 id=324 data-nosnippet>324</a>    /// (it is `i128::MIN`).
 <a href=#325 id=325 data-nosnippet>325</a>    </span><span class="kw">pub fn </span>fits_in_i128(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>neg = <span class="self">self</span>.neg();
 <a href=#327 id=327 data-nosnippet>327</a>        <span class="self">self</span>.num_bits() &lt;= <span class="number">127
@@ -346,7 +346,7 @@
 <a href=#346 id=346 data-nosnippet>346</a>    /// it as a string. The range of valid values for this field element is `0..2^bit_size`
 <a href=#347 id=347 data-nosnippet>347</a>    /// with `0..2^(bit_size - 1)` representing positive values and `2^(bit_size - 1)..2^bit_size`
 <a href=#348 id=348 data-nosnippet>348</a>    /// representing negative values (as is commonly done for signed integers).
-<a href=#349 id=349 data-nosnippet>349</a>    /// `2^(bit_size - 1)` is the lowest negative value, so for example if bit_size is 8 then
+<a href=#349 id=349 data-nosnippet>349</a>    /// `2^(bit_size - 1)` is the lowest negative value, so for example if `bit_size` is 8 then
 <a href=#350 id=350 data-nosnippet>350</a>    /// `0..127` map to `0..127`, `128` maps to `-128`, `129` maps to `-127` and `255` maps to `-1`.
 <a href=#351 id=351 data-nosnippet>351</a>    /// If `self` falls outside of the valid range it's formatted as-is.
 <a href=#352 id=352 data-nosnippet>352</a>    </span><span class="kw">pub fn </span>to_string_as_signed_integer(<span class="self">self</span>, bit_size: u32) -&gt; String {
@@ -471,7 +471,7 @@
 <a href=#471 id=471 data-nosnippet>471</a>    }
 <a href=#472 id=472 data-nosnippet>472</a>
 <a href=#473 id=473 data-nosnippet>473</a>    <span class="doccomment">/// Computes the inverse or returns zero if the inverse does not exist
-<a href=#474 id=474 data-nosnippet>474</a>    /// Before using this FieldElement, please ensure that this behavior is necessary
+<a href=#474 id=474 data-nosnippet>474</a>    /// Before using this `FieldElement`, please ensure that this behavior is necessary
 <a href=#475 id=475 data-nosnippet>475</a>    </span><span class="kw">fn </span>inverse(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FieldElement&lt;F&gt; {
 <a href=#476 id=476 data-nosnippet>476</a>        <span class="kw">let </span>inv = <span class="self">self</span>.<span class="number">0</span>.inverse().unwrap_or_else(F::zero);
 <a href=#477 id=477 data-nosnippet>477</a>        FieldElement(inv)
@@ -547,13 +547,13 @@
 <a href=#547 id=547 data-nosnippet>547</a>        bytes
 <a href=#548 id=548 data-nosnippet>548</a>    }
 <a href=#549 id=549 data-nosnippet>549</a>
-<a href=#550 id=550 data-nosnippet>550</a>    <span class="doccomment">/// Converts bytes into a FieldElement and applies a
+<a href=#550 id=550 data-nosnippet>550</a>    <span class="doccomment">/// Converts bytes into a `FieldElement` and applies a
 <a href=#551 id=551 data-nosnippet>551</a>    /// reduction if needed.
 <a href=#552 id=552 data-nosnippet>552</a>    </span><span class="kw">fn </span>from_be_bytes_reduce(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; FieldElement&lt;F&gt; {
 <a href=#553 id=553 data-nosnippet>553</a>        FieldElement(F::from_be_bytes_mod_order(bytes))
 <a href=#554 id=554 data-nosnippet>554</a>    }
 <a href=#555 id=555 data-nosnippet>555</a>
-<a href=#556 id=556 data-nosnippet>556</a>    <span class="doccomment">/// Converts bytes in little-endian order into a FieldElement and applies a
+<a href=#556 id=556 data-nosnippet>556</a>    <span class="doccomment">/// Converts bytes in little-endian order into a `FieldElement` and applies a
 <a href=#557 id=557 data-nosnippet>557</a>    /// reduction if needed.
 <a href=#558 id=558 data-nosnippet>558</a>    </span><span class="kw">fn </span>from_le_bytes_reduce(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; FieldElement&lt;F&gt; {
 <a href=#559 id=559 data-nosnippet>559</a>        FieldElement(F::from_le_bytes_mod_order(bytes))

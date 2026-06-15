@@ -10,7 +10,7 @@ impl, which requires every generic param to be <code>'static</code> regardless o
 whether it appears in a tagged field. (Skipped fields like
 <code>_phantom: PhantomData&lt;T&gt;</code> still reference T at the type level, so
 <code>Self: 'static</code> requires <code>T: 'static</code> even though we don’t tag the
-PhantomData field.)</li>
+<code>PhantomData</code> field.)</li>
 <li><strong><code>&lt;TaggedFieldType&gt;: MsgpackTagged</code> for each tagged field’s type.</strong>
 Per-field-type bounds compose with hand-written impls that have unusual
 bounds: if <code>MyType&lt;A, B&gt;: MsgpackTagged</code> requires <code>A: SomeOtherTrait</code>,

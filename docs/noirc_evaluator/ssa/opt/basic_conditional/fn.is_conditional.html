@@ -6,19 +6,19 @@
 Returns None if the input block is not the entry block of a simple conditional.
 A simple conditional is an if-then(-else) statement where branches are ‘small’ basic blocks.
 ‘Small’ basic blocks means that we expect their execution cost to be small.</p>
-<p>In case the block is the entry of a ‘simple conditional’, the function returns a BasicConditional which
+<p>In case the block is the entry of a ‘simple conditional’, the function returns a <code>BasicConditional</code> which
 consist of the list of the conditional blocks:
-block_entry
+<code>block_entry</code>
 /       <br />
-block_then   block_else
+<code>block_then</code>   <code>block_else</code>
 \       /
-block_exit
-block_then and block_else are optionals, in order to account for the case when there is no ‘then’ or no ‘else’ branch
+<code>block_exit</code>
+<code>block_then</code> and <code>block_else</code> are optionals, in order to account for the case when there is no ‘then’ or no ‘else’ branch
 Only structured CFG with this shape are considered:</p>
 <ul>
-<li>block_entry has exactly 2 successors</li>
-<li>block_then and block_else have exactly 1 successor, which is block_exit, or one of them is block_exit</li>
-<li>block_exit has exactly 2 predecessors (block_then and block_else)</li>
+<li><code>block_entry</code> has exactly 2 successors</li>
+<li><code>block_then</code> and <code>block_else</code> have exactly 1 successor, which is <code>block_exit</code>, or one of them is <code>block_exit</code></li>
+<li><code>block_exit</code> has exactly 2 predecessors (<code>block_then</code> and <code>block_else</code>)</li>
 </ul>
-<p>Furthermore, cost of block_then + cost of block_else must be less than their average cost + jump overhead cost</p>
+<p>Furthermore, cost of <code>block_then</code> + cost of <code>block_else</code> must be less than their average cost + jump overhead cost</p>
 </div></details></section></div></main></body></html>

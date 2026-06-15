@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>    /// case of checking generic arguments)
 <a href=#39 id=39 data-nosnippet>39</a>    </span>trait_constraints: Vec&lt;LocalTraitConstraint&gt;,
 <a href=#40 id=40 data-nosnippet>40</a>
-<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// All ExprId in a function that correspond to integer literals.
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// All `ExprId` in a function that correspond to integer literals.
 <a href=#42 id=42 data-nosnippet>42</a>    /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
 <a href=#43 id=43 data-nosnippet>43</a>    </span>integer_literal_expr_ids: Vec&lt;ExprId&gt;,
 <a href=#44 id=44 data-nosnippet>44</a>}
@@ -52,7 +52,7 @@
 <a href=#52 id=52 data-nosnippet>52</a>    location: Location,
 <a href=#53 id=53 data-nosnippet>53</a>}
 <a href=#54 id=54 data-nosnippet>54</a>
-<a href=#55 id=55 data-nosnippet>55</a><span class="doccomment">/// A constraint local to the current [FunctionContext] to solve at the end of the context.
+<a href=#55 id=55 data-nosnippet>55</a><span class="doccomment">/// A constraint local to the current [`FunctionContext`] to solve at the end of the context.
 <a href=#56 id=56 data-nosnippet>56</a></span><span class="attr">#[derive(Debug)]
 <a href=#57 id=57 data-nosnippet>57</a></span><span class="kw">struct </span>LocalTraitConstraint {
 <a href=#58 id=58 data-nosnippet>58</a>    constraint: TraitConstraint,
@@ -79,7 +79,7 @@
 <a href=#79 id=79 data-nosnippet>79</a>}
 <a href=#80 id=80 data-nosnippet>80</a>
 <a href=#81 id=81 data-nosnippet>81</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#82 id=82 data-nosnippet>82</a>    <span class="doccomment">/// Push a type variable into the current FunctionContext to be defaulted if needed
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="doccomment">/// Push a type variable into the current `FunctionContext` to be defaulted if needed
 <a href=#83 id=83 data-nosnippet>83</a>    /// at the end of the earlier of either the current function or the current comptime scope.
 <a href=#84 id=84 data-nosnippet>84</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_defaultable_type_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type) {
@@ -108,7 +108,7 @@
 <a href=#108 id=108 data-nosnippet>108</a>        }
 <a href=#109 id=109 data-nosnippet>109</a>    }
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// Push a trait constraint into the current FunctionContext to be solved if needed
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// Push a trait constraint into the current `FunctionContext` to be solved if needed
 <a href=#112 id=112 data-nosnippet>112</a>    /// at the end of the earlier of either the current function or the current comptime scope.
 <a href=#113 id=113 data-nosnippet>113</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_trait_constraint(
@@ -168,7 +168,7 @@
 <a href=#168 id=168 data-nosnippet>168</a>    /// `find_impl` succeeds and auto-applies its type bindings — including binding
 <a href=#169 id=169 data-nosnippet>169</a>    /// `IntegerOrField` type variables to whatever the impl requires (e.g. `i32`).
 <a href=#170 id=170 data-nosnippet>170</a>    /// Defaulting then becomes a no-op for those variables, so the real
-<a href=#171 id=171 data-nosnippet>171</a>    /// [Self::check_trait_constraints] pass sees the impl-chosen type rather than
+<a href=#171 id=171 data-nosnippet>171</a>    /// [`Self::check_trait_constraints`] pass sees the impl-chosen type rather than
 <a href=#172 id=172 data-nosnippet>172</a>    /// the defaulted `Field`.
 <a href=#173 id=173 data-nosnippet>173</a>    ///
 <a href=#174 id=174 data-nosnippet>174</a>    /// On failure (no match, multiple matches, or insufficient annotations), no

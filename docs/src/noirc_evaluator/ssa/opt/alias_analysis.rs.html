@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a>//! The analysis assumes global values do not hold reference and will panic if they do.
 <a href=#20 id=20 data-nosnippet>20</a>//!
 <a href=#21 id=21 data-nosnippet>21</a>//! Supporting globals with reference would not be too difficult:
-<a href=#22 id=22 data-nosnippet>22</a>//! 1. unify shared 'globals having reference' across functions in the GlobalValueId type
+<a href=#22 id=22 data-nosnippet>22</a>//! 1. unify shared 'globals having reference' across functions in the `GlobalValueId` type
 <a href=#23 id=23 data-nosnippet>23</a>//! 2. add them to the signature-based analysis.
 <a href=#24 id=24 data-nosnippet>24</a>//!
 <a href=#25 id=25 data-nosnippet>25</a>//! ## Algorithm outline
@@ -31,7 +31,7 @@
 <a href=#31 id=31 data-nosnippet>31</a>//! as well as the results and the function's return values.
 <a href=#32 id=32 data-nosnippet>32</a>//! To make the analysis order independent, the unified returned values of a function is stored (and updated after every call)
 <a href=#33 id=33 data-nosnippet>33</a>//! and initialized either by the results or the returned values (depending on which comes first)
-<a href=#34 id=34 data-nosnippet>34</a>//! Because ValueIds are per function, we have to reason instead on GlobalValueId: (FunctionId, ValueId).
+<a href=#34 id=34 data-nosnippet>34</a>//! Because `ValueIds` are per function, we have to reason instead on `GlobalValueId`: (`FunctionId`, `ValueId`).
 <a href=#35 id=35 data-nosnippet>35</a>//!
 <a href=#36 id=36 data-nosnippet>36</a>//! After processing all instructions, the union-find partitions every reference
 <a href=#37 id=37 data-nosnippet>37</a>//! into alias classes. Two references are *may-alias* if and only if they
@@ -62,12 +62,12 @@
 <a href=#62 id=62 data-nosnippet>62</a>//! Allocate instructions are propagated among blocks following the terminator arguments (when all predecessor arguments have the same allocation site).
 <a href=#63 id=63 data-nosnippet>63</a>//! Allocation Sites are tracked:
 <a href=#64 id=64 data-nosnippet>64</a>//! - per value, in `allocation_sites`, and inherited for block parameters when arguments all match to the same site
-<a href=#65 id=65 data-nosnippet>65</a>//! - per points_to sets, in `points_to_sites`, if all write to a pointer have the same site.
+<a href=#65 id=65 data-nosnippet>65</a>//! - per `points_to` sets, in `points_to_sites`, if all write to a pointer have the same site.
 <a href=#66 id=66 data-nosnippet>66</a>//!
 <a href=#67 id=67 data-nosnippet>67</a>//! A second pass will conservatively associate allocation sites to load operations,
-<a href=#68 id=68 data-nosnippet>68</a>//! when the points_to sets of the loaded address have a known allocation site.
+<a href=#68 id=68 data-nosnippet>68</a>//! when the `points_to` sets of the loaded address have a known allocation site.
 <a href=#69 id=69 data-nosnippet>69</a>//! It is important to skip load operations during pass 1 so that store operations are not polluted by transient load results.
-<a href=#70 id=70 data-nosnippet>70</a>//! The points-to-set sites are computed using stored values only — load results stay NoAllocation in pass 1 (less precise but sound).
+<a href=#70 id=70 data-nosnippet>70</a>//! The points-to-set sites are computed using stored values only — load results stay `NoAllocation` in pass 1 (less precise but sound).
 <a href=#71 id=71 data-nosnippet>71</a>//! Pass 2 then propagates those points-to sites into to the load results.
 <a href=#72 id=72 data-nosnippet>72</a>//!
 <a href=#73 id=73 data-nosnippet>73</a>//! #### Must Alias
@@ -119,8 +119,8 @@
 <a href=#119 id=119 data-nosnippet>119</a>    ssa_gen::Ssa,
 <a href=#120 id=120 data-nosnippet>120</a>};
 <a href=#121 id=121 data-nosnippet>121</a>
-<a href=#122 id=122 data-nosnippet>122</a><span class="doccomment">/// GlobalValueId are ValueId along with their FunctionId,
-<a href=#123 id=123 data-nosnippet>123</a>/// allowing to globally use ValueIds coming from several functions.
+<a href=#122 id=122 data-nosnippet>122</a><span class="doccomment">/// `GlobalValueId` are `ValueId` along with their `FunctionId`,
+<a href=#123 id=123 data-nosnippet>123</a>/// allowing to globally use `ValueIds` coming from several functions.
 <a href=#124 id=124 data-nosnippet>124</a></span><span class="attr">#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 <a href=#125 id=125 data-nosnippet>125</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>GlobalValueId(FunctionId, ValueId);
 <a href=#126 id=126 data-nosnippet>126</a>
@@ -139,7 +139,7 @@
 <a href=#139 id=139 data-nosnippet>139</a>}
 <a href=#140 id=140 data-nosnippet>140</a>
 <a href=#141 id=141 data-nosnippet>141</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>AliasAnalysis {
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// union-find structure mapping GlobalValueId to their alias class.
+<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// union-find structure mapping `GlobalValueId` to their alias class.
 <a href=#143 id=143 data-nosnippet>143</a>    </span>aliases: UnionFind&lt;GlobalValueId&gt;,
 <a href=#144 id=144 data-nosnippet>144</a>
 <a href=#145 id=145 data-nosnippet>145</a>    <span class="doccomment">/// Maps an alias class representative to the alias class of what it points to.
@@ -343,11 +343,11 @@
 <a href=#343 id=343 data-nosnippet>343</a>    MergeReference(usize, usize),
 <a href=#344 id=344 data-nosnippet>344</a>}
 <a href=#345 id=345 data-nosnippet>345</a>
-<a href=#346 id=346 data-nosnippet>346</a><span class="doccomment">/// AliasAnalysis stores the result of the alias analysis pass
+<a href=#346 id=346 data-nosnippet>346</a><span class="doccomment">/// `AliasAnalysis` stores the result of the alias analysis pass
 <a href=#347 id=347 data-nosnippet>347</a>/// as well as transient data computed during the analysis
 <a href=#348 id=348 data-nosnippet>348</a></span><span class="attr">#[derive(Default)]
 <a href=#349 id=349 data-nosnippet>349</a></span><span class="kw">struct </span>AliasAnalysisContext {
-<a href=#350 id=350 data-nosnippet>350</a>    <span class="doccomment">/// union-find structure mapping GlobalValueId to their alias class.
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="doccomment">/// union-find structure mapping `GlobalValueId` to their alias class.
 <a href=#351 id=351 data-nosnippet>351</a>    </span>aliases: UnionFind&lt;GlobalValueId&gt;,
 <a href=#352 id=352 data-nosnippet>352</a>
 <a href=#353 id=353 data-nosnippet>353</a>    <span class="doccomment">/// Maps an alias class representative to the alias class of what it points to.
@@ -365,7 +365,7 @@
 <a href=#365 id=365 data-nosnippet>365</a>    <span class="doccomment">/// Known allocation sites
 <a href=#366 id=366 data-nosnippet>366</a>    </span>allocation_sites: HashMap&lt;GlobalValueId, AllocationLattice&gt;,
 <a href=#367 id=367 data-nosnippet>367</a>
-<a href=#368 id=368 data-nosnippet>368</a>    <span class="doccomment">/// Joined allocation site of every value ever placed into the points_to alias class.
+<a href=#368 id=368 data-nosnippet>368</a>    <span class="doccomment">/// Joined allocation site of every value ever placed into the `points_to` alias class.
 <a href=#369 id=369 data-nosnippet>369</a>    </span>points_to_sites: HashMap&lt;GlobalValueId, AllocationLattice&gt;,
 <a href=#370 id=370 data-nosnippet>370</a>
 <a href=#371 id=371 data-nosnippet>371</a>    <span class="doccomment">/// Functions whose body may run more than once per program execution.
@@ -903,7 +903,7 @@
 <a href=#903 id=903 data-nosnippet>903</a>    }
 <a href=#904 id=904 data-nosnippet>904</a>
 <a href=#905 id=905 data-nosnippet>905</a>    <span class="doccomment">/// At each Return, merge the returned values with the function's canonical
-<a href=#906 id=906 data-nosnippet>906</a>    /// return_values (or create them the first time).
+<a href=#906 id=906 data-nosnippet>906</a>    /// `return_values` (or create them the first time).
 <a href=#907 id=907 data-nosnippet>907</a>    </span><span class="kw">fn </span>merge_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, return_values: <span class="kw-2">&amp;</span>[ValueId]) {
 <a href=#908 id=908 data-nosnippet>908</a>        <span class="kw">match </span><span class="self">self</span>.return_values.get(<span class="kw-2">&amp;</span>function.id()).cloned() {
 <a href=#909 id=909 data-nosnippet>909</a>            <span class="prelude-val">Some</span>(results) =&gt; {
@@ -1046,7 +1046,7 @@
 <a href=#1046 id=1046 data-nosnippet>1046</a>        templates
 <a href=#1047 id=1047 data-nosnippet>1047</a>    }
 <a href=#1048 id=1048 data-nosnippet>1048</a>
-<a href=#1049 id=1049 data-nosnippet>1049</a>    <span class="doccomment">/// Helper function for unresolved call which put identical types into buckets and merge their corresponding ValueId.
+<a href=#1049 id=1049 data-nosnippet>1049</a>    <span class="doccomment">/// Helper function for unresolved call which put identical types into buckets and merge their corresponding `ValueId`.
 <a href=#1050 id=1050 data-nosnippet>1050</a>    /// Returns the canonicalized signature (one 'reference' type per bucket, sorted) and its corresponding vector of bucket representatives.
 <a href=#1051 id=1051 data-nosnippet>1051</a>    </span><span class="kw">fn </span>type_representatives(
 <a href=#1052 id=1052 data-nosnippet>1052</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1330,7 +1330,7 @@
 <a href=#1330 id=1330 data-nosnippet>1330</a>    </span><span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#1331 id=1331 data-nosnippet>1331</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
 <a href=#1332 id=1332 data-nosnippet>1332</a>
-<a href=#1333 id=1333 data-nosnippet>1333</a>    <span class="doccomment">/// Collect the result ValueIds of every `Allocate` instruction in the main
+<a href=#1333 id=1333 data-nosnippet>1333</a>    <span class="doccomment">/// Collect the result `ValueIds` of every `Allocate` instruction in the main
 <a href=#1334 id=1334 data-nosnippet>1334</a>    /// function, in declaration order (across reachable blocks).
 <a href=#1335 id=1335 data-nosnippet>1335</a>    </span><span class="kw">fn </span>collect_allocates(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; Vec&lt;GlobalValueId&gt; {
 <a href=#1336 id=1336 data-nosnippet>1336</a>        <span class="kw">let </span>func = ssa.main();
@@ -1347,7 +1347,7 @@
 <a href=#1347 id=1347 data-nosnippet>1347</a>        out
 <a href=#1348 id=1348 data-nosnippet>1348</a>    }
 <a href=#1349 id=1349 data-nosnippet>1349</a>
-<a href=#1350 id=1350 data-nosnippet>1350</a>    <span class="doccomment">/// Collect the result ValueIds of every `Load` instruction.
+<a href=#1350 id=1350 data-nosnippet>1350</a>    <span class="doccomment">/// Collect the result `ValueIds` of every `Load` instruction.
 <a href=#1351 id=1351 data-nosnippet>1351</a>    </span><span class="kw">fn </span>collect_loads(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; Vec&lt;GlobalValueId&gt; {
 <a href=#1352 id=1352 data-nosnippet>1352</a>        <span class="kw">let </span>func = ssa.main();
 <a href=#1353 id=1353 data-nosnippet>1353</a>        <span class="kw">let </span><span class="kw-2">mut </span>out = Vec::new();
@@ -1363,7 +1363,7 @@
 <a href=#1363 id=1363 data-nosnippet>1363</a>        out
 <a href=#1364 id=1364 data-nosnippet>1364</a>    }
 <a href=#1365 id=1365 data-nosnippet>1365</a>
-<a href=#1366 id=1366 data-nosnippet>1366</a>    <span class="doccomment">/// Collect the result ValueIds of every `ArrayGet` instruction.
+<a href=#1366 id=1366 data-nosnippet>1366</a>    <span class="doccomment">/// Collect the result `ValueIds` of every `ArrayGet` instruction.
 <a href=#1367 id=1367 data-nosnippet>1367</a>    </span><span class="kw">fn </span>collect_array_gets(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; Vec&lt;GlobalValueId&gt; {
 <a href=#1368 id=1368 data-nosnippet>1368</a>        <span class="kw">let </span>func = ssa.main();
 <a href=#1369 id=1369 data-nosnippet>1369</a>        <span class="kw">let </span><span class="kw-2">mut </span>out = Vec::new();
@@ -1682,7 +1682,7 @@
 <a href=#1682 id=1682 data-nosnippet>1682</a>    // OTHER CASES - more complex cases
 <a href=#1683 id=1683 data-nosnippet>1683</a>    // ============================================================
 <a href=#1684 id=1684 data-nosnippet>1684</a>
-<a href=#1685 id=1685 data-nosnippet>1685</a>    </span><span class="doccomment">/// IfElse on composites merges the composite branches so
+<a href=#1685 id=1685 data-nosnippet>1685</a>    </span><span class="doccomment">/// `IfElse` on composites merges the composite branches so
 <a href=#1686 id=1686 data-nosnippet>1686</a>    /// refs extracted from the result alias both branches' underlying refs.
 <a href=#1687 id=1687 data-nosnippet>1687</a>    </span><span class="attr">#[test]
 <a href=#1688 id=1688 data-nosnippet>1688</a>    </span><span class="kw">fn </span>ifelse_composite_extractions_alias() {
@@ -1981,7 +1981,7 @@
 <a href=#1981 id=1981 data-nosnippet>1981</a>    // Intrinsics (unify_on_signature)
 <a href=#1982 id=1982 data-nosnippet>1982</a>    // ============================================================
 <a href=#1983 id=1983 data-nosnippet>1983</a>
-<a href=#1984 id=1984 data-nosnippet>1984</a>    </span><span class="doccomment">/// vector_push_back is handled precisely by `unify_vector_intrinsic`:
+<a href=#1984 id=1984 data-nosnippet>1984</a>    </span><span class="doccomment">/// `vector_push_back` is handled precisely by `unify_vector_intrinsic`:
 <a href=#1985 id=1985 data-nosnippet>1985</a>    /// the pushed element is linked into the *pointee* class of the
 <a href=#1986 id=1986 data-nosnippet>1986</a>    /// vector (not merged with the container itself as a generic
 <a href=#1987 id=1987 data-nosnippet>1987</a>    /// signature-level merge would do). This is the element-level
@@ -2040,7 +2040,7 @@
 <a href=#2040 id=2040 data-nosnippet>2040</a>        </span><span class="macro">assert!</span>(analysis.may_alias(ssa.main(), allocs[<span class="number">0</span>], gets[<span class="number">0</span>]));
 <a href=#2041 id=2041 data-nosnippet>2041</a>    }
 <a href=#2042 id=2042 data-nosnippet>2042</a>
-<a href=#2043 id=2043 data-nosnippet>2043</a>    <span class="doccomment">/// `vector_push_front` symmetric to push_back: pushed element lands in the
+<a href=#2043 id=2043 data-nosnippet>2043</a>    <span class="doccomment">/// `vector_push_front` symmetric to `push_back`: pushed element lands in the
 <a href=#2044 id=2044 data-nosnippet>2044</a>    /// new vector's pointee class.
 <a href=#2045 id=2045 data-nosnippet>2045</a>    </span><span class="attr">#[test]
 <a href=#2046 id=2046 data-nosnippet>2046</a>    </span><span class="kw">fn </span>vector_push_front_links_pushed_element_into_pointee_class() {
@@ -2101,7 +2101,7 @@
 <a href=#2101 id=2101 data-nosnippet>2101</a>    }
 <a href=#2102 id=2102 data-nosnippet>2102</a>
 <a href=#2103 id=2103 data-nosnippet>2103</a>    <span class="doccomment">/// `vector_pop_front`: layout differs (popped element comes before
-<a href=#2104 id=2104 data-nosnippet>2104</a>    /// new_len and new_vec in the results list). Same aliasing effect.
+<a href=#2104 id=2104 data-nosnippet>2104</a>    /// `new_len` and `new_vec` in the results list). Same aliasing effect.
 <a href=#2105 id=2105 data-nosnippet>2105</a>    </span><span class="attr">#[test]
 <a href=#2106 id=2106 data-nosnippet>2106</a>    </span><span class="kw">fn </span>vector_pop_front_links_popped_element_with_vector_contents() {
 <a href=#2107 id=2107 data-nosnippet>2107</a>        <span class="kw">let </span>src = <span class="string">"
@@ -2136,7 +2136,7 @@
 <a href=#2136 id=2136 data-nosnippet>2136</a>    }
 <a href=#2137 id=2137 data-nosnippet>2137</a>
 <a href=#2138 id=2138 data-nosnippet>2138</a>    <span class="doccomment">/// `vector_insert`: inserted element lands in the pointee class, exactly
-<a href=#2139 id=2139 data-nosnippet>2139</a>    /// like push_back/push_front but at an arbitrary index.
+<a href=#2139 id=2139 data-nosnippet>2139</a>    /// like `push_back/push_front` but at an arbitrary index.
 <a href=#2140 id=2140 data-nosnippet>2140</a>    </span><span class="attr">#[test]
 <a href=#2141 id=2141 data-nosnippet>2141</a>    </span><span class="kw">fn </span>vector_insert_links_inserted_element_into_pointee_class() {
 <a href=#2142 id=2142 data-nosnippet>2142</a>        <span class="comment">// Two oracles so v0 and v1 start in separate classes with ⊥ origin,
@@ -2473,7 +2473,7 @@
 <a href=#2473 id=2473 data-nosnippet>2473</a>    <span class="doccomment">/// `array_set` on a global produces a new array (SSA is immutable). The
 <a href=#2474 id=2474 data-nosnippet>2474</a>    /// global itself is unchanged; the new array is independent. Since the
 <a href=#2475 id=2475 data-nosnippet>2475</a>    /// global's type carries no references, the `merge_reference` calls in
-<a href=#2476 id=2476 data-nosnippet>2476</a>    /// the ArraySet handler are no-ops, and neither the global nor the
+<a href=#2476 id=2476 data-nosnippet>2476</a>    /// the `ArraySet` handler are no-ops, and neither the global nor the
 <a href=#2477 id=2477 data-nosnippet>2477</a>    /// result enters the union-find.
 <a href=#2478 id=2478 data-nosnippet>2478</a>    ///
 <a href=#2479 id=2479 data-nosnippet>2479</a>    /// This test confirms the analysis handles `array_set` on a global
@@ -2530,7 +2530,7 @@
 <a href=#2530 id=2530 data-nosnippet>2530</a>    // must_alias
 <a href=#2531 id=2531 data-nosnippet>2531</a>    // ============================================================
 <a href=#2532 id=2532 data-nosnippet>2532</a>
-<a href=#2533 id=2533 data-nosnippet>2533</a>    </span><span class="doccomment">/// Result ValueIds of every `IfElse` in main, in declaration order.
+<a href=#2533 id=2533 data-nosnippet>2533</a>    </span><span class="doccomment">/// Result `ValueIds` of every `IfElse` in main, in declaration order.
 <a href=#2534 id=2534 data-nosnippet>2534</a>    </span><span class="kw">fn </span>collect_ifelse_results(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; Vec&lt;GlobalValueId&gt; {
 <a href=#2535 id=2535 data-nosnippet>2535</a>        <span class="kw">let </span>func = ssa.main();
 <a href=#2536 id=2536 data-nosnippet>2536</a>        <span class="kw">let </span><span class="kw-2">mut </span>out = Vec::new();

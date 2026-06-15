@@ -8,14 +8,14 @@
 <a href=#8 id=8 data-nosnippet>8</a>//!
 <a href=#9 id=9 data-nosnippet>9</a>//! ACIR does not have a first-class array type. Instead, all arrays are
 <a href=#10 id=10 data-nosnippet>10</a>//! represented as contiguous regions in linear memory, identified by a
-<a href=#11 id=11 data-nosnippet>11</a>//! [BlockId]. This module provides helpers for translating SSA array
+<a href=#11 id=11 data-nosnippet>11</a>//! [`BlockId`]. This module provides helpers for translating SSA array
 <a href=#12 id=12 data-nosnippet>12</a>//! operations into ACIR memory reads and writes.
 <a href=#13 id=13 data-nosnippet>13</a>//!
 <a href=#14 id=14 data-nosnippet>14</a>//! ACIR generation use two different array types for representing arrays:
 <a href=#15 id=15 data-nosnippet>15</a>//!
 <a href=#16 id=16 data-nosnippet>16</a>//! [Constant arrays][AcirValue::Array]
 <a href=#17 id=17 data-nosnippet>17</a>//!   - Known at compile time.
-<a href=#18 id=18 data-nosnippet>18</a>//!   - Reads and writes may be folded into an [AcirValue] where possible.
+<a href=#18 id=18 data-nosnippet>18</a>//!   - Reads and writes may be folded into an [`AcirValue`] where possible.
 <a href=#19 id=19 data-nosnippet>19</a>//!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 <a href=#20 id=20 data-nosnippet>20</a>//!
 <a href=#21 id=21 data-nosnippet>21</a>//! [Dynamic arrays][AcirValue::DynamicArray]
@@ -59,7 +59,7 @@
 <a href=#59 id=59 data-nosnippet>59</a>//!
 <a href=#60 id=60 data-nosnippet>60</a>//! To determine which field within the array we are attempting to access, we use an element type sizes array that stores
 <a href=#61 id=61 data-nosnippet>61</a>//! the flat starting index for each SSA field. Since tuples are flattened in SSA, each tuple field gets its own entry.
-<a href=#62 id=62 data-nosnippet>62</a>//! For an array like `[(Field, [Field; 3], [Field; 3]); 4]`, the element_type_sizes array would be:
+<a href=#62 id=62 data-nosnippet>62</a>//! For an array like `[(Field, [Field; 3], [Field; 3]); 4]`, the `element_type_sizes` array would be:
 <a href=#63 id=63 data-nosnippet>63</a>//!
 <a href=#64 id=64 data-nosnippet>64</a>//! [0, 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25]
 <a href=#65 id=65 data-nosnippet>65</a>//!
@@ -109,7 +109,7 @@
 <a href=#109 id=109 data-nosnippet>109</a>//!
 <a href=#110 id=110 data-nosnippet>110</a>//! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
 <a href=#111 id=111 data-nosnippet>111</a>//! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-<a href=#112 id=112 data-nosnippet>112</a>//! When we read a value from a non-homogenous array, we multiply any resulting [AcirValue::Var] by the predicate
+<a href=#112 id=112 data-nosnippet>112</a>//! When we read a value from a non-homogenous array, we multiply any resulting [`AcirValue::Var`] by the predicate
 <a href=#113 id=113 data-nosnippet>113</a>//! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
 <a href=#114 id=114 data-nosnippet>114</a>//! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
 <a href=#115 id=115 data-nosnippet>115</a>//!
@@ -143,8 +143,8 @@
 <a href=#143 id=143 data-nosnippet>143</a>};
 <a href=#144 id=144 data-nosnippet>144</a>
 <a href=#145 id=145 data-nosnippet>145</a><span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#146 id=146 data-nosnippet>146</a>    <span class="doccomment">/// Get the BlockId corresponding to the ValueId
-<a href=#147 id=147 data-nosnippet>147</a>    /// If there is no matching BlockId, we create a new one.
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="doccomment">/// Get the `BlockId` corresponding to the `ValueId`
+<a href=#147 id=147 data-nosnippet>147</a>    /// If there is no matching `BlockId`, we create a new one.
 <a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; BlockId {
 <a href=#149 id=149 data-nosnippet>149</a>        <span class="kw-2">*</span><span class="self">self</span>.memory_blocks.entry(value).or_insert_with(|| {
 <a href=#150 id=150 data-nosnippet>150</a>            <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
@@ -162,7 +162,7 @@
 <a href=#162 id=162 data-nosnippet>162</a>        })
 <a href=#163 id=163 data-nosnippet>163</a>    }
 <a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a>    <span class="doccomment">/// Get the next [BlockId] for the internal element type sizes array.
+<a href=#165 id=165 data-nosnippet>165</a>    <span class="doccomment">/// Get the next [`BlockId`] for the internal element type sizes array.
 <a href=#166 id=166 data-nosnippet>166</a>    /// This is useful for referencing information that can
 <a href=#167 id=167 data-nosnippet>167</a>    /// only be accessed dynamically, such as the type structure
 <a href=#168 id=168 data-nosnippet>168</a>    /// of non-homogenous arrays.
@@ -327,7 +327,7 @@
 <a href=#327 id=327 data-nosnippet>327</a>        }
 <a href=#328 id=328 data-nosnippet>328</a>    }
 <a href=#329 id=329 data-nosnippet>329</a>
-<a href=#330 id=330 data-nosnippet>330</a>    <span class="doccomment">/// See [Self::handle_constant_index_wrapper]
+<a href=#330 id=330 data-nosnippet>330</a>    <span class="doccomment">/// See [`Self::handle_constant_index_wrapper`]
 <a href=#331 id=331 data-nosnippet>331</a>    </span><span class="kw">fn </span>handle_constant_index(
 <a href=#332 id=332 data-nosnippet>332</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#333 id=333 data-nosnippet>333</a>        instruction: InstructionId,
@@ -411,11 +411,11 @@
 <a href=#411 id=411 data-nosnippet>411</a>    /// Returns the flat memory index to read/write at and, for `ArraySet`, the
 <a href=#412 id=412 data-nosnippet>412</a>    /// (predicated) value to store.
 <a href=#413 id=413 data-nosnippet>413</a>    ///
-<a href=#414 id=414 data-nosnippet>414</a>    /// [Self::get_flattened_index] already gates the returned index by the side-effects
+<a href=#414 id=414 data-nosnippet>414</a>    /// [`Self::get_flattened_index`] already gates the returned index by the side-effects
 <a href=#415 id=415 data-nosnippet>415</a>    /// predicate when `is_safe_index = false`, so on a disabled branch the index
 <a href=#416 id=416 data-nosnippet>416</a>    /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
 <a href=#417 id=417 data-nosnippet>417</a>    /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
-<a href=#418 id=418 data-nosnippet>418</a>    /// because [Self::apply_index_side_effects] relies on the dummy value at `offset`
+<a href=#418 id=418 data-nosnippet>418</a>    /// because [`Self::apply_index_side_effects`] relies on the dummy value at `offset`
 <a href=#419 id=419 data-nosnippet>419</a>    /// being type-compatible with the read's result type to skip masking.
 <a href=#420 id=420 data-nosnippet>420</a>    </span><span class="kw">fn </span>convert_array_operation_inputs(
 <a href=#421 id=421 data-nosnippet>421</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -835,15 +835,15 @@
 <a href=#835 id=835 data-nosnippet>835</a>        <span class="prelude-val">Ok</span>(())
 <a href=#836 id=836 data-nosnippet>836</a>    }
 <a href=#837 id=837 data-nosnippet>837</a>
-<a href=#838 id=838 data-nosnippet>838</a>    <span class="doccomment">/// Construct the [AcirValue::DynamicArray] that represents the result of an [Instruction::ArraySet].
+<a href=#838 id=838 data-nosnippet>838</a>    <span class="doccomment">/// Construct the [`AcirValue::DynamicArray`] that represents the result of an [`Instruction::ArraySet`].
 <a href=#839 id=839 data-nosnippet>839</a>    ///
 <a href=#840 id=840 data-nosnippet>840</a>    /// In SSA, an array set always yields a new array value (even if the operation
-<a href=#841 id=841 data-nosnippet>841</a>    /// mutates in place). At the ACIR level, this corresponds to a [AcirValue::DynamicArray] whose
-<a href=#842 id=842 data-nosnippet>842</a>    /// memory block has already been resolved by [Self::resolve_array_set_block].
+<a href=#841 id=841 data-nosnippet>841</a>    /// mutates in place). At the ACIR level, this corresponds to a [`AcirValue::DynamicArray`] whose
+<a href=#842 id=842 data-nosnippet>842</a>    /// memory block has already been resolved by [`Self::resolve_array_set_block`].
 <a href=#843 id=843 data-nosnippet>843</a>    ///
 <a href=#844 id=844 data-nosnippet>844</a>    /// # Purpose
-<a href=#845 id=845 data-nosnippet>845</a>    /// - Initializes the optional [AcirDynamicArray::element_type_sizes] helper array for when elements are non-homogenous.
-<a href=#846 id=846 data-nosnippet>846</a>    /// - Populates the `value_types` vector. See [AcirDynamicArray::value_types] for more information.
+<a href=#845 id=845 data-nosnippet>845</a>    /// - Initializes the optional [`AcirDynamicArray::element_type_sizes`] helper array for when elements are non-homogenous.
+<a href=#846 id=846 data-nosnippet>846</a>    /// - Populates the `value_types` vector. See [`AcirDynamicArray::value_types`] for more information.
 <a href=#847 id=847 data-nosnippet>847</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>make_array_set_result_value(
 <a href=#848 id=848 data-nosnippet>848</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#849 id=849 data-nosnippet>849</a>        array: ValueId,
@@ -1030,7 +1030,7 @@
 <a href=#1030 id=1030 data-nosnippet>1030</a>    }
 <a href=#1031 id=1031 data-nosnippet>1031</a>
 <a href=#1032 id=1032 data-nosnippet>1032</a>    <span class="doccomment">/// Read an array and reconstruct its structure based on the SSA type.
-<a href=#1033 id=1033 data-nosnippet>1033</a>    /// For DynamicArrays with nested arrays, this preserves the nested structure
+<a href=#1033 id=1033 data-nosnippet>1033</a>    /// For `DynamicArrays` with nested arrays, this preserves the nested structure
 <a href=#1034 id=1034 data-nosnippet>1034</a>    /// instead of returning a flat array.
 <a href=#1035 id=1035 data-nosnippet>1035</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>read_array_with_type(
 <a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1296,8 +1296,8 @@
 <a href=#1296 id=1296 data-nosnippet>1296</a>/// # Parameters
 <a href=#1297 id=1297 data-nosnippet>1297</a>///
 <a href=#1298 id=1298 data-nosnippet>1298</a>/// * `array_typ` - Type of the array/vector for which we are generating an element types sizes array
-<a href=#1299 id=1299 data-nosnippet>1299</a>/// * `flattened_length` - The total flattened size of the array data. For [AcirValue::Array],
-<a href=#1300 id=1300 data-nosnippet>1300</a>///   this is computed via [flattened_value_size]. For [AcirValue::DynamicArray], this is
+<a href=#1299 id=1299 data-nosnippet>1299</a>/// * `flattened_length` - The total flattened size of the array data. For [`AcirValue::Array`],
+<a href=#1300 id=1300 data-nosnippet>1300</a>///   this is computed via [`flattened_value_size`]. For [`AcirValue::DynamicArray`], this is
 <a href=#1301 id=1301 data-nosnippet>1301</a>///   stored in the `len` field.
 <a href=#1302 id=1302 data-nosnippet>1302</a>/// * `shift` - Extra logical elements to allocate space for (e.g., for growth operations such as vector insert)
 <a href=#1303 id=1303 data-nosnippet>1303</a>///
@@ -1345,9 +1345,9 @@
 <a href=#1345 id=1345 data-nosnippet>1345</a>    flat_elem_type_sizes
 <a href=#1346 id=1346 data-nosnippet>1346</a>}
 <a href=#1347 id=1347 data-nosnippet>1347</a>
-<a href=#1348 id=1348 data-nosnippet>1348</a><span class="doccomment">/// Calculates the total flattened size of an [AcirValue].
+<a href=#1348 id=1348 data-nosnippet>1348</a><span class="doccomment">/// Calculates the total flattened size of an [`AcirValue`].
 <a href=#1349 id=1349 data-nosnippet>1349</a>///
-<a href=#1350 id=1350 data-nosnippet>1350</a>/// Unlike [Type::flattened_size], this handles vectors, represented by [AcirDynamicArray], returning their capacity.
+<a href=#1350 id=1350 data-nosnippet>1350</a>/// Unlike [`Type::flattened_size`], this handles vectors, represented by [`AcirDynamicArray`], returning their capacity.
 <a href=#1351 id=1351 data-nosnippet>1351</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_value_size(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; FlattenedLength {
 <a href=#1352 id=1352 data-nosnippet>1352</a>    <span class="kw">match </span>value {
 <a href=#1353 id=1353 data-nosnippet>1353</a>        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; <span class="kw-2">*</span>len,

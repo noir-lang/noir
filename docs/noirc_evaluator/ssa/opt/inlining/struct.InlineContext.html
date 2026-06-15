@@ -4,7 +4,7 @@
     call_stack: CallStackId,
     entry_point: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>&gt;,
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The context for the function inlining pass.</p>
-<p>This works using an internal FunctionBuilder to build a new inline-target function
+<p>This works using an internal <code>FunctionBuilder</code> to build a new inline-target function
 from scratch. Doing it this way properly handles importing instructions between
 functions and lets us reuse the existing API at the cost of essentially cloning
 each of the inline target’s instructions.</p>

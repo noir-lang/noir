@@ -81,9 +81,9 @@
 <a href=#81 id=81 data-nosnippet>81</a><span class="kw">type </span>TypeAttributes = Vec&lt;SecondaryAttribute&gt;;
 <a href=#82 id=82 data-nosnippet>82</a>
 <a href=#83 id=83 data-nosnippet>83</a><span class="doccomment">/// The node interner is the central storage location of all nodes in Noir's Hir (the
-<a href=#84 id=84 data-nosnippet>84</a>/// various node types can be found in hir_def). The interner is also used to collect
+<a href=#84 id=84 data-nosnippet>84</a>/// various node types can be found in `hir_def`). The interner is also used to collect
 <a href=#85 id=85 data-nosnippet>85</a>/// extra information about the Hir, such as the type of each node, information about
-<a href=#86 id=86 data-nosnippet>86</a>/// each definition or struct, etc. Because it is used on the Hir, the NodeInterner is
+<a href=#86 id=86 data-nosnippet>86</a>/// each definition or struct, etc. Because it is used on the Hir, the `NodeInterner` is
 <a href=#87 id=87 data-nosnippet>87</a>/// useful in passes where the Hir is used - name resolution, type checking, and
 <a href=#88 id=88 data-nosnippet>88</a>/// monomorphization - and it is not useful afterward.
 <a href=#89 id=89 data-nosnippet>89</a></span><span class="attr">#[derive(Debug)]
@@ -108,7 +108,7 @@
 <a href=#108 id=108 data-nosnippet>108</a>    /// This is used to ensure the absence of dependency cycles for globals and types.
 <a href=#109 id=109 data-nosnippet>109</a>    </span>dependency_graph: DiGraph&lt;DependencyId, ()&gt;,
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// To keep track of where each DependencyId is in `dependency_graph`, we need
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// To keep track of where each `DependencyId` is in `dependency_graph`, we need
 <a href=#112 id=112 data-nosnippet>112</a>    /// this separate graph to map between the ids and indices.
 <a href=#113 id=113 data-nosnippet>113</a>    </span>dependency_graph_indices: HashMap&lt;DependencyId, PetGraphIndex&gt;,
 <a href=#114 id=114 data-nosnippet>114</a>
@@ -205,12 +205,12 @@
 <a href=#205 id=205 data-nosnippet>205</a>    <span class="doccomment">/// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
 <a href=#206 id=206 data-nosnippet>206</a>    </span>ordering_type: <span class="prelude-ty">Option</span>&lt;Type&gt;,
 <a href=#207 id=207 data-nosnippet>207</a>
-<a href=#208 id=208 data-nosnippet>208</a>    <span class="doccomment">/// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="doccomment">/// Map from `ExprId` (referring to a Function/Method call) to its corresponding `TypeBindings`,
 <a href=#209 id=209 data-nosnippet>209</a>    /// filled out during type checking from instantiated variables. Used during monomorphization
 <a href=#210 id=210 data-nosnippet>210</a>    /// to map call site types back onto function parameter types, and undo this binding as needed.
 <a href=#211 id=211 data-nosnippet>211</a>    </span><span class="kw">pub </span>instantiation_bindings: HashMap&lt;ExprId, TypeBindings&gt;,
 <a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>    <span class="doccomment">/// Remembers the field index a given HirMemberAccess expression was resolved to during type
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="doccomment">/// Remembers the field index a given `HirMemberAccess` expression was resolved to during type
 <a href=#214 id=214 data-nosnippet>214</a>    /// checking.
 <a href=#215 id=215 data-nosnippet>215</a>    </span>field_indices: HashMap&lt;ExprId, usize&gt;,
 <a href=#216 id=216 data-nosnippet>216</a>
@@ -233,7 +233,7 @@
 <a href=#233 id=233 data-nosnippet>233</a>    </span>func_id_to_trait: HashMap&lt;FuncId, (Type, TraitId)&gt;,
 <a href=#234 id=234 data-nosnippet>234</a>
 <a href=#235 id=235 data-nosnippet>235</a>    <span class="doccomment">/// A list of all type aliases that are referenced in the program.
-<a href=#236 id=236 data-nosnippet>236</a>    /// Searched by LSP to resolve [Location]s of [TypeAlias]s
+<a href=#236 id=236 data-nosnippet>236</a>    /// Searched by LSP to resolve [Location]s of [`TypeAlias`]s
 <a href=#237 id=237 data-nosnippet>237</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) type_alias_ref: Vec&lt;(TypeAliasId, Location)&gt;,
 <a href=#238 id=238 data-nosnippet>238</a>
 <a href=#239 id=239 data-nosnippet>239</a>    <span class="doccomment">/// Stores the [Location] of a [Type] reference
@@ -294,7 +294,7 @@
 <a href=#294 id=294 data-nosnippet>294</a>    /// Each element of the Vec represents a scope with every scope together making
 <a href=#295 id=295 data-nosnippet>295</a>    /// up all currently visible definitions. The first scope is always the global scope.
 <a href=#296 id=296 data-nosnippet>296</a>    ///
-<a href=#297 id=297 data-nosnippet>297</a>    /// This is stored in the NodeInterner so that the Elaborator from each crate can
+<a href=#297 id=297 data-nosnippet>297</a>    /// This is stored in the `NodeInterner` so that the Elaborator from each crate can
 <a href=#298 id=298 data-nosnippet>298</a>    /// share the same global values.
 <a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) comptime_scopes: Vec&lt;HashMap&lt;DefinitionId, comptime::Value&gt;&gt;,
 <a href=#300 id=300 data-nosnippet>300</a>
@@ -307,7 +307,7 @@
 <a href=#307 id=307 data-nosnippet>307</a>    <span class="doccomment">/// Captures the documentation comments for each module, struct, trait, function, etc.
 <a href=#308 id=308 data-nosnippet>308</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) doc_comments: HashMap&lt;ReferenceId, Vec&lt;DocComment&gt;&gt;,
 <a href=#309 id=309 data-nosnippet>309</a>
-<a href=#310 id=310 data-nosnippet>310</a>    <span class="doccomment">/// A map of ModuleDefId to each module that pub or pub(crate) exports it.
+<a href=#310 id=310 data-nosnippet>310</a>    <span class="doccomment">/// A map of `ModuleDefId` to each module that pub or pub(crate) exports it.
 <a href=#311 id=311 data-nosnippet>311</a>    /// This is used to offer importing the item via one of these exports if
 <a href=#312 id=312 data-nosnippet>312</a>    /// the item is not visible where it's defined.
 <a href=#313 id=313 data-nosnippet>313</a>    </span><span class="kw">pub </span>reexports: HashMap&lt;ModuleDefId, Vec&lt;Reexport&gt;&gt;,
@@ -408,7 +408,7 @@
 <a href=#408 id=408 data-nosnippet>408</a>}
 <a href=#409 id=409 data-nosnippet>409</a>
 <a href=#410 id=410 data-nosnippet>410</a><span class="kw">impl </span>FunctionModifiers {
-<a href=#411 id=411 data-nosnippet>411</a>    <span class="doccomment">/// A semi-reasonable set of default FunctionModifiers used for testing.
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="doccomment">/// A semi-reasonable set of default `FunctionModifiers` used for testing.
 <a href=#412 id=412 data-nosnippet>412</a>    </span><span class="attr">#[cfg(test)]
 <a href=#413 id=413 data-nosnippet>413</a>    #[allow(clippy::new_without_default)]
 <a href=#414 id=414 data-nosnippet>414</a>    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
@@ -423,7 +423,7 @@
 <a href=#423 id=423 data-nosnippet>423</a>    }
 <a href=#424 id=424 data-nosnippet>424</a>}
 <a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a><span class="doccomment">/// A Definition enum specifies anything that we can intern in the NodeInterner
+<a href=#426 id=426 data-nosnippet>426</a><span class="doccomment">/// A Definition enum specifies anything that we can intern in the `NodeInterner`
 <a href=#427 id=427 data-nosnippet>427</a>/// We use one Arena for all types that can be interned as that has better cache locality
 <a href=#428 id=428 data-nosnippet>428</a>/// This data structure is never accessed directly, so API wise there is no difference between using
 <a href=#429 id=429 data-nosnippet>429</a>/// Multiple arenas and a single Arena
@@ -462,7 +462,7 @@
 <a href=#462 id=462 data-nosnippet>462</a>    Global(GlobalId),
 <a href=#463 id=463 data-nosnippet>463</a>
 <a href=#464 id=464 data-nosnippet>464</a>    <span class="doccomment">/// Locals may be defined in let statements or parameters,
-<a href=#465 id=465 data-nosnippet>465</a>    /// in which case they will not have an associated ExprId.
+<a href=#465 id=465 data-nosnippet>465</a>    /// in which case they will not have an associated `ExprId`.
 <a href=#466 id=466 data-nosnippet>466</a>    /// For example a mutable variable can change, so it does
 <a href=#467 id=467 data-nosnippet>467</a>    /// not have a stable defining expression.
 <a href=#468 id=468 data-nosnippet>468</a>    </span>Local(<span class="prelude-ty">Option</span>&lt;ExprId&gt;),
@@ -670,7 +670,7 @@
 <a href=#670 id=670 data-nosnippet>670</a>        type_id
 <a href=#671 id=671 data-nosnippet>671</a>    }
 <a href=#672 id=672 data-nosnippet>672</a>
-<a href=#673 id=673 data-nosnippet>673</a>    <span class="doccomment">/// Adds [TypeAliasId] and [Location] to the type_alias_ref vector
+<a href=#673 id=673 data-nosnippet>673</a>    <span class="doccomment">/// Adds [`TypeAliasId`] and [Location] to the `type_alias_ref` vector
 <a href=#674 id=674 data-nosnippet>674</a>    /// So that we can later resolve [Location]s type aliases from the LSP requests
 <a href=#675 id=675 data-nosnippet>675</a>    </span><span class="kw">pub fn </span>add_type_alias_ref(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeAliasId, location: Location) {
 <a href=#676 id=676 data-nosnippet>676</a>        <span class="self">self</span>.type_alias_ref.push((type_id, location));
@@ -824,14 +824,14 @@
 <a href=#824 id=824 data-nosnippet>824</a>    }
 <a href=#825 id=825 data-nosnippet>825</a>
 <a href=#826 id=826 data-nosnippet>826</a>    <span class="doccomment">/// Retrieves the definition where the given id was defined.
-<a href=#827 id=827 data-nosnippet>827</a>    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+<a href=#827 id=827 data-nosnippet>827</a>    /// This will panic if given `DefinitionId::dummy_id`. Use `try_definition` for
 <a href=#828 id=828 data-nosnippet>828</a>    /// any call with a possibly undefined variable.
 <a href=#829 id=829 data-nosnippet>829</a>    </span><span class="kw">pub fn </span>definition(<span class="kw-2">&amp;</span><span class="self">self</span>, id: DefinitionId) -&gt; <span class="kw-2">&amp;</span>DefinitionInfo {
 <a href=#830 id=830 data-nosnippet>830</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.definitions[id.<span class="number">0</span>]
 <a href=#831 id=831 data-nosnippet>831</a>    }
 <a href=#832 id=832 data-nosnippet>832</a>
 <a href=#833 id=833 data-nosnippet>833</a>    <span class="doccomment">/// Retrieves the definition where the given id was defined.
-<a href=#834 id=834 data-nosnippet>834</a>    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+<a href=#834 id=834 data-nosnippet>834</a>    /// This will panic if given `DefinitionId::dummy_id`. Use `try_definition` for
 <a href=#835 id=835 data-nosnippet>835</a>    /// any call with a possibly undefined variable.
 <a href=#836 id=836 data-nosnippet>836</a>    </span><span class="kw">pub fn </span>definition_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: DefinitionId) -&gt; <span class="kw-2">&amp;mut </span>DefinitionInfo {
 <a href=#837 id=837 data-nosnippet>837</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.definitions[id.<span class="number">0</span>]
@@ -904,7 +904,7 @@
 <a href=#904 id=904 data-nosnippet>904</a>        <span class="self">self</span>.type_aliases[id.<span class="number">0</span>].clone()
 <a href=#905 id=905 data-nosnippet>905</a>    }
 <a href=#906 id=906 data-nosnippet>906</a>
-<a href=#907 id=907 data-nosnippet>907</a>    <span class="doccomment">/// Returns the type of an item stored in the [NodeInterner], or [Type::Error] if it was not found.
+<a href=#907 id=907 data-nosnippet>907</a>    <span class="doccomment">/// Returns the type of an item stored in the [`NodeInterner`], or [`Type::Error`] if it was not found.
 <a href=#908 id=908 data-nosnippet>908</a>    </span><span class="kw">pub fn </span>id_type(<span class="kw-2">&amp;</span><span class="self">self</span>, index: <span class="kw">impl </span>Into&lt;Index&gt;) -&gt; Type {
 <a href=#909 id=909 data-nosnippet>909</a>        <span class="self">self</span>.try_id_type(index).cloned().unwrap_or(Type::Error)
 <a href=#910 id=910 data-nosnippet>910</a>    }
@@ -914,7 +914,7 @@
 <a href=#914 id=914 data-nosnippet>914</a>        <span class="self">self</span>.id_to_type.get(<span class="kw-2">&amp;</span>index.into())
 <a href=#915 id=915 data-nosnippet>915</a>    }
 <a href=#916 id=916 data-nosnippet>916</a>
-<a href=#917 id=917 data-nosnippet>917</a>    <span class="doccomment">/// Returns the type of the definition, or [Type::Error] if it was not found.
+<a href=#917 id=917 data-nosnippet>917</a>    <span class="doccomment">/// Returns the type of the definition, or [`Type::Error`] if it was not found.
 <a href=#918 id=918 data-nosnippet>918</a>    </span><span class="kw">pub fn </span>definition_type(<span class="kw-2">&amp;</span><span class="self">self</span>, id: DefinitionId) -&gt; Type {
 <a href=#919 id=919 data-nosnippet>919</a>        <span class="self">self</span>.try_definition_type(id).cloned().unwrap_or(Type::Error)
 <a href=#920 id=920 data-nosnippet>920</a>    }
@@ -963,13 +963,13 @@
 <a href=#963 id=963 data-nosnippet>963</a>        <span class="self">self</span>.id_to_location.get(<span class="kw-2">&amp;</span>index.into()).copied()
 <a href=#964 id=964 data-nosnippet>964</a>    }
 <a href=#965 id=965 data-nosnippet>965</a>
-<a href=#966 id=966 data-nosnippet>966</a>    <span class="doccomment">/// Replaces the HirExpression at the given ExprId with a new HirExpression
+<a href=#966 id=966 data-nosnippet>966</a>    <span class="doccomment">/// Replaces the `HirExpression` at the given `ExprId` with a new `HirExpression`
 <a href=#967 id=967 data-nosnippet>967</a>    </span><span class="kw">pub fn </span>replace_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>ExprId, new: HirExpression) {
 <a href=#968 id=968 data-nosnippet>968</a>        <span class="kw">let </span>old = <span class="self">self</span>.nodes.get_mut(id.into()).unwrap();
 <a href=#969 id=969 data-nosnippet>969</a>        <span class="kw-2">*</span>old = Node::Expression(new);
 <a href=#970 id=970 data-nosnippet>970</a>    }
 <a href=#971 id=971 data-nosnippet>971</a>
-<a href=#972 id=972 data-nosnippet>972</a>    <span class="doccomment">/// Replaces the HirStatement at the given StmtId with a new HirStatement
+<a href=#972 id=972 data-nosnippet>972</a>    <span class="doccomment">/// Replaces the `HirStatement` at the given `StmtId` with a new `HirStatement`
 <a href=#973 id=973 data-nosnippet>973</a>    </span><span class="kw">pub fn </span>replace_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, stmt_id: StmtId, hir_stmt: HirStatement) {
 <a href=#974 id=974 data-nosnippet>974</a>        <span class="kw">let </span>old = <span class="self">self</span>.nodes.get_mut(stmt_id.<span class="number">0</span>).unwrap();
 <a href=#975 id=975 data-nosnippet>975</a>        <span class="kw-2">*</span>old = Node::Statement(hir_stmt);
@@ -989,7 +989,7 @@
 <a href=#989 id=989 data-nosnippet>989</a>        Type::type_variable_with_kind(<span class="self">self</span>, kind)
 <a href=#990 id=990 data-nosnippet>990</a>    }
 <a href=#991 id=991 data-nosnippet>991</a>
-<a href=#992 id=992 data-nosnippet>992</a>    <span class="doccomment">/// Remember the [TypeBindings] used during the instantiation of an expression.
+<a href=#992 id=992 data-nosnippet>992</a>    <span class="doccomment">/// Remember the [`TypeBindings`] used during the instantiation of an expression.
 <a href=#993 id=993 data-nosnippet>993</a>    </span><span class="kw">pub fn </span>store_instantiation_bindings(
 <a href=#994 id=994 data-nosnippet>994</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#995 id=995 data-nosnippet>995</a>        expr_id: ExprId,
@@ -1014,7 +1014,7 @@
 <a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="self">self</span>.field_indices.insert(expr_id, index);
 <a href=#1015 id=1015 data-nosnippet>1015</a>    }
 <a href=#1016 id=1016 data-nosnippet>1016</a>
-<a href=#1017 id=1017 data-nosnippet>1017</a>    <span class="doccomment">/// Look up the [DefinitionId] of a [FuncId].
+<a href=#1017 id=1017 data-nosnippet>1017</a>    <span class="doccomment">/// Look up the [`DefinitionId`] of a [`FuncId`].
 <a href=#1018 id=1018 data-nosnippet>1018</a>    ///
 <a href=#1019 id=1019 data-nosnippet>1019</a>    /// Panics if it's not found.
 <a href=#1020 id=1020 data-nosnippet>1020</a>    </span><span class="kw">pub fn </span>function_definition_id(<span class="kw-2">&amp;</span><span class="self">self</span>, function: FuncId) -&gt; DefinitionId {
@@ -1023,7 +1023,7 @@
 <a href=#1023 id=1023 data-nosnippet>1023</a>
 <a href=#1024 id=1024 data-nosnippet>1024</a>    <span class="doccomment">/// Returns the definition id and trait id for a given trait or impl function.
 <a href=#1025 id=1025 data-nosnippet>1025</a>    ///
-<a href=#1026 id=1026 data-nosnippet>1026</a>    /// If this is an impl function, the DefinitionId inside the TraitItemId will still
+<a href=#1026 id=1026 data-nosnippet>1026</a>    /// If this is an impl function, the `DefinitionId` inside the `TraitItemId` will still
 <a href=#1027 id=1027 data-nosnippet>1027</a>    /// be that of the function in the parent trait.
 <a href=#1028 id=1028 data-nosnippet>1028</a>    </span><span class="kw">pub fn </span>get_trait_item_id(<span class="kw-2">&amp;</span><span class="self">self</span>, function_id: FuncId) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItemId&gt; {
 <a href=#1029 id=1029 data-nosnippet>1029</a>        <span class="kw">let </span>function = <span class="self">self</span>.function_meta(<span class="kw-2">&amp;</span>function_id);
@@ -1149,7 +1149,7 @@
 <a href=#1149 id=1149 data-nosnippet>1149</a>    <span class="doccomment">/// Looks up methods that apply to the given type but are defined in traits.
 <a href=#1150 id=1150 data-nosnippet>1150</a>    ///
 <a href=#1151 id=1151 data-nosnippet>1151</a>    /// The third tuple element is the impl's self type as it was recorded when the impl was
-<a href=#1152 id=1152 data-nosnippet>1152</a>    /// registered (see [Self::add_method]). This is the concrete type the impl applies to,
+<a href=#1152 id=1152 data-nosnippet>1152</a>    /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
 <a href=#1153 id=1153 data-nosnippet>1153</a>    /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
 <a href=#1154 id=1154 data-nosnippet>1154</a>    /// for shared trait-method `FuncId`s (default methods inherited from the trait).
 <a href=#1155 id=1155 data-nosnippet>1155</a>    </span><span class="kw">pub fn </span>lookup_trait_methods(
@@ -1187,7 +1187,7 @@
 <a href=#1187 id=1187 data-nosnippet>1187</a>            .collect()
 <a href=#1188 id=1188 data-nosnippet>1188</a>    }
 <a href=#1189 id=1189 data-nosnippet>1189</a>
-<a href=#1190 id=1190 data-nosnippet>1190</a>    <span class="doccomment">/// Same as [Self::method_candidate_ids] but for `impl&lt;T&gt;`-style generic
+<a href=#1190 id=1190 data-nosnippet>1190</a>    <span class="doccomment">/// Same as [`Self::method_candidate_ids`] but for `impl&lt;T&gt;`-style generic
 <a href=#1191 id=1191 data-nosnippet>1191</a>    /// trait impls keyed under `TypeMethodKey::Generic`.
 <a href=#1192 id=1192 data-nosnippet>1192</a>    </span><span class="kw">pub fn </span>generic_method_candidate_ids(<span class="kw-2">&amp;</span><span class="self">self</span>, method_name: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;FuncId&gt; {
 <a href=#1193 id=1193 data-nosnippet>1193</a>        <span class="self">self</span>.methods
@@ -1206,7 +1206,7 @@
 <a href=#1206 id=1206 data-nosnippet>1206</a>
 <a href=#1207 id=1207 data-nosnippet>1207</a>    <span class="doccomment">/// Looks up methods at impls for all types `T`, e.g. `impl&lt;T&gt; Foo for T`.
 <a href=#1208 id=1208 data-nosnippet>1208</a>    ///
-<a href=#1209 id=1209 data-nosnippet>1209</a>    /// See [Self::lookup_trait_methods] for the meaning of the third tuple element.
+<a href=#1209 id=1209 data-nosnippet>1209</a>    /// See [`Self::lookup_trait_methods`] for the meaning of the third tuple element.
 <a href=#1210 id=1210 data-nosnippet>1210</a>    </span><span class="kw">pub fn </span>lookup_generic_methods(
 <a href=#1211 id=1211 data-nosnippet>1211</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#1212 id=1212 data-nosnippet>1212</a>        typ: <span class="kw-2">&amp;</span>Type,
@@ -1220,14 +1220,14 @@
 <a href=#1220 id=1220 data-nosnippet>1220</a>            .unwrap_or_default()
 <a href=#1221 id=1221 data-nosnippet>1221</a>    }
 <a href=#1222 id=1222 data-nosnippet>1222</a>
-<a href=#1223 id=1223 data-nosnippet>1223</a>    <span class="doccomment">/// Tags the given identifier with the selected trait_impl so that monomorphization
+<a href=#1223 id=1223 data-nosnippet>1223</a>    <span class="doccomment">/// Tags the given identifier with the selected `trait_impl` so that monomorphization
 <a href=#1224 id=1224 data-nosnippet>1224</a>    /// can later recover which impl was selected, or alternatively see if it needs to
 <a href=#1225 id=1225 data-nosnippet>1225</a>    /// decide which impl to select (because the impl was Assumed).
 <a href=#1226 id=1226 data-nosnippet>1226</a>    </span><span class="kw">pub fn </span>select_impl_for_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident_id: ExprId, trait_impl: TraitImplKind) {
 <a href=#1227 id=1227 data-nosnippet>1227</a>        <span class="self">self</span>.selected_trait_implementations.insert(ident_id, trait_impl);
 <a href=#1228 id=1228 data-nosnippet>1228</a>    }
 <a href=#1229 id=1229 data-nosnippet>1229</a>
-<a href=#1230 id=1230 data-nosnippet>1230</a>    <span class="doccomment">/// Retrieves the impl selected for a given [ExprId] during name resolution.
+<a href=#1230 id=1230 data-nosnippet>1230</a>    <span class="doccomment">/// Retrieves the impl selected for a given [`ExprId`] during name resolution.
 <a href=#1231 id=1231 data-nosnippet>1231</a>    </span><span class="kw">pub fn </span>get_selected_impl_for_expression(<span class="kw-2">&amp;</span><span class="self">self</span>, ident_id: ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;TraitImplKind&gt; {
 <a href=#1232 id=1232 data-nosnippet>1232</a>        <span class="self">self</span>.selected_trait_implementations.get(<span class="kw-2">&amp;</span>ident_id).cloned()
 <a href=#1233 id=1233 data-nosnippet>1233</a>    }
@@ -1334,7 +1334,7 @@
 <a href=#1334 id=1334 data-nosnippet>1334</a>            || <span class="self">self</span>.prefix_operator_traits.values().any(|id| <span class="kw-2">*</span>id == trait_id)
 <a href=#1335 id=1335 data-nosnippet>1335</a>    }
 <a href=#1336 id=1336 data-nosnippet>1336</a>
-<a href=#1337 id=1337 data-nosnippet>1337</a>    <span class="doccomment">/// This function is needed when creating a NodeInterner for testing so that calls
+<a href=#1337 id=1337 data-nosnippet>1337</a>    <span class="doccomment">/// This function is needed when creating a `NodeInterner` for testing so that calls
 <a href=#1338 id=1338 data-nosnippet>1338</a>    /// to `get_operator_trait` do not panic when the stdlib isn't present.
 <a href=#1339 id=1339 data-nosnippet>1339</a>    </span><span class="attr">#[cfg(any(test, feature = <span class="string">"test_utils"</span>))]
 <a href=#1340 id=1340 data-nosnippet>1340</a>    </span><span class="kw">pub fn </span>populate_dummy_operator_traits(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
@@ -1408,32 +1408,32 @@
 <a href=#1408 id=1408 data-nosnippet>1408</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.quoted_types[id.<span class="number">0</span>]
 <a href=#1409 id=1409 data-nosnippet>1409</a>    }
 <a href=#1410 id=1410 data-nosnippet>1410</a>
-<a href=#1411 id=1411 data-nosnippet>1411</a>    <span class="doccomment">/// Intern a [ExpressionKind].
+<a href=#1411 id=1411 data-nosnippet>1411</a>    <span class="doccomment">/// Intern a [`ExpressionKind`].
 <a href=#1412 id=1412 data-nosnippet>1412</a>    </span><span class="kw">pub fn </span>push_expression_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: ExpressionKind) -&gt; InternedExpressionKind {
 <a href=#1413 id=1413 data-nosnippet>1413</a>        InternedExpressionKind(<span class="self">self</span>.interned_expression_kinds.insert(expr))
 <a href=#1414 id=1414 data-nosnippet>1414</a>    }
 <a href=#1415 id=1415 data-nosnippet>1415</a>
-<a href=#1416 id=1416 data-nosnippet>1416</a>    <span class="doccomment">/// Get an interned [ExpressionKind] by its [InternedExpressionKind] ID.
+<a href=#1416 id=1416 data-nosnippet>1416</a>    <span class="doccomment">/// Get an interned [`ExpressionKind`] by its [`InternedExpressionKind`] ID.
 <a href=#1417 id=1417 data-nosnippet>1417</a>    </span><span class="kw">pub fn </span>get_expression_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedExpressionKind) -&gt; <span class="kw-2">&amp;</span>ExpressionKind {
 <a href=#1418 id=1418 data-nosnippet>1418</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.interned_expression_kinds[id.<span class="number">0</span>]
 <a href=#1419 id=1419 data-nosnippet>1419</a>    }
 <a href=#1420 id=1420 data-nosnippet>1420</a>
-<a href=#1421 id=1421 data-nosnippet>1421</a>    <span class="doccomment">/// Intern a [StatementKind].
+<a href=#1421 id=1421 data-nosnippet>1421</a>    <span class="doccomment">/// Intern a [`StatementKind`].
 <a href=#1422 id=1422 data-nosnippet>1422</a>    </span><span class="kw">pub fn </span>push_statement_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: StatementKind) -&gt; InternedStatementKind {
 <a href=#1423 id=1423 data-nosnippet>1423</a>        InternedStatementKind(<span class="self">self</span>.interned_statement_kinds.insert(statement))
 <a href=#1424 id=1424 data-nosnippet>1424</a>    }
 <a href=#1425 id=1425 data-nosnippet>1425</a>
-<a href=#1426 id=1426 data-nosnippet>1426</a>    <span class="doccomment">/// Get an interned [StatementKind] by its [InternedStatementKind] ID.
+<a href=#1426 id=1426 data-nosnippet>1426</a>    <span class="doccomment">/// Get an interned [`StatementKind`] by its [`InternedStatementKind`] ID.
 <a href=#1427 id=1427 data-nosnippet>1427</a>    </span><span class="kw">pub fn </span>get_statement_kind(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedStatementKind) -&gt; <span class="kw-2">&amp;</span>StatementKind {
 <a href=#1428 id=1428 data-nosnippet>1428</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.interned_statement_kinds[id.<span class="number">0</span>]
 <a href=#1429 id=1429 data-nosnippet>1429</a>    }
 <a href=#1430 id=1430 data-nosnippet>1430</a>
-<a href=#1431 id=1431 data-nosnippet>1431</a>    <span class="doccomment">/// Intern an [LValue] by turning it into an [Expression][crate::ast::Expression] and interning its [ExpressionKind].
+<a href=#1431 id=1431 data-nosnippet>1431</a>    <span class="doccomment">/// Intern an [`LValue`] by turning it into an [Expression][crate::ast::Expression] and interning its [`ExpressionKind`].
 <a href=#1432 id=1432 data-nosnippet>1432</a>    </span><span class="kw">pub fn </span>push_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: LValue) -&gt; InternedExpressionKind {
 <a href=#1433 id=1433 data-nosnippet>1433</a>        <span class="self">self</span>.push_expression_kind(lvalue.as_expression().kind)
 <a href=#1434 id=1434 data-nosnippet>1434</a>    }
 <a href=#1435 id=1435 data-nosnippet>1435</a>
-<a href=#1436 id=1436 data-nosnippet>1436</a>    <span class="doccomment">/// Get an interned [LValue] by its [InternedExpressionKind] ID.
+<a href=#1436 id=1436 data-nosnippet>1436</a>    <span class="doccomment">/// Get an interned [`LValue`] by its [`InternedExpressionKind`] ID.
 <a href=#1437 id=1437 data-nosnippet>1437</a>    </span><span class="kw">pub fn </span>get_lvalue(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedExpressionKind, location: Location) -&gt; LValue {
 <a href=#1438 id=1438 data-nosnippet>1438</a>        LValue::from_expression_kind(<span class="self">self</span>.get_expression_kind(id).clone(), location)
 <a href=#1439 id=1439 data-nosnippet>1439</a>            .expect(<span class="string">"Called LValue::from_expression with an invalid expression"</span>)
@@ -1444,12 +1444,12 @@
 <a href=#1444 id=1444 data-nosnippet>1444</a>        InternedPattern(<span class="self">self</span>.interned_patterns.insert(pattern))
 <a href=#1445 id=1445 data-nosnippet>1445</a>    }
 <a href=#1446 id=1446 data-nosnippet>1446</a>
-<a href=#1447 id=1447 data-nosnippet>1447</a>    <span class="doccomment">/// Get an interned [Pattern] by its [InternedPattern] ID.
+<a href=#1447 id=1447 data-nosnippet>1447</a>    <span class="doccomment">/// Get an interned [Pattern] by its [`InternedPattern`] ID.
 <a href=#1448 id=1448 data-nosnippet>1448</a>    </span><span class="kw">pub fn </span>get_pattern(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedPattern) -&gt; <span class="kw-2">&amp;</span>Pattern {
 <a href=#1449 id=1449 data-nosnippet>1449</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.interned_patterns[id.<span class="number">0</span>]
 <a href=#1450 id=1450 data-nosnippet>1450</a>    }
 <a href=#1451 id=1451 data-nosnippet>1451</a>
-<a href=#1452 id=1452 data-nosnippet>1452</a>    <span class="doccomment">/// Intern a [UnresolvedTypeData].
+<a href=#1452 id=1452 data-nosnippet>1452</a>    <span class="doccomment">/// Intern a [`UnresolvedTypeData`].
 <a href=#1453 id=1453 data-nosnippet>1453</a>    </span><span class="kw">pub fn </span>push_unresolved_type_data(
 <a href=#1454 id=1454 data-nosnippet>1454</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#1455 id=1455 data-nosnippet>1455</a>        typ: UnresolvedTypeData,
@@ -1611,7 +1611,7 @@
 <a href=#1611 id=1611 data-nosnippet>1611</a>        results
 <a href=#1612 id=1612 data-nosnippet>1612</a>    }
 <a href=#1613 id=1613 data-nosnippet>1613</a>
-<a href=#1614 id=1614 data-nosnippet>1614</a>    <span class="doccomment">/// Return a set of [TypeBindings] to bind types from the trait definition to those from the trait impl.
+<a href=#1614 id=1614 data-nosnippet>1614</a>    <span class="doccomment">/// Return a set of [`TypeBindings`] to bind types from the trait definition to those from the trait impl.
 <a href=#1615 id=1615 data-nosnippet>1615</a>    ///
 <a href=#1616 id=1616 data-nosnippet>1616</a>    /// Recursively collects associated types from parent implementations.
 <a href=#1617 id=1617 data-nosnippet>1617</a>    </span><span class="kw">pub fn </span>trait_to_impl_bindings(
@@ -1784,7 +1784,7 @@
 <a href=#1784 id=1784 data-nosnippet>1784</a>        }
 <a href=#1785 id=1785 data-nosnippet>1785</a>    }
 <a href=#1786 id=1786 data-nosnippet>1786</a>
-<a href=#1787 id=1787 data-nosnippet>1787</a>    <span class="doccomment">/// Clears data that is stored in this NodeInterner that is declared at the given file.
+<a href=#1787 id=1787 data-nosnippet>1787</a>    <span class="doccomment">/// Clears data that is stored in this `NodeInterner` that is declared at the given file.
 <a href=#1788 id=1788 data-nosnippet>1788</a>    /// This isn't used by the compiler. It's only used by the LSP server when a file
 <a href=#1789 id=1789 data-nosnippet>1789</a>    /// changes, to clear the definitions of the previous version of the file.
 <a href=#1790 id=1790 data-nosnippet>1790</a>    </span><span class="kw">pub fn </span>clear_in_file(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: FileId) {

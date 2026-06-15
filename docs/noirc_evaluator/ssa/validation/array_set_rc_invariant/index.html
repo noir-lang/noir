@@ -3,7 +3,7 @@
 <h2 id="the-invariant"><a class="doc-anchor" href="#the-invariant">§</a>The invariant</h2>
 <p>In Brillig, <code>array_set vX, i, x</code> may modify <code>vX</code>’s storage in place at runtime
 when <code>vX</code>’s reference count is 1. SSA-level semantics still says <code>vX</code> is unchanged
-and the array_set produces a fresh value; the in-place mutation is a runtime
+and the <code>array_set</code> produces a fresh value; the in-place mutation is a runtime
 optimization that’s only sound when no later use can observe <code>vX</code>’s pre-mutation
 contents through aliasing.</p>
 <p>Two mechanisms keep the optimization invisible to SSA semantics:</p>
@@ -22,24 +22,24 @@ aliased use reachable forward in the CFG.</p>
 <ol>
 <li>
 <p><strong>Backward alias-set.</strong> Compute the set of values that may share <code>vX</code>’s
-storage <em>at the array_set’s program point</em> by walking block-parameter →
+storage <em>at the <code>array_set</code>’s program point</em> by walking block-parameter →
 predecessor-arg edges backward to a fixed point. Only aliasing introduced
 by the values that flow <em>into</em> <code>vX</code>’s binding is included. Filtered to
 drop values that can’t represent pre-mutation storage: <code>array_set</code> /
 <code>Call</code> results (always fresh), iteration-local fresh results (<code>MakeArray</code>
 or <code>Call</code> on back-edge args), instruction results defined in the
-array_set’s own block at an index after the array_set (they can land in
+<code>array_set</code>’s own block at an index after the <code>array_set</code> (they can land in
 the backward set through a forward-then-back round-trip, but don’t exist
-as storage at the array_set’s program point yet), and <strong>swap-excluded
+as storage at the <code>array_set</code>’s program point yet), and <strong>swap-excluded
 siblings</strong> — when <code>vX</code> is a loop-header parameter swapped onto a sibling
 parameter that is freshly re-allocated each iteration, the sibling is a
 distinct per-iteration storage and is dropped (see
 <a href="struct.Context.html#structfield.swap_excluded_aliases" title="field noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::swap_excluded_aliases"><code>Context::swap_excluded_aliases</code></a>).</p>
 </li>
 <li>
-<p><strong>Fast full-accept.</strong> Accept the array_set outright (skipping the
+<p><strong>Fast full-accept.</strong> Accept the <code>array_set</code> outright (skipping the
 forward walk) when some <code>inc_rc</code> on an alias-set member protects it on
-every path by a cheap test: an <code>inc_rc</code> earlier in the array_set’s own
+every path by a cheap test: an <code>inc_rc</code> earlier in the <code>array_set</code>’s own
 block, in a block that <strong>dominates</strong> it, or — for a non-source alias —
 on a loop <strong>back-edge</strong> (the back-edge-participant relaxation, where the
 frontend is deliberately managing iteration aliasing). See
@@ -51,11 +51,11 @@ members that are <em>not</em> provably protected, and seed the forward walk
 with only those (<a href="struct.Context.html#method.unprotected_aliases" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::unprotected_aliases"><code>Context::unprotected_aliases</code></a>). Coverage is per
 member: thread the source’s storage backward through the CFG
 (<a href="struct.Context.html#method.compute_uncovered_values" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::compute_uncovered_values"><code>Context::compute_uncovered_values</code></a>) and drop a member when, on every
-path where it can be the source’s storage at the array_set, that storage
+path where it can be the source’s storage at the <code>array_set</code>, that storage
 is RC-bumped by an <code>inc_rc</code> or is an iteration-local fresh allocation (a
 <code>MakeArray</code>/<code>Call</code> re-executed each loop iteration). Dropping covered
 members is what stops the forward walk from flagging a read of, say, an
-<code>inc_rc</code>’d sibling on a path where the array_set never mutates that
+<code>inc_rc</code>’d sibling on a path where the <code>array_set</code> never mutates that
 storage. An empty use-set means every member is protected — accept.</p>
 </li>
 <li>
@@ -67,7 +67,7 @@ position). Being in the alias-set means the value flows <em>into</em> the
 source, so combined with its back-edge participation the <code>inc_rc</code> is
 loop-carried: it runs before the value crosses the back-edge that
 re-binds it onto the source, so by the time the value’s storage
-equals the source’s it is RC ≥ 2 and the array_set copies. Reads of
+equals the source’s it is RC ≥ 2 and the <code>array_set</code> copies. Reads of
 it therefore can’t observe an in-place mutation. The gate is <strong>per
 value</strong> on that value’s own <code>inc_rc</code>: a back-edge position fed by an
 <code>inc_rc</code>’d value on one predecessor edge and an unprotected value on
@@ -75,14 +75,14 @@ another drops only the protected value, leaving the unprotected one
 for the walk to flag. Restricting to alias-set members is the
 soundness guard — a value that merely <em>receives</em> the source’s storage
 (a forward successor, not in the source’s backward set) has its
-<code>inc_rc</code> run <em>after</em> the array_set and so is not protected; it stays
+<code>inc_rc</code> run <em>after</em> the <code>array_set</code> and so is not protected; it stays
 in the use-set. This is what lets the verifier accept the latch-block
 shape (an <code>inc_rc v</code> placed before <code>v</code> is threaded <em>forward</em> into the
 latch that then closes the loop) without the unsoundness of crediting
-an <code>inc_rc</code> to a value the array_set actually mutates first.</p>
+an <code>inc_rc</code> to a value the <code>array_set</code> actually mutates first.</p>
 </li>
 <li>
-<p><strong>Forward walk.</strong> Walk the CFG forward from the array_set with the
+<p><strong>Forward walk.</strong> Walk the CFG forward from the <code>array_set</code> with the
 use-set as the initial set of live aliases. At each block-parameter
 crossing we both <strong>kill</strong> params that the predecessor rebinds to a
 non-alias and <strong>add</strong> params whose arg is still an alias (so alias
@@ -91,10 +91,10 @@ walk maintains two additional pieces of state:</p>
 <ul>
 <li><strong><code>derived</code></strong>, the set of values that may share the source’s storage
 through transitive in-place chain mutations. Seeded with the
-array_set’s own result; extended by every later <code>array_set</code> whose
+<code>array_set</code>’s own result; extended by every later <code>array_set</code> whose
 <code>array</code> operand is already in <code>derived</code>.</li>
 <li><strong><code>tainted_indices</code></strong>, the storage positions any chain link may
-already have written. Seeded with the array_set’s own write index
+already have written. Seeded with the <code>array_set</code>’s own write index
 (when constant) and widened by chain-link writes; collapsed to “all
 positions” if any chain link uses a dynamic index.</li>
 </ul>
@@ -132,7 +132,7 @@ down as documented false negatives.</li>
 allocates</strong> are likewise not tracked.</li>
 <li><strong>Iteration-local fresh array read back within one iteration.</strong> The
 freshness wall (step 3) credits a <code>MakeArray</code>/<code>Call</code> that shares a loop
-with the array_set as distinct per-iteration storage, which is sound
+with the <code>array_set</code> as distinct per-iteration storage, which is sound
 only because the result is normally threaded forward rather than the
 freshly-allocated source being re-read after its in-place mutation. A
 hand-written loop body that allocates an array, mutates it in place, and
@@ -150,7 +150,7 @@ that observed it.</dd><dt><a class="struct" href="struct.Context.html" title="st
 checks read from these structures rather than re-scanning the function.</dd><dt><a class="struct" href="struct.WalkFrame.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkFrame">Walk<wbr>Frame</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>One entry on the forward reachable-use walk’s worklist: a block to
 enter, the instruction index to start at within that block, and the
 walk’s evolving state. <code>start_idx &gt; 0</code> denotes the very first frame,
-which continues inside the array_set’s own block past the array_set
+which continues inside the <code>array_set</code>’s own block past the <code>array_set</code>
 instruction itself; all later frames enter at block start.</dd><dt><a class="struct" href="struct.WalkState.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState">Walk<wbr>State</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Per-frame state of the forward reachable-use walk: which alias-set
 members are live, which chain-derived values share storage with the
 source, and which storage positions any chain link may already have

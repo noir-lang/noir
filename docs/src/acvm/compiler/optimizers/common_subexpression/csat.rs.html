@@ -256,7 +256,7 @@
 <a href=#256 id=256 data-nosnippet>256</a>
 <a href=#257 id=257 data-nosnippet>257</a>    <span class="doccomment">/// Normalize an expression by dividing it by its first coefficient
 <a href=#258 id=258 data-nosnippet>258</a>    /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
-<a href=#259 id=259 data-nosnippet>259</a>    /// This function panics if the input expression is constant or if the first coefficient's inverse is F::zero()
+<a href=#259 id=259 data-nosnippet>259</a>    /// This function panics if the input expression is constant or if the first coefficient's inverse is `F::zero()`
 <a href=#260 id=260 data-nosnippet>260</a>    </span><span class="kw">fn </span>normalize&lt;F: AcirField&gt;(<span class="kw-2">mut </span>expr: Expression&lt;F&gt;) -&gt; (F, Expression&lt;F&gt;) {
 <a href=#261 id=261 data-nosnippet>261</a>        expr.sort();
 <a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">let </span>a = <span class="kw">if </span>!expr.linear_combinations.is_empty() {
@@ -270,7 +270,7 @@
 <a href=#270 id=270 data-nosnippet>270</a>    }
 <a href=#271 id=271 data-nosnippet>271</a>
 <a href=#272 id=272 data-nosnippet>272</a>    <span class="doccomment">/// Get or generate a scaled intermediate witness which is equal to the provided expression
-<a href=#273 id=273 data-nosnippet>273</a>    /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
+<a href=#273 id=273 data-nosnippet>273</a>    /// The sets of previously generated witness and their (normalized) expression is cached in the `intermediate_variables` map
 <a href=#274 id=274 data-nosnippet>274</a>    /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
 <a href=#275 id=275 data-nosnippet>275</a>    /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
 <a href=#276 id=276 data-nosnippet>276</a>    </span><span class="kw">fn </span>get_or_create_intermediate_var&lt;F: AcirField&gt;(

@@ -62,7 +62,7 @@
 <a href=#62 id=62 data-nosnippet>62</a>/// Our black box solver uses the standard rust implementation for the function if it is available.
 <a href=#63 id=63 data-nosnippet>63</a>/// However, some functions depend on the backend, such as embedded curve operations, which depend on the
 <a href=#64 id=64 data-nosnippet>64</a>/// elliptic curve used by the proving system. This is why the 'solve' functions takes a blackbox solver trait.
-<a href=#65 id=65 data-nosnippet>65</a>/// The 'AcvmBigIntSolver' is also a blackbox solver, but dedicated to the BigInteger blackbox functions.
+<a href=#65 id=65 data-nosnippet>65</a>/// The '`AcvmBigIntSolver`' is also a blackbox solver, but dedicated to the `BigInteger` blackbox functions.
 <a href=#66 id=66 data-nosnippet>66</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>solve&lt;F: AcirField&gt;(
 <a href=#67 id=67 data-nosnippet>67</a>    backend: <span class="kw-2">&amp;</span><span class="kw">impl </span>BlackBoxFunctionSolver&lt;F&gt;,
 <a href=#68 id=68 data-nosnippet>68</a>    initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,

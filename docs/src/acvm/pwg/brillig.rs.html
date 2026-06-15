@@ -88,7 +88,7 @@
 <a href=#88 id=88 data-nosnippet>88</a>        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ vm, acir_index, function_id: brillig_function_id })
 <a href=#89 id=89 data-nosnippet>89</a>    }
 <a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Get a BrilligVM for executing the provided bytecode
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Get a `BrilligVM` for executing the provided bytecode
 <a href=#92 id=92 data-nosnippet>92</a>    /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
 <a href=#93 id=93 data-nosnippet>93</a>    /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
 <a href=#94 id=94 data-nosnippet>94</a>    </span><span class="kw">fn </span>setup_brillig_vm(
@@ -180,7 +180,7 @@
 <a href=#180 id=180 data-nosnippet>180</a>        <span class="self">self</span>.vm.program_counter()
 <a href=#181 id=181 data-nosnippet>181</a>    }
 <a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a>    <span class="doccomment">/// Returns the status of the Brillig VM as a 'BrilligSolverStatus' resolution.
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="doccomment">/// Returns the status of the Brillig VM as a '`BrilligSolverStatus`' resolution.
 <a href=#184 id=184 data-nosnippet>184</a>    /// It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
 <a href=#185 id=185 data-nosnippet>185</a>    /// Return the "resolution" to the caller who may choose to make subsequent calls
 <a href=#186 id=186 data-nosnippet>186</a>    /// (when it gets foreign call results for example).

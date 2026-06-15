@@ -171,7 +171,7 @@
 <a href=#171 id=171 data-nosnippet>171</a>    /// This method generates one `store` instruction per array element, writing each
 <a href=#172 id=172 data-nosnippet>172</a>    /// value from the SSA into consecutive memory addresses starting at `pointer`.
 <a href=#173 id=173 data-nosnippet>173</a>    ///
-<a href=#174 id=174 data-nosnippet>174</a>    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime], this
+<a href=#174 id=174 data-nosnippet>174</a>    /// Unlike [`initialize_constant_array_runtime`][Self::initialize_constant_array_runtime], this
 <a href=#175 id=175 data-nosnippet>175</a>    /// does not use loops and emits one instruction per write, which can increase bytecode size
 <a href=#176 id=176 data-nosnippet>176</a>    /// but provides fine-grained control.
 <a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">fn </span>initialize_constant_array_comptime(
@@ -205,7 +205,7 @@
 <a href=#205 id=205 data-nosnippet>205</a>    /// base pointer.
 <a href=#206 id=206 data-nosnippet>206</a>    ///
 <a href=#207 id=207 data-nosnippet>207</a>    /// # Panics
-<a href=#208 id=208 data-nosnippet>208</a>    /// - The array variable is not a [BrilligVariable::BrilligArray] or [BrilligVariable::BrilligVector] when `has_offset` is false
+<a href=#208 id=208 data-nosnippet>208</a>    /// - The array variable is not a [`BrilligVariable::BrilligArray`] or [`BrilligVariable::BrilligVector`] when `has_offset` is false
 <a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">fn </span>convert_ssa_array_get(
 <a href=#210 id=210 data-nosnippet>210</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#211 id=211 data-nosnippet>211</a>        array_variable: BrilligVariable,
@@ -280,7 +280,7 @@
 <a href=#280 id=280 data-nosnippet>280</a>    /// If RC's have drifted down to zero it means the RC increment/decrement instructions
 <a href=#281 id=281 data-nosnippet>281</a>    /// have been written incorrectly.
 <a href=#282 id=282 data-nosnippet>282</a>    ///
-<a href=#283 id=283 data-nosnippet>283</a>    /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
+<a href=#283 id=283 data-nosnippet>283</a>    /// Should only be called if [`BrilligContext::enable_debug_assertions`] returns true.
 <a href=#284 id=284 data-nosnippet>284</a>    </span><span class="kw">fn </span>codegen_assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
 <a href=#285 id=285 data-nosnippet>285</a>        <span class="kw">let </span>zero = <span class="self">self</span>.brillig_context.allocate_single_addr(<span class="number">32</span>);
 <a href=#286 id=286 data-nosnippet>286</a>

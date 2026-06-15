@@ -68,8 +68,8 @@
 <a href=#68 id=68 data-nosnippet>68</a>    </span>brillig_addresses: Vec&lt;BrilligAddressSpace&gt;,
 <a href=#69 id=69 data-nosnippet>69</a>}
 <a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a><span class="doccomment">/// Associates a BrilligFunctionId with the address space.
-<a href=#72 id=72 data-nosnippet>72</a>/// A BrilligFunctionId is found by checking whether an address is between
+<a href=#71 id=71 data-nosnippet>71</a><span class="doccomment">/// Associates a `BrilligFunctionId` with the address space.
+<a href=#72 id=72 data-nosnippet>72</a>/// A `BrilligFunctionId` is found by checking whether an address is between
 <a href=#73 id=73 data-nosnippet>73</a>/// the `start_address` and `end_address`
 <a href=#74 id=74 data-nosnippet>74</a></span><span class="attr">#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 <a href=#75 id=75 data-nosnippet>75</a></span><span class="kw">struct </span>BrilligAddressSpace {
@@ -120,7 +120,7 @@
 <a href=#120 id=120 data-nosnippet>120</a>    }
 <a href=#121 id=121 data-nosnippet>121</a>
 <a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// Returns the absolute address of the opcode at the given location.
-<a href=#123 id=123 data-nosnippet>123</a>    /// Absolute here means accounting for nested Brillig opcodes in BrilligCall
+<a href=#123 id=123 data-nosnippet>123</a>    /// Absolute here means accounting for nested Brillig opcodes in `BrilligCall`
 <a href=#124 id=124 data-nosnippet>124</a>    /// opcodes.
 <a href=#125 id=125 data-nosnippet>125</a>    </span><span class="kw">pub fn </span>debug_location_to_address(<span class="kw-2">&amp;</span><span class="self">self</span>, location: <span class="kw-2">&amp;</span>DebugLocation) -&gt; usize {
 <a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">let </span>circuit_addresses = <span class="kw-2">&amp;</span><span class="self">self</span>.addresses[location.circuit_id <span class="kw">as </span>usize];
@@ -285,7 +285,7 @@
 <a href=#285 id=285 data-nosnippet>285</a><span class="attr">#[derive(Debug, Clone)]
 <a href=#286 id=286 data-nosnippet>286</a>
 <a href=#287 id=287 data-nosnippet>287</a></span><span class="kw">pub struct </span>RunParams {
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="doccomment">/// Option for configuring the source_code_printer
+<a href=#288 id=288 data-nosnippet>288</a>    <span class="doccomment">/// Option for configuring the `source_code_printer`
 <a href=#289 id=289 data-nosnippet>289</a>    /// This option only applies for the Repl interface
 <a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">pub </span>raw_source_printing: <span class="prelude-ty">Option</span>&lt;bool&gt;,
 <a href=#291 id=291 data-nosnippet>291</a>
@@ -976,7 +976,7 @@
 <a href=#976 id=976 data-nosnippet>976</a>    debug_file.path.starts_with(<span class="string">"__debug/"</span>)
 <a href=#977 id=977 data-nosnippet>977</a>}
 <a href=#978 id=978 data-nosnippet>978</a>
-<a href=#979 id=979 data-nosnippet>979</a><span class="doccomment">/// Builds a map from FileId to an ordered vector of tuples with line
+<a href=#979 id=979 data-nosnippet>979</a><span class="doccomment">/// Builds a map from `FileId` to an ordered vector of tuples with line
 <a href=#980 id=980 data-nosnippet>980</a>/// numbers and opcode locations corresponding to those line numbers
 <a href=#981 id=981 data-nosnippet>981</a></span><span class="kw">fn </span>build_source_to_opcode_debug_mappings(
 <a href=#982 id=982 data-nosnippet>982</a>    debug_artifact: <span class="kw-2">&amp;</span>DebugArtifact,

@@ -23,7 +23,7 @@
         predicate: <a class="struct" href="../../native_types/struct.Expression.html" title="struct acir::native_types::Expression">Expression</a>&lt;F&gt;,
     },
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Defines an operation within an ACIR circuit</p>
-<p>Expects a type parameter <code>F</code> which implements <a href="../../trait.AcirField.html" title="trait acir::AcirField">AcirField</a>.</p>
+<p>Expects a type parameter <code>F</code> which implements <a href="../../trait.AcirField.html" title="trait acir::AcirField"><code>AcirField</code></a>.</p>
 </div></details><h2 id="variants" class="variants section-header">Variants<a href="#variants" class="anchor">§</a></h2><div class="variants"><section id="variant.AssertZero" class="variant"><a href="#variant.AssertZero" class="anchor">§</a><h3 class="code-header">AssertZero(<a class="struct" href="../../native_types/struct.Expression.html" title="struct acir::native_types::Expression">Expression</a>&lt;F&gt;)</h3></section><div class="docblock"><p>An <code>AssertZero</code> opcode adds the constraint that <code>P(w) = 0</code>, where
 <code>w=(w_1,..w_n)</code> is a tuple of <code>n</code> witnesses, and <code>P</code> is a multi-variate
 polynomial of total degree at most <code>2</code>.</p>
@@ -44,7 +44,7 @@ opcode <code>z-x*y=0</code>, which would constrain <code>z</code> to be <code>x*
 specialized constraints.</p>
 <p>Often used for exposing more efficient implementations of
 SNARK-unfriendly computations.</p>
-<p>All black box function inputs are specified as <a href="enum.FunctionInput.html" title="enum acir::circuit::opcodes::FunctionInput">FunctionInput</a>,
+<p>All black box function inputs are specified as <a href="enum.FunctionInput.html" title="enum acir::circuit::opcodes::FunctionInput"><code>FunctionInput</code></a>,
 and they have one or several witnesses as output.</p>
 <p>Some more advanced computations assume that the proving system has an
 ‘embedded curve’. It is a curve that cycles with the main curve of the
@@ -54,16 +54,16 @@ e.g. Aztec’s Barretenberg uses BN254 as the main curve and Grumpkin as the
 embedded curve.</p>
 </div><section id="variant.MemoryOp" class="variant"><a href="#variant.MemoryOp" class="anchor">§</a><h3 class="code-header">MemoryOp</h3></section><div class="docblock"><p>Atomic operation on a block of memory</p>
 <p>ACIR is able to address any array of witnesses. Each array is assigned
-an id (<a href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId">BlockId</a>) and needs to be initialized with the <a href="enum.Opcode.html#variant.MemoryInit" title="variant acir::circuit::opcodes::Opcode::MemoryInit">Opcode::MemoryInit</a> opcode.
+an id (<a href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId"><code>BlockId</code></a>) and needs to be initialized with the <a href="enum.Opcode.html#variant.MemoryInit" title="variant acir::circuit::opcodes::Opcode::MemoryInit"><code>Opcode::MemoryInit</code></a> opcode.
 Then it is possible to read and write from/to an array by providing the
 index and the value we read/write as arithmetic expressions. Note that
-ACIR arrays all have a known fixed length (given in the <a href="enum.Opcode.html#variant.MemoryInit" title="variant acir::circuit::opcodes::Opcode::MemoryInit">Opcode::MemoryInit</a>
+ACIR arrays all have a known fixed length (given in the <a href="enum.Opcode.html#variant.MemoryInit" title="variant acir::circuit::opcodes::Opcode::MemoryInit"><code>Opcode::MemoryInit</code></a>
 opcode below)</p>
 </div><div class="sub-variant" id="variant.MemoryOp.fields"><h4>Fields</h4><div class="sub-variant-field"><span id="variant.MemoryOp.field.block_id" class="section-header"><a href="#variant.MemoryOp.field.block_id" class="anchor field">§</a><code>block_id: <a class="struct" href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId">BlockId</a></code></span><div class="docblock"><p>Identifier of the array</p>
 </div></div><div class="sub-variant-field"><span id="variant.MemoryOp.field.op" class="section-header"><a href="#variant.MemoryOp.field.op" class="anchor field">§</a><code>op: <a class="struct" href="struct.MemOp.html" title="struct acir::circuit::opcodes::MemOp">MemOp</a></code></span><div class="docblock"><p>Describe the memory operation to perform</p>
 </div></div></div><section id="variant.MemoryInit" class="variant"><a href="#variant.MemoryInit" class="anchor">§</a><h3 class="code-header">MemoryInit</h3></section><div class="docblock"><p>Initialize an ACIR array from a vector of witnesses.</p>
-<p>There must be only one MemoryInit per block_id, and MemoryOp opcodes must
-come after the MemoryInit.</p>
+<p>There must be only one <code>MemoryInit</code> per <code>block_id</code>, and <code>MemoryOp</code> opcodes must
+come after the <code>MemoryInit</code>.</p>
 </div><div class="sub-variant" id="variant.MemoryInit.fields"><h4>Fields</h4><div class="sub-variant-field"><span id="variant.MemoryInit.field.block_id" class="section-header"><a href="#variant.MemoryInit.field.block_id" class="anchor field">§</a><code>block_id: <a class="struct" href="struct.BlockId.html" title="struct acir::circuit::opcodes::BlockId">BlockId</a></code></span><div class="docblock"><p>Identifier of the array</p>
 </div></div><div class="sub-variant-field"><span id="variant.MemoryInit.field.init" class="section-header"><a href="#variant.MemoryInit.field.init" class="anchor field">§</a><code>init: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../native_types/struct.Witness.html" title="struct acir::native_types::Witness">Witness</a>&gt;</code></span><div class="docblock"><p>Vector of witnesses specifying the initial value of the array</p>
 </div></div><div class="sub-variant-field"><span id="variant.MemoryInit.field.block_type" class="section-header"><a href="#variant.MemoryInit.field.block_type" class="anchor field">§</a><code>block_type: <a class="enum" href="enum.BlockType.html" title="enum acir::circuit::opcodes::BlockType">BlockType</a></code></span><div class="docblock"><p>Specify what type of memory we should initialize</p>

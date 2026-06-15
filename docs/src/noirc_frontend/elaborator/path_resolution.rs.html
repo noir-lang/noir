@@ -63,12 +63,12 @@
 <a href=#63 id=63 data-nosnippet>63</a>    </span>TypeTraitFunction(Type, TraitId, FuncId),
 <a href=#64 id=64 data-nosnippet>64</a>    <span class="doccomment">/// A function call on a primitive type, for example `u64::from(...)` or `u64::&lt;A, B&gt;::from(..)`.
 <a href=#65 id=65 data-nosnippet>65</a>    </span>PrimitiveFunction(PrimitiveType, <span class="prelude-ty">Option</span>&lt;Turbofish&gt;, FuncId),
-<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// An associated constant accessed via Type::CONSTANT syntax, for example `Foo::N`.
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// An associated constant accessed via `Type::CONSTANT` syntax, for example `Foo::N`.
 <a href=#67 id=67 data-nosnippet>67</a>    </span>TraitConstant(TypeId, TraitId, DefinitionId),
 <a href=#68 id=68 data-nosnippet>68</a>}
 <a href=#69 id=69 data-nosnippet>69</a>
 <a href=#70 id=70 data-nosnippet>70</a><span class="kw">impl </span>PathResolutionItem {
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// Return a [FuncId] if the item refers to some kind of function, otherwise `None`.
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// Return a [`FuncId`] if the item refers to some kind of function, otherwise `None`.
 <a href=#72 id=72 data-nosnippet>72</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#74 id=74 data-nosnippet>74</a>            PathResolutionItem::ModuleFunction(func_id)
@@ -238,7 +238,7 @@
 <a href=#238 id=238 data-nosnippet>238</a>}
 <a href=#239 id=239 data-nosnippet>239</a>
 <a href=#240 id=240 data-nosnippet>240</a><span class="kw">impl </span>TypedPath {
-<a href=#241 id=241 data-nosnippet>241</a>    <span class="doccomment">/// Construct a [PathKind::Plain] from a number of segments.
+<a href=#241 id=241 data-nosnippet>241</a>    <span class="doccomment">/// Construct a [`PathKind::Plain`] from a number of segments.
 <a href=#242 id=242 data-nosnippet>242</a>    </span><span class="kw">pub fn </span>plain(segments: Vec&lt;TypedPathSegment&gt;, location: Location) -&gt; <span class="self">Self </span>{
 <a href=#243 id=243 data-nosnippet>243</a>        <span class="self">Self </span>{ segments, location, kind: PathKind::Plain, kind_location: location }
 <a href=#244 id=244 data-nosnippet>244</a>    }
@@ -251,13 +251,13 @@
 <a href=#251 id=251 data-nosnippet>251</a>        <span class="self">self</span>.segments.pop().unwrap()
 <a href=#252 id=252 data-nosnippet>252</a>    }
 <a href=#253 id=253 data-nosnippet>253</a>
-<a href=#254 id=254 data-nosnippet>254</a>    <span class="doccomment">/// Construct a [PathKind::Plain] from a single identifier name.
+<a href=#254 id=254 data-nosnippet>254</a>    <span class="doccomment">/// Construct a [`PathKind::Plain`] from a single identifier name.
 <a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">pub fn </span>from_single(name: String, location: Location) -&gt; TypedPath {
 <a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">let </span>segment = Ident::from(Located::from(location, name));
 <a href=#257 id=257 data-nosnippet>257</a>        TypedPath::from_ident(segment)
 <a href=#258 id=258 data-nosnippet>258</a>    }
 <a href=#259 id=259 data-nosnippet>259</a>
-<a href=#260 id=260 data-nosnippet>260</a>    <span class="doccomment">/// Construct a [PathKind::Plain] from a single identifier segment.
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="doccomment">/// Construct a [`PathKind::Plain`] from a single identifier segment.
 <a href=#261 id=261 data-nosnippet>261</a>    </span><span class="kw">pub fn </span>from_ident(name: Ident) -&gt; TypedPath {
 <a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">let </span>location = name.location();
 <a href=#263 id=263 data-nosnippet>263</a>        <span class="kw">let </span>segment = TypedPathSegment::without_generics(name, location);
@@ -298,7 +298,7 @@
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="self">self</span>.segments.last().unwrap().ident.as_str()
 <a href=#299 id=299 data-nosnippet>299</a>    }
 <a href=#300 id=300 data-nosnippet>300</a>
-<a href=#301 id=301 data-nosnippet>301</a>    <span class="doccomment">/// Returns `Some` if the [TypedPath] consists of a single [PathKind::Plain] segment, otherwise `None`.
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="doccomment">/// Returns `Some` if the [`TypedPath`] consists of a single [`PathKind::Plain`] segment, otherwise `None`.
 <a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">pub fn </span>as_single_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypedPathSegment&gt; {
 <a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">if </span><span class="self">self</span>.kind == PathKind::Plain &amp;&amp; <span class="self">self</span>.segments.len() == <span class="number">1 </span>{
 <a href=#304 id=304 data-nosnippet>304</a>            <span class="self">self</span>.segments.first()
@@ -379,7 +379,7 @@
 <a href=#379 id=379 data-nosnippet>379</a>}
 <a href=#380 id=380 data-nosnippet>380</a>
 <a href=#381 id=381 data-nosnippet>381</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#382 id=382 data-nosnippet>382</a>    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _referenced_.
+<a href=#382 id=382 data-nosnippet>382</a>    <span class="doccomment">/// Try to resolve a [`TypedPath`] into a [`PathResolutionItem`], marking it as _referenced_.
 <a href=#383 id=383 data-nosnippet>383</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#384 id=384 data-nosnippet>384</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error(
 <a href=#385 id=385 data-nosnippet>385</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -389,7 +389,7 @@
 <a href=#389 id=389 data-nosnippet>389</a>        <span class="self">self</span>.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
 <a href=#390 id=390 data-nosnippet>390</a>    }
 <a href=#391 id=391 data-nosnippet>391</a>
-<a href=#392 id=392 data-nosnippet>392</a>    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _used_.
+<a href=#392 id=392 data-nosnippet>392</a>    <span class="doccomment">/// Try to resolve a [`TypedPath`] into a [`PathResolutionItem`], marking it as _used_.
 <a href=#393 id=393 data-nosnippet>393</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#394 id=394 data-nosnippet>394</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_or_error(
 <a href=#395 id=395 data-nosnippet>395</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -399,7 +399,7 @@
 <a href=#399 id=399 data-nosnippet>399</a>        <span class="self">self</span>.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
 <a href=#400 id=400 data-nosnippet>400</a>    }
 <a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a>    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolutionItem].
+<a href=#402 id=402 data-nosnippet>402</a>    <span class="doccomment">/// Try to resolve a [`TypedPath`] into a [`PathResolutionItem`].
 <a href=#403 id=403 data-nosnippet>403</a>    ///
 <a href=#404 id=404 data-nosnippet>404</a>    /// Pushes the `errors` from the [PathResolution], returning only the `item`.
 <a href=#405 id=405 data-nosnippet>405</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
@@ -416,7 +416,7 @@
 <a href=#416 id=416 data-nosnippet>416</a>        <span class="prelude-val">Ok</span>(path_resolution.item)
 <a href=#417 id=417 data-nosnippet>417</a>    }
 <a href=#418 id=418 data-nosnippet>418</a>
-<a href=#419 id=419 data-nosnippet>419</a>    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _referenced_.
+<a href=#419 id=419 data-nosnippet>419</a>    <span class="doccomment">/// Try to resolve a [`TypedPath`] into a [PathResolution] with [`PathResolutionTarget::Type`], marking it as _referenced_.
 <a href=#420 id=420 data-nosnippet>420</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#421 id=421 data-nosnippet>421</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
 <a href=#422 id=422 data-nosnippet>422</a>        <span class="self">self</span>.resolve_path_inner(
@@ -426,7 +426,7 @@
 <a href=#426 id=426 data-nosnippet>426</a>        )
 <a href=#427 id=427 data-nosnippet>427</a>    }
 <a href=#428 id=428 data-nosnippet>428</a>
-<a href=#429 id=429 data-nosnippet>429</a>    <span class="doccomment">/// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _used_.
+<a href=#429 id=429 data-nosnippet>429</a>    <span class="doccomment">/// Try to resolve a [`TypedPath`] into a [PathResolution] with [`PathResolutionTarget::Type`], marking it as _used_.
 <a href=#430 id=430 data-nosnippet>430</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#431 id=431 data-nosnippet>431</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
 <a href=#432 id=432 data-nosnippet>432</a>        <span class="self">self</span>.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
@@ -514,7 +514,7 @@
 <a href=#514 id=514 data-nosnippet>514</a>        })
 <a href=#515 id=515 data-nosnippet>515</a>    }
 <a href=#516 id=516 data-nosnippet>516</a>
-<a href=#517 id=517 data-nosnippet>517</a>    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
+<a href=#517 id=517 data-nosnippet>517</a>    <span class="doccomment">/// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
 <a href=#518 id=518 data-nosnippet>518</a>    ///
 <a href=#519 id=519 data-nosnippet>519</a>    /// `importing_module` is the module where the lookup originally started.
 <a href=#520 id=520 data-nosnippet>520</a>    ///
@@ -556,13 +556,13 @@
 <a href=#556 id=556 data-nosnippet>556</a>        }
 <a href=#557 id=557 data-nosnippet>557</a>    }
 <a href=#558 id=558 data-nosnippet>558</a>
-<a href=#559 id=559 data-nosnippet>559</a>    <span class="doccomment">/// Resolves a [TypedPath] assuming it is inside `starting_module`.
+<a href=#559 id=559 data-nosnippet>559</a>    <span class="doccomment">/// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
 <a href=#560 id=560 data-nosnippet>560</a>    ///
 <a href=#561 id=561 data-nosnippet>561</a>    /// `importing_module` is the module where the lookup originally started.
 <a href=#562 id=562 data-nosnippet>562</a>    ///
 <a href=#563 id=563 data-nosnippet>563</a>    /// This method does not check the path kind, it just checks its segments.
 <a href=#564 id=564 data-nosnippet>564</a>    ///
-<a href=#565 id=565 data-nosnippet>565</a>    /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
+<a href=#565 id=565 data-nosnippet>565</a>    /// Marks the segments in the path as used or referenced, depending on the [`PathResolutionMode`].
 <a href=#566 id=566 data-nosnippet>566</a>    /// Pushes errors if segments refer to private items.
 <a href=#567 id=567 data-nosnippet>567</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#568 id=568 data-nosnippet>568</a>    </span><span class="kw">fn </span>resolve_name_in_module(
@@ -799,7 +799,7 @@
 <a href=#799 id=799 data-nosnippet>799</a>        <span class="prelude-val">Ok</span>(PathResolution { item, errors })
 <a href=#800 id=800 data-nosnippet>800</a>    }
 <a href=#801 id=801 data-nosnippet>801</a>
-<a href=#802 id=802 data-nosnippet>802</a>    <span class="doccomment">/// Transform a result from [PerNs] into a [PathResolutionItem],
+<a href=#802 id=802 data-nosnippet>802</a>    <span class="doccomment">/// Transform a result from [`PerNs`] into a [`PathResolutionItem`],
 <a href=#803 id=803 data-nosnippet>803</a>    /// pushing any visibility errors.
 <a href=#804 id=804 data-nosnippet>804</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
 <a href=#805 id=805 data-nosnippet>805</a>    #[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
@@ -1033,7 +1033,7 @@
 <a href=#1033 id=1033 data-nosnippet>1033</a>    ///
 <a href=#1034 id=1034 data-nosnippet>1034</a>    /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
 <a href=#1035 id=1035 data-nosnippet>1035</a>    /// a primitive type. Because they do not have module, we look up the method directly
-<a href=#1036 id=1036 data-nosnippet>1036</a>    /// like what is done in [Self::resolve_primitive_type_or_function].
+<a href=#1036 id=1036 data-nosnippet>1036</a>    /// like what is done in [`Self::resolve_primitive_type_or_function`].
 <a href=#1037 id=1037 data-nosnippet>1037</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#1038 id=1038 data-nosnippet>1038</a>    </span><span class="kw">fn </span>resolve_primitive_type_alias_method(
 <a href=#1039 id=1039 data-nosnippet>1039</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1052,7 +1052,7 @@
 <a href=#1052 id=1052 data-nosnippet>1052</a>        )
 <a href=#1053 id=1053 data-nosnippet>1053</a>    }
 <a href=#1054 id=1054 data-nosnippet>1054</a>
-<a href=#1055 id=1055 data-nosnippet>1055</a>    <span class="doccomment">/// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
+<a href=#1055 id=1055 data-nosnippet>1055</a>    <span class="doccomment">/// Try to resolve a path with 1 or 2 segments as a [`PathResolutionItem::PrimitiveType`] or [`PathResolutionItem::PrimitiveFunction`].
 <a href=#1056 id=1056 data-nosnippet>1056</a>    ///
 <a href=#1057 id=1057 data-nosnippet>1057</a>    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
 <a href=#1058 id=1058 data-nosnippet>1058</a>    /// or an unambiguous trait method among the traits which are in scope.
@@ -1159,9 +1159,9 @@
 <a href=#1159 id=1159 data-nosnippet>1159</a>    }
 <a href=#1160 id=1160 data-nosnippet>1160</a>}
 <a href=#1161 id=1161 data-nosnippet>1161</a>
-<a href=#1162 id=1162 data-nosnippet>1162</a><span class="doccomment">/// Transform a [ModuleDefId] into a [PathResolutionItem].
+<a href=#1162 id=1162 data-nosnippet>1162</a><span class="doccomment">/// Transform a [`ModuleDefId`] into a [`PathResolutionItem`].
 <a href=#1163 id=1163 data-nosnippet>1163</a>///
-<a href=#1164 id=1164 data-nosnippet>1164</a>/// If it's a [ModuleDefId::FunctionId], merge it with the [IntermediatePathResolutionItem]
+<a href=#1164 id=1164 data-nosnippet>1164</a>/// If it's a [`ModuleDefId::FunctionId`], merge it with the [`IntermediatePathResolutionItem`]
 <a href=#1165 id=1165 data-nosnippet>1165</a>/// representing the item it was found in, such as a module, type, trait, alias, or Self.
 <a href=#1166 id=1166 data-nosnippet>1166</a></span><span class="kw">fn </span>merge_intermediate_path_resolution_item_with_module_def_id(
 <a href=#1167 id=1167 data-nosnippet>1167</a>    intermediate_item: IntermediatePathResolutionItem,

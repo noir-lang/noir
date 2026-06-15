@@ -21,14 +21,14 @@
 <a href=#21 id=21 data-nosnippet>21</a>/// This is needed to stop recursing for cases such as `impl&lt;T&gt; Foo for T where T: Eq`
 <a href=#22 id=22 data-nosnippet>22</a></span><span class="kw">const </span>IMPL_SEARCH_RECURSION_LIMIT: u32 = <span class="number">10</span>;
 <a href=#23 id=23 data-nosnippet>23</a>
-<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// Modes that affect the behavior of [NodeInterner::try_lookup_trait_implementation].
+<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// Modes that affect the behavior of [`NodeInterner::try_lookup_trait_implementation`].
 <a href=#25 id=25 data-nosnippet>25</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TraitLookupMode {
-<a href=#26 id=26 data-nosnippet>26</a>    <span class="doccomment">/// Does not look up implementations for bindable object types, but matches any [TraitImplKind].
+<a href=#26 id=26 data-nosnippet>26</a>    <span class="doccomment">/// Does not look up implementations for bindable object types, but matches any [`TraitImplKind`].
 <a href=#27 id=27 data-nosnippet>27</a>    </span>Default,
-<a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
+<a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Looks up implementation for bindable object types, and matches only [`TraitImplKind::Assumed`].
 <a href=#29 id=29 data-nosnippet>29</a>    /// The returned bindings are not expected to be applied.
 <a href=#30 id=30 data-nosnippet>30</a>    </span>SelfAssumedOnly,
-<a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// Like [Default](TraitLookupMode::Default), but skips every [TraitImplKind::Assumed] impl.
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// Like [Default](TraitLookupMode::Default), but skips every [`TraitImplKind::Assumed`] impl.
 <a href=#32 id=32 data-nosnippet>32</a>    /// Used to normalize an associated-type projection over a rigid object type: the real impl
 <a href=#33 id=33 data-nosnippet>33</a>    /// is the single ground truth, and any `where` clause hypothesis for the same type is
 <a href=#34 id=34 data-nosnippet>34</a>    /// discharged by it rather than competing with it.
@@ -431,7 +431,7 @@
 <a href=#431 id=431 data-nosnippet>431</a>        <span class="prelude-val">Ok</span>((impl_kind, instantiation_bindings))
 <a href=#432 id=432 data-nosnippet>432</a>    }
 <a href=#433 id=433 data-nosnippet>433</a>
-<a href=#434 id=434 data-nosnippet>434</a>    <span class="doccomment">/// Like [Self::lookup_trait_implementation] but ignores [TraitImplKind::Assumed] impls.
+<a href=#434 id=434 data-nosnippet>434</a>    <span class="doccomment">/// Like [`Self::lookup_trait_implementation`] but ignores [`TraitImplKind::Assumed`] impls.
 <a href=#435 id=435 data-nosnippet>435</a>    /// Intended for normalizing an associated-type projection whose object type is rigid,
 <a href=#436 id=436 data-nosnippet>436</a>    /// where a `where` clause hypothesis must not compete with the real impl that discharges it.
 <a href=#437 id=437 data-nosnippet>437</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_trait_implementation_ignoring_assumed(
@@ -479,7 +479,7 @@
 <a href=#479 id=479 data-nosnippet>479</a>        <span class="prelude-val">Ok</span>((impl_kind, bindings, instantiation_bindings))
 <a href=#480 id=480 data-nosnippet>480</a>    }
 <a href=#481 id=481 data-nosnippet>481</a>
-<a href=#482 id=482 data-nosnippet>482</a>    <span class="doccomment">/// Remove the [TraitImplKind::Prepared] entry for the given impl, if one exists.
+<a href=#482 id=482 data-nosnippet>482</a>    <span class="doccomment">/// Remove the [`TraitImplKind::Prepared`] entry for the given impl, if one exists.
 <a href=#483 id=483 data-nosnippet>483</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_prepared_trait_implementation(
 <a href=#484 id=484 data-nosnippet>484</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#485 id=485 data-nosnippet>485</a>        trait_id: TraitId,
@@ -491,7 +491,7 @@
 <a href=#491 id=491 data-nosnippet>491</a>    }
 <a href=#492 id=492 data-nosnippet>492</a>
 <a href=#493 id=493 data-nosnippet>493</a>    <span class="doccomment">/// Returns the trait implementation if found along with the instantiation bindings for
-<a href=#494 id=494 data-nosnippet>494</a>    /// instantiating that trait impl. Note that this is separate from the passed-in TypeBindings
+<a href=#494 id=494 data-nosnippet>494</a>    /// instantiating that trait impl. Note that this is separate from the passed-in `TypeBindings`
 <a href=#495 id=495 data-nosnippet>495</a>    /// which can be bound via `Type::apply_type_bindings` if needed. Instantiation bindings should
 <a href=#496 id=496 data-nosnippet>496</a>    /// be stored as such but not bound, lest the original named generics in trait impls get bound
 <a href=#497 id=497 data-nosnippet>497</a>    /// over.
@@ -773,7 +773,7 @@
 <a href=#773 id=773 data-nosnippet>773</a>        <span class="macro">format!</span>(<span class="string">"{object_type:?}: {name}{generics}"</span>)
 <a href=#774 id=774 data-nosnippet>774</a>    }
 <a href=#775 id=775 data-nosnippet>775</a>
-<a href=#776 id=776 data-nosnippet>776</a>    <span class="doccomment">/// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
+<a href=#776 id=776 data-nosnippet>776</a>    <span class="doccomment">/// Removes all `TraitImplKind::Assumed` from the list of known impls for the given trait
 <a href=#777 id=777 data-nosnippet>777</a>    </span><span class="kw">pub fn </span>remove_assumed_trait_implementations_for_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) {
 <a href=#778 id=778 data-nosnippet>778</a>        <span class="self">self</span>.remove_assumed_trait_implementations_for_trait_and_parents(
 <a href=#779 id=779 data-nosnippet>779</a>            trait_id,

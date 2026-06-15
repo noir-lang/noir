@@ -170,11 +170,11 @@
 <a href=#170 id=170 data-nosnippet>170</a>    bits
 <a href=#171 id=171 data-nosnippet>171</a>}
 <a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a><span class="doccomment">/// Pre-check condition for [Function::checked_to_unchecked].
+<a href=#173 id=173 data-nosnippet>173</a><span class="doccomment">/// Pre-check condition for [`Function::checked_to_unchecked`].
 <a href=#174 id=174 data-nosnippet>174</a>///
 <a href=#175 id=175 data-nosnippet>175</a>/// Panics if:
 <a href=#176 id=176 data-nosnippet>176</a>///   - The function contains any checked signed binary operations (add, sub, mul).
-<a href=#177 id=177 data-nosnippet>177</a>///   - These should have already been converted by the expand_signed_checks pass.
+<a href=#177 id=177 data-nosnippet>177</a>///   - These should have already been converted by the `expand_signed_checks` pass.
 <a href=#178 id=178 data-nosnippet>178</a></span><span class="attr">#[cfg(debug_assertions)]
 <a href=#179 id=179 data-nosnippet>179</a></span><span class="kw">fn </span>checked_to_unchecked_pre_check(func: <span class="kw-2">&amp;</span>Function) {
 <a href=#180 id=180 data-nosnippet>180</a>    <span class="comment">// expand_signed_checks must have run

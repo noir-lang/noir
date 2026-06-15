@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>
 <a href=#41 id=41 data-nosnippet>41</a><span class="kw">impl </span>Ssa {
 <a href=#42 id=42 data-nosnippet>42</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="doccomment">/// Apply the basic_conditional pass to all functions of the program.
+<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="doccomment">/// Apply the `basic_conditional` pass to all functions of the program.
 <a href=#44 id=44 data-nosnippet>44</a>    /// It first retrieve the `no_predicates` attribute of each function which will be used during the flattening.
 <a href=#45 id=45 data-nosnippet>45</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flatten_basic_conditionals(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
 <a href=#46 id=46 data-nosnippet>46</a>        <span class="kw">let </span>no_predicates: HashSet&lt;FunctionId&gt; =
@@ -58,20 +58,20 @@
 <a href=#58 id=58 data-nosnippet>58</a>/// A simple conditional is an if-then(-else) statement where branches are 'small' basic blocks.
 <a href=#59 id=59 data-nosnippet>59</a>/// 'Small' basic blocks means that we expect their execution cost to be small.
 <a href=#60 id=60 data-nosnippet>60</a>///
-<a href=#61 id=61 data-nosnippet>61</a>/// In case the block is the entry of a 'simple conditional', the function returns a BasicConditional which
+<a href=#61 id=61 data-nosnippet>61</a>/// In case the block is the entry of a 'simple conditional', the function returns a `BasicConditional` which
 <a href=#62 id=62 data-nosnippet>62</a>/// consist of the list of the conditional blocks:
-<a href=#63 id=63 data-nosnippet>63</a>///     block_entry
+<a href=#63 id=63 data-nosnippet>63</a>///     `block_entry`
 <a href=#64 id=64 data-nosnippet>64</a>///      /       \
-<a href=#65 id=65 data-nosnippet>65</a>/// block_then   block_else
+<a href=#65 id=65 data-nosnippet>65</a>/// `block_then`   `block_else`
 <a href=#66 id=66 data-nosnippet>66</a>///     \       /
-<a href=#67 id=67 data-nosnippet>67</a>///     block_exit
-<a href=#68 id=68 data-nosnippet>68</a>/// block_then and block_else are optionals, in order to account for the case when there is no 'then' or no 'else' branch
+<a href=#67 id=67 data-nosnippet>67</a>///     `block_exit`
+<a href=#68 id=68 data-nosnippet>68</a>/// `block_then` and `block_else` are optionals, in order to account for the case when there is no 'then' or no 'else' branch
 <a href=#69 id=69 data-nosnippet>69</a>/// Only structured CFG with this shape are considered:
-<a href=#70 id=70 data-nosnippet>70</a>/// - block_entry has exactly 2 successors
-<a href=#71 id=71 data-nosnippet>71</a>/// - block_then and block_else have exactly 1 successor, which is block_exit, or one of them is block_exit
-<a href=#72 id=72 data-nosnippet>72</a>/// - block_exit has exactly 2 predecessors (block_then and block_else)
+<a href=#70 id=70 data-nosnippet>70</a>/// - `block_entry` has exactly 2 successors
+<a href=#71 id=71 data-nosnippet>71</a>/// - `block_then` and `block_else` have exactly 1 successor, which is `block_exit`, or one of them is `block_exit`
+<a href=#72 id=72 data-nosnippet>72</a>/// - `block_exit` has exactly 2 predecessors (`block_then` and `block_else`)
 <a href=#73 id=73 data-nosnippet>73</a>///
-<a href=#74 id=74 data-nosnippet>74</a>/// Furthermore, cost of block_then + cost of block_else must be less than their average cost + jump overhead cost
+<a href=#74 id=74 data-nosnippet>74</a>/// Furthermore, cost of `block_then` + cost of `block_else` must be less than their average cost + jump overhead cost
 <a href=#75 id=75 data-nosnippet>75</a></span><span class="kw">fn </span>is_conditional(
 <a href=#76 id=76 data-nosnippet>76</a>    block: BasicBlockId,
 <a href=#77 id=77 data-nosnippet>77</a>    cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
@@ -202,13 +202,13 @@
 <a href=#202 id=202 data-nosnippet>202</a>    </span>(cfg.predecessors(result.block_exit).len() == <span class="number">2</span>).then_some(result)
 <a href=#203 id=203 data-nosnippet>203</a>}
 <a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a><span class="doccomment">/// Estimate the Brillig opcode cost of the IfElse merge instructions that flattening
+<a href=#205 id=205 data-nosnippet>205</a><span class="doccomment">/// Estimate the Brillig opcode cost of the `IfElse` merge instructions that flattening
 <a href=#206 id=206 data-nosnippet>206</a>/// would generate. Only parameters where both branches pass different values need
 <a href=#207 id=207 data-nosnippet>207</a>/// merge instructions; identical values simplify to a no-op.
 <a href=#208 id=208 data-nosnippet>208</a>///
-<a href=#209 id=209 data-nosnippet>209</a>/// For SingleAddr types (numerics and references), the merge is a single
+<a href=#209 id=209 data-nosnippet>209</a>/// For `SingleAddr` types (numerics and references), the merge is a single
 <a href=#210 id=210 data-nosnippet>210</a>/// `ConditionalMov` = 1 opcode.
-<a href=#211 id=211 data-nosnippet>211</a>/// For array/slice parameters, the IfElse generates a conditional memory copy
+<a href=#211 id=211 data-nosnippet>211</a>/// For array/slice parameters, the `IfElse` generates a conditional memory copy
 <a href=#212 id=212 data-nosnippet>212</a>/// which is much more expensive (~20 opcodes).
 <a href=#213 id=213 data-nosnippet>213</a></span><span class="kw">fn </span>differing_merge_cost(
 <a href=#214 id=214 data-nosnippet>214</a>    then_block: BasicBlockId,
@@ -368,10 +368,10 @@
 <a href=#368 id=368 data-nosnippet>368</a>    /// * `no_predicates` - Set of function IDs carrying the `no_predicates` attribute
 <a href=#369 id=369 data-nosnippet>369</a>    ///
 <a href=#370 id=370 data-nosnippet>370</a>    /// # Implementation Details
-<a href=#371 id=371 data-nosnippet>371</a>    /// - Sets up context state (target_block, no_predicate) to enable proper inlining
+<a href=#371 id=371 data-nosnippet>371</a>    /// - Sets up context state (`target_block`, `no_predicate`) to enable proper inlining
 <a href=#372 id=372 data-nosnippet>372</a>    /// - Inlines each block's instructions into the entry block
 <a href=#373 id=373 data-nosnippet>373</a>    /// - Handles terminators to manage control flow during inlining
-<a href=#374 id=374 data-nosnippet>374</a>    /// - Uses a WorkList to track which blocks need processing
+<a href=#374 id=374 data-nosnippet>374</a>    /// - Uses a `WorkList` to track which blocks need processing
 <a href=#375 id=375 data-nosnippet>375</a>    /// - Copies the exit block's terminator to the entry block after inlining
 <a href=#376 id=376 data-nosnippet>376</a>    /// - Restores original context state after completion
 <a href=#377 id=377 data-nosnippet>377</a>    </span><span class="kw">fn </span>flatten_single_conditional(
@@ -470,9 +470,9 @@
 <a href=#470 id=470 data-nosnippet>470</a>    /// from conditional flattening throughout the rest of the function.
 <a href=#471 id=471 data-nosnippet>471</a>    ///
 <a href=#472 id=472 data-nosnippet>472</a>    /// # Parameters
-<a href=#473 id=473 data-nosnippet>473</a>    /// * `mapping` - HashMap mapping old ValueIds to their simplified/replaced ValueIds
+<a href=#473 id=473 data-nosnippet>473</a>    /// * `mapping` - `HashMap` mapping old `ValueIds` to their simplified/replaced `ValueIds`
 <a href=#474 id=474 data-nosnippet>474</a>    /// * `func` - The function containing the block to update
-<a href=#475 id=475 data-nosnippet>475</a>    /// * `block` - The BasicBlockId of the block to remap
+<a href=#475 id=475 data-nosnippet>475</a>    /// * `block` - The `BasicBlockId` of the block to remap
 <a href=#476 id=476 data-nosnippet>476</a>    </span><span class="kw">fn </span>map_block_with_mapping(
 <a href=#477 id=477 data-nosnippet>477</a>        mapping: HashMap&lt;ValueId, ValueId&gt;,
 <a href=#478 id=478 data-nosnippet>478</a>        func: <span class="kw-2">&amp;mut </span>Function,
@@ -687,7 +687,7 @@
 <a href=#687 id=687 data-nosnippet>687</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
 <a href=#688 id=688 data-nosnippet>688</a>    }
 <a href=#689 id=689 data-nosnippet>689</a>
-<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// Diamond-shaped conditional where the entry JmpIf carries then/else arguments
+<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// Diamond-shaped conditional where the entry `JmpIf` carries then/else arguments
 <a href=#691 id=691 data-nosnippet>691</a>    /// (as emitted by mem2reg). Both branches receive a promoted variable value
 <a href=#692 id=692 data-nosnippet>692</a>    /// as a block parameter. The optimization should still fire and produce merged output.
 <a href=#693 id=693 data-nosnippet>693</a>    </span><span class="attr">#[test]
@@ -724,7 +724,7 @@
 <a href=#724 id=724 data-nosnippet>724</a>        "</span>);
 <a href=#725 id=725 data-nosnippet>725</a>    }
 <a href=#726 id=726 data-nosnippet>726</a>
-<a href=#727 id=727 data-nosnippet>727</a>    <span class="doccomment">/// Diamond-shaped conditional where only the then-branch receives a JmpIf argument.
+<a href=#727 id=727 data-nosnippet>727</a>    <span class="doccomment">/// Diamond-shaped conditional where only the then-branch receives a `JmpIf` argument.
 <a href=#728 id=728 data-nosnippet>728</a>    /// The optimization should fire; the else branch value is folded through unchanged.
 <a href=#729 id=729 data-nosnippet>729</a>    </span><span class="attr">#[test]
 <a href=#730 id=730 data-nosnippet>730</a>    </span><span class="kw">fn </span>jmpif_with_only_then_args_diamond() {
@@ -759,8 +759,8 @@
 <a href=#759 id=759 data-nosnippet>759</a>        "</span>);
 <a href=#760 id=760 data-nosnippet>760</a>    }
 <a href=#761 id=761 data-nosnippet>761</a>
-<a href=#762 id=762 data-nosnippet>762</a>    <span class="doccomment">/// Non-diamond (then-only) case with JmpIf arguments: the optimization must be
-<a href=#763 id=763 data-nosnippet>763</a>    /// skipped because the else_arguments go directly to the exit block, which
+<a href=#762 id=762 data-nosnippet>762</a>    <span class="doccomment">/// Non-diamond (then-only) case with `JmpIf` arguments: the optimization must be
+<a href=#763 id=763 data-nosnippet>763</a>    /// skipped because the `else_arguments` go directly to the exit block, which
 <a href=#764 id=764 data-nosnippet>764</a>    /// `inline_branch_end` cannot handle correctly yet.
 <a href=#765 id=765 data-nosnippet>765</a>    </span><span class="attr">#[test]
 <a href=#766 id=766 data-nosnippet>766</a>    </span><span class="kw">fn </span>jmpif_with_args_then_only_not_flattened() {

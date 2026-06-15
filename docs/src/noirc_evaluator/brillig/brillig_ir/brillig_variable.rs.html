@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>}
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a><span class="kw">impl </span>BrilligVariable {
-<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// Extract a [SingleAddrVariable].
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// Extract a [`SingleAddrVariable`].
 <a href=#67 id=67 data-nosnippet>67</a>    ///
 <a href=#68 id=68 data-nosnippet>68</a>    /// Panics if the variable is an array or vector.
 <a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_single_addr(<span class="self">self</span>) -&gt; SingleAddrVariable {
@@ -73,7 +73,7 @@
 <a href=#73 id=73 data-nosnippet>73</a>        }
 <a href=#74 id=74 data-nosnippet>74</a>    }
 <a href=#75 id=75 data-nosnippet>75</a>
-<a href=#76 id=76 data-nosnippet>76</a>    <span class="doccomment">/// Extract a [BrilligArray].
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="doccomment">/// Extract a [`BrilligArray`].
 <a href=#77 id=77 data-nosnippet>77</a>    ///
 <a href=#78 id=78 data-nosnippet>78</a>    /// Panics if it's a single address variable or a vector.
 <a href=#79 id=79 data-nosnippet>79</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_array(<span class="self">self</span>) -&gt; BrilligArray {
@@ -83,7 +83,7 @@
 <a href=#83 id=83 data-nosnippet>83</a>        }
 <a href=#84 id=84 data-nosnippet>84</a>    }
 <a href=#85 id=85 data-nosnippet>85</a>
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// Extract a [BrilligVector].
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// Extract a [`BrilligVector`].
 <a href=#87 id=87 data-nosnippet>87</a>    ///
 <a href=#88 id=88 data-nosnippet>88</a>    /// Panics if it's a single address variable or an array.
 <a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_vector(<span class="self">self</span>) -&gt; BrilligVector {
@@ -93,7 +93,7 @@
 <a href=#93 id=93 data-nosnippet>93</a>        }
 <a href=#94 id=94 data-nosnippet>94</a>    }
 <a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// Extract the [MemoryAddress] out of any [BrilligVariable].
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// Extract the [`MemoryAddress`] out of any [`BrilligVariable`].
 <a href=#97 id=97 data-nosnippet>97</a>    ///
 <a href=#98 id=98 data-nosnippet>98</a>    /// This can be deallocated to make the memory available for reuse.
 <a href=#99 id=99 data-nosnippet>99</a>    ///
@@ -157,13 +157,13 @@
 <a href=#157 id=157 data-nosnippet>157</a>    </span>BrilligVariable: From&lt;T&gt;,
 <a href=#158 id=158 data-nosnippet>158</a>    T: Copy,
 <a href=#159 id=159 data-nosnippet>159</a>{
-<a href=#160 id=160 data-nosnippet>160</a>    <span class="doccomment">/// Convert the allocated value into a [BrilligVariable].
+<a href=#160 id=160 data-nosnippet>160</a>    <span class="doccomment">/// Convert the allocated value into a [`BrilligVariable`].
 <a href=#161 id=161 data-nosnippet>161</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_var(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BrilligVariable {
 <a href=#162 id=162 data-nosnippet>162</a>        BrilligVariable::from(<span class="kw-2">**</span><span class="self">self</span>)
 <a href=#163 id=163 data-nosnippet>163</a>    }
 <a href=#164 id=164 data-nosnippet>164</a>}
 <a href=#165 id=165 data-nosnippet>165</a>
-<a href=#166 id=166 data-nosnippet>166</a><span class="doccomment">/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
+<a href=#166 id=166 data-nosnippet>166</a><span class="doccomment">/// Convert an SSA [Type] to [`HeapValueType`] for passing values to foreign calls.
 <a href=#167 id=167 data-nosnippet>167</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_to_heap_value_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; HeapValueType {
 <a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">match </span>typ {
 <a href=#169 id=169 data-nosnippet>169</a>        Type::Numeric(<span class="kw">_</span>) | Type::Reference(..) | Type::Function =&gt; HeapValueType::Simple(

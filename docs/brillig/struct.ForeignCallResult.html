@@ -2,7 +2,7 @@
     pub values: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.ForeignCallParam.html" title="enum brillig::ForeignCallParam">ForeignCallParam</a>&lt;F&gt;&gt;,
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Represents the full output of a <a href="enum.Opcode.html#variant.ForeignCall" title="variant brillig::Opcode::ForeignCall">foreign call</a>.</p>
 <p>A foreign call can return multiple outputs, where each output can be either
-a single field element or an array. This struct wraps a vector of <a href="enum.ForeignCallParam.html" title="enum brillig::ForeignCallParam">ForeignCallParam</a>
+a single field element or an array. This struct wraps a vector of <a href="enum.ForeignCallParam.html" title="enum brillig::ForeignCallParam"><code>ForeignCallParam</code></a>
 to represent all outputs from a single foreign call.</p>
 </div></details><h2 id="fields" class="fields section-header">Fields<a href="#fields" class="anchor">§</a></h2><span id="structfield.values" class="structfield section-header"><a href="#structfield.values" class="anchor field">§</a><code>values: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.ForeignCallParam.html" title="enum brillig::ForeignCallParam">ForeignCallParam</a>&lt;F&gt;&gt;</code></span><div class="docblock"><p>Resolved output values of the foreign call.</p>
 <p>Each element represents one output, which can be either a single value or an array.</p>

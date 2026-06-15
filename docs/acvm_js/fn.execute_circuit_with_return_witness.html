@@ -4,8 +4,8 @@
     foreign_call_handler: <a class="struct" href="foreign_call/struct.ForeignCallHandler.html" title="struct acvm_js::foreign_call::ForeignCallHandler">ForeignCallHandler</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="struct.JsSolvedAndReturnWitness.html" title="struct acvm_js::JsSolvedAndReturnWitness">JsSolvedAndReturnWitness</a>, <a class="struct" href="https://docs.rs/js-sys/0.2/js_sys/struct.Error.html" title="struct js_sys::Error">Error</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Executes an ACIR circuit to generate the solved witness from the initial witness.
 This method also extracts the public return values from the solved witness into its own return witness.</p>
-<p>@param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-@param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to <code>circuit</code>..
-@param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the circuit.
-@returns {SolvedAndReturnWitness} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.</p>
+<p>@param {<code>Uint8Array</code>} circuit - A serialized representation of an ACIR circuit
+@param {<code>WitnessMap</code>} <code>initial_witness</code> - The initial witness map defining all of the inputs to <code>circuit</code>..
+@param {<code>ForeignCallHandler</code>} <code>foreign_call_handler</code> - A callback to process any foreign calls from the circuit.
+@returns {<code>SolvedAndReturnWitness</code>} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.</p>
 </div></details></section></div></main></body></html>

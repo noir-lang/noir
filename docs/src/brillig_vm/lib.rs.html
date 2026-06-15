@@ -103,7 +103,7 @@
 <a href=#103 id=103 data-nosnippet>103</a>    <span class="doccomment">/// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
 <a href=#104 id=104 data-nosnippet>104</a>    /// reached where the outputs are yet to be resolved.
 <a href=#105 id=105 data-nosnippet>105</a>    ///
-<a href=#106 id=106 data-nosnippet>106</a>    /// The caller should interpret the information returned to compute a [ForeignCallResult]
+<a href=#106 id=106 data-nosnippet>106</a>    /// The caller should interpret the information returned to compute a [`ForeignCallResult`]
 <a href=#107 id=107 data-nosnippet>107</a>    /// and update the Brillig process. The VM can then be restarted to fully solve the previously
 <a href=#108 id=108 data-nosnippet>108</a>    /// unresolved foreign call as well as the remaining Brillig opcodes.
 <a href=#109 id=109 data-nosnippet>109</a>    </span>ForeignCallWait {
@@ -149,7 +149,7 @@
 <a href=#149 id=149 data-nosnippet>149</a>    ///   unprocessed responses returned from the external foreign call handler.
 <a href=#150 id=150 data-nosnippet>150</a>    </span>foreign_call_counter: usize,
 <a href=#151 id=151 data-nosnippet>151</a>    <span class="doccomment">/// Accumulates the outputs of all foreign calls during a Brillig process.
-<a href=#152 id=152 data-nosnippet>152</a>    /// The list is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait].
+<a href=#152 id=152 data-nosnippet>152</a>    /// The list is appended onto by the caller upon reaching a [`VMStatus::ForeignCallWait`].
 <a href=#153 id=153 data-nosnippet>153</a>    </span>foreign_call_results: Vec&lt;ForeignCallResult&lt;F&gt;&gt;,
 <a href=#154 id=154 data-nosnippet>154</a>    <span class="doccomment">/// Executable opcodes.
 <a href=#155 id=155 data-nosnippet>155</a>    </span>bytecode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Opcode&lt;F&gt;],
@@ -302,7 +302,7 @@
 <a href=#302 id=302 data-nosnippet>302</a>        call_stack
 <a href=#303 id=303 data-nosnippet>303</a>    }
 <a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>    <span class="doccomment">/// Returns the VM's call stack, but unlike [Self::get_call_stack] without the attaching
+<a href=#305 id=305 data-nosnippet>305</a>    <span class="doccomment">/// Returns the VM's call stack, but unlike [`Self::get_call_stack`] without the attaching
 <a href=#306 id=306 data-nosnippet>306</a>    /// the program counter in the last position of the returned vector.
 <a href=#307 id=307 data-nosnippet>307</a>    /// This is meant only for fetching the call stack after execution has completed.
 <a href=#308 id=308 data-nosnippet>308</a>    </span><span class="kw">pub fn </span>get_call_stack_no_current_counter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;usize&gt; {
@@ -534,7 +534,7 @@
 <a href=#534 id=534 data-nosnippet>534</a>
 <a href=#535 id=535 data-nosnippet>535</a>    <span class="doccomment">/// Sets the program counter to `value`.
 <a href=#536 id=536 data-nosnippet>536</a>    /// If the program counter no longer points to an opcode
-<a href=#537 id=537 data-nosnippet>537</a>    /// in the bytecode, then the VMStatus reports `Finished`.
+<a href=#537 id=537 data-nosnippet>537</a>    /// in the bytecode, then the `VMStatus` reports `Finished`.
 <a href=#538 id=538 data-nosnippet>538</a>    </span><span class="kw">fn </span>set_program_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: usize) -&gt; <span class="kw-2">&amp;</span>VMStatus&lt;F&gt; {
 <a href=#539 id=539 data-nosnippet>539</a>        <span class="macro">assert!</span>(<span class="self">self</span>.program_counter &lt; <span class="self">self</span>.bytecode.len());
 <a href=#540 id=540 data-nosnippet>540</a>        <span class="self">self</span>.program_counter = value;

@@ -6,7 +6,7 @@
 <a href=#6 id=6 data-nosnippet>6</a>
 <a href=#7 id=7 data-nosnippet>7</a><span class="doccomment">/// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.
 <a href=#8 id=8 data-nosnippet>8</a>/// A first pass collects all memory blocks which are initialized but discards the ones
-<a href=#9 id=9 data-nosnippet>9</a>/// which are used in a MemoryOp or as input to a BrilligCall.
+<a href=#9 id=9 data-nosnippet>9</a>/// which are used in a `MemoryOp` or as input to a `BrilligCall`.
 <a href=#10 id=10 data-nosnippet>10</a>/// The second pass removes the opcodes tagged as unused by the first pass.
 <a href=#11 id=11 data-nosnippet>11</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>UnusedMemoryOptimizer&lt;F: AcirField&gt; {
 <a href=#12 id=12 data-nosnippet>12</a>    unused_memory_initializations: HashSet&lt;BlockId&gt;,

@@ -121,7 +121,7 @@
 <a href=#121 id=121 data-nosnippet>121</a>        std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.tokens)
 <a href=#122 id=122 data-nosnippet>122</a>    }
 <a href=#123 id=123 data-nosnippet>123</a>
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Checks doc comments on the given ReferenceId. Semantic tokens are produced for any links found,
+<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Checks doc comments on the given `ReferenceId`. Semantic tokens are produced for any links found,
 <a href=#125 id=125 data-nosnippet>125</a>    /// so that they can be colorized in the editor.
 <a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>process_reference_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ReferenceId) {
 <a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(doc_comments) = <span class="self">self</span>.args.interner.doc_comments(id) <span class="kw">else </span>{

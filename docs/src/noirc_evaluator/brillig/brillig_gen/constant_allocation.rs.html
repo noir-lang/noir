@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>        }
 <a href=#113 id=113 data-nosnippet>113</a>    }
 <a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Based on the [Self::constant_usage] collected, find the common dominator of all the block where a constant is used
+<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Based on the [`Self::constant_usage`] collected, find the common dominator of all the block where a constant is used
 <a href=#116 id=116 data-nosnippet>116</a>    /// and mark it as the allocation point for the constant.
 <a href=#117 id=117 data-nosnippet>117</a>    </span><span class="kw">fn </span>decide_allocation_points(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
 <a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">for </span>(constant_id, usage_in_blocks) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.constant_usage {
@@ -172,7 +172,7 @@
 <a href=#172 id=172 data-nosnippet>172</a>        current_block
 <a href=#173 id=173 data-nosnippet>173</a>    }
 <a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>    <span class="doccomment">/// Return the SSA [ValueId] of all constants (the same numeric constant might appear with multiple IDs).
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="doccomment">/// Return the SSA [`ValueId`] of all constants (the same numeric constant might appear with multiple IDs).
 <a href=#176 id=176 data-nosnippet>176</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;ValueId&gt; {
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="self">self</span>.constant_usage.keys().copied().collect()
 <a href=#178 id=178 data-nosnippet>178</a>    }

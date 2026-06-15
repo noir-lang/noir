@@ -25,7 +25,7 @@ order. We currently emit in serde’s call-order = source-declaration
 order. Tightening this requires buffering field bytes before writing.</li>
 <li><strong>Encoding strategies.</strong> Only the <strong>Tagged</strong> strategy (int-keyed
 map) is implemented. Per-type strategy overrides — <strong>Array</strong>
-(positional msgpack array, smallest wire) and <strong>Named</strong> (rmp_serde
+(positional msgpack array, smallest wire) and <strong>Named</strong> (<code>rmp_serde</code>
 default, string-keyed map) — are deferred follow-ups.</li>
 <li><strong><code>assert_eq!</code> on <code>len</code> vs <code>product.fields.len()</code></strong> — already
 tightened, but only inside the four product-shaped methods. New

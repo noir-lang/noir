@@ -29,7 +29,7 @@
 <a href=#29 id=29 data-nosnippet>29</a>///
 <a href=#30 id=30 data-nosnippet>30</a>/// Gets mutable references so it can manipulate the expressions if needed.
 <a href=#31 id=31 data-nosnippet>31</a>///
-<a href=#32 id=32 data-nosnippet>32</a>/// Compared to [visit_expr_mut], this version allows the caller to maintain
+<a href=#32 id=32 data-nosnippet>32</a>/// Compared to [`visit_expr_mut`], this version allows the caller to maintain
 <a href=#33 id=33 data-nosnippet>33</a>/// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
 <a href=#34 id=34 data-nosnippet>34</a>///
 <a href=#35 id=35 data-nosnippet>35</a>/// It also takes a function to modify [Ident]s, which can be located in
@@ -183,7 +183,7 @@
 <a href=#183 id=183 data-nosnippet>183</a>/// The `bool` returned indicates whether we want to visit the children
 <a href=#184 id=184 data-nosnippet>184</a>/// of the visited expression.
 <a href=#185 id=185 data-nosnippet>185</a>///
-<a href=#186 id=186 data-nosnippet>186</a>/// This is a read-only version of [visit_expr_mut], for cases where
+<a href=#186 id=186 data-nosnippet>186</a>/// This is a read-only version of [`visit_expr_mut`], for cases where
 <a href=#187 id=187 data-nosnippet>187</a>/// we don't have/need a mutable reference to the AST.
 <a href=#188 id=188 data-nosnippet>188</a></span><span class="kw">pub fn </span>visit_expr&lt;V&gt;(expr: <span class="kw-2">&amp;</span>Expression, v: <span class="kw-2">&amp;mut </span>V)
 <a href=#189 id=189 data-nosnippet>189</a><span class="kw">where
@@ -198,10 +198,10 @@
 <a href=#198 id=198 data-nosnippet>198</a>/// The `bool` returned by _begin_ indicates whether we want to
 <a href=#199 id=199 data-nosnippet>199</a>/// visit the children of the visited expression.
 <a href=#200 id=200 data-nosnippet>200</a>///
-<a href=#201 id=201 data-nosnippet>201</a>/// This is a read-only version [visit_expr_be_mut], for cases where
+<a href=#201 id=201 data-nosnippet>201</a>/// This is a read-only version [`visit_expr_be_mut`], for cases where
 <a href=#202 id=202 data-nosnippet>202</a>/// we don't have/need a mutable reference to the AST.
 <a href=#203 id=203 data-nosnippet>203</a>///
-<a href=#204 id=204 data-nosnippet>204</a>/// Compared to [visit_expr], this version allows the caller to maintain
+<a href=#204 id=204 data-nosnippet>204</a>/// Compared to [`visit_expr`], this version allows the caller to maintain
 <a href=#205 id=205 data-nosnippet>205</a>/// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
 <a href=#206 id=206 data-nosnippet>206</a></span><span class="kw">pub fn </span>visit_expr_be&lt;B, E, T, I&gt;(expr: <span class="kw-2">&amp;</span>Expression, b: <span class="kw-2">&amp;mut </span>B, e: <span class="kw-2">&amp;mut </span>E, i: <span class="kw-2">&amp;mut </span>I)
 <a href=#207 id=207 data-nosnippet>207</a><span class="kw">where

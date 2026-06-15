@@ -39,7 +39,7 @@ without it being allocated in different places in different branches.</p>
     self,
     func: &amp;<a class="struct" href="../../../ssa/ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     dom: &amp;<a class="struct" href="../../../ssa/ir/dom/struct.DominatorTree.html" title="struct noirc_evaluator::ssa::ir::dom::DominatorTree">DominatorTree</a>,
-) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.param_definitions" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::param_definitions">VariableLiveness::param_definitions</a>.</p>
+) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.param_definitions" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::param_definitions"><code>VariableLiveness::param_definitions</code></a>.</p>
 <p>Append the parameters of each block to the parameter definition list of
 its immediate dominator.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.compute_live_in_of_blocks" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/variable_liveness.rs.html#209-224">Source</a><h4 class="code-header">fn <a href="#method.compute_live_in_of_blocks" class="fn">compute_live_in_of_blocks</a>(
@@ -47,7 +47,7 @@ its immediate dominator.</p>
     func: &amp;<a class="struct" href="../../../ssa/ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     constants: &amp;<a class="struct" href="../constant_allocation/struct.ConstantAllocation.html" title="struct noirc_evaluator::brillig::brillig_gen::constant_allocation::ConstantAllocation">ConstantAllocation</a>,
     back_edges: FxHashMap&lt;<a class="struct" href="struct.BackEdge.html" title="struct noirc_evaluator::brillig::brillig_gen::variable_liveness::BackEdge">BackEdge</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/collections/btree/set/struct.BTreeSet.html" title="struct alloc::collections::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;&gt;,
-) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.live_in" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::live_in">VariableLiveness::live_in</a>.</p>
+) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.live_in" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::live_in"><code>VariableLiveness::live_in</code></a>.</p>
 <p>Collect the variables which are alive before each block.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.compute_live_in" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/variable_liveness.rs.html#235-266">Source</a><h4 class="code-header">fn <a href="#method.compute_live_in" class="fn">compute_live_in</a>(
     &amp;mut self,
@@ -82,14 +82,14 @@ Since we know that we have to come back
 to the beginning of the loop, none of those blocks are allowed
 anything but to keep these variables alive, so that the header
 can use them again.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.compute_last_uses" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/variable_liveness.rs.html#318-374">Source</a><h4 class="code-header">fn <a href="#method.compute_last_uses" class="fn">compute_last_uses</a>(self, func: &amp;<a class="struct" href="../../../ssa/ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.last_uses" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::last_uses">VariableLiveness::last_uses</a>.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.compute_last_uses" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/variable_liveness.rs.html#318-374">Source</a><h4 class="code-header">fn <a href="#method.compute_last_uses" class="fn">compute_last_uses</a>(self, func: &amp;<a class="struct" href="../../../ssa/ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.last_uses" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::last_uses"><code>VariableLiveness::last_uses</code></a>.</p>
 <p>For each block, starting from the terminator than going backwards through the instructions,
 take note of the first (technically last) instruction the value is used in.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.compute_max_live_count" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/variable_liveness.rs.html#392-453">Source</a><h4 class="code-header">fn <a href="#method.compute_max_live_count" class="fn">compute_max_live_count</a>(
     self,
     func: &amp;<a class="struct" href="../../../ssa/ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     constants: &amp;<a class="struct" href="../constant_allocation/struct.ConstantAllocation.html" title="struct noirc_evaluator::brillig::brillig_gen::constant_allocation::ConstantAllocation">ConstantAllocation</a>,
-) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.max_live_count" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::max_live_count">VariableLiveness::max_live_count</a>.</p>
+) -&gt; Self</h4></section></summary><div class="docblock"><p>Compute <a href="struct.VariableLiveness.html#structfield.max_live_count" title="field noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness::max_live_count"><code>VariableLiveness::max_live_count</code></a>.</p>
 <p>Walk each block instruction-by-instruction, tracking the set of variables
 simultaneously alive: start with <code>live_in</code> plus block param definitions,
 materialize constants at their allocation points, add instruction results,

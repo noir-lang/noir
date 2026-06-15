@@ -91,8 +91,8 @@
 <a href=#91 id=91 data-nosnippet>91</a>    }
 <a href=#92 id=92 data-nosnippet>92</a>}
 <a href=#93 id=93 data-nosnippet>93</a>
-<a href=#94 id=94 data-nosnippet>94</a><span class="doccomment">/// A FuncMeta contains the signature of the function and any associated meta data like
-<a href=#95 id=95 data-nosnippet>95</a>/// the function's Location, FunctionKind, and attributes. If the function's body is
+<a href=#94 id=94 data-nosnippet>94</a><span class="doccomment">/// A `FuncMeta` contains the signature of the function and any associated meta data like
+<a href=#95 id=95 data-nosnippet>95</a>/// the function's Location, `FunctionKind`, and attributes. If the function's body is
 <a href=#96 id=96 data-nosnippet>96</a>/// needed, it can be retrieved separately via `NodeInterner::function(&amp;self, &amp;FuncId)`.
 <a href=#97 id=97 data-nosnippet>97</a></span><span class="attr">#[derive(Debug, Clone)]
 <a href=#98 id=98 data-nosnippet>98</a></span><span class="kw">pub struct </span>FuncMeta {
@@ -102,21 +102,21 @@
 <a href=#102 id=102 data-nosnippet>102</a>
 <a href=#103 id=103 data-nosnippet>103</a>    <span class="kw">pub </span>parameters: Parameters,
 <a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// The HirIdent of each identifier within the parameter list.
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// The `HirIdent` of each identifier within the parameter list.
 <a href=#106 id=106 data-nosnippet>106</a>    /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
 <a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">pub </span>parameter_idents: Vec&lt;HirIdent&gt;,
 <a href=#108 id=108 data-nosnippet>108</a>
 <a href=#109 id=109 data-nosnippet>109</a>    <span class="doccomment">/// The return type as (and if) it appears in the AST.
 <a href=#110 id=110 data-nosnippet>110</a>    ///
 <a href=#111 id=111 data-nosnippet>111</a>    /// This is distinct from the `FuncMeta::return_type()` method,
-<a href=#112 id=112 data-nosnippet>112</a>    /// which gets the return type from the [FuncMeta::typ] field.
+<a href=#112 id=112 data-nosnippet>112</a>    /// which gets the return type from the [`FuncMeta::typ`] field.
 <a href=#113 id=113 data-nosnippet>113</a>    </span><span class="kw">pub </span>return_type: FunctionReturnType,
 <a href=#114 id=114 data-nosnippet>114</a>
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">pub </span>return_visibility: Visibility,
 <a href=#116 id=116 data-nosnippet>116</a>    <span class="kw">pub </span>return_visibility_location: Location,
 <a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// The type of this function. Either a Type::Function
-<a href=#119 id=119 data-nosnippet>119</a>    /// or a Type::Forall for generic functions.
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// The type of this function. Either a `Type::Function`
+<a href=#119 id=119 data-nosnippet>119</a>    /// or a `Type::Forall` for generic functions.
 <a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">pub </span>typ: Type,
 <a href=#121 id=121 data-nosnippet>121</a>
 <a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// The set of generics that are declared directly on this function in the source code.
@@ -127,7 +127,7 @@
 <a href=#127 id=127 data-nosnippet>127</a>
 <a href=#128 id=128 data-nosnippet>128</a>    <span class="doccomment">/// All the generics used by this function, which includes any implicit generics or generics
 <a href=#129 id=129 data-nosnippet>129</a>    /// from outer scopes, such as those introduced by an impl.
-<a href=#130 id=130 data-nosnippet>130</a>    /// This is stored when the FuncMeta is first created to later be used to set the current
+<a href=#130 id=130 data-nosnippet>130</a>    /// This is stored when the `FuncMeta` is first created to later be used to set the current
 <a href=#131 id=131 data-nosnippet>131</a>    /// generics when the function's body is later resolved.
 <a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">pub </span>all_generics: Vec&lt;ResolvedGeneric&gt;,
 <a href=#133 id=133 data-nosnippet>133</a>
@@ -172,7 +172,7 @@
 <a href=#172 id=172 data-nosnippet>172</a>    <span class="doccomment">/// The module this function was defined in
 <a href=#173 id=173 data-nosnippet>173</a>    </span><span class="kw">pub </span>source_module: LocalModuleId,
 <a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>    <span class="doccomment">/// THe file this function was defined in
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="doccomment">/// `THe` file this function was defined in
 <a href=#176 id=176 data-nosnippet>176</a>    </span><span class="kw">pub </span>source_file: FileId,
 <a href=#177 id=177 data-nosnippet>177</a>
 <a href=#178 id=178 data-nosnippet>178</a>    <span class="doccomment">/// If this function is from an impl (trait or regular impl), this
@@ -188,7 +188,7 @@
 <a href=#188 id=188 data-nosnippet>188</a>}
 <a href=#189 id=189 data-nosnippet>189</a>
 <a href=#190 id=190 data-nosnippet>190</a><span class="kw">impl </span>FuncMeta {
-<a href=#191 id=191 data-nosnippet>191</a>    <span class="doccomment">/// A stub function does not have a body. This includes Builtin, LowLevel,
+<a href=#191 id=191 data-nosnippet>191</a>    <span class="doccomment">/// A stub function does not have a body. This includes Builtin, `LowLevel`,
 <a href=#192 id=192 data-nosnippet>192</a>    /// and Oracle functions in addition to method declarations within a trait
 <a href=#193 id=193 data-nosnippet>193</a>    /// without a body.
 <a href=#194 id=194 data-nosnippet>194</a>    ///

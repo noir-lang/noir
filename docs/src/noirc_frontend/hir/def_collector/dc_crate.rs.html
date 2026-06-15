@@ -108,8 +108,8 @@
 <a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">pub </span>resolved_generics: ResolvedGenerics,
 <a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">pub </span>unresolved_associated_types: Vec&lt;(Ident, UnresolvedType)&gt;,
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// FuncIds in `methods.functions` that refer to a trait's own default-method
-<a href=#112 id=112 data-nosnippet>112</a>    /// FuncId because this impl did not override the method. The default body
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// `FuncIds` in `methods.functions` that refer to a trait's own default-method
+<a href=#112 id=112 data-nosnippet>112</a>    /// `FuncId` because this impl did not override the method. The default body
 <a href=#113 id=113 data-nosnippet>113</a>    /// has already been elaborated once at the trait definition, so these
 <a href=#114 id=114 data-nosnippet>114</a>    /// slots must not be re-registered or re-elaborated per impl. Populated by
 <a href=#115 id=115 data-nosnippet>115</a>    /// `collect_trait_impl_methods`.
@@ -414,7 +414,7 @@
 <a href=#414 id=414 data-nosnippet>414</a>        }
 <a href=#415 id=415 data-nosnippet>415</a>    }
 <a href=#416 id=416 data-nosnippet>416</a>
-<a href=#417 id=417 data-nosnippet>417</a>    <span class="doccomment">/// Collect all of the definitions in a given crate into a CrateDefMap
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="doccomment">/// Collect all of the definitions in a given crate into a `CrateDefMap`
 <a href=#418 id=418 data-nosnippet>418</a>    /// Modules which are not a part of the module hierarchy starting with
 <a href=#419 id=419 data-nosnippet>419</a>    /// the root module, will be ignored.
 <a href=#420 id=420 data-nosnippet>420</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
@@ -909,8 +909,8 @@
 <a href=#909 id=909 data-nosnippet>909</a>}
 <a href=#910 id=910 data-nosnippet>910</a>
 <a href=#911 id=911 data-nosnippet>911</a><span class="doccomment">/// Filter the errors so that:
-<a href=#912 id=912 data-nosnippet>912</a>/// * if we have any errors which are _not_ [ExpectingOtherError], then we remove all [ExpectingOtherError] instances
-<a href=#913 id=913 data-nosnippet>913</a>/// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
+<a href=#912 id=912 data-nosnippet>912</a>/// * if we have any errors which are _not_ [`ExpectingOtherError`], then we remove all [`ExpectingOtherError`] instances
+<a href=#913 id=913 data-nosnippet>913</a>/// * if there are no other kind of errors, then we leave and deduplicate the [`ExpectingOtherError`]s
 <a href=#914 id=914 data-nosnippet>914</a></span><span class="kw">fn </span>filter_expecting_other_errors(<span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt;) -&gt; Vec&lt;CompilationError&gt; {
 <a href=#915 id=915 data-nosnippet>915</a>    <span class="kw">let </span>has_expected_errors =
 <a href=#916 id=916 data-nosnippet>916</a>        errors.iter().any(|error| !error.is_expecting_other_error() &amp;&amp; error.is_error());

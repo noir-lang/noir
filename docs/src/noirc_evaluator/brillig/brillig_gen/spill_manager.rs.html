@@ -129,7 +129,7 @@
 <a href=#129 id=129 data-nosnippet>129</a>    /// 3. Removes spilled values from the live-in set (they have no register).
 <a href=#130 id=130 data-nosnippet>130</a>    /// 4. Updates the LRU: retains existing entries still live-in and not spilled
 <a href=#131 id=131 data-nosnippet>131</a>    ///    (preserving eviction hints from the previous block), then appends any
-<a href=#132 id=132 data-nosnippet>132</a>    ///    new live-in values sorted by [ValueId] for determinism.
+<a href=#132 id=132 data-nosnippet>132</a>    ///    new live-in values sorted by [`ValueId`] for determinism.
 <a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>begin_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, live_in: <span class="kw-2">&amp;mut </span>HashSet&lt;ValueId&gt;) {
 <a href=#134 id=134 data-nosnippet>134</a>        <span class="comment">// No transient spills should survive across block boundaries.
 <a href=#135 id=135 data-nosnippet>135</a>        </span><span class="macro">assert!</span>(
@@ -275,7 +275,7 @@
 <a href=#275 id=275 data-nosnippet>275</a>    ///
 <a href=#276 id=276 data-nosnippet>276</a>    /// Entries already in `lru_order` that are still live-in and not spilled are kept
 <a href=#277 id=277 data-nosnippet>277</a>    /// in their existing order (preserving eviction hints from the previous block).
-<a href=#278 id=278 data-nosnippet>278</a>    /// New live-in values not yet in the LRU are appended, sorted by [ValueId] for
+<a href=#278 id=278 data-nosnippet>278</a>    /// New live-in values not yet in the LRU are appended, sorted by [`ValueId`] for
 <a href=#279 id=279 data-nosnippet>279</a>    /// determinism.
 <a href=#280 id=280 data-nosnippet>280</a>    </span><span class="kw">fn </span>reset_lru_for_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, live_in: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;) {
 <a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span>records = <span class="kw-2">&amp;</span><span class="self">self</span>.records;

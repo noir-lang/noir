@@ -75,7 +75,7 @@
 <a href=#75 id=75 data-nosnippet>75</a>    /// if the visibilities of parents modules are [pub, pub(crate), pub] then
 <a href=#76 id=76 data-nosnippet>76</a>    /// this will be `pub(crate)`.
 <a href=#77 id=77 data-nosnippet>77</a>    </span>visibility: ItemVisibility,
-<a href=#78 id=78 data-nosnippet>78</a>    <span class="doccomment">/// Maps an ItemId to the item it converted to.
+<a href=#78 id=78 data-nosnippet>78</a>    <span class="doccomment">/// Maps an `ItemId` to the item it converted to.
 <a href=#79 id=79 data-nosnippet>79</a>    /// This is needed because if an item is publicly exported, but the item
 <a href=#80 id=80 data-nosnippet>80</a>    /// isn't publicly visible (because its parent module is private) then we'll
 <a href=#81 id=81 data-nosnippet>81</a>    /// include the item directly under the module that publicly exports it.
@@ -779,10 +779,10 @@
 <a href=#779 id=779 data-nosnippet>779</a>    }
 <a href=#780 id=780 data-nosnippet>780</a>
 <a href=#781 id=781 data-nosnippet>781</a>    <span class="doccomment">/// The idea of this method is to find occurrences of markdown links and references in comments.
-<a href=#782 id=782 data-nosnippet>782</a>    /// For each of these we try to resolve them to a ModuleDefId of sort, which
+<a href=#782 id=782 data-nosnippet>782</a>    /// For each of these we try to resolve them to a `ModuleDefId` of sort, which
 <a href=#783 id=783 data-nosnippet>783</a>    /// is actually represented as a Link to a type, method, module, etc.
 <a href=#784 id=784 data-nosnippet>784</a>    ///
-<a href=#785 id=785 data-nosnippet>785</a>    /// The doc generator ([html::to_html]) will then replace occurrences of these links
+<a href=#785 id=785 data-nosnippet>785</a>    /// The doc generator ([`html::to_html`]) will then replace occurrences of these links
 <a href=#786 id=786 data-nosnippet>786</a>    /// with resolved HTML links.
 <a href=#787 id=787 data-nosnippet>787</a>    </span><span class="kw">fn </span>find_links_in_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>, comments: <span class="kw-2">&amp;</span>str) -&gt; Links {
 <a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span>current_module_id = ModuleId { krate: <span class="self">self</span>.crate_id, local_id: <span class="self">self</span>.current_module_id };

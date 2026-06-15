@@ -215,19 +215,19 @@
 <a href=#215 id=215 data-nosnippet>215</a>    ///
 <a href=#216 id=216 data-nosnippet>216</a>    /// The math here is:
 <a href=#217 id=217 data-nosnippet>217</a>    ///
-<a href=#218 id=218 data-nosnippet>218</a>    /// result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)
+<a href=#218 id=218 data-nosnippet>218</a>    /// `result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)`
 <a href=#219 id=219 data-nosnippet>219</a>    ///
-<a href=#220 id=220 data-nosnippet>220</a>    /// For example, for i8 we have bit_size = 8 so:
+<a href=#220 id=220 data-nosnippet>220</a>    /// For example, for i8 we have `bit_size` = 8 so:
 <a href=#221 id=221 data-nosnippet>221</a>    ///
-<a href=#222 id=222 data-nosnippet>222</a>    /// result = value + 2*(128 - value)*value_is_negative
+<a href=#222 id=222 data-nosnippet>222</a>    /// result = value + 2*(128 - value)*`value_is_negative`
 <a href=#223 id=223 data-nosnippet>223</a>    ///
-<a href=#224 id=224 data-nosnippet>224</a>    /// If the value is positive, so value_is_negative = 0:
+<a href=#224 id=224 data-nosnippet>224</a>    /// If the value is positive, so `value_is_negative` = 0:
 <a href=#225 id=225 data-nosnippet>225</a>    ///
 <a href=#226 id=226 data-nosnippet>226</a>    /// result = value
 <a href=#227 id=227 data-nosnippet>227</a>    ///
 <a href=#228 id=228 data-nosnippet>228</a>    /// That is, the value stays the same.
 <a href=#229 id=229 data-nosnippet>229</a>    ///
-<a href=#230 id=230 data-nosnippet>230</a>    /// If value_is_negative = 1 we get:
+<a href=#230 id=230 data-nosnippet>230</a>    /// If `value_is_negative` = 1 we get:
 <a href=#231 id=231 data-nosnippet>231</a>    ///
 <a href=#232 id=232 data-nosnippet>232</a>    /// result = value + 2*(128 - value) = value + 256 - 2*value = 256 - value
 <a href=#233 id=233 data-nosnippet>233</a>    ///
@@ -306,7 +306,7 @@
 <a href=#306 id=306 data-nosnippet>306</a>    }
 <a href=#307 id=307 data-nosnippet>307</a>}
 <a href=#308 id=308 data-nosnippet>308</a>
-<a href=#309 id=309 data-nosnippet>309</a><span class="doccomment">/// Post-check condition for [Function::expand_signed_math].
+<a href=#309 id=309 data-nosnippet>309</a><span class="doccomment">/// Post-check condition for [`Function::expand_signed_math`].
 <a href=#310 id=310 data-nosnippet>310</a>///
 <a href=#311 id=311 data-nosnippet>311</a>/// Panics if:
 <a href=#312 id=312 data-nosnippet>312</a>///   - Any ACIR function contains signed Lt, Div, or Mod operations.

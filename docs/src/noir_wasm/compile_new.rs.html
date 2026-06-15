@@ -15,7 +15,7 @@
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>wasm_bindgen::prelude::wasm_bindgen;
 <a href=#16 id=16 data-nosnippet>16</a>
 <a href=#17 id=17 data-nosnippet>17</a><span class="doccomment">/// This is a wrapper class that is wasm-bindgen compatible
-<a href=#18 id=18 data-nosnippet>18</a>/// We do not use js_name and rename it like CrateId because
+<a href=#18 id=18 data-nosnippet>18</a>/// We do not use `js_name` and rename it like `CrateId` because
 <a href=#19 id=19 data-nosnippet>19</a>/// then the impl block is not picked up in javascript.
 <a href=#20 id=20 data-nosnippet>20</a></span><span class="attr">#[wasm_bindgen]
 <a href=#21 id=21 data-nosnippet>21</a></span><span class="kw">pub struct </span>CompilerContext {
@@ -147,7 +147,7 @@
 <a href=#147 id=147 data-nosnippet>147</a>}
 <a href=#148 id=148 data-nosnippet>148</a>
 <a href=#149 id=149 data-nosnippet>149</a><span class="doccomment">/// This is a method that exposes the same API as `compile`
-<a href=#150 id=150 data-nosnippet>150</a>/// But uses the Context based APi internally
+<a href=#150 id=150 data-nosnippet>150</a>/// But uses the Context based `APi` internally
 <a href=#151 id=151 data-nosnippet>151</a></span><span class="attr">#[wasm_bindgen]
 <a href=#152 id=152 data-nosnippet>152</a></span><span class="kw">pub fn </span>compile_program_(
 <a href=#153 id=153 data-nosnippet>153</a>    entry_point: String,
@@ -164,7 +164,7 @@
 <a href=#164 id=164 data-nosnippet>164</a>}
 <a href=#165 id=165 data-nosnippet>165</a>
 <a href=#166 id=166 data-nosnippet>166</a><span class="doccomment">/// This is a method that exposes the same API as `compile`
-<a href=#167 id=167 data-nosnippet>167</a>/// But uses the Context based APi internally
+<a href=#167 id=167 data-nosnippet>167</a>/// But uses the Context based `APi` internally
 <a href=#168 id=168 data-nosnippet>168</a></span><span class="attr">#[wasm_bindgen]
 <a href=#169 id=169 data-nosnippet>169</a></span><span class="kw">pub fn </span>compile_contract_(
 <a href=#170 id=170 data-nosnippet>170</a>    entry_point: String,

@@ -6,16 +6,16 @@
 ) -&gt; <a class="enum" href="enum.SimplifyResult.html" title="enum noirc_evaluator::ssa::ir::dfg::simplify::SimplifyResult">SimplifyResult</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>If we have an array set whose value is from an array get on the same array at the same index,
 we can simplify that array set to the array we were looking to perform an array set upon.</p>
 <p>Simple case:
-v3 = array_get v1, index v2
-v5 = array_set v1, index v2, value v3</p>
+v3 = <code>array_get</code> v1, index v2
+v5 = <code>array_set</code> v1, index v2, value v3</p>
 <p>If we could not immediately simplify the array set from its value, we can try to follow
 the array set backwards in the case we have constant indices:</p>
-<p>v3 = array_get v1, index 1
-v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
-v7 = array_set mut v5, index 1, value v3</p>
+<p>v3 = <code>array_get</code> v1, index 1
+v5 = <code>array_set</code> v1, index 2, value [Field 100, Field 101, Field 102]
+v7 = <code>array_set</code> mut v5, index 1, value v3</p>
 <p>We want to optimize <code>v7</code> to <code>v5</code>. We see that <code>v3</code> comes from an array get to <code>v1</code>. We follow <code>v5</code> backwards and see an array set
 to <code>v1</code> and see that the previous array set occurs to a different constant index.</p>
-<p>For each array_set:</p>
+<p>For each <code>array_set</code>:</p>
 <ul>
 <li>If the index is non-constant we fail the optimization since any index may be changed.</li>
 <li>If the index is constant and is our target index, we conservatively fail the optimization.</li>

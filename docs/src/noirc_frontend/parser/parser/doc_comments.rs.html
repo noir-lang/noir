@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use super</span>::{Parser, parse_many::without_separator};
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#10 id=10 data-nosnippet>10</a>    <span class="doccomment">/// InnerDocComments = inner_doc_comment*
+<a href=#10 id=10 data-nosnippet>10</a>    <span class="doccomment">/// `InnerDocComments` = `inner_doc_comment`*
 <a href=#11 id=11 data-nosnippet>11</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_inner_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;DocComment&gt; {
 <a href=#12 id=12 data-nosnippet>12</a>        <span class="self">self</span>.parse_many(<span class="string">"inner doc comments"</span>, without_separator(), <span class="self">Self</span>::parse_inner_doc_comment)
 <a href=#13 id=13 data-nosnippet>13</a>    }
@@ -29,12 +29,12 @@
 <a href=#29 id=29 data-nosnippet>29</a>        })
 <a href=#30 id=30 data-nosnippet>30</a>    }
 <a href=#31 id=31 data-nosnippet>31</a>
-<a href=#32 id=32 data-nosnippet>32</a>    <span class="doccomment">/// OuterDocComments = OuterDocComment*
+<a href=#32 id=32 data-nosnippet>32</a>    <span class="doccomment">/// `OuterDocComments` = `OuterDocComment`*
 <a href=#33 id=33 data-nosnippet>33</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;DocComment&gt; {
 <a href=#34 id=34 data-nosnippet>34</a>        <span class="self">self</span>.parse_many(<span class="string">"outer doc comments"</span>, without_separator(), <span class="self">Self</span>::parse_outer_doc_comment)
 <a href=#35 id=35 data-nosnippet>35</a>    }
 <a href=#36 id=36 data-nosnippet>36</a>
-<a href=#37 id=37 data-nosnippet>37</a>    <span class="doccomment">/// OuterDocComment = outer_doc_comment
+<a href=#37 id=37 data-nosnippet>37</a>    <span class="doccomment">/// `OuterDocComment` = `outer_doc_comment`
 <a href=#38 id=38 data-nosnippet>38</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;DocComment&gt; {
 <a href=#39 id=39 data-nosnippet>39</a>        <span class="self">self</span>.eat_kind(TokenKind::OuterDocComment).map(|token| {
 <a href=#40 id=40 data-nosnippet>40</a>            <span class="kw">let </span>location = token.location();

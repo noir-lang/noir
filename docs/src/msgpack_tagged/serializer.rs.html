@@ -30,7 +30,7 @@
 <a href=#30 id=30 data-nosnippet>30</a>//!   order. Tightening this requires buffering field bytes before writing.
 <a href=#31 id=31 data-nosnippet>31</a>//! - **Encoding strategies.** Only the **Tagged** strategy (int-keyed
 <a href=#32 id=32 data-nosnippet>32</a>//!   map) is implemented. Per-type strategy overrides — **Array**
-<a href=#33 id=33 data-nosnippet>33</a>//!   (positional msgpack array, smallest wire) and **Named** (rmp_serde
+<a href=#33 id=33 data-nosnippet>33</a>//!   (positional msgpack array, smallest wire) and **Named** (`rmp_serde`
 <a href=#34 id=34 data-nosnippet>34</a>//!   default, string-keyed map) — are deferred follow-ups.
 <a href=#35 id=35 data-nosnippet>35</a>//! - **`assert_eq!` on `len` vs `product.fields.len()`** — already
 <a href=#36 id=36 data-nosnippet>36</a>//!   tightened, but only inside the four product-shaped methods. New
@@ -84,7 +84,7 @@
 <a href=#84 id=84 data-nosnippet>84</a>    /// (`Foo&lt;FieldElement&gt;` and `Foo&lt;OtherF&gt;` share the name "Foo") and
 <a href=#85 id=85 data-nosnippet>85</a>    /// across shadow DTOs (a public `Circuit&lt;F&gt;` with
 <a href=#86 id=86 data-nosnippet>86</a>    /// `#[tagged(via(CircuitWire&lt;F&gt;))]` reaches the same "Circuit"
-<a href=#87 id=87 data-nosnippet>87</a>    /// override that CircuitWire registers under via `#[serde(rename)]`).
+<a href=#87 id=87 data-nosnippet>87</a>    /// override that `CircuitWire` registers under via `#[serde(rename)]`).
 <a href=#88 id=88 data-nosnippet>88</a>    /// See [`type_name_basename`] for the derivation rule.
 <a href=#89 id=89 data-nosnippet>89</a>    </span>overrides: HashMap&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, EncodingStrategy&gt;,
 <a href=#90 id=90 data-nosnippet>90</a>}
@@ -601,10 +601,10 @@
 <a href=#601 id=601 data-nosnippet>601</a>/// wrapper, so the inner's `ForceIterables` is never consulted.
 <a href=#602 id=602 data-nosnippet>602</a>///
 <a href=#603 id=603 data-nosnippet>603</a>/// We could override `collect_seq` to forward byte-shaped iterators
-<a href=#604 id=604 data-nosnippet>604</a>/// to `inner.collect_seq` — but rmp_serde's detection heuristic is
+<a href=#604 id=604 data-nosnippet>604</a>/// to `inner.collect_seq` — but `rmp_serde`'s detection heuristic is
 <a href=#605 id=605 data-nosnippet>605</a>/// purely size-based: any iterator over pointer-sized items (`&amp;u8`,
 <a href=#606 id=606 data-nosnippet>606</a>/// `Box&lt;T&gt;`, `Rc&lt;T&gt;`, `&amp;T`, …) matches. For items that *aren't*
-<a href=#607 id=607 data-nosnippet>607</a>/// actually `u8`, rmp_serde's `OnlyBytes` probe rejects, and rmp_serde
+<a href=#607 id=607 data-nosnippet>607</a>/// actually `u8`, `rmp_serde`'s `OnlyBytes` probe rejects, and `rmp_serde`
 <a href=#608 id=608 data-nosnippet>608</a>/// falls back to its **own** `serialize_seq` — which doesn't route
 <a href=#609 id=609 data-nosnippet>609</a>/// through our wrapper. That would silently bypass `MsgpackTagged`
 <a href=#610 id=610 data-nosnippet>610</a>/// interception for any tagged type wrapped in `Box`/`&amp;`/etc. inside
@@ -622,7 +622,7 @@
 <a href=#622 id=622 data-nosnippet>622</a>/// hooking it up via `serialize_bytes` for the same reason. Only if a
 <a href=#623 id=623 data-nosnippet>623</a>/// generic byte-iter intercept becomes truly necessary should we
 <a href=#624 id=624 data-nosnippet>624</a>/// override `collect_seq` here — and at that point we'd need to
-<a href=#625 id=625 data-nosnippet>625</a>/// **also replicate rmp_serde's `OnlyBytes` probe** so the
+<a href=#625 id=625 data-nosnippet>625</a>/// **also replicate `rmp_serde`'s `OnlyBytes` probe** so the
 <a href=#626 id=626 data-nosnippet>626</a>/// reference-bypass risk above is closed.
 <a href=#627 id=627 data-nosnippet>627</a></span><span class="kw">fn </span>make_inner_rmp_serializer&lt;W: Write&gt;(writer: W) -&gt; RmpSerializer&lt;W&gt; {
 <a href=#628 id=628 data-nosnippet>628</a>    RmpSerializer::new(writer)

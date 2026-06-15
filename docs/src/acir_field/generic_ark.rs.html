@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>    <span class="kw">fn </span>try_to_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt;;
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// Computes the inverse or returns zero if the inverse does not exist
-<a href=#73 id=73 data-nosnippet>73</a>    /// Before using this FieldElement, please ensure that this behavior is necessary
+<a href=#73 id=73 data-nosnippet>73</a>    /// Before using this `FieldElement`, please ensure that this behavior is necessary
 <a href=#74 id=74 data-nosnippet>74</a>    </span><span class="kw">fn </span>inverse(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span>;
 <a href=#75 id=75 data-nosnippet>75</a>
 <a href=#76 id=76 data-nosnippet>76</a>    <span class="doccomment">/// Returns the vale of this field as a hex string without the `0x` prefix.
@@ -87,10 +87,10 @@
 <a href=#87 id=87 data-nosnippet>87</a>
 <a href=#88 id=88 data-nosnippet>88</a>    <span class="kw">fn </span>to_be_bytes(<span class="self">self</span>) -&gt; Vec&lt;u8&gt;;
 <a href=#89 id=89 data-nosnippet>89</a>
-<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// Converts bytes into a FieldElement and applies a reduction if needed.
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// Converts bytes into a `FieldElement` and applies a reduction if needed.
 <a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">fn </span>from_be_bytes_reduce(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="self">Self</span>;
 <a href=#92 id=92 data-nosnippet>92</a>
-<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Converts bytes in little-endian order into a FieldElement and applies a reduction if needed.
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// Converts bytes in little-endian order into a `FieldElement` and applies a reduction if needed.
 <a href=#94 id=94 data-nosnippet>94</a>    </span><span class="kw">fn </span>from_le_bytes_reduce(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="self">Self</span>;
 <a href=#95 id=95 data-nosnippet>95</a>
 <a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// Converts the field element to a vector of bytes in little-endian order

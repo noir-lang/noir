@@ -104,8 +104,8 @@
 <a href=#104 id=104 data-nosnippet>104</a>}
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a><span class="doccomment">/// This is what all formats eventually transform into
-<a href=#107 id=107 data-nosnippet>107</a>/// For example, a toml file will parse into TomlTypes
-<a href=#108 id=108 data-nosnippet>108</a>/// and those TomlTypes will be mapped to Value
+<a href=#107 id=107 data-nosnippet>107</a>/// For example, a toml file will parse into `TomlTypes`
+<a href=#108 id=108 data-nosnippet>108</a>/// and those `TomlTypes` will be mapped to Value
 <a href=#109 id=109 data-nosnippet>109</a></span><span class="attr">#[derive(Debug, Clone, Serialize, PartialEq)]
 <a href=#110 id=110 data-nosnippet>110</a></span><span class="kw">pub enum </span>PrintableValue&lt;F&gt; {
 <a href=#111 id=111 data-nosnippet>111</a>    Field(F),
@@ -141,7 +141,7 @@
 <a href=#141 id=141 data-nosnippet>141</a>    }
 <a href=#142 id=142 data-nosnippet>142</a>}
 <a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a><span class="doccomment">/// Format a given [PrintableValue] according to an expected [PrintableType].
+<a href=#144 id=144 data-nosnippet>144</a><span class="doccomment">/// Format a given [`PrintableValue`] according to an expected [`PrintableType`].
 <a href=#145 id=145 data-nosnippet>145</a>///
 <a href=#146 id=146 data-nosnippet>146</a>/// Returns `None` if the value is not what we expect based on the type.
 <a href=#147 id=147 data-nosnippet>147</a></span><span class="kw">fn </span>to_string&lt;F: AcirField&gt;(value: <span class="kw-2">&amp;</span>PrintableValue&lt;F&gt;, typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
@@ -371,7 +371,7 @@
 <a href=#371 id=371 data-nosnippet>371</a>    <span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>template[last_index..])
 <a href=#372 id=372 data-nosnippet>372</a>}
 <a href=#373 id=373 data-nosnippet>373</a>
-<a href=#374 id=374 data-nosnippet>374</a><span class="doccomment">/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
+<a href=#374 id=374 data-nosnippet>374</a><span class="doccomment">/// Assumes that `field_iterator` contains enough field elements in order to decode the [`PrintableType`].
 <a href=#375 id=375 data-nosnippet>375</a></span><span class="kw">pub fn </span>decode_printable_value&lt;F: AcirField&gt;(
 <a href=#376 id=376 data-nosnippet>376</a>    field_iterator: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = F&gt;,
 <a href=#377 id=377 data-nosnippet>377</a>    typ: <span class="kw-2">&amp;</span>PrintableType,

@@ -717,7 +717,7 @@
 <a href=#717 id=717 data-nosnippet>717</a>    /// rendered label is `label`". The markers (brackets and content) are stripped from the
 <a href=#718 id=718 data-nosnippet>718</a>    /// source before it's sent to the LSP — the label text is virtual, not real source.
 <a href=#719 id=719 data-nosnippet>719</a>    /// Use this for tests that care about position + label; for tests that also assert on
-<a href=#720 id=720 data-nosnippet>720</a>    /// text_edits or label_part locations, drop down to `get_inlay_hints` instead.
+<a href=#720 id=720 data-nosnippet>720</a>    /// `text_edits` or `label_part` locations, drop down to `get_inlay_hints` instead.
 <a href=#721 id=721 data-nosnippet>721</a>    </span><span class="kw">async fn </span>assert_inlay_hints(src: <span class="kw-2">&amp;</span>str, options: InlayHintsOptions) {
 <a href=#722 id=722 data-nosnippet>722</a>        <span class="kw">let </span>(clean_src, expected) = parse_inlay_hint_markers(src);
 <a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span><span class="kw-2">mut </span>actual: Vec&lt;(Position, String)&gt; = get_inlay_hints(<span class="kw-2">&amp;</span>clean_src, options)

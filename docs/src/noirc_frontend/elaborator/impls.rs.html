@@ -106,8 +106,8 @@
 <a href=#106 id=106 data-nosnippet>106</a>    /// - `self_type`: The type being implemented (e.g., `Foo` in `impl Foo { ... }`)
 <a href=#107 id=107 data-nosnippet>107</a>    ///
 <a href=#108 id=108 data-nosnippet>108</a>    /// # Panics
-<a href=#109 id=109 data-nosnippet>109</a>    /// If the self_type is not already resolved in each impl's function set.
-<a href=#110 id=110 data-nosnippet>110</a>    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+<a href=#109 id=109 data-nosnippet>109</a>    /// If the `self_type` is not already resolved in each impl's function set.
+<a href=#110 id=110 data-nosnippet>110</a>    /// The self type should be resolved by [`Self::register_function_metas`] before this method is called.
 <a href=#111 id=111 data-nosnippet>111</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#112 id=112 data-nosnippet>112</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_impls(
 <a href=#113 id=113 data-nosnippet>113</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -137,7 +137,7 @@
 <a href=#137 id=137 data-nosnippet>137</a>    ///
 <a href=#138 id=138 data-nosnippet>138</a>    /// # Parameters
 <a href=#139 id=139 data-nosnippet>139</a>    /// - `trait_id`: `Some(trait_id)` if this is a trait impl, `None` for inherent impls
-<a href=#140 id=140 data-nosnippet>140</a>    /// - `functions`: The functions/methods to declare (self_type must already be resolved)
+<a href=#140 id=140 data-nosnippet>140</a>    /// - `functions`: The functions/methods to declare (`self_type` must already be resolved)
 <a href=#141 id=141 data-nosnippet>141</a>    /// - `location`: Location of the impl block for error reporting
 <a href=#142 id=142 data-nosnippet>142</a>    ///
 <a href=#143 id=143 data-nosnippet>143</a>    /// # Error Cases
@@ -146,8 +146,8 @@
 <a href=#146 id=146 data-nosnippet>146</a>    /// - Primitive impl: Non-stdlib code trying to impl methods on primitive types
 <a href=#147 id=147 data-nosnippet>147</a>    ///
 <a href=#148 id=148 data-nosnippet>148</a>    /// # Panics
-<a href=#149 id=149 data-nosnippet>149</a>    /// If the self_type is not already resolved in each impl's function set.
-<a href=#150 id=150 data-nosnippet>150</a>    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+<a href=#149 id=149 data-nosnippet>149</a>    /// If the `self_type` is not already resolved in each impl's function set.
+<a href=#150 id=150 data-nosnippet>150</a>    /// The self type should be resolved by [`Self::register_function_metas`] before this method is called.
 <a href=#151 id=151 data-nosnippet>151</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#152 id=152 data-nosnippet>152</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>declare_methods_on_data_type(
 <a href=#153 id=153 data-nosnippet>153</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,

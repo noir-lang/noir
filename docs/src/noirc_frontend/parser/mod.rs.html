@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>    }
 <a href=#107 id=107 data-nosnippet>107</a>}
 <a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// A ParsedModule contains an entire Ast for one file.
+<a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// A `ParsedModule` contains an entire Ast for one file.
 <a href=#110 id=110 data-nosnippet>110</a></span><span class="attr">#[derive(Clone, Debug, Default)]
 <a href=#111 id=111 data-nosnippet>111</a></span><span class="kw">pub struct </span>ParsedModule {
 <a href=#112 id=112 data-nosnippet>112</a>    <span class="kw">pub </span>items: Vec&lt;Item&gt;,
@@ -202,7 +202,7 @@
 <a href=#202 id=202 data-nosnippet>202</a>}
 <a href=#203 id=203 data-nosnippet>203</a>
 <a href=#204 id=204 data-nosnippet>204</a><span class="doccomment">/// A submodule defined via `mod name { contents }` in some larger file.
-<a href=#205 id=205 data-nosnippet>205</a>/// These submodules always share the same file as some larger ParsedModule
+<a href=#205 id=205 data-nosnippet>205</a>/// These submodules always share the same file as some larger `ParsedModule`
 <a href=#206 id=206 data-nosnippet>206</a></span><span class="attr">#[derive(Clone, Debug)]
 <a href=#207 id=207 data-nosnippet>207</a></span><span class="kw">pub struct </span>ParsedSubModule {
 <a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">pub </span>visibility: ItemVisibility,

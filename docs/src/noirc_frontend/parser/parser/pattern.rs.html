@@ -16,7 +16,7 @@
 <a href=#16 id=16 data-nosnippet>16</a>    SelfPattern(SelfPattern),
 <a href=#17 id=17 data-nosnippet>17</a>}
 <a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a><span class="doccomment">/// SelfPattern is guaranteed to be `self`, `&amp;self` or `&amp;mut self` without a colon following it.
+<a href=#19 id=19 data-nosnippet>19</a><span class="doccomment">/// `SelfPattern` is guaranteed to be `self`, `&amp;self` or `&amp;mut self` without a colon following it.
 <a href=#20 id=20 data-nosnippet>20</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SelfPattern {
 <a href=#21 id=21 data-nosnippet>21</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) reference: bool,
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) mutable: bool,
@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a>    }
 <a href=#34 id=34 data-nosnippet>34</a>
 <a href=#35 id=35 data-nosnippet>35</a>    <span class="doccomment">/// Pattern
-<a href=#36 id=36 data-nosnippet>36</a>    ///     = 'mut' PatternNoMut
+<a href=#36 id=36 data-nosnippet>36</a>    ///     = 'mut' `PatternNoMut`
 <a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Pattern&gt; {
 <a href=#38 id=38 data-nosnippet>38</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#39 id=39 data-nosnippet>39</a>        <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
@@ -50,9 +50,9 @@
 <a href=#50 id=50 data-nosnippet>50</a>        <span class="self">self</span>.parse_pattern_after_modifiers(mutable, start_location)
 <a href=#51 id=51 data-nosnippet>51</a>    }
 <a href=#52 id=52 data-nosnippet>52</a>
-<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// PatternOrSelf
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// `PatternOrSelf`
 <a href=#54 id=54 data-nosnippet>54</a>    ///     = Pattern
-<a href=#55 id=55 data-nosnippet>55</a>    ///     | SelfPattern
+<a href=#55 id=55 data-nosnippet>55</a>    ///     | `SelfPattern`
 <a href=#56 id=56 data-nosnippet>56</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_pattern_or_self(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;PatternOrSelf&gt; {
 <a href=#57 id=57 data-nosnippet>57</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#58 id=58 data-nosnippet>58</a>
@@ -117,14 +117,14 @@
 <a href=#117 id=117 data-nosnippet>117</a>        })
 <a href=#118 id=118 data-nosnippet>118</a>    }
 <a href=#119 id=119 data-nosnippet>119</a>
-<a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// PatternNoMut
-<a href=#121 id=121 data-nosnippet>121</a>    ///     = InternedPattern
-<a href=#122 id=122 data-nosnippet>122</a>    ///     | ParenthesizedPattern
-<a href=#123 id=123 data-nosnippet>123</a>    ///     | TuplePattern
-<a href=#124 id=124 data-nosnippet>124</a>    ///     | StructPattern
-<a href=#125 id=125 data-nosnippet>125</a>    ///     | IdentifierPattern
+<a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// `PatternNoMut`
+<a href=#121 id=121 data-nosnippet>121</a>    ///     = `InternedPattern`
+<a href=#122 id=122 data-nosnippet>122</a>    ///     | `ParenthesizedPattern`
+<a href=#123 id=123 data-nosnippet>123</a>    ///     | `TuplePattern`
+<a href=#124 id=124 data-nosnippet>124</a>    ///     | `StructPattern`
+<a href=#125 id=125 data-nosnippet>125</a>    ///     | `IdentifierPattern`
 <a href=#126 id=126 data-nosnippet>126</a>    ///
-<a href=#127 id=127 data-nosnippet>127</a>    /// IdentifierPattern = identifier
+<a href=#127 id=127 data-nosnippet>127</a>    /// `IdentifierPattern` = identifier
 <a href=#128 id=128 data-nosnippet>128</a>    </span><span class="kw">fn </span>parse_pattern_no_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Pattern&gt; {
 <a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#130 id=130 data-nosnippet>130</a>
@@ -153,7 +153,7 @@
 <a href=#153 id=153 data-nosnippet>153</a>        <span class="prelude-val">Some</span>(Pattern::Identifier(ident))
 <a href=#154 id=154 data-nosnippet>154</a>    }
 <a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// InternedPattern = interned_pattern
+<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// `InternedPattern` = `interned_pattern`
 <a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">fn </span>parse_interned_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Pattern&gt; {
 <a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>token = <span class="self">self</span>.eat_kind(TokenKind::InternedPattern)<span class="question-mark">?</span>;
 <a href=#159 id=159 data-nosnippet>159</a>
@@ -165,10 +165,10 @@
 <a href=#165 id=165 data-nosnippet>165</a>        }
 <a href=#166 id=166 data-nosnippet>166</a>    }
 <a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// ParenthesizedPattern = '(' Pattern ')'
-<a href=#169 id=169 data-nosnippet>169</a>    /// TuplePattern = '(' PatternList? ')'
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// `ParenthesizedPattern` = '(' Pattern ')'
+<a href=#169 id=169 data-nosnippet>169</a>    /// `TuplePattern` = '(' `PatternList`? ')'
 <a href=#170 id=170 data-nosnippet>170</a>    ///
-<a href=#171 id=171 data-nosnippet>171</a>    /// PatternList = Pattern ( ',' Pattern )* ','?
+<a href=#171 id=171 data-nosnippet>171</a>    /// `PatternList` = Pattern ( ',' Pattern )* ','?
 <a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">fn </span>parse_parenthesized_or_tuple_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Pattern&gt; {
 <a href=#173 id=173 data-nosnippet>173</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#174 id=174 data-nosnippet>174</a>
@@ -200,11 +200,11 @@
 <a href=#200 id=200 data-nosnippet>200</a>        </span>}
 <a href=#201 id=201 data-nosnippet>201</a>    }
 <a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="doccomment">/// StructPattern = Path '{' StructPatternFields? '}'
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="doccomment">/// `StructPattern` = Path '{' `StructPatternFields`? '}'
 <a href=#204 id=204 data-nosnippet>204</a>    ///
-<a href=#205 id=205 data-nosnippet>205</a>    /// StructPatternFields = StructPatternField ( ',' StructPatternField )? ','?
+<a href=#205 id=205 data-nosnippet>205</a>    /// `StructPatternFields` = `StructPatternField` ( ',' `StructPatternField` )? ','?
 <a href=#206 id=206 data-nosnippet>206</a>    ///
-<a href=#207 id=207 data-nosnippet>207</a>    /// StructPatternField = identifier ( ':' Pattern )?
+<a href=#207 id=207 data-nosnippet>207</a>    /// `StructPatternField` = identifier ( ':' Pattern )?
 <a href=#208 id=208 data-nosnippet>208</a>    </span><span class="kw">fn </span>parse_struct_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path, start_location: Location) -&gt; Pattern {
 <a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span>fields = <span class="self">self</span>.parse_many(
 <a href=#210 id=210 data-nosnippet>210</a>            <span class="string">"struct fields"</span>,

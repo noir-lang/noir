@@ -2,7 +2,7 @@
 <h3 id="design"><a class="doc-anchor" href="#design">§</a>Design</h3>
 <p>Global constants in Noir are elaborated in a two-phase process:</p>
 <h4 id="name-resolution-and-type-checking-and-hir-generation"><a class="doc-anchor" href="#name-resolution-and-type-checking-and-hir-generation">§</a>Name resolution and type Checking and HIR Generation</h4>
-<p><a href="../struct.Elaborator.html#method.elaborate_global" title="method noirc_frontend::elaborator::Elaborator::elaborate_global">Elaborator::elaborate_global</a> validates the global definition and generates its HIR
+<p><a href="../struct.Elaborator.html#method.elaborate_global" title="method noirc_frontend::elaborator::Elaborator::elaborate_global"><code>Elaborator::elaborate_global</code></a> validates the global definition and generates its HIR
 representation. Key constraints enforced:</p>
 <ul>
 <li>Globals must be immutable (unless marked <code>comptime</code> for compile-time mutation)</li>
@@ -10,7 +10,7 @@ representation. Key constraints enforced:</p>
 <li>ABI attributes are only valid within contracts</li>
 </ul>
 <h4 id="comptime-evaluation"><a class="doc-anchor" href="#comptime-evaluation">§</a>Comptime Evaluation</h4>
-<p>The <a href="../struct.Elaborator.html#method.elaborate_comptime_global" title="method noirc_frontend::elaborator::Elaborator::elaborate_comptime_global">Elaborator::elaborate_comptime_global</a> function evaluates the global’s initializer expression
+<p>The <a href="../struct.Elaborator.html#method.elaborate_comptime_global" title="method noirc_frontend::elaborator::Elaborator::elaborate_comptime_global"><code>Elaborator::elaborate_comptime_global</code></a> function evaluates the global’s initializer expression
 at compile time using the interpreter. The resulting value is stored in the interner and can be used
 later for compile-time operations such as a type-level arithmetic.</p>
 <h4 id="dependency-ordering"><a class="doc-anchor" href="#dependency-ordering">§</a>Dependency Ordering</h4>

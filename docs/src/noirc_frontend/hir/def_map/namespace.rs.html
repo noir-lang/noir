@@ -11,12 +11,12 @@
 <a href=#11 id=11 data-nosnippet>11</a>}
 <a href=#12 id=12 data-nosnippet>12</a>
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">impl </span>PerNs {
-<a href=#14 id=14 data-nosnippet>14</a>    <span class="doccomment">/// Creates a [PerNs] with a public [ModuleDefId] in `types`, and no `values`.
+<a href=#14 id=14 data-nosnippet>14</a>    <span class="doccomment">/// Creates a [`PerNs`] with a public [`ModuleDefId`] in `types`, and no `values`.
 <a href=#15 id=15 data-nosnippet>15</a>    </span><span class="kw">pub fn </span>types(t: ModuleDefId) -&gt; PerNs {
 <a href=#16 id=16 data-nosnippet>16</a>        PerNs { types: <span class="prelude-val">Some</span>((t, ItemVisibility::Public, <span class="bool-val">false</span>)), values: <span class="prelude-val">None </span>}
 <a href=#17 id=17 data-nosnippet>17</a>    }
 <a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Iterate the [ModuleDefId]s in both `types` and `values`.
+<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// Iterate the [`ModuleDefId`]s in both `types` and `values`.
 <a href=#20 id=20 data-nosnippet>20</a>    </span><span class="kw">pub fn </span>iter_defs(<span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = ModuleDefId&gt; {
 <a href=#21 id=21 data-nosnippet>21</a>        <span class="self">self</span>.iter_items().map(|it| it.<span class="number">0</span>)
 <a href=#22 id=22 data-nosnippet>22</a>    }

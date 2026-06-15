@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// For each instruction, the set of values that are not used anymore after it.
 <a href=#41 id=41 data-nosnippet>41</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) last_uses: HashMap&lt;InstructionId, HashSet&lt;ValueId&gt;&gt;,
 <a href=#42 id=42 data-nosnippet>42</a>
-<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// Mapping of SSA [ValueId]s to their already instantiated values in the Brillig IR.
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// Mapping of SSA [`ValueId`]s to their already instantiated values in the Brillig IR.
 <a href=#44 id=44 data-nosnippet>44</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) globals: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HashMap&lt;ValueId, BrilligVariable&gt;,
 <a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Pre-instantiated constants values shared across functions which have hoisted to the global memory space.
 <a href=#46 id=46 data-nosnippet>46</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) hoisted_global_constants: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HoistedConstantsToBrilligGlobals,
@@ -110,7 +110,7 @@
 <a href=#110 id=110 data-nosnippet>110</a>    /// - Instructions that compute global values
 <a href=#111 id=111 data-nosnippet>111</a>    /// - Pre-hoisted constants (shared across functions and stored in global memory)
 <a href=#112 id=112 data-nosnippet>112</a>    ///
-<a href=#113 id=113 data-nosnippet>113</a>    /// This method expects SSA globals to already be converted to a [DataFlowGraph]
+<a href=#113 id=113 data-nosnippet>113</a>    /// This method expects SSA globals to already be converted to a [`DataFlowGraph`]
 <a href=#114 id=114 data-nosnippet>114</a>    /// as to share codegen logic with standard SSA function blocks.
 <a href=#115 id=115 data-nosnippet>115</a>    ///
 <a href=#116 id=116 data-nosnippet>116</a>    /// This method also emits any necessary debugging initialization logic (e.g., allocating a counter used
@@ -347,7 +347,7 @@
 <a href=#347 id=347 data-nosnippet>347</a>
 <a href=#348 id=348 data-nosnippet>348</a>    <span class="doccomment">/// Permanently spill non-param values that are live-in to `destination`.
 <a href=#349 id=349 data-nosnippet>349</a>    ///
-<a href=#350 id=350 data-nosnippet>350</a>    /// Block parameters are handled separately by [Self::convert_block_params], which
+<a href=#350 id=350 data-nosnippet>350</a>    /// Block parameters are handled separately by [`Self::convert_block_params`], which
 <a href=#351 id=351 data-nosnippet>351</a>    /// eagerly spills successor params at definition time (before any Jmp writes
 <a href=#352 id=352 data-nosnippet>352</a>    /// to them). This method handles the remaining cross-block values — those
 <a href=#353 id=353 data-nosnippet>353</a>    /// defined in a dominating block that are still live at `destination`.
@@ -381,7 +381,7 @@
 <a href=#381 id=381 data-nosnippet>381</a>        }
 <a href=#382 id=382 data-nosnippet>382</a>    }
 <a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a>    <span class="doccomment">/// Wrapper for [BlockVariables::define_variable] that ensures register capacity
+<a href=#384 id=384 data-nosnippet>384</a>    <span class="doccomment">/// Wrapper for [`BlockVariables::define_variable`] that ensures register capacity
 <a href=#385 id=385 data-nosnippet>385</a>    /// and tracks the new value in the LRU.
 <a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>define_variable(
 <a href=#387 id=387 data-nosnippet>387</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -410,9 +410,9 @@
 <a href=#410 id=410 data-nosnippet>410</a>        <span class="self">self</span>.define_variable(value_id, dfg).extract_single_addr()
 <a href=#411 id=411 data-nosnippet>411</a>    }
 <a href=#412 id=412 data-nosnippet>412</a>
-<a href=#413 id=413 data-nosnippet>413</a>    <span class="doccomment">/// Internal method for [BrilligBlock::compile_block] that actually kicks off the Brillig compilation process.
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="doccomment">/// Internal method for [`BrilligBlock::compile_block`] that actually kicks off the Brillig compilation process.
 <a href=#414 id=414 data-nosnippet>414</a>    ///
-<a href=#415 id=415 data-nosnippet>415</a>    /// At this point any Brillig context should be contained in [BrilligBlock], and this function should
+<a href=#415 id=415 data-nosnippet>415</a>    /// At this point any Brillig context should be contained in [`BrilligBlock`], and this function should
 <a href=#416 id=416 data-nosnippet>416</a>    /// only need to accept external SSA and debugging structures.
 <a href=#417 id=417 data-nosnippet>417</a>    </span><span class="kw">fn </span>convert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper) {
 <a href=#418 id=418 data-nosnippet>418</a>        <span class="comment">// Add a label for this block
@@ -464,7 +464,7 @@
 <a href=#464 id=464 data-nosnippet>464</a>    <span class="doccomment">/// Converts an SSA terminator instruction into the necessary opcodes:
 <a href=#465 id=465 data-nosnippet>465</a>    /// * allocates the hoisted constants which are used by dominated blocks
 <a href=#466 id=466 data-nosnippet>466</a>    /// * for jumps:
-<a href=#467 id=467 data-nosnippet>467</a>    ///   * copies the arguments to the registers allocated in [Self::convert_block_params]
+<a href=#467 id=467 data-nosnippet>467</a>    ///   * copies the arguments to the registers allocated in [`Self::convert_block_params`]
 <a href=#468 id=468 data-nosnippet>468</a>    ///   * adds jump opcodes to the labels of the destination blocks
 <a href=#469 id=469 data-nosnippet>469</a>    /// * for return it allocates registers for the return values and copies from variables.
 <a href=#470 id=470 data-nosnippet>470</a>    </span><span class="kw">fn </span>convert_ssa_terminator(
@@ -531,9 +531,9 @@
 <a href=#531 id=531 data-nosnippet>531</a>    ///
 <a href=#532 id=532 data-nosnippet>532</a>    /// Spill-slot stores for params with eagerly-spilled destinations are emitted
 <a href=#533 id=533 data-nosnippet>533</a>    /// directly here. Register-to-register moves are *returned* (not emitted) so
-<a href=#534 id=534 data-nosnippet>534</a>    /// the caller can wrap them with a conditional move when lowering a JmpIf
+<a href=#534 id=534 data-nosnippet>534</a>    /// the caller can wrap them with a conditional move when lowering a `JmpIf`
 <a href=#535 id=535 data-nosnippet>535</a>    /// then-branch. When `condition` is `Some(_)`, the spill-slot stores are also
-<a href=#536 id=536 data-nosnippet>536</a>    /// guarded by the condition; this prevents a JmpIf else-branch from leaving a
+<a href=#536 id=536 data-nosnippet>536</a>    /// guarded by the condition; this prevents a `JmpIf` else-branch from leaving a
 <a href=#537 id=537 data-nosnippet>537</a>    /// then-arg in the then-destination param's spill slot.
 <a href=#538 id=538 data-nosnippet>538</a>    </span><span class="kw">fn </span>jmp_setup(
 <a href=#539 id=539 data-nosnippet>539</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -625,7 +625,7 @@
 <a href=#625 id=625 data-nosnippet>625</a>    /// taking that branch, the then arguments must be only conditionally moved while the else
 <a href=#626 id=626 data-nosnippet>626</a>    /// arguments can be moved unconditionally. The same applies to spill-slot writes for
 <a href=#627 id=627 data-nosnippet>627</a>    /// then-arguments whose destination param was eagerly spilled — those writes are guarded
-<a href=#628 id=628 data-nosnippet>628</a>    /// by `condition` inside [Self::jmp_setup].
+<a href=#628 id=628 data-nosnippet>628</a>    /// by `condition` inside [`Self::jmp_setup`].
 <a href=#629 id=629 data-nosnippet>629</a>    </span><span class="kw">fn </span>jmpif_to_then_block(
 <a href=#630 id=630 data-nosnippet>630</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#631 id=631 data-nosnippet>631</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -672,8 +672,8 @@
 <a href=#672 id=672 data-nosnippet>672</a>    ///
 <a href=#673 id=673 data-nosnippet>673</a>    /// We don't allocate the block parameters of the block itself here, we allocate the parameters the block is defining
 <a href=#674 id=674 data-nosnippet>674</a>    /// for the descendant blocks it immediately dominates. Since predecessors to a block have to know where the parameters
-<a href=#675 id=675 data-nosnippet>675</a>    /// of the block are allocated to pass data to it in [Self::convert_ssa_terminator], the block parameters need to be
-<a href=#676 id=676 data-nosnippet>676</a>    /// defined/allocated before the given block. [VariableLiveness](crate::brillig::brillig_gen::variable_liveness::VariableLiveness)
+<a href=#675 id=675 data-nosnippet>675</a>    /// of the block are allocated to pass data to it in [`Self::convert_ssa_terminator`], the block parameters need to be
+<a href=#676 id=676 data-nosnippet>676</a>    /// defined/allocated before the given block. [`VariableLiveness`](crate::brillig::brillig_gen::variable_liveness::VariableLiveness)
 <a href=#677 id=677 data-nosnippet>677</a>    /// decides when the block parameters are defined.
 <a href=#678 id=678 data-nosnippet>678</a>    ///
 <a href=#679 id=679 data-nosnippet>679</a>    /// For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
@@ -862,10 +862,10 @@
 <a href=#862 id=862 data-nosnippet>862</a>        </span><span class="self">self</span>.brillig_context.cast_instruction(destination, source);
 <a href=#863 id=863 data-nosnippet>863</a>    }
 <a href=#864 id=864 data-nosnippet>864</a>
-<a href=#865 id=865 data-nosnippet>865</a>    <span class="doccomment">/// Initializes constants allocated to a [InstructionLocation] by [ConstantAllocation](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation).
+<a href=#865 id=865 data-nosnippet>865</a>    <span class="doccomment">/// Initializes constants allocated to a [`InstructionLocation`] by [`ConstantAllocation`](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation).
 <a href=#866 id=866 data-nosnippet>866</a>    ///
 <a href=#867 id=867 data-nosnippet>867</a>    /// It is expected that this method is called before converting an SSA instruction to Brillig
-<a href=#868 id=868 data-nosnippet>868</a>    /// and the constants to be initialized have been precomputed and stored in [FunctionContext::constant_allocation].
+<a href=#868 id=868 data-nosnippet>868</a>    /// and the constants to be initialized have been precomputed and stored in [`FunctionContext::constant_allocation`].
 <a href=#869 id=869 data-nosnippet>869</a>    </span><span class="kw">fn </span>initialize_constants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, location: InstructionLocation) {
 <a href=#870 id=870 data-nosnippet>870</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(constants) = <span class="self">self
 <a href=#871 id=871 data-nosnippet>871</a>            </span>.function_context
@@ -881,14 +881,14 @@
 <a href=#881 id=881 data-nosnippet>881</a>        }
 <a href=#882 id=882 data-nosnippet>882</a>    }
 <a href=#883 id=883 data-nosnippet>883</a>
-<a href=#884 id=884 data-nosnippet>884</a>    <span class="doccomment">/// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary, or returns an existing allocation.
+<a href=#884 id=884 data-nosnippet>884</a>    <span class="doccomment">/// Converts an SSA [`ValueId`] into a [`BrilligVariable`]. Initializes if necessary, or returns an existing allocation.
 <a href=#885 id=885 data-nosnippet>885</a>    ///
 <a href=#886 id=886 data-nosnippet>886</a>    /// This method also first checks whether the SSA value is a hoisted global constant.
 <a href=#887 id=887 data-nosnippet>887</a>    /// If the value has already been initialized in the global space, we return the already existing variable.
 <a href=#888 id=888 data-nosnippet>888</a>    ///
-<a href=#889 id=889 data-nosnippet>889</a>    /// If an SSA value is a [Value::Global], we check whether the value exists in the [BrilligBlock::globals] map,
+<a href=#889 id=889 data-nosnippet>889</a>    /// If an SSA value is a [`Value::Global`], we check whether the value exists in the [`BrilligBlock::globals`] map,
 <a href=#890 id=890 data-nosnippet>890</a>    /// otherwise the method panics. All globals should already have been allocated at this point, we just need to
-<a href=#891 id=891 data-nosnippet>891</a>    /// look them up in [BrilligBlock::globals].
+<a href=#891 id=891 data-nosnippet>891</a>    /// look them up in [`BrilligBlock::globals`].
 <a href=#892 id=892 data-nosnippet>892</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_value(
 <a href=#893 id=893 data-nosnippet>893</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#894 id=894 data-nosnippet>894</a>        value_id: ValueId,

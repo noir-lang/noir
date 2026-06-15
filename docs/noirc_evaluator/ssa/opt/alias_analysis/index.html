@@ -15,7 +15,7 @@ but it is not mandatory. If not, you will just lose precision.
 The analysis assumes global values do not hold reference and will panic if they do.</p>
 <p>Supporting globals with reference would not be too difficult:</p>
 <ol>
-<li>unify shared ‘globals having reference’ across functions in the GlobalValueId type</li>
+<li>unify shared ‘globals having reference’ across functions in the <code>GlobalValueId</code> type</li>
 <li>add them to the signature-based analysis.</li>
 </ol>
 <h3 id="algorithm-outline"><a class="doc-anchor" href="#algorithm-outline">§</a>Algorithm outline</h3>
@@ -25,7 +25,7 @@ Instructions update the alias sets using the 4 constraints: a = b, a = &amp;b, a
 as well as the results and the function’s return values.
 To make the analysis order independent, the unified returned values of a function is stored (and updated after every call)
 and initialized either by the results or the returned values (depending on which comes first)
-Because ValueIds are per function, we have to reason instead on GlobalValueId: (FunctionId, ValueId).</p>
+Because <code>ValueIds</code> are per function, we have to reason instead on <code>GlobalValueId</code>: (<code>FunctionId</code>, <code>ValueId</code>).</p>
 <p>After processing all instructions, the union-find partitions every reference
 into alias classes. Two references are <em>may-alias</em> if and only if they
 belong to the same class, have the same type and have no distinct known allocation site.</p>
@@ -51,12 +51,12 @@ Allocate instructions are propagated among blocks following the terminator argum
 Allocation Sites are tracked:</p>
 <ul>
 <li>per value, in <code>allocation_sites</code>, and inherited for block parameters when arguments all match to the same site</li>
-<li>per points_to sets, in <code>points_to_sites</code>, if all write to a pointer have the same site.</li>
+<li>per <code>points_to</code> sets, in <code>points_to_sites</code>, if all write to a pointer have the same site.</li>
 </ul>
 <p>A second pass will conservatively associate allocation sites to load operations,
-when the points_to sets of the loaded address have a known allocation site.
+when the <code>points_to</code> sets of the loaded address have a known allocation site.
 It is important to skip load operations during pass 1 so that store operations are not polluted by transient load results.
-The points-to-set sites are computed using stored values only — load results stay NoAllocation in pass 1 (less precise but sound).
+The points-to-set sites are computed using stored values only — load results stay <code>NoAllocation</code> in pass 1 (less precise but sound).
 Pass 2 then propagates those points-to sites into to the load results.</p>
 <h5 id="must-alias"><a class="doc-anchor" href="#must-alias">§</a>Must Alias</h5>
 <p>Two values sharing the same <code>Known(site)</code> only must-alias if that static
@@ -82,9 +82,9 @@ survive as equivalence keys.</p>
 <h3 id="references"><a class="doc-anchor" href="#references">§</a>References</h3>
 <p>Bjarne Steensgaard, “Points-to Analysis in Almost Linear Time”, POPL 1996.
 <a href="https://dl.acm.org/doi/abs/10.1145/237721.237727">https://dl.acm.org/doi/abs/10.1145/237721.237727</a></p>
-</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.AliasAnalysis.html" title="struct noirc_evaluator::ssa::opt::alias_analysis::AliasAnalysis">Alias<wbr>Analysis</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="struct" href="struct.AliasAnalysisContext.html" title="struct noirc_evaluator::ssa::opt::alias_analysis::AliasAnalysisContext">Alias<wbr>Analysis<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>AliasAnalysis stores the result of the alias analysis pass
-as well as transient data computed during the analysis</dd><dt><a class="struct" href="struct.GlobalValueId.html" title="struct noirc_evaluator::ssa::opt::alias_analysis::GlobalValueId">Global<wbr>Value<wbr>Id</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>GlobalValueId are ValueId along with their FunctionId,
-allowing to globally use ValueIds coming from several functions.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.AllocationLattice.html" title="enum noirc_evaluator::ssa::opt::alias_analysis::AllocationLattice">Allocation<wbr>Lattice</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="enum" href="enum.SignatureTemplate.html" title="enum noirc_evaluator::ssa::opt::alias_analysis::SignatureTemplate">Signature<wbr>Template</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Merge rule to apply to the bucket representatives at an
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.AliasAnalysis.html" title="struct noirc_evaluator::ssa::opt::alias_analysis::AliasAnalysis">Alias<wbr>Analysis</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="struct" href="struct.AliasAnalysisContext.html" title="struct noirc_evaluator::ssa::opt::alias_analysis::AliasAnalysisContext">Alias<wbr>Analysis<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd><code>AliasAnalysis</code> stores the result of the alias analysis pass
+as well as transient data computed during the analysis</dd><dt><a class="struct" href="struct.GlobalValueId.html" title="struct noirc_evaluator::ssa::opt::alias_analysis::GlobalValueId">Global<wbr>Value<wbr>Id</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd><code>GlobalValueId</code> are <code>ValueId</code> along with their <code>FunctionId</code>,
+allowing to globally use <code>ValueIds</code> coming from several functions.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.AllocationLattice.html" title="enum noirc_evaluator::ssa::opt::alias_analysis::AllocationLattice">Allocation<wbr>Lattice</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="enum" href="enum.SignatureTemplate.html" title="enum noirc_evaluator::ssa::opt::alias_analysis::SignatureTemplate">Signature<wbr>Template</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Merge rule to apply to the bucket representatives at an
 <code>unresolved_call</code>. Indices reference positions in the call’s
 canonically-ordered <code>Vec&lt;Type&gt;</code> / <code>Vec&lt;GlobalValueId&gt;</code>.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.loop_blocks.html" title="fn noirc_evaluator::ssa::opt::alias_analysis::loop_blocks">loop_<wbr>blocks</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Collect the set of basic blocks that lie inside a loop body. Allocates
 in these blocks fire once per iteration and produce a fresh cell each

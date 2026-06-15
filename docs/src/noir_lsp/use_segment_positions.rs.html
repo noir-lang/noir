@@ -17,29 +17,29 @@
 <a href=#17 id=17 data-nosnippet>17</a>    </span>NoneOrMultiple,
 <a href=#18 id=18 data-nosnippet>18</a>    <span class="doccomment">/// The segment is the last one in the `use` statement (or nested use statement):
 <a href=#19 id=19 data-nosnippet>19</a>    ///
-<a href=#20 id=20 data-nosnippet>20</a>    /// use foo::bar;
+<a href=#20 id=20 data-nosnippet>20</a>    /// use `foo::bar`;
 <a href=#21 id=21 data-nosnippet>21</a>    ///          ^^^
 <a href=#22 id=22 data-nosnippet>22</a>    ///
 <a href=#23 id=23 data-nosnippet>23</a>    /// Auto-import will transform it to this:
 <a href=#24 id=24 data-nosnippet>24</a>    ///
-<a href=#25 id=25 data-nosnippet>25</a>    /// use foo::bar::{self, baz};
+<a href=#25 id=25 data-nosnippet>25</a>    /// use `foo::bar::{self`, baz};
 <a href=#26 id=26 data-nosnippet>26</a>    </span>Last { span: Span },
 <a href=#27 id=27 data-nosnippet>27</a>    <span class="doccomment">/// The segment happens before another simple (ident) segment:
 <a href=#28 id=28 data-nosnippet>28</a>    ///
-<a href=#29 id=29 data-nosnippet>29</a>    /// use foo::bar::qux;
+<a href=#29 id=29 data-nosnippet>29</a>    /// use `foo::bar::qux`;
 <a href=#30 id=30 data-nosnippet>30</a>    ///          ^^^
 <a href=#31 id=31 data-nosnippet>31</a>    ///
 <a href=#32 id=32 data-nosnippet>32</a>    /// Auto-import will transform it to this:
 <a href=#33 id=33 data-nosnippet>33</a>    ///
-<a href=#34 id=34 data-nosnippet>34</a>    /// use foo::bar::{qux, baz};
+<a href=#34 id=34 data-nosnippet>34</a>    /// use `foo::bar::{qux`, baz};
 <a href=#35 id=35 data-nosnippet>35</a>    </span>BeforeSegment { segment_span_until_end: Span },
 <a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// The segment happens before a list:
 <a href=#37 id=37 data-nosnippet>37</a>    ///
-<a href=#38 id=38 data-nosnippet>38</a>    /// use foo::bar::{qux, another};
+<a href=#38 id=38 data-nosnippet>38</a>    /// use `foo::bar::{qux`, another};
 <a href=#39 id=39 data-nosnippet>39</a>    ///
 <a href=#40 id=40 data-nosnippet>40</a>    /// Auto-import will transform it to this:
 <a href=#41 id=41 data-nosnippet>41</a>    ///
-<a href=#42 id=42 data-nosnippet>42</a>    /// use foo::bar::{qux, another, baz};
+<a href=#42 id=42 data-nosnippet>42</a>    /// use `foo::bar::{qux`, another, baz};
 <a href=#43 id=43 data-nosnippet>43</a>    </span>BeforeList { first_entry_span: Span, list_is_empty: bool },
 <a href=#44 id=44 data-nosnippet>44</a>}
 <a href=#45 id=45 data-nosnippet>45</a>
@@ -219,7 +219,7 @@
 <a href=#219 id=219 data-nosnippet>219</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) lines: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Vec&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;,
 <a href=#220 id=220 data-nosnippet>220</a>    <span class="doccomment">/// How many nested `mod` we are in deep
 <a href=#221 id=221 data-nosnippet>221</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) nesting: usize,
-<a href=#222 id=222 data-nosnippet>222</a>    <span class="doccomment">/// The line where an auto_import must be inserted
+<a href=#222 id=222 data-nosnippet>222</a>    <span class="doccomment">/// The line where an `auto_import` must be inserted
 <a href=#223 id=223 data-nosnippet>223</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) auto_import_line: usize,
 <a href=#224 id=224 data-nosnippet>224</a>}
 <a href=#225 id=225 data-nosnippet>225</a>

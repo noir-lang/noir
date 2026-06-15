@@ -3,10 +3,10 @@
 <a href=#3 id=3 data-nosnippet>3</a>//! and the `transformers` which adapt the opcodes to the proving backend.
 <a href=#4 id=4 data-nosnippet>4</a>//!
 <a href=#5 id=5 data-nosnippet>5</a>//! # Optimizers
-<a href=#6 id=6 data-nosnippet>6</a>//! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
-<a href=#7 id=7 data-nosnippet>7</a>//! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
-<a href=#8 id=8 data-nosnippet>8</a>//! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
-<a href=#9 id=9 data-nosnippet>9</a>//! - CommonSubexpressionOptimizer: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
+<a href=#6 id=6 data-nosnippet>6</a>//! - `GeneralOptimizer`: simple pass which simplifies `AssertZero` opcodes when possible (e.g remove terms with null coefficient)
+<a href=#7 id=7 data-nosnippet>7</a>//! - `UnusedMemoryOptimizer`: simple pass which removes `MemoryInit` opcodes when they are not used (e.g no corresponding `MemoryOp` opcode)
+<a href=#8 id=8 data-nosnippet>8</a>//! - `RangeOptimizer`: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
+<a href=#9 id=9 data-nosnippet>9</a>//! - `CommonSubexpressionOptimizer`: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
 <a href=#10 id=10 data-nosnippet>10</a>//!
 <a href=#11 id=11 data-nosnippet>11</a>//! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
 <a href=#12 id=12 data-nosnippet>12</a>//! The compiled program will be returned as an `Artifacts` type.
@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Builds a map from a vector of pointers to the old acir opcodes.
 <a href=#41 id=41 data-nosnippet>41</a>    /// The index in the vector is the new opcode index.
 <a href=#42 id=42 data-nosnippet>42</a>    /// The value of the vector is where the old opcode index was pointed.
-<a href=#43 id=43 data-nosnippet>43</a>    /// E.g: If acir_opcode_positions = 0,1,2,4,5,5,6
+<a href=#43 id=43 data-nosnippet>43</a>    /// E.g: If `acir_opcode_positions` = 0,1,2,4,5,5,6
 <a href=#44 id=44 data-nosnippet>44</a>    /// that means that old indices 0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
 <a href=#45 id=45 data-nosnippet>45</a>    /// This gives the following map:
 <a href=#46 id=46 data-nosnippet>46</a>    /// 0 -&gt; 0
@@ -58,10 +58,10 @@
 <a href=#58 id=58 data-nosnippet>58</a>    }
 <a href=#59 id=59 data-nosnippet>59</a>
 <a href=#60 id=60 data-nosnippet>60</a>    <span class="doccomment">/// Returns the new opcode location(s) corresponding to the old opcode.
-<a href=#61 id=61 data-nosnippet>61</a>    /// An OpcodeLocation contains the index of the opcode in the vector of opcodes
-<a href=#62 id=62 data-nosnippet>62</a>    /// This function returns the new OpcodeLocation by 'updating' the index within the given OpcodeLocation
-<a href=#63 id=63 data-nosnippet>63</a>    /// using the AcirTransformationMap. In fact, it does not update the given OpcodeLocation 'in-memory' but rather
-<a href=#64 id=64 data-nosnippet>64</a>    /// returns a new one, and even a vector of OpcodeLocation's in case there are multiple new indexes corresponding
+<a href=#61 id=61 data-nosnippet>61</a>    /// An `OpcodeLocation` contains the index of the opcode in the vector of opcodes
+<a href=#62 id=62 data-nosnippet>62</a>    /// This function returns the new `OpcodeLocation` by 'updating' the index within the given `OpcodeLocation`
+<a href=#63 id=63 data-nosnippet>63</a>    /// using the `AcirTransformationMap`. In fact, it does not update the given `OpcodeLocation` 'in-memory' but rather
+<a href=#64 id=64 data-nosnippet>64</a>    /// returns a new one, and even a vector of `OpcodeLocation`'s in case there are multiple new indexes corresponding
 <a href=#65 id=65 data-nosnippet>65</a>    /// to the old opcode index.
 <a href=#66 id=66 data-nosnippet>66</a>    </span><span class="kw">pub fn </span>new_locations(
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -85,7 +85,7 @@
 <a href=#85 id=85 data-nosnippet>85</a>    }
 <a href=#86 id=86 data-nosnippet>86</a>
 <a href=#87 id=87 data-nosnippet>87</a>    <span class="doccomment">/// This function is similar to `new_locations()`, but only deals with
-<a href=#88 id=88 data-nosnippet>88</a>    /// the AcirOpcodeLocation variant
+<a href=#88 id=88 data-nosnippet>88</a>    /// the `AcirOpcodeLocation` variant
 <a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub fn </span>new_acir_locations(
 <a href=#90 id=90 data-nosnippet>90</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#91 id=91 data-nosnippet>91</a>        old_location: AcirOpcodeLocation,

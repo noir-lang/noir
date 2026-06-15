@@ -10,13 +10,13 @@
 </ul>
 <h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
 <ul>
-<li>If either operand is a <a href="value/enum.NumericValue.html#variant.Field" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::Field">NumericValue::Field</a>or <a href="value/enum.NumericValue.html#variant.U1" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::U1">NumericValue::U1</a>, this macro panics as those types are not supported.</li>
+<li>If either operand is a <a href="value/enum.NumericValue.html#variant.Field" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::Field"><code>NumericValue::Field</code></a>or <a href="value/enum.NumericValue.html#variant.U1" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::U1"><code>NumericValue::U1</code></a>, this macro panics as those types are not supported.</li>
 </ul>
 <h2 id="errors"><a class="doc-anchor" href="#errors">§</a>Errors</h2>
 <ul>
-<li>Returns <a href="errors/enum.InterpreterError.html#variant.Overflow" title="variant noirc_evaluator::ssa::interpreter::errors::InterpreterError::Overflow">InterpreterError::Overflow</a> if the checked operation returns <code>None</code>.</li>
-<li>Returns <a href="errors/enum.InterpreterError.html#variant.DivisionByZero" title="variant noirc_evaluator::ssa::interpreter::errors::InterpreterError::DivisionByZero">InterpreterError::DivisionByZero</a> for <code>Div</code> and <code>Mod</code> on zero.</li>
-<li>Returns <a href="errors/enum.InternalError.html#variant.MismatchedTypesInBinaryOperator" title="variant noirc_evaluator::ssa::interpreter::errors::InternalError::MismatchedTypesInBinaryOperator">InternalError::MismatchedTypesInBinaryOperator</a> if the operand types don’t match.</li>
+<li>Returns <a href="errors/enum.InterpreterError.html#variant.Overflow" title="variant noirc_evaluator::ssa::interpreter::errors::InterpreterError::Overflow"><code>InterpreterError::Overflow</code></a> if the checked operation returns <code>None</code>.</li>
+<li>Returns <a href="errors/enum.InterpreterError.html#variant.DivisionByZero" title="variant noirc_evaluator::ssa::interpreter::errors::InterpreterError::DivisionByZero"><code>InterpreterError::DivisionByZero</code></a> for <code>Div</code> and <code>Mod</code> on zero.</li>
+<li>Returns <a href="errors/enum.InternalError.html#variant.MismatchedTypesInBinaryOperator" title="variant noirc_evaluator::ssa::interpreter::errors::InternalError::MismatchedTypesInBinaryOperator"><code>InternalError::MismatchedTypesInBinaryOperator</code></a> if the operand types don’t match.</li>
 </ul>
 <h2 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h2>
 <p>A <code>NumericValue</code> containing the result of the operation, or an <code>Err</code> with the appropriate error.</p>

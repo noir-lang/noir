@@ -445,9 +445,9 @@
 <a href=#445 id=445 data-nosnippet>445</a>    }
 <a href=#446 id=446 data-nosnippet>446</a>
 <a href=#447 id=447 data-nosnippet>447</a>    <span class="doccomment">/// Runs every pending where-clause check queued by
-<a href=#448 id=448 data-nosnippet>448</a>    /// [Self::queue_pending_where_clause_check]. Must be called after the
+<a href=#448 id=448 data-nosnippet>448</a>    /// [`Self::queue_pending_where_clause_check`]. Must be called after the
 <a href=#449 id=449 data-nosnippet>449</a>    /// post-attribute drain has resolved every involved meta and after
-<a href=#450 id=450 data-nosnippet>450</a>    /// [Elaborator::populate_resolved_trait_method_records] has updated the
+<a href=#450 id=450 data-nosnippet>450</a>    /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
 <a href=#451 id=451 data-nosnippet>451</a>    /// trait's `TraitFunction` records.
 <a href=#452 id=452 data-nosnippet>452</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>run_pending_where_clause_checks(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
 <a href=#453 id=453 data-nosnippet>453</a>        <span class="kw">let </span>pending = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.pending_trait_work.where_clause_checks);
@@ -970,7 +970,7 @@
 <a href=#970 id=970 data-nosnippet>970</a>    }
 <a href=#971 id=971 data-nosnippet>971</a>
 <a href=#972 id=972 data-nosnippet>972</a>    <span class="doccomment">/// Resolves the trait path from a trait impl declaration.
-<a href=#973 id=973 data-nosnippet>973</a>    /// Returns (trait_id, trait_generics, path_location).
+<a href=#973 id=973 data-nosnippet>973</a>    /// Returns (`trait_id`, `trait_generics`, `path_location`).
 <a href=#974 id=974 data-nosnippet>974</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#975 id=975 data-nosnippet>975</a>    </span><span class="kw">fn </span>resolve_trait_impl_trait_path(
 <a href=#976 id=976 data-nosnippet>976</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1087,7 +1087,7 @@
 <a href=#1087 id=1087 data-nosnippet>1087</a>    }
 <a href=#1088 id=1088 data-nosnippet>1088</a>
 <a href=#1089 id=1089 data-nosnippet>1089</a>    <span class="doccomment">/// Resolves associated types for a trait impl and checks for missing generics.
-<a href=#1090 id=1090 data-nosnippet>1090</a>    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
+<a href=#1090 id=1090 data-nosnippet>1090</a>    /// Sets `resolved_trait_generics` and `unresolved_associated_types` on `trait_impl`.
 <a href=#1091 id=1091 data-nosnippet>1091</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#1092 id=1092 data-nosnippet>1092</a>    </span><span class="kw">fn </span>resolve_trait_impl_associated_types(
 <a href=#1093 id=1093 data-nosnippet>1093</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1134,7 +1134,7 @@
 <a href=#1134 id=1134 data-nosnippet>1134</a>        trait_impl.unresolved_associated_types = associated_types;
 <a href=#1135 id=1135 data-nosnippet>1135</a>    }
 <a href=#1136 id=1136 data-nosnippet>1136</a>
-<a href=#1137 id=1137 data-nosnippet>1137</a>    <span class="doccomment">/// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
+<a href=#1137 id=1137 data-nosnippet>1137</a>    <span class="doccomment">/// Identical to [`Self::resolve_type_or_trait_args_inner`] but does not allow
 <a href=#1138 id=1138 data-nosnippet>1138</a>    /// associated types to be elided since trait impls must specify them.
 <a href=#1139 id=1139 data-nosnippet>1139</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#1140 id=1140 data-nosnippet>1140</a>    </span><span class="kw">fn </span>resolve_trait_args_from_trait_impl(

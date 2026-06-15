@@ -25,8 +25,8 @@ you can interpret the structure in two ways:
 </div></details><h2 id="fields" class="fields section-header">Fields<a href="#fields" class="anchor">§</a></h2><span id="structfield.mul_terms" class="structfield section-header"><a href="#structfield.mul_terms" class="anchor field">§</a><code>mul_terms: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(F, <a class="struct" href="../struct.Witness.html" title="struct acir::native_types::Witness">Witness</a>, <a class="struct" href="../struct.Witness.html" title="struct acir::native_types::Witness">Witness</a>)&gt;</code></span><div class="docblock"><p>Collection of multiplication terms.</p>
 <p>To avoid having to create intermediate variables pre-optimization
 We collect all of the multiplication terms in the assert-zero opcode
-A multiplication term is of the form q_M * wL * wR
-Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +</p>
+A multiplication term is of the form <code>q_M</code> * wL * wR
+Hence this vector represents the following sum: <code>q_M1</code> * wL1 * wR1 + <code>q_M2</code> * wL2 * wR2 + .. +</p>
 </div><span id="structfield.linear_combinations" class="structfield section-header"><a href="#structfield.linear_combinations" class="anchor field">§</a><code>linear_combinations: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(F, <a class="struct" href="../struct.Witness.html" title="struct acir::native_types::Witness">Witness</a>)&gt;</code></span><div class="docblock"><p>Collection of linear terms in the expression.</p>
 <p>Each term follows the form: <code>q_L * w</code>, where <code>q_L</code> is a coefficient
 and <code>w</code> is a witness.</p>

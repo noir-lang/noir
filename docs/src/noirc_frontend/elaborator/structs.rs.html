@@ -18,7 +18,7 @@
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span><span class="kw">super</span>::Elaborator;
 <a href=#19 id=19 data-nosnippet>19</a>
 <a href=#20 id=20 data-nosnippet>20</a><span class="doccomment">/// Everything needed to resolve a struct's fields later, captured at
-<a href=#21 id=21 data-nosnippet>21</a>/// registration time. Mirrors [super::function::UnresolvedFunctionMeta] for
+<a href=#21 id=21 data-nosnippet>21</a>/// registration time. Mirrors [`super::function::UnresolvedFunctionMeta`] for
 <a href=#22 id=22 data-nosnippet>22</a>/// function metas. The actual `DataType` already lives in the interner; this
 <a href=#23 id=23 data-nosnippet>23</a>/// just holds the syntactic struct definition plus the module context.
 <a href=#24 id=24 data-nosnippet>24</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>UnresolvedStructFields {
@@ -33,10 +33,10 @@
 <a href=#33 id=33 data-nosnippet>33</a>    ///
 <a href=#34 id=34 data-nosnippet>34</a>    /// The per-struct checks that need resolved fields
 <a href=#35 id=35 data-nosnippet>35</a>    /// (visibility, LSP definition-location registration, ABI mark-as-used,
-<a href=#36 id=36 data-nosnippet>36</a>    /// `must_use` propagation) run inside [Self::resolve_one_struct_fields]
+<a href=#36 id=36 data-nosnippet>36</a>    /// `must_use` propagation) run inside [`Self::resolve_one_struct_fields`]
 <a href=#37 id=37 data-nosnippet>37</a>    /// in both paths, so they fire as soon as fields are available. The
 <a href=#38 id=38 data-nosnippet>38</a>    /// whole-program `check_for_nested_vectors` runs separately in
-<a href=#39 id=39 data-nosnippet>39</a>    /// [Self::check_for_nested_vectors_in] from `elaborate_items`, after
+<a href=#39 id=39 data-nosnippet>39</a>    /// [`Self::check_for_nested_vectors_in`] from `elaborate_items`, after
 <a href=#40 id=40 data-nosnippet>40</a>    /// the post-attribute drain has filled in every field.
 <a href=#41 id=41 data-nosnippet>41</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#42 id=42 data-nosnippet>42</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect_struct_definitions(

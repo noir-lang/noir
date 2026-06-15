@@ -15,13 +15,13 @@
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Returns the 2-complement of <code>value</code>, given <code>value_is_negative</code> is 1 if the value is negative,
 and 0 if it’s positive.</p>
 <p>The math here is:</p>
-<p>result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)</p>
-<p>For example, for i8 we have bit_size = 8 so:</p>
-<p>result = value + 2*(128 - value)*value_is_negative</p>
-<p>If the value is positive, so value_is_negative = 0:</p>
+<p><code>result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)</code></p>
+<p>For example, for i8 we have <code>bit_size</code> = 8 so:</p>
+<p>result = value + 2*(128 - value)*<code>value_is_negative</code></p>
+<p>If the value is positive, so <code>value_is_negative</code> = 0:</p>
 <p>result = value</p>
 <p>That is, the value stays the same.</p>
-<p>If value_is_negative = 1 we get:</p>
+<p>If <code>value_is_negative</code> = 1 we get:</p>
 <p>result = value + 2*(128 - value) = value + 256 - 2*value = 256 - value</p>
 <p>which effectively negates the value in 2-complement representation.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.numeric_constant" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/expand_signed_math.rs.html#275-277">Source</a><h4 class="code-header">fn <a href="#method.numeric_constant" class="fn">numeric_constant</a>(

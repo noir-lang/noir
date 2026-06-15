@@ -13,7 +13,7 @@
 </div><span id="structfield.brillig_context" class="structfield section-header"><a href="#structfield.brillig_context" class="anchor field">§</a><code>brillig_context: &amp;'block mut <a class="struct" href="../../brillig_ir/struct.BrilligContext.html" title="struct noirc_evaluator::brillig::brillig_ir::BrilligContext">BrilligContext</a>&lt;FieldElement, Registers&gt;</code></span><div class="docblock"><p>Context for creating brillig opcodes</p>
 </div><span id="structfield.variables" class="structfield section-header"><a href="#structfield.variables" class="anchor field">§</a><code>variables: <a class="struct" href="../brillig_block_variables/struct.BlockVariables.html" title="struct noirc_evaluator::brillig::brillig_gen::brillig_block_variables::BlockVariables">BlockVariables</a></code></span><div class="docblock"><p>Tracks the available variable during the codegen of the block</p>
 </div><span id="structfield.last_uses" class="structfield section-header"><a href="#structfield.last_uses" class="anchor field">§</a><code>last_uses: FxHashMap&lt;<a class="struct" href="../../../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;, FxHashSet&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;</code></span><div class="docblock"><p>For each instruction, the set of values that are not used anymore after it.</p>
-</div><span id="structfield.globals" class="structfield section-header"><a href="#structfield.globals" class="anchor field">§</a><code>globals: &amp;'block FxHashMap&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;</code></span><div class="docblock"><p>Mapping of SSA <a href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>s to their already instantiated values in the Brillig IR.</p>
+</div><span id="structfield.globals" class="structfield section-header"><a href="#structfield.globals" class="anchor field">§</a><code>globals: &amp;'block FxHashMap&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;</code></span><div class="docblock"><p>Mapping of SSA <a href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId"><code>ValueId</code></a>s to their already instantiated values in the Brillig IR.</p>
 </div><span id="structfield.hoisted_global_constants" class="structfield section-header"><a href="#structfield.hoisted_global_constants" class="anchor field">§</a><code>hoisted_global_constants: &amp;'block FxHashMap&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>), <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;</code></span><div class="docblock"><p>Pre-instantiated constants values shared across functions which have hoisted to the global memory space.</p>
 </div><span id="structfield.building_globals" class="structfield section-header"><a href="#structfield.building_globals" class="anchor field">§</a><code>building_globals: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></code></span><div class="docblock"><p>Status variable for whether we are generating Brillig bytecode for a function or globals.
 This is primarily used for gating local variable specific logic.
@@ -43,7 +43,7 @@ an SSA block by accessing the pre-computed liveness context.</p>
 <li>Instructions that compute global values</li>
 <li>Pre-hoisted constants (shared across functions and stored in global memory)</li>
 </ul>
-<p>This method expects SSA globals to already be converted to a <a href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>
+<p>This method expects SSA globals to already be converted to a <a href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph"><code>DataFlowGraph</code></a>
 as to share codegen logic with standard SSA function blocks.</p>
 <p>This method also emits any necessary debugging initialization logic (e.g., allocating a counter used
 to track array copies).</p>
@@ -93,7 +93,7 @@ Otherwise it materializes the address into the scratch register via a
     destination: <a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 )</h4></section></summary><div class="docblock"><p>Permanently spill non-param values that are live-in to <code>destination</code>.</p>
-<p>Block parameters are handled separately by <a href="struct.BrilligBlock.html#method.convert_block_params" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::convert_block_params">Self::convert_block_params</a>, which
+<p>Block parameters are handled separately by <a href="struct.BrilligBlock.html#method.convert_block_params" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::convert_block_params"><code>Self::convert_block_params</code></a>, which
 eagerly spills successor params at definition time (before any Jmp writes
 to them). This method handles the remaining cross-block values — those
 defined in a dominating block that are still live at <code>destination</code>.</p>
@@ -108,7 +108,7 @@ block reload on demand. Intra-block register pressure is still managed by LRU ev
     &amp;mut self,
     value_id: <a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-) -&gt; <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a></h4></section></summary><div class="docblock"><p>Wrapper for <a href="../brillig_block_variables/struct.BlockVariables.html#method.define_variable" title="method noirc_evaluator::brillig::brillig_gen::brillig_block_variables::BlockVariables::define_variable">BlockVariables::define_variable</a> that ensures register capacity
+) -&gt; <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a></h4></section></summary><div class="docblock"><p>Wrapper for <a href="../brillig_block_variables/struct.BlockVariables.html#method.define_variable" title="method noirc_evaluator::brillig::brillig_gen::brillig_block_variables::BlockVariables::define_variable"><code>BlockVariables::define_variable</code></a> that ensures register capacity
 and tracks the new value in the LRU.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.define_single_addr_variable" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#405-411">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.define_single_addr_variable" class="fn">define_single_addr_variable</a>(
     &amp;mut self,
@@ -119,8 +119,8 @@ and tracks the new value in the LRU.</p>
     &amp;mut self,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     call_stacks: &amp;mut CallStackHelper,
-)</h4></section></summary><div class="docblock"><p>Internal method for <a href="struct.BrilligBlock.html#method.compile_block" title="associated function noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::compile_block">BrilligBlock::compile_block</a> that actually kicks off the Brillig compilation process.</p>
-<p>At this point any Brillig context should be contained in <a href="struct.BrilligBlock.html" title="struct noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock">BrilligBlock</a>, and this function should
+)</h4></section></summary><div class="docblock"><p>Internal method for <a href="struct.BrilligBlock.html#method.compile_block" title="associated function noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::compile_block"><code>BrilligBlock::compile_block</code></a> that actually kicks off the Brillig compilation process.</p>
+<p>At this point any Brillig context should be contained in <a href="struct.BrilligBlock.html" title="struct noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock"><code>BrilligBlock</code></a>, and this function should
 only need to accept external SSA and debugging structures.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.create_block_label_for_current_function" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#451-453">Source</a><h4 class="code-header">fn <a href="#method.create_block_label_for_current_function" class="fn">create_block_label_for_current_function</a>(
     &amp;self,
@@ -144,7 +144,7 @@ for us to create a unique label across functions and blocks.</p>
 <li>allocates the hoisted constants which are used by dominated blocks</li>
 <li>for jumps:
 <ul>
-<li>copies the arguments to the registers allocated in <a href="struct.BrilligBlock.html#method.convert_block_params" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::convert_block_params">Self::convert_block_params</a></li>
+<li>copies the arguments to the registers allocated in <a href="struct.BrilligBlock.html#method.convert_block_params" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::convert_block_params"><code>Self::convert_block_params</code></a></li>
 <li>adds jump opcodes to the labels of the destination blocks</li>
 </ul>
 </li>
@@ -164,9 +164,9 @@ for us to create a unique label across functions and blocks.</p>
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(MemoryAddress, MemoryAddress)&gt;</h4></section></summary><div class="docblock"><p>Lower a jmp/jmpif’s parameter passing into Brillig instructions.</p>
 <p>Spill-slot stores for params with eagerly-spilled destinations are emitted
 directly here. Register-to-register moves are <em>returned</em> (not emitted) so
-the caller can wrap them with a conditional move when lowering a JmpIf
+the caller can wrap them with a conditional move when lowering a <code>JmpIf</code>
 then-branch. When <code>condition</code> is <code>Some(_)</code>, the spill-slot stores are also
-guarded by the condition; this prevents a JmpIf else-branch from leaving a
+guarded by the condition; this prevents a <code>JmpIf</code> else-branch from leaving a
 then-arg in the then-destination param’s spill slot.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.jmpif_to_then_block" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#629-647">Source</a><h4 class="code-header">fn <a href="#method.jmpif_to_then_block" class="fn">jmpif_to_then_block</a>(
     &amp;mut self,
@@ -185,7 +185,7 @@ jmp else_block</code></pre></div>
 taking that branch, the then arguments must be only conditionally moved while the else
 arguments can be moved unconditionally. The same applies to spill-slot writes for
 then-arguments whose destination param was eagerly spilled — those writes are guarded
-by <code>condition</code> inside <a href="struct.BrilligBlock.html#method.jmp_setup" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::jmp_setup">Self::jmp_setup</a>.</p>
+by <code>condition</code> inside <a href="struct.BrilligBlock.html#method.jmp_setup" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::jmp_setup"><code>Self::jmp_setup</code></a>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_conditional_spill_store" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#659-669">Source</a><h4 class="code-header">fn <a href="#method.codegen_conditional_spill_store" class="fn">codegen_conditional_spill_store</a>(
     &amp;mut self,
     offset: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
@@ -202,8 +202,8 @@ this never has to evict a value from the stack frame mid-terminator
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_block_params" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#680-713">Source</a><h4 class="code-header">fn <a href="#method.convert_block_params" class="fn">convert_block_params</a>(&amp;mut self, dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>)</h4></section></summary><div class="docblock"><p>Allocates the block parameters that the given block is defining.</p>
 <p>We don’t allocate the block parameters of the block itself here, we allocate the parameters the block is defining
 for the descendant blocks it immediately dominates. Since predecessors to a block have to know where the parameters
-of the block are allocated to pass data to it in <a href="struct.BrilligBlock.html#method.convert_ssa_terminator" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::convert_ssa_terminator">Self::convert_ssa_terminator</a>, the block parameters need to be
-defined/allocated before the given block. <a href="../variable_liveness/struct.VariableLiveness.html" title="struct noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness">VariableLiveness</a>
+of the block are allocated to pass data to it in <a href="struct.BrilligBlock.html#method.convert_ssa_terminator" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::convert_ssa_terminator"><code>Self::convert_ssa_terminator</code></a>, the block parameters need to be
+defined/allocated before the given block. <a href="../variable_liveness/struct.VariableLiveness.html" title="struct noirc_evaluator::brillig::brillig_gen::variable_liveness::VariableLiveness"><code>VariableLiveness</code></a>
 decides when the block parameters are defined.</p>
 <p>For the entry block, the defined block params will be the params of the function + any extra params of blocks it’s the immediate dominator of.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_instruction" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#718-854">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_instruction" class="fn">convert_ssa_instruction</a>(
@@ -223,19 +223,19 @@ Casting is only necessary when shrinking the bit size of a numeric value.</p>
     &amp;mut self,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     location: <a class="enum" href="../constant_allocation/enum.InstructionLocation.html" title="enum noirc_evaluator::brillig::brillig_gen::constant_allocation::InstructionLocation">InstructionLocation</a>,
-)</h4></section></summary><div class="docblock"><p>Initializes constants allocated to a <a href="../constant_allocation/enum.InstructionLocation.html" title="enum noirc_evaluator::brillig::brillig_gen::constant_allocation::InstructionLocation">InstructionLocation</a> by <a href="../constant_allocation/struct.ConstantAllocation.html" title="struct noirc_evaluator::brillig::brillig_gen::constant_allocation::ConstantAllocation">ConstantAllocation</a>.</p>
+)</h4></section></summary><div class="docblock"><p>Initializes constants allocated to a <a href="../constant_allocation/enum.InstructionLocation.html" title="enum noirc_evaluator::brillig::brillig_gen::constant_allocation::InstructionLocation"><code>InstructionLocation</code></a> by <a href="../constant_allocation/struct.ConstantAllocation.html" title="struct noirc_evaluator::brillig::brillig_gen::constant_allocation::ConstantAllocation"><code>ConstantAllocation</code></a>.</p>
 <p>It is expected that this method is called before converting an SSA instruction to Brillig
-and the constants to be initialized have been precomputed and stored in <a href="../brillig_fn/struct.FunctionContext.html#structfield.constant_allocation" title="field noirc_evaluator::brillig::brillig_gen::brillig_fn::FunctionContext::constant_allocation">FunctionContext::constant_allocation</a>.</p>
+and the constants to be initialized have been precomputed and stored in <a href="../brillig_fn/struct.FunctionContext.html#structfield.constant_allocation" title="field noirc_evaluator::brillig::brillig_gen::brillig_fn::FunctionContext::constant_allocation"><code>FunctionContext::constant_allocation</code></a>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#892-974">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.convert_ssa_value" class="fn">convert_ssa_value</a>(
     &amp;mut self,
     value_id: <a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-) -&gt; <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a></h4></section></summary><div class="docblock"><p>Converts an SSA <a href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a> into a <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>. Initializes if necessary, or returns an existing allocation.</p>
+) -&gt; <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a></h4></section></summary><div class="docblock"><p>Converts an SSA <a href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId"><code>ValueId</code></a> into a <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable"><code>BrilligVariable</code></a>. Initializes if necessary, or returns an existing allocation.</p>
 <p>This method also first checks whether the SSA value is a hoisted global constant.
 If the value has already been initialized in the global space, we return the already existing variable.</p>
-<p>If an SSA value is a <a href="../../../ssa/ir/value/enum.Value.html#variant.Global" title="variant noirc_evaluator::ssa::ir::value::Value::Global">Value::Global</a>, we check whether the value exists in the <a href="struct.BrilligBlock.html#structfield.globals" title="field noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::globals">BrilligBlock::globals</a> map,
+<p>If an SSA value is a <a href="../../../ssa/ir/value/enum.Value.html#variant.Global" title="variant noirc_evaluator::ssa::ir::value::Value::Global"><code>Value::Global</code></a>, we check whether the value exists in the <a href="struct.BrilligBlock.html#structfield.globals" title="field noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::globals"><code>BrilligBlock::globals</code></a> map,
 otherwise the method panics. All globals should already have been allocated at this point, we just need to
-look them up in <a href="struct.BrilligBlock.html#structfield.globals" title="field noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::globals">BrilligBlock::globals</a>.</p>
+look them up in <a href="struct.BrilligBlock.html#structfield.globals" title="field noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::globals"><code>BrilligBlock::globals</code></a>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_single_addr_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#979-986">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.convert_ssa_single_addr_value" class="fn">convert_ssa_single_addr_value</a>(
     &amp;mut self,
     value_id: <a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -291,7 +291,7 @@ then generate opcodes for a conditional move.</p>
     &amp;mut self,
     write_pointer: MemoryAddress,
     variables: &amp;[<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>],
-)</h4></section></summary><div class="docblock"><p>Take a list of <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a> and copy the memory they point at to the <code>write_pointer</code>,
+)</h4></section></summary><div class="docblock"><p>Take a list of <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable"><code>BrilligVariable</code></a> and copy the memory they point at to the <code>write_pointer</code>,
 increasing the address by 1 between each variable.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.vector_push_back_operation" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/brillig_vector_ops.rs.html#30-48">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.vector_push_back_operation" class="fn">vector_push_back_operation</a>(
     &amp;mut self,
@@ -366,7 +366,7 @@ This method handles the conversion of inputs/outputs and manages memory allocati
 </div></details><details class="toggle method-toggle" open><summary><section id="method.output_variables_to_destinations" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/code_gen_call.rs.html#174-181">Source</a><h4 class="code-header">fn <a href="#method.output_variables_to_destinations" class="fn">output_variables_to_destinations</a>(
     &amp;mut self,
     output_variables: &amp;[<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>],
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../brillig_ir/registers/struct.Allocated.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Allocated">Allocated</a>&lt;ValueOrArray, Registers&gt;&gt;</h4></section></summary><div class="docblock"><p>Convert output <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>s to [ValueOrArray] destinations on the heap.</p>
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../brillig_ir/registers/struct.Allocated.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Allocated">Allocated</a>&lt;ValueOrArray, Registers&gt;&gt;</h4></section></summary><div class="docblock"><p>Convert output <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable"><code>BrilligVariable</code></a>s to [<code>ValueOrArray</code>] destinations on the heap.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_field_less_than" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/code_gen_call.rs.html#186-202">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_field_less_than" class="fn">convert_ssa_field_less_than</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
@@ -382,7 +382,7 @@ This method handles the conversion of inputs/outputs and manages memory allocati
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 )</h4></section></summary><div class="docblock"><p>Converts a black box function call into Brillig bytecode.</p>
 <p>Black box functions are native cryptographic operations or other optimized primitives.
-Some black box functions (ECDSA, MultiScalarMul, EmbeddedCurveAdd) have a predicate
+Some black box functions (ECDSA, <code>MultiScalarMul</code>, <code>EmbeddedCurveAdd</code>) have a predicate
 argument in SSA that is removed for Brillig as CFG flattening is not needed.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_as_vector" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/code_gen_call.rs.html#257-301">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_as_vector" class="fn">convert_ssa_as_vector</a>(
     &amp;mut self,
@@ -403,17 +403,17 @@ argument in SSA that is removed for Brillig as CFG flattening is not needed.</p>
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;</h4></section></summary><div class="docblock"><p>Allocates a variable to hold the result of an external function call (e.g., foreign or black box).
 For more information about foreign function calls in Brillig take a look at the [foreign call opcode][acvm::acir::brillig::Opcode::ForeignCall].</p>
-<p>This is typically used during Brillig codegen for calls to <a href="../../../ssa/ir/value/enum.Value.html#variant.ForeignFunction" title="variant noirc_evaluator::ssa::ir::value::Value::ForeignFunction">Value::ForeignFunction</a>, where
+<p>This is typically used during Brillig codegen for calls to <a href="../../../ssa/ir/value/enum.Value.html#variant.ForeignFunction" title="variant noirc_evaluator::ssa::ir::value::Value::ForeignFunction"><code>Value::ForeignFunction</code></a>, where
 external host functions return values back into the program.</p>
 <p>Numeric types and fixed-sized array results are directly allocated.</p>
 <p>As vectors are determined at runtime they are allocated differently:</p>
 <ul>
-<li>Allocates memory for a <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html#variant.BrilligVector" title="variant noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable::BrilligVector">BrilligVariable::BrilligVector</a>, which holds a pointer and dynamic size.</li>
+<li>Allocates memory for a <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html#variant.BrilligVector" title="variant noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable::BrilligVector"><code>BrilligVariable::BrilligVector</code></a>, which holds a pointer and dynamic size.</li>
 <li>Initializes the pointer using the free memory pointer.</li>
 <li>The actual size will be updated after the foreign function call returns.</li>
 </ul>
 <h5 id="returns-1"><a class="doc-anchor" href="#returns-1">§</a>Returns</h5>
-<p>A <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a> representing the allocated memory structure to store the foreign call’s result.</p>
+<p>A <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable"><code>BrilligVariable</code></a> representing the allocated memory structure to store the foreign call’s result.</p>
 <h5 id="panics-1"><a class="doc-anchor" href="#panics-1">§</a>Panics</h5>
 <p>If there is a vector among the output variables <em>and</em> it’s followed by another vector:
 when we allocate memory for a vector, we don’t know its length, so it just points at the current
@@ -437,7 +437,7 @@ require runtime size information and cannot be allocated statically here.</li>
     arguments: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     result_ids: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
-)</h4></section></summary><div class="docblock"><p>Internal method to codegen an <a href="../../../ssa/ir/instruction/enum.Instruction.html#variant.Call" title="variant noirc_evaluator::ssa::ir::instruction::Instruction::Call">crate::ssa::ir::instruction::Instruction::Call</a> to a <a href="../../../ssa/ir/value/enum.Value.html#variant.Function" title="variant noirc_evaluator::ssa::ir::value::Value::Function">Value::Function</a></p>
+)</h4></section></summary><div class="docblock"><p>Internal method to codegen an <a href="../../../ssa/ir/instruction/enum.Instruction.html#variant.Call" title="variant noirc_evaluator::ssa::ir::instruction::Instruction::Call"><code>crate::ssa::ir::instruction::Instruction::Call</code></a> to a <a href="../../../ssa/ir/value/enum.Value.html#variant.Function" title="variant noirc_evaluator::ssa::ir::value::Value::Function"><code>Value::Function</code></a></p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.update_vector_length" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/mod.rs.html#204-212">Source</a><h4 class="code-header">fn <a href="#method.update_vector_length" class="fn">update_vector_length</a>(
     &amp;mut self,
     target_len: <a class="struct" href="../../brillig_ir/brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
@@ -566,7 +566,7 @@ For primitive type (e.g., <code>u32</code>, <code>Field</code>), a single memory
 )</h4></section></summary><div class="docblock"><p>Codegens Brillig instructions to initialize a constant array at compile time.</p>
 <p>This method generates one <code>store</code> instruction per array element, writing each
 value from the SSA into consecutive memory addresses starting at <code>pointer</code>.</p>
-<p>Unlike <a href="struct.BrilligBlock.html#method.initialize_constant_array_runtime" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::initialize_constant_array_runtime">initialize_constant_array_runtime</a>, this
+<p>Unlike <a href="struct.BrilligBlock.html#method.initialize_constant_array_runtime" title="method noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::initialize_constant_array_runtime"><code>initialize_constant_array_runtime</code></a>, this
 does not use loops and emits one instruction per write, which can increase bytecode size
 but provides fine-grained control.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_array_get" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_instructions/brillig_memory.rs.html#209-227">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_array_get" class="fn">convert_ssa_array_get</a>(
@@ -581,7 +581,7 @@ between the <code>array_variable</code> and the start of the items; otherwise op
 base pointer.</p>
 <h5 id="panics-3"><a class="doc-anchor" href="#panics-3">§</a>Panics</h5>
 <ul>
-<li>The array variable is not a <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html#variant.BrilligArray" title="variant noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable::BrilligArray">BrilligVariable::BrilligArray</a> or <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html#variant.BrilligVector" title="variant noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable::BrilligVector">BrilligVariable::BrilligVector</a> when <code>has_offset</code> is false</li>
+<li>The array variable is not a <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html#variant.BrilligArray" title="variant noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable::BrilligArray"><code>BrilligVariable::BrilligArray</code></a> or <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html#variant.BrilligVector" title="variant noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable::BrilligVector"><code>BrilligVariable::BrilligVector</code></a> when <code>has_offset</code> is false</li>
 </ul>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_array_set" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_instructions/brillig_memory.rs.html#240-277">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_array_set" class="fn">convert_ssa_array_set</a>(
     &amp;mut self,
@@ -602,7 +602,7 @@ base pointer.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_assert_rc_neq_zero" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_instructions/brillig_memory.rs.html#284-300">Source</a><h4 class="code-header">fn <a href="#method.codegen_assert_rc_neq_zero" class="fn">codegen_assert_rc_neq_zero</a>(&amp;mut self, rc_register: MemoryAddress)</h4></section></summary><div class="docblock"><p>Debug utility method to determine whether an array’s reference count (RC) is zero.
 If RC’s have drifted down to zero it means the RC increment/decrement instructions
 have been written incorrectly.</p>
-<p>Should only be called if <a href="../../brillig_ir/struct.BrilligContext.html#method.enable_debug_assertions" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::enable_debug_assertions">BrilligContext::enable_debug_assertions</a> returns true.</p>
+<p>Should only be called if <a href="../../brillig_ir/struct.BrilligContext.html#method.enable_debug_assertions" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::enable_debug_assertions"><code>BrilligContext::enable_debug_assertions</code></a> returns true.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_allocate" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_instructions/brillig_memory.rs.html#303-307">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_allocate" class="fn">codegen_allocate</a>(
     &amp;mut self,
     instruction_id: <a class="struct" href="../../../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,

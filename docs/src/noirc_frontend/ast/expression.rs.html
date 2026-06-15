@@ -54,7 +54,7 @@
 <a href=#54 id=54 data-nosnippet>54</a>    </span>Interned(InternedExpressionKind),
 <a href=#55 id=55 data-nosnippet>55</a>
 <a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// Interned statements are allowed to be parsed as expressions in case they resolve
-<a href=#57 id=57 data-nosnippet>57</a>    /// to an StatementKind::Expression or StatementKind::Semi.
+<a href=#57 id=57 data-nosnippet>57</a>    /// to an `StatementKind::Expression` or `StatementKind::Semi`.
 <a href=#58 id=58 data-nosnippet>58</a>    </span>InternedStatement(InternedStatementKind),
 <a href=#59 id=59 data-nosnippet>59</a>
 <a href=#60 id=60 data-nosnippet>60</a>    Error,
@@ -77,7 +77,7 @@
 <a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// Already-resolved generics can be parsed as generics when a macro
 <a href=#78 id=78 data-nosnippet>78</a>    /// splices existing types into a generic list. In this case we have
 <a href=#79 id=79 data-nosnippet>79</a>    /// to validate the type refers to a named generic and treat that
-<a href=#80 id=80 data-nosnippet>80</a>    /// as a ResolvedGeneric when this is resolved.
+<a href=#80 id=80 data-nosnippet>80</a>    /// as a `ResolvedGeneric` when this is resolved.
 <a href=#81 id=81 data-nosnippet>81</a>    </span>Quoted(QuotedTypeId, Location),
 <a href=#82 id=82 data-nosnippet>82</a>}
 <a href=#83 id=83 data-nosnippet>83</a>

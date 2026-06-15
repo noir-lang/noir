@@ -11,7 +11,7 @@
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <a href=#13 id=13 data-nosnippet>13</a>
-<a href=#14 id=14 data-nosnippet>14</a><span class="doccomment">/// The FunctionInserter can be used to help modify existing Functions
+<a href=#14 id=14 data-nosnippet>14</a><span class="doccomment">/// The `FunctionInserter` can be used to help modify existing Functions
 <a href=#15 id=15 data-nosnippet>15</a>/// and map old values to new values after re-inserting optimized versions
 <a href=#16 id=16 data-nosnippet>16</a>/// of old instructions.
 <a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>FunctionInserter&lt;<span class="lifetime">'f</span>&gt; {
@@ -26,19 +26,19 @@
 <a href=#26 id=26 data-nosnippet>26</a>        <span class="self">Self </span>{ function, values: HashMap::default() }
 <a href=#27 id=27 data-nosnippet>27</a>    }
 <a href=#28 id=28 data-nosnippet>28</a>
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// Resolves a ValueId to its new, updated value.
+<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// Resolves a `ValueId` to its new, updated value.
 <a href=#30 id=30 data-nosnippet>30</a>    /// If there is no updated value for this id, this returns the same
-<a href=#31 id=31 data-nosnippet>31</a>    /// ValueId that was passed in.
+<a href=#31 id=31 data-nosnippet>31</a>    /// `ValueId` that was passed in.
 <a href=#32 id=32 data-nosnippet>32</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; ValueId {
 <a href=#33 id=33 data-nosnippet>33</a>        <span class="self">Self</span>::resolve_detached(value, <span class="kw-2">&amp;</span><span class="self">self</span>.values)
 <a href=#34 id=34 data-nosnippet>34</a>    }
 <a href=#35 id=35 data-nosnippet>35</a>
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Resolves a ValueId to its new, updated value.
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Resolves a `ValueId` to its new, updated value.
 <a href=#37 id=37 data-nosnippet>37</a>    /// If there is no updated value for this id, this returns the same
-<a href=#38 id=38 data-nosnippet>38</a>    /// ValueId that was passed in.
+<a href=#38 id=38 data-nosnippet>38</a>    /// `ValueId` that was passed in.
 <a href=#39 id=39 data-nosnippet>39</a>    ///
-<a href=#40 id=40 data-nosnippet>40</a>    /// Unlike [Self::resolve], this function does not borrow self, allowing it to be used when
-<a href=#41 id=41 data-nosnippet>41</a>    /// [Self::function] is also mutably borrowed.
+<a href=#40 id=40 data-nosnippet>40</a>    /// Unlike [`Self::resolve`], this function does not borrow self, allowing it to be used when
+<a href=#41 id=41 data-nosnippet>41</a>    /// [`Self::function`] is also mutably borrowed.
 <a href=#42 id=42 data-nosnippet>42</a>    </span><span class="kw">fn </span>resolve_detached(<span class="kw-2">mut </span>value: ValueId, values: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ValueId&gt;) -&gt; ValueId {
 <a href=#43 id=43 data-nosnippet>43</a>        <span class="kw">loop </span>{
 <a href=#44 id=44 data-nosnippet>44</a>            <span class="kw">match </span>values.get(<span class="kw-2">&amp;</span>value) {
@@ -94,15 +94,15 @@
 <a href=#94 id=94 data-nosnippet>94</a>        instruction.map_values_mut(|id| <span class="self">Self</span>::resolve_detached(id, <span class="kw-2">&amp;</span><span class="self">self</span>.values));
 <a href=#95 id=95 data-nosnippet>95</a>    }
 <a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a>    <span class="doccomment">/// Maps a terminator in place, replacing any ValueId in the terminator with the
-<a href=#98 id=98 data-nosnippet>98</a>    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="doccomment">/// Maps a terminator in place, replacing any `ValueId` in the terminator with the
+<a href=#98 id=98 data-nosnippet>98</a>    /// resolved version of that value id from this `FunctionInserter`'s internal value mapping.
 <a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_terminator_in_place(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId) {
 <a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>terminator = <span class="self">self</span>.function.dfg[block].unwrap_terminator_mut();
 <a href=#101 id=101 data-nosnippet>101</a>        terminator.map_values_mut(|value| <span class="self">Self</span>::resolve_detached(value, <span class="kw-2">&amp;</span><span class="self">self</span>.values));
 <a href=#102 id=102 data-nosnippet>102</a>    }
 <a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Maps the data bus in place, replacing any ValueId in the data bus with the
-<a href=#105 id=105 data-nosnippet>105</a>    /// resolved version of that value id from this FunctionInserter's internal value mapping.
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Maps the data bus in place, replacing any `ValueId` in the data bus with the
+<a href=#105 id=105 data-nosnippet>105</a>    /// resolved version of that value id from this `FunctionInserter`'s internal value mapping.
 <a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_data_bus_in_place(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
 <a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>data_bus = <span class="kw-2">&amp;mut </span><span class="self">self</span>.function.dfg.data_bus;
 <a href=#108 id=108 data-nosnippet>108</a>        data_bus.map_values_mut(|value| <span class="self">Self</span>::resolve_detached(value, <span class="kw-2">&amp;</span><span class="self">self</span>.values));
@@ -154,8 +154,8 @@
 <a href=#154 id=154 data-nosnippet>154</a>        new_results
 <a href=#155 id=155 data-nosnippet>155</a>    }
 <a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="doccomment">/// Modify the values HashMap to remember the mapping between an instruction result's previous
-<a href=#158 id=158 data-nosnippet>158</a>    /// ValueId (from the source_function) and its new ValueId in the destination function.
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="doccomment">/// Modify the values `HashMap` to remember the mapping between an instruction result's previous
+<a href=#158 id=158 data-nosnippet>158</a>    /// `ValueId` (from the `source_function`) and its new `ValueId` in the destination function.
 <a href=#159 id=159 data-nosnippet>159</a>    </span><span class="kw">fn </span>insert_new_instruction_results(
 <a href=#160 id=160 data-nosnippet>160</a>        values: <span class="kw-2">&amp;mut </span>HashMap&lt;ValueId, ValueId&gt;,
 <a href=#161 id=161 data-nosnippet>161</a>        old_results: <span class="kw-2">&amp;</span>[ValueId],

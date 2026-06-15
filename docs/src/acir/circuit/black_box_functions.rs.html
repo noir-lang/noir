@@ -8,37 +8,37 @@
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="doccomment">/// Representation of available black box function names.
 <a href=#10 id=10 data-nosnippet>10</a>/// This enum should be used to represent a black box before we have set up the
-<a href=#11 id=11 data-nosnippet>11</a>/// appropriate inputs and outputs. At which point it should be converted to a [crate::circuit::opcodes::BlackBoxFuncCall]
+<a href=#11 id=11 data-nosnippet>11</a>/// appropriate inputs and outputs. At which point it should be converted to a [`crate::circuit::opcodes::BlackBoxFuncCall`]
 <a href=#12 id=12 data-nosnippet>12</a></span><span class="attr">#[allow(clippy::upper_case_acronyms)]
 <a href=#13 id=13 data-nosnippet>13</a>#[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 <a href=#14 id=14 data-nosnippet>14</a></span><span class="kw">pub enum </span>BlackBoxFunc {
-<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AES128Encrypt]
+<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::AES128Encrypt`]
 <a href=#16 id=16 data-nosnippet>16</a>    </span>AES128Encrypt,
-<a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AND]
+<a href=#17 id=17 data-nosnippet>17</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::AND`]
 <a href=#18 id=18 data-nosnippet>18</a>    </span>AND,
-<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::XOR]
+<a href=#19 id=19 data-nosnippet>19</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::XOR`]
 <a href=#20 id=20 data-nosnippet>20</a>    </span>XOR,
-<a href=#21 id=21 data-nosnippet>21</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RANGE]
+<a href=#21 id=21 data-nosnippet>21</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::RANGE`]
 <a href=#22 id=22 data-nosnippet>22</a>    </span>RANGE,
-<a href=#23 id=23 data-nosnippet>23</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake2s]
+<a href=#23 id=23 data-nosnippet>23</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Blake2s`]
 <a href=#24 id=24 data-nosnippet>24</a>    </span>Blake2s,
-<a href=#25 id=25 data-nosnippet>25</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake3]
+<a href=#25 id=25 data-nosnippet>25</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Blake3`]
 <a href=#26 id=26 data-nosnippet>26</a>    </span>Blake3,
-<a href=#27 id=27 data-nosnippet>27</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1]
+<a href=#27 id=27 data-nosnippet>27</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1`]
 <a href=#28 id=28 data-nosnippet>28</a>    </span>EcdsaSecp256k1,
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1]
+<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1`]
 <a href=#30 id=30 data-nosnippet>30</a>    </span>EcdsaSecp256r1,
-<a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::MultiScalarMul]
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::MultiScalarMul`]
 <a href=#32 id=32 data-nosnippet>32</a>    </span>MultiScalarMul,
-<a href=#33 id=33 data-nosnippet>33</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Keccakf1600]
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Keccakf1600`]
 <a href=#34 id=34 data-nosnippet>34</a>    </span>Keccakf1600,
-<a href=#35 id=35 data-nosnippet>35</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation]
+<a href=#35 id=35 data-nosnippet>35</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation`]
 <a href=#36 id=36 data-nosnippet>36</a>    </span>RecursiveAggregation,
-<a href=#37 id=37 data-nosnippet>37</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd]
+<a href=#37 id=37 data-nosnippet>37</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd`]
 <a href=#38 id=38 data-nosnippet>38</a>    </span>EmbeddedCurveAdd,
-<a href=#39 id=39 data-nosnippet>39</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation]
+<a href=#39 id=39 data-nosnippet>39</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation`]
 <a href=#40 id=40 data-nosnippet>40</a>    </span>Poseidon2Permutation,
-<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression`]
 <a href=#42 id=42 data-nosnippet>42</a>    </span>Sha256Compression,
 <a href=#43 id=43 data-nosnippet>43</a>}
 <a href=#44 id=44 data-nosnippet>44</a>

@@ -14,7 +14,7 @@
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use crate</span>::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 <a href=#15 id=15 data-nosnippet>15</a>
 <a href=#16 id=16 data-nosnippet>16</a><span class="doccomment">/// A numeric type in the Intermediate representation
-<a href=#17 id=17 data-nosnippet>17</a>/// Note: we class NativeField as a numeric type
+<a href=#17 id=17 data-nosnippet>17</a>/// Note: we class `NativeField` as a numeric type
 <a href=#18 id=18 data-nosnippet>18</a>/// though we also apply limitations to it, such as not
 <a href=#19 id=19 data-nosnippet>19</a>/// being able to compare two native fields, whereas this is
 <a href=#20 id=20 data-nosnippet>20</a>/// something that you can do with a signed/unsigned integer.
@@ -37,12 +37,12 @@
 <a href=#37 id=37 data-nosnippet>37</a>        }
 <a href=#38 id=38 data-nosnippet>38</a>    }
 <a href=#39 id=39 data-nosnippet>39</a>
-<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Creates a NumericType::Signed type
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Creates a `NumericType::Signed` type
 <a href=#41 id=41 data-nosnippet>41</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>signed(bit_size: u32) -&gt; NumericType {
 <a href=#42 id=42 data-nosnippet>42</a>        NumericType::Signed { bit_size }
 <a href=#43 id=43 data-nosnippet>43</a>    }
 <a href=#44 id=44 data-nosnippet>44</a>
-<a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Creates a NumericType::Unsigned type
+<a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Creates a `NumericType::Unsigned` type
 <a href=#46 id=46 data-nosnippet>46</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unsigned(bit_size: u32) -&gt; NumericType {
 <a href=#47 id=47 data-nosnippet>47</a>        NumericType::Unsigned { bit_size }
 <a href=#48 id=48 data-nosnippet>48</a>    }
@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>    }
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a>    <span class="doccomment">/// Returns None if the given Field value is within the numeric limits
-<a href=#66 id=66 data-nosnippet>66</a>    /// for the current NumericType. Otherwise returns a string describing
+<a href=#66 id=66 data-nosnippet>66</a>    /// for the current `NumericType`. Otherwise returns a string describing
 <a href=#67 id=67 data-nosnippet>67</a>    /// the limits, as a range.
 <a href=#68 id=68 data-nosnippet>68</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_is_outside_limits(<span class="self">self</span>, value: FieldElement) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
 <a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">match </span><span class="self">self </span>{
@@ -214,7 +214,7 @@
 <a href=#214 id=214 data-nosnippet>214</a>        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Numeric(<span class="kw">_</span>))
 <a href=#215 id=215 data-nosnippet>215</a>    }
 <a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>    <span class="doccomment">/// Returns the inner NumericType if this is one, or panics otherwise
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="doccomment">/// Returns the inner `NumericType` if this is one, or panics otherwise
 <a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwrap_numeric(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; NumericType {
 <a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#220 id=220 data-nosnippet>220</a>            Type::Numeric(numeric) =&gt; <span class="kw-2">*</span>numeric,
@@ -279,7 +279,7 @@
 <a href=#279 id=279 data-nosnippet>279</a>    /// as opposed to SSA, where only tuples get flattened into the array they are in,
 <a href=#280 id=280 data-nosnippet>280</a>    /// but nested arrays appear as a value ID.
 <a href=#281 id=281 data-nosnippet>281</a>    ///
-<a href=#282 id=282 data-nosnippet>282</a>    /// Panics if called on a [Type::Vector], since its value cannot be known based on its type.
+<a href=#282 id=282 data-nosnippet>282</a>    /// Panics if called on a [`Type::Vector`], since its value cannot be known based on its type.
 <a href=#283 id=283 data-nosnippet>283</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flattened_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FlattenedLength {
 <a href=#284 id=284 data-nosnippet>284</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#285 id=285 data-nosnippet>285</a>            Type::Array(elements, len) =&gt; {
@@ -367,9 +367,9 @@
 <a href=#367 id=367 data-nosnippet>367</a>        }
 <a href=#368 id=368 data-nosnippet>368</a>    }
 <a href=#369 id=369 data-nosnippet>369</a>
-<a href=#370 id=370 data-nosnippet>370</a>    <span class="doccomment">/// Recursively rewrite every [Type::Reference] inside `self` to be immutable.
+<a href=#370 id=370 data-nosnippet>370</a>    <span class="doccomment">/// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
 <a href=#371 id=371 data-nosnippet>371</a>    ///
-<a href=#372 id=372 data-nosnippet>372</a>    /// The SSA validator ([Type::canonical_eq]) and the Noir frontend both
+<a href=#372 id=372 data-nosnippet>372</a>    /// The SSA validator ([`Type::canonical_eq`]) and the Noir frontend both
 <a href=#373 id=373 data-nosnippet>373</a>    /// accept passing `&amp;mut T` where `&amp;T` is expected. To make types in those
 <a href=#374 id=374 data-nosnippet>374</a>    /// positions compare equal under that same leniency, callers that need a
 <a href=#375 id=375 data-nosnippet>375</a>    /// canonical form (e.g., map keys in defunctionalize) can collapse
@@ -393,7 +393,7 @@
 <a href=#393 id=393 data-nosnippet>393</a>        }
 <a href=#394 id=394 data-nosnippet>394</a>    }
 <a href=#395 id=395 data-nosnippet>395</a>
-<a href=#396 id=396 data-nosnippet>396</a>    <span class="doccomment">/// Owned counterpart to [Type::canonicalize] — returns a clone with all
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="doccomment">/// Owned counterpart to [`Type::canonicalize`] — returns a clone with all
 <a href=#397 id=397 data-nosnippet>397</a>    /// reference mutability stripped.
 <a href=#398 id=398 data-nosnippet>398</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>canonicalized(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
 <a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">let </span><span class="kw-2">mut </span>clone = <span class="self">self</span>.clone();

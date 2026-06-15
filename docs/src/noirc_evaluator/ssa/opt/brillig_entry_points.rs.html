@@ -217,8 +217,8 @@
 <a href=#217 id=217 data-nosnippet>217</a>
 <a href=#218 id=218 data-nosnippet>218</a><span class="doccomment">/// Clones new functions and returns a mapping representing the calls to update.
 <a href=#219 id=219 data-nosnippet>219</a>///
-<a href=#220 id=220 data-nosnippet>220</a>/// Returns a set of [CallToUpdate] containing all information needed to rewrite
-<a href=#221 id=221 data-nosnippet>221</a>/// a call site and a [NewCallSitesMap]
+<a href=#220 id=220 data-nosnippet>220</a>/// Returns a set of [`CallToUpdate`] containing all information needed to rewrite
+<a href=#221 id=221 data-nosnippet>221</a>/// a call site and a [`NewCallSitesMap`]
 <a href=#222 id=222 data-nosnippet>222</a></span><span class="kw">fn </span>build_calls_to_update(
 <a href=#223 id=223 data-nosnippet>223</a>    ssa: <span class="kw-2">&amp;mut </span>Ssa,
 <a href=#224 id=224 data-nosnippet>224</a>    functions_to_clone_map: HashMap&lt;FunctionId, Vec&lt;FunctionId&gt;&gt;,
@@ -285,7 +285,7 @@
 <a href=#285 id=285 data-nosnippet>285</a>/// set in the `calls_to_update` map build the set of call sites
 <a href=#286 id=286 data-nosnippet>286</a>/// that should be rewritten.
 <a href=#287 id=287 data-nosnippet>287</a>/// Upon finding call sites that should be rewritten this method will also
-<a href=#288 id=288 data-nosnippet>288</a>/// update the mapping of old functions to new functions in the supplied [NewCallSitesMap].
+<a href=#288 id=288 data-nosnippet>288</a>/// update the mapping of old functions to new functions in the supplied [`NewCallSitesMap`].
 <a href=#289 id=289 data-nosnippet>289</a></span><span class="kw">fn </span>collect_callsites_to_rewrite(
 <a href=#290 id=290 data-nosnippet>290</a>    function: <span class="kw-2">&amp;</span>Function,
 <a href=#291 id=291 data-nosnippet>291</a>    entry_point: FunctionId,
@@ -370,7 +370,7 @@
 <a href=#370 id=370 data-nosnippet>370</a>    get_brillig_entry_points_with_recursive(functions, main_id, call_graph, <span class="kw-2">&amp;</span>recursive_functions)
 <a href=#371 id=371 data-nosnippet>371</a>}
 <a href=#372 id=372 data-nosnippet>372</a>
-<a href=#373 id=373 data-nosnippet>373</a><span class="doccomment">/// Like [get_brillig_entry_points_with_reachability], but uses a precomputed set of recursive functions
+<a href=#373 id=373 data-nosnippet>373</a><span class="doccomment">/// Like [`get_brillig_entry_points_with_reachability`], but uses a precomputed set of recursive functions
 <a href=#374 id=374 data-nosnippet>374</a>/// to avoid recomputing SCCs.
 <a href=#375 id=375 data-nosnippet>375</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_brillig_entry_points_with_recursive(
 <a href=#376 id=376 data-nosnippet>376</a>    functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,

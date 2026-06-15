@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a>}
 <a href=#34 id=34 data-nosnippet>34</a>
 <a href=#35 id=35 data-nosnippet>35</a><span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Function = 'fn' identifier Generics FunctionParameters ( '-&gt;' Visibility Type )? WhereClause ( Block | ';' )
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Function = 'fn' identifier Generics `FunctionParameters` ( '-&gt;' Visibility Type )? `WhereClause` ( Block | ';' )
 <a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_function(
 <a href=#38 id=38 data-nosnippet>38</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#39 id=39 data-nosnippet>39</a>        attributes: Vec&lt;(Attribute, Location)&gt;,
@@ -185,11 +185,11 @@
 <a href=#185 id=185 data-nosnippet>185</a>        }
 <a href=#186 id=186 data-nosnippet>186</a>    }
 <a href=#187 id=187 data-nosnippet>187</a>
-<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// FunctionParameters = '(' FunctionParametersList? ')'
+<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// `FunctionParameters` = '(' `FunctionParametersList`? ')'
 <a href=#189 id=189 data-nosnippet>189</a>    ///
-<a href=#190 id=190 data-nosnippet>190</a>    /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
+<a href=#190 id=190 data-nosnippet>190</a>    /// `FunctionParametersList` = `FunctionParameter` ( ',' `FunctionParameter` )* ','?
 <a href=#191 id=191 data-nosnippet>191</a>    ///
-<a href=#192 id=192 data-nosnippet>192</a>    /// FunctionParameter = Visibility PatternOrSelf ':' Type
+<a href=#192 id=192 data-nosnippet>192</a>    /// `FunctionParameter` = Visibility `PatternOrSelf` ':' Type
 <a href=#193 id=193 data-nosnippet>193</a>    </span><span class="kw">fn </span>parse_function_parameters(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_self: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Param&gt;&gt; {
 <a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_left_paren() {
 <a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -295,8 +295,8 @@
 <a href=#295 id=295 data-nosnippet>295</a>
 <a href=#296 id=296 data-nosnippet>296</a>    <span class="doccomment">/// Visibility
 <a href=#297 id=297 data-nosnippet>297</a>    ///     = 'pub'
-<a href=#298 id=298 data-nosnippet>298</a>    ///     | 'return_data'
-<a href=#299 id=299 data-nosnippet>299</a>    ///     | 'call_data' '(' int ')'
+<a href=#298 id=298 data-nosnippet>298</a>    ///     | '`return_data`'
+<a href=#299 id=299 data-nosnippet>299</a>    ///     | '`call_data`' '(' int ')'
 <a href=#300 id=300 data-nosnippet>300</a>    ///     | nothing
 <a href=#301 id=301 data-nosnippet>301</a>    </span><span class="kw">fn </span>parse_visibility(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (Visibility, Location) {
 <a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;

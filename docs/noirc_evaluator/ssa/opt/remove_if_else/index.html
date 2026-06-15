@@ -32,7 +32,7 @@ for remove-if-else to handle <code>Instruction::IfElse</code> returning function
      else_value
  }</code></pre></div>
 <p>These instructions are inserted during the flatten cfg pass, which convert conditional control flow
-at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
+at the basic block level into simple ternary operations returning a value, using these <code>IfElse</code> instructions,
 and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
 <code>Instruction::IfElse</code> only for arrays and vectors. The remove-if-else pass is used for array and vectors
 in order to track their lengths, depending on existing vector intrinsics which modify vectors,
@@ -64,7 +64,7 @@ is using array v5 from then branch, and array v8 from the else branch:</p>
     constrain v11 == u32 3
     return
 }</code></pre></div>
-<p>The IfElse instruction is then replaced by these instruction during the remove if-else pass:</p>
+<p>The <code>IfElse</code> instruction is then replaced by these instruction during the remove if-else pass:</p>
 <div class="example-wrap"><pre class="language-ssa"><code>v13 = cast v0 as u32
 v14 = cast v6 as u32
 v15 = unchecked_mul v14, u32 2
@@ -84,4 +84,4 @@ Operations with the conditions are unchecked operations, because the conditions 
 the length of the merged vector resulting in a <code>make_array</code> instruction. This length will be the
 maximum length of the two input vectors. Note that the actual length of the merged vector should
 have been merged during flattening.</p>
-</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::remove_if_else::Context">Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.SizeChange.html" title="enum noirc_evaluator::ssa::opt::remove_if_else::SizeChange">Size<wbr>Change</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.remove_if_else_post_check.html" title="fn noirc_evaluator::ssa::opt::remove_if_else::remove_if_else_post_check">remove_<wbr>if_<wbr>else_<wbr>post_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Post-check condition for <a href="../../ir/function/struct.Function.html#method.remove_if_else" title="method noirc_evaluator::ssa::ir::function::Function::remove_if_else">Function::remove_if_else</a>.</dd><dt><a class="fn" href="fn.remove_if_else_pre_check.html" title="fn noirc_evaluator::ssa::opt::remove_if_else::remove_if_else_pre_check">remove_<wbr>if_<wbr>else_<wbr>pre_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl></section></div></main></body></html>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::remove_if_else::Context">Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.SizeChange.html" title="enum noirc_evaluator::ssa::opt::remove_if_else::SizeChange">Size<wbr>Change</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.remove_if_else_post_check.html" title="fn noirc_evaluator::ssa::opt::remove_if_else::remove_if_else_post_check">remove_<wbr>if_<wbr>else_<wbr>post_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Post-check condition for <a href="../../ir/function/struct.Function.html#method.remove_if_else" title="method noirc_evaluator::ssa::ir::function::Function::remove_if_else"><code>Function::remove_if_else</code></a>.</dd><dt><a class="fn" href="fn.remove_if_else_pre_check.html" title="fn noirc_evaluator::ssa::opt::remove_if_else::remove_if_else_pre_check">remove_<wbr>if_<wbr>else_<wbr>pre_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl></section></div></main></body></html>

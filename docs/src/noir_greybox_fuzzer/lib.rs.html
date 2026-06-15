@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a><span class="doccomment">/// Minimum pulse interval in milliseconds for printing metrics
 <a href=#56 id=56 data-nosnippet>56</a></span><span class="kw">const </span>MINIMUM_PULSE_INTERVAL_MILLIS: u64 = <span class="number">1000u64</span>;
 <a href=#57 id=57 data-nosnippet>57</a>
-<a href=#58 id=58 data-nosnippet>58</a><span class="doccomment">/// A seed for the XorShift RNG for use during mutation
+<a href=#58 id=58 data-nosnippet>58</a><span class="doccomment">/// A seed for the `XorShift` RNG for use during mutation
 <a href=#59 id=59 data-nosnippet>59</a></span><span class="kw">type </span>SimpleXorShiftRNGSeed = &lt;XorShiftRng <span class="kw">as </span>SeedableRng&gt;::Seed;
 <a href=#60 id=60 data-nosnippet>60</a>
 <a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Information collected from testcase execution on success
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>}
 <a href=#79 id=79 data-nosnippet>79</a>
 <a href=#80 id=80 data-nosnippet>80</a><span class="kw">impl </span>FuzzTask {
-<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Create a new FuzzTask where everything is given
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Create a new `FuzzTask` where everything is given
 <a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
 <a href=#83 id=83 data-nosnippet>83</a>        main_testcase_id: TestCaseId,
 <a href=#84 id=84 data-nosnippet>84</a>        additional_testcase_id: <span class="prelude-ty">Option</span>&lt;TestCaseId&gt;,

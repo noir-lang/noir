@@ -31,8 +31,8 @@
 <a href=#31 id=31 data-nosnippet>31</a>}
 <a href=#32 id=32 data-nosnippet>32</a>
 <a href=#33 id=33 data-nosnippet>33</a><span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#34 id=34 data-nosnippet>34</a>    <span class="doccomment">/// EqualOrNotEqualExpression
-<a href=#35 id=35 data-nosnippet>35</a>    ///     = OrExpression ( ( '==' | '!=' ) OrExpression )*
+<a href=#34 id=34 data-nosnippet>34</a>    <span class="doccomment">/// `EqualOrNotEqualExpression`
+<a href=#35 id=35 data-nosnippet>35</a>    ///     = `OrExpression` ( ( '==' | '!=' ) `OrExpression` )*
 <a href=#36 id=36 data-nosnippet>36</a>    </span><span class="attr">#[inline(always)]
 <a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_equal_or_not_equal(
 <a href=#38 id=38 data-nosnippet>38</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -52,8 +52,8 @@
 <a href=#52 id=52 data-nosnippet>52</a>        )
 <a href=#53 id=53 data-nosnippet>53</a>    }
 <a href=#54 id=54 data-nosnippet>54</a>
-<a href=#55 id=55 data-nosnippet>55</a>    <span class="doccomment">/// OrExpression
-<a href=#56 id=56 data-nosnippet>56</a>    ///     = AndExpression ( '|' AndExpression )*
+<a href=#55 id=55 data-nosnippet>55</a>    <span class="doccomment">/// `OrExpression`
+<a href=#56 id=56 data-nosnippet>56</a>    ///     = `AndExpression` ( '|' `AndExpression` )*
 <a href=#57 id=57 data-nosnippet>57</a>    </span><span class="attr">#[inline(always)]
 <a href=#58 id=58 data-nosnippet>58</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_or(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
 <a href=#59 id=59 data-nosnippet>59</a>        <span class="macro">parse_infix!</span>(
@@ -70,8 +70,8 @@
 <a href=#70 id=70 data-nosnippet>70</a>        )
 <a href=#71 id=71 data-nosnippet>71</a>    }
 <a href=#72 id=72 data-nosnippet>72</a>
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="doccomment">/// AndExpression
-<a href=#74 id=74 data-nosnippet>74</a>    ///     = XorExpression ( '&amp;' XorExpression )*
+<a href=#73 id=73 data-nosnippet>73</a>    <span class="doccomment">/// `AndExpression`
+<a href=#74 id=74 data-nosnippet>74</a>    ///     = `XorExpression` ( '&amp;' `XorExpression` )*
 <a href=#75 id=75 data-nosnippet>75</a>    </span><span class="attr">#[inline(always)]
 <a href=#76 id=76 data-nosnippet>76</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_and(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
 <a href=#77 id=77 data-nosnippet>77</a>        <span class="macro">parse_infix!</span>(
@@ -92,8 +92,8 @@
 <a href=#92 id=92 data-nosnippet>92</a>        )
 <a href=#93 id=93 data-nosnippet>93</a>    }
 <a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// XorExpression
-<a href=#96 id=96 data-nosnippet>96</a>    ///     = LessOrGreaterExpression ( '^' LessOrGreaterExpression )*
+<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// `XorExpression`
+<a href=#96 id=96 data-nosnippet>96</a>    ///     = `LessOrGreaterExpression` ( '^' `LessOrGreaterExpression` )*
 <a href=#97 id=97 data-nosnippet>97</a>    </span><span class="attr">#[inline(always)]
 <a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_xor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="macro">parse_infix!</span>(
@@ -111,8 +111,8 @@
 <a href=#111 id=111 data-nosnippet>111</a>        )
 <a href=#112 id=112 data-nosnippet>112</a>    }
 <a href=#113 id=113 data-nosnippet>113</a>
-<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// LessOrGreaterExpression
-<a href=#115 id=115 data-nosnippet>115</a>    ///     = ShiftExpression ( ( '&lt;' | '&lt;=' | '&gt;' | '&gt;=' ) ShiftExpression )*
+<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// `LessOrGreaterExpression`
+<a href=#115 id=115 data-nosnippet>115</a>    ///     = `ShiftExpression` ( ( '&lt;' | '&lt;=' | '&gt;' | '&gt;=' ) `ShiftExpression` )*
 <a href=#116 id=116 data-nosnippet>116</a>    </span><span class="attr">#[inline(always)]
 <a href=#117 id=117 data-nosnippet>117</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_less_or_greater(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
 <a href=#118 id=118 data-nosnippet>118</a>        <span class="macro">parse_infix!</span>(
@@ -135,8 +135,8 @@
 <a href=#135 id=135 data-nosnippet>135</a>        )
 <a href=#136 id=136 data-nosnippet>136</a>    }
 <a href=#137 id=137 data-nosnippet>137</a>
-<a href=#138 id=138 data-nosnippet>138</a>    <span class="doccomment">/// ShiftExpression
-<a href=#139 id=139 data-nosnippet>139</a>    ///     = AddOrSubtractExpression ( ( '&lt;&lt;' | '&gt;' '&gt;' ) AddOrSubtractExpression )*
+<a href=#138 id=138 data-nosnippet>138</a>    <span class="doccomment">/// `ShiftExpression`
+<a href=#139 id=139 data-nosnippet>139</a>    ///     = `AddOrSubtractExpression` ( ( '&lt;&lt;' | '&gt;' '&gt;' ) `AddOrSubtractExpression` )*
 <a href=#140 id=140 data-nosnippet>140</a>    </span><span class="attr">#[inline(always)]
 <a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_shift(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
 <a href=#142 id=142 data-nosnippet>142</a>        <span class="macro">parse_infix!</span>(
@@ -163,8 +163,8 @@
 <a href=#163 id=163 data-nosnippet>163</a>        )
 <a href=#164 id=164 data-nosnippet>164</a>    }
 <a href=#165 id=165 data-nosnippet>165</a>
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="doccomment">/// AddOrSubtractExpression
-<a href=#167 id=167 data-nosnippet>167</a>    ///     = MultiplyOrDivideOrModuloExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloExpression )*
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="doccomment">/// `AddOrSubtractExpression`
+<a href=#167 id=167 data-nosnippet>167</a>    ///     = `MultiplyOrDivideOrModuloExpression` ( ( '+' | '-' ) `MultiplyOrDivideOrModuloExpression` )*
 <a href=#168 id=168 data-nosnippet>168</a>    </span><span class="attr">#[inline(always)]
 <a href=#169 id=169 data-nosnippet>169</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_add_or_subtract(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="macro">parse_infix!</span>(
@@ -183,7 +183,7 @@
 <a href=#183 id=183 data-nosnippet>183</a>        )
 <a href=#184 id=184 data-nosnippet>184</a>    }
 <a href=#185 id=185 data-nosnippet>185</a>
-<a href=#186 id=186 data-nosnippet>186</a>    <span class="doccomment">/// MultiplyOrDivideOrModuloExpression
+<a href=#186 id=186 data-nosnippet>186</a>    <span class="doccomment">/// `MultiplyOrDivideOrModuloExpression`
 <a href=#187 id=187 data-nosnippet>187</a>    ///     = Term ( ( '*' | '/' | '%' ) Term )*
 <a href=#188 id=188 data-nosnippet>188</a>    </span><span class="attr">#[inline(always)]
 <a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_multiply_or_divide_or_modulo(

@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>thiserror::Error;
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a><span class="doccomment">/// Errors that can occur during execution of the program
-<a href=#15 id=15 data-nosnippet>15</a>/// It can be NargoError or rust panic
+<a href=#15 id=15 data-nosnippet>15</a>/// It can be `NargoError` or rust panic
 <a href=#16 id=16 data-nosnippet>16</a></span><span class="attr">#[derive(Debug, Error)]
 <a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">pub enum </span>SsaExecutionError {
 <a href=#18 id=18 data-nosnippet>18</a>    <span class="attr">#[error(<span class="string">"Execution failed: {0}"</span>)]
@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a>}
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a><span class="doccomment">/// Low level function to execute the given program with the given initial witness
-<a href=#29 id=29 data-nosnippet>29</a>/// It uses nargo execute_program to run the program
+<a href=#29 id=29 data-nosnippet>29</a>/// It uses nargo `execute_program` to run the program
 <a href=#30 id=30 data-nosnippet>30</a></span><span class="kw">fn </span>execute&lt;B: BlackBoxFunctionSolver&lt;FieldElement&gt; + Default&gt;(
 <a href=#31 id=31 data-nosnippet>31</a>    program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
 <a href=#32 id=32 data-nosnippet>32</a>    initial_witness: WitnessMap&lt;FieldElement&gt;,

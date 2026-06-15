@@ -139,7 +139,7 @@
 <a href=#139 id=139 data-nosnippet>139</a>        <span class="self">self</span>.functions
 <a href=#140 id=140 data-nosnippet>140</a>    }
 <a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// Increment the step counter, or return [InterpreterError::OutOfBudget].
+<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// Increment the step counter, or return [`InterpreterError::OutOfBudget`].
 <a href=#143 id=143 data-nosnippet>143</a>    ///
 <a href=#144 id=144 data-nosnippet>144</a>    /// If there is no step limit, then it doesn't increment the counter.
 <a href=#145 id=145 data-nosnippet>145</a>    </span><span class="kw">fn </span>inc_step_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
@@ -999,7 +999,7 @@
 <a href=#999 id=999 data-nosnippet>999</a>    <span class="doccomment">/// Create uninitialized results for a call that was skipped due to disabled side effects.
 <a href=#1000 id=1000 data-nosnippet>1000</a>    ///
 <a href=#1001 id=1001 data-nosnippet>1001</a>    /// For vector intrinsics, we create properly-sized zeroed vectors rather than empty ones,
-<a href=#1002 id=1002 data-nosnippet>1002</a>    /// to avoid out-of-bounds error after Remove IfElse that need to do `array_get` to
+<a href=#1002 id=1002 data-nosnippet>1002</a>    /// to avoid out-of-bounds error after Remove `IfElse` that need to do `array_get` to
 <a href=#1003 id=1003 data-nosnippet>1003</a>    /// merge the vector from a 'side effect disabled' branch.
 <a href=#1004 id=1004 data-nosnippet>1004</a>    </span><span class="kw">fn </span>uninitialized_call_results(
 <a href=#1005 id=1005 data-nosnippet>1005</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -1481,10 +1481,10 @@
 <a href=#1481 id=1481 data-nosnippet>1481</a>/// - `$g`: A function that performs the equivalent of `$f` on `Field` values.
 <a href=#1482 id=1482 data-nosnippet>1482</a>///
 <a href=#1483 id=1483 data-nosnippet>1483</a>/// # Panics
-<a href=#1484 id=1484 data-nosnippet>1484</a>/// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
+<a href=#1484 id=1484 data-nosnippet>1484</a>/// - If either operand is a [`NumericValue::Field`] or [`NumericValue::U1`] variant, this macro will panic with unreachable.
 <a href=#1485 id=1485 data-nosnippet>1485</a>///
 <a href=#1486 id=1486 data-nosnippet>1486</a>/// # Errors
-<a href=#1487 id=1487 data-nosnippet>1487</a>/// - If the operand types don't match, returns an [InternalError::MismatchedTypesInBinaryOperator].
+<a href=#1487 id=1487 data-nosnippet>1487</a>/// - If the operand types don't match, returns an [`InternalError::MismatchedTypesInBinaryOperator`].
 <a href=#1488 id=1488 data-nosnippet>1488</a>///
 <a href=#1489 id=1489 data-nosnippet>1489</a>/// # Returns
 <a href=#1490 id=1490 data-nosnippet>1490</a>/// A `NumericValue` containing the result of the operation, matching the original type.
@@ -1530,12 +1530,12 @@
 <a href=#1530 id=1530 data-nosnippet>1530</a>/// - `$display_binary`: A function to display the binary operation for diagnostic purposes.
 <a href=#1531 id=1531 data-nosnippet>1531</a>///
 <a href=#1532 id=1532 data-nosnippet>1532</a>/// # Panics
-<a href=#1533 id=1533 data-nosnippet>1533</a>/// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
+<a href=#1533 id=1533 data-nosnippet>1533</a>/// - If either operand is a [`NumericValue::Field`]or [`NumericValue::U1`], this macro panics as those types are not supported.
 <a href=#1534 id=1534 data-nosnippet>1534</a>///
 <a href=#1535 id=1535 data-nosnippet>1535</a>/// # Errors
-<a href=#1536 id=1536 data-nosnippet>1536</a>/// - Returns [InterpreterError::Overflow] if the checked operation returns `None`.
-<a href=#1537 id=1537 data-nosnippet>1537</a>/// - Returns [InterpreterError::DivisionByZero] for `Div` and `Mod` on zero.
-<a href=#1538 id=1538 data-nosnippet>1538</a>/// - Returns [InternalError::MismatchedTypesInBinaryOperator] if the operand types don't match.
+<a href=#1536 id=1536 data-nosnippet>1536</a>/// - Returns [`InterpreterError::Overflow`] if the checked operation returns `None`.
+<a href=#1537 id=1537 data-nosnippet>1537</a>/// - Returns [`InterpreterError::DivisionByZero`] for `Div` and `Mod` on zero.
+<a href=#1538 id=1538 data-nosnippet>1538</a>/// - Returns [`InternalError::MismatchedTypesInBinaryOperator`] if the operand types don't match.
 <a href=#1539 id=1539 data-nosnippet>1539</a>///
 <a href=#1540 id=1540 data-nosnippet>1540</a>/// # Returns
 <a href=#1541 id=1541 data-nosnippet>1541</a>/// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.

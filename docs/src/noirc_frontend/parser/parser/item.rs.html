@@ -88,7 +88,7 @@
 <a href=#88 id=88 data-nosnippet>88</a>        }
 <a href=#89 id=89 data-nosnippet>89</a>    }
 <a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Item = ( Attribute | OuterDocComments )* ItemKind
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Item = ( Attribute | `OuterDocComments` )* `ItemKind`
 <a href=#92 id=92 data-nosnippet>92</a>    </span><span class="kw">fn </span>parse_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;Item&gt; {
 <a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#94 id=94 data-nosnippet>94</a>
@@ -115,21 +115,21 @@
 <a href=#115 id=115 data-nosnippet>115</a>        vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
 <a href=#116 id=116 data-nosnippet>116</a>    }
 <a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// This method returns one 'ItemKind' in the majority of cases.
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// This method returns one '`ItemKind`' in the majority of cases.
 <a href=#119 id=119 data-nosnippet>119</a>    /// The current exception is when parsing a trait alias,
 <a href=#120 id=120 data-nosnippet>120</a>    /// which returns both the trait and the impl.
 <a href=#121 id=121 data-nosnippet>121</a>    ///
-<a href=#122 id=122 data-nosnippet>122</a>    /// ItemKind
-<a href=#123 id=123 data-nosnippet>123</a>    ///     = InnerAttribute
+<a href=#122 id=122 data-nosnippet>122</a>    /// `ItemKind`
+<a href=#123 id=123 data-nosnippet>123</a>    ///     = `InnerAttribute`
 <a href=#124 id=124 data-nosnippet>124</a>    ///     | Attributes Modifiers
 <a href=#125 id=125 data-nosnippet>125</a>    ///         ( Use
-<a href=#126 id=126 data-nosnippet>126</a>    ///         | ModOrContract
+<a href=#126 id=126 data-nosnippet>126</a>    ///         | `ModOrContract`
 <a href=#127 id=127 data-nosnippet>127</a>    ///         | Struct
 <a href=#128 id=128 data-nosnippet>128</a>    ///         | Enum
 <a href=#129 id=129 data-nosnippet>129</a>    ///         | Impl
 <a href=#130 id=130 data-nosnippet>130</a>    ///         | Trait
 <a href=#131 id=131 data-nosnippet>131</a>    ///         | Global
-<a href=#132 id=132 data-nosnippet>132</a>    ///         | TypeAlias
+<a href=#132 id=132 data-nosnippet>132</a>    ///         | `TypeAlias`
 <a href=#133 id=133 data-nosnippet>133</a>    ///         | Function
 <a href=#134 id=134 data-nosnippet>134</a>    ///         )
 <a href=#135 id=135 data-nosnippet>135</a>    </span><span class="kw">fn </span>parse_item_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attributes: Vec&lt;(Attribute, Location)&gt;) -&gt; Vec&lt;ItemKind&gt; {

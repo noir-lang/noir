@@ -5,14 +5,14 @@
 <a href=#5 id=5 data-nosnippet>5</a>//! Global constants in Noir are elaborated in a two-phase process:
 <a href=#6 id=6 data-nosnippet>6</a>//!
 <a href=#7 id=7 data-nosnippet>7</a>//! ### Name resolution and type Checking and HIR Generation
-<a href=#8 id=8 data-nosnippet>8</a>//! [Elaborator::elaborate_global] validates the global definition and generates its HIR
+<a href=#8 id=8 data-nosnippet>8</a>//! [`Elaborator::elaborate_global`] validates the global definition and generates its HIR
 <a href=#9 id=9 data-nosnippet>9</a>//! representation. Key constraints enforced:
 <a href=#10 id=10 data-nosnippet>10</a>//! - Globals must be immutable (unless marked `comptime` for compile-time mutation)
 <a href=#11 id=11 data-nosnippet>11</a>//! - Global types cannot contain references
 <a href=#12 id=12 data-nosnippet>12</a>//! - ABI attributes are only valid within contracts
 <a href=#13 id=13 data-nosnippet>13</a>//!
 <a href=#14 id=14 data-nosnippet>14</a>//! ### Comptime Evaluation
-<a href=#15 id=15 data-nosnippet>15</a>//! The [Elaborator::elaborate_comptime_global] function evaluates the global's initializer expression
+<a href=#15 id=15 data-nosnippet>15</a>//! The [`Elaborator::elaborate_comptime_global`] function evaluates the global's initializer expression
 <a href=#16 id=16 data-nosnippet>16</a>//! at compile time using the interpreter. The resulting value is stored in the interner and can be used
 <a href=#17 id=17 data-nosnippet>17</a>//! later for compile-time operations such as a type-level arithmetic.
 <a href=#18 id=18 data-nosnippet>18</a>//!
@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a><span class="kw">use </span><span class="kw">super</span>::Elaborator;
 <a href=#34 id=34 data-nosnippet>34</a>
 <a href=#35 id=35 data-nosnippet>35</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Order the set of unresolved globals by their [GlobalId].
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="doccomment">/// Order the set of unresolved globals by their [`GlobalId`].
 <a href=#37 id=37 data-nosnippet>37</a>    /// This set will be used to determine the ordering in which globals are elaborated.
 <a href=#38 id=38 data-nosnippet>38</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#39 id=39 data-nosnippet>39</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>set_unresolved_globals_ordering(<span class="kw-2">&amp;mut </span><span class="self">self</span>, globals: Vec&lt;UnresolvedGlobal&gt;) {
@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>        }
 <a href=#43 id=43 data-nosnippet>43</a>    }
 <a href=#44 id=44 data-nosnippet>44</a>
-<a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Elaborate any globals which were not brought into scope by other items through [Self::elaborate_global_if_unresolved].
+<a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Elaborate any globals which were not brought into scope by other items through [`Self::elaborate_global_if_unresolved`].
 <a href=#46 id=46 data-nosnippet>46</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#47 id=47 data-nosnippet>47</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_remaining_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
 <a href=#48 id=48 data-nosnippet>48</a>        <span class="comment">// Start at the first global IDs to maintain the dependency order

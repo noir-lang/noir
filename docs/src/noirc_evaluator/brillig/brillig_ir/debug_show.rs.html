@@ -248,7 +248,7 @@
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">debug_println!</span>(<span class="self">self</span>.enable_debug_trace, <span class="string">"  STOP {}"</span>, return_data);
 <a href=#249 id=249 data-nosnippet>249</a>    }
 <a href=#250 id=250 data-nosnippet>250</a>
-<a href=#251 id=251 data-nosnippet>251</a>    <span class="doccomment">/// Debug function for enter_context
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="doccomment">/// Debug function for `enter_context`
 <a href=#252 id=252 data-nosnippet>252</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enter_context(<span class="kw-2">&amp;</span><span class="self">self</span>, label: String) {
 <a href=#253 id=253 data-nosnippet>253</a>        <span class="kw">if </span>!label.ends_with(<span class="string">"-b0"</span>) {
 <a href=#254 id=254 data-nosnippet>254</a>            <span class="comment">// Hacky readability fix: don't print labels e.g. f1 then f1-b0 one after another, they mean the same thing
@@ -256,12 +256,12 @@
 <a href=#256 id=256 data-nosnippet>256</a>        }
 <a href=#257 id=257 data-nosnippet>257</a>    }
 <a href=#258 id=258 data-nosnippet>258</a>
-<a href=#259 id=259 data-nosnippet>259</a>    <span class="doccomment">/// Debug function for jump_instruction
+<a href=#259 id=259 data-nosnippet>259</a>    <span class="doccomment">/// Debug function for `jump_instruction`
 <a href=#260 id=260 data-nosnippet>260</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>jump_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>, target_label: String) {
 <a href=#261 id=261 data-nosnippet>261</a>        <span class="macro">debug_println!</span>(<span class="self">self</span>.enable_debug_trace, <span class="string">"  JUMP_TO {}"</span>, target_label);
 <a href=#262 id=262 data-nosnippet>262</a>    }
 <a href=#263 id=263 data-nosnippet>263</a>
-<a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// Debug function for jump_if_instruction
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// Debug function for `jump_if_instruction`
 <a href=#265 id=265 data-nosnippet>265</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>jump_if_instruction&lt;T: ToString&gt;(
 <a href=#266 id=266 data-nosnippet>266</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#267 id=267 data-nosnippet>267</a>        condition: MemoryAddress,
@@ -275,7 +275,7 @@
 <a href=#275 id=275 data-nosnippet>275</a>        );
 <a href=#276 id=276 data-nosnippet>276</a>    }
 <a href=#277 id=277 data-nosnippet>277</a>
-<a href=#278 id=278 data-nosnippet>278</a>    <span class="doccomment">/// Debug function for black_box_op
+<a href=#278 id=278 data-nosnippet>278</a>    <span class="doccomment">/// Debug function for `black_box_op`
 <a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>black_box_op_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>, op: <span class="kw-2">&amp;</span>BlackBoxOp) {
 <a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">match </span>op {
 <a href=#281 id=281 data-nosnippet>281</a>            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
@@ -383,12 +383,12 @@
 <a href=#383 id=383 data-nosnippet>383</a>        }
 <a href=#384 id=384 data-nosnippet>384</a>    }
 <a href=#385 id=385 data-nosnippet>385</a>
-<a href=#386 id=386 data-nosnippet>386</a>    <span class="doccomment">/// Debug function for cast_instruction
+<a href=#386 id=386 data-nosnippet>386</a>    <span class="doccomment">/// Debug function for `cast_instruction`
 <a href=#387 id=387 data-nosnippet>387</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_external_call_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>, func_label: String) {
 <a href=#388 id=388 data-nosnippet>388</a>        <span class="macro">debug_println!</span>(<span class="self">self</span>.enable_debug_trace, <span class="string">"  CALL {}"</span>, func_label);
 <a href=#389 id=389 data-nosnippet>389</a>    }
 <a href=#390 id=390 data-nosnippet>390</a>
-<a href=#391 id=391 data-nosnippet>391</a>    <span class="doccomment">/// Debug function for calldata_copy
+<a href=#391 id=391 data-nosnippet>391</a>    <span class="doccomment">/// Debug function for `calldata_copy`
 <a href=#392 id=392 data-nosnippet>392</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>calldata_copy_instruction(
 <a href=#393 id=393 data-nosnippet>393</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#394 id=394 data-nosnippet>394</a>        destination: MemoryAddress,

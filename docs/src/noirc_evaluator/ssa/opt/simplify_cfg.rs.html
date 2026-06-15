@@ -1357,7 +1357,7 @@
 <a href=#1357 id=1357 data-nosnippet>1357</a>    }
 <a href=#1358 id=1358 data-nosnippet>1358</a>
 <a href=#1359 id=1359 data-nosnippet>1359</a>    <span class="doccomment">/// A `jmpif` whose two edges point at the same block with *matching* arguments is
-<a href=#1360 id=1360 data-nosnippet>1360</a>    /// observationally redundant. simplify_cfg must fold it into a `jmp` while
+<a href=#1360 id=1360 data-nosnippet>1360</a>    /// observationally redundant. `simplify_cfg` must fold it into a `jmp` while
 <a href=#1361 id=1361 data-nosnippet>1361</a>    /// preserving the shared arguments — the previous implementation silently
 <a href=#1362 id=1362 data-nosnippet>1362</a>    /// constructed the replacement `jmp` with an empty argument vector, producing
 <a href=#1363 id=1363 data-nosnippet>1363</a>    /// malformed SSA whenever the target block had parameters.
@@ -1385,7 +1385,7 @@
 <a href=#1385 id=1385 data-nosnippet>1385</a>
 <a href=#1386 id=1386 data-nosnippet>1386</a>    <span class="doccomment">/// A `jmpif` whose two edges point at the same block with *differing* arguments
 <a href=#1387 id=1387 data-nosnippet>1387</a>    /// is semantically meaningful — the condition selects between the two argument
-<a href=#1388 id=1388 data-nosnippet>1388</a>    /// lists. simplify_cfg must leave it alone rather than folding.
+<a href=#1388 id=1388 data-nosnippet>1388</a>    /// lists. `simplify_cfg` must leave it alone rather than folding.
 <a href=#1389 id=1389 data-nosnippet>1389</a>    </span><span class="attr">#[test]
 <a href=#1390 id=1390 data-nosnippet>1390</a>    </span><span class="kw">fn </span>preserve_jmpif_same_target_differing_arguments() {
 <a href=#1391 id=1391 data-nosnippet>1391</a>        <span class="kw">let </span>src = <span class="string">"

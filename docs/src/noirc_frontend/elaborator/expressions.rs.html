@@ -204,7 +204,7 @@
 <a href=#204 id=204 data-nosnippet>204</a>        }
 <a href=#205 id=205 data-nosnippet>205</a>    }
 <a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a>    <span class="doccomment">/// Given its ID, retrieve and elaborate an interned [StatementKind].
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="doccomment">/// Given its ID, retrieve and elaborate an interned [`StatementKind`].
 <a href=#208 id=208 data-nosnippet>208</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">fn </span>elaborate_interned_statement_as_expr(
 <a href=#210 id=210 data-nosnippet>210</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -309,8 +309,8 @@
 <a href=#309 id=309 data-nosnippet>309</a>    }
 <a href=#310 id=310 data-nosnippet>310</a>
 <a href=#311 id=311 data-nosnippet>311</a>    <span class="doccomment">/// If the given type was declared as:
-<a href=#312 id=312 data-nosnippet>312</a>    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
-<a href=#313 id=313 data-nosnippet>313</a>    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+<a href=#312 id=312 data-nosnippet>312</a>    /// - `#[must_use = "message"]`, return [`MustUse::MustUse(Some("message"))`]
+<a href=#313 id=313 data-nosnippet>313</a>    /// - `#[must_use]`, return [`MustUse::MustUse(None)`]
 <a href=#314 id=314 data-nosnippet>314</a>    /// - otherwise, return `MustUse::NoMustUse`
 <a href=#315 id=315 data-nosnippet>315</a>    </span><span class="kw">fn </span>type_is_must_use(typ: <span class="kw-2">&amp;</span>Type) -&gt; MustUse {
 <a href=#316 id=316 data-nosnippet>316</a>        <span class="doccomment">/// Helper function to avoid infinite recursion for infinitely recursive types
@@ -1149,7 +1149,7 @@
 <a href=#1149 id=1149 data-nosnippet>1149</a>    <span class="doccomment">/// Elaborate a struct constructor.
 <a href=#1150 id=1150 data-nosnippet>1150</a>    ///
 <a href=#1151 id=1151 data-nosnippet>1151</a>    /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
-<a href=#1152 id=1152 data-nosnippet>1152</a>    /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
+<a href=#1152 id=1152 data-nosnippet>1152</a>    /// then delegates to [`Elaborator::elaborate_constructor_with_type`] to handle the fields.
 <a href=#1153 id=1153 data-nosnippet>1153</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#1154 id=1154 data-nosnippet>1154</a>    </span><span class="kw">fn </span>elaborate_constructor(
 <a href=#1155 id=1155 data-nosnippet>1155</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1410,7 +1410,7 @@
 <a href=#1410 id=1410 data-nosnippet>1410</a>        (expr_id, typ, is_offset &amp;&amp; is_reference)
 <a href=#1411 id=1411 data-nosnippet>1411</a>    }
 <a href=#1412 id=1412 data-nosnippet>1412</a>
-<a href=#1413 id=1413 data-nosnippet>1413</a>    <span class="doccomment">/// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+<a href=#1413 id=1413 data-nosnippet>1413</a>    <span class="doccomment">/// Push a [`HirExpression`] with its [Location], with the [Type] to be followed up later.
 <a href=#1414 id=1414 data-nosnippet>1414</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#1415 id=1415 data-nosnippet>1415</a>    </span><span class="kw">pub fn </span>intern_expr(
 <a href=#1416 id=1416 data-nosnippet>1416</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1420,7 +1420,7 @@
 <a href=#1420 id=1420 data-nosnippet>1420</a>        <span class="self">self</span>.interner.push_expr(expr).push_location(<span class="self">self</span>.interner, location)
 <a href=#1421 id=1421 data-nosnippet>1421</a>    }
 <a href=#1422 id=1422 data-nosnippet>1422</a>
-<a href=#1423 id=1423 data-nosnippet>1423</a>    <span class="doccomment">/// Follow up [Self::intern_expr] with the [Type].
+<a href=#1423 id=1423 data-nosnippet>1423</a>    <span class="doccomment">/// Follow up [`Self::intern_expr`] with the [Type].
 <a href=#1424 id=1424 data-nosnippet>1424</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#1425 id=1425 data-nosnippet>1425</a>    </span><span class="kw">pub fn </span>intern_expr_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: PushedExpr&lt;HasLocation&gt;, typ: Type) -&gt; ExprId {
 <a href=#1426 id=1426 data-nosnippet>1426</a>        expr_id.push_type(<span class="self">self</span>.interner, typ)
@@ -1492,8 +1492,8 @@
 <a href=#1492 id=1492 data-nosnippet>1492</a>        (expr_id, typ)
 <a href=#1493 id=1493 data-nosnippet>1493</a>    }
 <a href=#1494 id=1494 data-nosnippet>1494</a>
-<a href=#1495 id=1495 data-nosnippet>1495</a>    <span class="doccomment">/// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
-<a href=#1496 id=1496 data-nosnippet>1496</a>    /// * if the rules returned an `Err`, it returns [Type::Error]
+<a href=#1495 id=1495 data-nosnippet>1495</a>    <span class="doccomment">/// Handles the results of [`Self::prefix_operand_type_rules`] and [`Self::infix_operand_type_rules`].
+<a href=#1496 id=1496 data-nosnippet>1496</a>    /// * if the rules returned an `Err`, it returns [`Type::Error`]
 <a href=#1497 id=1497 data-nosnippet>1497</a>    /// * if the results indicate that a trait method should be used,
 <a href=#1498 id=1498 data-nosnippet>1498</a>    ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
 <a href=#1499 id=1499 data-nosnippet>1499</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]

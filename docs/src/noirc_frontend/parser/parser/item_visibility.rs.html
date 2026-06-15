@@ -6,10 +6,10 @@
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span><span class="kw">super</span>::Parser;
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#9 id=9 data-nosnippet>9</a>    <span class="doccomment">/// ItemVisibility
-<a href=#10 id=10 data-nosnippet>10</a>    ///     = 'pub'                 // ItemVisibility::Public
-<a href=#11 id=11 data-nosnippet>11</a>    ///     | 'pub' '(' 'crate' ')' // ItemVisibility::PublicCrate
-<a href=#12 id=12 data-nosnippet>12</a>    ///     | nothing               // ItemVisibility::Private
+<a href=#9 id=9 data-nosnippet>9</a>    <span class="doccomment">/// `ItemVisibility`
+<a href=#10 id=10 data-nosnippet>10</a>    ///     = 'pub'                 // `ItemVisibility::Public`
+<a href=#11 id=11 data-nosnippet>11</a>    ///     | 'pub' '(' 'crate' ')' // `ItemVisibility::PublicCrate`
+<a href=#12 id=12 data-nosnippet>12</a>    ///     | nothing               // `ItemVisibility::Private`
 <a href=#13 id=13 data-nosnippet>13</a>    </span><span class="kw">pub fn </span>parse_item_visibility(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ItemVisibility {
 <a href=#14 id=14 data-nosnippet>14</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Pub) {
 <a href=#15 id=15 data-nosnippet>15</a>            <span class="kw">return </span>ItemVisibility::Private;

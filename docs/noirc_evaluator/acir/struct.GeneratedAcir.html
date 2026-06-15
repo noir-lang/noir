@@ -18,7 +18,7 @@
 If witness index is <code>None</code> then we have not yet created a witness
 and thus next witness index that be declared is zero.
 This field is private should only ever be accessed through its getter and setter.</p>
-<p>Equivalent to acvm::acir::circuit::Circuit’s field of the same name.</p>
+<p>Equivalent to <code>acvm::acir::circuit::Circuit</code>’s field of the same name.</p>
 </div><span id="structfield.opcodes" class="structfield section-header"><a href="#structfield.opcodes" class="anchor field">§</a><code>opcodes: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Opcode&lt;F&gt;&gt;</code></span><div class="docblock"><p>The opcodes of which the compiled ACIR will comprise.</p>
 </div><span id="structfield.call_stacks" class="structfield section-header"><a href="#structfield.call_stacks" class="anchor field">§</a><code>call_stacks: CallStackHelper</code></span><span id="structfield.location_map" class="structfield section-header"><a href="#structfield.location_map" class="anchor field">§</a><code>location_map: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/collections/btree/map/struct.BTreeMap.html" title="struct alloc::collections::btree::map::BTreeMap">BTreeMap</a>&lt;OpcodeLocation, CallStackId&gt;</code></span><span id="structfield.return_witnesses" class="structfield section-header"><a href="#structfield.return_witnesses" class="anchor field">§</a><code>return_witnesses: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Witness&gt;</code></span><div class="docblock"><p>All witness indices that comprise the final return value of the program</p>
 </div><span id="structfield.input_witnesses" class="structfield section-header"><a href="#structfield.input_witnesses" class="anchor field">§</a><code>input_witnesses: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Witness&gt;</code></span><div class="docblock"><p>All witness indices which are inputs to the main function</p>
@@ -86,7 +86,7 @@ decomposed from the input for the given radix and limb count.</p>
     expr: &amp;Expression&lt;F&gt;,
     radix: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.u128.html">u128</a>,
     limb_count: SemanticLength,
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Witness&gt;</h4></section></summary><div class="docblock"><p>Adds brillig opcode for to_radix</p>
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Witness&gt;</h4></section></summary><div class="docblock"><p>Adds brillig opcode for <code>to_radix</code></p>
 <p>This code will decompose <code>expr</code> in a radix-base
 and return  <code>Witnesses</code> which may (or not, because it does not apply constraints)
 be limbs resulting from the decomposition.</p>

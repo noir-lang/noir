@@ -21,10 +21,10 @@
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// Executes an ACIR circuit to generate the solved witness from the initial witness.
 <a href=#23 id=23 data-nosnippet>23</a>///
-<a href=#24 id=24 data-nosnippet>24</a>/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-<a href=#25 id=25 data-nosnippet>25</a>/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `circuit`..
-<a href=#26 id=26 data-nosnippet>26</a>/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the circuit.
-<a href=#27 id=27 data-nosnippet>27</a>/// @returns {WitnessMap} The solved witness calculated by executing the circuit on the provided inputs.
+<a href=#24 id=24 data-nosnippet>24</a>/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+<a href=#25 id=25 data-nosnippet>25</a>/// @param {`WitnessMap`} `initial_witness` - The initial witness map defining all of the inputs to `circuit`..
+<a href=#26 id=26 data-nosnippet>26</a>/// @param {`ForeignCallHandler`} `foreign_call_handler` - A callback to process any foreign calls from the circuit.
+<a href=#27 id=27 data-nosnippet>27</a>/// @returns {`WitnessMap`} The solved witness calculated by executing the circuit on the provided inputs.
 <a href=#28 id=28 data-nosnippet>28</a></span><span class="attr">#[wasm_bindgen(js_name = executeCircuit, skip_jsdoc)]
 <a href=#29 id=29 data-nosnippet>29</a></span><span class="kw">pub async fn </span>execute_circuit(
 <a href=#30 id=30 data-nosnippet>30</a>    program: Vec&lt;u8&gt;,
@@ -53,10 +53,10 @@
 <a href=#53 id=53 data-nosnippet>53</a><span class="doccomment">/// Executes an ACIR circuit to generate the solved witness from the initial witness.
 <a href=#54 id=54 data-nosnippet>54</a>/// This method also extracts the public return values from the solved witness into its own return witness.
 <a href=#55 id=55 data-nosnippet>55</a>///
-<a href=#56 id=56 data-nosnippet>56</a>/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-<a href=#57 id=57 data-nosnippet>57</a>/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `circuit`..
-<a href=#58 id=58 data-nosnippet>58</a>/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the circuit.
-<a href=#59 id=59 data-nosnippet>59</a>/// @returns {SolvedAndReturnWitness} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.
+<a href=#56 id=56 data-nosnippet>56</a>/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+<a href=#57 id=57 data-nosnippet>57</a>/// @param {`WitnessMap`} `initial_witness` - The initial witness map defining all of the inputs to `circuit`..
+<a href=#58 id=58 data-nosnippet>58</a>/// @param {`ForeignCallHandler`} `foreign_call_handler` - A callback to process any foreign calls from the circuit.
+<a href=#59 id=59 data-nosnippet>59</a>/// @returns {`SolvedAndReturnWitness`} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.
 <a href=#60 id=60 data-nosnippet>60</a></span><span class="attr">#[wasm_bindgen(js_name = executeCircuitWithReturnWitness, skip_jsdoc)]
 <a href=#61 id=61 data-nosnippet>61</a></span><span class="kw">pub async fn </span>execute_circuit_with_return_witness(
 <a href=#62 id=62 data-nosnippet>62</a>    program: Vec&lt;u8&gt;,
@@ -97,10 +97,10 @@
 <a href=#97 id=97 data-nosnippet>97</a>
 <a href=#98 id=98 data-nosnippet>98</a><span class="doccomment">/// Executes an ACIR circuit to generate the solved witness from the initial witness.
 <a href=#99 id=99 data-nosnippet>99</a>///
-<a href=#100 id=100 data-nosnippet>100</a>/// @param {Uint8Array} program - A serialized representation of an ACIR program
-<a href=#101 id=101 data-nosnippet>101</a>/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `program`.
-<a href=#102 id=102 data-nosnippet>102</a>/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the program.
-<a href=#103 id=103 data-nosnippet>103</a>/// @returns {WitnessStack} The solved witness calculated by executing the program on the provided inputs.
+<a href=#100 id=100 data-nosnippet>100</a>/// @param {`Uint8Array`} program - A serialized representation of an ACIR program
+<a href=#101 id=101 data-nosnippet>101</a>/// @param {`WitnessMap`} `initial_witness` - The initial witness map defining all of the inputs to `program`.
+<a href=#102 id=102 data-nosnippet>102</a>/// @param {`ForeignCallHandler`} `foreign_call_handler` - A callback to process any foreign calls from the program.
+<a href=#103 id=103 data-nosnippet>103</a>/// @returns {`WitnessStack`} The solved witness calculated by executing the program on the provided inputs.
 <a href=#104 id=104 data-nosnippet>104</a></span><span class="attr">#[wasm_bindgen(js_name = executeProgram, skip_jsdoc)]
 <a href=#105 id=105 data-nosnippet>105</a></span><span class="kw">pub async fn </span>execute_program(
 <a href=#106 id=106 data-nosnippet>106</a>    program: Vec&lt;u8&gt;,

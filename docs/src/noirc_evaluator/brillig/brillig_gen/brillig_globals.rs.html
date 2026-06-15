@@ -85,7 +85,7 @@
 <a href=#85 id=85 data-nosnippet>85</a>    /// * which globals are used by an entry point and its callees,
 <a href=#86 id=86 data-nosnippet>86</a>    /// * how many times each constant is used by an entry point and its callees.
 <a href=#87 id=87 data-nosnippet>87</a>    ///
-<a href=#88 id=88 data-nosnippet>88</a>    /// The population of allocation related information is deferred to [Self::declare_globals].
+<a href=#88 id=88 data-nosnippet>88</a>    /// The population of allocation related information is deferred to [`Self::declare_globals`].
 <a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(ssa: <span class="kw-2">&amp;</span>Ssa, main_id: FunctionId) -&gt; <span class="self">Self </span>{
 <a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span><span class="kw-2">mut </span>used_globals = ssa.used_globals_in_functions();
 <a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa(ssa);

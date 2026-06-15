@@ -5,7 +5,7 @@
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Describe the blocks that constitute up a loop.</p>
 </div></details><h2 id="fields" class="fields section-header">Fields<a href="#fields" class="anchor">§</a></h2><span id="structfield.header" class="structfield section-header"><a href="#structfield.header" class="anchor field">§</a><code>header: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a></code></span><div class="docblock"><p>The header block of a loop is the block which dominates all the
 other blocks in the loop.</p>
-</div><span id="structfield.back_edge_start" class="structfield section-header"><a href="#structfield.back_edge_start" class="anchor field">§</a><code>back_edge_start: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a></code></span><div class="docblock"><p>The start of the back_edge n -&gt; d is the block n at the end of
+</div><span id="structfield.back_edge_start" class="structfield section-header"><a href="#structfield.back_edge_start" class="anchor field">§</a><code>back_edge_start: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a></code></span><div class="docblock"><p>The start of the <code>back_edge</code> n -&gt; d is the block n at the end of
 the loop that jumps back to the header block d which restarts the loop.</p>
 </div><span id="structfield.blocks" class="structfield section-header"><a href="#structfield.blocks" class="anchor field">§</a><code>blocks: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/collections/btree/set/struct.BTreeSet.html" title="struct alloc::collections::btree::set::BTreeSet">BTreeSet</a>&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;</code></span><div class="docblock"><p>All the blocks contained within the loop, including <code>header</code> and <code>back_edge_start</code>.</p>
 </div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Loop" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#152-214">Source</a><a href="#impl-Loop" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.get_induction_variable" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/loop_invariant.rs.html#172-174">Source</a><h4 class="code-header">pub(super) fn <a href="#method.get_induction_variable" class="fn">get_induction_variable</a>(
@@ -34,7 +34,7 @@ we don’t consider them fully executed.</p>
     back_edge_start: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     cfg: &amp;<a class="struct" href="../../ir/cfg/struct.ControlFlowGraph.html" title="struct noirc_evaluator::ssa::ir::cfg::ControlFlowGraph">ControlFlowGraph</a>,
 ) -&gt; Self</h4></section></summary><div class="docblock"><p>Return each block that is in a loop starting in the given header block.
-Expects back_edge_start -&gt; header to be the back edge of the loop.</p>
+Expects <code>back_edge_start</code> -&gt; header to be the back edge of the loop.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.has_const_back_edge_induction_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#650-660">Source</a><h4 class="code-header">fn <a href="#method.has_const_back_edge_induction_value" class="fn">has_const_back_edge_induction_value</a>(&amp;self, dfg: &amp;<a class="struct" href="../../ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Check that the loop does not end with a constant value passed to the header
 from the back-edge, which would result in a loop we would never finish unrolling.</p>
 <p>This can happen if constant folding replaces a variable with a constant it is
@@ -87,7 +87,7 @@ steps managed to inline it.</p>
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="enum" href="../../ir/integer/enum.IntegerConstant.html" title="enum noirc_evaluator::ssa::ir::integer::IntegerConstant">IntegerConstant</a>, <a class="enum" href="enum.LoopBoundKind.html" title="enum noirc_evaluator::ssa::opt::unrolling::LoopBoundKind">LoopBoundKind</a>)&gt;</h4></section></summary><div class="docblock"><p>Find the upper bound of the loop in the loop header and return it
 if it’s a numeric constant, which it will be if the previous SSA
 steps managed to inline it.</p>
-<p><code>resolve_value</code> maps ValueIds through an external substitution
+<p><code>resolve_value</code> maps <code>ValueIds</code> through an external substitution
 (e.g. <code>FunctionInserter::resolve</code>).
 If <code>get_const_upper_bound</code> is called within a pass that modifies instructions
 e.g through a <code>FunctionInserter</code>, the terminator check below might reference
@@ -175,7 +175,7 @@ back to the beginning. Other predecessors can come from <code>break</code> or <c
     dom: &amp;'a <a class="struct" href="../../ir/dom/struct.DominatorTree.html" title="struct noirc_evaluator::ssa::ir::dom::DominatorTree">DominatorTree</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;(<a class="struct" href="struct.LoopIteration.html" title="struct noirc_evaluator::ssa::opt::unrolling::LoopIteration">LoopIteration</a>&lt;'a&gt;, <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>)&gt;, CallStack&gt;</h4></section></summary><div class="docblock"><p>Unrolls the header block of the loop. This is the block that dominates all other blocks in the
 loop and contains the jmpif instruction that lets us know if we should continue looping.
-Returns Some((iteration context, loop_header_id)) if we should perform another iteration.</p>
+Returns Some((iteration context, <code>loop_header_id</code>)) if we should perform another iteration.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.find_pre_header_reference_values" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#1140-1197">Source</a><h4 class="code-header">fn <a href="#method.find_pre_header_reference_values" class="fn">find_pre_header_reference_values</a>(
     &amp;self,
     function: &amp;<a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
@@ -242,7 +242,7 @@ demonstrates that collecting blocks re-entering the loop is important.</p>
 across all terminators in the loop.</p>
 <p>After unrolling, all Jmp terminators within the loop are eliminated, so every
 argument on them (except the induction variable on back-edge Jmps) is boilerplate.
-Similarly, JmpIf <code>then_arguments</code>/<code>else_arguments</code> that thread promoted values
+Similarly, <code>JmpIf</code> <code>then_arguments</code>/<code>else_arguments</code> that thread promoted values
 to loop-internal blocks are also boilerplate.
 Sum the Brillig-weighted cost of all terminators in the loop whose
 destinations are within the loop (including the header). These terminators
@@ -306,7 +306,7 @@ simulation in <code>analyzeLoopUnrollCost</code>.</p>
     param_index: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
     constant_after_unroll: &amp;<a class="struct" href="https://doc.rust-lang.org/1.89.0/std/collections/hash/set/struct.HashSet.html" title="struct std::collections::hash::set::HashSet">HashSet</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
 ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Check whether <code>source</code>’s terminator sends a constant value at position
-<code>param_index</code> to <code>target</code>. For JmpIf where both branches go to the same
+<code>param_index</code> to <code>target</code>. For <code>JmpIf</code> where both branches go to the same
 target, both must send constants.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.boilerplate_stats" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#1560-1607">Source</a><h4 class="code-header">fn <a href="#method.boilerplate_stats" class="fn">boilerplate_stats</a>(
     &amp;self,

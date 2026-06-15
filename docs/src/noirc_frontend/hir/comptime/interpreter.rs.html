@@ -30,7 +30,7 @@
 <a href=#30 id=30 data-nosnippet>30</a>//! we cannot continue otherwise. This can result in similar errors being issued for the same
 <a href=#31 id=31 data-nosnippet>31</a>//! code. For example, a function's body may fail to type check, but that same function may
 <a href=#32 id=32 data-nosnippet>32</a>//! be called in the interpreter later on where we'd presumably halt with a similar error.
-<a href=#33 id=33 data-nosnippet>33</a>//! [InterpreterError::ArgumentCountMismatch] is an example of such an error.
+<a href=#33 id=33 data-nosnippet>33</a>//! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 <a href=#34 id=34 data-nosnippet>34</a>
 <a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">use </span>std::collections::VecDeque;
 <a href=#36 id=36 data-nosnippet>36</a><span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
@@ -370,7 +370,7 @@
 <a href=#370 id=370 data-nosnippet>370</a>    }
 <a href=#371 id=371 data-nosnippet>371</a>
 <a href=#372 id=372 data-nosnippet>372</a>    <span class="doccomment">/// Performs the bulk of the work for calling a closure function.
-<a href=#373 id=373 data-nosnippet>373</a>    /// This function is very similar to [Self::call_user_defined_function]
+<a href=#373 id=373 data-nosnippet>373</a>    /// This function is very similar to [`Self::call_user_defined_function`]
 <a href=#374 id=374 data-nosnippet>374</a>    /// with the main difference being handling of `closure.captures`.
 <a href=#375 id=375 data-nosnippet>375</a>    </span><span class="kw">fn </span>call_closure_inner(
 <a href=#376 id=376 data-nosnippet>376</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -411,7 +411,7 @@
 <a href=#411 id=411 data-nosnippet>411</a>
 <a href=#412 id=412 data-nosnippet>412</a>    <span class="doccomment">/// Enters a function, pushing a new scope and resetting any required state.
 <a href=#413 id=413 data-nosnippet>413</a>    /// Returns the previous values of the internal state, to be reset when
-<a href=#414 id=414 data-nosnippet>414</a>    /// [Self::exit_function] is called.
+<a href=#414 id=414 data-nosnippet>414</a>    /// [`Self::exit_function`] is called.
 <a href=#415 id=415 data-nosnippet>415</a>    ///
 <a href=#416 id=416 data-nosnippet>416</a>    /// Rather than physically removing the caller's scopes, the scope floor is raised to the top
 <a href=#417 id=417 data-nosnippet>417</a>    /// of the scope stack so the callee only sees its own scopes plus the global scope. This keeps
@@ -424,7 +424,7 @@
 <a href=#424 id=424 data-nosnippet>424</a>        (std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop), previous_floor)
 <a href=#425 id=425 data-nosnippet>425</a>    }
 <a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a>    <span class="doccomment">/// Resets the per-function state to the value previously returned by [Self::enter_function]
+<a href=#427 id=427 data-nosnippet>427</a>    <span class="doccomment">/// Resets the per-function state to the value previously returned by [`Self::enter_function`]
 <a href=#428 id=428 data-nosnippet>428</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>exit_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, state: (bool, usize)) {
 <a href=#429 id=429 data-nosnippet>429</a>        <span class="self">self</span>.in_loop = state.<span class="number">0</span>;
 <a href=#430 id=430 data-nosnippet>430</a>
@@ -1224,7 +1224,7 @@
 <a href=#1224 id=1224 data-nosnippet>1224</a>        <span class="prelude-val">Err</span>(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
 <a href=#1225 id=1225 data-nosnippet>1225</a>    }
 <a href=#1226 id=1226 data-nosnippet>1226</a>
-<a href=#1227 id=1227 data-nosnippet>1227</a>    <span class="doccomment">/// Evaluates a call expression, deferring to [Self::call_function] or [Self::call_closure]
+<a href=#1227 id=1227 data-nosnippet>1227</a>    <span class="doccomment">/// Evaluates a call expression, deferring to [`Self::call_function`] or [`Self::call_closure`]
 <a href=#1228 id=1228 data-nosnippet>1228</a>    /// once the function is determined.
 <a href=#1229 id=1229 data-nosnippet>1229</a>    </span><span class="kw">fn </span>evaluate_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: HirCallExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
 <a href=#1230 id=1230 data-nosnippet>1230</a>        <span class="kw">let </span>function = <span class="self">self</span>.evaluate(call.func)<span class="question-mark">?</span>;

@@ -19,7 +19,7 @@ structures. Starts immediately after the stack region.</li>
 </ol>
 <p>This module contains:</p>
 <ul>
-<li><a href="../struct.LayoutConfig.html" title="struct noirc_evaluator::brillig::brillig_ir::LayoutConfig">LayoutConfig</a>: Centralized configuration of maximum sizes for stack frames, total stack size,
+<li><a href="../struct.LayoutConfig.html" title="struct noirc_evaluator::brillig::brillig_ir::LayoutConfig"><code>LayoutConfig</code></a>: Centralized configuration of maximum sizes for stack frames, total stack size,
 and scratch space. All register allocators query this configuration to determine their memory bounds.
 This config is meant to be immutable and provides the following benefits:
 <ul>
@@ -27,9 +27,9 @@ This config is meant to be immutable and provides the following benefits:
 <li>Unit tests to vary memory layouts and ensure bytecode remains consistent.</li>
 </ul>
 </li>
-<li><a href="trait.RegisterAllocator.html" title="trait noirc_evaluator::brillig::brillig_ir::registers::RegisterAllocator">RegisterAllocator</a>: Trait implemented by all memory region allocators. Each allocator is expected
+<li><a href="trait.RegisterAllocator.html" title="trait noirc_evaluator::brillig::brillig_ir::registers::RegisterAllocator"><code>RegisterAllocator</code></a>: Trait implemented by all memory region allocators. Each allocator is expected
 to enforce its own bounds checks and allocation/deallocation logic.</li>
-<li><a href="struct.Stack.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Stack">Stack</a>, <a href="struct.ScratchSpace.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::ScratchSpace">ScratchSpace</a>, and <a href="struct.GlobalSpace.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::GlobalSpace">GlobalSpace</a>: Register allocator implementations for each memory region.</li>
+<li><a href="struct.Stack.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Stack">Stack</a>, <a href="struct.ScratchSpace.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::ScratchSpace"><code>ScratchSpace</code></a>, and <a href="struct.GlobalSpace.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::GlobalSpace"><code>GlobalSpace</code></a>: Register allocator implementations for each memory region.</li>
 </ul>
 </div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Allocated.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Allocated">Allocated</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Wrapper for a memory address which automatically deallocates itself
 when it goes out of scope.</dd><dt><a class="struct" href="struct.AllocatedInner.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::AllocatedInner">Allocated<wbr>Inner</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="struct" href="struct.DeallocationListAllocator.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::DeallocationListAllocator">Deallocation<wbr>List<wbr>Allocator</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Register allocator that tracks a contiguous range of register slots using:</dd><dt><a class="struct" href="struct.GlobalSpace.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::GlobalSpace">Global<wbr>Space</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Globals have a separate memory space

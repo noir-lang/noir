@@ -2,7 +2,7 @@
     source_program: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.str.html">str</a>,
     file_id: FileId,
 ) -&gt; (<a class="struct" href="struct.ParsedModule.html" title="struct noirc_frontend::parser::ParsedModule">ParsedModule</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="struct.ParserError.html" title="struct noirc_frontend::parser::ParserError">ParserError</a>&gt;)</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Entry function for the parser - also handles lexing internally.</p>
-<p>Given a source_program string, return the ParsedModule Ast representation
+<p>Given a <code>source_program</code> string, return the <code>ParsedModule</code> Ast representation
 of the program along with any parsing errors encountered. If the parsing errors
 Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.</p>

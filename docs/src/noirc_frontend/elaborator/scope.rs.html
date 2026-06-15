@@ -83,8 +83,8 @@
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="self">self</span>.interner.get_trait(trait_id)
 <a href=#84 id=84 data-nosnippet>84</a>    }
 <a href=#85 id=85 data-nosnippet>85</a>
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
-<a href=#87 id=87 data-nosnippet>87</a>    /// of the variable, add the [crate::elaborator::HirIdent] to the list of captures.
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// For each [`crate::elaborator::LambdaContext`] on the lambda stack with a scope index higher than that
+<a href=#87 id=87 data-nosnippet>87</a>    /// of the variable, add the [`crate::elaborator::HirIdent`] to the list of captures.
 <a href=#88 id=88 data-nosnippet>88</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_if_variable_is_captured_by_closure(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>Variable) {
 <a href=#90 id=90 data-nosnippet>90</a>        <span class="comment">// Only local variables can be captured by closures.
@@ -134,7 +134,7 @@
 <a href=#134 id=134 data-nosnippet>134</a>        }
 <a href=#135 id=135 data-nosnippet>135</a>    }
 <a href=#136 id=136 data-nosnippet>136</a>
-<a href=#137 id=137 data-nosnippet>137</a>    <span class="doccomment">/// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+<a href=#137 id=137 data-nosnippet>137</a>    <span class="doccomment">/// Try to look up a [`TypedPath`] as a value (a global, a numeric type alias or a function).
 <a href=#138 id=138 data-nosnippet>138</a>    /// If the path resolves to an item that is not a value (for example a struct, an enum,
 <a href=#139 id=139 data-nosnippet>139</a>    /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
 <a href=#140 id=140 data-nosnippet>140</a>    /// when no item is found.

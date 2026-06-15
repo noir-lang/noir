@@ -80,8 +80,8 @@
 <a href=#80 id=80 data-nosnippet>80</a>//!
 <a href=#81 id=81 data-nosnippet>81</a>//! ## ACIR vs Brillig
 <a href=#82 id=82 data-nosnippet>82</a>//! - On ACIR, LICM operates only on pure value computations.
-<a href=#83 id=83 data-nosnippet>83</a>//! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
-<a href=#84 id=84 data-nosnippet>84</a>//!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
+<a href=#83 id=83 data-nosnippet>83</a>//! - On Brillig, additional reference-counting rules apply. For example, hoisting [`Instruction::MakeArray`]
+<a href=#84 id=84 data-nosnippet>84</a>//!   requires inserting an [`Instruction::IncrementRc`] to preserve reference semantics if the array
 <a href=#85 id=85 data-nosnippet>85</a>//!   may later be mutated.
 <a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">use </span>std::collections::BTreeSet;
 <a href=#87 id=87 data-nosnippet>87</a>
@@ -286,7 +286,7 @@
 <a href=#286 id=286 data-nosnippet>286</a>    }
 <a href=#287 id=287 data-nosnippet>287</a>
 <a href=#288 id=288 data-nosnippet>288</a>    <span class="doccomment">/// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
-<a href=#289 id=289 data-nosnippet>289</a>    /// This function matches [Self::can_hoist_control_dependent_instruction] except
+<a href=#289 id=289 data-nosnippet>289</a>    /// This function matches [`Self::can_hoist_control_dependent_instruction`] except
 <a href=#290 id=290 data-nosnippet>290</a>    /// that simplification does not require that the current block is pure to be simplified.
 <a href=#291 id=291 data-nosnippet>291</a>    </span><span class="kw">fn </span>can_simplify_control_dependent_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#292 id=292 data-nosnippet>292</a>        !<span class="self">self</span>.is_control_dependent &amp;&amp; <span class="self">self</span>.does_execute
@@ -2507,7 +2507,7 @@
 <a href=#2507 id=2507 data-nosnippet>2507</a>        <span class="macro">assert!</span>(b2_ctx.is_impure, <span class="string">"header was impure"</span>);
 <a href=#2508 id=2508 data-nosnippet>2508</a>    }
 <a href=#2509 id=2509 data-nosnippet>2509</a>
-<a href=#2510 id=2510 data-nosnippet>2510</a>    <span class="doccomment">/// Test cases where array_get should or shouldn't be hoisted from an inner loop
+<a href=#2510 id=2510 data-nosnippet>2510</a>    <span class="doccomment">/// Test cases where `array_get` should or shouldn't be hoisted from an inner loop
 <a href=#2511 id=2511 data-nosnippet>2511</a>    /// when its indexed by the outer loop induction variable.
 <a href=#2512 id=2512 data-nosnippet>2512</a>    </span><span class="attr">#[test_case(<span class="number">4</span>, <span class="number">1</span>, <span class="bool-val">true</span>; <span class="string">"upper less than size and both execute"</span>)]
 <a href=#2513 id=2513 data-nosnippet>2513</a>    #[test_case(<span class="number">5</span>, <span class="number">1</span>, <span class="bool-val">true</span>; <span class="string">"upper equal size and both execute"</span>)]
@@ -4477,7 +4477,7 @@
 <a href=#4477 id=4477 data-nosnippet>4477</a>    }
 <a href=#4478 id=4478 data-nosnippet>4478</a>
 <a href=#4479 id=4479 data-nosnippet>4479</a>    <span class="attr">#[test]
-<a href=#4480 id=4480 data-nosnippet>4480</a>    </span><span class="doccomment">/// Checks that hoisting a function call returning an array adds an inc_rc operation
+<a href=#4480 id=4480 data-nosnippet>4480</a>    </span><span class="doccomment">/// Checks that hoisting a function call returning an array adds an `inc_rc` operation
 <a href=#4481 id=4481 data-nosnippet>4481</a>    </span><span class="kw">fn </span>call_func_call_inc_rc() {
 <a href=#4482 id=4482 data-nosnippet>4482</a>        <span class="kw">let </span>src = <span class="string">r#"
 <a href=#4483 id=4483 data-nosnippet>4483</a>        brillig(inline) impure fn main f0 {
@@ -4512,7 +4512,7 @@
 <a href=#4512 id=4512 data-nosnippet>4512</a>    }
 <a href=#4513 id=4513 data-nosnippet>4513</a>
 <a href=#4514 id=4514 data-nosnippet>4514</a>    <span class="attr">#[test]
-<a href=#4515 id=4515 data-nosnippet>4515</a>    </span><span class="doccomment">/// Validates that the pass does not add an inc_rc operation for ArrayGet
+<a href=#4515 id=4515 data-nosnippet>4515</a>    </span><span class="doccomment">/// Validates that the pass does not add an `inc_rc` operation for `ArrayGet`
 <a href=#4516 id=4516 data-nosnippet>4516</a>    </span><span class="kw">fn </span>array_get_does_not_add_inc_rc() {
 <a href=#4517 id=4517 data-nosnippet>4517</a>        <span class="kw">let </span>src = <span class="string">r#"
 <a href=#4518 id=4518 data-nosnippet>4518</a>        g0 = make_array [Field 1, Field 2] : [Field; 2]

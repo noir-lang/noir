@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a>
 <a href=#27 id=27 data-nosnippet>27</a><span class="doccomment">/// Reference to an instruction
 <a href=#28 id=28 data-nosnippet>28</a>///
-<a href=#29 id=29 data-nosnippet>29</a>/// Note that InstructionIds are not unique. That is, two InstructionIds
+<a href=#29 id=29 data-nosnippet>29</a>/// Note that `InstructionIds` are not unique. That is, two `InstructionIds`
 <a href=#30 id=30 data-nosnippet>30</a>/// may refer to the same Instruction data. This is because, although
 <a href=#31 id=31 data-nosnippet>31</a>/// identical, instructions may have different results based on their
 <a href=#32 id=32 data-nosnippet>32</a>/// placement within a block.
@@ -35,68 +35,68 @@
 <a href=#35 id=35 data-nosnippet>35</a><span class="doccomment">/// These are similar to built-ins in other languages.
 <a href=#36 id=36 data-nosnippet>36</a>/// These can be classified under two categories:
 <a href=#37 id=37 data-nosnippet>37</a>/// - Opcodes which the IR knows the target machine has
-<a href=#38 id=38 data-nosnippet>38</a>///   special support for. (LowLevel)
+<a href=#38 id=38 data-nosnippet>38</a>///   special support for. (`LowLevel`)
 <a href=#39 id=39 data-nosnippet>39</a>/// - Opcodes which have no function definition in the
 <a href=#40 id=40 data-nosnippet>40</a>///   source code and must be processed by the IR.
 <a href=#41 id=41 data-nosnippet>41</a></span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 <a href=#42 id=42 data-nosnippet>42</a></span><span class="kw">pub enum </span>Intrinsic {
-<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// ArrayLen - returns the length of the input array
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// `ArrayLen` - returns the length of the input array
 <a href=#44 id=44 data-nosnippet>44</a>    /// argument: array (value id)
 <a href=#45 id=45 data-nosnippet>45</a>    /// result: length of the array, panic if the input is not an array
 <a href=#46 id=46 data-nosnippet>46</a>    </span>ArrayLen,
-<a href=#47 id=47 data-nosnippet>47</a>    <span class="doccomment">/// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+<a href=#47 id=47 data-nosnippet>47</a>    <span class="doccomment">/// `ArrayAsStrUnchecked` - Converts a byte array of type `[u8; N]` to a string
 <a href=#48 id=48 data-nosnippet>48</a>    /// argument: array (value id)
 <a href=#49 id=49 data-nosnippet>49</a>    /// result: str
 <a href=#50 id=50 data-nosnippet>50</a>    </span>ArrayAsStrUnchecked,
-<a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// AsVector
+<a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// `AsVector`
 <a href=#52 id=52 data-nosnippet>52</a>    /// argument: value id
 <a href=#53 id=53 data-nosnippet>53</a>    /// result: a vector containing the elements of the argument. Panic if the value id does not correspond to an `array` type
 <a href=#54 id=54 data-nosnippet>54</a>    </span>AsVector,
-<a href=#55 id=55 data-nosnippet>55</a>    <span class="doccomment">/// AssertConstant - Enforce the argument to be a constant value, at compile time.
+<a href=#55 id=55 data-nosnippet>55</a>    <span class="doccomment">/// `AssertConstant` - Enforce the argument to be a constant value, at compile time.
 <a href=#56 id=56 data-nosnippet>56</a>    /// argument: value id
 <a href=#57 id=57 data-nosnippet>57</a>    /// result: (), panic if the argument does not resolve to a constant value
 <a href=#58 id=58 data-nosnippet>58</a>    </span>AssertConstant,
-<a href=#59 id=59 data-nosnippet>59</a>    <span class="doccomment">/// StaticAssert - Enforce the first argument to be true, at compile time
+<a href=#59 id=59 data-nosnippet>59</a>    <span class="doccomment">/// `StaticAssert` - Enforce the first argument to be true, at compile time
 <a href=#60 id=60 data-nosnippet>60</a>    /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
 <a href=#61 id=61 data-nosnippet>61</a>    /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
 <a href=#62 id=62 data-nosnippet>62</a>    </span>StaticAssert,
-<a href=#63 id=63 data-nosnippet>63</a>    <span class="doccomment">/// VectorPushBack - Add elements at the end of a vector
-<a href=#64 id=64 data-nosnippet>64</a>    /// arguments:  vector length, vector contents, ...elements_to_push
+<a href=#63 id=63 data-nosnippet>63</a>    <span class="doccomment">/// `VectorPushBack` - Add elements at the end of a vector
+<a href=#64 id=64 data-nosnippet>64</a>    /// arguments:  vector length, vector contents, ...`elements_to_push`
 <a href=#65 id=65 data-nosnippet>65</a>    /// result: a vector containing `vector contents,..elements_to_push`
 <a href=#66 id=66 data-nosnippet>66</a>    </span>VectorPushBack,
-<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// VectorPushFront - Add elements at the start of a vector
-<a href=#68 id=68 data-nosnippet>68</a>    /// arguments:  vector length, vector contents, ...elements_to_push
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// `VectorPushFront` - Add elements at the start of a vector
+<a href=#68 id=68 data-nosnippet>68</a>    /// arguments:  vector length, vector contents, ...`elements_to_push`
 <a href=#69 id=69 data-nosnippet>69</a>    /// result: a vector containing `..elements_to_push, vector contents`
 <a href=#70 id=70 data-nosnippet>70</a>    </span>VectorPushFront,
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// VectorPopBack - Removes the last element of a vector. Checking if the vector is non-empty
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// `VectorPopBack` - Removes the last element of a vector. Checking if the vector is non-empty
 <a href=#72 id=72 data-nosnippet>72</a>    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
 <a href=#73 id=73 data-nosnippet>73</a>    /// that a previous check has been inserted.
 <a href=#74 id=74 data-nosnippet>74</a>    /// arguments: vector length, vector contents
 <a href=#75 id=75 data-nosnippet>75</a>    /// result: a vector without the last element of `vector contents`
 <a href=#76 id=76 data-nosnippet>76</a>    </span>VectorPopBack,
-<a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// VectorPopFront - Removes the first element of a vector. Checking if the vector is non-empty
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// `VectorPopFront` - Removes the first element of a vector. Checking if the vector is non-empty
 <a href=#78 id=78 data-nosnippet>78</a>    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
 <a href=#79 id=79 data-nosnippet>79</a>    /// that a previous check has been inserted.
 <a href=#80 id=80 data-nosnippet>80</a>    /// arguments: vector length, vector contents
 <a href=#81 id=81 data-nosnippet>81</a>    /// result: a vector without the first element of `vector contents`
 <a href=#82 id=82 data-nosnippet>82</a>    </span>VectorPopFront,
-<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// VectorInsert - Insert elements inside a vector. Checking if the index is in bounds
+<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// `VectorInsert` - Insert elements inside a vector. Checking if the index is in bounds
 <a href=#84 id=84 data-nosnippet>84</a>    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
 <a href=#85 id=85 data-nosnippet>85</a>    /// have been inserted.
-<a href=#86 id=86 data-nosnippet>86</a>    /// arguments: vector length, vector contents, insert index, ...elements_to_insert
-<a href=#87 id=87 data-nosnippet>87</a>    /// result: a vector with ...elements_to_insert inserted at the `insert index`
+<a href=#86 id=86 data-nosnippet>86</a>    /// arguments: vector length, vector contents, insert index, ...`elements_to_insert`
+<a href=#87 id=87 data-nosnippet>87</a>    /// result: a vector with ...`elements_to_insert` inserted at the `insert index`
 <a href=#88 id=88 data-nosnippet>88</a>    </span>VectorInsert,
-<a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// VectorRemove - Removes an element from a vector. Checking if the index is in bounds
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// `VectorRemove` - Removes an element from a vector. Checking if the index is in bounds
 <a href=#90 id=90 data-nosnippet>90</a>    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
 <a href=#91 id=91 data-nosnippet>91</a>    /// have been inserted.
 <a href=#92 id=92 data-nosnippet>92</a>    /// arguments: vector length, vector contents, remove index
 <a href=#93 id=93 data-nosnippet>93</a>    /// result: a vector with without the element at `remove index`
 <a href=#94 id=94 data-nosnippet>94</a>    </span>VectorRemove,
-<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// `ApplyRangeConstraint` - Enforces the `bit size` of the first argument via a range check.
 <a href=#96 id=96 data-nosnippet>96</a>    /// arguments: value id, bit size (constant)
-<a href=#97 id=97 data-nosnippet>97</a>    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
+<a href=#97 id=97 data-nosnippet>97</a>    /// result: applies a range check constraint to the input. It is replaced by a `RangeCheck` instruction during simplification.
 <a href=#98 id=98 data-nosnippet>98</a>    </span>ApplyRangeConstraint,
-<a href=#99 id=99 data-nosnippet>99</a>    <span class="doccomment">/// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="doccomment">/// `StrAsBytes` - Convert a `str` into a byte array of type `[u8; N]`
 <a href=#100 id=100 data-nosnippet>100</a>    /// arguments: value id
 <a href=#101 id=101 data-nosnippet>101</a>    /// result: the argument. Internally a `str` is a byte array.
 <a href=#102 id=102 data-nosnippet>102</a>    </span>StrAsBytes,
@@ -110,35 +110,35 @@
 <a href=#110 id=110 data-nosnippet>110</a>    /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
 <a href=#111 id=111 data-nosnippet>111</a>    /// The type of the result gives the number of limbs to use for the decomposition.
 <a href=#112 id=112 data-nosnippet>112</a>    </span>ToRadix(Endian),
-<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [`acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall`]
 <a href=#114 id=114 data-nosnippet>114</a>    </span>BlackBox(BlackBoxFunc),
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Hint(Hint) - Avoid its arguments to be removed by DIE.
 <a href=#116 id=116 data-nosnippet>116</a>    /// arguments: ... value id
 <a href=#117 id=117 data-nosnippet>117</a>    /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
 <a href=#118 id=118 data-nosnippet>118</a>    </span>Hint(Hint),
-<a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// AsWitness - Adds a new witness constrained to be equal to the argument
+<a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// `AsWitness` - Adds a new witness constrained to be equal to the argument
 <a href=#120 id=120 data-nosnippet>120</a>    /// arguments: value id
 <a href=#121 id=121 data-nosnippet>121</a>    /// result: the argument
 <a href=#122 id=122 data-nosnippet>122</a>    </span>AsWitness,
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// `IsUnconstrained` - Indicates if the execution context is constrained or unconstrained
 <a href=#124 id=124 data-nosnippet>124</a>    /// argument: ()
 <a href=#125 id=125 data-nosnippet>125</a>    /// result: true if execution is under unconstrained context, false else.
 <a href=#126 id=126 data-nosnippet>126</a>    </span>IsUnconstrained,
-<a href=#127 id=127 data-nosnippet>127</a>    <span class="doccomment">/// DerivePedersenGenerators - Computes the Pedersen generators
-<a href=#128 id=128 data-nosnippet>128</a>    /// arguments: domain_separator_string (constant string), starting_index (constant)
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="doccomment">/// `DerivePedersenGenerators` - Computes the Pedersen generators
+<a href=#128 id=128 data-nosnippet>128</a>    /// arguments: `domain_separator_string` (constant string), `starting_index` (constant)
 <a href=#129 id=129 data-nosnippet>129</a>    /// result: array of elliptic curve points (Grumpkin) containing the generators.
 <a href=#130 id=130 data-nosnippet>130</a>    /// The type of the result gives the number of generators to compute.
 <a href=#131 id=131 data-nosnippet>131</a>    </span>DerivePedersenGenerators,
-<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// FieldLessThan - Compare the arguments: `lhs` &lt; `rhs`
+<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// `FieldLessThan` - Compare the arguments: `lhs` &lt; `rhs`
 <a href=#133 id=133 data-nosnippet>133</a>    /// arguments: lhs, rhs. Field elements
 <a href=#134 id=134 data-nosnippet>134</a>    /// result: true if `lhs` mod p &lt; `rhs` mod p (p being the field characteristic), false else
 <a href=#135 id=135 data-nosnippet>135</a>    </span>FieldLessThan,
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// ArrayRefCount - Gives the reference count of the array
+<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// `ArrayRefCount` - Gives the reference count of the array
 <a href=#137 id=137 data-nosnippet>137</a>    /// argument: array (value id)
 <a href=#138 id=138 data-nosnippet>138</a>    /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
 <a href=#139 id=139 data-nosnippet>139</a>    /// in constrained context, it will be 0.
 <a href=#140 id=140 data-nosnippet>140</a>    </span>ArrayRefCount,
-<a href=#141 id=141 data-nosnippet>141</a>    <span class="doccomment">/// VectorRefCount - Gives the reference count of the vector
+<a href=#141 id=141 data-nosnippet>141</a>    <span class="doccomment">/// `VectorRefCount` - Gives the reference count of the vector
 <a href=#142 id=142 data-nosnippet>142</a>    /// arguments: vector length, vector contents (value id)
 <a href=#143 id=143 data-nosnippet>143</a>    /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
 <a href=#144 id=144 data-nosnippet>144</a>    /// in constrained context, it will be 0.
@@ -227,7 +227,7 @@
 <a href=#227 id=227 data-nosnippet>227</a>    /// * Vector mutators (`push`/`pop`/`insert`/`remove`) can write through the input
 <a href=#228 id=228 data-nosnippet>228</a>    ///   pointer when the copy-on-write reference count is 1.
 <a href=#229 id=229 data-nosnippet>229</a>    /// * `StrAsBytes` and `ArrayAsStrUnchecked` simplify to their input value, so the
-<a href=#230 id=230 data-nosnippet>230</a>    ///   returned array aliases the source. A later array_set against the result
+<a href=#230 id=230 data-nosnippet>230</a>    ///   returned array aliases the source. A later `array_set` against the result
 <a href=#231 id=231 data-nosnippet>231</a>    ///   would, under RC=1 COW, mutate the source as well.
 <a href=#232 id=232 data-nosnippet>232</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unsafe_for_clone_elision_in_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#233 id=233 data-nosnippet>233</a>        <span class="macro">matches!</span>(
@@ -309,7 +309,7 @@
 <a href=#309 id=309 data-nosnippet>309</a>    }
 <a href=#310 id=310 data-nosnippet>310</a>}
 <a href=#311 id=311 data-nosnippet>311</a>
-<a href=#312 id=312 data-nosnippet>312</a><span class="doccomment">/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
+<a href=#312 id=312 data-nosnippet>312</a><span class="doccomment">/// The endian-ness of bits when encoding values as bits in e.g. `ToBits` or `ToRadix`
 <a href=#313 id=313 data-nosnippet>313</a></span><span class="attr">#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 <a href=#314 id=314 data-nosnippet>314</a></span><span class="kw">pub enum </span>Endian {
 <a href=#315 id=315 data-nosnippet>315</a>    Big,
@@ -403,15 +403,15 @@
 <a href=#403 id=403 data-nosnippet>403</a>    <span class="doccomment">/// An instruction to increment the reference count of a value.
 <a href=#404 id=404 data-nosnippet>404</a>    ///
 <a href=#405 id=405 data-nosnippet>405</a>    /// This currently only has an effect in Brillig code where array sharing and copy on write is
-<a href=#406 id=406 data-nosnippet>406</a>    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
-<a href=#407 id=407 data-nosnippet>407</a>    /// IncrementRc instructions are ignored.
+<a href=#406 id=406 data-nosnippet>406</a>    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+<a href=#407 id=407 data-nosnippet>407</a>    /// `IncrementRc` instructions are ignored.
 <a href=#408 id=408 data-nosnippet>408</a>    </span>IncrementRc { value: ValueId },
 <a href=#409 id=409 data-nosnippet>409</a>
 <a href=#410 id=410 data-nosnippet>410</a>    <span class="doccomment">/// An instruction to decrement the reference count of a value.
 <a href=#411 id=411 data-nosnippet>411</a>    ///
 <a href=#412 id=412 data-nosnippet>412</a>    /// This currently only has an effect in Brillig code where array sharing and copy on write is
-<a href=#413 id=413 data-nosnippet>413</a>    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
-<a href=#414 id=414 data-nosnippet>414</a>    /// DecrementRc instructions are ignored.
+<a href=#413 id=413 data-nosnippet>413</a>    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+<a href=#414 id=414 data-nosnippet>414</a>    /// `DecrementRc` instructions are ignored.
 <a href=#415 id=415 data-nosnippet>415</a>    </span>DecrementRc { value: ValueId },
 <a href=#416 id=416 data-nosnippet>416</a>
 <a href=#417 id=417 data-nosnippet>417</a>    <span class="doccomment">/// Merge two values returned from opposite branches of a conditional into one.
@@ -439,7 +439,7 @@
 <a href=#439 id=439 data-nosnippet>439</a>    <span class="doccomment">/// A No-op instruction. These are intended to replace other instructions in a block's
 <a href=#440 id=440 data-nosnippet>440</a>    /// instructions vector without having to move each instruction afterward.
 <a href=#441 id=441 data-nosnippet>441</a>    ///
-<a href=#442 id=442 data-nosnippet>442</a>    /// A No-op has no results and is always removed when Instruction::simplify is called.
+<a href=#442 id=442 data-nosnippet>442</a>    /// A No-op has no results and is always removed when `Instruction::simplify` is called.
 <a href=#443 id=443 data-nosnippet>443</a>    /// When replacing another instruction, the instruction's results should always be mapped to a
 <a href=#444 id=444 data-nosnippet>444</a>    /// new value since they will not be able to refer to their original instruction value any more.
 <a href=#445 id=445 data-nosnippet>445</a>    </span>Noop,
@@ -479,7 +479,7 @@
 <a href=#479 id=479 data-nosnippet>479</a>    }
 <a href=#480 id=480 data-nosnippet>480</a>
 <a href=#481 id=481 data-nosnippet>481</a>    <span class="doccomment">/// True if this instruction requires specifying the control type variables when
-<a href=#482 id=482 data-nosnippet>482</a>    /// inserting this instruction into a DataFlowGraph.
+<a href=#482 id=482 data-nosnippet>482</a>    /// inserting this instruction into a `DataFlowGraph`.
 <a href=#483 id=483 data-nosnippet>483</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>requires_ctrl_typevars(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#484 id=484 data-nosnippet>484</a>        <span class="macro">matches!</span>(<span class="self">self</span>.result_type(), InstructionResultType::Unknown)
 <a href=#485 id=485 data-nosnippet>485</a>    }
@@ -661,9 +661,9 @@
 <a href=#661 id=661 data-nosnippet>661</a>        changed
 <a href=#662 id=662 data-nosnippet>662</a>    }
 <a href=#663 id=663 data-nosnippet>663</a>
-<a href=#664 id=664 data-nosnippet>664</a>    <span class="doccomment">/// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
-<a href=#665 id=665 data-nosnippet>665</a>    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
-<a href=#666 id=666 data-nosnippet>666</a>    /// until it is manually inserted in a DataFlowGraph later.
+<a href=#664 id=664 data-nosnippet>664</a>    <span class="doccomment">/// Maps each `ValueId` inside this instruction to a new `ValueId`, returning the new instruction.
+<a href=#665 id=665 data-nosnippet>665</a>    /// Note that the returned instruction is fresh and will not have an assigned `InstructionId`
+<a href=#666 id=666 data-nosnippet>666</a>    /// until it is manually inserted in a `DataFlowGraph` later.
 <a href=#667 id=667 data-nosnippet>667</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_values(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(ValueId) -&gt; ValueId) -&gt; Instruction {
 <a href=#668 id=668 data-nosnippet>668</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#669 id=669 data-nosnippet>669</a>            Instruction::Binary(binary) =&gt; Instruction::Binary(Binary {
@@ -757,7 +757,7 @@
 <a href=#757 id=757 data-nosnippet>757</a>        }
 <a href=#758 id=758 data-nosnippet>758</a>    }
 <a href=#759 id=759 data-nosnippet>759</a>
-<a href=#760 id=760 data-nosnippet>760</a>    <span class="doccomment">/// Maps each ValueId inside this instruction to a new ValueId in place.
+<a href=#760 id=760 data-nosnippet>760</a>    <span class="doccomment">/// Maps each `ValueId` inside this instruction to a new `ValueId` in place.
 <a href=#761 id=761 data-nosnippet>761</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_values_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(ValueId) -&gt; ValueId) {
 <a href=#762 id=762 data-nosnippet>762</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#763 id=763 data-nosnippet>763</a>            Instruction::Binary(binary) =&gt; {
@@ -896,7 +896,7 @@
 <a href=#896 id=896 data-nosnippet>896</a>    }
 <a href=#897 id=897 data-nosnippet>897</a>}
 <a href=#898 id=898 data-nosnippet>898</a>
-<a href=#899 id=899 data-nosnippet>899</a><span class="doccomment">/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
+<a href=#899 id=899 data-nosnippet>899</a><span class="doccomment">/// Determines whether an `ArrayGet` or `ArraySet` index has been shifted by a given value.
 <a href=#900 id=900 data-nosnippet>900</a>/// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
 <a href=#901 id=901 data-nosnippet>901</a>/// and vectors with constant indices.
 <a href=#902 id=902 data-nosnippet>902</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
@@ -1009,7 +1009,7 @@
 <a href=#1009 id=1009 data-nosnippet>1009</a>    }
 <a href=#1010 id=1010 data-nosnippet>1010</a>}
 <a href=#1011 id=1011 data-nosnippet>1011</a>
-<a href=#1012 id=1012 data-nosnippet>1012</a><span class="doccomment">/// The possible return values for Instruction::return_types
+<a href=#1012 id=1012 data-nosnippet>1012</a><span class="doccomment">/// The possible return values for `Instruction::return_types`
 <a href=#1013 id=1013 data-nosnippet>1013</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>InstructionResultType {
 <a href=#1014 id=1014 data-nosnippet>1014</a>    <span class="doccomment">/// The result type of this instruction matches that of this operand
 <a href=#1015 id=1015 data-nosnippet>1015</a>    </span>Operand(ValueId),
@@ -1051,7 +1051,7 @@
 <a href=#1051 id=1051 data-nosnippet>1051</a>    <span class="doccomment">/// Unconditional Jump
 <a href=#1052 id=1052 data-nosnippet>1052</a>    ///
 <a href=#1053 id=1053 data-nosnippet>1053</a>    /// Jumps to specified `destination` with `arguments`.
-<a href=#1054 id=1054 data-nosnippet>1054</a>    /// The CallStack here is expected to be used to issue an error when the start range of
+<a href=#1054 id=1054 data-nosnippet>1054</a>    /// The `CallStack` here is expected to be used to issue an error when the start range of
 <a href=#1055 id=1055 data-nosnippet>1055</a>    /// a for loop cannot be deduced at compile-time.
 <a href=#1056 id=1056 data-nosnippet>1056</a>    </span>Jmp { destination: BasicBlockId, arguments: Vec&lt;ValueId&gt;, call_stack: CallStackId },
 <a href=#1057 id=1057 data-nosnippet>1057</a>
@@ -1070,7 +1070,7 @@
 <a href=#1070 id=1070 data-nosnippet>1070</a>}
 <a href=#1071 id=1071 data-nosnippet>1071</a>
 <a href=#1072 id=1072 data-nosnippet>1072</a><span class="kw">impl </span>TerminatorInstruction {
-<a href=#1073 id=1073 data-nosnippet>1073</a>    <span class="doccomment">/// Mutate each ValueId to a new ValueId using the given mapping function
+<a href=#1073 id=1073 data-nosnippet>1073</a>    <span class="doccomment">/// Mutate each `ValueId` to a new `ValueId` using the given mapping function
 <a href=#1074 id=1074 data-nosnippet>1074</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_values_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(ValueId) -&gt; ValueId) {
 <a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="kw">use </span>TerminatorInstruction::<span class="kw-2">*</span>;
 <a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="kw">match </span><span class="self">self </span>{
@@ -1131,7 +1131,7 @@
 <a href=#1131 id=1131 data-nosnippet>1131</a>        found
 <a href=#1132 id=1132 data-nosnippet>1132</a>    }
 <a href=#1133 id=1133 data-nosnippet>1133</a>
-<a href=#1134 id=1134 data-nosnippet>1134</a>    <span class="doccomment">/// Mutate each BlockId to a new BlockId specified by the given mapping function.
+<a href=#1134 id=1134 data-nosnippet>1134</a>    <span class="doccomment">/// Mutate each `BlockId` to a new `BlockId` specified by the given mapping function.
 <a href=#1135 id=1135 data-nosnippet>1135</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mutate_blocks(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(BasicBlockId) -&gt; BasicBlockId) {
 <a href=#1136 id=1136 data-nosnippet>1136</a>        <span class="kw">use </span>TerminatorInstruction::<span class="kw-2">*</span>;
 <a href=#1137 id=1137 data-nosnippet>1137</a>        <span class="kw">match </span><span class="self">self </span>{

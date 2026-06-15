@@ -18,7 +18,7 @@
 <a href=#18 id=18 data-nosnippet>18</a>}
 <a href=#19 id=19 data-nosnippet>19</a>
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">impl</span>&lt;F: AcirField&gt; MemoryOpSolver&lt;F&gt; {
-<a href=#21 id=21 data-nosnippet>21</a>    <span class="doccomment">/// Creates a new MemoryOpSolver with the values given in `init`.
+<a href=#21 id=21 data-nosnippet>21</a>    <span class="doccomment">/// Creates a new `MemoryOpSolver` with the values given in `init`.
 <a href=#22 id=22 data-nosnippet>22</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
 <a href=#23 id=23 data-nosnippet>23</a>        init: <span class="kw-2">&amp;</span>[Witness],
 <a href=#24 id=24 data-nosnippet>24</a>        initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
@@ -50,8 +50,8 @@
 <a href=#50 id=50 data-nosnippet>50</a>        })
 <a href=#51 id=51 data-nosnippet>51</a>    }
 <a href=#52 id=52 data-nosnippet>52</a>
-<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// Update the 'block_value' map with the provided index/value
-<a href=#54 id=54 data-nosnippet>54</a>    /// Returns an 'IndexOutOfBounds' error if the index is outside the block range.
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// Update the '`block_value`' map with the provided index/value
+<a href=#54 id=54 data-nosnippet>54</a>    /// Returns an '`IndexOutOfBounds`' error if the index is outside the block range.
 <a href=#55 id=55 data-nosnippet>55</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_memory_index(
 <a href=#56 id=56 data-nosnippet>56</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#57 id=57 data-nosnippet>57</a>        index: MemoryIndex,
@@ -69,8 +69,8 @@
 <a href=#69 id=69 data-nosnippet>69</a>        <span class="prelude-val">Ok</span>(())
 <a href=#70 id=70 data-nosnippet>70</a>    }
 <a href=#71 id=71 data-nosnippet>71</a>
-<a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// Returns the value stored in the 'block_value' map for the provided index
-<a href=#73 id=73 data-nosnippet>73</a>    /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// Returns the value stored in the '`block_value`' map for the provided index
+<a href=#73 id=73 data-nosnippet>73</a>    /// Returns an '`IndexOutOfBounds`' error if the index is not in the map.
 <a href=#74 id=74 data-nosnippet>74</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_memory_index(
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#76 id=76 data-nosnippet>76</a>        index: MemoryIndex,
@@ -84,10 +84,10 @@
 <a href=#84 id=84 data-nosnippet>84</a>        )
 <a href=#85 id=85 data-nosnippet>85</a>    }
 <a href=#86 id=86 data-nosnippet>86</a>
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="doccomment">/// Update the 'block_values' by processing the provided Memory opcode
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="doccomment">/// Update the '`block_values`' by processing the provided Memory opcode
 <a href=#88 id=88 data-nosnippet>88</a>    /// The opcode 'op' contains the index and value of the operation and the type
 <a href=#89 id=89 data-nosnippet>89</a>    /// of the operation.
-<a href=#90 id=90 data-nosnippet>90</a>    /// They are all stored as an [acir::native_types::Expression]
+<a href=#90 id=90 data-nosnippet>90</a>    /// They are all stored as an [`acir::native_types::Expression`]
 <a href=#91 id=91 data-nosnippet>91</a>    /// The type of 'operation' is '0' for a read and '1' for a write. It must be a constant
 <a href=#92 id=92 data-nosnippet>92</a>    /// expression.
 <a href=#93 id=93 data-nosnippet>93</a>    /// Index is not required to be constant but it must reduce to a known value

@@ -1362,11 +1362,11 @@
 <a href=#1362 id=1362 data-nosnippet>1362</a>        "</span>);
 <a href=#1363 id=1363 data-nosnippet>1363</a>    }
 <a href=#1364 id=1364 data-nosnippet>1364</a>
-<a href=#1365 id=1365 data-nosnippet>1365</a>    <span class="doccomment">/// load_store_forwarding incorrectly forwards a store across two call
+<a href=#1365 id=1365 data-nosnippet>1365</a>    <span class="doccomment">/// `load_store_forwarding` incorrectly forwards a store across two call
 <a href=#1366 id=1366 data-nosnippet>1366</a>    /// sites of a non-recursive callee. Each call to `f1` allocates a
 <a href=#1367 id=1367 data-nosnippet>1367</a>    /// fresh `inner` cell; the store at `v1` writes to the first call's
 <a href=#1368 id=1368 data-nosnippet>1368</a>    /// `inner`, and the load at `v4` reads through the second call's
-<a href=#1369 id=1369 data-nosnippet>1369</a>    /// `inner`. Because pass 2 of alias_analysis assigns
+<a href=#1369 id=1369 data-nosnippet>1369</a>    /// `inner`. Because pass 2 of `alias_analysis` assigns
 <a href=#1370 id=1370 data-nosnippet>1370</a>    /// `Known(f1::inner)` to both `v1` and `v3` — and `is_trusted` does
 <a href=#1371 id=1371 data-nosnippet>1371</a>    /// not account for multi-call-site amplification of a non-recursive
 <a href=#1372 id=1372 data-nosnippet>1372</a>    /// callee — the forwarding pass keys both under the same trusted

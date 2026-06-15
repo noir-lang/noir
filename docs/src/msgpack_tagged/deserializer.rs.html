@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a>/// free function. A builder for strategy customization will land later
 <a href=#56 id=56 data-nosnippet>56</a>/// (mirroring the serializer's plan).
 <a href=#57 id=57 data-nosnippet>57</a>///
-<a href=#58 id=58 data-nosnippet>58</a>/// The inner reader is fixed to `&amp;'de [u8]` (wrapped in rmp_serde's
+<a href=#58 id=58 data-nosnippet>58</a>/// The inner reader is fixed to `&amp;'de [u8]` (wrapped in `rmp_serde`'s
 <a href=#59 id=59 data-nosnippet>59</a>/// `ReadReader`, the shape `RmpDeserializer::new` constructs). We don't
 <a href=#60 id=60 data-nosnippet>60</a>/// keep the reader generic because two interception paths need to grab a
 <a href=#61 id=61 data-nosnippet>61</a>/// snapshot of the unread byte slice — `deserialize_option`'s peek-via-

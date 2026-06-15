@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>//!
 <a href=#13 id=13 data-nosnippet>13</a>//! Type checking
 <a href=#14 id=14 data-nosnippet>14</a>//! - Check that the input values of certain instructions matches that instruction's constraint
-<a href=#15 id=15 data-nosnippet>15</a>//!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
+<a href=#15 id=15 data-nosnippet>15</a>//!   At the moment, only [`Instruction::Binary`], [`Instruction::ArrayGet`], and [`Instruction::ArraySet`]
 <a href=#16 id=16 data-nosnippet>16</a>//!   are type checked.
 <a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">use </span>core::panic;
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>std::borrow::Cow;
@@ -1193,11 +1193,11 @@
 <a href=#1193 id=1193 data-nosnippet>1193</a>    validator.run();
 <a href=#1194 id=1194 data-nosnippet>1194</a>}
 <a href=#1195 id=1195 data-nosnippet>1195</a>
-<a href=#1196 id=1196 data-nosnippet>1196</a><span class="doccomment">/// Validates every reachable block's terminator: see [validate_block_terminator].
+<a href=#1196 id=1196 data-nosnippet>1196</a><span class="doccomment">/// Validates every reachable block's terminator: see [`validate_block_terminator`].
 <a href=#1197 id=1197 data-nosnippet>1197</a>///
 <a href=#1198 id=1198 data-nosnippet>1198</a>/// This is a general SSA well-formedness property which must hold at every point in the
 <a href=#1199 id=1199 data-nosnippet>1199</a>/// pipeline, so passes which rewrite block parameters or terminator arguments (e.g.
-<a href=#1200 id=1200 data-nosnippet>1200</a>/// mem2reg, remove_redundant_params) call this in their debug post-checks.
+<a href=#1200 id=1200 data-nosnippet>1200</a>/// mem2reg, `remove_redundant_params`) call this in their debug post-checks.
 <a href=#1201 id=1201 data-nosnippet>1201</a></span><span class="attr">#[cfg(debug_assertions)]
 <a href=#1202 id=1202 data-nosnippet>1202</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_terminators(function: <span class="kw-2">&amp;</span>Function) {
 <a href=#1203 id=1203 data-nosnippet>1203</a>    <span class="kw">for </span>block <span class="kw">in </span>function.reachable_blocks() {

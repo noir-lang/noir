@@ -108,7 +108,7 @@
 <a href=#108 id=108 data-nosnippet>108</a>    /// This is only Some for unsized types like vectors or vectors that do not make sense
 <a href=#109 id=109 data-nosnippet>109</a>    /// as a program input such as named generics or mutable references.
 <a href=#110 id=110 data-nosnippet>110</a>    ///
-<a href=#111 id=111 data-nosnippet>111</a>    /// This function should match the same check done in `create_value_from_type` in acir_gen.
+<a href=#111 id=111 data-nosnippet>111</a>    /// This function should match the same check done in `create_value_from_type` in `acir_gen`.
 <a href=#112 id=112 data-nosnippet>112</a>    /// If this function does not catch a case where a type should be valid, it will later lead to a
 <a href=#113 id=113 data-nosnippet>113</a>    /// panic in that function instead of a user-facing compiler error message.
 <a href=#114 id=114 data-nosnippet>114</a>    ///
@@ -253,10 +253,10 @@
 <a href=#253 id=253 data-nosnippet>253</a>    /// function that is not `main` or a contract function.
 <a href=#254 id=254 data-nosnippet>254</a>    /// This encapsulates functions for which we may not want to inline during compilation.
 <a href=#255 id=255 data-nosnippet>255</a>    ///
-<a href=#256 id=256 data-nosnippet>256</a>    /// This check is intentionally more permissive than [Self::program_validity]:
+<a href=#256 id=256 data-nosnippet>256</a>    /// This check is intentionally more permissive than [`Self::program_validity`]:
 <a href=#257 id=257 data-nosnippet>257</a>    /// - It does not enforce entry-point sizing rules (e.g. concrete array/string lengths).
-<a href=#258 id=258 data-nosnippet>258</a>    /// - It allows symbolic size expressions such as [Type::InfixExpr].
-<a href=#259 id=259 data-nosnippet>259</a>    /// - It does not special-case entry point only rules like allowing [Type::Unit] outputs.
+<a href=#258 id=258 data-nosnippet>258</a>    /// - It allows symbolic size expressions such as [`Type::InfixExpr`].
+<a href=#259 id=259 data-nosnippet>259</a>    /// - It does not special-case entry point only rules like allowing [`Type::Unit`] outputs.
 <a href=#260 id=260 data-nosnippet>260</a>    ///
 <a href=#261 id=261 data-nosnippet>261</a>    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
 <a href=#262 id=262 data-nosnippet>262</a>    /// certain types which through compilation we know what their size should be.

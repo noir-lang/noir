@@ -58,7 +58,7 @@
 <a href=#58 id=58 data-nosnippet>58</a>    }
 <a href=#59 id=59 data-nosnippet>59</a>}
 <a href=#60 id=60 data-nosnippet>60</a>
-<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Creates a new CrateName rejecting any invalid crate name.
+<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Creates a new `CrateName` rejecting any invalid crate name.
 <a href=#62 id=62 data-nosnippet>62</a>/// Valid crate names are ones that are also valid Noir identifiers:
 <a href=#63 id=63 data-nosnippet>63</a>/// they must start with an ASCII alphabetic character or '_' (underscore),
 <a href=#64 id=64 data-nosnippet>64</a>/// then continue with ASCII alphanumeric characters or '_' (underscore).
@@ -140,11 +140,11 @@
 <a href=#140 id=140 data-nosnippet>140</a>
 <a href=#141 id=141 data-nosnippet>141</a><span class="kw">impl </span>CrateGraph {
 <a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// Tries to find the requested crate in the current one's dependencies,
-<a href=#143 id=143 data-nosnippet>143</a>    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
+<a href=#143 id=143 data-nosnippet>143</a>    /// otherwise walks down the crate dependency graph from `crate_id` until we reach it.
 <a href=#144 id=144 data-nosnippet>144</a>    /// This is needed in case a library (`lib1`) re-export a structure defined in another library (`lib2`)
 <a href=#145 id=145 data-nosnippet>145</a>    /// In that case, we will get `[lib1,lib2]` when looking for a struct defined in lib2,
 <a href=#146 id=146 data-nosnippet>146</a>    /// re-exported by lib1 and used by the main crate.
-<a href=#147 id=147 data-nosnippet>147</a>    /// Returns the path from crate_id to target_crate_id
+<a href=#147 id=147 data-nosnippet>147</a>    /// Returns the path from `crate_id` to `target_crate_id`
 <a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_dependencies(
 <a href=#149 id=149 data-nosnippet>149</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#150 id=150 data-nosnippet>150</a>        crate_id: <span class="kw-2">&amp;</span>CrateId,
@@ -179,7 +179,7 @@
 <a href=#179 id=179 data-nosnippet>179</a>    <span class="kw">pub </span>dependencies: Vec&lt;Dependency&gt;,
 <a href=#180 id=180 data-nosnippet>180</a>}
 <a href=#181 id=181 data-nosnippet>181</a>
-<a href=#182 id=182 data-nosnippet>182</a><span class="doccomment">/// A dependency is a crate name and a crate_id
+<a href=#182 id=182 data-nosnippet>182</a><span class="doccomment">/// A dependency is a crate name and a `crate_id`
 <a href=#183 id=183 data-nosnippet>183</a>/// This means that the same crate can be compiled once under different names
 <a href=#184 id=184 data-nosnippet>184</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#185 id=185 data-nosnippet>185</a></span><span class="kw">pub struct </span>Dependency {

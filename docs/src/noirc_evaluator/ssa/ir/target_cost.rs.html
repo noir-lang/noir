@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/ir/target_cost.rs`."><title>target_cost.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/ir/</div>target_cost.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Brillig target cost estimation for SSA IR types.
 <a href=#2 id=2 data-nosnippet>2</a>//!
-<a href=#3 id=3 data-nosnippet>3</a>//! Provides cost methods on [BinaryOp], [Instruction], [TerminatorInstruction],
+<a href=#3 id=3 data-nosnippet>3</a>//! Provides cost methods on [`BinaryOp`], [Instruction], [`TerminatorInstruction`],
 <a href=#4 id=4 data-nosnippet>4</a>//! and [Function] that estimate Brillig opcode counts. These are useful for any
 <a href=#5 id=5 data-nosnippet>5</a>//! pass that needs to reason about Brillig code size (inlining, optimization ordering, etc.).
 <a href=#6 id=6 data-nosnippet>6</a>//!
@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// Estimate the Brillig opcode cost of this binary operation given the operand type.
 <a href=#71 id=71 data-nosnippet>71</a>    ///
 <a href=#72 id=72 data-nosnippet>72</a>    /// Field operations are single opcodes. Checked unsigned operations are more expensive
-<a href=#73 id=73 data-nosnippet>73</a>    /// (e.g., checked add = add + lt_eq + constrain = 3 opcodes). Unchecked integer operations
+<a href=#73 id=73 data-nosnippet>73</a>    /// (e.g., checked add = add + `lt_eq` + constrain = 3 opcodes). Unchecked integer operations
 <a href=#74 id=74 data-nosnippet>74</a>    /// are single opcodes. Signed operations that reach Brillig are always unchecked.
 <a href=#75 id=75 data-nosnippet>75</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>cost(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: NumericType) -&gt; usize {
 <a href=#76 id=76 data-nosnippet>76</a>        <span class="kw">match </span><span class="self">self </span>{
@@ -240,12 +240,12 @@
 <a href=#240 id=240 data-nosnippet>240</a>    <span class="doccomment">/// Per-call-site overhead of retaining this function, in Brillig opcode units.
 <a href=#241 id=241 data-nosnippet>241</a>    ///
 <a href=#242 id=242 data-nosnippet>242</a>    /// A Brillig function call costs `5 + N + M` opcodes at the call site (from `codegen_call`):
-<a href=#243 id=243 data-nosnippet>243</a>    ///   1 Const (stack size) + 1 Mov (save sp) + 1 BinaryIntOp (sp += size) + 1 Call + 1 Mov (restore sp)
+<a href=#243 id=243 data-nosnippet>243</a>    ///   1 Const (stack size) + 1 Mov (save sp) + 1 `BinaryIntOp` (sp += size) + 1 Call + 1 Mov (restore sp)
 <a href=#244 id=244 data-nosnippet>244</a>    ///   + N Mov's for arguments + M Mov's for returns.
 <a href=#245 id=245 data-nosnippet>245</a>    ///
 <a href=#246 id=246 data-nosnippet>246</a>    /// Additionally, every retained function executes `CheckMaxStackDepth` at entry.
 <a href=#247 id=247 data-nosnippet>247</a>    /// The happy-path execution cost is 5 opcodes:
-<a href=#248 id=248 data-nosnippet>248</a>    ///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 JumpIf + 1 Return.
+<a href=#248 id=248 data-nosnippet>248</a>    ///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 `JumpIf` + 1 Return.
 <a href=#249 id=249 data-nosnippet>249</a>    ///
 <a href=#250 id=250 data-nosnippet>250</a>    /// This overhead vanishes when the function is inlined.
 <a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_overhead(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {

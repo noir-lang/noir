@@ -6,7 +6,7 @@ will search for a <code>Nargo.toml</code> file in</p>
 <li><code>/workspace/package</code>,</li>
 <li><code>/workspace</code>.</li>
 </ul>
-<p>Returns the <a href="https://doc.rust-lang.org/1.89.0/std/path/struct.PathBuf.html" title="struct std::path::PathBuf">PathBuf</a> of the <code>Nargo.toml</code> file if found, otherwise returns None.</p>
+<p>Returns the <a href="https://doc.rust-lang.org/1.89.0/std/path/struct.PathBuf.html" title="struct std::path::PathBuf"><code>PathBuf</code></a> of the <code>Nargo.toml</code> file if found, otherwise returns None.</p>
 <p>It will return innermost <code>Nargo.toml</code> file, which is the one closest to the current directory.
 For example, if the current directory is <code>/workspace/package/src</code>, then this function
 will return the <code>Nargo.toml</code> file in <code>/workspace/package/Nargo.toml</code></p>

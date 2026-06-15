@@ -54,17 +54,17 @@
 <a href=#54 id=54 data-nosnippet>54</a>//! The first ACIR opcodes are RANGE opcodes which ensure the inputs have the expected range (as specified in the Noir source code).
 <a href=#55 id=55 data-nosnippet>55</a>//! Solving this black-box simply means to validate that the values (from `initial_witness`) are indeed 32 bits for w0, w1, w2, w3, w4
 <a href=#56 id=56 data-nosnippet>56</a>//! If `initial_witness` does not have values for w0, w1, w2, w3, w4, or if the values are over 32 bits, the execution will fail.
-<a href=#57 id=57 data-nosnippet>57</a>//! The next opcode is an AssertZero opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
-<a href=#58 id=58 data-nosnippet>58</a>//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the AssertZero is satisfied.
-<a href=#59 id=59 data-nosnippet>59</a>//! Solving AssertZero means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
+<a href=#57 id=57 data-nosnippet>57</a>//! The next opcode is an `AssertZero` opcode: ASSERT w0 - w1 - w6 = 0, which indicates that `w0 - w1 - w6` should be equal to 0.
+<a href=#58 id=58 data-nosnippet>58</a>//! Since we know the values of `w0, w1` from `initial_witness`, we can compute `w6 = w0 + w1` so that the `AssertZero` is satisfied.
+<a href=#59 id=59 data-nosnippet>59</a>//! Solving `AssertZero` means computing the unknown witness and adding the result to `initial_witness`, which now contains the value for `w6`.
 <a href=#60 id=60 data-nosnippet>60</a>//! The next opcode is a Brillig Call where input is `w6` and output is `w7`. From the function id of the opcode, the solver will retrieve the
 <a href=#61 id=61 data-nosnippet>61</a>//! corresponding Brillig bytecode and instantiate a Brillig VM with the value of the input. This value was just computed before.
 <a href=#62 id=62 data-nosnippet>62</a>//! Executing the Brillig VM on this input will give us the output which is the value for `w7`, that we add to `initial_witness`.
-<a href=#63 id=63 data-nosnippet>63</a>//! The next opcode is again an AssertZero: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
-<a href=#64 id=64 data-nosnippet>64</a>//! The two next opcodes are AssertZero without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
+<a href=#63 id=63 data-nosnippet>63</a>//! The next opcode is again an `AssertZero`: `w6 * w7 + w8 - 1 = 0`, which computes the value of `w8`.
+<a href=#64 id=64 data-nosnippet>64</a>//! The two next opcodes are `AssertZero` without any unknown witnesses: `w6 * w8 = 0` and `w1 * w8 = 0`
 <a href=#65 id=65 data-nosnippet>65</a>//! Solving such opcodes means that we compute `w6 * w8 ` and `w1 * w8` using the known values, and check that they evaluate to 0.
 <a href=#66 id=66 data-nosnippet>66</a>//! If not, we would return an error.
-<a href=#67 id=67 data-nosnippet>67</a>//! Finally, the last AssertZero computes `w9` which is the last witness. All of the witnesses have now been computed; execution is complete.
+<a href=#67 id=67 data-nosnippet>67</a>//! Finally, the last `AssertZero` computes `w9` which is the last witness. All of the witnesses have now been computed; execution is complete.
 <a href=#68 id=68 data-nosnippet>68</a>
 <a href=#69 id=69 data-nosnippet>69</a></span><span class="kw">use </span>std::collections::HashMap;
 <a href=#70 id=70 data-nosnippet>70</a>
@@ -296,7 +296,7 @@
 <a href=#296 id=296 data-nosnippet>296</a>    /// whether the caller has resolved the results of an ACIR [call][Opcode::Call].
 <a href=#297 id=297 data-nosnippet>297</a>    </span>acir_call_counter: usize,
 <a href=#298 id=298 data-nosnippet>298</a>    <span class="doccomment">/// Represents the outputs of all ACIR calls during an ACVM process
-<a href=#299 id=299 data-nosnippet>299</a>    /// List is appended onto by the caller upon reaching a [ACVMStatus::RequiresAcirCall]
+<a href=#299 id=299 data-nosnippet>299</a>    /// List is appended onto by the caller upon reaching a [`ACVMStatus::RequiresAcirCall`]
 <a href=#300 id=300 data-nosnippet>300</a>    </span>acir_call_results: Vec&lt;Vec&lt;F&gt;&gt;,
 <a href=#301 id=301 data-nosnippet>301</a>
 <a href=#302 id=302 data-nosnippet>302</a>    <span class="comment">// Each unconstrained function referenced in the program
@@ -408,7 +408,7 @@
 <a href=#408 id=408 data-nosnippet>408</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.status
 <a href=#409 id=409 data-nosnippet>409</a>    }
 <a href=#410 id=410 data-nosnippet>410</a>
-<a href=#411 id=411 data-nosnippet>411</a>    <span class="doccomment">/// Sets the VM status to [ACVMStatus::Failure] using the provided `error`.
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="doccomment">/// Sets the VM status to [`ACVMStatus::Failure`] using the provided `error`.
 <a href=#412 id=412 data-nosnippet>412</a>    /// Returns the new status.
 <a href=#413 id=413 data-nosnippet>413</a>    </span><span class="kw">fn </span>fail(<span class="kw-2">&amp;mut </span><span class="self">self</span>, error: OpcodeResolutionError&lt;F&gt;) -&gt; ACVMStatus&lt;F&gt; {
 <a href=#414 id=414 data-nosnippet>414</a>        <span class="self">self</span>.status(ACVMStatus::Failure(error))
@@ -522,7 +522,7 @@
 <a href=#522 id=522 data-nosnippet>522</a>    }
 <a href=#523 id=523 data-nosnippet>523</a>
 <a href=#524 id=524 data-nosnippet>524</a>    <span class="doccomment">/// Returns the status of the ACVM
-<a href=#525 id=525 data-nosnippet>525</a>    /// If the status is an error, it converts the error into [OpcodeResolutionError]
+<a href=#525 id=525 data-nosnippet>525</a>    /// If the status is an error, it converts the error into [`OpcodeResolutionError`]
 <a href=#526 id=526 data-nosnippet>526</a>    </span><span class="kw">fn </span>handle_opcode_resolution(
 <a href=#527 id=527 data-nosnippet>527</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#528 id=528 data-nosnippet>528</a>        resolution: <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt;,
@@ -761,7 +761,7 @@
 <a href=#761 id=761 data-nosnippet>761</a>
 <a href=#762 id=762 data-nosnippet>762</a>    <span class="doccomment">/// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
 <a href=#763 id=763 data-nosnippet>763</a>    /// 1. It first handles the predicate and return zero values if the predicate is false.
-<a href=#764 id=764 data-nosnippet>764</a>    /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
+<a href=#764 id=764 data-nosnippet>764</a>    /// 2. If the results of the execution are not available, it issues a '`AcirCallWaitInfo`'
 <a href=#765 id=765 data-nosnippet>765</a>    ///    to notify the caller that it (the caller) needs to execute the ACIR function.
 <a href=#766 id=766 data-nosnippet>766</a>    /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
 <a href=#767 id=767 data-nosnippet>767</a>    </span><span class="kw">pub fn </span>solve_call_opcode(
@@ -859,7 +859,7 @@
 <a href=#859 id=859 data-nosnippet>859</a>}
 <a href=#860 id=860 data-nosnippet>860</a>
 <a href=#861 id=861 data-nosnippet>861</a><span class="doccomment">/// Returns the concrete value for a particular expression
-<a href=#862 id=862 data-nosnippet>862</a>/// If the value cannot be computed, it returns an 'OpcodeNotSolvable' error.
+<a href=#862 id=862 data-nosnippet>862</a>/// If the value cannot be computed, it returns an '`OpcodeNotSolvable`' error.
 <a href=#863 id=863 data-nosnippet>863</a></span><span class="kw">pub fn </span>get_value&lt;F: AcirField&gt;(
 <a href=#864 id=864 data-nosnippet>864</a>    expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
 <a href=#865 id=865 data-nosnippet>865</a>    initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,

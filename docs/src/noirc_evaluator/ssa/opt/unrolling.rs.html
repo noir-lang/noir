@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>//!    2. If we have previously modified any of the blocks in the loop,
 <a href=#8 id=8 data-nosnippet>8</a>//!       restart from step 1 to refresh the context.
 <a href=#9 id=9 data-nosnippet>9</a>//!    3. If not, try to unroll the loop. If successful, remember the modified
-<a href=#10 id=10 data-nosnippet>10</a>//!       blocks. If unsuccessful either error if the abort_on_error flag is set,
+<a href=#10 id=10 data-nosnippet>10</a>//!       blocks. If unsuccessful either error if the `abort_on_error` flag is set,
 <a href=#11 id=11 data-nosnippet>11</a>//!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 <a href=#12 id=12 data-nosnippet>12</a>//!
 <a href=#13 id=13 data-nosnippet>13</a>//! Note that this pass also often creates superfluous jmp instructions in the
@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>//! Conditions:
 <a href=#39 id=39 data-nosnippet>39</a>//!   - Pre-condition: The first block parameter of each loop header is the induction variable.
 <a href=#40 id=40 data-nosnippet>40</a>//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
-<a href=#41 id=41 data-nosnippet>41</a>//!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
+<a href=#41 id=41 data-nosnippet>41</a>//!   - Pre-condition: No loop header has a `JmpIf` with a constant condition (run `simplify_cfg` first).
 <a href=#42 id=42 data-nosnippet>42</a>//!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 <a href=#43 id=43 data-nosnippet>43</a>//!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
 <a href=#44 id=44 data-nosnippet>44</a>//!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
@@ -423,7 +423,7 @@
 <a href=#423 id=423 data-nosnippet>423</a>    /// other blocks in the loop.
 <a href=#424 id=424 data-nosnippet>424</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) header: BasicBlockId,
 <a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a>    <span class="doccomment">/// The start of the back_edge n -&gt; d is the block n at the end of
+<a href=#426 id=426 data-nosnippet>426</a>    <span class="doccomment">/// The start of the `back_edge` n -&gt; d is the block n at the end of
 <a href=#427 id=427 data-nosnippet>427</a>    /// the loop that jumps back to the header block d which restarts the loop.
 <a href=#428 id=428 data-nosnippet>428</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) back_edge_start: BasicBlockId,
 <a href=#429 id=429 data-nosnippet>429</a>
@@ -511,7 +511,7 @@
 <a href=#511 id=511 data-nosnippet>511</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) yet_to_unroll: Vec&lt;Loop&gt;,
 <a href=#512 id=512 data-nosnippet>512</a>    <span class="doccomment">/// The CFG so we can query the predecessors of blocks when needed.
 <a href=#513 id=513 data-nosnippet>513</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) cfg: ControlFlowGraph,
-<a href=#514 id=514 data-nosnippet>514</a>    <span class="doccomment">/// The [DominatorTree] used during the discovery of loops.
+<a href=#514 id=514 data-nosnippet>514</a>    <span class="doccomment">/// The [`DominatorTree`] used during the discovery of loops.
 <a href=#515 id=515 data-nosnippet>515</a>    ///
 <a href=#516 id=516 data-nosnippet>516</a>    /// Also queried during unrolling to decide whether a folded constant-`JmpIf`'s destination
 <a href=#517 id=517 data-nosnippet>517</a>    /// parameters can be specialized to the taken edge (see [`LoopIteration::handle_jmpif`]).
@@ -596,7 +596,7 @@
 <a href=#596 id=596 data-nosnippet>596</a>
 <a href=#597 id=597 data-nosnippet>597</a><span class="kw">impl </span>Loop {
 <a href=#598 id=598 data-nosnippet>598</a>    <span class="doccomment">/// Return each block that is in a loop starting in the given header block.
-<a href=#599 id=599 data-nosnippet>599</a>    /// Expects back_edge_start -&gt; header to be the back edge of the loop.
+<a href=#599 id=599 data-nosnippet>599</a>    /// Expects `back_edge_start` -&gt; header to be the back edge of the loop.
 <a href=#600 id=600 data-nosnippet>600</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_blocks_in_loop(
 <a href=#601 id=601 data-nosnippet>601</a>        header: BasicBlockId,
 <a href=#602 id=602 data-nosnippet>602</a>        back_edge_start: BasicBlockId,
@@ -716,7 +716,7 @@
 <a href=#716 id=716 data-nosnippet>716</a>    /// if it's a numeric constant, which it will be if the previous SSA
 <a href=#717 id=717 data-nosnippet>717</a>    /// steps managed to inline it.
 <a href=#718 id=718 data-nosnippet>718</a>    ///
-<a href=#719 id=719 data-nosnippet>719</a>    /// `resolve_value` maps ValueIds through an external substitution
+<a href=#719 id=719 data-nosnippet>719</a>    /// `resolve_value` maps `ValueIds` through an external substitution
 <a href=#720 id=720 data-nosnippet>720</a>    /// (e.g. `FunctionInserter::resolve`).
 <a href=#721 id=721 data-nosnippet>721</a>    /// If `get_const_upper_bound` is called within a pass that modifies instructions
 <a href=#722 id=722 data-nosnippet>722</a>    /// e.g through a `FunctionInserter`, the terminator check below might reference
@@ -999,7 +999,7 @@
 <a href=#999 id=999 data-nosnippet>999</a>
 <a href=#1000 id=1000 data-nosnippet>1000</a>    <span class="doccomment">/// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
 <a href=#1001 id=1001 data-nosnippet>1001</a>    /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-<a href=#1002 id=1002 data-nosnippet>1002</a>    /// Returns Some((iteration context, loop_header_id)) if we should perform another iteration.
+<a href=#1002 id=1002 data-nosnippet>1002</a>    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
 <a href=#1003 id=1003 data-nosnippet>1003</a>    </span><span class="kw">fn </span>unroll_header&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#1004 id=1004 data-nosnippet>1004</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>,
 <a href=#1005 id=1005 data-nosnippet>1005</a>        function: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Function,
@@ -1250,7 +1250,7 @@
 <a href=#1250 id=1250 data-nosnippet>1250</a>    ///
 <a href=#1251 id=1251 data-nosnippet>1251</a>    /// After unrolling, all Jmp terminators within the loop are eliminated, so every
 <a href=#1252 id=1252 data-nosnippet>1252</a>    /// argument on them (except the induction variable on back-edge Jmps) is boilerplate.
-<a href=#1253 id=1253 data-nosnippet>1253</a>    /// Similarly, JmpIf `then_arguments`/`else_arguments` that thread promoted values
+<a href=#1253 id=1253 data-nosnippet>1253</a>    /// Similarly, `JmpIf` `then_arguments`/`else_arguments` that thread promoted values
 <a href=#1254 id=1254 data-nosnippet>1254</a>    /// to loop-internal blocks are also boilerplate.
 <a href=#1255 id=1255 data-nosnippet>1255</a>    /// Sum the Brillig-weighted cost of all terminators in the loop whose
 <a href=#1256 id=1256 data-nosnippet>1256</a>    /// destinations are within the loop (including the header). These terminators
@@ -1518,7 +1518,7 @@
 <a href=#1518 id=1518 data-nosnippet>1518</a>    }
 <a href=#1519 id=1519 data-nosnippet>1519</a>
 <a href=#1520 id=1520 data-nosnippet>1520</a>    <span class="doccomment">/// Check whether `source`'s terminator sends a constant value at position
-<a href=#1521 id=1521 data-nosnippet>1521</a>    /// `param_index` to `target`. For JmpIf where both branches go to the same
+<a href=#1521 id=1521 data-nosnippet>1521</a>    /// `param_index` to `target`. For `JmpIf` where both branches go to the same
 <a href=#1522 id=1522 data-nosnippet>1522</a>    /// target, both must send constants.
 <a href=#1523 id=1523 data-nosnippet>1523</a>    </span><span class="kw">fn </span>pred_sends_constant_at(
 <a href=#1524 id=1524 data-nosnippet>1524</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -1611,7 +1611,7 @@
 <a href=#1611 id=1611 data-nosnippet>1611</a>/// `array_get` instructions. Returns true if:
 <a href=#1612 id=1612 data-nosnippet>1612</a>/// - The value is a compile-time constant (`dfg.is_constant`), OR
 <a href=#1613 id=1613 data-nosnippet>1613</a>/// - The value is the result of an `array_get` whose array operand
-<a href=#1614 id=1614 data-nosnippet>1614</a>///   recursively traces back to a constant source (global, MakeArray)
+<a href=#1614 id=1614 data-nosnippet>1614</a>///   recursively traces back to a constant source (global, `MakeArray`)
 <a href=#1615 id=1615 data-nosnippet>1615</a>///
 <a href=#1616 id=1616 data-nosnippet>1616</a>/// This lets the cost model recognize that `array_get constant_array, index`
 <a href=#1617 id=1617 data-nosnippet>1617</a>/// will fold away after unrolling, even when `constant_array` is itself
@@ -1676,7 +1676,7 @@
 <a href=#1676 id=1676 data-nosnippet>1676</a>        <span class="self">self</span>.total_cost + pre_header_jmp
 <a href=#1677 id=1677 data-nosnippet>1677</a>    }
 <a href=#1678 id=1678 data-nosnippet>1678</a>
-<a href=#1679 id=1679 data-nosnippet>1679</a>    <span class="doccomment">/// Per-iteration cost excluding boilerplate but NOT subtracting useless_cost.
+<a href=#1679 id=1679 data-nosnippet>1679</a>    <span class="doccomment">/// Per-iteration cost excluding boilerplate but NOT subtracting `useless_cost`.
 <a href=#1680 id=1680 data-nosnippet>1680</a>    /// This is the conservative estimate: it assumes no constant folding happens.
 <a href=#1681 id=1681 data-nosnippet>1681</a>    </span><span class="kw">fn </span>conservative_useful_cost(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
 <a href=#1682 id=1682 data-nosnippet>1682</a>        <span class="kw">let </span>load_and_store = <span class="self">self</span>.loads.min(<span class="self">self</span>.stores) * <span class="number">2</span>;
@@ -1700,13 +1700,13 @@
 <a href=#1700 id=1700 data-nosnippet>1700</a>        <span class="self">self</span>.useful_cost().saturating_mul(<span class="self">self</span>.iterations)
 <a href=#1701 id=1701 data-nosnippet>1701</a>    }
 <a href=#1702 id=1702 data-nosnippet>1702</a>
-<a href=#1703 id=1703 data-nosnippet>1703</a>    <span class="doccomment">/// Conservative estimate of unrolled cost that excludes useless_cost.
+<a href=#1703 id=1703 data-nosnippet>1703</a>    <span class="doccomment">/// Conservative estimate of unrolled cost that excludes `useless_cost`.
 <a href=#1704 id=1704 data-nosnippet>1704</a>    ///
 <a href=#1705 id=1705 data-nosnippet>1705</a>    /// Unlike `unrolled_cost()` which assumes constant-foldable instructions will be
 <a href=#1706 id=1706 data-nosnippet>1706</a>    /// eliminated, this gives the cost if NO folding happens. Used by `is_small()` to
 <a href=#1707 id=1707 data-nosnippet>1707</a>    /// avoid over-aggressive unrolling of large loops whose `useless_cost` may be
 <a href=#1708 id=1708 data-nosnippet>1708</a>    /// overestimated (e.g. loops containing previously-unrolled inner loops).
-<a href=#1709 id=1709 data-nosnippet>1709</a>    /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
+<a href=#1709 id=1709 data-nosnippet>1709</a>    /// The `force_unroll` path still uses `unrolled_cost()` with full `useless_cost`
 <a href=#1710 id=1710 data-nosnippet>1710</a>    /// subtraction, ensuring genuinely tiny loops are still unrolled.
 <a href=#1711 id=1711 data-nosnippet>1711</a>    </span><span class="kw">fn </span>conservative_unrolled_cost(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
 <a href=#1712 id=1712 data-nosnippet>1712</a>        <span class="self">self</span>.conservative_useful_cost().saturating_mul(<span class="self">self</span>.iterations)
@@ -1717,7 +1717,7 @@
 <a href=#1717 id=1717 data-nosnippet>1717</a>    /// the blocks in tact with all the boilerplate involved in jumping, and the extra
 <a href=#1718 id=1718 data-nosnippet>1718</a>    /// reference access overhead.
 <a href=#1719 id=1719 data-nosnippet>1719</a>    ///
-<a href=#1720 id=1720 data-nosnippet>1720</a>    /// Uses `conservative_unrolled_cost` (without useless_cost subtraction) to avoid
+<a href=#1720 id=1720 data-nosnippet>1720</a>    /// Uses `conservative_unrolled_cost` (without `useless_cost` subtraction) to avoid
 <a href=#1721 id=1721 data-nosnippet>1721</a>    /// false positives from overestimated constant folding, particularly for loops
 <a href=#1722 id=1722 data-nosnippet>1722</a>    /// containing previously-unrolled inner loops.
 <a href=#1723 id=1723 data-nosnippet>1723</a>    </span><span class="kw">fn </span>is_small(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -2115,13 +2115,13 @@
 <a href=#2115 id=2115 data-nosnippet>2115</a>    new_size.saturating_mul(<span class="number">100</span>) &lt;= max_size
 <a href=#2116 id=2116 data-nosnippet>2116</a>}
 <a href=#2117 id=2117 data-nosnippet>2117</a>
-<a href=#2118 id=2118 data-nosnippet>2118</a><span class="doccomment">/// Pre-check condition for [Function::unroll_loops_iteratively].
+<a href=#2118 id=2118 data-nosnippet>2118</a><span class="doccomment">/// Pre-check condition for [`Function::unroll_loops_iteratively`].
 <a href=#2119 id=2119 data-nosnippet>2119</a></span><span class="attr">#[cfg(debug_assertions)]
 <a href=#2120 id=2120 data-nosnippet>2120</a></span><span class="kw">fn </span>unroll_loops_pre_check(function: <span class="kw-2">&amp;</span>Function) {
 <a href=#2121 id=2121 data-nosnippet>2121</a>    <span class="kw">super</span>::checks::assert_no_constant_jmpif(function);
 <a href=#2122 id=2122 data-nosnippet>2122</a>}
 <a href=#2123 id=2123 data-nosnippet>2123</a>
-<a href=#2124 id=2124 data-nosnippet>2124</a><span class="doccomment">/// Post-check condition for [Function::unroll_loops_iteratively].
+<a href=#2124 id=2124 data-nosnippet>2124</a><span class="doccomment">/// Post-check condition for [`Function::unroll_loops_iteratively`].
 <a href=#2125 id=2125 data-nosnippet>2125</a>///
 <a href=#2126 id=2126 data-nosnippet>2126</a>/// Panics if:
 <a href=#2127 id=2127 data-nosnippet>2127</a>///   - Any ACIR function still contains loops after unrolling.
@@ -2554,7 +2554,7 @@
 <a href=#2554 id=2554 data-nosnippet>2554</a>        </span><span class="macro">assert_eq!</span>(stats.unrolled_cost(), <span class="number">0</span>);
 <a href=#2555 id=2555 data-nosnippet>2555</a>    }
 <a href=#2556 id=2556 data-nosnippet>2556</a>
-<a href=#2557 id=2557 data-nosnippet>2557</a>    <span class="doccomment">/// Regression test for nested loops with an accumulator (simplified regression_4709).
+<a href=#2557 id=2557 data-nosnippet>2557</a>    <span class="doccomment">/// Regression test for nested loops with an accumulator (simplified `regression_4709`).
 <a href=#2558 id=2558 data-nosnippet>2558</a>    ///
 <a href=#2559 id=2559 data-nosnippet>2559</a>    /// The inner loop (b3, b4) accumulates values from a constant array indexed by
 <a href=#2560 id=2560 data-nosnippet>2560</a>    /// the outer loop's induction variable. Without the filter that excludes `self.blocks`
@@ -2961,11 +2961,11 @@
 <a href=#2961 id=2961 data-nosnippet>2961</a>        </span><span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">1</span>, <span class="string">"The loop should be unrolled"</span>);
 <a href=#2962 id=2962 data-nosnippet>2962</a>    }
 <a href=#2963 id=2963 data-nosnippet>2963</a>
-<a href=#2964 id=2964 data-nosnippet>2964</a>    <span class="doccomment">/// Test that setting force_unroll_threshold to 0 disables force-unrolling.
+<a href=#2964 id=2964 data-nosnippet>2964</a>    <span class="doccomment">/// Test that setting `force_unroll_threshold` to 0 disables force-unrolling.
 <a href=#2965 id=2965 data-nosnippet>2965</a>    ///
 <a href=#2966 id=2966 data-nosnippet>2966</a>    /// This uses a loop with 6 iterations where:
-<a href=#2967 id=2967 data-nosnippet>2967</a>    /// - is_small() = false (unrolled cost exceeds baseline)
-<a href=#2968 id=2968 data-nosnippet>2968</a>    /// - unrolled_cost = 78 (within default threshold of 128)
+<a href=#2967 id=2967 data-nosnippet>2967</a>    /// - `is_small()` = false (unrolled cost exceeds baseline)
+<a href=#2968 id=2968 data-nosnippet>2968</a>    /// - `unrolled_cost` = 78 (within default threshold of 128)
 <a href=#2969 id=2969 data-nosnippet>2969</a>    ///
 <a href=#2970 id=2970 data-nosnippet>2970</a>    /// With the default threshold, this loop would be force-unrolled.
 <a href=#2971 id=2971 data-nosnippet>2971</a>    /// With threshold=0, it should NOT be unrolled.
@@ -3115,8 +3115,8 @@
 <a href=#3115 id=3115 data-nosnippet>3115</a>    }
 <a href=#3116 id=3116 data-nosnippet>3116</a>
 <a href=#3117 id=3117 data-nosnippet>3117</a>    <span class="doccomment">/// Generate a loop with a large body containing `num_adds` chained add instructions.
-<a href=#3118 id=3118 data-nosnippet>3118</a>    /// All instructions are constant-foldable after unrolling (useful_cost = 0),
-<a href=#3119 id=3119 data-nosnippet>3119</a>    /// but total_cost is high due to the many instructions.
+<a href=#3118 id=3118 data-nosnippet>3118</a>    /// All instructions are constant-foldable after unrolling (`useful_cost` = 0),
+<a href=#3119 id=3119 data-nosnippet>3119</a>    /// but `total_cost` is high due to the many instructions.
 <a href=#3120 id=3120 data-nosnippet>3120</a>    </span><span class="kw">fn </span>brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -&gt; Ssa {
 <a href=#3121 id=3121 data-nosnippet>3121</a>        <span class="macro">assert!</span>(num_adds &gt;= <span class="number">1</span>, <span class="string">"need at least one add"</span>);
 <a href=#3122 id=3122 data-nosnippet>3122</a>        <span class="kw">let </span><span class="kw-2">mut </span>body_instructions = String::new();
@@ -3263,7 +3263,7 @@
 <a href=#3263 id=3263 data-nosnippet>3263</a>    }
 <a href=#3264 id=3264 data-nosnippet>3264</a>
 <a href=#3265 id=3265 data-nosnippet>3265</a>    <span class="doccomment">/// Regression test: when `useful_cost` is zero and the loop body is small,
-<a href=#3266 id=3266 data-nosnippet>3266</a>    /// force_unroll correctly allows the unroll (the folding prediction is trusted
+<a href=#3266 id=3266 data-nosnippet>3266</a>    /// `force_unroll` correctly allows the unroll (the folding prediction is trusted
 <a href=#3267 id=3267 data-nosnippet>3267</a>    /// because even if wrong, the transient expansion is bounded).
 <a href=#3268 id=3268 data-nosnippet>3268</a>    </span><span class="attr">#[test]
 <a href=#3269 id=3269 data-nosnippet>3269</a>    </span><span class="kw">fn </span>force_unroll_allows_small_body_zero_useful_cost() {
@@ -3291,7 +3291,7 @@
 <a href=#3291 id=3291 data-nosnippet>3291</a>    }
 <a href=#3292 id=3292 data-nosnippet>3292</a>
 <a href=#3293 id=3293 data-nosnippet>3293</a>    <span class="doccomment">/// Regression test: when `useful_cost` is zero but the loop body is large
-<a href=#3294 id=3294 data-nosnippet>3294</a>    /// (total_cost &gt; force_unroll_threshold), force_unroll is blocked. This prevents
+<a href=#3294 id=3294 data-nosnippet>3294</a>    /// (`total_cost` &gt; `force_unroll_threshold`), `force_unroll` is blocked. This prevents
 <a href=#3295 id=3295 data-nosnippet>3295</a>    /// the catastrophic blowup seen in `noir_bigcurve` where a 754-iteration
 <a href=#3296 id=3296 data-nosnippet>3296</a>    /// scalar-multiplication loop was fully unrolled into ~300k lines after
 <a href=#3297 id=3297 data-nosnippet>3297</a>    /// `inc_rc` removal dropped `useful_cost` from 3 to 0.
@@ -3488,10 +3488,10 @@
 <a href=#3488 id=3488 data-nosnippet>3488</a>        <span class="macro">assert_eq!</span>(lower, upper);
 <a href=#3489 id=3489 data-nosnippet>3489</a>    }
 <a href=#3490 id=3490 data-nosnippet>3490</a>
-<a href=#3491 id=3491 data-nosnippet>3491</a>    <span class="doccomment">/// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
-<a href=#3492 id=3492 data-nosnippet>3492</a>    /// alongside a constant-condition JmpIf.
+<a href=#3491 id=3491 data-nosnippet>3491</a>    <span class="doccomment">/// Prior passes can place non-comparison instructions (like `MakeArray`) into a loop header block
+<a href=#3492 id=3492 data-nosnippet>3492</a>    /// alongside a constant-condition `JmpIf`.
 <a href=#3493 id=3493 data-nosnippet>3493</a>    ///
-<a href=#3494 id=3494 data-nosnippet>3494</a>    /// The pre-check should catch this and require simplify_cfg to be run first.
+<a href=#3494 id=3494 data-nosnippet>3494</a>    /// The pre-check should catch this and require `simplify_cfg` to be run first.
 <a href=#3495 id=3495 data-nosnippet>3495</a>    </span><span class="attr">#[test]
 <a href=#3496 id=3496 data-nosnippet>3496</a>    #[should_panic(expected = <span class="string">"has a JmpIf with a constant condition"</span>)]
 <a href=#3497 id=3497 data-nosnippet>3497</a>    </span><span class="kw">fn </span>pre_check_rejects_const_condition_jmpif_in_loop_header() {
@@ -3792,9 +3792,9 @@
 <a href=#3792 id=3792 data-nosnippet>3792</a>    <span class="doccomment">/// Regression test: after mem2reg promotes loads/stores to block parameters,
 <a href=#3793 id=3793 data-nosnippet>3793</a>    /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
 <a href=#3794 id=3794 data-nosnippet>3794</a>    /// block parameters. Without this, nested loops over constant 2D arrays won't see
-<a href=#3795 id=3795 data-nosnippet>3795</a>    /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
+<a href=#3795 id=3795 data-nosnippet>3795</a>    /// inner loop accumulators as constant, inflating `useful_cost` and preventing unrolling.
 <a href=#3796 id=3796 data-nosnippet>3796</a>    ///
-<a href=#3797 id=3797 data-nosnippet>3797</a>    /// This models the pattern from the regression_4709 integration test: outer loop indexes a constant 2D
+<a href=#3797 id=3797 data-nosnippet>3797</a>    /// This models the pattern from the `regression_4709` integration test: outer loop indexes a constant 2D
 <a href=#3798 id=3798 data-nosnippet>3798</a>    /// global array, inner loop accumulates over the row. After mem2reg, the row value
 <a href=#3799 id=3799 data-nosnippet>3799</a>    /// is passed as a block parameter to the inner loop header.
 <a href=#3800 id=3800 data-nosnippet>3800</a>    </span><span class="attr">#[test]
@@ -4073,7 +4073,7 @@
 <a href=#4073 id=4073 data-nosnippet>4073</a>    ///
 <a href=#4074 id=4074 data-nosnippet>4074</a>    /// In this test, the loop header b1 has `not v0` (where v0 is a u1 parameter)
 <a href=#4075 id=4075 data-nosnippet>4075</a>    /// and the actual loop exit is `eq v1, u32 1` in b2 (where v1 is the induction
-<a href=#4076 id=4076 data-nosnippet>4076</a>    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (bit_size 1),
+<a href=#4076 id=4076 data-nosnippet>4076</a>    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (`bit_size` 1),
 <a href=#4077 id=4077 data-nosnippet>4077</a>    /// and LICM's `simplify_induction_variable_in_binary` replaces `eq v1, u32 1` with
 <a href=#4078 id=4078 data-nosnippet>4078</a>    /// constant `false`, creating an infinite loop.
 <a href=#4079 id=4079 data-nosnippet>4079</a>    </span><span class="attr">#[test]
@@ -4340,9 +4340,9 @@
 <a href=#4340 id=4340 data-nosnippet>4340</a>
 <a href=#4341 id=4341 data-nosnippet>4341</a>    <span class="kw">use super</span>::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
 <a href=#4342 id=4342 data-nosnippet>4342</a>
-<a href=#4343 id=4343 data-nosnippet>4343</a>    <span class="doccomment">/// Regression test for vector_loop: after mem2reg promotes the vector length
+<a href=#4343 id=4343 data-nosnippet>4343</a>    <span class="doccomment">/// Regression test for `vector_loop`: after mem2reg promotes the vector length
 <a href=#4344 id=4344 data-nosnippet>4344</a>    /// allocation to a block parameter, the iterative unrolling must still resolve the
-<a href=#4345 id=4345 data-nosnippet>4345</a>    /// sum loop's bound to a constant through the vector_push_back simplification chain.
+<a href=#4345 id=4345 data-nosnippet>4345</a>    /// sum loop's bound to a constant through the `vector_push_back` simplification chain.
 <a href=#4346 id=4346 data-nosnippet>4346</a>    ///
 <a href=#4347 id=4347 data-nosnippet>4347</a>    /// This is the SSA input to unrolling from the
 <a href=#4348 id=4348 data-nosnippet>4348</a>    /// `test_programs/execution_success/vector_loop` test program.
@@ -4420,15 +4420,15 @@
 <a href=#4420 id=4420 data-nosnippet>4420</a>
 <a href=#4421 id=4421 data-nosnippet>4421</a>    <span class="doccomment">/// Regression test: when a loop accumulates a counter via store/load (like BoundedVec.push
 <a href=#4422 id=4422 data-nosnippet>4422</a>    /// incrementing `len`), a second loop that loads that counter as its bound requires
-<a href=#4423 id=4423 data-nosnippet>4423</a>    /// load-store forwarding (LSF) in simplify_between_unrolls to resolve the bound
+<a href=#4423 id=4423 data-nosnippet>4423</a>    /// load-store forwarding (LSF) in `simplify_between_unrolls` to resolve the bound
 <a href=#4424 id=4424 data-nosnippet>4424</a>    /// after the first loop is unrolled.
 <a href=#4425 id=4425 data-nosnippet>4425</a>    ///
-<a href=#4426 id=4426 data-nosnippet>4426</a>    /// This reproduces the pattern from Aztec's FixtureBuilder where:
+<a href=#4426 id=4426 data-nosnippet>4426</a>    /// This reproduces the pattern from Aztec's `FixtureBuilder` where:
 <a href=#4427 id=4427 data-nosnippet>4427</a>    ///   1. A setup loop stores to a counter (e.g. `append_items` incrementing `BoundedVec.len`)
 <a href=#4428 id=4428 data-nosnippet>4428</a>    ///   2. After the loop, the counter is loaded as the bound of a second loop
 <a href=#4429 id=4429 data-nosnippet>4429</a>    ///      (e.g. `for i in 0..vec.len()` in `get_split_ordered_side_effects`)
 <a href=#4430 id=4430 data-nosnippet>4430</a>    ///
-<a href=#4431 id=4431 data-nosnippet>4431</a>    /// Without LSF in simplify_between_unrolls, the load is never resolved to a
+<a href=#4431 id=4431 data-nosnippet>4431</a>    /// Without LSF in `simplify_between_unrolls`, the load is never resolved to a
 <a href=#4432 id=4432 data-nosnippet>4432</a>    /// constant, leaving the second loop's bound non-constant and unrolling fails.
 <a href=#4433 id=4433 data-nosnippet>4433</a>    </span><span class="attr">#[test]
 <a href=#4434 id=4434 data-nosnippet>4434</a>    </span><span class="kw">fn </span>acir_unroll_with_store_load_loop_bound() {
@@ -4474,7 +4474,7 @@
 <a href=#4474 id=4474 data-nosnippet>4474</a>        );
 <a href=#4475 id=4475 data-nosnippet>4475</a>    }
 <a href=#4476 id=4476 data-nosnippet>4476</a>
-<a href=#4477 id=4477 data-nosnippet>4477</a>    <span class="doccomment">/// Regression test: a BoundedVec's length is stored in an allocation.
+<a href=#4477 id=4477 data-nosnippet>4477</a>    <span class="doccomment">/// Regression test: a `BoundedVec`'s length is stored in an allocation.
 <a href=#4478 id=4478 data-nosnippet>4478</a>    /// Two sequential loops use the same length as their bound.
 <a href=#4479 id=4479 data-nosnippet>4479</a>    /// After Loop 1 unrolls, Loop 2's bound is still a `load` from a different block
 <a href=#4480 id=4480 data-nosnippet>4480</a>    /// because `simplify_function` cannot merge the blocks (a conditional branch in

@@ -8,11 +8,11 @@ source, and which storage positions any chain link may already have
 clobbered. Also serves as the per-block visited frontier for cycle
 detection — see <a href="struct.WalkState.html#method.is_covered_by" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState::is_covered_by"><code>WalkState::is_covered_by</code></a> / <a href="struct.WalkState.html#method.merge" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::WalkState::merge"><code>WalkState::merge</code></a>.</p>
 </div></details><h2 id="fields" class="fields section-header">Fields<a href="#fields" class="anchor">§</a></h2><span id="structfield.use_set" class="structfield section-header"><a href="#structfield.use_set" class="anchor field">§</a><code>use_set: HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</code></span><div class="docblock"><p>Alias-set members live at this point: values that may share the
-array_set’s source storage <em>at the array_set’s program point</em>. A
+<code>array_set</code>’s source storage <em>at the <code>array_set</code>’s program point</em>. A
 non-terminator read of one of these is the hazard the walk is
 looking for.</p>
 </div><span id="structfield.derived" class="structfield section-header"><a href="#structfield.derived" class="anchor field">§</a><code>derived: HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</code></span><div class="docblock"><p>Values that may share the source’s storage through transitive
-in-place chain mutations. Seeded with the array_set’s own result;
+in-place chain mutations. Seeded with the <code>array_set</code>’s own result;
 extended by every later <code>array_set</code> whose <code>array</code> operand is
 already in <code>derived</code>.</p>
 </div><span id="structfield.tainted" class="structfield section-header"><a href="#structfield.tainted" class="anchor field">§</a><code>tainted: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;HashSet&lt;FieldElement&gt;&gt;</code></span><div class="docblock"><p>Storage positions any chain link may already have written. <code>None</code>

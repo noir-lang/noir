@@ -8,7 +8,7 @@
 <li>Each generator has an associated “generator index” described by its location in the vector</li>
 <li>a 64-byte preimage buffer is generated with the following structure:
 <ul>
-<li>bytes 0-31: BLAKE3 hash of domain_separator</li>
+<li>bytes 0-31: BLAKE3 hash of <code>domain_separator</code></li>
 <li>bytes 32-63: generator index in big-endian form</li>
 </ul>
 </li>

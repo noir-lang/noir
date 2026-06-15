@@ -58,7 +58,7 @@
 <a href=#58 id=58 data-nosnippet>58</a>    </span>}
 <a href=#59 id=59 data-nosnippet>59</a>}
 <a href=#60 id=60 data-nosnippet>60</a>
-<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Post-check condition for [Function::mem2reg].
+<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Post-check condition for [`Function::mem2reg`].
 <a href=#62 id=62 data-nosnippet>62</a>///
 <a href=#63 id=63 data-nosnippet>63</a>/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
 <a href=#64 id=64 data-nosnippet>64</a>/// passing a different number of arguments (or differently typed arguments) than its
@@ -249,7 +249,7 @@
 <a href=#249 id=249 data-nosnippet>249</a>
 <a href=#250 id=250 data-nosnippet>250</a><span class="doccomment">/// Find the starting &amp; ending states of each variable in each block.
 <a href=#251 id=251 data-nosnippet>251</a>///
-<a href=#252 id=252 data-nosnippet>252</a>/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+<a href=#252 id=252 data-nosnippet>252</a>/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
 <a href=#253 id=253 data-nosnippet>253</a>/// For all other blocks, the entry value is inherited from the predecessor's exit state.
 <a href=#254 id=254 data-nosnippet>254</a></span><span class="kw">fn </span>add_block_params_and_find_exit_states(
 <a href=#255 id=255 data-nosnippet>255</a>    blocks: <span class="kw-2">&amp;</span>[BasicBlockId],
@@ -391,7 +391,7 @@
 <a href=#391 id=391 data-nosnippet>391</a>///
 <a href=#392 id=392 data-nosnippet>392</a>/// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
 <a href=#393 id=393 data-nosnippet>393</a>/// same successor, in which case `f` is called once per matching edge so the caller
-<a href=#394 id=394 data-nosnippet>394</a>/// can wire each one. Panics if the given block does not terminate in a Jmp or JmpIf.
+<a href=#394 id=394 data-nosnippet>394</a>/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
 <a href=#395 id=395 data-nosnippet>395</a></span><span class="kw">fn </span>for_each_terminator_edge_mut(
 <a href=#396 id=396 data-nosnippet>396</a>    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
 <a href=#397 id=397 data-nosnippet>397</a>    block: BasicBlockId,

@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>    ///
 <a href=#70 id=70 data-nosnippet>70</a>    /// # Returns
 <a href=#71 id=71 data-nosnippet>71</a>    ///
-<a href=#72 id=72 data-nosnippet>72</a>    /// A vector of [AcirValue]s containing:
+<a href=#72 id=72 data-nosnippet>72</a>    /// A vector of [`AcirValue`]s containing:
 <a href=#73 id=73 data-nosnippet>73</a>    /// 1. Updated vector length (incremented by one)
 <a href=#74 id=74 data-nosnippet>74</a>    /// 2. New vector with elements appended
 <a href=#75 id=75 data-nosnippet>75</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>convert_vector_push_back(
@@ -203,7 +203,7 @@
 <a href=#203 id=203 data-nosnippet>203</a>    ///
 <a href=#204 id=204 data-nosnippet>204</a>    /// # Returns
 <a href=#205 id=205 data-nosnippet>205</a>    ///
-<a href=#206 id=206 data-nosnippet>206</a>    /// A vector of [AcirValue]s containing:
+<a href=#206 id=206 data-nosnippet>206</a>    /// A vector of [`AcirValue`]s containing:
 <a href=#207 id=207 data-nosnippet>207</a>    /// 1. Updated vector length (incremented by one)
 <a href=#208 id=208 data-nosnippet>208</a>    /// 2. New vector with elements prepended
 <a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>convert_vector_push_front(
@@ -247,7 +247,7 @@
 <a href=#247 id=247 data-nosnippet>247</a>    ///
 <a href=#248 id=248 data-nosnippet>248</a>    /// # Returns
 <a href=#249 id=249 data-nosnippet>249</a>    ///
-<a href=#250 id=250 data-nosnippet>250</a>    /// A vector of [AcirValue]s containing:
+<a href=#250 id=250 data-nosnippet>250</a>    /// A vector of [`AcirValue`]s containing:
 <a href=#251 id=251 data-nosnippet>251</a>    /// 1. Updated vector length (decremented by one)
 <a href=#252 id=252 data-nosnippet>252</a>    /// 2. Updated vector contents with the back elements removed
 <a href=#253 id=253 data-nosnippet>253</a>    /// 3. Popped elements in order
@@ -396,11 +396,11 @@
 <a href=#396 id=396 data-nosnippet>396</a>    /// * `result_ids[element_size]` - Updated vector length
 <a href=#397 id=397 data-nosnippet>397</a>    /// * `result_ids[element_size + 1]` - Updated vector contents
 <a href=#398 id=398 data-nosnippet>398</a>    ///
-<a href=#399 id=399 data-nosnippet>399</a>    /// `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
+<a href=#399 id=399 data-nosnippet>399</a>    /// `element_size` refers to the result of [`crate::ssa::ir::types::Type::element_size`].
 <a href=#400 id=400 data-nosnippet>400</a>    ///
 <a href=#401 id=401 data-nosnippet>401</a>    /// # Returns
 <a href=#402 id=402 data-nosnippet>402</a>    ///
-<a href=#403 id=403 data-nosnippet>403</a>    /// A vector of [AcirValue]s containing:
+<a href=#403 id=403 data-nosnippet>403</a>    /// A vector of [`AcirValue`]s containing:
 <a href=#404 id=404 data-nosnippet>404</a>    /// 1. Popped elements in order
 <a href=#405 id=405 data-nosnippet>405</a>    /// 2. Updated vector length (decremented by one)
 <a href=#406 id=406 data-nosnippet>406</a>    /// 3. Updated vector contents with the front elements removed
@@ -413,7 +413,7 @@
 <a href=#413 id=413 data-nosnippet>413</a>    /// 2. Read out the first `element_size` values at index `0`.
 <a href=#414 id=414 data-nosnippet>414</a>    /// 3. Shift the update vector's memory forward by `element_size` slots to represent the updated vector.
 <a href=#415 id=415 data-nosnippet>415</a>    ///
-<a href=#416 id=416 data-nosnippet>416</a>    /// Unlike in [Self::convert_vector_pop_back], the returned vector contents differ from the input:
+<a href=#416 id=416 data-nosnippet>416</a>    /// Unlike in [`Self::convert_vector_pop_back`], the returned vector contents differ from the input:
 <a href=#417 id=417 data-nosnippet>417</a>    /// the underlying array is logically truncated at the *front* rather than
 <a href=#418 id=418 data-nosnippet>418</a>    /// the back. The `result_ids` ensure that this logical shift is applied
 <a href=#419 id=419 data-nosnippet>419</a>    /// consistently with the element's type.
@@ -499,7 +499,7 @@
 <a href=#499 id=499 data-nosnippet>499</a>    ///
 <a href=#500 id=500 data-nosnippet>500</a>    /// # Returns
 <a href=#501 id=501 data-nosnippet>501</a>    ///
-<a href=#502 id=502 data-nosnippet>502</a>    /// A vector of [AcirValue]s containing:
+<a href=#502 id=502 data-nosnippet>502</a>    /// A vector of [`AcirValue`]s containing:
 <a href=#503 id=503 data-nosnippet>503</a>    /// 1. Updated vector length (incremented by one)
 <a href=#504 id=504 data-nosnippet>504</a>    /// 2. Updated vector contents with the new elements inserted at the given index
 <a href=#505 id=505 data-nosnippet>505</a>    ///
@@ -510,7 +510,7 @@
 <a href=#510 id=510 data-nosnippet>510</a>    ///
 <a href=#511 id=511 data-nosnippet>511</a>    /// 1. Compute the flattened insert index:
 <a href=#512 id=512 data-nosnippet>512</a>    ///    - Multiply the logical insert index by the element size.
-<a href=#513 id=513 data-nosnippet>513</a>    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
+<a href=#513 id=513 data-nosnippet>513</a>    ///    - Adjust for non-homogenous structures via [`Self::get_flattened_index`].
 <a href=#514 id=514 data-nosnippet>514</a>    /// 2. Flatten the new elements (`flattened_elements`)
 <a href=#515 id=515 data-nosnippet>515</a>    /// 3. For each position in the result vector:
 <a href=#516 id=516 data-nosnippet>516</a>    ///    - If below the insert index, copy from the original vector.
@@ -722,7 +722,7 @@
 <a href=#722 id=722 data-nosnippet>722</a>    ///
 <a href=#723 id=723 data-nosnippet>723</a>    /// # Returns
 <a href=#724 id=724 data-nosnippet>724</a>    ///
-<a href=#725 id=725 data-nosnippet>725</a>    /// A vector of [AcirValue]s containing:
+<a href=#725 id=725 data-nosnippet>725</a>    /// A vector of [`AcirValue`]s containing:
 <a href=#726 id=726 data-nosnippet>726</a>    /// 1. Updated vector length (decremented by one)
 <a href=#727 id=727 data-nosnippet>727</a>    /// 2. Updated vector contents with the target elements removed
 <a href=#728 id=728 data-nosnippet>728</a>    /// 3. The removed elements, in order
@@ -734,10 +734,10 @@
 <a href=#734 id=734 data-nosnippet>734</a>    ///
 <a href=#735 id=735 data-nosnippet>735</a>    /// 1. Compute the flattened remove index:
 <a href=#736 id=736 data-nosnippet>736</a>    ///    - Multiply the logical remove index by the element size.
-<a href=#737 id=737 data-nosnippet>737</a>    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
+<a href=#737 id=737 data-nosnippet>737</a>    ///    - Adjust for non-homogenous structures via [`Self::get_flattened_index`].
 <a href=#738 id=738 data-nosnippet>738</a>    /// 2. Read out the element(s) to be removed:
 <a href=#739 id=739 data-nosnippet>739</a>    ///    - Iterate over `result_ids[2..(2 + element_size)]`
-<a href=#740 id=740 data-nosnippet>740</a>    ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
+<a href=#740 id=740 data-nosnippet>740</a>    ///    - `element_size` refers to the result of [`crate::ssa::ir::types::Type::element_size`].
 <a href=#741 id=741 data-nosnippet>741</a>    ///    - Use these IDs to fetch the appropriate type information for the values to remove and drive `array_get_value`.
 <a href=#742 id=742 data-nosnippet>742</a>    ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).
 <a href=#743 id=743 data-nosnippet>743</a>    /// 3. For each index in the result vector:

@@ -166,7 +166,7 @@
 <a href=#166 id=166 data-nosnippet>166</a>    Whitespace(String),
 <a href=#167 id=167 data-nosnippet>167</a>
 <a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// This is an implementation detail on how macros are implemented by quoting token streams.
-<a href=#169 id=169 data-nosnippet>169</a>    /// This token marks where an unquote operation is performed. The ExprId argument is the
+<a href=#169 id=169 data-nosnippet>169</a>    /// This token marks where an unquote operation is performed. The `ExprId` argument is the
 <a href=#170 id=170 data-nosnippet>170</a>    /// resolved variable which is being unquoted at this position in the token stream.
 <a href=#171 id=171 data-nosnippet>171</a>    </span>UnquoteMarker(ExprId),
 <a href=#172 id=172 data-nosnippet>172</a>
@@ -597,14 +597,14 @@
 <a href=#597 id=597 data-nosnippet>597</a>    }
 <a href=#598 id=598 data-nosnippet>598</a>}
 <a href=#599 id=599 data-nosnippet>599</a>
-<a href=#600 id=600 data-nosnippet>600</a><span class="doccomment">/// TestScope is used to specify additional annotations for test functions
+<a href=#600 id=600 data-nosnippet>600</a><span class="doccomment">/// `TestScope` is used to specify additional annotations for test functions
 <a href=#601 id=601 data-nosnippet>601</a></span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 <a href=#602 id=602 data-nosnippet>602</a></span><span class="kw">pub enum </span>TestScope {
-<a href=#603 id=603 data-nosnippet>603</a>    <span class="doccomment">/// If a test has a scope of ShouldFailWith, then it can only pass
+<a href=#603 id=603 data-nosnippet>603</a>    <span class="doccomment">/// If a test has a scope of `ShouldFailWith`, then it can only pass
 <a href=#604 id=604 data-nosnippet>604</a>    /// if it fails with the specified reason. If the reason is None, then
 <a href=#605 id=605 data-nosnippet>605</a>    /// the test must unconditionally fail
 <a href=#606 id=606 data-nosnippet>606</a>    </span>ShouldFailWith { reason: <span class="prelude-ty">Option</span>&lt;String&gt; },
-<a href=#607 id=607 data-nosnippet>607</a>    <span class="doccomment">/// If a test has a scope of OnlyFailWith, then it can only fail
+<a href=#607 id=607 data-nosnippet>607</a>    <span class="doccomment">/// If a test has a scope of `OnlyFailWith`, then it can only fail
 <a href=#608 id=608 data-nosnippet>608</a>    /// if it fails with the specified reason.
 <a href=#609 id=609 data-nosnippet>609</a>    </span>OnlyFailWith { reason: String },
 <a href=#610 id=610 data-nosnippet>610</a>    <span class="doccomment">/// No scope is applied and so the test must pass
@@ -626,16 +626,16 @@
 <a href=#626 id=626 data-nosnippet>626</a>    }
 <a href=#627 id=627 data-nosnippet>627</a>}
 <a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a><span class="doccomment">/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
+<a href=#629 id=629 data-nosnippet>629</a><span class="doccomment">/// `FuzzingScope` is used to specify additional annotations for fuzzing harnesses
 <a href=#630 id=630 data-nosnippet>630</a></span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 <a href=#631 id=631 data-nosnippet>631</a></span><span class="kw">pub enum </span>FuzzingScope {
-<a href=#632 id=632 data-nosnippet>632</a>    <span class="doccomment">/// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
+<a href=#632 id=632 data-nosnippet>632</a>    <span class="doccomment">/// If the fuzzing harness has a scope of `ShouldFailWith`, then it should only pass
 <a href=#633 id=633 data-nosnippet>633</a>    /// if it fails with the specified reason. If the reason is None, then
 <a href=#634 id=634 data-nosnippet>634</a>    /// the harness must unconditionally fail
 <a href=#635 id=635 data-nosnippet>635</a>    </span>ShouldFailWith {
 <a href=#636 id=636 data-nosnippet>636</a>        reason: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#637 id=637 data-nosnippet>637</a>    },
-<a href=#638 id=638 data-nosnippet>638</a>    <span class="doccomment">/// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
+<a href=#638 id=638 data-nosnippet>638</a>    <span class="doccomment">/// If a fuzzing harness has a scope of `OnlyFailWith`, then it will only detect an assert
 <a href=#639 id=639 data-nosnippet>639</a>    /// if it fails with the specified reason.
 <a href=#640 id=640 data-nosnippet>640</a>    </span>OnlyFailWith {
 <a href=#641 id=641 data-nosnippet>641</a>        reason: String,
@@ -798,7 +798,7 @@
 <a href=#798 id=798 data-nosnippet>798</a>}
 <a href=#799 id=799 data-nosnippet>799</a>
 <a href=#800 id=800 data-nosnippet>800</a><span class="doccomment">/// Primary Attributes are those which a function can only have one of.
-<a href=#801 id=801 data-nosnippet>801</a>/// They change the FunctionKind and thus have direct impact on the IR output
+<a href=#801 id=801 data-nosnippet>801</a>/// They change the `FunctionKind` and thus have direct impact on the IR output
 <a href=#802 id=802 data-nosnippet>802</a></span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 <a href=#803 id=803 data-nosnippet>803</a></span><span class="kw">pub struct </span>FunctionAttribute {
 <a href=#804 id=804 data-nosnippet>804</a>    <span class="kw">pub </span>kind: FunctionAttributeKind,
@@ -806,7 +806,7 @@
 <a href=#806 id=806 data-nosnippet>806</a>}
 <a href=#807 id=807 data-nosnippet>807</a>
 <a href=#808 id=808 data-nosnippet>808</a><span class="doccomment">/// Primary Attributes are those which a function can only have one of.
-<a href=#809 id=809 data-nosnippet>809</a>/// They change the FunctionKind and thus have direct impact on the IR output
+<a href=#809 id=809 data-nosnippet>809</a>/// They change the `FunctionKind` and thus have direct impact on the IR output
 <a href=#810 id=810 data-nosnippet>810</a></span><span class="attr">#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 <a href=#811 id=811 data-nosnippet>811</a></span><span class="kw">pub enum </span>FunctionAttributeKind {
 <a href=#812 id=812 data-nosnippet>812</a>    Foreign(String),

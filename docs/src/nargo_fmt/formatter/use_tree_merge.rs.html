@@ -120,10 +120,10 @@
 <a href=#120 id=120 data-nosnippet>120</a></span><span class="attr">#[derive(Debug, PartialEq, Eq)]
 <a href=#121 id=121 data-nosnippet>121</a></span><span class="kw">enum </span>Segment {
 <a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// Represents the end of a path.
-<a href=#123 id=123 data-nosnippet>123</a>    /// This is needed because we have want to merge "foo" and "foo::bar",
-<a href=#124 id=124 data-nosnippet>124</a>    /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-<a href=#125 id=125 data-nosnippet>125</a>    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", losing "foo",
-<a href=#126 id=126 data-nosnippet>126</a>    /// when we actually want "foo::{self, bar}".
+<a href=#123 id=123 data-nosnippet>123</a>    /// This is needed because we have want to merge "foo" and "`foo::bar`",
+<a href=#124 id=124 data-nosnippet>124</a>    /// we need to know that "foo" is the end of a path, and "`foo::bar`" is another one.
+<a href=#125 id=125 data-nosnippet>125</a>    /// If we don't, merging "foo" and "`foo::bar`" will result in just "`foo::bar`", losing "foo",
+<a href=#126 id=126 data-nosnippet>126</a>    /// when we actually want "`foo::{self`, bar}".
 <a href=#127 id=127 data-nosnippet>127</a>    </span>SelfReference,
 <a href=#128 id=128 data-nosnippet>128</a>    Crate,
 <a href=#129 id=129 data-nosnippet>129</a>    Super,
@@ -190,10 +190,10 @@
 <a href=#190 id=190 data-nosnippet>190</a><span class="doccomment">/// An import tree to represent merged imports.
 <a href=#191 id=191 data-nosnippet>191</a>/// For example for the given imports:
 <a href=#192 id=192 data-nosnippet>192</a>///
-<a href=#193 id=193 data-nosnippet>193</a>/// use foo::bar::{baz, qux};
-<a href=#194 id=194 data-nosnippet>194</a>/// use foo::another;
+<a href=#193 id=193 data-nosnippet>193</a>/// use `foo::bar::{baz`, qux};
+<a href=#194 id=194 data-nosnippet>194</a>/// use `foo::another`;
 <a href=#195 id=195 data-nosnippet>195</a>///
-<a href=#196 id=196 data-nosnippet>196</a>/// an ImportTree that represents the merged imports would be:
+<a href=#196 id=196 data-nosnippet>196</a>/// an `ImportTree` that represents the merged imports would be:
 <a href=#197 id=197 data-nosnippet>197</a>///
 <a href=#198 id=198 data-nosnippet>198</a>/// {
 <a href=#199 id=199 data-nosnippet>199</a>///     "foo" =&gt; {
@@ -236,7 +236,7 @@
 <a href=#236 id=236 data-nosnippet>236</a>    /// will be simplified to:
 <a href=#237 id=237 data-nosnippet>237</a>    ///
 <a href=#238 id=238 data-nosnippet>238</a>    /// {
-<a href=#239 id=239 data-nosnippet>239</a>    ///     "foo::bar" =&gt; {"baz", "qux"}
+<a href=#239 id=239 data-nosnippet>239</a>    ///     "`foo::bar`" =&gt; {"baz", "qux"}
 <a href=#240 id=240 data-nosnippet>240</a>    /// }
 <a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">fn </span>simplify(<span class="self">self</span>) -&gt; ImportTree {
 <a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_tree = ImportTree::new();
@@ -254,7 +254,7 @@
 <a href=#254 id=254 data-nosnippet>254</a>    }
 <a href=#255 id=255 data-nosnippet>255</a>}
 <a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a><span class="doccomment">/// Combines all use trees to form a single ImportTree.
+<a href=#257 id=257 data-nosnippet>257</a><span class="doccomment">/// Combines all use trees to form a single `ImportTree`.
 <a href=#258 id=258 data-nosnippet>258</a></span><span class="kw">fn </span>merge_imports(imports: Vec&lt;UseTree&gt;) -&gt; ImportTree {
 <a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">let </span><span class="kw-2">mut </span>tree = ImportTree::new();
 <a href=#260 id=260 data-nosnippet>260</a>    merge_imports_in_tree(imports, <span class="kw-2">&amp;mut </span>tree);

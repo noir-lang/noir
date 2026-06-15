@@ -11,7 +11,7 @@
 <a href=#11 id=11 data-nosnippet>11</a>//!     This also means the only acir functions in the program should be `main` (if main is
 <a href=#12 id=12 data-nosnippet>12</a>//!     constrained), or any constrained `InlineType::Fold` functions.
 <a href=#13 id=13 data-nosnippet>13</a>//!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
-<a href=#14 id=14 data-nosnippet>14</a>//!   - Precondition: "Equal" constraints have not been turned into "NotEqual".
+<a href=#14 id=14 data-nosnippet>14</a>//!   - Precondition: "Equal" constraints have not been turned into "`NotEqual`".
 <a href=#15 id=15 data-nosnippet>15</a>//!   - Postcondition: Each constrained function should now consist of only one block where the
 <a href=#16 id=16 data-nosnippet>16</a>//!     terminator instruction is always a return.
 <a href=#17 id=17 data-nosnippet>17</a>//!
@@ -209,7 +209,7 @@
 <a href=#209 id=209 data-nosnippet>209</a>    </span>}
 <a href=#210 id=210 data-nosnippet>210</a>}
 <a href=#211 id=211 data-nosnippet>211</a>
-<a href=#212 id=212 data-nosnippet>212</a><span class="doccomment">/// Pre-check condition for [Ssa::flatten_cfg].
+<a href=#212 id=212 data-nosnippet>212</a><span class="doccomment">/// Pre-check condition for [`Ssa::flatten_cfg`].
 <a href=#213 id=213 data-nosnippet>213</a>///
 <a href=#214 id=214 data-nosnippet>214</a>/// Panics if the ACIR function being flattened has at least 1 loop, contains a
 <a href=#215 id=215 data-nosnippet>215</a>/// `ConstrainNotEqual` instruction, or calls an ACIR function in `must_be_inlined`
@@ -233,7 +233,7 @@
 <a href=#233 id=233 data-nosnippet>233</a>    });
 <a href=#234 id=234 data-nosnippet>234</a>}
 <a href=#235 id=235 data-nosnippet>235</a>
-<a href=#236 id=236 data-nosnippet>236</a><span class="doccomment">/// Post-check condition for [Ssa::flatten_cfg].
+<a href=#236 id=236 data-nosnippet>236</a><span class="doccomment">/// Post-check condition for [`Ssa::flatten_cfg`].
 <a href=#237 id=237 data-nosnippet>237</a>///
 <a href=#238 id=238 data-nosnippet>238</a>/// Panics if the ACIR function contains more than one block. The caller already
 <a href=#239 id=239 data-nosnippet>239</a>/// skipped Brillig functions.
@@ -286,12 +286,12 @@
 <a href=#286 id=286 data-nosnippet>286</a>    /// helps simplifications.
 <a href=#287 id=287 data-nosnippet>287</a>    </span>not_instructions: HashMap&lt;ValueId, ValueId&gt;,
 <a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="doccomment">/// Maps merge result ValueId to the provenance of the IfElse that produced it.
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="doccomment">/// Maps merge result `ValueId` to the provenance of the `IfElse` that produced it.
 <a href=#290 id=290 data-nosnippet>290</a>    /// Used to detect and collapse redundant nested merges in `inline_branch_end`.
 <a href=#291 id=291 data-nosnippet>291</a>    /// See [`Context::try_collapse_merge`] for the four patterns this enables.
 <a href=#292 id=292 data-nosnippet>292</a>    </span>merge_provenance: HashMap&lt;ValueId, MergeProvenance&gt;,
 <a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>    <span class="doccomment">/// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="doccomment">/// Flag to tell the context to not issue '`enable_side_effect`' instructions during flattening.
 <a href=#295 id=295 data-nosnippet>295</a>    ///
 <a href=#296 id=296 data-nosnippet>296</a>    /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
 <a href=#297 id=297 data-nosnippet>297</a>    /// the overhead of handling side effects.
@@ -358,8 +358,8 @@
 <a href=#358 id=358 data-nosnippet>358</a>    </span>predicated_values: HashMap&lt;ValueId, ValueId&gt;,
 <a href=#359 id=359 data-nosnippet>359</a>    <span class="doccomment">/// The allocations accumulated before processing the branch.
 <a href=#360 id=360 data-nosnippet>360</a>    </span>local_allocations: HashSet&lt;ValueId&gt;,
-<a href=#361 id=361 data-nosnippet>361</a>    <span class="doccomment">/// When JmpIf's else_destination is the exit/merge block (no separate else block),
-<a href=#362 id=362 data-nosnippet>362</a>    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="doccomment">/// When `JmpIf`'s `else_destination` is the exit/merge block (no separate else block),
+<a href=#362 id=362 data-nosnippet>362</a>    /// stores the resolved `else_arguments` so `inline_branch_end` can use them.
 <a href=#363 id=363 data-nosnippet>363</a>    </span>jmpif_else_arguments: <span class="prelude-ty">Option</span>&lt;Vec&lt;ValueId&gt;&gt;,
 <a href=#364 id=364 data-nosnippet>364</a>    <span class="doccomment">/// The processing of the conditional branches must start with `Then` before
 <a href=#365 id=365 data-nosnippet>365</a>    /// `Else`. Tracking on which phase we are allows us to assert the processing
@@ -417,20 +417,20 @@
 <a href=#417 id=417 data-nosnippet>417</a>    /// until all blocks have been flattened.
 <a href=#418 id=418 data-nosnippet>418</a>    ///
 <a href=#419 id=419 data-nosnippet>419</a>    /// We follow the terminator of each block to determine which blocks to process next:
-<a href=#420 id=420 data-nosnippet>420</a>    /// * If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
-<a href=#421 id=421 data-nosnippet>421</a>    ///   add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
+<a href=#420 id=420 data-nosnippet>420</a>    /// * If the terminator is a '`JumpIf`', we assume we are entering a conditional statement and
+<a href=#421 id=421 data-nosnippet>421</a>    ///   add the start blocks of the '`then_branch`', '`else_branch`' and the 'exit' block to the queue.
 <a href=#422 id=422 data-nosnippet>422</a>    /// * Other blocks will have only one successor, so we will process them iteratively,
 <a href=#423 id=423 data-nosnippet>423</a>    ///   until we reach one block already in the queue, added when entering a conditional statement,
-<a href=#424 id=424 data-nosnippet>424</a>    ///   i.e. the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue,
+<a href=#424 id=424 data-nosnippet>424</a>    ///   i.e. the '`else_branch`' or the 'exit'. In that case we switch to the next block in the queue,
 <a href=#425 id=425 data-nosnippet>425</a>    ///   instead of the successor.
 <a href=#426 id=426 data-nosnippet>426</a>    ///
 <a href=#427 id=427 data-nosnippet>427</a>    /// This process ensures that the blocks are always processed in this order:
-<a href=#428 id=428 data-nosnippet>428</a>    /// * if_entry -&gt; then_branch -&gt; else_branch -&gt; exit
+<a href=#428 id=428 data-nosnippet>428</a>    /// * `if_entry` -&gt; `then_branch` -&gt; `else_branch` -&gt; exit
 <a href=#429 id=429 data-nosnippet>429</a>    ///
-<a href=#430 id=430 data-nosnippet>430</a>    /// In case of nested if statements, for instance in the 'then_branch', it will be:
-<a href=#431 id=431 data-nosnippet>431</a>    /// * if_entry -&gt; then_branch -&gt; if_entry_2 -&gt; then_branch_2 -&gt; exit_2 -&gt; else_branch -&gt; exit
+<a href=#430 id=430 data-nosnippet>430</a>    /// In case of nested if statements, for instance in the '`then_branch`', it will be:
+<a href=#431 id=431 data-nosnippet>431</a>    /// * `if_entry` -&gt; `then_branch` -&gt; `if_entry_2` -&gt; `then_branch_2` -&gt; `exit_2` -&gt; `else_branch` -&gt; exit
 <a href=#432 id=432 data-nosnippet>432</a>    ///
-<a href=#433 id=433 data-nosnippet>433</a>    /// Information about the nested if statements is stored in the 'condition_stack' which
+<a href=#433 id=433 data-nosnippet>433</a>    /// Information about the nested if statements is stored in the '`condition_stack`' which
 <a href=#434 id=434 data-nosnippet>434</a>    /// is popped/pushed when entering/leaving a conditional statement.
 <a href=#435 id=435 data-nosnippet>435</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, no_predicates: <span class="kw-2">&amp;</span>HashSet&lt;FunctionId&gt;) {
 <a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span><span class="kw-2">mut </span>work_list = WorkList::new();
@@ -462,7 +462,7 @@
 <a href=#462 id=462 data-nosnippet>462</a>    /// The conditions are in a stack, they are added as conditional branches are encountered
 <a href=#463 id=463 data-nosnippet>463</a>    /// so the last one is the current condition.
 <a href=#464 id=464 data-nosnippet>464</a>    /// When processing a conditional branch, we first follow the 'then' branch and only after we
-<a href=#465 id=465 data-nosnippet>465</a>    /// process the 'else' branch. At that point, the `ConditionalContext` has the 'else_branch'
+<a href=#465 id=465 data-nosnippet>465</a>    /// process the 'else' branch. At that point, the `ConditionalContext` has the '`else_branch`'
 <a href=#466 id=466 data-nosnippet>466</a>    </span><span class="kw">fn </span>get_last_condition(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
 <a href=#467 id=467 data-nosnippet>467</a>        <span class="self">self</span>.condition_stack
 <a href=#468 id=468 data-nosnippet>468</a>            .last()
@@ -550,14 +550,14 @@
 <a href=#550 id=550 data-nosnippet>550</a>    /// For a normal block, it would be its successor.
 <a href=#551 id=551 data-nosnippet>551</a>    ///
 <a href=#552 id=552 data-nosnippet>552</a>    /// For blocks related to a conditional statement, we ensure to process
-<a href=#553 id=553 data-nosnippet>553</a>    /// the 'then_branch', then the 'else_branch' (if it exists), and finally the exit block.
+<a href=#553 id=553 data-nosnippet>553</a>    /// the '`then_branch`', then the '`else_branch`' (if it exists), and finally the exit block.
 <a href=#554 id=554 data-nosnippet>554</a>    ///
 <a href=#555 id=555 data-nosnippet>555</a>    /// The update of the context is done by the functions `if_start`, `then_stop` and `else_stop`
-<a href=#556 id=556 data-nosnippet>556</a>    /// which perform the business logic when entering a conditional statement, finishing the 'then_branch'
-<a href=#557 id=557 data-nosnippet>557</a>    /// and the 'else_branch', respectively.
+<a href=#556 id=556 data-nosnippet>556</a>    /// which perform the business logic when entering a conditional statement, finishing the '`then_branch`'
+<a href=#557 id=557 data-nosnippet>557</a>    /// and the '`else_branch`', respectively.
 <a href=#558 id=558 data-nosnippet>558</a>    ///
 <a href=#559 id=559 data-nosnippet>559</a>    /// We know if a block is related to the conditional statement if is referenced by the `work_list`.
-<a href=#560 id=560 data-nosnippet>560</a>    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the `work_list` when
+<a href=#560 id=560 data-nosnippet>560</a>    /// Indeed, the start blocks of the '`then_branch`' and '`else_branch`' are added to the `work_list` when
 <a href=#561 id=561 data-nosnippet>561</a>    /// starting to process a conditional statement.
 <a href=#562 id=562 data-nosnippet>562</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_terminator(
 <a href=#563 id=563 data-nosnippet>563</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -631,8 +631,8 @@
 <a href=#631 id=631 data-nosnippet>631</a>
 <a href=#632 id=632 data-nosnippet>632</a>    <span class="doccomment">/// Process a conditional statement by creating a `ConditionalContext`
 <a href=#633 id=633 data-nosnippet>633</a>    /// with information about the branch, and storing it in the dedicated stack.
-<a href=#634 id=634 data-nosnippet>634</a>    /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
-<a href=#635 id=635 data-nosnippet>635</a>    /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
+<a href=#634 id=634 data-nosnippet>634</a>    /// Local allocations are moved to the '`then_branch`' of the `ConditionalContext`.
+<a href=#635 id=635 data-nosnippet>635</a>    /// Returns the blocks corresponding to the '`then_branch`', '`else_branch`',
 <a href=#636 id=636 data-nosnippet>636</a>    /// and exit block of the conditional statement, so that they will be processed in this order.
 <a href=#637 id=637 data-nosnippet>637</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>if_start(
 <a href=#638 id=638 data-nosnippet>638</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -691,11 +691,11 @@
 <a href=#691 id=691 data-nosnippet>691</a>        <span class="macro">vec!</span>[<span class="self">self</span>.branch_ends[if_entry], <span class="kw-2">*</span>else_destination, <span class="kw-2">*</span>then_destination]
 <a href=#692 id=692 data-nosnippet>692</a>    }
 <a href=#693 id=693 data-nosnippet>693</a>
-<a href=#694 id=694 data-nosnippet>694</a>    <span class="doccomment">/// Switch context to the 'else_branch':
-<a href=#695 id=695 data-nosnippet>695</a>    /// - Negates the condition for the 'else_branch' and set it in the `ConditionalContext`
-<a href=#696 id=696 data-nosnippet>696</a>    /// - Move the local allocations to the 'else_branch'
+<a href=#694 id=694 data-nosnippet>694</a>    <span class="doccomment">/// Switch context to the '`else_branch`':
+<a href=#695 id=695 data-nosnippet>695</a>    /// - Negates the condition for the '`else_branch`' and set it in the `ConditionalContext`
+<a href=#696 id=696 data-nosnippet>696</a>    /// - Move the local allocations to the '`else_branch`'
 <a href=#697 id=697 data-nosnippet>697</a>    /// - Reset the predicated values to their old mapping in the inserter
-<a href=#698 id=698 data-nosnippet>698</a>    /// - Issues the 'enable_side_effect' instruction
+<a href=#698 id=698 data-nosnippet>698</a>    /// - Issues the '`enable_side_effect`' instruction
 <a href=#699 id=699 data-nosnippet>699</a>    </span><span class="kw">fn </span>then_stop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: <span class="kw-2">&amp;</span>BasicBlockId) {
 <a href=#700 id=700 data-nosnippet>700</a>        <span class="macro">assert_eq!</span>(<span class="self">self</span>.cfg.successors(<span class="kw-2">*</span>block).len(), <span class="number">1</span>);
 <a href=#701 id=701 data-nosnippet>701</a>
@@ -741,11 +741,11 @@
 <a href=#741 id=741 data-nosnippet>741</a>    /// When nested `jmpif` blocks thread the same value through their arguments,
 <a href=#742 id=742 data-nosnippet>742</a>    /// the outer merge is redundant. This detects four patterns:
 <a href=#743 id=743 data-nosnippet>743</a>    ///
-<a href=#744 id=744 data-nosnippet>744</a>    /// **Group 1 — shared else_value (y):**
+<a href=#744 id=744 data-nosnippet>744</a>    /// **Group 1 — shared `else_value` (y):**
 <a href=#745 id=745 data-nosnippet>745</a>    /// - `IfElse(c1, IfElse(c2, x, _, y), _, y)` → `IfElse(c2, x, NOT(c2), y)`
 <a href=#746 id=746 data-nosnippet>746</a>    /// - `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`
 <a href=#747 id=747 data-nosnippet>747</a>    ///
-<a href=#748 id=748 data-nosnippet>748</a>    /// **Group 2 — shared then_value (x):**
+<a href=#748 id=748 data-nosnippet>748</a>    /// **Group 2 — shared `then_value` (x):**
 <a href=#749 id=749 data-nosnippet>749</a>    /// - `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`
 <a href=#750 id=750 data-nosnippet>750</a>    /// - `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`
 <a href=#751 id=751 data-nosnippet>751</a>    ///
@@ -796,7 +796,7 @@
 <a href=#796 id=796 data-nosnippet>796</a>    <span class="doccomment">/// Switch context the 'exit' block of a conditional statement:
 <a href=#797 id=797 data-nosnippet>797</a>    /// - Retrieves the local allocations from the Conditional Context
 <a href=#798 id=798 data-nosnippet>798</a>    /// - Reset the predicated values to their old mapping in the inserter
-<a href=#799 id=799 data-nosnippet>799</a>    /// - Issues the 'enable_side_effect' instruction
+<a href=#799 id=799 data-nosnippet>799</a>    /// - Issues the '`enable_side_effect`' instruction
 <a href=#800 id=800 data-nosnippet>800</a>    /// - Joins the arguments from both branches
 <a href=#801 id=801 data-nosnippet>801</a>    </span><span class="kw">fn </span>else_stop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: <span class="kw-2">&amp;</span>BasicBlockId) {
 <a href=#802 id=802 data-nosnippet>802</a>        <span class="macro">assert_eq!</span>(<span class="self">self</span>.cfg.successors(<span class="kw-2">*</span>block).len(), <span class="number">1</span>);
@@ -847,8 +847,8 @@
 <a href=#847 id=847 data-nosnippet>847</a>    /// all of the join point's predecessors, and it must handle any differing side effects from
 <a href=#848 id=848 data-nosnippet>848</a>    /// each branch.
 <a href=#849 id=849 data-nosnippet>849</a>    ///
-<a href=#850 id=850 data-nosnippet>850</a>    /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
-<a href=#851 id=851 data-nosnippet>851</a>    /// the argument from the 'then_branch' or the 'else_branch' depending the the condition.
+<a href=#850 id=850 data-nosnippet>850</a>    /// The merge of arguments is done by inserting an '`IfElse`' instructions which returns
+<a href=#851 id=851 data-nosnippet>851</a>    /// the argument from the '`then_branch`' or the '`else_branch`' depending the the condition.
 <a href=#852 id=852 data-nosnippet>852</a>    ///
 <a href=#853 id=853 data-nosnippet>853</a>    /// The arguments are prepared for the destination to consume in the next immediate inlining.
 <a href=#854 id=854 data-nosnippet>854</a>    </span><span class="kw">fn </span>inline_branch_end(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: BasicBlockId, cond_context: ConditionalContext) {
@@ -936,7 +936,7 @@
 <a href=#936 id=936 data-nosnippet>936</a>    }
 <a href=#937 id=937 data-nosnippet>937</a>
 <a href=#938 id=938 data-nosnippet>938</a>    <span class="doccomment">/// Map the value to its predicated value in the current conditional context, and store the previous mapping
-<a href=#939 id=939 data-nosnippet>939</a>    /// to the 'predicated_values' map if not already stored.
+<a href=#939 id=939 data-nosnippet>939</a>    /// to the '`predicated_values`' map if not already stored.
 <a href=#940 id=940 data-nosnippet>940</a>    </span><span class="kw">fn </span>predicate_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, predicated_value: ValueId) {
 <a href=#941 id=941 data-nosnippet>941</a>        <span class="kw">let </span>conditional_context = <span class="self">self</span>.condition_stack.last_mut().unwrap();
 <a href=#942 id=942 data-nosnippet>942</a>
@@ -956,7 +956,7 @@
 <a href=#956 id=956 data-nosnippet>956</a>    }
 <a href=#957 id=957 data-nosnippet>957</a>
 <a href=#958 id=958 data-nosnippet>958</a>    <span class="doccomment">/// Insert a new instruction into the target block.
-<a href=#959 id=959 data-nosnippet>959</a>    /// Unlike push_instruction, this function will not map any ValueIds.
+<a href=#959 id=959 data-nosnippet>959</a>    /// Unlike `push_instruction`, this function will not map any `ValueIds`.
 <a href=#960 id=960 data-nosnippet>960</a>    /// within the given instruction, nor will it modify self.values in any way.
 <a href=#961 id=961 data-nosnippet>961</a>    </span><span class="kw">fn </span>insert_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction: Instruction, call_stack: CallStackId) -&gt; ValueId {
 <a href=#962 id=962 data-nosnippet>962</a>        <span class="kw">let </span>block = <span class="self">self</span>.target_block;
@@ -969,7 +969,7 @@
 <a href=#969 id=969 data-nosnippet>969</a>
 <a href=#970 id=970 data-nosnippet>970</a>    <span class="doccomment">/// Inserts a new instruction into the target block, using the given
 <a href=#971 id=971 data-nosnippet>971</a>    /// control type variables to specify result types if needed.
-<a href=#972 id=972 data-nosnippet>972</a>    /// Unlike push_instruction, this function will not map any ValueIds.
+<a href=#972 id=972 data-nosnippet>972</a>    /// Unlike `push_instruction`, this function will not map any `ValueIds`.
 <a href=#973 id=973 data-nosnippet>973</a>    /// within the given instruction, nor will it modify self.values in any way.
 <a href=#974 id=974 data-nosnippet>974</a>    </span><span class="kw">fn </span>insert_instruction_with_typevars(
 <a href=#975 id=975 data-nosnippet>975</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1008,9 +1008,9 @@
 <a href=#1008 id=1008 data-nosnippet>1008</a>
 <a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="doccomment">/// Push the given instruction to the end of the target block of the current function.
 <a href=#1010 id=1010 data-nosnippet>1010</a>    ///
-<a href=#1011 id=1011 data-nosnippet>1011</a>    /// Note that each ValueId of the instruction will be mapped via `self.inserter.resolve`.
+<a href=#1011 id=1011 data-nosnippet>1011</a>    /// Note that each `ValueId` of the instruction will be mapped via `self.inserter.resolve`.
 <a href=#1012 id=1012 data-nosnippet>1012</a>    /// As a result, the instruction that will be pushed will actually be a new instruction
-<a href=#1013 id=1013 data-nosnippet>1013</a>    /// with a different InstructionId from the original. The results of the given instruction
+<a href=#1013 id=1013 data-nosnippet>1013</a>    /// with a different `InstructionId` from the original. The results of the given instruction
 <a href=#1014 id=1014 data-nosnippet>1014</a>    /// will also be mapped to the results of the new instruction.
 <a href=#1015 id=1015 data-nosnippet>1015</a>    </span><span class="kw">fn </span>push_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: InstructionId) {
 <a href=#1016 id=1016 data-nosnippet>1016</a>        <span class="kw">let </span>(instruction, call_stack) = <span class="self">self</span>.inserter.map_instruction(id);
@@ -1224,7 +1224,7 @@
 <a href=#1224 id=1224 data-nosnippet>1224</a>    <span class="doccomment">/// 'Cast' the 'condition' to 'value' type
 <a href=#1225 id=1225 data-nosnippet>1225</a>    ///
 <a href=#1226 id=1226 data-nosnippet>1226</a>    /// This is needed because we need to multiply the condition with several values
-<a href=#1227 id=1227 data-nosnippet>1227</a>    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects' function).
+<a href=#1227 id=1227 data-nosnippet>1227</a>    /// in order to 'nullify' side-effects when the 'condition' is false (in '`handle_instruction_side_effects`' function).
 <a href=#1228 id=1228 data-nosnippet>1228</a>    ///
 <a href=#1229 id=1229 data-nosnippet>1229</a>    /// Since the condition is a boolean, it can be safely casted to any other type.
 <a href=#1230 id=1230 data-nosnippet>1230</a>    </span><span class="kw">fn </span>cast_condition_to_value_type(
@@ -1984,7 +1984,7 @@
 <a href=#1984 id=1984 data-nosnippet>1984</a>    <span class="attr">#[test]
 <a href=#1985 id=1985 data-nosnippet>1985</a>    #[should_panic = <span class="string">"ICE: branches merge inside of `then` branch"</span>]
 <a href=#1986 id=1986 data-nosnippet>1986</a>    </span><span class="kw">fn </span>panics_if_branches_merge_within_then_branch() {
-<a href=#1987 id=1987 data-nosnippet>1987</a>        <span class="doccomment">//! This is a regression test for https://github.com/noir-lang/noir/issues/6620
+<a href=#1987 id=1987 data-nosnippet>1987</a>        <span class="doccomment">//! This is a regression test for &lt;https://github.com/noir-lang/noir/issues/6620&gt;
 <a href=#1988 id=1988 data-nosnippet>1988</a>
 <a href=#1989 id=1989 data-nosnippet>1989</a>        </span><span class="kw">let </span>src = <span class="string">"
 <a href=#1990 id=1990 data-nosnippet>1990</a>        acir(inline) fn main f0 {
@@ -2230,8 +2230,8 @@
 <a href=#2230 id=2230 data-nosnippet>2230</a>        "</span>);
 <a href=#2231 id=2231 data-nosnippet>2231</a>    }
 <a href=#2232 id=2232 data-nosnippet>2232</a>
-<a href=#2233 id=2233 data-nosnippet>2233</a>    <span class="doccomment">/// Regression test: when JmpIf's else_destination IS the exit/merge block
-<a href=#2234 id=2234 data-nosnippet>2234</a>    /// (no separate else block), the else_arguments carry the "no-change" value
+<a href=#2233 id=2233 data-nosnippet>2233</a>    <span class="doccomment">/// Regression test: when `JmpIf`'s `else_destination` IS the exit/merge block
+<a href=#2234 id=2234 data-nosnippet>2234</a>    /// (no separate else block), the `else_arguments` carry the "no-change" value
 <a href=#2235 id=2235 data-nosnippet>2235</a>    /// directly to the merge. This is the pattern mem2reg produces when
 <a href=#2236 id=2236 data-nosnippet>2236</a>    /// the else branch has no stores (just falls through to the merge block).
 <a href=#2237 id=2237 data-nosnippet>2237</a>    </span><span class="attr">#[test]
@@ -2265,7 +2265,7 @@
 <a href=#2265 id=2265 data-nosnippet>2265</a>        "</span>);
 <a href=#2266 id=2266 data-nosnippet>2266</a>    }
 <a href=#2267 id=2267 data-nosnippet>2267</a>
-<a href=#2268 id=2268 data-nosnippet>2268</a>    <span class="doccomment">/// Regression test: when an inner IfElse simplifies to its own condition
+<a href=#2268 id=2268 data-nosnippet>2268</a>    <span class="doccomment">/// Regression test: when an inner `IfElse` simplifies to its own condition
 <a href=#2269 id=2269 data-nosnippet>2269</a>    /// (e.g. IfElse(v0, 1, _, 0) -&gt; v0), provenance must NOT be stored for that
 <a href=#2270 id=2270 data-nosnippet>2270</a>    /// value. Otherwise the outer merge sees the provenance on v0 and
 <a href=#2271 id=2271 data-nosnippet>2271</a>    /// incorrectly collapses.
@@ -2351,12 +2351,12 @@
 <a href=#2351 id=2351 data-nosnippet>2351</a></span><span class="kw">mod </span>merge_provenance_tests {
 <a href=#2352 id=2352 data-nosnippet>2352</a>    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::Ssa};
 <a href=#2353 id=2353 data-nosnippet>2353</a>
-<a href=#2354 id=2354 data-nosnippet>2354</a>    <span class="doccomment">/// Regression test for #12106: promoted block params with jmpif else_arguments
+<a href=#2354 id=2354 data-nosnippet>2354</a>    <span class="doccomment">/// Regression test for #12106: promoted block params with jmpif `else_arguments`
 <a href=#2355 id=2355 data-nosnippet>2355</a>    /// should produce the same (or fewer) instructions as the equivalent store/load
 <a href=#2356 id=2356 data-nosnippet>2356</a>    /// pattern after flattening + cleanup.
 <a href=#2357 id=2357 data-nosnippet>2357</a>    ///
 <a href=#2358 id=2358 data-nosnippet>2358</a>    /// The pattern is 3 iterations of: `if !ok { if bit[i] { ok = true } }`
-<a href=#2359 id=2359 data-nosnippet>2359</a>    /// where `ok` is threaded through else_arguments.
+<a href=#2359 id=2359 data-nosnippet>2359</a>    /// where `ok` is threaded through `else_arguments`.
 <a href=#2360 id=2360 data-nosnippet>2360</a>    </span><span class="attr">#[test]
 <a href=#2361 id=2361 data-nosnippet>2361</a>    </span><span class="kw">fn </span>collapse_nested_merge_shared_else_value() {
 <a href=#2362 id=2362 data-nosnippet>2362</a>        <span class="comment">// Promoted version: `ok` threaded through block params with jmpif else_arguments.
@@ -2820,8 +2820,8 @@
 <a href=#2820 id=2820 data-nosnippet>2820</a>    ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
 <a href=#2821 id=2821 data-nosnippet>2821</a>    ///   2nd: `if v1 { y = R } else { y = Field 200 }`
 <a href=#2822 id=2822 data-nosnippet>2822</a>    ///
-<a href=#2823 id=2823 data-nosnippet>2823</a>    /// R has provenance {else_value = Field 200}. The second conditional also has
-<a href=#2824 id=2824 data-nosnippet>2824</a>    /// else_arg = Field 200, which would match R's provenance. If provenance
+<a href=#2823 id=2823 data-nosnippet>2823</a>    /// R has provenance {`else_value` = Field 200}. The second conditional also has
+<a href=#2824 id=2824 data-nosnippet>2824</a>    /// `else_arg` = Field 200, which would match R's provenance. If provenance
 <a href=#2825 id=2825 data-nosnippet>2825</a>    /// leaked, the second merge would incorrectly collapse to
 <a href=#2826 id=2826 data-nosnippet>2826</a>    /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
 <a href=#2827 id=2827 data-nosnippet>2827</a>    ///

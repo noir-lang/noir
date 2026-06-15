@@ -3,7 +3,7 @@
 <ul>
 <li>The value is a compile-time constant (<code>dfg.is_constant</code>), OR</li>
 <li>The value is the result of an <code>array_get</code> whose array operand
-recursively traces back to a constant source (global, MakeArray)</li>
+recursively traces back to a constant source (global, <code>MakeArray</code>)</li>
 </ul>
 <p>This lets the cost model recognize that <code>array_get constant_array, index</code>
 will fold away after unrolling, even when <code>constant_array</code> is itself

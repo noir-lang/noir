@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a>};
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a><span class="doccomment">/// Represents a function call graph built from the SSA
-<a href=#29 id=29 data-nosnippet>29</a>/// Internally, this is a directed graph where each node is a [FunctionId] and each edge
+<a href=#29 id=29 data-nosnippet>29</a>/// Internally, this is a directed graph where each node is a [`FunctionId`] and each edge
 <a href=#30 id=30 data-nosnippet>30</a>/// represents a call from one function to another.
 <a href=#31 id=31 data-nosnippet>31</a>/// Each edge has an associated weight representing the number of times a descendant node
 <a href=#32 id=32 data-nosnippet>32</a>/// was called by an ancestor node.
@@ -37,7 +37,7 @@
 <a href=#37 id=37 data-nosnippet>37</a>}
 <a href=#38 id=38 data-nosnippet>38</a>
 <a href=#39 id=39 data-nosnippet>39</a><span class="kw">impl </span>CallGraph {
-<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Construct a [CallGraph] from the [Ssa]
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Construct a [`CallGraph`] from the [Ssa]
 <a href=#41 id=41 data-nosnippet>41</a>    /// The edges in this graph are unweighted. Thus, it is a pure dependency map.
 <a href=#42 id=42 data-nosnippet>42</a>    /// Panics if the SSA contains indirect calls.
 <a href=#43 id=43 data-nosnippet>43</a>    /// Use [`Self::from_ssa_partial`] from contexts that tolerate an incomplete graph.
@@ -53,7 +53,7 @@
 <a href=#53 id=53 data-nosnippet>53</a>        <span class="self">Self</span>::from_deps(function_deps)
 <a href=#54 id=54 data-nosnippet>54</a>    }
 <a href=#55 id=55 data-nosnippet>55</a>
-<a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// Construct a [CallGraph] from the [Ssa] with its edges weighted.
+<a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// Construct a [`CallGraph`] from the [Ssa] with its edges weighted.
 <a href=#57 id=57 data-nosnippet>57</a>    /// An edges weight refers to the numbers of times a descendant node was called by its ancestor.
 <a href=#58 id=58 data-nosnippet>58</a>    ///
 <a href=#59 id=59 data-nosnippet>59</a>    /// Panics if the SSA contains indirect calls.
@@ -101,7 +101,7 @@
 <a href=#101 id=101 data-nosnippet>101</a>        <span class="self">Self </span>{ graph, ids_to_indices, indices_to_ids }
 <a href=#102 id=102 data-nosnippet>102</a>    }
 <a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Construct a [CallGraph] from an explicit dependency mapping of (caller -&gt; callees)
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Construct a [`CallGraph`] from an explicit dependency mapping of (caller -&gt; callees)
 <a href=#105 id=105 data-nosnippet>105</a>    /// The edges in this graph all have a weight of one. Thus, it is a pure dependency graph.
 <a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_deps(dependencies: HashMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt;) -&gt; <span class="self">Self </span>{
 <a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span><span class="kw-2">mut </span>graph = DiGraph::new();

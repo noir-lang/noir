@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a>
 <a href=#27 id=27 data-nosnippet>27</a><span class="kw">impl </span>RuntimeType {
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Returns whether the runtime type represents an entry point.
-<a href=#29 id=29 data-nosnippet>29</a>    /// We return `false` for InlineType::Inline on default, which is true
+<a href=#29 id=29 data-nosnippet>29</a>    /// We return `false` for `InlineType::Inline` on default, which is true
 <a href=#30 id=30 data-nosnippet>30</a>    /// in all cases except for main. `main` should be supported with special
 <a href=#31 id=31 data-nosnippet>31</a>    /// handling in any places where this function determines logic.
 <a href=#32 id=32 data-nosnippet>32</a>    ///
@@ -85,7 +85,7 @@
 <a href=#85 id=85 data-nosnippet>85</a>/// These instructions are further grouped into Basic blocks
 <a href=#86 id=86 data-nosnippet>86</a>///
 <a href=#87 id=87 data-nosnippet>87</a>/// All functions outside of the current function are seen as external.
-<a href=#88 id=88 data-nosnippet>88</a>/// To reference external functions its FunctionId can be used but this
+<a href=#88 id=88 data-nosnippet>88</a>/// To reference external functions its `FunctionId` can be used but this
 <a href=#89 id=89 data-nosnippet>89</a>/// cannot be checked for correctness until inlining is performed.
 <a href=#90 id=90 data-nosnippet>90</a></span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
 <a href=#91 id=91 data-nosnippet>91</a></span><span class="kw">pub struct </span>Function {
@@ -97,7 +97,7 @@
 <a href=#97 id=97 data-nosnippet>97</a>
 <a href=#98 id=98 data-nosnippet>98</a>    id: <span class="prelude-ty">Option</span>&lt;FunctionId&gt;,
 <a href=#99 id=99 data-nosnippet>99</a>
-<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// The DataFlowGraph holds the majority of data pertaining to the function
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// The `DataFlowGraph` holds the majority of data pertaining to the function
 <a href=#101 id=101 data-nosnippet>101</a>    /// including its blocks, instructions, and values.
 <a href=#102 id=102 data-nosnippet>102</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) dfg: DataFlowGraph,
 <a href=#103 id=103 data-nosnippet>103</a>}
@@ -203,7 +203,7 @@
 <a href=#203 id=203 data-nosnippet>203</a>
 <a href=#204 id=204 data-nosnippet>204</a>    <span class="doccomment">/// Collects all the reachable blocks of this function.
 <a href=#205 id=205 data-nosnippet>205</a>    ///
-<a href=#206 id=206 data-nosnippet>206</a>    /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
+<a href=#206 id=206 data-nosnippet>206</a>    /// Note that `self.dfg.basic_blocks_iter()` iterates over all blocks,
 <a href=#207 id=207 data-nosnippet>207</a>    /// whether reachable or not. This function should be used if you
 <a href=#208 id=208 data-nosnippet>208</a>    /// want to iterate only reachable blocks.
 <a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reachable_blocks(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;BasicBlockId&gt; {
@@ -254,7 +254,7 @@
 <a href=#254 id=254 data-nosnippet>254</a>
 <a href=#255 id=255 data-nosnippet>255</a>    <span class="doccomment">/// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
 <a href=#256 id=256 data-nosnippet>256</a>    ///                                                                                                                                                                                                                              
-<a href=#257 id=257 data-nosnippet>257</a>    /// This creates a [FunctionInserter][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
+<a href=#257 id=257 data-nosnippet>257</a>    /// This creates a [`FunctionInserter`][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
 <a href=#258 id=258 data-nosnippet>258</a>    /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
 <a href=#259 id=259 data-nosnippet>259</a>    /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
 <a href=#260 id=260 data-nosnippet>260</a>    /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
@@ -357,7 +357,7 @@
 <a href=#357 id=357 data-nosnippet>357</a>    }
 <a href=#358 id=358 data-nosnippet>358</a>}
 <a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a><span class="doccomment">/// FunctionId is a reference for a function
+<a href=#360 id=360 data-nosnippet>360</a><span class="doccomment">/// `FunctionId` is a reference for a function
 <a href=#361 id=361 data-nosnippet>361</a>///
 <a href=#362 id=362 data-nosnippet>362</a>/// This Id is how each function refers to other functions
 <a href=#363 id=363 data-nosnippet>363</a>/// within Call instructions.
@@ -373,7 +373,7 @@
 <a href=#373 id=373 data-nosnippet>373</a>    <span class="doccomment">/// Construct a [Signature] whose parameter and return types have all
 <a href=#374 id=374 data-nosnippet>374</a>    /// reference mutability canonicalized away. This makes `&amp;T` and `&amp;mut T`
 <a href=#375 id=375 data-nosnippet>375</a>    /// compare equal when a [Signature] is used as a map key, matching
-<a href=#376 id=376 data-nosnippet>376</a>    /// [Type::canonical_eq] leniency and the frontend's `&amp;mut T → &amp;T` coercion.
+<a href=#376 id=376 data-nosnippet>376</a>    /// [`Type::canonical_eq`] leniency and the frontend's `&amp;mut T → &amp;T` coercion.
 <a href=#377 id=377 data-nosnippet>377</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(<span class="kw-2">mut </span>params: Vec&lt;Type&gt;, <span class="kw-2">mut </span>returns: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
 <a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">for </span>typ <span class="kw">in </span>params.iter_mut().chain(returns.iter_mut()) {
 <a href=#379 id=379 data-nosnippet>379</a>            typ.canonicalize();

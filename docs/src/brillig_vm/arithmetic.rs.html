@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a>    </span>DivisionByZero,
 <a href=#20 id=20 data-nosnippet>20</a>}
 <a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// Evaluate a binary operation on two FieldElement memory values.
+<a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// Evaluate a binary operation on two `FieldElement` memory values.
 <a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_binary_field_op&lt;F: AcirField&gt;(
 <a href=#24 id=24 data-nosnippet>24</a>    op: <span class="kw-2">&amp;</span>BinaryFieldOp,
 <a href=#25 id=25 data-nosnippet>25</a>    lhs: MemoryValue&lt;F&gt;,
@@ -212,7 +212,7 @@
 <a href=#212 id=212 data-nosnippet>212</a>///
 <a href=#213 id=213 data-nosnippet>213</a>/// # Returns
 <a href=#214 id=214 data-nosnippet>214</a>/// - Ok(result) if successful.
-<a href=#215 id=215 data-nosnippet>215</a>/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+<a href=#215 id=215 data-nosnippet>215</a>/// - Err([`BrilligArithmeticError::DivisionByZero`]) if division by zero occurs.
 <a href=#216 id=216 data-nosnippet>216</a>///
 <a href=#217 id=217 data-nosnippet>217</a>/// # Panics
 <a href=#218 id=218 data-nosnippet>218</a>/// If an operation other than `Add`, `Sub`, `Mul`, `Div`, `And`, `Or`, `Xor`, `Equals`, `LessThan`,
@@ -285,7 +285,7 @@
 <a href=#285 id=285 data-nosnippet>285</a>///
 <a href=#286 id=286 data-nosnippet>286</a>/// # Returns
 <a href=#287 id=287 data-nosnippet>287</a>/// - Ok(result) if successful.
-<a href=#288 id=288 data-nosnippet>288</a>/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+<a href=#288 id=288 data-nosnippet>288</a>/// - Err([`BrilligArithmeticError::DivisionByZero`]) if division by zero occurs.
 <a href=#289 id=289 data-nosnippet>289</a>///
 <a href=#290 id=290 data-nosnippet>290</a>/// # Panics
 <a href=#291 id=291 data-nosnippet>291</a>/// If there an operation other than Add, Sub, Mul, Div, And, Or, Xor is supplied as an argument.

@@ -509,7 +509,7 @@
 <a href=#509 id=509 data-nosnippet>509</a>    <span class="prelude-val">Ok</span>(Value::Unit)
 <a href=#510 id=510 data-nosnippet>510</a>}
 <a href=#511 id=511 data-nosnippet>511</a>
-<a href=#512 id=512 data-nosnippet>512</a><span class="doccomment">/// fn as_type(self) -&gt; Type
+<a href=#512 id=512 data-nosnippet>512</a><span class="doccomment">/// fn `as_type(self)` -&gt; Type
 <a href=#513 id=513 data-nosnippet>513</a></span><span class="kw">fn </span>type_def_as_type(
 <a href=#514 id=514 data-nosnippet>514</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
 <a href=#515 id=515 data-nosnippet>515</a>    arguments: Vec&lt;(Value, Location)&gt;,
@@ -635,8 +635,8 @@
 <a href=#635 id=635 data-nosnippet>635</a>    <span class="prelude-val">Ok</span>(Value::Bool(matched))
 <a href=#636 id=636 data-nosnippet>636</a>}
 <a href=#637 id=637 data-nosnippet>637</a>
-<a href=#638 id=638 data-nosnippet>638</a><span class="doccomment">/// fn fields(self, generic_args: [Type]) -&gt; [(Quoted, Type, Quoted)]
-<a href=#639 id=639 data-nosnippet>639</a>/// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
+<a href=#638 id=638 data-nosnippet>638</a><span class="doccomment">/// fn fields(self, `generic_args`: [Type]) -&gt; [(Quoted, Type, Quoted)]
+<a href=#639 id=639 data-nosnippet>639</a>/// Returns (name, type, visibility) tuples of each field of this `TypeDefinition`.
 <a href=#640 id=640 data-nosnippet>640</a>/// Applies the given generic arguments to each field.
 <a href=#641 id=641 data-nosnippet>641</a></span><span class="kw">fn </span>type_def_fields(
 <a href=#642 id=642 data-nosnippet>642</a>    interpreter: <span class="kw-2">&amp;mut </span>Interpreter,
@@ -704,8 +704,8 @@
 <a href=#704 id=704 data-nosnippet>704</a>    <span class="prelude-val">Ok</span>(Value::Vector(fields, typ))
 <a href=#705 id=705 data-nosnippet>705</a>}
 <a href=#706 id=706 data-nosnippet>706</a>
-<a href=#707 id=707 data-nosnippet>707</a><span class="doccomment">/// fn fields_as_written(self) -&gt; [(Quoted, Type, Quoted)]
-<a href=#708 id=708 data-nosnippet>708</a>/// Returns (name, type) pairs of each field of this TypeDefinition.
+<a href=#707 id=707 data-nosnippet>707</a><span class="doccomment">/// fn `fields_as_written(self)` -&gt; [(Quoted, Type, Quoted)]
+<a href=#708 id=708 data-nosnippet>708</a>/// Returns (name, type) pairs of each field of this `TypeDefinition`.
 <a href=#709 id=709 data-nosnippet>709</a>///
 <a href=#710 id=710 data-nosnippet>710</a>/// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 <a href=#711 id=711 data-nosnippet>711</a></span><span class="kw">fn </span>type_def_fields_as_written(

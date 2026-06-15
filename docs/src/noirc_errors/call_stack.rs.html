@@ -123,7 +123,7 @@
 <a href=#123 id=123 data-nosnippet>123</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.locations
 <a href=#124 id=124 data-nosnippet>124</a>    }
 <a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// Construct a CallStack from a CallStackId
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// Construct a `CallStack` from a `CallStackId`
 <a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId) -&gt; CallStack {
 <a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
 <a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.locations[call_stack.index()].parent {
@@ -134,7 +134,7 @@
 <a href=#134 id=134 data-nosnippet>134</a>        CallStack::new(result)
 <a href=#135 id=135 data-nosnippet>135</a>    }
 <a href=#136 id=136 data-nosnippet>136</a>
-<a href=#137 id=137 data-nosnippet>137</a>    <span class="doccomment">/// Returns a new [CallStackId] which extends the `call_stack` with the provided `locations`.
+<a href=#137 id=137 data-nosnippet>137</a>    <span class="doccomment">/// Returns a new [`CallStackId`] which extends the `call_stack` with the provided `locations`.
 <a href=#138 id=138 data-nosnippet>138</a>    </span><span class="kw">pub fn </span>extend_call_stack(
 <a href=#139 id=139 data-nosnippet>139</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#140 id=140 data-nosnippet>140</a>        <span class="kw-2">mut </span>call_stack: CallStackId,
@@ -164,7 +164,7 @@
 <a href=#164 id=164 data-nosnippet>164</a>        new_location_id
 <a href=#165 id=165 data-nosnippet>165</a>    }
 <a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a>    <span class="doccomment">/// Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
+<a href=#167 id=167 data-nosnippet>167</a>    <span class="doccomment">/// Retrieve the `CallStackId` corresponding to `call_stack` with the last 'len' locations removed.
 <a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">pub fn </span>unwind_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>call_stack: CallStackId, <span class="kw-2">mut </span>len: usize) -&gt; CallStackId {
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">while </span>len &gt; <span class="number">0 </span>{
 <a href=#170 id=170 data-nosnippet>170</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.locations[call_stack.index()].parent {
@@ -186,7 +186,7 @@
 <a href=#186 id=186 data-nosnippet>186</a>        }
 <a href=#187 id=187 data-nosnippet>187</a>    }
 <a href=#188 id=188 data-nosnippet>188</a>
-<a href=#189 id=189 data-nosnippet>189</a>    <span class="doccomment">/// Get (or create) a CallStackId corresponding to the given locations.
+<a href=#189 id=189 data-nosnippet>189</a>    <span class="doccomment">/// Get (or create) a `CallStackId` corresponding to the given locations.
 <a href=#190 id=190 data-nosnippet>190</a>    </span><span class="kw">pub fn </span>get_or_insert_locations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, locations: <span class="kw-2">&amp;</span>CallStack) -&gt; CallStackId {
 <a href=#191 id=191 data-nosnippet>191</a>        <span class="self">self</span>.extend_call_stack(CallStackId::root(), locations)
 <a href=#192 id=192 data-nosnippet>192</a>    }

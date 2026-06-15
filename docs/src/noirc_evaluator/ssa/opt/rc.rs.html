@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a>//! as long as there are no `array_set` instructions to an array
 <a href=#3 id=3 data-nosnippet>3</a>//! of the same type in between.
 <a href=#4 id=4 data-nosnippet>4</a>//!
-<a href=#5 id=5 data-nosnippet>5</a>//! Note that this pass is very conservative since the array_set
+<a href=#5 id=5 data-nosnippet>5</a>//! Note that this pass is very conservative since the `array_set`
 <a href=#6 id=6 data-nosnippet>6</a>//! instruction does not need to be to the same array. This is because
 <a href=#7 id=7 data-nosnippet>7</a>//! the given array may alias another array (e.g. function parameters or
 <a href=#8 id=8 data-nosnippet>8</a>//! a `load`ed array from a reference).
@@ -50,10 +50,10 @@
 <a href=#50 id=50 data-nosnippet>50</a>}
 <a href=#51 id=51 data-nosnippet>51</a>
 <a href=#52 id=52 data-nosnippet>52</a><span class="kw">impl </span>Function {
-<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// This function is very simplistic for now. It takes advantage of the fact that dec_rc
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// This function is very simplistic for now. It takes advantage of the fact that `dec_rc`
 <a href=#54 id=54 data-nosnippet>54</a>    /// instructions are currently issued only at the end of a function for parameters and will
 <a href=#55 id=55 data-nosnippet>55</a>    /// only check the first and last block for inc &amp; dec rc instructions to be removed. The rest
-<a href=#56 id=56 data-nosnippet>56</a>    /// of the function is still checked for array_set instructions.
+<a href=#56 id=56 data-nosnippet>56</a>    /// of the function is still checked for `array_set` instructions.
 <a href=#57 id=57 data-nosnippet>57</a>    ///
 <a href=#58 id=58 data-nosnippet>58</a>    /// This restriction lets this function largely ignore merging intermediate results from other
 <a href=#59 id=59 data-nosnippet>59</a>    /// blocks and handling loops.
@@ -99,8 +99,8 @@
 <a href=#99 id=99 data-nosnippet>99</a>        }
 <a href=#100 id=100 data-nosnippet>100</a>    }
 <a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a>    <span class="doccomment">/// Find each array_set or call instruction in the function and mark any arrays used
-<a href=#103 id=103 data-nosnippet>103</a>    /// by the inc_rc instructions as possibly mutated if they're the same type.
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="doccomment">/// Find each `array_set` or call instruction in the function and mark any arrays used
+<a href=#103 id=103 data-nosnippet>103</a>    /// by the `inc_rc` instructions as possibly mutated if they're the same type.
 <a href=#104 id=104 data-nosnippet>104</a>    </span><span class="kw">fn </span>scan_for_mutations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) {
 <a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">for </span>block <span class="kw">in </span>function.reachable_blocks() {
 <a href=#106 id=106 data-nosnippet>106</a>            <span class="kw">for </span>instruction <span class="kw">in </span>function.dfg[block].instructions() {
@@ -147,7 +147,7 @@
 <a href=#147 id=147 data-nosnippet>147</a>        }
 <a href=#148 id=148 data-nosnippet>148</a>    }
 <a href=#149 id=149 data-nosnippet>149</a>
-<a href=#150 id=150 data-nosnippet>150</a>    <span class="doccomment">/// Find each dec_rc instruction and if the most recent inc_rc instruction for the same value
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="doccomment">/// Find each `dec_rc` instruction and if the most recent `inc_rc` instruction for the same value
 <a href=#151 id=151 data-nosnippet>151</a>    /// is not possibly mutated, then we can remove them both. Returns each such pair.
 <a href=#152 id=152 data-nosnippet>152</a>    </span><span class="kw">fn </span>find_rcs_to_remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; HashSet&lt;InstructionId&gt; {
 <a href=#153 id=153 data-nosnippet>153</a>        <span class="kw">let </span>last_block = function.find_last_block();
@@ -167,7 +167,7 @@
 <a href=#167 id=167 data-nosnippet>167</a>    }
 <a href=#168 id=168 data-nosnippet>168</a>}
 <a href=#169 id=169 data-nosnippet>169</a>
-<a href=#170 id=170 data-nosnippet>170</a><span class="doccomment">/// Finds and pops the IncRc for the given array value if possible.
+<a href=#170 id=170 data-nosnippet>170</a><span class="doccomment">/// Finds and pops the `IncRc` for the given array value if possible.
 <a href=#171 id=171 data-nosnippet>171</a></span><span class="kw">fn </span>pop_rc_for(
 <a href=#172 id=172 data-nosnippet>172</a>    value: ValueId,
 <a href=#173 id=173 data-nosnippet>173</a>    function: <span class="kw-2">&amp;</span>Function,
@@ -503,7 +503,7 @@
 <a href=#503 id=503 data-nosnippet>503</a>        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
 <a href=#504 id=504 data-nosnippet>504</a>    }
 <a href=#505 id=505 data-nosnippet>505</a>
-<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&amp;mut &amp;mut [Field; 2]`)
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// Same as [`mutation_through_call_with_mutable_reference`] except with a deeply nested reference to an array (e.g., `&amp;mut &amp;mut [Field; 2]`)
 <a href=#507 id=507 data-nosnippet>507</a>    </span><span class="attr">#[test]
 <a href=#508 id=508 data-nosnippet>508</a>    #[ignore]
 <a href=#509 id=509 data-nosnippet>509</a>    </span><span class="kw">fn </span>mutation_through_call_with_deeply_nested_reference() {

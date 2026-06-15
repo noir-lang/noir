@@ -2,7 +2,7 @@
 Specifically, it manages Brillig function pointers, stdlib calls, and global usage.</p>
 <h3 id="design"><a class="doc-anchor" href="#design">§</a>Design</h3>
 <ul>
-<li>Keep a single <a href="struct.SharedContext.html" title="struct noirc_evaluator::acir::shared_context::SharedContext">SharedContext</a> struct across all ACIR artifacts so Brillig
+<li>Keep a single <a href="struct.SharedContext.html" title="struct noirc_evaluator::acir::shared_context::SharedContext"><code>SharedContext</code></a> struct across all ACIR artifacts so Brillig
 functions are deduplicated and pointers remain consistent.</li>
 <li>Track both generated Brillig artifacts and stdlib Brillig functions
 (the latter do not originate from SSA function IDs).</li>
@@ -12,7 +12,7 @@ call sites in the generated ACIR.</li>
 </ul>
 <h3 id="preconditions"><a class="doc-anchor" href="#preconditions">§</a>Preconditions</h3>
 <ul>
-<li>Caller must provide a valid <a href="../acir_context/generated_acir/brillig_directive/struct.BrilligStdLib.html" title="struct noirc_evaluator::acir::acir_context::generated_acir::brillig_directive::BrilligStdLib">BrilligStdLib</a> and a global usage map.</li>
+<li>Caller must provide a valid <a href="../acir_context/generated_acir/brillig_directive/struct.BrilligStdLib.html" title="struct noirc_evaluator::acir::acir_context::generated_acir::brillig_directive::BrilligStdLib"><code>BrilligStdLib</code></a> and a global usage map.</li>
 </ul>
 <h3 id="post-conditions"><a class="doc-anchor" href="#post-conditions">§</a>Post-conditions</h3>
 <ul>

@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>};
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
-<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorCopy].
+<a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// Copy arguments to [`ScratchSpace`] and call [`ProcedureId::VectorCopy`].
 <a href=#16 id=16 data-nosnippet>16</a>    ///
 <a href=#17 id=17 data-nosnippet>17</a>    /// Conditionally copies a source vector to a destination vector.
 <a href=#18 id=18 data-nosnippet>18</a>    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
@@ -32,7 +32,7 @@
 <a href=#32 id=32 data-nosnippet>32</a>    }
 <a href=#33 id=33 data-nosnippet>33</a>}
 <a href=#34 id=34 data-nosnippet>34</a>
-<a href=#35 id=35 data-nosnippet>35</a><span class="doccomment">/// Compile [ProcedureId::VectorCopy].
+<a href=#35 id=35 data-nosnippet>35</a><span class="doccomment">/// Compile [`ProcedureId::VectorCopy`].
 <a href=#36 id=36 data-nosnippet>36</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_copy_procedure&lt;F: AcirField + DebugToString&gt;(
 <a href=#37 id=37 data-nosnippet>37</a>    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 <a href=#38 id=38 data-nosnippet>38</a>) {

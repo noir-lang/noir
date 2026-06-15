@@ -25,7 +25,7 @@
 <a href=#25 id=25 data-nosnippet>25</a>        }
 <a href=#26 id=26 data-nosnippet>26</a>    }
 <a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Statement = Attributes StatementKind ';'?
+<a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Statement = Attributes `StatementKind` ';'?
 <a href=#29 id=29 data-nosnippet>29</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Statement, (<span class="prelude-ty">Option</span>&lt;Token&gt;, Location))&gt; {
 <a href=#30 id=30 data-nosnippet>30</a>        <span class="kw">loop </span>{
 <a href=#31 id=31 data-nosnippet>31</a>            <span class="comment">// Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
@@ -69,33 +69,33 @@
 <a href=#69 id=69 data-nosnippet>69</a>        }
 <a href=#70 id=70 data-nosnippet>70</a>    }
 <a href=#71 id=71 data-nosnippet>71</a>
-<a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// StatementKind
-<a href=#73 id=73 data-nosnippet>73</a>    ///     = BreakStatement
-<a href=#74 id=74 data-nosnippet>74</a>    ///     | ContinueStatement
-<a href=#75 id=75 data-nosnippet>75</a>    ///     | ReturnStatement
-<a href=#76 id=76 data-nosnippet>76</a>    ///     | LetStatement
-<a href=#77 id=77 data-nosnippet>77</a>    ///     | ComptimeStatement
-<a href=#78 id=78 data-nosnippet>78</a>    ///     | ForStatement
-<a href=#79 id=79 data-nosnippet>79</a>    ///     | LoopStatement
-<a href=#80 id=80 data-nosnippet>80</a>    ///     | WhileStatement
-<a href=#81 id=81 data-nosnippet>81</a>    ///     | IfStatement
-<a href=#82 id=82 data-nosnippet>82</a>    ///     | BlockStatement
-<a href=#83 id=83 data-nosnippet>83</a>    ///     | AssignStatement
-<a href=#84 id=84 data-nosnippet>84</a>    ///     | ExpressionStatement
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// `StatementKind`
+<a href=#73 id=73 data-nosnippet>73</a>    ///     = `BreakStatement`
+<a href=#74 id=74 data-nosnippet>74</a>    ///     | `ContinueStatement`
+<a href=#75 id=75 data-nosnippet>75</a>    ///     | `ReturnStatement`
+<a href=#76 id=76 data-nosnippet>76</a>    ///     | `LetStatement`
+<a href=#77 id=77 data-nosnippet>77</a>    ///     | `ComptimeStatement`
+<a href=#78 id=78 data-nosnippet>78</a>    ///     | `ForStatement`
+<a href=#79 id=79 data-nosnippet>79</a>    ///     | `LoopStatement`
+<a href=#80 id=80 data-nosnippet>80</a>    ///     | `WhileStatement`
+<a href=#81 id=81 data-nosnippet>81</a>    ///     | `IfStatement`
+<a href=#82 id=82 data-nosnippet>82</a>    ///     | `BlockStatement`
+<a href=#83 id=83 data-nosnippet>83</a>    ///     | `AssignStatement`
+<a href=#84 id=84 data-nosnippet>84</a>    ///     | `ExpressionStatement`
 <a href=#85 id=85 data-nosnippet>85</a>    ///
-<a href=#86 id=86 data-nosnippet>86</a>    /// BreakStatement = 'break'
+<a href=#86 id=86 data-nosnippet>86</a>    /// `BreakStatement` = 'break'
 <a href=#87 id=87 data-nosnippet>87</a>    ///
-<a href=#88 id=88 data-nosnippet>88</a>    /// ContinueStatement = 'continue'
+<a href=#88 id=88 data-nosnippet>88</a>    /// `ContinueStatement` = 'continue'
 <a href=#89 id=89 data-nosnippet>89</a>    ///
-<a href=#90 id=90 data-nosnippet>90</a>    /// ReturnStatement = 'return' Expression?
+<a href=#90 id=90 data-nosnippet>90</a>    /// `ReturnStatement` = 'return' Expression?
 <a href=#91 id=91 data-nosnippet>91</a>    ///
-<a href=#92 id=92 data-nosnippet>92</a>    /// IfStatement = IfExpression
+<a href=#92 id=92 data-nosnippet>92</a>    /// `IfStatement` = `IfExpression`
 <a href=#93 id=93 data-nosnippet>93</a>    ///
-<a href=#94 id=94 data-nosnippet>94</a>    /// BlockStatement = Block
+<a href=#94 id=94 data-nosnippet>94</a>    /// `BlockStatement` = Block
 <a href=#95 id=95 data-nosnippet>95</a>    ///
-<a href=#96 id=96 data-nosnippet>96</a>    /// AssignStatement = Expression '=' Expression
+<a href=#96 id=96 data-nosnippet>96</a>    /// `AssignStatement` = Expression '=' Expression
 <a href=#97 id=97 data-nosnippet>97</a>    ///
-<a href=#98 id=98 data-nosnippet>98</a>    /// ExpressionStatement = Expression
+<a href=#98 id=98 data-nosnippet>98</a>    /// `ExpressionStatement` = Expression
 <a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">fn </span>parse_statement_kind(
 <a href=#100 id=100 data-nosnippet>100</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#101 id=101 data-nosnippet>101</a>        attributes: Vec&lt;(Attribute, Location)&gt;,
@@ -246,7 +246,7 @@
 <a href=#246 id=246 data-nosnippet>246</a>        </span>}
 <a href=#247 id=247 data-nosnippet>247</a>    }
 <a href=#248 id=248 data-nosnippet>248</a>
-<a href=#249 id=249 data-nosnippet>249</a>    <span class="doccomment">/// ForStatement = 'for' identifier 'in' ForRange Block
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="doccomment">/// `ForStatement` = 'for' identifier 'in' `ForRange` Block
 <a href=#250 id=250 data-nosnippet>250</a>    </span><span class="kw">fn </span>parse_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ForLoopStatement&gt; {
 <a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#252 id=252 data-nosnippet>252</a>
@@ -289,7 +289,7 @@
 <a href=#289 id=289 data-nosnippet>289</a>        })
 <a href=#290 id=290 data-nosnippet>290</a>    }
 <a href=#291 id=291 data-nosnippet>291</a>
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="doccomment">/// LoopStatement = 'loop' Block
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="doccomment">/// `LoopStatement` = 'loop' Block
 <a href=#293 id=293 data-nosnippet>293</a>    </span><span class="kw">fn </span>parse_loop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;LoopStatement&gt; {
 <a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#295 id=295 data-nosnippet>295</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Loop) {
@@ -313,7 +313,7 @@
 <a href=#313 id=313 data-nosnippet>313</a>        <span class="prelude-val">Some</span>(LoopStatement { body: block, loop_keyword_location: start_location })
 <a href=#314 id=314 data-nosnippet>314</a>    }
 <a href=#315 id=315 data-nosnippet>315</a>
-<a href=#316 id=316 data-nosnippet>316</a>    <span class="doccomment">/// WhileStatement = 'while' ExpressionExceptConstructor Block
+<a href=#316 id=316 data-nosnippet>316</a>    <span class="doccomment">/// `WhileStatement` = 'while' `ExpressionExceptConstructor` Block
 <a href=#317 id=317 data-nosnippet>317</a>    </span><span class="kw">fn </span>parse_while(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;WhileStatement&gt; {
 <a href=#318 id=318 data-nosnippet>318</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::While) {
@@ -339,9 +339,9 @@
 <a href=#339 id=339 data-nosnippet>339</a>        <span class="prelude-val">Some</span>(WhileStatement { condition, body: block, while_keyword_location: start_location })
 <a href=#340 id=340 data-nosnippet>340</a>    }
 <a href=#341 id=341 data-nosnippet>341</a>
-<a href=#342 id=342 data-nosnippet>342</a>    <span class="doccomment">/// ForRange
-<a href=#343 id=343 data-nosnippet>343</a>    ///     = ExpressionExceptConstructor
-<a href=#344 id=344 data-nosnippet>344</a>    ///     | ExpressionExceptConstructor '..' ExpressionExceptConstructor
+<a href=#342 id=342 data-nosnippet>342</a>    <span class="doccomment">/// `ForRange`
+<a href=#343 id=343 data-nosnippet>343</a>    ///     = `ExpressionExceptConstructor`
+<a href=#344 id=344 data-nosnippet>344</a>    ///     | `ExpressionExceptConstructor` '..' `ExpressionExceptConstructor`
 <a href=#345 id=345 data-nosnippet>345</a>    </span><span class="kw">fn </span>parse_for_range(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ForRange {
 <a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span>expr = <span class="self">self</span>.parse_expression_except_constructor_or_error();
 <a href=#347 id=347 data-nosnippet>347</a>
@@ -366,16 +366,16 @@
 <a href=#366 id=366 data-nosnippet>366</a>        }
 <a href=#367 id=367 data-nosnippet>367</a>    }
 <a href=#368 id=368 data-nosnippet>368</a>
-<a href=#369 id=369 data-nosnippet>369</a>    <span class="doccomment">/// ComptimeStatement
-<a href=#370 id=370 data-nosnippet>370</a>    ///     = ComptimeBlock
-<a href=#371 id=371 data-nosnippet>371</a>    ///     | ComptimeLet
-<a href=#372 id=372 data-nosnippet>372</a>    ///     | ComptimeFor
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="doccomment">/// `ComptimeStatement`
+<a href=#370 id=370 data-nosnippet>370</a>    ///     = `ComptimeBlock`
+<a href=#371 id=371 data-nosnippet>371</a>    ///     | `ComptimeLet`
+<a href=#372 id=372 data-nosnippet>372</a>    ///     | `ComptimeFor`
 <a href=#373 id=373 data-nosnippet>373</a>    ///
-<a href=#374 id=374 data-nosnippet>374</a>    /// ComptimeBlock = 'comptime' Block
+<a href=#374 id=374 data-nosnippet>374</a>    /// `ComptimeBlock` = 'comptime' Block
 <a href=#375 id=375 data-nosnippet>375</a>    ///
-<a href=#376 id=376 data-nosnippet>376</a>    /// ComptimeLet = 'comptime' LetStatement
+<a href=#376 id=376 data-nosnippet>376</a>    /// `ComptimeLet` = 'comptime' `LetStatement`
 <a href=#377 id=377 data-nosnippet>377</a>    ///
-<a href=#378 id=378 data-nosnippet>378</a>    /// ComptimeFor = 'comptime' ForStatement
+<a href=#378 id=378 data-nosnippet>378</a>    /// `ComptimeFor` = 'comptime' `ForStatement`
 <a href=#379 id=379 data-nosnippet>379</a>    </span><span class="kw">fn </span>parse_comptime_statement(
 <a href=#380 id=380 data-nosnippet>380</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#381 id=381 data-nosnippet>381</a>        attributes: Vec&lt;(Attribute, Location)&gt;,
@@ -426,7 +426,7 @@
 <a href=#426 id=426 data-nosnippet>426</a>        <span class="prelude-val">None
 <a href=#427 id=427 data-nosnippet>427</a>    </span>}
 <a href=#428 id=428 data-nosnippet>428</a>
-<a href=#429 id=429 data-nosnippet>429</a>    <span class="doccomment">/// LetStatement = 'let' pattern OptionalTypeAnnotation '=' Expression
+<a href=#429 id=429 data-nosnippet>429</a>    <span class="doccomment">/// `LetStatement` = 'let' pattern `OptionalTypeAnnotation` '=' Expression
 <a href=#430 id=430 data-nosnippet>430</a>    </span><span class="kw">fn </span>parse_let_statement(
 <a href=#431 id=431 data-nosnippet>431</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#432 id=432 data-nosnippet>432</a>        attributes: Vec&lt;(Attribute, Location)&gt;,

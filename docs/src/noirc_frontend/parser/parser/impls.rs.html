@@ -18,8 +18,8 @@
 <a href=#18 id=18 data-nosnippet>18</a>
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
 <a href=#20 id=20 data-nosnippet>20</a>    <span class="doccomment">/// Impl
-<a href=#21 id=21 data-nosnippet>21</a>    ///     = TypeImpl
-<a href=#22 id=22 data-nosnippet>22</a>    ///     | TraitImpl
+<a href=#21 id=21 data-nosnippet>21</a>    ///     = `TypeImpl`
+<a href=#22 id=22 data-nosnippet>22</a>    ///     | `TraitImpl`
 <a href=#23 id=23 data-nosnippet>23</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Impl {
 <a href=#24 id=24 data-nosnippet>24</a>        <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_allowing_trait_bounds();
 <a href=#25 id=25 data-nosnippet>25</a>
@@ -34,7 +34,7 @@
 <a href=#34 id=34 data-nosnippet>34</a>        }
 <a href=#35 id=35 data-nosnippet>35</a>    }
 <a href=#36 id=36 data-nosnippet>36</a>
-<a href=#37 id=37 data-nosnippet>37</a>    <span class="doccomment">/// TypeImpl = 'impl' Generics Type TypeImplBody
+<a href=#37 id=37 data-nosnippet>37</a>    <span class="doccomment">/// `TypeImpl` = 'impl' Generics Type `TypeImplBody`
 <a href=#38 id=38 data-nosnippet>38</a>    </span><span class="kw">fn </span>parse_type_impl(
 <a href=#39 id=39 data-nosnippet>39</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#40 id=40 data-nosnippet>40</a>        object_type: UnresolvedType,
@@ -53,9 +53,9 @@
 <a href=#53 id=53 data-nosnippet>53</a>        }
 <a href=#54 id=54 data-nosnippet>54</a>    }
 <a href=#55 id=55 data-nosnippet>55</a>
-<a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// TypeImplBody = '{' TypeImplItem* '}'
+<a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// `TypeImplBody` = '{' `TypeImplItem`* '}'
 <a href=#57 id=57 data-nosnippet>57</a>    ///
-<a href=#58 id=58 data-nosnippet>58</a>    /// TypeImplItem = OuterDocComments Attributes Modifiers Function
+<a href=#58 id=58 data-nosnippet>58</a>    /// `TypeImplItem` = `OuterDocComments` Attributes Modifiers Function
 <a href=#59 id=59 data-nosnippet>59</a>    </span><span class="kw">fn </span>parse_type_impl_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;(Documented&lt;NoirFunction&gt;, Location)&gt; {
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_left_brace() {
 <a href=#61 id=61 data-nosnippet>61</a>            <span class="self">self</span>.expected_token(Token::LeftBrace);
@@ -94,7 +94,7 @@
 <a href=#94 id=94 data-nosnippet>94</a>        })
 <a href=#95 id=95 data-nosnippet>95</a>    }
 <a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a>    <span class="doccomment">/// TraitImpl = 'impl' Generics Type 'for' Type TraitImplBody
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="doccomment">/// `TraitImpl` = 'impl' Generics Type 'for' Type `TraitImplBody`
 <a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">fn </span>parse_trait_impl(
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#100 id=100 data-nosnippet>100</a>        impl_generics: Vec&lt;UnresolvedGeneric&gt;,
@@ -108,7 +108,7 @@
 <a href=#108 id=108 data-nosnippet>108</a>        NoirTraitImpl { impl_generics, r#trait, object_type, where_clause, items, is_synthetic }
 <a href=#109 id=109 data-nosnippet>109</a>    }
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// TraitImplBody = '{' TraitImplItem* '}'
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="doccomment">/// `TraitImplBody` = '{' `TraitImplItem`* '}'
 <a href=#112 id=112 data-nosnippet>112</a>    </span><span class="kw">fn </span>parse_trait_impl_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;Documented&lt;TraitImplItem&gt;&gt; {
 <a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_left_brace() {
 <a href=#114 id=114 data-nosnippet>114</a>            <span class="self">self</span>.expected_token(Token::LeftBrace);
@@ -136,10 +136,10 @@
 <a href=#136 id=136 data-nosnippet>136</a>        })
 <a href=#137 id=137 data-nosnippet>137</a>    }
 <a href=#138 id=138 data-nosnippet>138</a>
-<a href=#139 id=139 data-nosnippet>139</a>    <span class="doccomment">/// TraitImplItem
-<a href=#140 id=140 data-nosnippet>140</a>    ///     = TraitImplType
-<a href=#141 id=141 data-nosnippet>141</a>    ///     | TraitImplConstant
-<a href=#142 id=142 data-nosnippet>142</a>    ///     | TraitImplFunction
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="doccomment">/// `TraitImplItem`
+<a href=#140 id=140 data-nosnippet>140</a>    ///     = `TraitImplType`
+<a href=#141 id=141 data-nosnippet>141</a>    ///     | `TraitImplConstant`
+<a href=#142 id=142 data-nosnippet>142</a>    ///     | `TraitImplFunction`
 <a href=#143 id=143 data-nosnippet>143</a>    </span><span class="kw">fn </span>parse_trait_impl_item_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitImplItemKind&gt; {
 <a href=#144 id=144 data-nosnippet>144</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(kind) = <span class="self">self</span>.parse_trait_impl_type() {
 <a href=#145 id=145 data-nosnippet>145</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(kind);
@@ -152,7 +152,7 @@
 <a href=#152 id=152 data-nosnippet>152</a>        <span class="self">self</span>.parse_trait_impl_function()
 <a href=#153 id=153 data-nosnippet>153</a>    }
 <a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a>    <span class="doccomment">/// TraitImplType = 'type' identifier ( ':' Type )? ';'
+<a href=#155 id=155 data-nosnippet>155</a>    <span class="doccomment">/// `TraitImplType` = 'type' identifier ( ':' Type )? ';'
 <a href=#156 id=156 data-nosnippet>156</a>    </span><span class="kw">fn </span>parse_trait_impl_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitImplItemKind&gt; {
 <a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Type) {
 <a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -173,7 +173,7 @@
 <a href=#173 id=173 data-nosnippet>173</a>        <span class="prelude-val">Some</span>(TraitImplItemKind::Type { name, alias })
 <a href=#174 id=174 data-nosnippet>174</a>    }
 <a href=#175 id=175 data-nosnippet>175</a>
-<a href=#176 id=176 data-nosnippet>176</a>    <span class="doccomment">/// TraitImplConstant = 'let' identifier OptionalTypeAnnotation ';'
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="doccomment">/// `TraitImplConstant` = 'let' identifier `OptionalTypeAnnotation` ';'
 <a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">fn </span>parse_trait_impl_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitImplItemKind&gt; {
 <a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Let) {
 <a href=#179 id=179 data-nosnippet>179</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -210,7 +210,7 @@
 <a href=#210 id=210 data-nosnippet>210</a>        <span class="prelude-val">Some</span>(TraitImplItemKind::Constant(name, typ, expr))
 <a href=#211 id=211 data-nosnippet>211</a>    }
 <a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>    <span class="doccomment">/// TraitImplFunction = Attributes Modifiers Function
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="doccomment">/// `TraitImplFunction` = Attributes Modifiers Function
 <a href=#214 id=214 data-nosnippet>214</a>    </span><span class="kw">fn </span>parse_trait_impl_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitImplItemKind&gt; {
 <a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">let </span>attributes = <span class="self">self</span>.parse_attributes();
 <a href=#216 id=216 data-nosnippet>216</a>

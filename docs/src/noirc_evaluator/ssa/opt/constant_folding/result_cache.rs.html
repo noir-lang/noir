@@ -94,7 +94,7 @@
 <a href=#94 id=94 data-nosnippet>94</a>    }
 <a href=#95 id=95 data-nosnippet>95</a>}
 <a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a><span class="doccomment">/// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
+<a href=#97 id=97 data-nosnippet>97</a><span class="doccomment">/// `HashMap` from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 <a href=#98 id=98 data-nosnippet>98</a>/// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 <a href=#99 id=99 data-nosnippet>99</a>///
 <a href=#100 id=100 data-nosnippet>100</a>/// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
@@ -165,10 +165,10 @@
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="self">self</span>.<span class="number">0</span>.remove(<span class="kw-2">&amp;</span>CacheKeyRef::from(instruction))
 <a href=#166 id=166 data-nosnippet>166</a>    }
 <a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// Remove all cached MakeArray instructions that produce the given type.
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// Remove all cached `MakeArray` instructions that produce the given type.
 <a href=#169 id=169 data-nosnippet>169</a>    /// Used when we encounter a mutation of an array value that we can't trace back
 <a href=#170 id=170 data-nosnippet>170</a>    /// to a specific instruction (e.g. block parameters), so we must conservatively
-<a href=#171 id=171 data-nosnippet>171</a>    /// invalidate all cached MakeArrays that could be the source.
+<a href=#171 id=171 data-nosnippet>171</a>    /// invalidate all cached `MakeArrays` that could be the source.
 <a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">fn </span>remove_make_arrays_of_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) {
 <a href=#173 id=173 data-nosnippet>173</a>        <span class="self">self</span>.<span class="number">0</span>.retain(|instruction, <span class="kw">_</span>| {
 <a href=#174 id=174 data-nosnippet>174</a>            !<span class="macro">matches!</span>(instruction.as_ref(), Instruction::MakeArray { typ: make_array_typ, .. } <span class="kw">if </span>make_array_typ == typ)

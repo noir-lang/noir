@@ -10,11 +10,11 @@
 </ul>
 <h2 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h2>
 <ul>
-<li>If either operand is a <a href="value/enum.NumericValue.html#variant.Field" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::Field">NumericValue::Field</a> or <a href="value/enum.NumericValue.html#variant.U1" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::U1">NumericValue::U1</a> variant, this macro will panic with unreachable.</li>
+<li>If either operand is a <a href="value/enum.NumericValue.html#variant.Field" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::Field"><code>NumericValue::Field</code></a> or <a href="value/enum.NumericValue.html#variant.U1" title="variant noirc_evaluator::ssa::interpreter::value::NumericValue::U1"><code>NumericValue::U1</code></a> variant, this macro will panic with unreachable.</li>
 </ul>
 <h2 id="errors"><a class="doc-anchor" href="#errors">§</a>Errors</h2>
 <ul>
-<li>If the operand types don’t match, returns an <a href="errors/enum.InternalError.html#variant.MismatchedTypesInBinaryOperator" title="variant noirc_evaluator::ssa::interpreter::errors::InternalError::MismatchedTypesInBinaryOperator">InternalError::MismatchedTypesInBinaryOperator</a>.</li>
+<li>If the operand types don’t match, returns an <a href="errors/enum.InternalError.html#variant.MismatchedTypesInBinaryOperator" title="variant noirc_evaluator::ssa::interpreter::errors::InternalError::MismatchedTypesInBinaryOperator"><code>InternalError::MismatchedTypesInBinaryOperator</code></a>.</li>
 </ul>
 <h2 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h2>
 <p>A <code>NumericValue</code> containing the result of the operation, matching the original type.</p>

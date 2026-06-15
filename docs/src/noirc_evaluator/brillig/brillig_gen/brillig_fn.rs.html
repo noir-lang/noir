@@ -29,7 +29,7 @@
 <a href=#29 id=29 data-nosnippet>29</a></span><span class="attr">#[derive(Default)]
 <a href=#30 id=30 data-nosnippet>30</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>FunctionContext {
 <a href=#31 id=31 data-nosnippet>31</a>    <span class="doccomment">/// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
-<a href=#32 id=32 data-nosnippet>32</a>    /// such as with globals, we are not within a function and do not have a [FunctionId].
+<a href=#32 id=32 data-nosnippet>32</a>    /// such as with globals, we are not within a function and do not have a [`FunctionId`].
 <a href=#33 id=33 data-nosnippet>33</a>    </span>function_id: <span class="prelude-ty">Option</span>&lt;FunctionId&gt;,
 <a href=#34 id=34 data-nosnippet>34</a>    <span class="doccomment">/// Map from SSA values its allocation. Since values can be only defined once in SSA form,
 <a href=#35 id=35 data-nosnippet>35</a>    /// we insert them here on when we allocate them at their definition.
@@ -148,7 +148,7 @@
 <a href=#148 id=148 data-nosnippet>148</a>            .collect()
 <a href=#149 id=149 data-nosnippet>149</a>    }
 <a href=#150 id=150 data-nosnippet>150</a>
-<a href=#151 id=151 data-nosnippet>151</a>    <span class="doccomment">/// Converts an SSA [Type] into a corresponding [BrilligParameter].
+<a href=#151 id=151 data-nosnippet>151</a>    <span class="doccomment">/// Converts an SSA [Type] into a corresponding [`BrilligParameter`].
 <a href=#152 id=152 data-nosnippet>152</a>    ///
 <a href=#153 id=153 data-nosnippet>153</a>    /// This conversion defines the calling convention for Brillig functions,
 <a href=#154 id=154 data-nosnippet>154</a>    /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.

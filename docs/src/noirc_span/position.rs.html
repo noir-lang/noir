@@ -14,14 +14,14 @@
 <a href=#14 id=14 data-nosnippet>14</a>}
 <a href=#15 id=15 data-nosnippet>15</a>
 <a href=#16 id=16 data-nosnippet>16</a><span class="doccomment">/// This is important for tests. Two Spanned objects are equal if their content is equal
-<a href=#17 id=17 data-nosnippet>17</a>/// They may not have the same span. Use into_span to test for Span being equal specifically
+<a href=#17 id=17 data-nosnippet>17</a>/// They may not have the same span. Use `into_span` to test for Span being equal specifically
 <a href=#18 id=18 data-nosnippet>18</a></span><span class="kw">impl</span>&lt;T: PartialEq&gt; PartialEq&lt;Spanned&lt;T&gt;&gt; <span class="kw">for </span>Spanned&lt;T&gt; {
 <a href=#19 id=19 data-nosnippet>19</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>Spanned&lt;T&gt;) -&gt; bool {
 <a href=#20 id=20 data-nosnippet>20</a>        <span class="self">self</span>.contents == other.contents
 <a href=#21 id=21 data-nosnippet>21</a>    }
 <a href=#22 id=22 data-nosnippet>22</a>}
 <a href=#23 id=23 data-nosnippet>23</a>
-<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// Hash-based data structures (HashMap, HashSet) rely on the inverse of Hash
+<a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// Hash-based data structures (`HashMap`, `HashSet`) rely on the inverse of Hash
 <a href=#25 id=25 data-nosnippet>25</a>/// being injective, i.e. x.eq(y) =&gt; hash(x, H) == hash(y, H), we hence align
 <a href=#26 id=26 data-nosnippet>26</a>/// this with the above
 <a href=#27 id=27 data-nosnippet>27</a></span><span class="kw">impl</span>&lt;T: Hash&gt; Hash <span class="kw">for </span>Spanned&lt;T&gt; {
@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>        Span::from(position..position)
 <a href=#67 id=67 data-nosnippet>67</a>    }
 <a href=#68 id=68 data-nosnippet>68</a>
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="doccomment">/// Unlike Span::empty, Span::initial always starts at index 0
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="doccomment">/// Unlike `Span::empty`, `Span::initial` always starts at index 0
 <a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">pub const fn </span>initial() -&gt; Span {
 <a href=#71 id=71 data-nosnippet>71</a>        Span(ByteSpan::initial())
 <a href=#72 id=72 data-nosnippet>72</a>    }

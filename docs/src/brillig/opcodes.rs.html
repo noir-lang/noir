@@ -105,7 +105,7 @@
 <a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// A single field element is enough to represent the value with a given bit size.
 <a href=#106 id=106 data-nosnippet>106</a>    </span><span class="attr">#[tag(<span class="number">0</span>)]
 <a href=#107 id=107 data-nosnippet>107</a>    </span>Simple(BitSize),
-<a href=#108 id=108 data-nosnippet>108</a>    <span class="doccomment">/// The value read should be interpreted as a pointer to a [HeapArray], which
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="doccomment">/// The value read should be interpreted as a pointer to a [`HeapArray`], which
 <a href=#109 id=109 data-nosnippet>109</a>    /// consists of a pointer to a slice of memory of size elements, and a
 <a href=#110 id=110 data-nosnippet>110</a>    /// reference count, to avoid cloning arrays that are not shared.
 <a href=#111 id=111 data-nosnippet>111</a>    </span><span class="attr">#[tag(<span class="number">1</span>)]
@@ -115,7 +115,7 @@
 <a href=#115 id=115 data-nosnippet>115</a>        <span class="attr">#[tag(<span class="number">1</span>)]
 <a href=#116 id=116 data-nosnippet>116</a>        </span>size: SemanticLength,
 <a href=#117 id=117 data-nosnippet>117</a>    },
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// The value read should be interpreted as a pointer to a [HeapVector], which
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// The value read should be interpreted as a pointer to a [`HeapVector`], which
 <a href=#119 id=119 data-nosnippet>119</a>    /// consists of a pointer to a slice of memory, a number of elements in that
 <a href=#120 id=120 data-nosnippet>120</a>    /// vector, and a reference count.
 <a href=#121 id=121 data-nosnippet>121</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
@@ -334,7 +334,7 @@
 <a href=#334 id=334 data-nosnippet>334</a>        }
 <a href=#335 id=335 data-nosnippet>335</a>    }
 <a href=#336 id=336 data-nosnippet>336</a>
-<a href=#337 id=337 data-nosnippet>337</a>    <span class="doccomment">/// Try to create a BitSize from a u32 value.
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="doccomment">/// Try to create a `BitSize` from a u32 value.
 <a href=#338 id=338 data-nosnippet>338</a>    ///
 <a href=#339 id=339 data-nosnippet>339</a>    /// If the value matches the field's maximum bit count, returns `BitSize::Field`.
 <a href=#340 id=340 data-nosnippet>340</a>    /// Otherwise, attempts to interpret it as an integer bit size.
@@ -530,7 +530,7 @@
 <a href=#530 id=530 data-nosnippet>530</a>        </span>function: String,
 <a href=#531 id=531 data-nosnippet>531</a>        <span class="doccomment">/// Destination addresses (may be single values or memory pointers).
 <a href=#532 id=532 data-nosnippet>532</a>        ///
-<a href=#533 id=533 data-nosnippet>533</a>        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+<a href=#533 id=533 data-nosnippet>533</a>        /// Output vectors are passed as a [`ValueOrArray::MemoryAddress`]. Since their size is not known up front,
 <a href=#534 id=534 data-nosnippet>534</a>        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
 <a href=#535 id=535 data-nosnippet>535</a>        /// the current free memory pointer, and store the heap address into the destination.
 <a href=#536 id=536 data-nosnippet>536</a>        </span><span class="attr">#[tag(<span class="number">1</span>)]
@@ -815,7 +815,7 @@
 <a href=#815 id=815 data-nosnippet>815</a>    <span class="kw">use super</span>::{BitSize, IntegerBitSize};
 <a href=#816 id=816 data-nosnippet>816</a>    <span class="kw">use </span>acir_field::FieldElement;
 <a href=#817 id=817 data-nosnippet>817</a>
-<a href=#818 id=818 data-nosnippet>818</a>    <span class="doccomment">/// Test that IntegerBitSize round trips correctly through From/TryFrom u32
+<a href=#818 id=818 data-nosnippet>818</a>    <span class="doccomment">/// Test that `IntegerBitSize` round trips correctly through From/TryFrom u32
 <a href=#819 id=819 data-nosnippet>819</a>    </span><span class="attr">#[test]
 <a href=#820 id=820 data-nosnippet>820</a>    </span><span class="kw">fn </span>test_integer_bitsize_roundtrip() {
 <a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span>integer_sizes = [
@@ -865,7 +865,7 @@
 <a href=#865 id=865 data-nosnippet>865</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">256</span>).is_err());
 <a href=#866 id=866 data-nosnippet>866</a>    }
 <a href=#867 id=867 data-nosnippet>867</a>
-<a href=#868 id=868 data-nosnippet>868</a>    <span class="doccomment">/// Test that BitSize round-trips correctly through to_u32/try_from_u32
+<a href=#868 id=868 data-nosnippet>868</a>    <span class="doccomment">/// Test that `BitSize` round-trips correctly through `to_u32/try_from_u32`
 <a href=#869 id=869 data-nosnippet>869</a>    </span><span class="attr">#[test]
 <a href=#870 id=870 data-nosnippet>870</a>    </span><span class="kw">fn </span>test_bitsize_roundtrip() {
 <a href=#871 id=871 data-nosnippet>871</a>        <span class="comment">// Test all integer bit sizes
