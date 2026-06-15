@@ -1,7 +1,3 @@
-// The alias analysis is not consumed by any optimization pass yet,
-// remove it once the analysis is used.
-#![allow(dead_code)]
-
 //! Steensgaard-style alias analysis for SSA references.
 //!
 //! This is a flow-insensitive, unification-based alias analysis. It walks every
@@ -123,30 +119,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Scope of the analysis
-enum Scope<'a> {
-    /// Analyze a single function
-    Single(&'a Function),
-    /// Analyze the whole program. More precise; preferred over the single-function analysis.
-    Ssa(&'a Ssa),
-}
-
-impl Scope<'_> {
-    fn is_entry_point(&self, function_id: FunctionId) -> bool {
-        match self {
-            Scope::Single(function) => function.id() == function_id,
-            Scope::Ssa(ssa) => ssa.is_entry_point(function_id),
-        }
-    }
-
-    fn functions(&self) -> Vec<&Function> {
-        match self {
-            Scope::Single(f) => vec![*f],
-            Scope::Ssa(ssa) => ssa.functions.values().collect(),
-        }
-    }
-}
-
 /// `GlobalValueId` are `ValueId` along with their `FunctionId`,
 /// allowing to globally use `ValueIds` coming from several functions.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -155,6 +127,14 @@ pub(crate) struct GlobalValueId(FunctionId, ValueId);
 impl GlobalValueId {
     pub(crate) fn new(function: &Function, value: ValueId) -> Self {
         GlobalValueId(function.id(), value)
+    }
+
+    pub(crate) fn func_id(self) -> FunctionId {
+        self.0
+    }
+
+    pub(crate) fn value_id(self) -> ValueId {
+        self.1
     }
 }
 
@@ -189,13 +169,7 @@ impl AliasAnalysis {
     ///
     /// The constraints are monotone and converge in a single pass.
     pub(crate) fn analyze(ssa: &Ssa) -> Self {
-        AliasAnalysisContext::analyze_with_scope(Scope::Ssa(ssa))
-    }
-    /// Build an analysis for one function in isolation. All calls are treated as
-    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
-    /// when the whole SSA is unavailable.
-    pub(crate) fn analyze_single_function(function: &Function) -> Self {
-        AliasAnalysisContext::analyze_with_scope(Scope::Single(function))
+        AliasAnalysisContext::analyze_ssa(ssa)
     }
 
     /// Returns `true` if `a` and `b` may refer to the same memory location.
@@ -217,9 +191,9 @@ impl AliasAnalysis {
         // Note that this check is done only when both `a` and `b` match the given `function`.
         // This is purely for convenience, because the type filter would need access to the SSA
         // to look up types in other functions, which it doesn't currently.
-        if function.id() == a.0 && a.0 == b.0 {
-            let type_a = function.dfg.type_of_value(a.1);
-            let type_b = function.dfg.type_of_value(b.1);
+        if function.id() == a.func_id() && a.func_id() == b.func_id() {
+            let type_a = function.dfg.type_of_value(a.value_id());
+            let type_b = function.dfg.type_of_value(b.value_id());
             if !type_a.canonical_eq(&type_b) {
                 return false;
             }
@@ -229,8 +203,8 @@ impl AliasAnalysis {
             return false;
         }
 
-        let a_root = self.aliases.find(a);
-        let b_root = self.aliases.find(b);
+        let a_root = self.aliases.find_existing(a);
+        let b_root = self.aliases.find_existing(b);
 
         a_root == b_root
     }
@@ -239,8 +213,11 @@ impl AliasAnalysis {
     ///
     /// The per-class size table is populated on demand the first time this is
     /// called — consumers that only use [`Self::may_alias`] do not pay for it.
+    // Part of the analysis's query API, exercised by unit tests; no production
+    // consumer yet.
+    #[allow(dead_code)]
     pub(crate) fn is_aliased(&mut self, value: GlobalValueId) -> bool {
-        let root = self.aliases.find(value);
+        let root = self.aliases.find_existing(value);
         if self.class_sizes.is_none() {
             // Count members per alias class
             self.class_sizes = Some(self.aliases.class_sizes());
@@ -251,8 +228,8 @@ impl AliasAnalysis {
 
     /// Recursively check if `target` can be referenced by `from`
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
-        let from_rep = self.aliases.find(from);
-        let target_rep = self.aliases.find(target);
+        let from_rep = self.aliases.find_existing(from);
+        let target_rep = self.aliases.find_existing(target);
         if from_rep == target_rep {
             return !self.get_allocation(from).cannot_equal(&self.get_allocation(target));
         }
@@ -276,6 +253,9 @@ impl AliasAnalysis {
     /// Returns `true` if `a` and `b` definitely refer to the same memory location
     /// Allocation site identity does not imply runtime cell identity when
     /// the site fires multiple times in one execution (e.g. loops, recursion)
+    // Part of the analysis's query API, exercised by unit tests; no production
+    // consumer yet.
+    #[allow(dead_code)]
     pub(crate) fn must_alias(&self, a: GlobalValueId, b: GlobalValueId) -> bool {
         if a == b {
             return true;
@@ -315,7 +295,7 @@ impl AliasAnalysis {
     fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
         match allocation_site {
             AllocationLattice::Known(site)
-                if !(self.untrusted_site_functions.contains(&site.0)
+                if !(self.untrusted_site_functions.contains(&site.func_id())
                     || self.loop_allocates.contains(&site)) =>
             {
                 Some(site)
@@ -408,10 +388,10 @@ fn loop_blocks(function: &Function) -> HashSet<BasicBlockId> {
 }
 
 impl AliasAnalysisContext {
-    fn analyze_with_scope(scope: Scope) -> AliasAnalysis {
+    fn analyze_ssa(ssa: &Ssa) -> AliasAnalysis {
         // Precondition: globals are expected to be pure constants (numeric or
         // composite-of-numeric) as documented.
-        let functions = scope.functions();
+        let functions: Vec<&Function> = ssa.functions.values().collect();
         if let Some(first) = functions.first() {
             for (_, global) in first.dfg.globals.values_iter() {
                 assert!(
@@ -427,24 +407,33 @@ impl AliasAnalysisContext {
         // detection in `analyze_block` propagates transitively: when we reach a
         // callee, every site that has already flagged it as untrusted has
         // already run, and that knowledge feeds back into how we analyze it.
-        let pass1_functions: Vec<&Function> = match &scope {
-            Scope::Single(f) => vec![*f],
-            Scope::Ssa(ssa) => {
-                // The analysis tolerates incomplete call-graphs, via `unresolved_call` handling
-                let call_graph = CallGraph::from_ssa_partial(ssa);
-                let (sccs, recursive) = call_graph.sccs();
-                analysis.untrusted_site_functions = recursive;
-                sccs.into_iter().rev().flatten().filter_map(|fid| ssa.functions.get(&fid)).collect()
-            }
-        };
+        // The analysis tolerates incomplete call-graphs, via `unresolved_call` handling
+        let call_graph = CallGraph::from_ssa_partial(ssa);
+        let (sccs, recursive) = call_graph.sccs();
+        analysis.untrusted_site_functions = recursive;
+        let pass1_functions: Vec<&Function> =
+            sccs.into_iter().rev().flatten().filter_map(|fid| ssa.functions.get(&fid)).collect();
 
         for function in &pass1_functions {
-            analysis.analyze_function(&scope, function);
+            analysis.analyze_function(ssa, function);
         }
 
         // Pass 2: propagate sites for Load / ArrayGet from the allocation site of their address's pointees
         for function in &functions {
-            analysis.refine_allocation_sites(function, scope.is_entry_point(function.id()));
+            analysis.refine_allocation_sites(function, ssa.is_entry_point(function.id()));
+        }
+
+        // Make the analysis total: insert every reference-typed value into the
+        // union-find (most are added while processing constraints, but values
+        // never involved in one would otherwise be missing). With the structure
+        // total, a post-analysis lookup of an unknown value is a bug —
+        // see `find_existing` — rather than a silently-created singleton.
+        for function in &functions {
+            for (value_id, _) in function.dfg.values_iter() {
+                if function.dfg.type_of_value(value_id).contains_reference() {
+                    analysis.aliases.make_set(GlobalValueId::new(function, value_id));
+                }
+            }
         }
 
         AliasAnalysis {
@@ -547,8 +536,8 @@ impl AliasAnalysisContext {
     /// Walk every block in one function, processing instructions and terminators.
     /// If the function is an entry point of the SSA, also unify its
     /// same-typed reference parameters.
-    fn analyze_function(&mut self, scope: &Scope, function: &Function) {
-        let is_entry_point = scope.is_entry_point(function.id());
+    fn analyze_function(&mut self, ssa: &Ssa, function: &Function) {
+        let is_entry_point = ssa.is_entry_point(function.id());
         if is_entry_point {
             // Unify the reference parameters of the entry point because the
             // external caller may pass the same reference to 2 reference parameters.
@@ -575,7 +564,7 @@ impl AliasAnalysisContext {
             // in `analyze_block`.
             let ignore_allocations_in_block =
                 function_is_untrusted || loop_block_set.contains(&block_id);
-            self.analyze_block(function, block_id, scope, ignore_allocations_in_block);
+            self.analyze_block(function, block_id, ssa, ignore_allocations_in_block);
         }
 
         if is_entry_point {
@@ -699,7 +688,7 @@ impl AliasAnalysisContext {
         &mut self,
         function: &Function,
         block_id: BasicBlockId,
-        scope: &Scope,
+        ssa: &Ssa,
         mut ignore_allocations_in_block: bool,
     ) {
         let block = &function.dfg[block_id];
@@ -727,13 +716,13 @@ impl AliasAnalysisContext {
                     self.join_reference(function, *value, *address);
                 }
                 Instruction::Call { func: callee_id, arguments } => {
-                    match (&function.dfg[*callee_id], scope) {
+                    match &function.dfg[*callee_id] {
                         // Inter-procedural analysis for resolved functions
                         // - merge arguments with their parameters,
                         // - process the function body (i.e analyze the instructions, but only once since it context-insensitive).
                         //   This is done through analyze_function() which process all the functions.
                         // - merge return values with the instruction results
-                        (Value::Function(callee_id), Scope::Ssa(ssa)) => {
+                        Value::Function(callee_id) => {
                             // Multi-invocation detection: a populated `return_values`
                             // entry means this is at least the second call site.
                             if self.return_values.contains_key(callee_id)
@@ -745,22 +734,20 @@ impl AliasAnalysisContext {
                                 ssa, *callee_id, function, arguments, results,
                             );
                         }
-                        (Value::Intrinsic(Intrinsic::Hint(_)), _) => {
+                        Value::Intrinsic(Intrinsic::Hint(_)) => {
                             self.unresolved_call(function, arguments, results);
                         }
-                        (Value::Intrinsic(intrinsic), _)
-                            if Self::is_vector_intrinsic(intrinsic) =>
-                        {
+                        Value::Intrinsic(intrinsic) if Self::is_vector_intrinsic(intrinsic) => {
                             // Merge input vector with output,
                             // Add the elements to the vector's pointee set
                             self.unify_vector_intrinsic(function, intrinsic, arguments, results);
                         }
-                        (Value::Intrinsic(intrinsic), _) => {
+                        Value::Intrinsic(intrinsic) => {
                             // Only Hint or Vector operations may alias.
                             assert!(!Self::intrinsic_may_alias(intrinsic));
                         }
                         // Foreign calls cannot call Noir functions, so we do not mark them as recursive
-                        (Value::ForeignFunction { .. }, _) => {
+                        Value::ForeignFunction { .. } => {
                             self.unresolved_call(function, arguments, results);
                         }
                         // Fallthrough for unresolved functions whose function body
