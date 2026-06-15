@@ -18,7 +18,7 @@ use crate::{
 use super::Elaborator;
 
 /// Everything needed to resolve a struct's fields later, captured at
-/// registration time. Mirrors [super::function::UnresolvedFunctionMeta] for
+/// registration time. Mirrors [`super::function::UnresolvedFunctionMeta`] for
 /// function metas. The actual `DataType` already lives in the interner; this
 /// just holds the syntactic struct definition plus the module context.
 pub(super) struct UnresolvedStructFields {
@@ -33,10 +33,10 @@ impl Elaborator<'_> {
     ///
     /// The per-struct checks that need resolved fields
     /// (visibility, LSP definition-location registration, ABI mark-as-used,
-    /// `must_use` propagation) run inside [Self::resolve_one_struct_fields]
+    /// `must_use` propagation) run inside [`Self::resolve_one_struct_fields`]
     /// in both paths, so they fire as soon as fields are available. The
     /// whole-program `check_for_nested_vectors` runs separately in
-    /// [Self::check_for_nested_vectors_in] from `elaborate_items`, after
+    /// [`Self::check_for_nested_vectors_in`] from `elaborate_items`, after
     /// the post-attribute drain has filled in every field.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_struct_definitions(

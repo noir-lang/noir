@@ -790,7 +790,7 @@ fn new_embedded_curve_point(x: FieldElement, y: FieldElement) -> IResult<Value> 
     Ok(Value::array(vec![x, y], vec![Type::field(), Type::field()]))
 }
 
-/// Convert a vector of [Value] to a flattened vector of [FieldElement] for printing.
+/// Convert a vector of [Value] to a flattened vector of [`FieldElement`] for printing.
 ///
 /// It takes a vector, rather than individual values, so that it can try to
 /// pair up `u32` fields indicating the size of a `Vector` with its elements
@@ -848,7 +848,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
     fields
 }
 
-/// Parse a [Value] as [PrintableType].
+/// Parse a [Value] as [`PrintableType`].
 fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
     let name = "type_metadata";
     let json = value_to_string(name, value)?;

@@ -229,9 +229,9 @@ fn get_truncate_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     vec![(16, strategy_u16), (32, strategy_u32), (64, strategy_u64), (128, strategy_u128)]
 }
 
-/// The tests fuzz_zero_extend(), fuzz_signed_unsigned_same_size(), fuzz_sign_extend() and fuzz_truncate()
+/// The tests `fuzz_zero_extend()`, `fuzz_signed_unsigned_same_size()`, `fuzz_sign_extend()` and `fuzz_truncate()`
 /// ensure that casting between integer types is correct, assuming casting to Field is correct.
-/// Casting to Field is validated with the fuzz_field_cast() test.
+/// Casting to Field is validated with the `fuzz_field_cast()` test.
 /// Any casting between integer types will use a combination of: no-op, zero extension, sign extension, or truncation.
 /// Testing these 4 primitives should be enough to guarantee that casting between any integer types is correct.
 ///

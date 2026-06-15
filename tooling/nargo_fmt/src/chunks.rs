@@ -77,8 +77,8 @@ impl Chunk {
         }
     }
 
-    /// Computes the width of this chunk considering it's inside an ExpressionList.
-    /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInList's
+    /// Computes the width of this chunk considering it's inside an `ExpressionList`.
+    /// The only thing that changes here compared to `width` is that a `LambdaAsLastExpressionInList`'s
     /// width is considered to be only the first line, so we can avoid splitting the entire call
     /// arguments into separate lines.
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
@@ -141,9 +141,9 @@ impl Display for Chunk {
 pub(crate) struct ChunkGroup {
     pub(crate) chunks: Vec<Chunk>,
 
-    /// If `true`, when formatting in multiple lines, and after a SpaceOrLine,
+    /// If `true`, when formatting in multiple lines, and after a `SpaceOrLine`,
     /// a line will be written.
-    /// If `false`, when formatting in multiple lines, and after a SpaceOrLine,
+    /// If `false`, when formatting in multiple lines, and after a `SpaceOrLine`,
     /// a space will be inserted and the next chunk will go in the same line if
     /// it fits that line.
     ///
@@ -246,7 +246,7 @@ impl ChunkGroup {
         }));
     }
 
-    /// Appends a TextChunk to this chunks chunks. However, if the last chunk is a group,
+    /// Appends a `TextChunk` to this chunks chunks. However, if the last chunk is a group,
     /// it's appended to that group's last text.
     pub(crate) fn text_attached_to_last_group(&mut self, chunk: TextChunk) {
         if chunk.width == 0 {
@@ -302,7 +302,7 @@ impl ChunkGroup {
         self.push(Chunk::Line { two });
     }
 
-    /// Appends a SpaceOrLine chunk, which means that it's a space when this group is
+    /// Appends a `SpaceOrLine` chunk, which means that it's a space when this group is
     /// formatted in a single line, or a line when it's formatted in multiple lines.
     pub(crate) fn space_or_line(&mut self) {
         self.push(Chunk::SpaceOrLine);
@@ -340,8 +340,8 @@ impl ChunkGroup {
         self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
 
-    /// Determines if this group has a LambdaAsLastExpressionInList chunk.
-    /// Note that if this group is a MethodCall, this is checked for the ExpressionList group
+    /// Determines if this group has a `LambdaAsLastExpressionInList` chunk.
+    /// Note that if this group is a `MethodCall`, this is checked for the `ExpressionList` group
     /// inside it.
     pub(crate) fn has_lambda_as_last_expression_in_list(&self) -> bool {
         self.chunks.iter().any(|chunk| {
@@ -420,8 +420,8 @@ impl ChunkGroup {
         }
     }
 
-    /// Returns the width of text until we hit a Line or LineOrSpace, together
-    /// with whether we hit a Line or LineOrSpace.
+    /// Returns the width of text until we hit a Line or `LineOrSpace`, together
+    /// with whether we hit a Line or `LineOrSpace`.
     fn width_until_line(&self) -> (usize, bool) {
         let mut width = 0;
         for chunk in &self.chunks {
@@ -471,8 +471,8 @@ impl ChunkGroup {
         false
     }
 
-    /// Assuming this is a MethodCall group, if the ExpressionList nested in it
-    /// has a LambdaAsLastExpressionInList, returns its `first_line_width`.
+    /// Assuming this is a `MethodCall` group, if the `ExpressionList` nested in it
+    /// has a `LambdaAsLastExpressionInList`, returns its `first_line_width`.
     fn method_call_lambda_first_line_width(&self) -> Option<usize> {
         for chunk in &self.chunks {
             let Chunk::Group(group) = chunk else {
@@ -522,7 +522,7 @@ pub(crate) enum GroupKind {
     /// `prefix_width` is the width of whatever is before the actual expression list.
     /// For example, for an array this is 1 (for "["), for a vector it's 2 ("@["), etc.
     ExpressionList { prefix_width: usize, expressions_count: usize },
-    /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
+    /// This is a chunk for a lambda argument that is the last expression of an `ExpressionList`.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
     /// list and the left bracket.
     LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<i32> },
@@ -566,7 +566,7 @@ impl GroupKind {
     }
 }
 
-/// Interface for creating TextChunks.
+/// Interface for creating `TextChunks`.
 pub(crate) struct ChunkFormatter<'a, 'b>(&'b mut Formatter<'a>);
 
 impl<'a, 'b> ChunkFormatter<'a, 'b> {
@@ -623,7 +623,7 @@ impl<'b> Deref for ChunkFormatter<'_, 'b> {
 }
 
 impl<'a> Formatter<'a> {
-    /// Returns an object that has a `chunk` method to get a TextChunk.
+    /// Returns an object that has a `chunk` method to get a `TextChunk`.
     /// This method exists so that we can't mix the two operation modes:
     /// using the formatter directly while writing to the buffer, or creating text chunks.
     pub(super) fn chunk_formatter(&mut self) -> ChunkFormatter<'a, '_> {
@@ -1293,7 +1293,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    /// Returns a new GroupTag that is unique compared to other `new_group_tag` calls.
+    /// Returns a new `GroupTag` that is unique compared to other `new_group_tag` calls.
     pub(super) fn new_group_tag(&mut self) -> GroupTag {
         let tag = GroupTag(self.group_tag_counter);
         self.group_tag_counter += 1;
