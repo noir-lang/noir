@@ -82,16 +82,48 @@ fn call_foreign(
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`
 fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (inputs, iv, key) = check_three_arguments(arguments, location)?;
+    let (inputs_arg, iv_arg, key_arg) = check_three_arguments(arguments, location)?;
+    let inputs_location = inputs_arg.1;
+    let iv_location = iv_arg.1;
+    let key_location = key_arg.1;
 
-    let (inputs, _) = get_array_map(inputs, get_u8)?;
-    let (iv, _) = get_fixed_array_map(iv, get_u8)?;
-    let (key, _) = get_fixed_array_map(key, get_u8)?;
+    let (inputs, _) = get_array_map(inputs_arg, get_u8)?;
+    if !inputs.len().is_multiple_of(16) {
+        return Err(aes128_error(
+            format!("input length {} is not a multiple of 16", inputs.len()),
+            inputs_location,
+        ));
+    }
+
+    let iv = get_aes128_block(iv_arg, "iv", iv_location)?;
+    let key = get_aes128_block(key_arg, "key", key_location)?;
 
     let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+        .map_err(|e| InterpreterError::BlackBoxError(e, inputs_location))?;
 
     Ok(to_byte_array(&output))
+}
+
+/// Reads an AES128 `iv` or `key` argument as a `[u8; 16]`, reporting an AES-tagged
+/// diagnostic at the argument location if its length is wrong. This mirrors the
+/// per-argument validation done by the Brillig VM's blackbox handler.
+fn get_aes128_block(
+    argument: (Value, Location),
+    name: &str,
+    location: Location,
+) -> IResult<[u8; 16]> {
+    let (values, _) = get_array_map(argument, get_u8)?;
+    let len = values.len();
+    values
+        .try_into()
+        .map_err(|_| aes128_error(format!("Invalid {name} length {len}, expected 16"), location))
+}
+
+fn aes128_error(reason: String, location: Location) -> InterpreterError {
+    InterpreterError::BlackBoxError(
+        BlackBoxResolutionError::Failed(acvm::acir::BlackBoxFunc::AES128Encrypt, reason),
+        location,
+    )
 }
 
 /// Run one of the Blake hash functions.
