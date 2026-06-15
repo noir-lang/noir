@@ -7,7 +7,7 @@ use crate::hir::resolution::visibility::module_def_id_visibility;
 use crate::node_interner::TraitImplId;
 use crate::{
     DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
-    ast::{Ident, ItemVisibility},
+    ast::{DocComment, Ident, ItemVisibility},
     graph::Dependency,
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
@@ -185,7 +185,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let Some(doc_comments) = self.interner.doc_comments(reference_id) else {
             return;
         };
+        self.show_doc_comment_lines(doc_comments);
+    }
 
+    fn show_doc_comment_lines(&mut self, doc_comments: &[DocComment]) {
         for located_comment in doc_comments {
             let comment = &located_comment.contents;
             if comment.contains('\n') {
@@ -342,6 +345,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn show_impl(&mut self, impl_: Impl) {
         let typ = impl_.typ;
 
+        self.show_doc_comment_lines(&impl_.doc_comments);
         self.push_str("impl");
         self.show_generics(&impl_.generics);
         self.push(' ');

@@ -28,15 +28,15 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     }
 
     /// This pass analyzes the circuit and identifies intermediate variables that are
-    /// only used in two AssertZero opcodes. It then merges the opcode which produces the
+    /// only used in two `AssertZero` opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
     ///
     /// The first pass maps witnesses to the indices of the opcodes using them.
     /// Public inputs are not considered because they cannot be simplified.
-    /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
+    /// Witnesses used by `MemoryInit` opcodes are put in a separate map and marked as used by a Brillig call
     /// if the memory block is an input to the call.
     ///
-    /// The second pass looks for AssertZero opcodes having a witness which is only used by another arithmetic opcode.
+    /// The second pass looks for `AssertZero` opcodes having a witness which is only used by another arithmetic opcode.
     /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
     /// For instance, if we have 'w1' used only by these two opcodes,
     /// `5*w2*w3` and `w1`:
@@ -270,9 +270,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     }
 
     /// Returns the 'updated' opcode at the given index in the circuit
-    /// The modifications to the circuits are stored with 'deleted_gates' and 'modified_gates'
+    /// The modifications to the circuits are stored with '`deleted_gates`' and '`modified_gates`'
     /// These structures are used to give the 'updated' opcode.
-    /// For instance, if the opcode has been deleted inside 'deleted_gates', then it returns None.
+    /// For instance, if the opcode has been deleted inside '`deleted_gates`', then it returns None.
     fn get_opcode(&self, index: usize, circuit: &Circuit<F>) -> Option<Opcode<F>> {
         if self.deleted_gates.contains(&index) {
             return None;

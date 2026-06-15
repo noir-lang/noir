@@ -986,7 +986,7 @@ fn call_to_quoted_function_from_invalid_comptime_block() {
     check_errors(src);
 }
 
-/// Regression for issue #10855 (https://github.com/noir-lang/noir/issues/10855)
+/// Regression for issue #10855 (<https://github.com/noir-lang/noir/issues/10855>)
 #[test]
 fn access_non_existent_struct_field() {
     // We expect a single error. If we were to run the interpreter we would have duplicated errors.

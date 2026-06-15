@@ -54,7 +54,7 @@ impl<F: AcirField> ForeignCallParam<F> {
 /// Represents the full output of a [foreign call][crate::Opcode::ForeignCall].
 ///
 /// A foreign call can return multiple outputs, where each output can be either
-/// a single field element or an array. This struct wraps a vector of [ForeignCallParam]
+/// a single field element or an array. This struct wraps a vector of [`ForeignCallParam`]
 /// to represent all outputs from a single foreign call.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
 pub struct ForeignCallResult<F> {

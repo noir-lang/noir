@@ -31,7 +31,7 @@ fn can_coalesce_param_side(
     cfg.predecessors(*destination).count() == 1 && !dest_live_in.contains(arg)
 }
 
-/// Maps SSA ValueIds to partners whose register they should reuse.
+/// Maps SSA `ValueIds` to partners whose register they should reuse.
 ///
 /// An entry `x -> y` means "when defining x, reuse y's register."
 /// This covers two cases:

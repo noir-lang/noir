@@ -111,7 +111,7 @@ pub enum WildcardDisallowedContext {
 }
 
 impl Elaborator<'_> {
-    /// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _referenced_.
+    /// Resolves an [`UnresolvedType`] to a [Type] with [`Kind::Normal`] and marks it, and any generic types it contains, as _referenced_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn resolve_type(
         &mut self,
@@ -126,7 +126,7 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Resolves an [UnresolvedType] to a [Type] with [Kind::Normal] and marks it, and any generic types it contains, as _used_.
+    /// Resolves an [`UnresolvedType`] to a [Type] with [`Kind::Normal`] and marks it, and any generic types it contains, as _used_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn use_type(
         &mut self,
@@ -136,7 +136,7 @@ impl Elaborator<'_> {
         self.use_type_with_kind(typ, &Kind::Normal, wildcard_allowed)
     }
 
-    /// Resolves an [UnresolvedType] to a [Type] and marks it, and any generic types it contains, as _used_.
+    /// Resolves an [`UnresolvedType`] to a [Type] and marks it, and any generic types it contains, as _used_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn use_type_with_kind(
         &mut self,
@@ -147,7 +147,7 @@ impl Elaborator<'_> {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed, wildcard_allowed)
     }
 
-    /// Translates an [UnresolvedType] to a [Type] with a given [Kind] and [PathResolutionMode].
+    /// Translates an [`UnresolvedType`] to a [Type] with a given [Kind] and [`PathResolutionMode`].
     ///
     /// Pushes an error if the resolved type is invalid.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -166,7 +166,7 @@ impl Elaborator<'_> {
         resolved_type
     }
 
-    /// Resolves an [UnresolvedType] to a [Type] with a given [Kind] and marks it, and any generic types it contains, as _referenced_.
+    /// Resolves an [`UnresolvedType`] to a [Type] with a given [Kind] and marks it, and any generic types it contains, as _referenced_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn resolve_type_with_kind(
         &mut self,
@@ -177,7 +177,7 @@ impl Elaborator<'_> {
         self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
-    /// Translates an [UnresolvedType] into a [Type] with a given [Kind] and [PathResolutionMode].
+    /// Translates an [`UnresolvedType`] into a [Type] with a given [Kind] and [`PathResolutionMode`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_type_with_kind_inner(
         &mut self,
@@ -377,7 +377,7 @@ impl Elaborator<'_> {
         found
     }
 
-    /// Recursively collect all (trait_id, type) pairs for a named associated type
+    /// Recursively collect all (`trait_id`, type) pairs for a named associated type
     /// across a trait and its parent hierarchy. Skip traits already
     /// visited in `visited`.
     fn collect_associated_type_in_parent_traits(
@@ -792,7 +792,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolves the ordered and named [GenericTypeArgs] into [Type]s and associated [NamedType]s,
+    /// Resolves the ordered and named [`GenericTypeArgs`] into [Type]s and associated [`NamedType`]s,
     /// marking all of them as _used_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn use_type_args(
@@ -806,7 +806,7 @@ impl Elaborator<'_> {
         self.resolve_type_args_inner(args, item, location, mode, wildcard_allowed)
     }
 
-    /// Resolves the ordered and named [GenericTypeArgs] into [Type]s and associated [NamedType]s.
+    /// Resolves the ordered and named [`GenericTypeArgs`] into [Type]s and associated [`NamedType`]s.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_type_args_inner(
         &mut self,
@@ -827,9 +827,9 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Matches [GenericTypeArgs::ordered_args] to the [Generic::generic_kinds] of a [Generic] type,
-    /// resolving them to [Type]s with the given [PathResolutionMode]. If the type accepts named
-    /// generic arguments, those are resolved as well and returned as associated [NamedType]s.
+    /// Matches [`GenericTypeArgs::ordered_args`] to the [`Generic::generic_kinds`] of a [Generic] type,
+    /// resolving them to [Type]s with the given [`PathResolutionMode`]. If the type accepts named
+    /// generic arguments, those are resolved as well and returned as associated [`NamedType`]s.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_type_or_trait_args_inner(
         &mut self,
@@ -878,8 +878,8 @@ impl Elaborator<'_> {
     }
 
     /// Assuming that a [Generic] type accepts named type arguments, ie. has associated types,
-    /// go through a list of named [UnresolvedType]s and match them up to the named generics of the type,
-    /// returning the resolved [NamedType]s and pushing errors for any unexpected, duplicate or missing entries.
+    /// go through a list of named [`UnresolvedType`]s and match them up to the named generics of the type,
+    /// returning the resolved [`NamedType`]s and pushing errors for any unexpected, duplicate or missing entries.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_associated_type_args(
         &mut self,
@@ -1164,7 +1164,7 @@ impl Elaborator<'_> {
     }
 
     /// Checks that the type's [Kind] matches the expected kind, issuing an error if it does not.
-    /// Returns `typ` unless an error occurs - in which case [Type::Error] is returned.
+    /// Returns `typ` unless an error occurs - in which case [`Type::Error`] is returned.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_type_kind(
         &mut self,
@@ -1237,7 +1237,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Try to resolve an [AsTraitPath] as `<Self as {trait}>::{ident}` to the [Type] of the `{ident}`.
+    /// Try to resolve an [`AsTraitPath`] as `<Self as {trait}>::{ident}` to the [Type] of the `{ident}`.
     ///
     /// If it's a different pattern then returns `None`.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1363,7 +1363,7 @@ impl Elaborator<'_> {
         Some(typ.substitute(&instantiation_bindings).follow_bindings())
     }
 
-    /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete self_type)
+    /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete `self_type`)
     /// or inside a trait default method.
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
@@ -1473,7 +1473,7 @@ impl Elaborator<'_> {
         result
     }
 
-    /// This resolves a static trait method T::trait_method by iterating over the where clause
+    /// This resolves a static trait method `T::trait_method` by iterating over the where clause
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed from a where
     /// clause. This is always true since this helper searches where clauses for a generic constraint.
@@ -1581,7 +1581,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a path of the form `Type::method` or `Type::<turbofish>::method`.
-    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_direct_method].
+    /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_direct_method`].
     /// Resolves each candidate's meta first so that the type-aware lookup (which reads
     /// `function_meta` directly via `Methods::method_matches`) doesn't ICE on a
     /// still-deferred meta.
@@ -1596,7 +1596,7 @@ impl Elaborator<'_> {
         self.interner.lookup_direct_method(typ, method_name, check_self_param)
     }
 
-    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_trait_methods].
+    /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_trait_methods`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_trait_methods(
         &mut self,
@@ -1608,7 +1608,7 @@ impl Elaborator<'_> {
         self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
     }
 
-    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_generic_methods].
+    /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_generic_methods`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_generic_methods(
         &mut self,
@@ -1859,7 +1859,7 @@ impl Elaborator<'_> {
         TraitPathResolution { method, item: Some(item), errors }
     }
 
-    /// Try to resolve a [TypedPath] to a trait method path.
+    /// Try to resolve a [`TypedPath`] to a trait method path.
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
@@ -1890,7 +1890,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Wrapper of [Type::unify_with_coercions], pushing any unification errors.
+    /// Wrapper of [`Type::unify_with_coercions`], pushing any unification errors.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn unify_with_coercions(
         &mut self,
@@ -1979,7 +1979,7 @@ impl Elaborator<'_> {
     }
 
     /// Return a fresh integer or field type variable and log it
-    /// in self.type_variables to default it later.
+    /// in `self.type_variables` to default it later.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
@@ -1988,7 +1988,7 @@ impl Elaborator<'_> {
     }
 
     /// Return a fresh integer type variable and log it
-    /// in self.type_variables to default it later.
+    /// in `self.type_variables` to default it later.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
@@ -1997,7 +1997,7 @@ impl Elaborator<'_> {
     }
 
     /// Return a fresh integer type variable and log it
-    /// in self.type_variables to default it later.
+    /// in `self.type_variables` to default it later.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn type_variable_with_kind(&mut self, type_var_kind: Kind) -> Type {
         let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
@@ -2005,8 +2005,8 @@ impl Elaborator<'_> {
         typ
     }
 
-    /// Translates a (possibly Unspecified) UnresolvedType to a Type.
-    /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
+    /// Translates a (possibly Unspecified) `UnresolvedType` to a Type.
+    /// Any `UnresolvedType::Unspecified` encountered are replaced with fresh type variables.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_inferred_type(
         &mut self,
@@ -2045,7 +2045,7 @@ impl Elaborator<'_> {
     /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the
     /// implicitly added dereference operator if one is found.
     ///
-    /// Returns Some(new_expr_id) if a dereference was removed and None otherwise.
+    /// Returns `Some(new_expr_id)` if a dereference was removed and None otherwise.
     #[tracing::instrument(level = "trace", skip_all)]
     fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<ExprId> {
         match self.interner.expression(&object) {
@@ -2311,7 +2311,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Handles the TypeVariable case for checking binary operators.
+    /// Handles the `TypeVariable` case for checking binary operators.
     /// Returns true if we should use the impl for the operator instead of the primitive
     /// version of it.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -2537,7 +2537,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Prerequisite: verify_trait_constraint of the operator's trait constraint.
+    /// Prerequisite: `verify_trait_constraint` of the operator's trait constraint.
     ///
     /// Although by this point the operator is expected to already have a trait impl,
     /// we still need to match the operator's type against the method's instantiated type
@@ -3583,7 +3583,7 @@ impl Elaborator<'_> {
     }
 }
 
-/// Binds the ordered [ResolvedGeneric]s of a trait to the ordered generics in a [ResolvedTraitBound].
+/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
 ///
 /// Panics if the number of types do not match the ordered generics in the trait.
 pub(super) fn bind_ordered_generics(
@@ -3598,10 +3598,10 @@ pub(super) fn bind_ordered_generics(
     }
 }
 
-/// Binds the associated [ResolvedGeneric]s of a trait to the named generics in a [ResolvedTraitBound].
+/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
 ///
 /// Panics if the number of types exceeds the named generics in the trait.
-/// Any named parameter that does not appear in the arguments is bound to [Type::Error].
+/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
 fn bind_named_generics(
     mut params: Vec<ResolvedGeneric>,
     args: &[NamedType],
@@ -3632,7 +3632,7 @@ fn bind_named_generics(
     }
 }
 
-/// Binds the type variable in a [ResolvedGeneric], e.g. a generic parameter of a trait,
+/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
 /// to a [Type], which itself can be an unbound type variable.
 ///
 /// If the type variable itself appears in the type, then it does nothing.
