@@ -275,6 +275,25 @@ pub(super) fn oracle_returns_reference(
     }
 }
 
+/// Oracle functions cannot accept references as parameters.
+///
+/// Oracle are foreign functions running in an unknown execution context which
+/// does not have access to Brillig internal memory
+pub(super) fn oracle_parameter_is_reference(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    let reference_parameter = func.parameters.iter().find(|(_, typ, _)| typ.contains_reference());
+    reference_parameter.map(|(pattern, _, _)| ResolverError::OracleParameterIsReference {
+        location: pattern.location(),
+    })
+}
+
 /// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
 pub(super) fn pure_attribute_only_on_oracle(
     func: &FuncMeta,
@@ -346,6 +365,8 @@ pub(super) fn unconstrained_function_args(
 /// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
+/// * cannot return enums: their tag is an unconstrained `Field` witness, so a malicious prover
+///   could supply an out-of-range tag and force the wrong match arm in the constrained caller.
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
@@ -356,12 +377,14 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
+    } else if return_type.contains_enum() {
+        Some(TypeCheckError::UnconstrainedEnumReturnToConstrained { location })
     } else {
         None
     }
 }
 
-/// Errors if func_expr_id is `std::verify_proof_with_type`
+/// Errors if `func_expr_id` is `std::verify_proof_with_type`
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
@@ -516,7 +539,7 @@ pub(crate) fn check_varargs(
     None
 }
 
-/// Checks if an ExprId, which has to be an integer literal, fits in its type.
+/// Checks if an `ExprId`, which has to be an integer literal, fits in its type.
 pub(crate) fn check_integer_literal_fits_its_type(
     interner: &NodeInterner,
     expr_id: &ExprId,

@@ -89,7 +89,7 @@ fn nested_tagged_struct_recurses_through_wrapper() {
 
 /// `Vec<Pair>` exercises the `serialize_seq` adapter: each element must
 /// recurse through the wrapper so it lands as an int-keyed map, not as
-/// rmp_serde's default positional-array struct encoding. Without the
+/// `rmp_serde`'s default positional-array struct encoding. Without the
 /// adapter, each `Pair` would decode as `Array([Integer, Boolean])`.
 #[test]
 fn vec_of_tagged_recurses_each_element_through_wrapper() {
@@ -297,7 +297,7 @@ fn single_entry_map(value: &Value) -> (u64, &Value) {
 }
 
 /// Unit variants encode as `{<variant_tag>: nil}` — *not* the variant
-/// name string that rmp_serde's default would produce.
+/// name string that `rmp_serde`'s default would produce.
 #[test]
 fn unit_variant_encodes_as_variant_tag_with_nil_payload() {
     let bytes = msgpack_tagged_serialize(&Mixed::Empty).expect("serialize succeeds");

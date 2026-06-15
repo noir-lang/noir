@@ -371,7 +371,7 @@ pub(crate) fn process_workspace(
 }
 
 /// Type-checks a single file that changed by using existing cached data for the workspace/package,
-/// such as the cached NodeInterner, CrateGraph and DefMaps.
+/// such as the cached `NodeInterner`, `CrateGraph` and `DefMaps`.
 ///
 /// This greatly improves the responsiveness of the LSP server when editing files. However,
 /// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
@@ -632,7 +632,7 @@ fn uri_from_path(path: &Path) -> Option<Url> {
     if let Ok(uri) = Url::from_file_path(path) {
         Some(uri)
     } else if path.starts_with("std") {
-        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+        Some(crate::requests::stdlib_path_to_uri(&path.to_string_lossy()))
     } else {
         None
     }

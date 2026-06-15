@@ -4,6 +4,64 @@ use crate::tests::{
 };
 
 #[test]
+fn assign_through_explicit_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let mut x = 10;
+        *(&mut x) = 20;
+        assert(x == 20);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assign_through_explicit_mutable_reference_executes_at_comptime() {
+    // The comptime interpreter evaluates the lowered assignment, so a passing assertion proves
+    // the store actually reaches `x` through the synthesized reference binding.
+    let src = r#"
+    fn main() {
+        comptime {
+            let mut x = 10;
+            *(&mut x) = 20;
+            assert(x == 20);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assign_through_reference_chosen_by_conditional() {
+    // The dereferenced operand can be any value expression of reference type, not just a place.
+    let src = r#"
+    fn main() {
+        comptime {
+            let mut a = 1;
+            let mut b = 2;
+            let c = true;
+            *(if c { &mut a } else { &mut b }) = 10;
+            assert(a == 10);
+            assert(b == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_assign_through_explicit_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = 10;
+        *(&x) = 20;
+        ^^^^^ Expected type &mut _, found type &Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn cannot_mutate_immutable_variable() {
     let src = r#"
     fn main() {
@@ -176,7 +234,7 @@ fn calling_mutable_reference_to_lambda_output_from_trait_impl() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_oracle() {
+fn reference_behind_generics_returned_from_oracle() {
     let src = r#"
     unconstrained fn main() {
         let y = &mut 10;
@@ -184,7 +242,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         let mul = |x: Field| { *y = *y * x; };
 
         let f = choose_func(add, mul);
-                ^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+                ^^^^^^^^^^^ Reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
 
         f(20);
     }
@@ -199,7 +257,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
 }
 
 #[test]
-fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
+fn reference_behind_generics_returned_from_indirect_oracle() {
     let src = r#"
     unconstrained fn main() {
         foo::<&[(u8, u8); 3]>();
@@ -207,7 +265,7 @@ fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
 
     unconstrained fn foo<T>() {
         let f = get_array::<T>;
-                ^^^^^^^^^ Mutable reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
+                ^^^^^^^^^ Reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
         let _result = f();
     }
 

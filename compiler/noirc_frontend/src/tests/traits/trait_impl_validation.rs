@@ -216,7 +216,7 @@ fn check_impl_struct_not_trait() {
 fn check_trait_duplicate_declaration() {
     let src = "
     trait Default2 {
-          ~~~~~~~~ First trait definition found here
+          ~~~~~~~~ First definition found here
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -233,7 +233,7 @@ fn check_trait_duplicate_declaration() {
 
     trait Default2 {
           ^^^^^^^^ Duplicate definitions of trait definition with name Default2 found
-          ~~~~~~~~ Second trait definition found here
+          ~~~~~~~~ Second definition found here
         fn default(x: Field) -> Self;
     }
     ";

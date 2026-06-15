@@ -25,8 +25,10 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
-        def_map::LocalModuleId,
+        def_collector::dc_crate::{
+            ImplMap, UnresolvedFunctions, UnresolvedImpl, UnresolvedTraitImpl,
+        },
+        def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
@@ -34,10 +36,10 @@ use crate::{
         expr::HirIdent,
         function::{FuncMeta, FunctionBody, HirFunction},
         stmt::HirPattern,
-        traits::TraitConstraint,
+        traits::{Impl, TraitConstraint},
     },
     node_interner::{
-        DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId, TraitImplId,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, TraitId, TraitImplId,
     },
     shared::Visibility,
 };
@@ -62,12 +64,13 @@ pub(super) struct UnresolvedFunctionMeta {
     pub(super) outer_generics: Vec<ResolvedGeneric>,
     pub(super) current_trait: Option<TraitId>,
     pub(super) current_trait_impl: Option<TraitImplId>,
+    pub(super) current_impl: Option<ImplId>,
     pub(super) extra_trait_constraints: Vec<(TraitConstraint, Location)>,
 }
 
 impl Elaborator<'_> {
     /// Registers all functions, impl methods, and trait impl methods for *lazy*
-    /// metadata resolution. Each entry captures the elaborator context (self_type,
+    /// metadata resolution. Each entry captures the elaborator context (`self_type`,
     /// outer generics, trait/impl ids) needed to resolve the meta later. Trait
     /// impls are also prepared here so that `<Object as Trait>::Type` references
     /// inside any signature can be looked up during meta resolution.
@@ -121,6 +124,7 @@ impl Elaborator<'_> {
                     outer_generics: Vec::new(),
                     current_trait: None,
                     current_trait_impl: None,
+                    current_impl: None,
                     extra_trait_constraints: extra_constraints.to_vec(),
                 },
             );
@@ -134,26 +138,45 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(
-            UnresolvedGenerics,
-            Vec<UnresolvedTraitConstraint>,
-            Location,
-            UnresolvedFunctions,
-        )>,
+        impls: &mut Vec<UnresolvedImpl>,
     ) {
-        self.local_module = Some(local_module);
+        let previous_local_module = self.replace_local_module(local_module);
 
-        for (generics, _, _, function_set) in function_sets {
+        for unresolved_impl in impls {
+            let impl_id = unresolved_impl.impl_id;
+
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
-            self.add_generics(generics);
+            let resolved_generics = self.add_generics(&unresolved_impl.generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
-            function_set.self_type = Some(self_type.clone());
+            unresolved_impl.methods.self_type = Some(self_type.clone());
+
+            // Resolve the impl's where clause so it can be recovered later (e.g. by
+            // `nargo expand`). The constraints are resolved with the impl generics in scope so
+            // they share type variables with the methods' copies of these constraints (each
+            // method's where clause is extended with the impl's during def collection).
+            let resolved_where_clause =
+                self.resolve_trait_constraints_and_add_to_scope(&unresolved_impl.where_clause);
+
+            self.interner.add_impl(
+                impl_id,
+                Impl {
+                    location: unresolved_impl.object_type_location,
+                    typ: self_type.clone(),
+                    file: unresolved_impl.object_type_location.file,
+                    crate_id: self.crate_id,
+                    module_id: ModuleId { krate: self.crate_id, local_id: local_module },
+                    generics: resolved_generics,
+                    methods: unresolved_impl.methods.function_ids(),
+                    where_clause: resolved_where_clause.clone(),
+                    doc_comments: unresolved_impl.doc_comments.clone(),
+                },
+            );
 
             let outer_generics = self.generics.clone();
-            for (method_module, id, func) in &function_set.functions {
+            for (method_module, id, func) in &unresolved_impl.methods.functions {
                 self.unresolved_function_metas.insert(
                     *id,
                     UnresolvedFunctionMeta {
@@ -163,13 +186,19 @@ impl Elaborator<'_> {
                         outer_generics: outer_generics.clone(),
                         current_trait: None,
                         current_trait_impl: None,
+                        current_impl: Some(impl_id),
                         extra_trait_constraints: Vec::new(),
                     },
                 );
             }
 
+            // The assumed impls added while resolving the where clause are only needed to
+            // resolve the where clause itself; method bodies re-add them when they elaborate.
+            self.remove_trait_constraints_from_scope(resolved_where_clause.iter());
             self.generics.clear();
         }
+
+        self.local_module = previous_local_module;
     }
 
     /// Registers each trait impl method as an unresolved meta, capturing the trait
@@ -192,6 +221,7 @@ impl Elaborator<'_> {
                     outer_generics: generics.clone(),
                     current_trait: trait_impl.trait_id,
                     current_trait_impl: trait_impl.impl_id,
+                    current_impl: None,
                     extra_trait_constraints: new_generics_trait_constraints.clone(),
                 },
             );
@@ -225,19 +255,19 @@ impl Elaborator<'_> {
         self.resolve_unresolved_function_meta(func_id, info);
     }
 
-    /// Lazily resolves a function's [FuncMeta] if needed, then returns it.
+    /// Lazily resolves a function's [`FuncMeta`] if needed, then returns it.
     pub(crate) fn function_meta(&mut self, func_id: FuncId) -> &FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta(&func_id)
     }
 
-    /// Mutable counterpart of [Self::function_meta].
+    /// Mutable counterpart of [`Self::function_meta`].
     pub(crate) fn function_meta_mut(&mut self, func_id: FuncId) -> &mut FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta_mut(&func_id)
     }
 
-    /// Runs `f` with the function's resolved [FuncMeta].
+    /// Runs `f` with the function's resolved [`FuncMeta`].
     pub(crate) fn with_function_meta<R>(
         &mut self,
         func_id: FuncId,
@@ -273,6 +303,7 @@ impl Elaborator<'_> {
             outer_generics,
             current_trait,
             current_trait_impl,
+            current_impl,
             extra_trait_constraints,
         } = info;
 
@@ -281,11 +312,13 @@ impl Elaborator<'_> {
         let prev_generics = std::mem::replace(&mut self.generics, outer_generics);
         let prev_current_trait = self.current_trait.take();
         let prev_current_trait_impl = self.current_trait_impl.take();
+        let prev_current_impl = self.current_impl.take();
 
         self.local_module = Some(local_module);
         self.self_type = self_type;
         self.current_trait = current_trait;
         self.current_trait_impl = current_trait_impl;
+        self.current_impl = current_impl;
 
         // The `trait_id` argument to `define_function_meta` represents the trait
         // that *defines* this method (set for trait method declarations,
@@ -302,16 +335,17 @@ impl Elaborator<'_> {
         self.generics = prev_generics;
         self.current_trait = prev_current_trait;
         self.current_trait_impl = prev_current_trait_impl;
+        self.current_impl = prev_current_impl;
     }
 
     /// Extracts and stores metadata from a function definition.
     ///
     /// This resolves the function's signature including generics, parameters, return type,
     /// and trait constraints. The function body is stored unresolved and will be elaborated
-    /// later by [Self::elaborate_function].
+    /// later by [`Self::elaborate_function`].
     ///
     /// Prerequisite: any implicit generics from enclosing impls have already been added
-    /// to scope via [Self::add_generics].
+    /// to scope via [`Self::add_generics`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_meta(
         &mut self,
@@ -432,13 +466,13 @@ impl Elaborator<'_> {
             type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
+            impl_id: self.current_impl,
             enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             return_visibility_location: func.def.return_visibility_location,
-            has_body: !func.def.body.is_empty(),
             trait_constraints,
             extra_trait_constraints,
             is_entry_point,
@@ -458,7 +492,7 @@ impl Elaborator<'_> {
 
     /// Adds function generics and associated generics (from where clause) to scope.
     ///
-    /// Returns (generics, associated_generics_trait_constraints) where generics contains
+    /// Returns (generics, `associated_generics_trait_constraints`) where generics contains
     /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_function_generics_to_scope(
@@ -475,16 +509,16 @@ impl Elaborator<'_> {
         let mut generics = Vec::with_capacity(associated_generics.len());
         let mut associated_generics_trait_constraints = Vec::new();
 
-        for (associated_generic, bounds) in associated_generics {
-            for bound in bounds {
-                let typ = Type::TypeVariable(associated_generic.type_var.clone());
-                let location = associated_generic.location;
+        for desugared in associated_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
 
-            generics.push(associated_generic.type_var);
+            generics.push(desugared.generic.type_var);
         }
 
         // We put associated generics first, as they are implicit and implicit generics
@@ -514,8 +548,8 @@ impl Elaborator<'_> {
 
     /// Resolves function parameters and validates their types for entry points.
     ///
-    /// Returns (parameters, parameter_types, parameter_idents) where generics and
-    /// trait_constraints may be extended due to `impl Trait` desugaring.
+    /// Returns (parameters, `parameter_types`, `parameter_idents`) where generics and
+    /// `trait_constraints` may be extended due to `impl Trait` desugaring.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_parameters(
         &mut self,
@@ -616,7 +650,7 @@ impl Elaborator<'_> {
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
+    /// function. If the given type is not sized (e.g. contains a vector or `NamedGeneric` type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program(
         typ: &Type,
@@ -651,6 +685,7 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::oracle_marked_as_comptime(modifiers, func).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_parameter_is_reference(func, modifiers).map(Into::into));
         self.run_lint(|_| {
             lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
         });
@@ -668,7 +703,7 @@ impl Elaborator<'_> {
     ///
     /// This is the second pass of function elaboration that processes the function body,
     /// resolves all expressions and statements, performs type checking, and verifies
-    /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
+    /// trait constraints. The function metadata must already be defined by [`Self::define_function_meta`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
@@ -690,7 +725,7 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        self.local_module = Some(func_meta.source_module);
+        let previous_local_module = self.replace_local_module(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
         self.current_trait = func_meta.trait_id;
@@ -807,6 +842,7 @@ impl Elaborator<'_> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+        self.local_module = previous_local_module;
     }
 }
 

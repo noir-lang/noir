@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given [WitnessValue](crate::fuzz_lib::fuzz_target_lib::WitnessValue) value
+//! This file contains mechanisms for deterministically mutating a given [`WitnessValue`](crate::fuzz_lib::fuzz_target_lib::WitnessValue) value
 //! Types of mutations applied:
 //! 1. Random (randomly select a new witness value)
 //! 2. Max value

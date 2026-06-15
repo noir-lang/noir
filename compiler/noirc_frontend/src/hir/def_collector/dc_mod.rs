@@ -35,8 +35,8 @@ use super::dc_crate::ModuleAttribute;
 use super::dc_crate::{CollectedItems, UnresolvedEnum};
 use super::{
     dc_crate::{
-        CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
-        UnresolvedTypeAlias,
+        CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedImpl,
+        UnresolvedTraitImpl, UnresolvedTypeAlias,
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
@@ -45,7 +45,7 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData,
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir_def::stmt::HirStatement;
 
-/// Given a module collect all definitions into ModuleData
+/// Given a module collect all definitions into `ModuleData`
 struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
     pub(crate) file_id: FileId,
@@ -419,7 +419,7 @@ impl ModCollector<'_> {
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Function,
+                    typ: DuplicateType::TypeDefinition,
                     first_def,
                     second_def,
                 };
@@ -818,7 +818,7 @@ impl ModCollector<'_> {
     /// and then collect all definitions of the child module
     ///
     /// If `reuse_existing_module_declarations` is true, this will first check if a module is
-    /// already registered in the CrateDefMap at the file where `mod mod_name;` happens, and reuse
+    /// already registered in the `CrateDefMap` at the file where `mod mod_name;` happens, and reuse
     /// that module declaration's contents.
     /// This is only used by LSP when a file is modified, to avoid parsing and type-checking nested modules
     /// that happen in separate files as these were already parsed and type-checked before.
@@ -945,7 +945,7 @@ impl ModCollector<'_> {
         errors
     }
 
-    /// Add a child module to the current def_map.
+    /// Add a child module to the current `def_map`.
     /// On error this returns None and pushes to `errors`
     #[allow(clippy::too_many_arguments)]
     fn push_child_module(
@@ -1019,7 +1019,7 @@ fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> 
     })
 }
 
-/// Add a child module to the current def_map.
+/// Add a child module to the current `def_map`.
 /// On error this returns None and pushes to `errors`
 #[allow(clippy::too_many_arguments)]
 fn push_child_module(
@@ -1464,14 +1464,18 @@ pub fn collect_impl(
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
     }
 
+    let impl_id = interner.next_impl_id();
+
     let key = (r#impl.object_type, module_id.local_id);
-    let methods = items.impls.entry(key).or_default();
-    methods.push((
-        r#impl.generics,
-        r#impl.where_clause,
-        r#impl.type_location,
-        unresolved_functions,
-    ));
+    let impls = items.impls.entry(key).or_default();
+    impls.push(UnresolvedImpl {
+        generics: r#impl.generics,
+        where_clause: r#impl.where_clause,
+        object_type_location: r#impl.type_location,
+        methods: unresolved_functions,
+        impl_id,
+        doc_comments: r#impl.doc_comments,
+    });
 }
 
 fn find_module(

@@ -119,7 +119,7 @@ pub enum NumericValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
-    /// ReferenceValues which store the same element.
+    /// `ReferenceValues` which store the same element.
     pub original_id: ValueId,
 
     /// A value of `None` here means this allocation is currently uninitialized
@@ -136,8 +136,8 @@ pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
-    /// the reference count separate to ensure it is only changed by IncrementRc and
-    /// DecrementRc instructions.
+    /// the reference count separate to ensure it is only changed by `IncrementRc` and
+    /// `DecrementRc` instructions.
     pub rc: Shared<u32>,
 
     pub element_types: Arc<CompositeType>,

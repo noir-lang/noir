@@ -59,7 +59,7 @@ pub enum NargoError<F: AcirField> {
 }
 
 impl<F: AcirField> NargoError<F> {
-    /// Extracts the user defined failure message from the ExecutionError
+    /// Extracts the user defined failure message from the `ExecutionError`
     /// If one exists.
     ///
     /// We want to extract the user defined error so that we can compare it
@@ -257,8 +257,8 @@ pub fn try_to_diagnose_runtime_error(
     Some(error.with_call_stack(source_locations))
 }
 
-/// Map the given OpcodeResolutionError to the corresponding ExecutionError
-/// In case of resulting in an ExecutionError::AssertionFailedThis it propagates the payload
+/// Map the given `OpcodeResolutionError` to the corresponding `ExecutionError`
+/// In case of resulting in an `ExecutionError::AssertionFailedThis` it propagates the payload
 pub fn execution_error_from<F: AcirField>(
     error: OpcodeResolutionError<F>,
     call_stack: &[ResolvedOpcodeLocation],

@@ -83,6 +83,34 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    /// Elaborate a call (or method call) argument against its expected type.
+    ///
+    /// For a macro call the argument is elaborated in a comptime context so that
+    /// `quote { ... }` arguments type-check as `Quoted` before the macro is executed.
+    ///
+    /// The resulting type is then unified against the expected type so that a potential
+    /// lambda following this argument can have more concrete types.
+    fn elaborate_call_argument(
+        &mut self,
+        arg: Expression,
+        expected_type: Option<&Type>,
+        is_macro_call: bool,
+    ) -> (ExprId, Type) {
+        let (arg, typ) = if is_macro_call {
+            self.elaborate_in_comptime_context(|this| {
+                this.elaborate_expression_with_target_type(arg, expected_type)
+            })
+        } else {
+            self.elaborate_expression_with_target_type(arg, expected_type)
+        };
+
+        if let Some(expected_type) = expected_type {
+            let _ = typ.unify(expected_type);
+        }
+
+        (arg, typ)
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_expression_inner(
         &mut self,
@@ -176,7 +204,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Given its ID, retrieve and elaborate an interned [StatementKind].
+    /// Given its ID, retrieve and elaborate an interned [`StatementKind`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_interned_statement_as_expr(
         &mut self,
@@ -281,8 +309,8 @@ impl Elaborator<'_> {
     }
 
     /// If the given type was declared as:
-    /// - `#[must_use = "message"]`, return [MustUse::MustUse(Some("message"))]
-    /// - `#[must_use]`, return [MustUse::MustUse(None)]
+    /// - `#[must_use = "message"]`, return [`MustUse::MustUse(Some("message"))`]
+    /// - `#[must_use]`, return [`MustUse::MustUse(None)`]
     /// - otherwise, return `MustUse::NoMustUse`
     fn type_is_must_use(typ: &Type) -> MustUse {
         /// Helper function to avoid infinite recursion for infinitely recursive types
@@ -824,19 +852,7 @@ impl Elaborator<'_> {
             let location = arg.location;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            let (arg, typ) = if is_macro_call {
-                self.elaborate_in_comptime_context(|this| {
-                    this.elaborate_expression_with_target_type(arg, expected_type)
-                })
-            } else {
-                self.elaborate_expression_with_target_type(arg, expected_type)
-            };
-
-            // Try to unify this argument type against the function's argument type
-            // so that a potential lambda following this argument can have more concrete types.
-            if let Some(expected_type) = expected_type {
-                let _ = typ.unify(expected_type);
-            }
+            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
 
             arguments.push(arg);
             (typ, arg, location)
@@ -999,25 +1015,21 @@ impl Elaborator<'_> {
 
         function_args.push((object_type.clone(), object, object_location));
 
+        let is_macro_call = method_call.is_macro_call;
+
         for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
             let location = arg.location;
             // The argument types also contain the object type as the first argument.
             // Thus, we need to add one when indexing the argument types to match them up with method arguments.
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
-            let (arg, typ) = self.elaborate_expression_with_target_type(arg, expected_type);
 
-            // Try to unify this argument type against the function's argument type
-            // so that a potential lambda following this argument can have more concrete types.
-            if let Some(expected_type) = expected_type {
-                let _ = expected_type.unify(&typ);
-            }
+            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
 
             arguments.push(arg);
             function_args.push((typ, arg, location));
         }
 
         let method = method_call.method_name;
-        let is_macro_call = method_call.is_macro_call;
         let method_call = HirMethodCallExpression { method, object, arguments, location, generics };
 
         self.check_method_call_visibility(func_id, &object_type, &method_call.method);
@@ -1137,7 +1149,7 @@ impl Elaborator<'_> {
     /// Elaborate a struct constructor.
     ///
     /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
-    /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
+    /// then delegates to [`Elaborator::elaborate_constructor_with_type`] to handle the fields.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_constructor(
         &mut self,
@@ -1398,7 +1410,7 @@ impl Elaborator<'_> {
         (expr_id, typ, is_offset && is_reference)
     }
 
-    /// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+    /// Push a [`HirExpression`] with its [Location], with the [Type] to be followed up later.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn intern_expr(
         &mut self,
@@ -1408,7 +1420,7 @@ impl Elaborator<'_> {
         self.interner.push_expr(expr).push_location(self.interner, location)
     }
 
-    /// Follow up [Self::intern_expr] with the [Type].
+    /// Follow up [`Self::intern_expr`] with the [Type].
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn intern_expr_type(&mut self, expr_id: PushedExpr<HasLocation>, typ: Type) -> ExprId {
         expr_id.push_type(self.interner, typ)
@@ -1480,8 +1492,8 @@ impl Elaborator<'_> {
         (expr_id, typ)
     }
 
-    /// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
-    /// * if the rules returned an `Err`, it returns [Type::Error]
+    /// Handles the results of [`Self::prefix_operand_type_rules`] and [`Self::infix_operand_type_rules`].
+    /// * if the rules returned an `Err`, it returns [`Type::Error`]
     /// * if the results indicate that a trait method should be used,
     ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
     #[tracing::instrument(level = "trace", skip_all)]
