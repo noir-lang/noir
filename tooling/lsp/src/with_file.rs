@@ -158,6 +158,7 @@ fn type_impl_with_file(type_impl: TypeImpl, file: FileId) -> TypeImpl {
         generics: unresolved_generics_with_file(type_impl.generics, file),
         where_clause: unresolved_trait_constraints_with_file(type_impl.where_clause, file),
         methods: documented_noir_functions_with_file(type_impl.methods, file),
+        doc_comments: type_impl.doc_comments,
     }
 }
 

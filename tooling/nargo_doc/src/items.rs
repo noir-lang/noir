@@ -241,6 +241,7 @@ pub struct Impl {
     pub r#type: Type,
     pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<Function>,
+    pub comments: Option<Comments>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

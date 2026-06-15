@@ -695,6 +695,7 @@ impl<'context> Elaborator<'context> {
                     generics: target.generics.clone(),
                     where_clause: target.where_clause.clone(),
                     methods: vec![(Documented::new(function, item.doc_comments), location)],
+                    doc_comments: Vec::new(),
                 };
                 let module = self.module_id();
                 dc_mod::collect_impl(
