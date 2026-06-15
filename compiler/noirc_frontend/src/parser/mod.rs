@@ -106,7 +106,7 @@ impl std::fmt::Display for SortedModule {
     }
 }
 
-/// A ParsedModule contains an entire Ast for one file.
+/// A `ParsedModule` contains an entire Ast for one file.
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
@@ -202,7 +202,7 @@ impl std::fmt::Display for ItemKind {
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
-/// These submodules always share the same file as some larger ParsedModule
+/// These submodules always share the same file as some larger `ParsedModule`
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
     pub visibility: ItemVisibility,

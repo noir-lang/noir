@@ -56,7 +56,7 @@ fn arb_value_tree(
     Ok(tree.current())
 }
 
-/// Given the [Abi] description of a Noir program, generate random [InputValue]s for each circuit parameter.
+/// Given the [Abi] description of a Noir program, generate random [`InputValue`]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
 fn arb_input_map(abi: &Abi, dictionary: &BTreeSet<FieldElement>) -> BoxedStrategy<InputMap> {
@@ -74,7 +74,7 @@ fn arb_input_map(abi: &Abi, dictionary: &BTreeSet<FieldElement>) -> BoxedStrateg
         .boxed()
 }
 
-/// Create a strategy for generating random values for an [AbiType].
+/// Create a strategy for generating random values for an [`AbiType`].
 ///
 /// Uses the `dictionary` for unsigned integer types.
 fn arb_value_from_abi_type(

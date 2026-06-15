@@ -30,7 +30,7 @@ impl<'a> SsaPass<'a> {
         Self::new_try(move |ssa| Ok(f(ssa)), msg)
     }
 
-    /// Execute a pass which might fail with a [RuntimeError].
+    /// Execute a pass which might fail with a [`RuntimeError`].
     pub fn new_try<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> SsaPassResult + 'a,
@@ -38,7 +38,7 @@ impl<'a> SsaPass<'a> {
         Self { msg, run: Box::new(f) }
     }
 
-    /// Execute a read-only validation step which might fail with a [RuntimeError].
+    /// Execute a read-only validation step which might fail with a [`RuntimeError`].
     ///
     /// If the validation fails, it prints the SSA if [`SHOW_INVALID_SSA_ENV_KEY`] is set.
     pub fn new_validate<F>(f: F, msg: &'static str) -> Self
@@ -103,7 +103,7 @@ impl<'a> SsaPass<'a> {
     }
 
     /// Run some SSA validation function; if it returns an error then either
-    /// show the SSA, if the [SHOW_INVALID_SSA_ENV_KEY] key is on, or hint
+    /// show the SSA, if the [`SHOW_INVALID_SSA_ENV_KEY`] key is on, or hint
     /// at the existence of turning on this option.
     fn print_on_err<F>(ssa: &Ssa, f: &F, msg: &str) -> RtResult<()>
     where

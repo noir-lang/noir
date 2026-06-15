@@ -35,7 +35,7 @@ impl Parser<'_> {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
 
-    /// Expression = EqualOrNotEqualExpression
+    /// Expression = `EqualOrNotEqualExpression`
     pub(crate) fn parse_expression(&mut self) -> Option<Expression> {
         self.parse_expression_impl(true) // allow constructors
     }
@@ -44,7 +44,7 @@ impl Parser<'_> {
     /// For example `if foo { 1 }` shouldn't have `foo { 1 }` as the condition, but `foo` instead.
     /// The same goes with `for`: `for x in foo { 1 }` should have `foo` as the collection, not `foo { 1 }`.
     ///
-    /// ExpressionExceptConstructor = "Expression except ConstructorException"
+    /// `ExpressionExceptConstructor` = "Expression except `ConstructorException`"
     pub(crate) fn parse_expression_except_constructor_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(false) // allow constructors
     }
@@ -72,8 +72,8 @@ impl Parser<'_> {
     }
 
     /// Term
-    ///    = UnaryExpression
-    ///    | CastExpression
+    ///    = `UnaryExpression`
+    ///    | `CastExpression`
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
@@ -90,8 +90,8 @@ impl Parser<'_> {
         Some(term)
     }
 
-    /// UnaryExpression
-    ///    = UnaryOp* Atom
+    /// `UnaryExpression`
+    ///    = `UnaryOp`* Atom
     fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
@@ -124,7 +124,7 @@ impl Parser<'_> {
         self.parse_atom(allow_constructors)
     }
 
-    /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
+    /// `UnaryOp` = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
         if self.at(Token::Ampersand) {
             let mut mutable = false;
@@ -146,7 +146,7 @@ impl Parser<'_> {
     }
 
     /// Atom
-    ///     = Quark AtomRhs*
+    ///     = Quark `AtomRhs`*
     fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
         let mut atom = self.parse_quark(allow_constructors)?;
@@ -164,10 +164,10 @@ impl Parser<'_> {
         Some(atom)
     }
 
-    /// AtomRhs
-    ///     = CallExpression
-    ///     | MemberAccessOrMethodCallExpression
-    ///     | IndexExpression
+    /// `AtomRhs`
+    ///     = `CallExpression`
+    ///     | `MemberAccessOrMethodCallExpression`
+    ///     | `IndexExpression`
     fn parse_atom_rhs(
         &mut self,
         mut atom: Expression,
@@ -207,7 +207,7 @@ impl Parser<'_> {
         atom
     }
 
-    /// CallExpression = Quark CallArguments
+    /// `CallExpression` = Quark `CallArguments`
     fn parse_call(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if let Some(call_arguments) = self.parse_call_arguments() {
             let kind = ExpressionKind::Call(Box::new(CallExpression {
@@ -223,13 +223,13 @@ impl Parser<'_> {
         }
     }
 
-    /// MemberAccessOrMethodCallExpression
-    ///     = MemberAccessExpression
-    ///     | MethodCallExpression
+    /// `MemberAccessOrMethodCallExpression`
+    ///     = `MemberAccessExpression`
+    ///     | `MethodCallExpression`
     ///
-    /// MemberAccessExpression = Quark '.' identifier
+    /// `MemberAccessExpression` = Quark '.' identifier
     ///
-    /// MethodCallExpression = Quark '.' identifier CallArguments
+    /// `MethodCallExpression` = Quark '.' identifier `CallArguments`
     fn parse_member_access_or_method_call(
         &mut self,
         atom: Expression,
@@ -291,7 +291,7 @@ impl Parser<'_> {
         }
     }
 
-    /// CastExpression = UnaryExpression 'as' Type
+    /// `CastExpression` = `UnaryExpression` 'as' Type
     fn parse_cast(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_keyword(Keyword::As) {
             return (atom, false);
@@ -308,7 +308,7 @@ impl Parser<'_> {
         (atom, true)
     }
 
-    /// IndexExpression = Quark '[' Expression ']'
+    /// `IndexExpression` = Quark '[' Expression ']'
     fn parse_index(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_left_bracket() {
             return (atom, false);
@@ -337,19 +337,19 @@ impl Parser<'_> {
 
     /// Quark
     ///     = Literal
-    ///     | ParenthesesExpression
-    ///     | UnsafeExpression
-    ///     | PathExpression
-    ///     | IfExpression
+    ///     | `ParenthesesExpression`
+    ///     | `UnsafeExpression`
+    ///     | `PathExpression`
+    ///     | `IfExpression`
     ///     | Lambda
-    ///     | ComptimeExpression
-    ///     | UnquoteExpression
-    ///     | TypePathExpression
-    ///     | NamelessTypePathExpression
-    ///     | AsTraitPath
-    ///     | ResolvedExpression
-    ///     | InternedExpression
-    ///     | InternedStatementExpression
+    ///     | `ComptimeExpression`
+    ///     | `UnquoteExpression`
+    ///     | `TypePathExpression`
+    ///     | `NamelessTypePathExpression`
+    ///     | `AsTraitPath`
+    ///     | `ResolvedExpression`
+    ///     | `InternedExpression`
+    ///     | `InternedStatementExpression`
     fn parse_quark(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
         let kind = self.parse_quark_kind(allow_constructors)?;
@@ -432,7 +432,7 @@ impl Parser<'_> {
         None
     }
 
-    /// NamelessTypePathExpression = '<' Type '>' '::' identifier ( '::' GenericTypeArgs )?
+    /// `NamelessTypePathExpression` = '<' Type '>' '::' identifier ( '::' `GenericTypeArgs` )?
     fn parse_nameless_type_path_or_as_trait_path_type_expression(
         &mut self,
     ) -> Option<ExpressionKind> {
@@ -451,12 +451,12 @@ impl Parser<'_> {
         }
     }
 
-    /// ResolvedExpression = unquote_marker
+    /// `ResolvedExpression` = `unquote_marker`
     fn parse_resolved_expr(&mut self) -> Option<ExpressionKind> {
         Some(ExpressionKind::Resolved(self.eat_unquote_marker()?))
     }
 
-    /// InternedExpression = interned_expr
+    /// `InternedExpression` = `interned_expr`
     fn parse_interned_expr(&mut self) -> Option<ExpressionKind> {
         if let Some(token) = self.eat_kind(TokenKind::InternedExpr) {
             match token.into_token() {
@@ -468,7 +468,7 @@ impl Parser<'_> {
         None
     }
 
-    /// InternedStatementExpression = interned_statement
+    /// `InternedStatementExpression` = `interned_statement`
     fn parse_interned_statement_expr(&mut self) -> Option<ExpressionKind> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
@@ -480,7 +480,7 @@ impl Parser<'_> {
         None
     }
 
-    /// UnsafeExpression = 'unsafe' Block
+    /// `UnsafeExpression` = 'unsafe' Block
     fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let comments_before_unsafe = self.current_token_comments.clone();
@@ -513,11 +513,11 @@ impl Parser<'_> {
         }
     }
 
-    /// PathExpression
-    ///     = VariableExpression
-    ///     | ConstructorExpression
+    /// `PathExpression`
+    ///     = `VariableExpression`
+    ///     | `ConstructorExpression`
     ///
-    /// VariableExpression = Path
+    /// `VariableExpression` = Path
     fn parse_path_expr(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         let path = self.parse_path()?;
 
@@ -529,11 +529,11 @@ impl Parser<'_> {
         Some(ExpressionKind::Variable(path))
     }
 
-    /// ConstructorExpression = Type '{' ConstructorFields? '}'
+    /// `ConstructorExpression` = Type '{' `ConstructorFields`? '}'
     ///
-    /// ConstructorFields = ConstructorField ( ',' ConstructorField )* ','?
+    /// `ConstructorFields` = `ConstructorField` ( ',' `ConstructorField` )* ','?
     ///
-    /// ConstructorField = identifier ( ':' Expression )?
+    /// `ConstructorField` = identifier ( ':' Expression )?
     fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
         let fields = self.parse_many(
             "constructor fields",
@@ -580,7 +580,7 @@ impl Parser<'_> {
         }
     }
 
-    /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
+    /// `IfExpression` = 'if' `ExpressionExceptConstructor` Block ( 'else' ( Block | `IfExpression` ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
         let if_keyword_location = self.current_token_location;
 
@@ -687,7 +687,7 @@ impl Parser<'_> {
         Some(ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative })))
     }
 
-    /// MatchExpression = 'match' ExpressionExceptConstructor '{' MatchRule* '}'
+    /// `MatchExpression` = 'match' `ExpressionExceptConstructor` '{' `MatchRule`* '}'
     pub(super) fn parse_match_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Match) {
             return None;
@@ -709,7 +709,7 @@ impl Parser<'_> {
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
-    /// MatchRule = Expression '=>' (Block ','?) | (Expression ',')
+    /// `MatchRule` = Expression '=>' (Block ','?) | (Expression ',')
     fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
         let pattern = self.parse_expression()?;
         self.eat_or_error(Token::FatArrow);
@@ -731,7 +731,7 @@ impl Parser<'_> {
         Some((pattern, branch))
     }
 
-    /// ComptimeExpression = 'comptime' Block
+    /// `ComptimeExpression` = 'comptime' Block
     fn parse_comptime_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
@@ -747,7 +747,7 @@ impl Parser<'_> {
         Some(ExpressionKind::Comptime(block, self.location_since(start_location)))
     }
 
-    /// UnquoteExpression
+    /// `UnquoteExpression`
     ///     = '$' identifier
     ///     | '$' '(' Expression ')'
     fn parse_unquote_expr(&mut self) -> Option<ExpressionKind> {
@@ -784,7 +784,7 @@ impl Parser<'_> {
         None
     }
 
-    /// TypePathExpression = PrimitiveType '::' identifier ( '::' GenericTypeArgs )?
+    /// `TypePathExpression` = `PrimitiveType` '::' identifier ( '::' `GenericTypeArgs` )?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let typ = self.parse_primitive_type()?;
@@ -827,17 +827,17 @@ impl Parser<'_> {
     ///     | str
     ///     | rawstr
     ///     | fmtstr
-    ///     | QuoteExpression
-    ///     | ArrayExpression
-    ///     | VectorExpression
-    ///     | BlockExpression
-    ///     | ConstrainExpression
+    ///     | `QuoteExpression`
+    ///     | `ArrayExpression`
+    ///     | `VectorExpression`
+    ///     | `BlockExpression`
+    ///     | `ConstrainExpression`
     ///
-    /// QuoteExpression = 'quote' '{' token* '}'
+    /// `QuoteExpression` = 'quote' '{' token* '}'
     ///
-    /// ArrayExpression = ArrayLiteral
+    /// `ArrayExpression` = `ArrayLiteral`
     ///
-    /// BlockExpression = Block
+    /// `BlockExpression` = Block
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
         if let Some(bool) = self.eat_bool() {
             return Some(ExpressionKind::boolean(bool));
@@ -892,15 +892,15 @@ impl Parser<'_> {
         None
     }
 
-    /// ArrayLiteral
-    ///     = StandardArrayLiteral
-    ///     | RepeatedArrayLiteral
+    /// `ArrayLiteral`
+    ///     = `StandardArrayLiteral`
+    ///     | `RepeatedArrayLiteral`
     ///
-    /// StandardArrayLiteral = '[' ArrayElements? ']'
+    /// `StandardArrayLiteral` = '[' `ArrayElements`? ']'
     ///
-    /// ArrayElements = Expression ( ',' Expression )? ','?
+    /// `ArrayElements` = Expression ( ',' Expression )? ','?
     ///
-    /// RepeatedArrayLiteral = '[' Expression ';' TypeExpression ']'
+    /// `RepeatedArrayLiteral` = '[' Expression ';' `TypeExpression` ']'
     fn parse_array_literal(&mut self) -> Option<ArrayLiteralOrError> {
         let start_location = self.current_token_location;
         let errors_before_array = self.errors.len();
@@ -959,7 +959,7 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// VectorExpression = '@' ArrayLiteral
+    /// `VectorExpression` = '@' `ArrayLiteral`
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
         if !(self.at(Token::At) && self.next_is(Token::LeftBracket)) {
             return None;
@@ -969,16 +969,16 @@ impl Parser<'_> {
         self.parse_array_literal()
     }
 
-    /// ParenthesesExpression
-    ///     = UnitLiteral
-    ///     | ParenthesizedExpression
-    ///     | TupleExpression
+    /// `ParenthesesExpression`
+    ///     = `UnitLiteral`
+    ///     | `ParenthesizedExpression`
+    ///     | `TupleExpression`
     ///
-    /// UnitLiteral = '(' ')'
+    /// `UnitLiteral` = '(' ')'
     ///
-    /// ParenthesizedExpression = '(' Expression ')'
+    /// `ParenthesizedExpression` = '(' Expression ')'
     ///
-    /// TupleExpression = '(' Expression ( ',' Expression )+ ','? ')'
+    /// `TupleExpression` = '(' Expression ( ',' Expression )+ ','? ')'
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let errors_before_parentheses = self.errors.len();
@@ -1044,10 +1044,10 @@ impl Parser<'_> {
         }
     }
 
-    /// ConstrainExpression
+    /// `ConstrainExpression`
     ///     = 'constrain' Expression
     ///     | 'assert' Arguments
-    ///     | 'assert_eq' Arguments
+    ///     | '`assert_eq`' Arguments
     pub(super) fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
         let start_location = self.current_token_location;
         let kind = self.parse_constrain_kind()?;

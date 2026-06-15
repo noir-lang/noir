@@ -76,7 +76,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Function::remove_redundant_params].
+/// Post-check condition for [`Function::remove_redundant_params`].
 ///
 /// Panics if:
 ///   - The entry block's parameter count changed (entry parameters are the function's

@@ -509,7 +509,7 @@ fn type_def_add_abi(
     Ok(Value::Unit)
 }
 
-/// fn as_type(self) -> Type
+/// fn `as_type(self)` -> Type
 fn type_def_as_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -635,8 +635,8 @@ fn type_def_has_attribute(
     Ok(Value::Bool(matched))
 }
 
-/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)]
-/// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
+/// fn fields(self, `generic_args`: [Type]) -> [(Quoted, Type, Quoted)]
+/// Returns (name, type, visibility) tuples of each field of this `TypeDefinition`.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
     interpreter: &mut Interpreter,
@@ -704,8 +704,8 @@ fn type_def_fields(
     Ok(Value::Vector(fields, typ))
 }
 
-/// fn fields_as_written(self) -> [(Quoted, Type, Quoted)]
-/// Returns (name, type) pairs of each field of this TypeDefinition.
+/// fn `fields_as_written(self)` -> [(Quoted, Type, Quoted)]
+/// Returns (name, type) pairs of each field of this `TypeDefinition`.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(

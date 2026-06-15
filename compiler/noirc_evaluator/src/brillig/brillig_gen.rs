@@ -1,4 +1,4 @@
-//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.
+//! The code generation logic for converting [`crate::ssa`] objects into their respective [Brillig] artifacts.
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
 mod brillig_call;
@@ -37,13 +37,13 @@ use crate::{
 ///
 /// # Parameters
 /// - func: The SSA [Function] to compile as the entry point.
-/// - arguments: Brillig-compatible [BrilligParameter] inputs to the function
+/// - arguments: Brillig-compatible [`BrilligParameter`] inputs to the function
 /// - brillig: The [context structure][Brillig] of all known Brillig artifacts for dependency resolution.
 /// - options: Brillig compilation options (e.g., debug trace settings).
 ///
 /// # Returns
-/// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
-/// - Err([RuntimeError]): If the return value exceeds the witness limit or linking fails
+/// - Ok([`GeneratedBrillig`]): Fully linked artifact for the entry point that can be executed as a Brillig program.
+/// - Err([`RuntimeError`]): If the return value exceeds the witness limit or linking fails
 ///
 /// # Panics
 /// - If the global memory size for the function has not been precomputed.
@@ -176,7 +176,7 @@ mod entry_point {
     }
 
     /// Snapshot of full entry point compiled with a small frame that forces spilling.
-    /// Verifies the uniform start_offset=2 (sp[0] = prev stack pointer, sp[1] = spill base):
+    /// Verifies the uniform `start_offset=2` (sp[0] = prev stack pointer, sp[1] = spill base):
     /// - Parameters placed at sp[2],sp[3]
     /// - Calldata copy targets sp[2],sp[3] (not sp[1],sp[2])
     #[test]
