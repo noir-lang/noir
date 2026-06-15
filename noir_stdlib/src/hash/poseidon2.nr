@@ -46,8 +46,8 @@ impl Default for Poseidon2Hasher {
 }
 
 mod test {
-    use super::Poseidon2Hasher;
     use crate::hash::Hasher;
+    use super::Poseidon2Hasher;
 
     // The residual block absorbs the unabsorbed tail elements. If it instead
     // re-absorbed the prefix, mutating the trailing `len % RATE` elements would
