@@ -2446,7 +2446,11 @@ mod tests {
     fn test_boilerplate_stats_i64_empty() {
         // Looping 0..-1, which should be 0 iterations.
         // u64::MAX is how -1 is represented as a Field.
-        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470_with_params(
+        // This fixture reuses the shared loop body, whose `cast v1 as u32` (an
+        // array index) becomes a raw `i64 -> u32` narrowing cast for the signed
+        // induction variable. That is not a shape SSA gen produces, so skip
+        // validation: the test exercises the unroller, not cast validity.
+        let ssa = Ssa::from_str_no_validation(&brillig_unroll_test_case_6470_with_params(
             "i64",
             "0",
             &format!("{}", u64::MAX),
@@ -2462,7 +2466,9 @@ mod tests {
     fn test_boilerplate_stats_i64_non_empty() {
         // Looping -4..-1, which should be 3 iterations.
         // u64::MAX-3 is how -4 is represented as a Field.
-        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470_with_params(
+        // See `test_boilerplate_stats_i64_empty`: the shared body's `cast v1 as
+        // u32` is a raw `i64 -> u32` narrowing cast here, so skip validation.
+        let ssa = Ssa::from_str_no_validation(&brillig_unroll_test_case_6470_with_params(
             "i64",
             &format!("{}", u64::MAX - 3),
             &format!("{}", u64::MAX),
