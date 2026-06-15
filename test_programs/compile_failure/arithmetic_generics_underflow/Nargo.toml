@@ -1,7 +1,0 @@
-[package]
-name = "arithmetic_generics_underflow"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

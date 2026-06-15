@@ -18,6 +18,29 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
 }
 
 #[test]
+fn errors_on_private_module_accessed_via_use_and_path() {
+    let src = r#"
+    pub mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+    }
+
+    use foo::bar::baz;
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
+
+    fn main() {
+        foo::bar::baz();
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
+        baz();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
