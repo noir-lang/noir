@@ -458,9 +458,7 @@ mod tests {
         // Regression for noir-lang/noir-claude#1397: a `!=` guarded loop whose body is on the
         // `else` branch executes whenever `lower != upper`. Here the induction variable starts at
         // 5 and the guard is `eq v0, u8 4`, so the body runs (5 != 4) and must reach the failing
-        // `static_assert(false)`. Classifying execution as `upper > lower` reads `4 > 5` as false,
-        // treats the live body as an empty loop, and silently deletes the assertion. The pass must
-        // instead evaluate it and report the failure.
+        // `static_assert(false)`.
         let src = r#"
         brillig(inline) fn main f0 {
           b0():
