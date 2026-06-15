@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781524768960,
+  "lastUpdate": 1781524772632,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0140a14aaf49da4b976f15cb1ef87a80ba36c834",
-          "message": "fix(frontend): tag expr_as_lambda param vector as [(Expr, Option<UnresolvedType>)] (#12971)",
-          "timestamp": "2026-06-09T13:48:46Z",
-          "tree_id": "859f62a21bc805d5a1af1c0616e3a81ac1ad514c",
-          "url": "https://github.com/noir-lang/noir/commit/0140a14aaf49da4b976f15cb1ef87a80ba36c834"
-        },
-        "date": 1781015751036,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 298.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 522.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 279.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 359.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 359.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 360.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 359.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6060,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 6060,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 359.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 877.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2820,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 359.01,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 101.06,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 149.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4874,6 +4775,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/53a93a182608f194d760212c380b3ff5f667b4f2"
         },
         "date": 1781524528458,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 298.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 522.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 279.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 359.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 359.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 360.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 359.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 359.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 877.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 359.24,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 101.12,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 149.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1110ad7d7abd5c6500e99f5f42b899527135f9b6",
+          "message": "chore(comptime performance): Add bottom limit for comptime scopes that can be queried (#13044)",
+          "timestamp": "2026-06-15T11:12:56Z",
+          "tree_id": "902f6acbf19527183f25ce15495953feb0283fa8",
+          "url": "https://github.com/noir-lang/noir/commit/1110ad7d7abd5c6500e99f5f42b899527135f9b6"
+        },
+        "date": 1781524699959,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
