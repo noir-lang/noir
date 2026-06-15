@@ -45,18 +45,15 @@ trait Trait2 {
 
 pub struct Bar<T> {}
 
-impl<T> Bar<T> {
-    pub fn bar(x: T)
-    where
-        T: Trait,
-    {
+impl<T> Bar<T>
+where
+    T: Trait,
+{
+    pub fn bar(x: T) {
         x.foo();
     }
 
-    fn baz(self)
-    where
-        T: Trait,
-    {
+    fn baz(self) {
         let _: Self = self;
     }
 }

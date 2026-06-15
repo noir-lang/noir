@@ -492,6 +492,8 @@ pub type GenericTypeVars = Vec<TypeVariable>;
 /// correctly resolving types.
 pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 
+/// A single generic parameter (e.g. one `T` from a `<T, U>` list) after name resolution:
+/// its name, the type variable it binds, and where it was declared.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
     pub name: Rc<String>,

@@ -219,7 +219,10 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
+    // `nargo expand` prints an associated-constant access by its bare name (e.g. `N`),
+    // dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
+    "comptime_resolve_associated_constant_scope",
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",

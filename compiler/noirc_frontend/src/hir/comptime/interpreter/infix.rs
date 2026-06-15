@@ -83,12 +83,32 @@ pub(super) fn evaluate_infix(
         };
     }
 
-    /// Generate matches for comparison operations on all types, returning `Bool`.
+    /// Generate matches for equality operations on all types, returning `Bool`.
     macro_rules! match_cmp {
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (Field, Field) to Bool => Some($expr),
+                    (I8,  I8)      to Bool => Some($expr),
+                    (I16, I16)     to Bool => Some($expr),
+                    (I32, I32)     to Bool => Some($expr),
+                    (I64, I64)     to Bool => Some($expr),
+                    (U8,  U8)      to Bool => Some($expr),
+                    (U16, U16)     to Bool => Some($expr),
+                    (U32, U32)     to Bool => Some($expr),
+                    (U64, U64)     to Bool => Some($expr),
+                    (U128, U128)   to Bool => Some($expr),
+                    Bool case to Bool => Some($expr),
+                }
+            }
+        };
+    }
+
+    /// Generate matches for ordering comparisons, returning `Bool`.
+    macro_rules! match_ord {
+        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
+            match_values! {
+                ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (I8,  I8)      to Bool => Some($expr),
                     (I16, I16)     to Bool => Some($expr),
                     (I32, I32)     to Bool => Some($expr),
@@ -179,16 +199,16 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::NotEqual => match_cmp! {
             (lhs_value as lhs "!=" rhs_value as rhs) => lhs != rhs
         },
-        BinaryOpKind::Less => match_cmp! {
+        BinaryOpKind::Less => match_ord! {
             (lhs_value as lhs "<" rhs_value as rhs) => lhs < rhs
         },
-        BinaryOpKind::LessEqual => match_cmp! {
+        BinaryOpKind::LessEqual => match_ord! {
             (lhs_value as lhs "<=" rhs_value as rhs) => lhs <= rhs
         },
-        BinaryOpKind::Greater => match_cmp! {
+        BinaryOpKind::Greater => match_ord! {
             (lhs_value as lhs ">" rhs_value as rhs) => lhs > rhs
         },
-        BinaryOpKind::GreaterEqual => match_cmp! {
+        BinaryOpKind::GreaterEqual => match_ord! {
             (lhs_value as lhs ">=" rhs_value as rhs) => lhs >= rhs
         },
         BinaryOpKind::And => match_bitwise! {
@@ -257,6 +277,42 @@ mod tests {
         let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
 
         assert_eq!(result, Value::u128(170141183460469231731687303715884105727));
+    }
+
+    #[test]
+    fn field_ordering_is_rejected() {
+        use crate::hir::comptime::Integer;
+        use acvm::{AcirField, FieldElement};
+
+        let neg_one = Value::field(Integer::I64(-1).as_field());
+        let zero = Value::field(FieldElement::zero());
+
+        for kind in [
+            BinaryOpKind::Less,
+            BinaryOpKind::LessEqual,
+            BinaryOpKind::Greater,
+            BinaryOpKind::GreaterEqual,
+        ] {
+            let operator = HirBinaryOp { kind, location: Location::dummy() };
+            let err = evaluate_infix(neg_one.clone(), zero.clone(), operator, Location::dummy())
+                .unwrap_err();
+            assert!(
+                matches!(err, InterpreterError::InvalidValuesForBinary { .. }),
+                "expected {kind:?} on fields to be rejected, got {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn field_equality_is_still_allowed() {
+        use acvm::FieldElement;
+
+        let one = Value::field(FieldElement::from(1u64));
+        let other_one = Value::field(FieldElement::from(1u64));
+
+        let operator = HirBinaryOp { kind: BinaryOpKind::Equal, location: Location::dummy() };
+        let result = evaluate_infix(one, other_one, operator, Location::dummy()).unwrap();
+        assert_eq!(result, Value::Bool(true));
     }
 
     #[test]

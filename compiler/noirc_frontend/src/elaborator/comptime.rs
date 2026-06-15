@@ -197,11 +197,13 @@ impl<'context> Elaborator<'context> {
         result
     }
 
-    /// Populate the elaborator's scope with all comptime variables.
+    /// Populate the elaborator's scope with the comptime variables visible to the current function.
     ///
-    /// When elaborating code generated at comptime, we need to make all comptime
-    /// variables available in the runtime scope. We iterate from global to local
-    /// scope so that more local definitions naturally shadow outer ones.
+    /// When elaborating code generated at comptime, we need to make the comptime variables in scope
+    /// available in the runtime scope. The visible scopes are the global scope together with those
+    /// at or above the comptime scope floor; scopes belonging to enclosing callers are skipped, just
+    /// as the interpreter skips them. We iterate from global to local scope so that more local
+    /// definitions naturally shadow outer ones.
     ///
     /// Within a single scope, bindings are registered in ascending
     /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
@@ -211,8 +213,12 @@ impl<'context> Elaborator<'context> {
     /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
-        for scope in &self.interner.comptime_scopes {
-            let mut definition_ids: Vec<_> = scope.keys().copied().collect();
+        let floor = self.interner.comptime_scope_floor;
+        let len = self.interner.comptime_scopes.len();
+
+        for index in std::iter::once(0).chain(floor..len) {
+            let mut definition_ids: Vec<_> =
+                self.interner.comptime_scopes[index].keys().copied().collect();
             definition_ids.sort();
             for definition_id in &definition_ids {
                 let definition = self.interner.definition(*definition_id);
@@ -325,15 +331,15 @@ impl<'context> Elaborator<'context> {
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for ((object_type, _impl_module), impls_in_module) in impls {
-            for (generics, where_clause, type_location, methods) in impls_in_module {
+            for unresolved_impl in impls_in_module {
                 let impl_target = AttributeImplTarget {
                     object_type: object_type.clone(),
-                    generics: generics.clone(),
-                    where_clause: where_clause.clone(),
-                    type_location: *type_location,
+                    generics: unresolved_impl.generics.clone(),
+                    where_clause: unresolved_impl.where_clause.clone(),
+                    type_location: unresolved_impl.object_type_location,
                 };
                 self.collect_attributes_on_functions(
-                    std::slice::from_ref(methods),
+                    std::slice::from_ref(&unresolved_impl.methods),
                     Some(&impl_target),
                     attributes_to_run,
                 );

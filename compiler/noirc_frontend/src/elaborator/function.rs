@@ -25,8 +25,10 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
-        def_map::LocalModuleId,
+        def_collector::dc_crate::{
+            ImplMap, UnresolvedFunctions, UnresolvedImpl, UnresolvedTraitImpl,
+        },
+        def_map::{LocalModuleId, ModuleId},
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
@@ -34,10 +36,10 @@ use crate::{
         expr::HirIdent,
         function::{FuncMeta, FunctionBody, HirFunction},
         stmt::HirPattern,
-        traits::TraitConstraint,
+        traits::{Impl, TraitConstraint},
     },
     node_interner::{
-        DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId, TraitImplId,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, TraitId, TraitImplId,
     },
     shared::Visibility,
 };
@@ -62,6 +64,7 @@ pub(super) struct UnresolvedFunctionMeta {
     pub(super) outer_generics: Vec<ResolvedGeneric>,
     pub(super) current_trait: Option<TraitId>,
     pub(super) current_trait_impl: Option<TraitImplId>,
+    pub(super) current_impl: Option<ImplId>,
     pub(super) extra_trait_constraints: Vec<(TraitConstraint, Location)>,
 }
 
@@ -121,6 +124,7 @@ impl Elaborator<'_> {
                     outer_generics: Vec::new(),
                     current_trait: None,
                     current_trait_impl: None,
+                    current_impl: None,
                     extra_trait_constraints: extra_constraints.to_vec(),
                 },
             );
@@ -134,26 +138,44 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(
-            UnresolvedGenerics,
-            Vec<UnresolvedTraitConstraint>,
-            Location,
-            UnresolvedFunctions,
-        )>,
+        impls: &mut Vec<UnresolvedImpl>,
     ) {
         let previous_local_module = self.replace_local_module(local_module);
 
-        for (generics, _, _, function_set) in function_sets {
+        for unresolved_impl in impls {
+            let impl_id = unresolved_impl.impl_id;
+
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
-            self.add_generics(generics);
+            let resolved_generics = self.add_generics(&unresolved_impl.generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
-            function_set.self_type = Some(self_type.clone());
+            unresolved_impl.methods.self_type = Some(self_type.clone());
+
+            // Resolve the impl's where clause so it can be recovered later (e.g. by
+            // `nargo expand`). The constraints are resolved with the impl generics in scope so
+            // they share type variables with the methods' copies of these constraints (each
+            // method's where clause is extended with the impl's during def collection).
+            let resolved_where_clause =
+                self.resolve_trait_constraints_and_add_to_scope(&unresolved_impl.where_clause);
+
+            self.interner.add_impl(
+                impl_id,
+                Impl {
+                    location: unresolved_impl.object_type_location,
+                    typ: self_type.clone(),
+                    file: unresolved_impl.object_type_location.file,
+                    crate_id: self.crate_id,
+                    module_id: ModuleId { krate: self.crate_id, local_id: local_module },
+                    generics: resolved_generics,
+                    methods: unresolved_impl.methods.function_ids(),
+                    where_clause: resolved_where_clause.clone(),
+                },
+            );
 
             let outer_generics = self.generics.clone();
-            for (method_module, id, func) in &function_set.functions {
+            for (method_module, id, func) in &unresolved_impl.methods.functions {
                 self.unresolved_function_metas.insert(
                     *id,
                     UnresolvedFunctionMeta {
@@ -163,11 +185,15 @@ impl Elaborator<'_> {
                         outer_generics: outer_generics.clone(),
                         current_trait: None,
                         current_trait_impl: None,
+                        current_impl: Some(impl_id),
                         extra_trait_constraints: Vec::new(),
                     },
                 );
             }
 
+            // The assumed impls added while resolving the where clause are only needed to
+            // resolve the where clause itself; method bodies re-add them when they elaborate.
+            self.remove_trait_constraints_from_scope(resolved_where_clause.iter());
             self.generics.clear();
         }
 
@@ -194,6 +220,7 @@ impl Elaborator<'_> {
                     outer_generics: generics.clone(),
                     current_trait: trait_impl.trait_id,
                     current_trait_impl: trait_impl.impl_id,
+                    current_impl: None,
                     extra_trait_constraints: new_generics_trait_constraints.clone(),
                 },
             );
@@ -275,6 +302,7 @@ impl Elaborator<'_> {
             outer_generics,
             current_trait,
             current_trait_impl,
+            current_impl,
             extra_trait_constraints,
         } = info;
 
@@ -283,11 +311,13 @@ impl Elaborator<'_> {
         let prev_generics = std::mem::replace(&mut self.generics, outer_generics);
         let prev_current_trait = self.current_trait.take();
         let prev_current_trait_impl = self.current_trait_impl.take();
+        let prev_current_impl = self.current_impl.take();
 
         self.local_module = Some(local_module);
         self.self_type = self_type;
         self.current_trait = current_trait;
         self.current_trait_impl = current_trait_impl;
+        self.current_impl = current_impl;
 
         // The `trait_id` argument to `define_function_meta` represents the trait
         // that *defines* this method (set for trait method declarations,
@@ -304,6 +334,7 @@ impl Elaborator<'_> {
         self.generics = prev_generics;
         self.current_trait = prev_current_trait;
         self.current_trait_impl = prev_current_trait_impl;
+        self.current_impl = prev_current_impl;
     }
 
     /// Extracts and stores metadata from a function definition.
@@ -434,6 +465,7 @@ impl Elaborator<'_> {
             type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
+            impl_id: self.current_impl,
             enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
@@ -476,16 +508,16 @@ impl Elaborator<'_> {
         let mut generics = Vec::with_capacity(associated_generics.len());
         let mut associated_generics_trait_constraints = Vec::new();
 
-        for (associated_generic, bounds) in associated_generics {
-            for bound in bounds {
-                let typ = Type::TypeVariable(associated_generic.type_var.clone());
-                let location = associated_generic.location;
+        for desugared in associated_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
 
-            generics.push(associated_generic.type_var);
+            generics.push(desugared.generic.type_var);
         }
 
         // We put associated generics first, as they are implicit and implicit generics

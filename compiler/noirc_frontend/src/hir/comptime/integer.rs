@@ -374,11 +374,12 @@ impl std::ops::Rem for Integer {
 
 impl Integer {
     /// `self < rhs`
-    /// Similar to the derived `impl Ord for Integer` but will return `None` when the integer
-    /// variants do not match.
+    /// Returns `None` when the integer variants do not match, and for `Field` operands:
+    /// fields have no ordering (their canonical representatives encode `-k` as `p - k`,
+    /// which would invert signed intuition), matching the elaborator's rejection of
+    /// `<`/`<=`/`>`/`>=` on `Field`.
     pub fn lt(&self, rhs: &Self) -> Option<bool> {
         match (self, rhs) {
-            (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs < rhs),
             (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs < rhs),
             (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs < rhs),
             (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs < rhs),
@@ -393,11 +394,12 @@ impl Integer {
     }
 
     /// `self <= rhs`
-    /// Similar to the derived `impl Ord for Integer` but will return `None` when the integer
-    /// variants do not match.
+    /// Returns `None` when the integer variants do not match, and for `Field` operands:
+    /// fields have no ordering (their canonical representatives encode `-k` as `p - k`,
+    /// which would invert signed intuition), matching the elaborator's rejection of
+    /// `<`/`<=`/`>`/`>=` on `Field`.
     pub fn lte(&self, rhs: &Self) -> Option<bool> {
         match (self, rhs) {
-            (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs <= rhs),
             (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs <= rhs),
             (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs <= rhs),
             (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs <= rhs),
@@ -665,5 +667,21 @@ mod tests {
         let a = Integer::Field(FieldElement::from(10u64));
         let b = Integer::Field(FieldElement::from(3u64));
         assert_eq!(a % b, None);
+    }
+
+    #[test]
+    fn field_lt_is_unordered() {
+        let neg_one = Integer::Field(Integer::I64(-1).as_field());
+        let zero = Integer::Field(FieldElement::zero());
+        assert_eq!(neg_one.lt(&zero), None);
+        assert_eq!(zero.lt(&neg_one), None);
+    }
+
+    #[test]
+    fn field_lte_is_unordered() {
+        let neg_one = Integer::Field(Integer::I64(-1).as_field());
+        let zero = Integer::Field(FieldElement::zero());
+        assert_eq!(neg_one.lte(&zero), None);
+        assert_eq!(zero.lte(&neg_one), None);
     }
 }
