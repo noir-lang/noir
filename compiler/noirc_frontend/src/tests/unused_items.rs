@@ -179,6 +179,51 @@ fn unused_separate_namespace_imports_warn_independently() {
 }
 
 #[test]
+fn unused_type_import_not_masked_by_value_call() {
+    // `use foo::N` imports the type-namespace `struct N`; `use bar::N` imports the value-namespace
+    // `fn N`. Calling `N()` uses only the value import. Resolving the call speculatively probes `N`
+    // as a type (checking for `Type::method` syntax), but that probe is rolled back when it turns
+    // out `N` isn't a trait static method, so it doesn't mark the type import used — the
+    // never-referenced `use foo::N` still warns.
+    let src = r#"
+    mod foo { pub struct N {} }
+    mod bar { pub fn N() {} }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+    use bar::N;
+
+    fn main() {
+        N();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_static_method_call_marks_trait_import_used() {
+    // A genuine `T::make(..)` trait static method call (with `Self` inferable here from the `let`
+    // type) is resolved *only* by the speculative trait-static-method probe. When the probe
+    // succeeds its usage marks are committed, so the trait import `T` must not be reported unused.
+    let src = r#"
+    mod foo {
+        pub trait T { fn make() -> Self; }
+        pub struct S {}
+        impl T for S { fn make() -> Self { S {} } }
+    }
+
+    use foo::T;
+    use foo::S;
+
+    fn main() {
+        let _: S = T::make();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn same_namespace_imports_with_same_name_clash() {
     // Contrast with the cross-namespace case above: when two `use`s bring the same name into the
     // *same* namespace (here both `foo::N` and `bar::N` are type-namespace `struct`s), they are no
@@ -685,5 +730,3 @@ fn does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code() {
     ";
     assert_no_errors(src);
 }
-
-

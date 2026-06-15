@@ -503,12 +503,20 @@ fn error_when_accessing_private_struct_field() {
         pub struct Foo {
             x: Field
         }
+
+        pub fn new() -> Foo {
+            Foo { x: 1 }
+        }
     }
 
     fn foo(foo: moo::Foo) -> Field {
         foo.x
             ^ x is private and not visible from the current module
             ~ x is private
+    }
+
+    fn main() {
+        let _ = foo(moo::new());
     }
     "#;
     check_errors(src);
@@ -525,10 +533,14 @@ fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
         fn foo(foo: super::Foo) -> Field {
             foo.x
         }
+
+        pub fn run() -> Field {
+            foo(super::Foo { x: 1 })
+        }
     }
 
     fn main() {
-        let _ = Foo { x: 1 };
+        let _ = nested::run();
     }
     "#;
     assert_no_errors(src);
@@ -548,7 +560,7 @@ fn does_not_error_when_accessing_pub_crate_struct_field_from_nested_module() {
     }
 
     fn main() {
-        let _ = moo::Foo { x: 1 };
+        let _ = foo(moo::Foo { x: 1 });
     }
     "#;
     assert_no_errors(src);
@@ -579,6 +591,10 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
         pub struct Foo {
             x: Field
         }
+
+        pub fn new() -> Foo {
+            Foo { x: 1 }
+        }
     }
 
     fn foo(foo: moo::Foo) -> Field {
@@ -589,6 +605,7 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
     }
 
     fn main() {
+        let _ = foo(moo::new());
     }
     "#;
     check_errors(src);

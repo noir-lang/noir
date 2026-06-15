@@ -813,6 +813,7 @@ fn fail_to_call_enum_member_without_panic() {
         }
 
         fn main() {
+            foo(Foo::A);
             let foo: Foo = Foo::A;
             foo(foo);
             ^^^^^^^^ Expected a function, but found a(n) Foo
