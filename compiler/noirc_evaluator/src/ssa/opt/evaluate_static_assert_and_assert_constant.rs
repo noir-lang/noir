@@ -454,6 +454,40 @@ mod tests {
     }
 
     #[test]
+    fn fail_on_static_assert_in_live_not_equal_loop() {
+        // Regression for noir-lang/noir-claude#1397: a `!=` guarded loop whose body is on the
+        // `else` branch executes whenever `lower != upper`. Here the induction variable starts at
+        // 5 and the guard is `eq v0, u8 4`, so the body runs (5 != 4) and must reach the failing
+        // `static_assert(false)`. Classifying execution as `upper > lower` reads `4 > 5` as false,
+        // treats the live body as an empty loop, and silently deletes the assertion. The pass must
+        // instead evaluate it and report the failure.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 5)
+          b1(v0: u8):
+            v1 = eq v0, u8 4
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            v2 = make_array b"should fail"
+            v3 = make_array b"{\"kind\":\"string\",\"length\":11}"
+            call static_assert(u1 0, v2, v3, u1 0)
+            v4 = unchecked_sub v0, u8 1
+            jmp b1(v4)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertFailed { message, .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert failure");
+        };
+        assert_eq!(message, "should fail");
+    }
+
+    #[test]
     fn fail_on_assert_constant_in_dynamic_loop() {
         let src = r"
         acir(inline) fn main f0 {
