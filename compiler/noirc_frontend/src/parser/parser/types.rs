@@ -28,6 +28,18 @@ impl Parser<'_> {
         }
     }
 
+    /// Like [`Self::parse_type_or_error`], but also accepts a numeric type expression
+    /// (such as `4` or `N + 1`) as a standalone type. Used where a quoted token stream
+    /// is reinterpreted as a type, since numeric values are valid in type-level positions.
+    pub(crate) fn parse_type_or_type_expression_or_error(&mut self) -> UnresolvedType {
+        if let Some(typ) = self.parse_type_or_type_expression() {
+            typ
+        } else {
+            self.expected_label(ParsingRuleLabel::Type);
+            UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
+        }
+    }
+
     /// Tries to parse a type. If the current token doesn't denote a type and it's not
     /// one of `stop_tokens`, try to parse a type starting from the next token (and so on).
     pub(crate) fn parse_type_or_error_with_recovery(
