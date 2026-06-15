@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781533301793,
+  "lastUpdate": 1781535865290,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f75738179629ddc068e541a3e241bf0d91a18df9",
-          "message": "fix(monomorphization): include closure env (#12775)",
-          "timestamp": "2026-06-09T18:16:59Z",
-          "tree_id": "d5eb791b36b50b83474cdab8c6b148ac2781677f",
-          "url": "https://github.com/noir-lang/noir/commit/f75738179629ddc068e541a3e241bf0d91a18df9"
-        },
-        "date": 1781030656842,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126977,
-            "range": "± 1880",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112213,
-            "range": "± 587",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3039757,
-            "range": "± 2187",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3039276,
             "range": "± 7247",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0259e882700dded2c6e7c054a8c72714150813d5",
+          "message": "fix(ssa): reject raw narrowing casts in the SSA validator (#13051)",
+          "timestamp": "2026-06-15T14:35:49Z",
+          "tree_id": "2cbec3b81378debf0624130976f2afc747bd8474",
+          "url": "https://github.com/noir-lang/noir/commit/0259e882700dded2c6e7c054a8c72714150813d5"
+        },
+        "date": 1781535790104,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126534,
+            "range": "± 1409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112729,
+            "range": "± 2676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3040730,
+            "range": "± 9671",
             "unit": "ns/iter"
           }
         ]
