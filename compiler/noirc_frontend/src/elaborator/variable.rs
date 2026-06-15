@@ -13,6 +13,7 @@ use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
+use crate::hir::comptime::Value;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
@@ -21,11 +22,11 @@ use crate::hir_def::expr::{
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, GlobalValue, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
-use noirc_errors::Location;
+use noirc_errors::{Located, Location};
 
 /// The result of [`Elaborator::resolve_variable`].
 #[allow(clippy::large_enum_variant)]
@@ -74,6 +75,13 @@ impl Elaborator<'_> {
         }
 
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
+
+        // A turbofish on the segment *before* the last one (e.g. `Foo::<u32>::Spam`) provides
+        // type generics for the type the last segment is resolved within. This is needed for
+        // fieldless enum variants, which resolve to a global rather than a function.
+        let type_segment_turbofish = (variable.segments.len() >= 2)
+            .then(|| variable.segments[variable.segments.len() - 2].generics.clone())
+            .flatten();
 
         let location = variable.location;
         let variable_resolution = self.resolve_variable(variable);
@@ -208,6 +216,23 @@ impl Elaborator<'_> {
                 let self_type =
                     func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
 
+                // An enum variant constructor (e.g. `Foo::<u32>::Eggs`) has no `impl_generics`
+                // and no `self_type`; the enum's generics are its `direct_generics`. The
+                // type-segment turbofish provides types for exactly those generics, so bind
+                // them directly. `type_generics` was resolved against the enum's generics, so
+                // its length matches `direct_generics`.
+                if func_meta.enum_variant_index.is_some() {
+                    let direct_generics =
+                        vecmap(&func_meta.direct_generics, |g| g.type_var.clone());
+                    for (type_generic, type_var) in
+                        type_generics.into_iter().zip_eq(direct_generics)
+                    {
+                        bindings.insert(
+                            type_var.id(),
+                            (type_var.clone(), type_var.kind(), type_generic),
+                        );
+                    }
+                }
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
                 // impl generics differs from the number of struct generics. The turbofish
                 // `S::<u32, bool>` provides type_generics aligned with the struct's params
@@ -215,7 +240,7 @@ impl Elaborator<'_> {
                 // `self_type`'s args with a fresh type variable and unify those with the
                 // turbofish-provided type generics. The fresh type variables get bound by
                 // unification, and we record those bindings for the impl generics.
-                if let Some(Type::DataType(_, self_type_args)) = self_type {
+                else if let Some(Type::DataType(_, self_type_args)) = self_type {
                     assert_eq!(
                         type_generics.len(),
                         self_type_args.len(),
@@ -265,6 +290,24 @@ impl Elaborator<'_> {
             // and if the turbofish operator was used.
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
+            // A fieldless enum variant resolves to a global. Its type-segment turbofish
+            // (`Foo::<u32>::Spam`) must still bind the enum's generics, which the global
+            // path resolution does not carry on its own.
+            if let Some(DefinitionKind::Global(global_id)) = &definition_kind
+                && let Some(turbofish) = &type_segment_turbofish
+                && matches!(
+                    self.interner.get_global(*global_id).value,
+                    GlobalValue::Resolved(Value::Enum(..))
+                )
+            {
+                self.bind_enum_variant_global_turbofish(
+                    definition_id.unwrap(),
+                    turbofish,
+                    location,
+                    &mut bindings,
+                );
+            }
+
             if let Some(unused_resolved_turbofish) = resolved_turbofish {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
@@ -291,6 +334,43 @@ impl Elaborator<'_> {
         };
 
         (id, typ, is_comptime_local, location)
+    }
+
+    /// Bind the type-segment turbofish of a fieldless enum variant path (e.g. `Foo::<u32>::Spam`)
+    /// to the variant global's `Forall` generics (the enum's generics), validating the count the
+    /// same way [`Self::resolve_item_turbofish_generics`] does. A non-generic enum has no `Forall`,
+    /// so a turbofish on it produces a count-mismatch error.
+    fn bind_enum_variant_global_turbofish(
+        &mut self,
+        definition_id: DefinitionId,
+        turbofish: &[Located<Type>],
+        location: Location,
+        bindings: &mut TypeBindings,
+    ) {
+        let global_type = self.interner.definition_type(definition_id);
+        let (typevars, enum_name) = match &global_type {
+            Type::Forall(typevars, body) => (typevars.clone(), data_type_name(body)),
+            other => (Vec::new(), data_type_name(other)),
+        };
+
+        if turbofish.len() != typevars.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("enum `{}`", enum_name.unwrap_or_default()),
+                expected: typevars.len(),
+                found: turbofish.len(),
+                location,
+            });
+            return;
+        }
+
+        for (located_type, type_var) in turbofish.iter().zip(&typevars) {
+            let typ = self.check_type_kind(
+                located_type.contents.clone(),
+                &type_var.kind(),
+                located_type.location(),
+            );
+            bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), typ));
+        }
     }
 
     /// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
@@ -1003,6 +1083,15 @@ impl Elaborator<'_> {
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
         }
+    }
+}
+
+/// Returns the name of the data type a [Type] resolves to, looking through a `Forall` quantifier.
+fn data_type_name(typ: &Type) -> Option<String> {
+    match typ {
+        Type::Forall(_, body) => data_type_name(body),
+        Type::DataType(datatype, _) => Some(datatype.borrow().name.to_string()),
+        _ => None,
     }
 }
 
