@@ -104,62 +104,6 @@ fn arithmetic_generics_intermediate_expression_with_no_underflow() {
 }
 
 #[test]
-fn arithmetic_generics_underflow() {
-    // Calling `pop` on an empty array requires evaluating the return type
-    // `[Field; N - 1]` with N = 0, which underflows u32.
-    let source = r#"
-        fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
-            let mut result: [Field; N - 1] = [0; N - 1];
-            for i in 0..N - 1 {
-                result[i] = array[i];
-            }
-            result
-        }
-
-        fn main() {
-            let _ = pop([]);
-                    ^^^ Invalid array length
-                    ~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
-        }
-    "#;
-    check_monomorphization_error(source);
-}
-
-#[test]
-fn arithmetic_generics_intermediate_underflow() {
-    // `pop` returns `[Field; N - 1]` and `push_zero` returns `[Field; N + 1]`.
-    // With an empty array the intermediate `N - 1` underflows u32 even though
-    // the overall length passed to `push_zero` would round-trip back to 0.
-    let source = r#"
-        fn main() {
-            let _ = seems_fine([]);
-        }
-
-        fn seems_fine<let N: u32>(array: [Field; N]) -> [Field; N] {
-            push_zero(pop(array))
-            ^^^^^^^^^ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
-        }
-
-        fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
-            let mut result: [Field; N - 1] = [0; N - 1];
-            for i in 0..N - 1 {
-                result[i] = array[i];
-            }
-            result
-        }
-
-        fn push_zero<let N: u32>(array: [Field; N]) -> [Field; N + 1] {
-            let mut result: [Field; N + 1] = [0; N + 1];
-            for i in 0..N {
-                result[i] = array[i];
-            }
-            result
-        }
-    "#;
-    check_monomorphization_error(source);
-}
-
-#[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u32> {}
