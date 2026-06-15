@@ -121,7 +121,7 @@ mod test_as_typed_expr_1 {
 mod test_as_typed_expr_2 {
     #![foo]
 
-    unconstrained fn method<T, let N: u32>(xs: [T; N]) -> u32 {
+    pub unconstrained fn method<T, let N: u32>(xs: [T; N]) -> u32 {
         xs.len()
     }
 
@@ -219,7 +219,7 @@ mod test_as_typed_expr_5 {
         fn pack(self) {}
     }
 
-    fn foo() {
+    pub fn foo() {
         comptime {
             let foo = quote { Foo<i32> }.as_type();
             let t = quote { Packable<10> }.as_trait_constraint();

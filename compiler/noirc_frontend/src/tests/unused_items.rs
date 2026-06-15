@@ -95,6 +95,31 @@ fn cross_namespace_name_clash_still_warns_on_unused_value() {
 }
 
 #[test]
+fn unused_item_warns_at_definition_not_at_shadowing_use_site() {
+    // A value-namespace generic (`let N`) shadows an unused value-namespace global of the same
+    // name. Resolving the generic in `0..N` runs a speculative path-resolution probe that touches
+    // the global's unused entry and then rolls back. The rollback must restore that entry under its
+    // *original* key (the global's definition location), not the probe's use-site ident, so the
+    // surviving warning still points at the `global N` definition rather than the `0..N` use.
+    let src = r#"
+    global N: u32 = 10;
+           ^ unused global N
+           ~ unused global
+    fn count<let N: u32>() -> u32 {
+        let mut sum = 0;
+        for _ in 0..N {
+            sum += 1;
+        }
+        sum
+    }
+    fn main() {
+        let _ = count::<3>();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn cross_namespace_name_clash_still_warns_on_unconstructed_type() {
     // Mirror of the case above: calling `N()` clears only the value-namespace entry, leaving the
     // never-constructed `struct N` to warn. Elaborating the call speculatively resolves `N` as a

@@ -190,9 +190,9 @@ impl UsageTracker {
         }
 
         let removed =
-            self.unused_items.get_mut(&current_mod_id).and_then(|items| items.remove(&key));
-        if let Some(item) = removed {
-            self.record_item_removal(current_mod_id, key, item);
+            self.unused_items.get_mut(&current_mod_id).and_then(|items| items.remove_entry(&key));
+        if let Some((stored_key, item)) = removed {
+            self.record_item_removal(current_mod_id, stored_key, item);
         }
     }
 
@@ -207,14 +207,20 @@ impl UsageTracker {
 
         let key = (namespace, name.clone());
         let removed =
-            self.unused_items.get_mut(&current_mod_id).and_then(|items| items.remove(&key));
-        if let Some(item) = removed {
-            self.record_item_removal(current_mod_id, key, item);
+            self.unused_items.get_mut(&current_mod_id).and_then(|items| items.remove_entry(&key));
+        if let Some((stored_key, item)) = removed {
+            self.record_item_removal(current_mod_id, stored_key, item);
         }
     }
 
     /// While a speculative transaction is open, record an `unused_items` removal so it can be
     /// restored on rollback. A no-op when no transaction is in progress.
+    ///
+    /// `key` must be the *stored* key returned by `remove_entry`, not the lookup key built from the
+    /// caller's ident. `Ident`'s `Eq`/`Hash` ignore location, so a lookup ident carries the
+    /// reference's location while the stored ident carries the definition's. Recording the stored
+    /// key keeps the restored entry pointing at the definition, so a later unused warning lands on
+    /// the definition rather than the (rolled-back) reference site.
     fn record_item_removal(
         &mut self,
         module_id: ModuleId,
