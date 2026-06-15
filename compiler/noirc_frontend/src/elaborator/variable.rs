@@ -290,25 +290,30 @@ impl Elaborator<'_> {
             // and if the turbofish operator was used.
             self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
-            // A fieldless enum variant resolves to a global. Its type-segment turbofish
-            // (`Foo::<u32>::Spam`) must still bind the enum's generics, which the global
-            // path resolution does not carry on its own.
-            if let Some(DefinitionKind::Global(global_id)) = &definition_kind
-                && let Some(turbofish) = &type_segment_turbofish
-                && matches!(
-                    self.interner.get_global(*global_id).value,
-                    GlobalValue::Resolved(Value::Enum(..))
-                )
-            {
-                self.bind_enum_variant_global_turbofish(
-                    definition_id.unwrap(),
-                    turbofish,
-                    location,
-                    &mut bindings,
-                );
-            }
+            // A fieldless enum variant resolves to a global. A turbofish on the variant path
+            // binds the enum's generics, which global path resolution does not carry on its
+            // own. The turbofish may be on the type segment (`Foo::<u32>::Spam`) or the
+            // variant segment (`Foo::Spam::<u32>`); both denote the same enum generics.
+            let is_enum_variant_global =
+                if let Some(DefinitionKind::Global(global_id)) = &definition_kind {
+                    matches!(
+                        self.interner.get_global(*global_id).value,
+                        GlobalValue::Resolved(Value::Enum(..))
+                    )
+                } else {
+                    false
+                };
 
-            if let Some(unused_resolved_turbofish) = resolved_turbofish {
+            if is_enum_variant_global {
+                if let Some(turbofish) = resolved_turbofish.or(type_segment_turbofish) {
+                    self.bind_enum_variant_global_turbofish(
+                        definition_id.unwrap(),
+                        &turbofish,
+                        location,
+                        &mut bindings,
+                    );
+                }
+            } else if let Some(unused_resolved_turbofish) = resolved_turbofish {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
@@ -353,6 +358,7 @@ impl Elaborator<'_> {
             other => (Vec::new(), data_type_name(other)),
         };
 
+        let mut turbofish = turbofish.to_vec();
         if turbofish.len() != typevars.len() {
             self.push_err(TypeCheckError::GenericCountMismatch {
                 item: format!("enum `{}`", enum_name.unwrap_or_default()),
@@ -360,15 +366,15 @@ impl Elaborator<'_> {
                 found: turbofish.len(),
                 location,
             });
-            return;
+            // Pad/truncate to the expected length so every generic is still determined,
+            // matching `resolve_function_turbofish_generics` and avoiding a cascade of
+            // "type annotation needed" errors.
+            turbofish.resize(typevars.len(), Located::from(location, Type::Error));
         }
 
-        for (located_type, type_var) in turbofish.iter().zip(&typevars) {
-            let typ = self.check_type_kind(
-                located_type.contents.clone(),
-                &type_var.kind(),
-                located_type.location(),
-            );
+        for (located_type, type_var) in turbofish.into_iter().zip(&typevars) {
+            let type_location = located_type.location();
+            let typ = self.check_type_kind(located_type.contents, &type_var.kind(), type_location);
             bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), typ));
         }
     }

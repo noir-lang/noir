@@ -15,10 +15,11 @@ use crate::hir::resolution::visibility::{
     item_in_module_is_visible, trait_visibility_for_method_is_satisfied,
 };
 
+use crate::hir::comptime::Value;
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
-    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId,
-    TypeId,
+    DefinitionId, FuncId, GlobalId, GlobalValue, NodeInterner, TraitAssociatedTypeId, TraitId,
+    TypeAliasId, TypeId,
 };
 use crate::{Shared, Type, TypeAlias};
 
@@ -484,6 +485,14 @@ impl Elaborator<'_> {
 
         result.map(|mut resolution| {
             match resolution.item {
+                // Fieldless enum variants are lowered to globals, but unlike ordinary
+                // globals they may carry the enum's generics, so a turbofish is allowed
+                // (e.g. `Foo::Spam::<u32>`). It is bound when the variable is elaborated.
+                PathResolutionItem::Global(global_id)
+                    if matches!(
+                        self.interner.get_global(global_id).value,
+                        GlobalValue::Resolved(Value::Enum(..))
+                    ) => {}
                 PathResolutionItem::Global(..) => {
                     resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                         item: "globals".to_string(),

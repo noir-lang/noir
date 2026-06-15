@@ -918,6 +918,39 @@ fn fieldless_enum_variant_type_turbofish_binds_type() {
 }
 
 #[test]
+fn fieldless_enum_variant_segment_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32>;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32, bool>;
+                ^^^^^^^^^^^^^^^^^^^^^^ enum `Foo` expects 1 generic but 2 were given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
 fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
     let src = r#"
     enum Foo {
