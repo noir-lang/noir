@@ -136,13 +136,16 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.15.0'
+          cache: 'yarn'
+          cache-dependency-path: 'docs/yarn.lock'
 
-      # The Netlify CLI (not nwtgck/actions-netlify) bundles and deploys the markdown
-      # content-negotiation edge function declared in docs/netlify.toml. This job does
-      # not run `yarn install`, so install the CLI directly (pinned to the version in
-      # docs/package.json).
-      - name: Install Netlify CLI
-        run: npm install -g netlify-cli@24.11.3
+      # Install the docs dependencies so the Netlify CLI can bundle what netlify.toml
+      # declares: the markdown content-negotiation edge function and the classic
+      # netlify/functions (which need node_modules, e.g. @getbrevo/brevo). This also
+      # provides the CLI itself (a docs devDependency), so no separate global install.
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
 
       # --no-build: deploy the artifact built in the build_preview job as-is. base="docs"
       # in netlify.toml resolves relative to the repo root, so the edge-functions dir
@@ -151,7 +154,7 @@ jobs:
         id: netlify
         working-directory: docs
         run: |
-          output=$(netlify deploy --no-build --dir build --json --message "Deploy from GitHub Actions for PR ${{ github.event.number }}")
+          output=$(yarn netlify deploy --no-build --dir build --json --message "Deploy from GitHub Actions for PR ${{ github.event.number }}")
           echo "preview_url=$(echo "$output" | jq -r '.deploy_url')" >> "$GITHUB_OUTPUT"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
@@ -159,6 +162,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Comment preview URL on PR
+        if: steps.netlify.outputs.preview_url != ''
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
