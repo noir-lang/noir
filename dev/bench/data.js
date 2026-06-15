@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781537012120,
+  "lastUpdate": 1781537795288,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c5911bfc300b5c97e10de5d02952e65ed863c1d4",
-          "message": "fix(frontend): reject enum returns across the unconstrained boundary in monomorphization too (#12976)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-06-09T18:47:58Z",
-          "tree_id": "69b71187f71c5607094310bd04e0bf6ec5d58f70",
-          "url": "https://github.com/noir-lang/noir/commit/c5911bfc300b5c97e10de5d02952e65ed863c1d4"
-        },
-        "date": 1781032429070,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126735,
-            "range": "± 289",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112833,
-            "range": "± 2007",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043329,
-            "range": "± 1568",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2121938,
             "range": "± 4705",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1767211c085f0f9a6efe9ace74126eb331b637a4",
+          "message": "chore: fix `doc_markdown` clippy lint warnings (#13023)",
+          "timestamp": "2026-06-15T15:08:01Z",
+          "tree_id": "203c5cb6edfed028d803b09d6d416bf71a5358ff",
+          "url": "https://github.com/noir-lang/noir/commit/1767211c085f0f9a6efe9ace74126eb331b637a4"
+        },
+        "date": 1781537720536,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128638,
+            "range": "± 453",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112981,
+            "range": "± 1079",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041172,
+            "range": "± 4047",
             "unit": "ns/iter"
           }
         ]
