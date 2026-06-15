@@ -170,14 +170,24 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         resolve_type_bindings(&mut instantiation_bindings);
 
+        self.elaborator.push_interpreter_call_stack(location)?;
+
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
 
         let impl_bindings =
-            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
+            match perform_impl_bindings(self.elaborator.interner, trait_method, function, location)
+            {
+                Ok(impl_bindings) => impl_bindings,
+                Err(error) => {
+                    self.elaborator.pop_interpreter_call_stack();
+                    undo_instantiation_bindings(instantiation_bindings);
+                    self.rebind_generics_from_previous_function();
+                    return Err(error);
+                }
+            };
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
-        self.elaborator.push_interpreter_call_stack(location)?;
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
@@ -347,6 +357,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
+        self.elaborator.push_interpreter_call_stack(call_location)?;
+
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
         let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
@@ -355,7 +367,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         perform_bindings(&closure.bindings);
 
         self.remember_closure_bindings(&closure.bindings);
-        self.elaborator.push_interpreter_call_stack(call_location)?;
 
         let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
