@@ -62,14 +62,24 @@ impl CodeActionFinder<'_> {
     }
 }
 
+/// Whether `ident` names an unused import. The map is keyed by `(name, location)` because two
+/// distinct `use`s can import the same name (into different namespaces), so the location is matched
+/// too — otherwise a used import would be reported unused just for sharing a name with an unused one.
+fn is_unused_import(
+    ident: &Ident,
+    unused_imports: &HashMap<(Ident, Location), HashSet<Namespace>>,
+) -> bool {
+    unused_imports.keys().any(|(name, location)| name == ident && *location == ident.location())
+}
+
 fn has_unused_import(
     use_tree: &UseTree,
-    unused_imports: &HashMap<Ident, HashSet<Namespace>>,
+    unused_imports: &HashMap<(Ident, Location), HashSet<Namespace>>,
 ) -> bool {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            unused_imports.contains_key(ident)
+            is_unused_import(ident, unused_imports)
         }
         UseTreeKind::List(use_trees) => {
             use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_imports))
@@ -80,12 +90,16 @@ fn has_unused_import(
 /// Returns a new `UseTree` with all the unused imports removed, and the number of removed imports.
 fn use_tree_without_unused_import(
     use_tree: &UseTree,
-    unused_imports: &HashMap<Ident, HashSet<Namespace>>,
+    unused_imports: &HashMap<(Ident, Location), HashSet<Namespace>>,
 ) -> (Option<UseTree>, usize) {
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            if unused_imports.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
+            if is_unused_import(ident, unused_imports) {
+                (None, 1)
+            } else {
+                (Some(use_tree.clone()), 0)
+            }
         }
         UseTreeKind::List(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();
