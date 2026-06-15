@@ -18,7 +18,7 @@ use crate::hir::resolution::import::{
 };
 use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
 
-use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
+use crate::ast::{DocComment, Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ImplId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
@@ -202,6 +202,7 @@ pub(crate) struct UnresolvedImpl {
     pub object_type_location: Location,
     pub methods: UnresolvedFunctions,
     pub impl_id: ImplId,
+    pub doc_comments: Vec<DocComment>,
 }
 
 /// Maps the type and the module id in which an impl is defined to the impls collected for it.

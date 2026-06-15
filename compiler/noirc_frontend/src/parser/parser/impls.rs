@@ -43,7 +43,14 @@ impl Parser<'_> {
     ) -> TypeImpl {
         let where_clause = self.parse_where_clause();
         let methods = self.parse_type_impl_body();
-        TypeImpl { object_type, type_location, generics, where_clause, methods }
+        TypeImpl {
+            object_type,
+            type_location,
+            generics,
+            where_clause,
+            methods,
+            doc_comments: Vec::new(),
+        }
     }
 
     /// TypeImplBody = '{' TypeImplItem* '}'

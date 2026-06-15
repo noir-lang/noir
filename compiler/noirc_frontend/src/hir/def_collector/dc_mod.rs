@@ -1474,6 +1474,7 @@ pub fn collect_impl(
         object_type_location: r#impl.type_location,
         methods: unresolved_functions,
         impl_id,
+        doc_comments: r#impl.doc_comments,
     });
 }
 

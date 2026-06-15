@@ -125,7 +125,7 @@ impl ParsedModule {
                 ItemKind::Enum(typ) => module.push_enum(typ, item.doc_comments),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
-                ItemKind::Impl(r#impl) => module.push_impl(r#impl),
+                ItemKind::Impl(r#impl) => module.push_impl(r#impl, item.doc_comments),
                 ItemKind::TypeAlias(type_alias) => {
                     module.push_type_alias(type_alias, item.doc_comments);
                 }
@@ -266,7 +266,8 @@ impl SortedModule {
         self.trait_impls.push(trait_impl);
     }
 
-    fn push_impl(&mut self, r#impl: TypeImpl) {
+    fn push_impl(&mut self, mut r#impl: TypeImpl, doc_comments: Vec<DocComment>) {
+        r#impl.doc_comments = doc_comments;
         self.impls.push(r#impl);
     }
 

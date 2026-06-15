@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ResolvedGeneric;
-use crate::ast::{Ident, ItemVisibility, NoirFunction};
+use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
@@ -135,6 +135,9 @@ pub struct Impl {
 
     /// The impl's where clause. Empty if there is no where clause.
     pub where_clause: Vec<TraitConstraint>,
+
+    /// The doc comments written on top of the impl block. Empty if there are none.
+    pub doc_comments: Vec<DocComment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -171,6 +171,7 @@ impl Elaborator<'_> {
                     generics: resolved_generics,
                     methods: unresolved_impl.methods.function_ids(),
                     where_clause: resolved_where_clause.clone(),
+                    doc_comments: unresolved_impl.doc_comments.clone(),
                 },
             );
 
