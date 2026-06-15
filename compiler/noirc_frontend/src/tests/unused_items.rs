@@ -157,6 +157,95 @@ fn unused_value_namespace_import_not_cleared_by_type_namespace_use() {
 }
 
 #[test]
+fn unused_separate_namespace_imports_warn_independently() {
+    // `use foo::N` and `use bar::N` are two distinct `use` statements that happen to import the
+    // same name into different namespaces (the type-namespace `struct N` and the value-namespace
+    // `fn N`). Each is its own syntactic unit, so using `N` only as a type uses `foo::N`; the
+    // unused `bar::N` must still warn, even though both share the name `N`.
+    let src = r#"
+    mod foo { pub struct N {} }
+    mod bar { pub fn N() {} }
+
+    use foo::N;
+    use bar::N;
+             ^ unused import N
+             ~ unused import
+
+    fn main() {
+        let _: N = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn same_namespace_imports_with_same_name_clash() {
+    // Contrast with the cross-namespace case above: when two `use`s bring the same name into the
+    // *same* namespace (here both `foo::N` and `bar::N` are type-namespace `struct`s), they are no
+    // longer distinct slots — the second import collides with the first, which is a duplicate-import
+    // error rather than a pair of independently-tracked unused imports.
+    let src = r#"
+    mod foo { pub struct N {} }
+    mod bar { pub struct N {} }
+
+    use foo::N;
+             ~ First definition found here
+    use bar::N;
+             ^ Duplicate definitions of import with name N found
+             ~ Second definition found here
+
+    fn main() {
+        let _: N = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn repeated_import_of_same_name_does_not_warn_when_used() {
+    // Two identical `use`s are a duplicate-import error, but each is still tracked as its own entry
+    // (keyed by location). Using `N` must clear *every* same-name entry in that namespace, so no
+    // spurious unused-import warning survives alongside the duplicate-definition error.
+    let src = r#"
+    mod foo { pub struct N {} }
+
+    use foo::N;
+             ~ First definition found here
+    use foo::N;
+             ^ Duplicate definitions of import with name N found
+             ~ Second definition found here
+
+    fn main() {
+        let _: N = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn repeated_unused_import_warns_on_each_use() {
+    // Mirror of the case above when the name is never used: the duplicate-definition error still
+    // fires, and because each `use` is its own location-keyed entry, each unused line warns
+    // independently (two warnings, not one).
+    let src = r#"
+    mod foo { pub struct N {} }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+             ~ First definition found here
+    use foo::N;
+             ^ unused import N
+             ^ Duplicate definitions of import with name N found
+             ~ unused import
+             ~ Second definition found here
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_unused_function() {
     let src = r#"
     contract some_contract {
@@ -596,3 +685,5 @@ fn does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code() {
     ";
     assert_no_errors(src);
 }
+
+

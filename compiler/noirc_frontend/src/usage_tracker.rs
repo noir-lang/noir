@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use noirc_errors::Location;
+
 use crate::{
     ast::{Ident, ItemVisibility},
     hir::def_map::{ModuleId, Namespace},
@@ -54,13 +56,20 @@ pub struct UsageTracker {
     /// error. Keying by namespace as well as name keeps the two in separate slots, so marking one
     /// as used (e.g. constructing the struct) leaves the genuinely unused sibling tracked.
     unused_items: HashMap<ModuleId, HashMap<(Namespace, Ident), UnusedItem>>,
-    /// Unused imports per module, keyed by name, recording which namespace(s) the import brought
-    /// the name into. A `use` is a single syntactic unit, so using the name in any namespace it
-    /// occupies uses the one import (warning at most once). Recording the namespaces lets a use in
-    /// one namespace leave an import that only occupies the other namespace untouched — e.g.
-    /// constructing a local `struct N` must not silence an unused `use foo::N` that only imported
-    /// a value-namespace `fn N`.
-    unused_imports: HashMap<ModuleId, HashMap<Ident, HashSet<Namespace>>>,
+    /// Unused imports per module, keyed by the imported name *and its location*, recording which
+    /// namespace(s) that one `use` brought the name into. `Ident`'s `Eq`/`Hash` ignore the location,
+    /// so keying by name alone would merge two distinct `use`s of the same name (`use foo::N` and
+    /// `use bar::N`) into one entry; pairing the name with its location keeps each `use` separate,
+    /// both so the warning points at the right line and so using one doesn't silence the other. A
+    /// `use` is a single syntactic unit, so using the name in any namespace it brought in uses that
+    /// whole import (the entry is dropped, warning at most once); but using a same-named item in a
+    /// namespace the import does not occupy leaves it untouched — e.g. constructing a local
+    /// `struct N` must not silence an unused `use foo::N` that only imported a value `fn N`.
+    unused_imports: HashMap<ModuleId, HashMap<(Ident, Location), HashSet<Namespace>>>,
+    /// Unused methods from inherent impls (`impl Foo { fn bar() {} }`), keyed by `FuncId`. Unlike
+    /// free functions, these don't occupy a module's `(namespace, name)` slot — they live in a
+    /// type's method set — so they're tracked by id and removed when the method is called or
+    /// otherwise referenced. The `Ident` is the method name, used to locate the unused warning.
     unused_impl_functions: HashMap<FuncId, Ident>,
 }
 
@@ -87,9 +96,10 @@ impl UsageTracker {
         }
     }
 
-    /// Register an unused import. Imports are keyed by name; the imported name may occupy both
-    /// namespaces (e.g. a re-exported `struct N` and `fn N`), in which case this is called once
-    /// per namespace and the namespaces accumulate into the one import entry.
+    /// Register an unused import. Imports are keyed by name and location; the imported name may
+    /// occupy both namespaces (e.g. a re-exported `struct N` and `fn N`), in which case this is
+    /// called once per namespace with the same name and location, accumulating into the one
+    /// `use`'s entry.
     pub(crate) fn add_unused_import(
         &mut self,
         module_id: ModuleId,
@@ -101,26 +111,29 @@ impl UsageTracker {
             self.unused_imports
                 .entry(module_id)
                 .or_default()
-                .entry(name)
+                .entry((name.clone(), name.location()))
                 .or_default()
                 .insert(namespace);
         }
     }
 
     /// Marks the import that brought `name` into `namespace` as used. A `use` is a single
-    /// syntactic unit, so using the name in any namespace it occupies uses the whole import; but
-    /// using a same-named item in a namespace the import does not occupy leaves the import alone.
+    /// syntactic unit, so using the name in any namespace it occupies uses that whole import (its
+    /// entry is dropped). Each entry is keyed by the importing `use`'s location, so a same-named
+    /// item imported by a *different* `use` (a different location) into another namespace is left
+    /// alone.
     fn mark_import_as_used(
         &mut self,
         current_mod_id: ModuleId,
         name: &Ident,
         namespace: Namespace,
     ) {
-        if let Some(imports) = self.unused_imports.get_mut(&current_mod_id)
-            && imports.get(name).is_some_and(|namespaces| namespaces.contains(&namespace))
-        {
-            imports.remove(name);
-        }
+        let Some(imports) = self.unused_imports.get_mut(&current_mod_id) else {
+            return;
+        };
+        imports.retain(|(import_name, _location), namespaces| {
+            !(import_name == name && namespaces.contains(&namespace))
+        });
     }
 
     /// Marks an item as being referenced. This doesn't always makes the item as used. For example
@@ -190,8 +203,11 @@ impl UsageTracker {
         &self.unused_items
     }
 
-    /// Get all the unused imports per module, keyed by name, with the namespace(s) each occupies.
-    pub fn unused_imports(&self) -> &HashMap<ModuleId, HashMap<Ident, HashSet<Namespace>>> {
+    /// Get all the unused imports per module, keyed by the imported name and its location; the
+    /// value is the set of namespaces that one `use` brought the name into.
+    pub fn unused_imports(
+        &self,
+    ) -> &HashMap<ModuleId, HashMap<(Ident, Location), HashSet<Namespace>>> {
         &self.unused_imports
     }
 }

@@ -753,10 +753,8 @@ impl DefCollector {
 
             // If we error on path resolution don't also say it's unused (in case it ends up being unused)
             if !has_path_resolution_error {
-                let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
-
                 context.usage_tracker.add_unused_import(
-                    defining_module,
+                    importing_module,
                     name.clone(),
                     module_def_id.namespace(),
                     visibility,
@@ -768,12 +766,12 @@ impl DefCollector {
                         module_def_id,
                         file_id,
                         visibility,
-                        Some(defining_module),
+                        Some(importing_module),
                     );
 
                     context.def_interner.add_reexport(
                         module_def_id,
-                        defining_module,
+                        importing_module,
                         name.clone(),
                         visibility,
                     );
@@ -812,7 +810,9 @@ impl DefCollector {
             .unused_imports()
             .iter()
             .filter(|(module_id, _)| in_crate(module_id))
-            .flat_map(|(_, names)| names.keys().map(|ident| (ident, UnusedItem::Import)));
+            .flat_map(|(_, names)| {
+                names.keys().map(|(ident, _location)| (ident, UnusedItem::Import))
+            });
 
         let mut unused_errors = unused_definitions
             .chain(unused_imports)
