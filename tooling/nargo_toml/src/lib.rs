@@ -475,6 +475,11 @@ fn resolve_package_from_toml(
     toml_path: &Path,
     processed: &mut Vec<String>,
 ) -> Result<Package, ManifestError> {
+    // Normalize the path so a manifest reached through different spellings of
+    // the same location (e.g. `a/../b` and `b`) maps to a single entry. This
+    // keeps cycle detection consistent with `read_toml`, which derives each
+    // package's root directory from the normalized path.
+    let toml_path = toml_path.normalize();
     // Checks for cyclic dependencies
     let str_path = toml_path.to_str().expect("ICE - path is empty");
     if processed.contains(&str_path.to_string()) {
@@ -494,7 +499,7 @@ fn resolve_package_from_toml(
         processed.push(str.to_string());
     }
 
-    let nargo_toml = read_toml(toml_path)?;
+    let nargo_toml = read_toml(&toml_path)?;
 
     let result = match nargo_toml.config {
         Config::Package { package_config } => {
@@ -750,5 +755,48 @@ mod tests {
         assert_ok("project/workspace/packages/bar", false, "project/workspace/packages/bar");
         assert_ok("project/examples/baz/src", true, "project/examples/baz");
         assert_ok("project/examples/baz/src", false, "project/examples/baz");
+    }
+
+    /// A dependency cycle should be reported against normalized paths, no matter
+    /// how the cyclic `path` dependencies are spelled in each `Nargo.toml`.
+    #[test]
+    fn cyclic_dependency_is_reported_with_normalized_paths() {
+        use crate::{PackageSelection, resolve_workspace_from_toml};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        let write_lib = |name: &str, dep_name: &str, dep_path: &str| {
+            let dir = root.join(name);
+            std::fs::create_dir_all(dir.join("src")).unwrap();
+            std::fs::write(
+                dir.join("Nargo.toml"),
+                format!(
+                    "[package]\nname = \"{name}\"\ntype = \"lib\"\nauthors = [\"\"]\n\n[dependencies]\n{dep_name} = {{ path = \"{dep_path}\" }}\n"
+                ),
+            )
+            .unwrap();
+            std::fs::write(dir.join("src").join("lib.nr"), "").unwrap();
+        };
+
+        // `a` depends on `b` and `b` depends on `a`, forming a cycle. The `path`
+        // dependencies are spelled with `..` segments so the raw and normalized
+        // forms of each manifest path differ.
+        write_lib("a", "b", "../b");
+        write_lib("b", "a", "../a");
+
+        let error =
+            resolve_workspace_from_toml(&root.join("a/Nargo.toml"), PackageSelection::All, None)
+                .err()
+                .expect("a <-> b is a dependency cycle");
+
+        let ManifestError::CyclicDependency { cycle } = error else {
+            panic!("expected a cyclic dependency error, got: {error:?}");
+        };
+
+        assert!(
+            !cycle.contains(".."),
+            "cycle should be reported with normalized paths, got: {cycle}"
+        );
     }
 }
