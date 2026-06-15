@@ -723,7 +723,10 @@ fn decrement_vector_length(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
+    // The subtraction is unchecked because every caller reaches this point only once the length is
+    // known to be non-zero: either it is a known non-zero constant (`simplify_vector_pop_back`), or
+    // a bounds check guaranteeing a non-empty vector has already been emitted (the zero-sized
+    // pop/remove paths, which run for dynamic lengths too). In well-formed SSA it cannot underflow.
     update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
