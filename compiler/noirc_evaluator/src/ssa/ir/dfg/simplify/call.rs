@@ -447,6 +447,26 @@ fn simplify_as_vector_for_zero_sized_vector(
     Some(SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector]))
 }
 
+/// Guard for the `*_for_zero_sized_vector` simplifications: succeeds only when the vector argument
+/// has zero-sized elements (e.g. `[()]`), the case those simplifications handle.
+///
+/// Vector intrinsics take the length as `arguments[0]` and the vector as `arguments[1]`; on success
+/// those two values are returned as `(length, vector)`. Returns `None` to defer to the general
+/// handling when the elements are not zero-sized. Panics if the argument is not a vector type at
+/// all, which would be a frontend bug.
+fn zero_sized_vector_length_and_value(
+    arguments: &[ValueId],
+    dfg: &DataFlowGraph,
+) -> Option<(ValueId, ValueId)> {
+    let length = arguments[0];
+    let vector = arguments[1];
+    let vector_type = dfg.type_of_value(vector);
+    let Type::Vector(element_types) = vector_type.as_ref() else {
+        unreachable!("ICE: vector intrinsic should only be called on vectors")
+    };
+    element_types.is_empty().then_some((length, vector))
+}
+
 /// Simplify a push back/front on a vector whose elements are zero-sized (e.g. `[()]`).
 ///
 /// Zero-sized elements carry no data, so the backing array is always empty and the push only needs
@@ -458,19 +478,12 @@ fn simplify_vector_push_back_or_front_for_zero_sized_vector(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorPushBack/VectorPushFront should only be called on vectors")
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
 
     // If this is a zero-sized vector then it can never have values in it, so we can just
     // return an incremented length and return the same vector.
-    let length = arguments[0];
     let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
 }
 
 /// Simplify a pop back/front on a vector whose elements are zero-sized (e.g. `[()]`).
@@ -485,19 +498,11 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorPopBack/VectorPopFront should only be called on vectors")
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
 
     // If this is a zero-sized vector then it can never have values in it.
     // We do need to check that the length is not zero, though, but only in ACIR
     // because in Brillig we already insert such check in FunctionContext::codegen_intrinsic_call_checks.
-    let length = arguments[0];
-
     if dfg.runtime().is_acir() {
         let zero_u32 = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
         let length_eq_zero = dfg
@@ -519,7 +524,7 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     }
 
     let new_vector_length = decrement_vector_length(length, dfg, block, call_stack);
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
 }
 
 /// Simplify a `vector_insert` on a vector whose elements are zero-sized (e.g. `[()]`).
@@ -533,20 +538,14 @@ fn simplify_vector_insert_for_zero_sized_vector(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorInsert should only be called on vectors")
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
 
     // If this is a zero-sized vector we would need to check if the index is in bounds.
     // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
     // no need to repeat that here.
-    let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
 
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
 }
 
 /// Simplify a `vector_remove` on a vector whose elements are zero-sized (e.g. `[()]`).
@@ -560,20 +559,14 @@ fn simplify_vector_remove_for_zero_sized_vector(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorRemove should only be called on vectors")
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
 
     // If this is a zero-sized vector we would need to check if the index is in bounds.
     // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
     // no need to repeat that here.
-    let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length = decrement_vector_length(length, dfg, block, call_stack);
 
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
 }
 
 /// Returns a vector (represented by a tuple (len, vector)) of constants corresponding to the limbs of the radix decomposition.
