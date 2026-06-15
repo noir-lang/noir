@@ -46,7 +46,7 @@ pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 /// Entry function for the parser - also handles lexing internally.
 ///
-/// Given a source_program string, return the ParsedModule Ast representation
+/// Given a `source_program` string, return the `ParsedModule` Ast representation
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
@@ -237,7 +237,7 @@ impl<'a> Parser<'a> {
         )
     }
 
-    /// Module = InnerDocComments Item*
+    /// Module = `InnerDocComments` Item*
     pub(crate) fn parse_module(&mut self, nested: bool) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
         let items = self.parse_module_items(nested);

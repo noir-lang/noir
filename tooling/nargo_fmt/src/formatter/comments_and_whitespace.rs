@@ -58,7 +58,7 @@ impl Formatter<'_> {
         );
     }
 
-    /// Similar to skip_comments_and_whitespace, but will write two lines if
+    /// Similar to `skip_comments_and_whitespace`, but will write two lines if
     /// multiple newlines are found (but at most two lines at a time).
     pub(crate) fn skip_comments_and_whitespace_writing_multiple_lines_if_found(&mut self) {
         self.skip_comments_and_whitespace_impl(

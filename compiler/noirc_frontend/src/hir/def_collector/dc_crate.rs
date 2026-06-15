@@ -18,9 +18,9 @@ use crate::hir::resolution::import::{
 };
 use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
 
-use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
+use crate::ast::{DocComment, Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
-    FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
+    FuncId, GlobalId, ImplId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
 };
 
@@ -108,8 +108,8 @@ pub struct UnresolvedTraitImpl {
     pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 
-    /// FuncIds in `methods.functions` that refer to a trait's own default-method
-    /// FuncId because this impl did not override the method. The default body
+    /// `FuncIds` in `methods.functions` that refer to a trait's own default-method
+    /// `FuncId` because this impl did not override the method. The default body
     /// has already been elaborated once at the trait definition, so these
     /// slots must not be re-registered or re-elaborated per impl. Populated by
     /// `collect_trait_impl_methods`.
@@ -192,18 +192,26 @@ impl CollectedItems {
     }
 }
 
-/// Maps the type and the module id in which the impl is defined to the functions contained in that
-/// impl along with the generics declared on the impl itself. This also contains the Span
-/// of the object_type of the impl, used to issue an error if the object type fails to resolve.
+/// An inherent `impl` block collected during def collection, before elaboration.
+#[derive(Clone)]
+pub(crate) struct UnresolvedImpl {
+    /// The generics declared on the impl itself, e.g. `T` in `impl<T> Foo<T>`.
+    pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
+    /// Location of the impl's object type, used to report an error if it fails to resolve.
+    pub object_type_location: Location,
+    pub methods: UnresolvedFunctions,
+    pub impl_id: ImplId,
+    pub doc_comments: Vec<DocComment>,
+}
+
+/// Maps the type and the module id in which an impl is defined to the impls collected for it.
 ///
 /// The keys are unresolved types, which are not `Ord`, so a `BTreeMap` cannot be used here.
 /// An `IndexMap` is used instead of a `HashMap` because iteration order is observable
 /// (attribute run order, method declaration order). Using an `IndexMap` keeps source-order for evaluation.
-pub(crate) type ImplMap = IndexMap<
-    (UnresolvedType, LocalModuleId),
-    Vec<(UnresolvedGenerics, Vec<UnresolvedTraitConstraint>, Location, UnresolvedFunctions)>,
-    FxBuildHasher,
->;
+pub(crate) type ImplMap =
+    IndexMap<(UnresolvedType, LocalModuleId), Vec<UnresolvedImpl>, FxBuildHasher>;
 
 /// Wraps a list of compilation errors.
 ///
@@ -406,7 +414,7 @@ impl DefCollector {
         }
     }
 
-    /// Collect all of the definitions in a given crate into a CrateDefMap
+    /// Collect all of the definitions in a given crate into a `CrateDefMap`
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
     #[allow(clippy::too_many_arguments)]
@@ -901,8 +909,8 @@ fn inject_prelude(
 }
 
 /// Filter the errors so that:
-/// * if we have any errors which are _not_ [ExpectingOtherError], then we remove all [ExpectingOtherError] instances
-/// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
+/// * if we have any errors which are _not_ [`ExpectingOtherError`], then we remove all [`ExpectingOtherError`] instances
+/// * if there are no other kind of errors, then we leave and deduplicate the [`ExpectingOtherError`]s
 fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
     let has_expected_errors =
         errors.iter().any(|error| !error.is_expecting_other_error() && error.is_error());

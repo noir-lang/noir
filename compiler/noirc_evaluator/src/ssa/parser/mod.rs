@@ -43,7 +43,7 @@ impl FromStr for Ssa {
     type Err = SsaErrorWithSource;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str_impl(s, false, true)
+        Self::from_str_impl(s, false, true, false)
     }
 }
 
@@ -56,22 +56,36 @@ impl Ssa {
 
     /// Creates an Ssa object from the given string without running SSA validation
     pub fn from_str_no_validation(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, false, false)
+        Self::from_str_impl(src, false, false, false)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
-    pub fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, true, true)
+    ///
+    /// Only used in unit tests: simplification runs with the panic-on-malformed
+    /// behavior left enabled, so malformed input is surfaced loudly rather than
+    /// silently passed through.
+    #[cfg(test)]
+    pub(crate) fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        Self::from_str_impl(src, true, true, false)
     }
 
-    fn from_str_impl(src: &str, simplify: bool, validate: bool) -> Result<Ssa, SsaErrorWithSource> {
+    /// Parses the SSA, optionally simplifying each instruction as it's inserted, optionally running
+    /// validation, and optionally allowing the `simplify_*` routines to decline (rather than panic)
+    /// on malformed input. The `allow_malformed` path is only exercised by unit tests; see
+    /// [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
+    pub(crate) fn from_str_impl(
+        src: &str,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         let parsed_ssa =
             parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         parsed_ssa
-            .into_ssa(simplify, validate)
+            .into_ssa(simplify, validate, allow_malformed)
             .map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }

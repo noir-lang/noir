@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given ValueType
+//! This file contains mechanisms for deterministically mutating a given `ValueType`
 use crate::mutations::configuration::{
     GenerateNumericType, GenerateNumericTypeConfig, NumericTypeMutationConfig,
     NumericTypeMutationOptions,

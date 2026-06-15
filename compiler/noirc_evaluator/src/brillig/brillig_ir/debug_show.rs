@@ -67,7 +67,6 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::Xor => "^".into(),
             BrilligBinaryOp::Shl => "<<".into(),
             BrilligBinaryOp::Shr => ">>".into(),
-            BrilligBinaryOp::Modulo => "%".into(),
         }
     }
 }
@@ -177,6 +176,16 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  {} = {} {} {}", result, lhs, operation, rhs);
     }
 
+    /// Processes an unsigned modulo instruction.
+    pub(crate) fn modulo_instruction(
+        &self,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        result: MemoryAddress,
+    ) {
+        debug_println!(self.enable_debug_trace, "  {} = {} % {}", result, lhs, rhs);
+    }
+
     /// Stores the value of `constant` in the `result` register.
     pub(crate) fn const_instruction<F: DebugToString>(&self, result: MemoryAddress, constant: F) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
@@ -245,7 +254,7 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STOP {}", return_data);
     }
 
-    /// Debug function for enter_context
+    /// Debug function for `enter_context`
     pub(crate) fn enter_context(&self, label: &Label) {
         if !self.enable_debug_trace {
             return;
@@ -257,17 +266,17 @@ impl DebugShow {
         }
     }
 
-    /// Debug function for jump_instruction
+    /// Debug function for `jump_instruction`
     pub(crate) fn jump_instruction(&self, target_label: &Label) {
         debug_println!(self.enable_debug_trace, "  JUMP_TO {}", target_label);
     }
 
-    /// Debug function for jump_if_instruction
+    /// Debug function for `jump_if_instruction`
     pub(crate) fn jump_if_instruction(&self, condition: MemoryAddress, target_label: &Label) {
         debug_println!(self.enable_debug_trace, "  JUMP_IF {} TO {}", condition, target_label);
     }
 
-    /// Debug function for black_box_op
+    /// Debug function for `black_box_op`
     pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
             BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
@@ -375,12 +384,12 @@ impl DebugShow {
         }
     }
 
-    /// Debug function for cast_instruction
+    /// Debug function for `cast_instruction`
     pub(crate) fn add_external_call_instruction(&self, func_label: &Label) {
         debug_println!(self.enable_debug_trace, "  CALL {}", func_label);
     }
 
-    /// Debug function for calldata_copy
+    /// Debug function for `calldata_copy`
     pub(crate) fn calldata_copy_instruction(
         &self,
         destination: MemoryAddress,

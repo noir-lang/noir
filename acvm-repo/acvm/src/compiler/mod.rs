@@ -3,10 +3,10 @@
 //! and the `transformers` which adapt the opcodes to the proving backend.
 //!
 //! # Optimizers
-//! - GeneralOptimizer: simple pass which simplifies AssertZero opcodes when possible (e.g remove terms with null coefficient)
-//! - UnusedMemoryOptimizer: simple pass which removes MemoryInit opcodes when they are not used (e.g no corresponding MemoryOp opcode)
-//! - RangeOptimizer: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
-//! - CommonSubexpressionOptimizer: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
+//! - `GeneralOptimizer`: simple pass which simplifies `AssertZero` opcodes when possible (e.g remove terms with null coefficient)
+//! - `UnusedMemoryOptimizer`: simple pass which removes `MemoryInit` opcodes when they are not used (e.g no corresponding `MemoryOp` opcode)
+//! - `RangeOptimizer`: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
+//! - `CommonSubexpressionOptimizer`: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
 //!
 //! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an `Artifacts` type.
@@ -40,7 +40,7 @@ impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
     /// The index in the vector is the new opcode index.
     /// The value of the vector is where the old opcode index was pointed.
-    /// E.g: If acir_opcode_positions = 0,1,2,4,5,5,6
+    /// E.g: If `acir_opcode_positions` = 0,1,2,4,5,5,6
     /// that means that old indices 0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
     /// This gives the following map:
     /// 0 -> 0
@@ -58,10 +58,10 @@ impl AcirTransformationMap {
     }
 
     /// Returns the new opcode location(s) corresponding to the old opcode.
-    /// An OpcodeLocation contains the index of the opcode in the vector of opcodes
-    /// This function returns the new OpcodeLocation by 'updating' the index within the given OpcodeLocation
-    /// using the AcirTransformationMap. In fact, it does not update the given OpcodeLocation 'in-memory' but rather
-    /// returns a new one, and even a vector of OpcodeLocation's in case there are multiple new indexes corresponding
+    /// An `OpcodeLocation` contains the index of the opcode in the vector of opcodes
+    /// This function returns the new `OpcodeLocation` by 'updating' the index within the given `OpcodeLocation`
+    /// using the `AcirTransformationMap`. In fact, it does not update the given `OpcodeLocation` 'in-memory' but rather
+    /// returns a new one, and even a vector of `OpcodeLocation`'s in case there are multiple new indexes corresponding
     /// to the old opcode index.
     pub fn new_locations(
         &self,
@@ -85,7 +85,7 @@ impl AcirTransformationMap {
     }
 
     /// This function is similar to `new_locations()`, but only deals with
-    /// the AcirOpcodeLocation variant
+    /// the `AcirOpcodeLocation` variant
     pub fn new_acir_locations(
         &self,
         old_location: AcirOpcodeLocation,

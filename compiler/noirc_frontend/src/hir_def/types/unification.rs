@@ -74,7 +74,7 @@ impl Kind {
 impl Type {
     /// Try to unify this type with another, setting any type variables found
     /// equal to the other type in the process. When comparing types, unification
-    /// (including try_unify) are almost always preferred over Type::eq as unification
+    /// (including `try_unify`) are almost always preferred over `Type::eq` as unification
     /// will correctly handle generic types.
     pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::default();
@@ -316,7 +316,7 @@ impl Type {
     }
 
     /// Try to unify a type variable to `self`.
-    /// This is a helper function factored out from try_unify.
+    /// This is a helper function factored out from `try_unify`.
     fn try_unify_to_type_variable(
         &self,
         type_variable: &TypeVariable,
@@ -439,7 +439,7 @@ impl Type {
         Err(UnificationError)
     }
 
-    /// Try to unify the following equations, unless prohibited by DoNotMoveConstants flag:
+    /// Try to unify the following equations, unless prohibited by `DoNotMoveConstants` flag:
     /// - `(..a..) + 1 = (..b..)` -> `(..a..) = (..b..) - 1`
     /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
     /// - `(..a..) = (..b..) + 1` -> `(..b..) = (..a..) - 1`

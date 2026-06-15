@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
         self.parse_many_return_trailing_separator_if_any(items, separated_by, f).0
     }
 
-    /// parse_many, where the given function `f` may return multiple results
+    /// `parse_many`, where the given function `f` may return multiple results
     pub(super) fn parse_many_to_many<T, F>(
         &mut self,
         items: &'static str,
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
         self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f).0
     }
 
-    /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
+    /// Same as `parse_many`, but returns a bool indicating whether a trailing separator was found.
     pub(super) fn parse_many_return_trailing_separator_if_any<T, F>(
         &mut self,
         items: &'static str,
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
         self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f)
     }
 
-    /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
+    /// Same as `parse_many`, but returns a bool indicating whether a trailing separator was found.
     fn parse_many_to_many_return_trailing_separator_if_any<T, F>(
         &mut self,
         items: &'static str,

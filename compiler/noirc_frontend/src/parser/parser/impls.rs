@@ -18,8 +18,8 @@ pub(crate) enum Impl {
 
 impl Parser<'_> {
     /// Impl
-    ///     = TypeImpl
-    ///     | TraitImpl
+    ///     = `TypeImpl`
+    ///     | `TraitImpl`
     pub(crate) fn parse_impl(&mut self) -> Impl {
         let generics = self.parse_generics_allowing_trait_bounds();
 
@@ -34,7 +34,7 @@ impl Parser<'_> {
         }
     }
 
-    /// TypeImpl = 'impl' Generics Type TypeImplBody
+    /// `TypeImpl` = 'impl' Generics Type `TypeImplBody`
     fn parse_type_impl(
         &mut self,
         object_type: UnresolvedType,
@@ -43,12 +43,19 @@ impl Parser<'_> {
     ) -> TypeImpl {
         let where_clause = self.parse_where_clause();
         let methods = self.parse_type_impl_body();
-        TypeImpl { object_type, type_location, generics, where_clause, methods }
+        TypeImpl {
+            object_type,
+            type_location,
+            generics,
+            where_clause,
+            methods,
+            doc_comments: Vec::new(),
+        }
     }
 
-    /// TypeImplBody = '{' TypeImplItem* '}'
+    /// `TypeImplBody` = '{' `TypeImplItem`* '}'
     ///
-    /// TypeImplItem = OuterDocComments Attributes Modifiers Function
+    /// `TypeImplItem` = `OuterDocComments` Attributes Modifiers Function
     fn parse_type_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Location)> {
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
@@ -87,7 +94,7 @@ impl Parser<'_> {
         })
     }
 
-    /// TraitImpl = 'impl' Generics Type 'for' Type TraitImplBody
+    /// `TraitImpl` = 'impl' Generics Type 'for' Type `TraitImplBody`
     fn parse_trait_impl(
         &mut self,
         impl_generics: Vec<UnresolvedGeneric>,
@@ -101,7 +108,7 @@ impl Parser<'_> {
         NoirTraitImpl { impl_generics, r#trait, object_type, where_clause, items, is_synthetic }
     }
 
-    /// TraitImplBody = '{' TraitImplItem* '}'
+    /// `TraitImplBody` = '{' `TraitImplItem`* '}'
     fn parse_trait_impl_body(&mut self) -> Vec<Documented<TraitImplItem>> {
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
@@ -129,10 +136,10 @@ impl Parser<'_> {
         })
     }
 
-    /// TraitImplItem
-    ///     = TraitImplType
-    ///     | TraitImplConstant
-    ///     | TraitImplFunction
+    /// `TraitImplItem`
+    ///     = `TraitImplType`
+    ///     | `TraitImplConstant`
+    ///     | `TraitImplFunction`
     fn parse_trait_impl_item_kind(&mut self) -> Option<TraitImplItemKind> {
         if let Some(kind) = self.parse_trait_impl_type() {
             return Some(kind);
@@ -145,7 +152,7 @@ impl Parser<'_> {
         self.parse_trait_impl_function()
     }
 
-    /// TraitImplType = 'type' identifier ( ':' Type )? ';'
+    /// `TraitImplType` = 'type' identifier ( ':' Type )? ';'
     fn parse_trait_impl_type(&mut self) -> Option<TraitImplItemKind> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
@@ -166,7 +173,7 @@ impl Parser<'_> {
         Some(TraitImplItemKind::Type { name, alias })
     }
 
-    /// TraitImplConstant = 'let' identifier OptionalTypeAnnotation ';'
+    /// `TraitImplConstant` = 'let' identifier `OptionalTypeAnnotation` ';'
     fn parse_trait_impl_constant(&mut self) -> Option<TraitImplItemKind> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -203,7 +210,7 @@ impl Parser<'_> {
         Some(TraitImplItemKind::Constant(name, typ, expr))
     }
 
-    /// TraitImplFunction = Attributes Modifiers Function
+    /// `TraitImplFunction` = Attributes Modifiers Function
     fn parse_trait_impl_function(&mut self) -> Option<TraitImplItemKind> {
         let attributes = self.parse_attributes();
 

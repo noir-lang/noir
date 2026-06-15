@@ -25,6 +25,7 @@ use crate::{
 };
 
 use super::SimplifyResult;
+use super::bail_malformed;
 
 mod blackbox;
 
@@ -101,10 +102,20 @@ pub(super) fn simplify_call(
                     dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
-                    assert!(matches!(*dfg.type_of_value(arguments[1]), Type::Vector(_)));
+                    if !matches!(*dfg.type_of_value(arguments[1]), Type::Vector(_)) {
+                        bail_malformed!(
+                            dfg,
+                            "ArrayLen of a u32 length expects a vector second argument, got {:?}",
+                            dfg.type_of_value(arguments[1])
+                        );
+                    }
                     arguments[0]
                 }
-                _ => panic!("First argument to ArrayLen must be an array or a vector length"),
+                _ => bail_malformed!(
+                    dfg,
+                    "ArrayLen first argument must be an array or a vector length, got {:?}",
+                    dfg.type_of_value(arguments[0])
+                ),
             };
             SimplifyResult::SimplifiedTo(length)
         }
@@ -120,7 +131,13 @@ pub(super) fn simplify_call(
             if let Some((array, array_type)) = dfg.get_array_constant(arguments[0]) {
                 // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
-                let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
+                let Some(vector_length_value) = dfg.try_get_vector_capacity(arguments[0]) else {
+                    bail_malformed!(
+                        dfg,
+                        "AsVector argument has no vector capacity, got {:?}",
+                        dfg.type_of_value(arguments[0])
+                    );
+                };
                 let vector_length =
                     dfg.make_constant(vector_length_value.0.into(), NumericType::length_type());
                 let new_vector =
@@ -231,9 +248,18 @@ pub(super) fn simplify_call(
             if let Some((mut vector, typ)) = vector {
                 let element_count = typ.element_size();
 
+                if vector.len() < element_count.to_usize() {
+                    bail_malformed!(
+                        dfg,
+                        "VectorPopFront: vector has {} elements, fewer than its element size {}",
+                        vector.len(),
+                        element_count.to_usize()
+                    );
+                }
+
                 // We must pop multiple elements in the case of a vector of tuples
                 let mut results = vecmap(0..element_count.to_usize(), |_| {
-                    vector.pop_front().expect("There are no elements in this vector to be removed")
+                    vector.pop_front().expect("vector length checked against element size above")
                 });
 
                 let new_vector_length =
@@ -344,7 +370,11 @@ pub(super) fn simplify_call(
         }
         Intrinsic::StaticAssert => {
             if arguments.len() < 2 {
-                panic!("ICE: static_assert called with wrong number of arguments")
+                bail_malformed!(
+                    dfg,
+                    "static_assert expects at least 2 arguments, got {}",
+                    arguments.len()
+                );
             }
 
             // Arguments at positions `1..` form the message and they must all be constant.
@@ -360,10 +390,10 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ApplyRangeConstraint => {
             let value = arguments[0];
-            let max_bit_size = dfg
-                .get_numeric_constant(arguments[1])
-                .expect("ApplyRangeConstraint bit-size must be a numeric constant")
-                .to_u128() as u32;
+            let Some(max_bit_size) = dfg.get_numeric_constant(arguments[1]) else {
+                bail_malformed!(dfg, "ApplyRangeConstraint bit-size must be a numeric constant");
+            };
+            let max_bit_size = max_bit_size.to_u128() as u32;
             let max_potential_bits = dfg.get_value_max_num_bits(value);
             if max_potential_bits < max_bit_size {
                 SimplifyResult::Remove
@@ -433,7 +463,11 @@ fn simplify_as_vector_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let array_type = dfg.type_of_value(arguments[0]);
     let Type::Array(element_types, length) = array_type.as_ref() else {
-        unreachable!("ICE: AsVector should only be called on arrays")
+        bail_malformed!(
+            @ret Some(SimplifyResult::None);
+            dfg,
+            "AsVector expects an array argument, got {array_type:?}"
+        );
     };
     if !element_types.is_empty() {
         return None;
@@ -455,7 +489,11 @@ fn simplify_vector_push_back_or_front_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let vector_type = dfg.type_of_value(arguments[1]);
     let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorInsert should only be called on vectors")
+        bail_malformed!(
+            @ret Some(SimplifyResult::None);
+            dfg,
+            "vector intrinsic expects a vector argument, got {vector_type:?}"
+        );
     };
     if !element_types.is_empty() {
         return None;
@@ -476,7 +514,11 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let vector_type = dfg.type_of_value(arguments[1]);
     let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorInsert should only be called on vectors")
+        bail_malformed!(
+            @ret Some(SimplifyResult::None);
+            dfg,
+            "vector intrinsic expects a vector argument, got {vector_type:?}"
+        );
     };
     if !element_types.is_empty() {
         return None;
@@ -519,7 +561,11 @@ fn simplify_vector_insert_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let vector_type = dfg.type_of_value(arguments[1]);
     let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorInsert should only be called on vectors")
+        bail_malformed!(
+            @ret Some(SimplifyResult::None);
+            dfg,
+            "vector intrinsic expects a vector argument, got {vector_type:?}"
+        );
     };
     if !element_types.is_empty() {
         return None;
@@ -541,7 +587,11 @@ fn simplify_vector_remove_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let vector_type = dfg.type_of_value(arguments[1]);
     let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorRemove should only be called on vectors")
+        bail_malformed!(
+            @ret Some(SimplifyResult::None);
+            dfg,
+            "VectorRemove expects a vector argument, got {vector_type:?}"
+        );
     };
     if !element_types.is_empty() {
         return None;
@@ -698,7 +748,9 @@ fn simplify_vector_push_back(
     if element_type.element_size() != ElementTypesLength(1) {
         return SimplifyResult::None;
     }
-    assert_eq!(arguments.len(), 3, "should only push a single item");
+    if arguments.len() != 3 {
+        bail_malformed!(dfg, "vector push expects 3 arguments, got {}", arguments.len());
+    }
 
     let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
 
@@ -812,10 +864,16 @@ fn simplify_black_box_func(
                         })
                         .collect();
 
-                    let state = acvm::blackbox_solver::keccakf1600(
-                        const_input.try_into().expect("Keccakf1600 input should have length of 25"),
-                    )
-                    .expect("Rust solvable black box function should not fail");
+                    let input: [u64; 25] = match const_input.try_into() {
+                        Ok(input) => input,
+                        Err(input) => bail_malformed!(
+                            dfg,
+                            "keccakf1600 input: expected length 25, got {}",
+                            input.len()
+                        ),
+                    };
+                    let state = acvm::blackbox_solver::keccakf1600(input)
+                        .expect("Rust solvable black box function should not fail");
                     let state_values = state.iter().map(|x| FieldElement::from(u128::from(*x)));
                     let result_array = make_constant_array(
                         dfg,
@@ -910,16 +968,19 @@ fn simplify_derive_generators(
         if let (Some(domain_separator_string), Some(starting_index)) =
             (domain_separator_string, starting_index)
         {
-            let domain_separator_bytes = domain_separator_string
+            let Some(domain_separator_bytes): Option<Vec<u8>> = domain_separator_string
                 .0
                 .iter()
-                .map(|&x| dfg.get_numeric_constant(x).unwrap().to_u128() as u8)
-                .collect::<Vec<u8>>();
-            let generators = derive_generators(
-                &domain_separator_bytes,
-                num_generators,
-                starting_index.try_to_u32().expect("argument is declared as u32"),
-            );
+                .map(|&x| dfg.get_numeric_constant(x).map(|c| c.to_u128() as u8))
+                .collect()
+            else {
+                bail_malformed!(dfg, "derive_generators domain separator must be constant bytes");
+            };
+            let Some(starting_index) = starting_index.try_to_u32() else {
+                bail_malformed!(dfg, "derive_generators starting_index must fit in a u32");
+            };
+            let generators =
+                derive_generators(&domain_separator_bytes, num_generators, starting_index);
             let mut results = Vec::new();
             for generator in generators {
                 let x_big: BigUint = generator.x.into();
@@ -942,7 +1003,7 @@ fn simplify_derive_generators(
             SimplifyResult::None
         }
     } else {
-        unreachable!("Unexpected number of arguments to derive_generators");
+        bail_malformed!(dfg, "derive_generators expects 2 arguments, got {}", arguments.len());
     }
 }
 
@@ -997,6 +1058,46 @@ mod tests {
             return v18
         }
         "#);
+    }
+
+    // `keccakf1600` operates on a fixed `[u64; 25]` state; an all-constant call with a different
+    // length is malformed SSA, which panics under the default strict simplification.
+    #[test]
+    #[should_panic(expected = "malformed SSA reached simplify")]
+    fn wrong_sized_keccakf1600_panics_under_strict_simplify() {
+        let state = vec!["u64 0"; 24].join(", ");
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{state}] : [u64; 24]
+                v1 = call keccakf1600(v0) -> [u64; 25]
+                return v1
+            }}"#
+        );
+        let _ = Ssa::from_str_simplifying(&src);
+    }
+
+    // With `allow_malformed_simplify` enabled (as the `ssa_fuzzer` does), the same malformed call is
+    // left intact rather than panicking. Validation is skipped because it would reject the length too.
+    #[test]
+    fn wrong_sized_keccakf1600_is_left_intact_when_malformed_allowed() {
+        let state = vec!["u64 0"; 24].join(", ");
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{state}] : [u64; 24]
+                v1 = call keccakf1600(v0) -> [u64; 25]
+                return v1
+            }}"#
+        );
+        let ssa = Ssa::from_str_impl(&src, true, false, true).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            lowered.contains("call keccakf1600"),
+            "a malformed call must be left intact under allow_malformed_simplify, got:\n{lowered}"
+        );
     }
 
     #[test]
@@ -1115,7 +1216,9 @@ mod tests {
         ");
     }
 
-    #[should_panic(expected = "First argument to ArrayLen must be an array or a vector length")]
+    #[should_panic(
+        expected = "malformed SSA reached simplify: ArrayLen first argument must be an array or a vector length"
+    )]
     #[test]
     fn panics_on_array_len_with_wrong_type() {
         let src = r#"

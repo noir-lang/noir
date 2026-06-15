@@ -83,8 +83,8 @@ impl Elaborator<'_> {
         self.interner.get_trait(trait_id)
     }
 
-    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
-    /// of the variable, add the [crate::elaborator::HirIdent] to the list of captures.
+    /// For each [`crate::elaborator::LambdaContext`] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [`crate::elaborator::HirIdent`] to the list of captures.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_if_variable_is_captured_by_closure(&mut self, variable: &Variable) {
         // Only local variables can be captured by closures.
@@ -134,7 +134,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+    /// Try to look up a [`TypedPath`] as a value (a global, a numeric type alias or a function).
     /// If the path resolves to an item that is not a value (for example a struct, an enum,
     /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
     /// when no item is found.

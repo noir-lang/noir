@@ -322,7 +322,7 @@ impl TypeCheckError {
     }
 
     /// True for errors describing an arithmetic failure on constant operands
-    /// (the closed set of errors producible by [BinaryTypeOperator::function]),
+    /// (the closed set of errors producible by [`BinaryTypeOperator::function`]),
     /// as opposed to errors meaning an expression could not be reduced to a constant.
     pub(crate) fn is_constant_arithmetic_failure(&self) -> bool {
         matches!(

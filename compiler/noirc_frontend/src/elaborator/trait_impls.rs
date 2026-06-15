@@ -445,9 +445,9 @@ impl Elaborator<'_> {
     }
 
     /// Runs every pending where-clause check queued by
-    /// [Self::queue_pending_where_clause_check]. Must be called after the
+    /// [`Self::queue_pending_where_clause_check`]. Must be called after the
     /// post-attribute drain has resolved every involved meta and after
-    /// [Elaborator::populate_resolved_trait_method_records] has updated the
+    /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
     /// trait's `TraitFunction` records.
     pub(super) fn run_pending_where_clause_checks(&mut self) {
         let pending = std::mem::take(&mut self.pending_trait_work.where_clause_checks);
@@ -970,7 +970,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves the trait path from a trait impl declaration.
-    /// Returns (trait_id, trait_generics, path_location).
+    /// Returns (`trait_id`, `trait_generics`, `path_location`).
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_trait_path(
         &mut self,
@@ -1059,16 +1059,16 @@ impl Elaborator<'_> {
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
         let mut new_generics_trait_constraints = Vec::new();
-        for (new_generic, bounds) in new_generics {
-            for bound in bounds {
-                let typ = Type::TypeVariable(new_generic.type_var.clone());
-                let location = new_generic.location;
+        for desugared in new_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
-            trait_impl.resolved_generics.push(new_generic.clone());
-            self.generics.push(new_generic);
+            trait_impl.resolved_generics.push(desugared.generic.clone());
+            self.generics.push(desugared.generic);
         }
 
         // We need to resolve the where clause before any associated types to be
@@ -1087,7 +1087,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves associated types for a trait impl and checks for missing generics.
-    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
+    /// Sets `resolved_trait_generics` and `unresolved_associated_types` on `trait_impl`.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_associated_types(
         &mut self,
@@ -1134,7 +1134,7 @@ impl Elaborator<'_> {
         trait_impl.unresolved_associated_types = associated_types;
     }
 
-    /// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
+    /// Identical to [`Self::resolve_type_or_trait_args_inner`] but does not allow
     /// associated types to be elided since trait impls must specify them.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_args_from_trait_impl(

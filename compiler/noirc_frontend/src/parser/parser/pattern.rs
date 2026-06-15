@@ -16,7 +16,7 @@ pub(crate) enum PatternOrSelf {
     SelfPattern(SelfPattern),
 }
 
-/// SelfPattern is guaranteed to be `self`, `&self` or `&mut self` without a colon following it.
+/// `SelfPattern` is guaranteed to be `self`, `&self` or `&mut self` without a colon following it.
 #[derive(Clone, Copy)]
 pub(crate) struct SelfPattern {
     pub(crate) reference: bool,
@@ -34,7 +34,7 @@ impl Parser<'_> {
     }
 
     /// Pattern
-    ///     = 'mut' PatternNoMut
+    ///     = 'mut' `PatternNoMut`
     pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
         let mutable = self.eat_keyword(Keyword::Mut);
@@ -51,9 +51,9 @@ impl Parser<'_> {
         self.parse_pattern_after_modifiers(mutable, start_location)
     }
 
-    /// PatternOrSelf
+    /// `PatternOrSelf`
     ///     = Pattern
-    ///     | SelfPattern
+    ///     | `SelfPattern`
     pub(crate) fn parse_pattern_or_self(&mut self) -> Option<PatternOrSelf> {
         let start_location = self.current_token_location;
 
@@ -118,14 +118,14 @@ impl Parser<'_> {
         })
     }
 
-    /// PatternNoMut
-    ///     = InternedPattern
-    ///     | ParenthesizedPattern
-    ///     | TuplePattern
-    ///     | StructPattern
-    ///     | IdentifierPattern
+    /// `PatternNoMut`
+    ///     = `InternedPattern`
+    ///     | `ParenthesizedPattern`
+    ///     | `TuplePattern`
+    ///     | `StructPattern`
+    ///     | `IdentifierPattern`
     ///
-    /// IdentifierPattern = identifier
+    /// `IdentifierPattern` = identifier
     fn parse_pattern_no_mut(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
 
@@ -154,7 +154,7 @@ impl Parser<'_> {
         Some(Pattern::Identifier(ident))
     }
 
-    /// InternedPattern = interned_pattern
+    /// `InternedPattern` = `interned_pattern`
     fn parse_interned_pattern(&mut self) -> Option<Pattern> {
         let token = self.eat_kind(&TokenKind::InternedPattern)?;
 
@@ -166,10 +166,10 @@ impl Parser<'_> {
         }
     }
 
-    /// ParenthesizedPattern = '(' Pattern ')'
-    /// TuplePattern = '(' PatternList? ')'
+    /// `ParenthesizedPattern` = '(' Pattern ')'
+    /// `TuplePattern` = '(' `PatternList`? ')'
     ///
-    /// PatternList = Pattern ( ',' Pattern )* ','?
+    /// `PatternList` = Pattern ( ',' Pattern )* ','?
     fn parse_parenthesized_or_tuple_pattern(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
 
@@ -201,11 +201,11 @@ impl Parser<'_> {
         }
     }
 
-    /// StructPattern = Path '{' StructPatternFields? '}'
+    /// `StructPattern` = Path '{' `StructPatternFields`? '}'
     ///
-    /// StructPatternFields = StructPatternField ( ',' StructPatternField )? ','?
+    /// `StructPatternFields` = `StructPatternField` ( ',' `StructPatternField` )? ','?
     ///
-    /// StructPatternField = identifier ( ':' Pattern )?
+    /// `StructPatternField` = identifier ( ':' Pattern )?
     fn parse_struct_pattern(&mut self, path: Path, start_location: Location) -> Pattern {
         let fields = self.parse_many(
             "struct fields",

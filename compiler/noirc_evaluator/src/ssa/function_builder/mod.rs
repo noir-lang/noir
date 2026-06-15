@@ -32,7 +32,7 @@ use super::{
 
 /// The per-function context for each ssa function being generated.
 ///
-/// This is split from the global SsaBuilder context to allow each function
+/// This is split from the global `SsaBuilder` context to allow each function
 /// to be potentially built concurrently.
 ///
 /// Contrary to the name, this struct has the capacity to build as many
@@ -48,15 +48,20 @@ pub struct FunctionBuilder {
     /// This is true by default unless changed to false after constructing a builder.
     pub simplify: bool,
 
+    /// Whether `simplify_*` routines may decline (rather than panic) on malformed input.
+    /// Propagated onto every function's [`DataFlowGraph`][crate::ssa::ir::dfg::DataFlowGraph].
+    /// `false` by default; only producers of deliberately malformed SSA set it.
+    allow_malformed_simplify: bool,
+
     globals: Arc<GlobalsGraph>,
     purities: Arc<FunctionPurities>,
 }
 
 impl FunctionBuilder {
-    /// Creates a new FunctionBuilder to build the function with the given FunctionId.
+    /// Creates a new `FunctionBuilder` to build the function with the given `FunctionId`.
     ///
-    /// This creates the new function internally so there is no need to call .new_function()
-    /// right after constructing a new FunctionBuilder.
+    /// This creates the new function internally so there is no need to call `.new_function()`
+    /// right after constructing a new `FunctionBuilder`.
     pub fn new(function_name: String, function_id: FunctionId) -> Self {
         let new_function = Function::new(function_name, function_id);
         Self {
@@ -66,9 +71,19 @@ impl FunctionBuilder {
             call_stack: CallStackId::root(),
             error_types: BTreeMap::default(),
             simplify: true,
+            allow_malformed_simplify: false,
             globals: Default::default(),
             purities: Default::default(),
         }
+    }
+
+    /// Allow `simplify_*` routines to decline (emit a trace and leave the instruction in place)
+    /// rather than panic when they encounter malformed input. Applies to the current function and
+    /// every function created afterwards. Intended for producers of deliberately malformed SSA,
+    /// such as the `ssa_fuzzer`.
+    pub fn set_allow_malformed_simplify(&mut self, allow: bool) {
+        self.allow_malformed_simplify = allow;
+        self.current_function.dfg.allow_malformed_simplify = allow;
     }
 
     /// Create a function builder with a new function created with the same
@@ -79,12 +94,13 @@ impl FunctionBuilder {
         this.purities = function.dfg.function_purities.clone();
         this.current_function.set_runtime(function.runtime());
         this.current_function.dfg.set_function_purities(this.purities.clone());
+        this.set_allow_malformed_simplify(function.dfg.allow_malformed_simplify);
         this
     }
 
     /// Set the runtime of the initial function that is created internally after constructing
-    /// the FunctionBuilder. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
-    /// This should only be used immediately following construction of a FunctionBuilder
+    /// the `FunctionBuilder`. A function's default runtime type is `RuntimeType::Acir(InlineType::Inline)`.
+    /// This should only be used immediately following construction of a `FunctionBuilder`
     /// and will panic if there are any already finished functions.
     pub fn set_runtime(&mut self, runtime: RuntimeType) {
         assert_eq!(
@@ -114,9 +130,9 @@ impl FunctionBuilder {
 
     /// Finish the current function and create a new function.
     ///
-    /// A FunctionBuilder can always only work on one function at a time, so care
+    /// A `FunctionBuilder` can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
-    /// new_function before the current function is finished.
+    /// `new_function` before the current function is finished.
     fn new_function_with_type(
         &mut self,
         name: String,
@@ -135,6 +151,7 @@ impl FunctionBuilder {
         self.finished_functions.push(old_function);
 
         self.current_function.dfg.set_function_purities(self.purities.clone());
+        self.current_function.dfg.allow_malformed_simplify = self.allow_malformed_simplify;
         self.apply_globals();
     }
 
@@ -153,7 +170,7 @@ impl FunctionBuilder {
         self.new_function_with_type(name, function_id, RuntimeType::Brillig(inline_type));
     }
 
-    /// Consume the FunctionBuilder returning all the functions it has generated.
+    /// Consume the `FunctionBuilder` returning all the functions it has generated.
     pub fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
 
@@ -182,7 +199,7 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), NumericType::NativeField)
     }
 
-    /// Insert a numeric constant into the current function of type Type::length_type()
+    /// Insert a numeric constant into the current function of type `Type::length_type()`
     pub fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), NumericType::length_type())
     }
@@ -236,7 +253,7 @@ impl FunctionBuilder {
 
     /// Switch to inserting instructions in the given block.
     /// Expects the given block to be within the same function. If you want to insert
-    /// instructions into a new function, call new_function instead.
+    /// instructions into a new function, call `new_function` instead.
     pub fn switch_to_block(&mut self, block: BasicBlockId) {
         self.current_block = block;
     }
@@ -398,7 +415,7 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
     }
 
-    /// Insert an enable_side_effects_if instruction. These are normally only automatically
+    /// Insert an `enable_side_effects_if` instruction. These are normally only automatically
     /// inserted during the flattening pass when branching is removed.
     pub fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
         self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
@@ -480,13 +497,13 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
     }
 
-    /// Returns a ValueId pointing to the given function or imports the function
+    /// Returns a `ValueId` pointing to the given function or imports the function
     /// into the current function if it was not already, and returns that ID.
     pub fn import_function(&mut self, function: FunctionId) -> ValueId {
         self.current_function.dfg.import_function(function)
     }
 
-    /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
+    /// Returns a `ValueId` pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
     pub fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
         self.current_function.dfg.import_foreign_function(function, pure)
@@ -529,7 +546,7 @@ impl FunctionBuilder {
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
-    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
+    /// If it is not an array, this does nothing. Note that `inc_rc` and `dec_rc` instructions
     /// are ignored outside of unconstrained code.
     ///
     /// If there is an `original` value it indicates that we're now decrementing it,
