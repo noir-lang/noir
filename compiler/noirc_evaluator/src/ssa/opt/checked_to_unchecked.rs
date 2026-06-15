@@ -10,7 +10,7 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Binary, BinaryOp, Instruction},
+        instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::NumericType,
         value::{Value, ValueId},
     },
@@ -181,6 +181,107 @@ fn checked_to_unchecked_pre_check(func: &Function) {
     super::checks::for_each_instruction(func, |instruction, dfg| {
         super::checks::assert_not_checked_signed_add_sub_mul(instruction, dfg);
     });
+
+    assert_no_predicated_checked_arithmetic_is_returned(func);
+}
+
+/// A checked unsigned `add`/`sub`/`mul` is side-effectful: during ACIR generation its operands are
+/// zeroed by the active side-effects predicate, so in a disabled branch it yields `0`. This pass
+/// rewrites such an op to its unchecked form, which is not predicated and yields the raw value.
+/// That difference only becomes observable as a circuit output if the raw value reaches a return
+/// value of the function while the governing predicate has been lifted, as in
+///
+/// ```text
+/// enable_side_effects v0
+/// v3 = add v2, u32 1
+/// enable_side_effects u1 1
+/// return v3            // v3 returned with v0 no longer governing it
+/// ```
+///
+/// `flatten_cfg` never emits that shape — it exposes a branch value to the rest of the program
+/// through the predicating merge `c * then + !c * else`, not by returning a raw checked-arithmetic
+/// result — so asserting its absence here keeps the rewrite sound without rejecting any SSA the
+/// real pipeline produces. A predicated value that is only reused *internally* after its window
+/// (e.g. relied upon as a zeroed operand of a later instruction) is a legitimate flattened shape
+/// and is intentionally not flagged.
+#[cfg(debug_assertions)]
+fn assert_no_predicated_checked_arithmetic_is_returned(func: &Function) {
+    if func.runtime().is_brillig() {
+        // Brillig functions never contain `enable_side_effects`.
+        return;
+    }
+
+    // `enable_side_effects` is only present once the function has been flattened to a single
+    // block; with control flow still present there is no active predicate to track.
+    if func.reachable_blocks().len() > 1 {
+        return;
+    }
+
+    let dfg = &func.dfg;
+    let block = func.entry_block();
+
+    // The condition of the most recent `enable_side_effects`. `None` means the active predicate is
+    // the constant `u1 1` (no side effects disabled), which is also the initial state.
+    let mut active_condition: Option<ValueId> = None;
+    // Maps the result of a checked unsigned add/sub/mul to the non-trivial predicate that was
+    // active when it was produced.
+    let mut predicated_results = HashMap::<ValueId, ValueId>::default();
+
+    for instruction_id in dfg[block].instructions() {
+        let instruction = &dfg[*instruction_id];
+
+        if let Instruction::EnableSideEffectsIf { condition } = instruction {
+            let is_one =
+                dfg.get_numeric_constant(*condition).is_some_and(|condition| condition.is_one());
+            active_condition = if is_one { None } else { Some(*condition) };
+            continue;
+        }
+
+        if let Some(condition) = active_condition
+            && is_checked_unsigned_arithmetic(instruction, dfg)
+        {
+            for result in dfg.instruction_results(*instruction_id) {
+                predicated_results.insert(*result, condition);
+            }
+        }
+    }
+
+    let Some(TerminatorInstruction::Return { return_values, .. }) = dfg[block].terminator() else {
+        return;
+    };
+
+    for value in return_values {
+        if let Some(definition_condition) = predicated_results.get(value)
+            && active_condition != Some(*definition_condition)
+        {
+            panic!(
+                "checked_to_unchecked pre-check failed in function {}: returned value {value} is \
+                 produced by a checked unsigned arithmetic instruction under predicate \
+                 {definition_condition}, but is returned where that predicate no longer governs \
+                 it; rewriting it to unchecked would change its value in a disabled side-effect \
+                 window",
+                func.id(),
+            );
+        }
+    }
+}
+
+/// Whether `instruction` is a checked unsigned `add`/`sub`/`mul` — exactly the set of instructions
+/// [`Function::checked_to_unchecked`] can rewrite to their unchecked form.
+#[cfg(debug_assertions)]
+fn is_checked_unsigned_arithmetic(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
+    let Instruction::Binary(binary) = instruction else {
+        return false;
+    };
+    if !matches!(
+        binary.operator,
+        BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false }
+    ) {
+        return false;
+    }
+    matches!(dfg.type_of_value(binary.lhs).unwrap_numeric(), NumericType::Unsigned { .. })
 }
 
 #[cfg(test)]
@@ -367,5 +468,62 @@ mod tests {
             return v4
         }
         ");
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "in a disabled side-effect window")]
+    fn rejects_predicated_checked_arithmetic_returned_out_of_its_window() {
+        // The audit shape (#1391): a checked add governed by `v0` is returned directly after the
+        // predicate is restored to `1`, so its disabled-branch value would escape unpredicated.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u16):
+            enable_side_effects v0
+            v2 = cast v1 as u32
+            v3 = add v2, u32 1
+            enable_side_effects u1 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.checked_to_unchecked();
+    }
+
+    #[test]
+    fn allows_predicated_checked_arithmetic_reused_internally() {
+        // A disabled checked sub whose zero is legitimately consumed by a later instruction (not
+        // returned raw); `checked_to_unchecked` would not even rewrite this underflowing sub.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = sub u32 0, u32 1
+            enable_side_effects u1 1
+            v2 = add v1, u32 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.checked_to_unchecked();
+    }
+
+    #[test]
+    fn allows_predicated_checked_add_consumed_by_predicate_merge() {
+        // The shape `flatten_cfg` actually emits: the predicated value is re-multiplied by the
+        // predicate (`c * then`) before being observed, so the disabled branch still yields `0`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v3 = add v1, u32 1
+            enable_side_effects u1 1
+            v4 = cast v0 as u32
+            v5 = mul v4, v3
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.checked_to_unchecked();
     }
 }
