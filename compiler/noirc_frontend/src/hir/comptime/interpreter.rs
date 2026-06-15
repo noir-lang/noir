@@ -798,6 +798,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         {
                             Ok(value.clone())
                         } else {
+                            // Roll the sentinel back so that a later reference to this same
+                            // global isn't misreported as a dependency cycle.
+                            self.elaborator.interner.get_global_mut(global_id).value =
+                                GlobalValue::Unresolved;
                             let location = self.elaborator.interner.expr_location(&id);
                             Err(InterpreterError::GlobalCouldNotBeResolved { location })
                         }
