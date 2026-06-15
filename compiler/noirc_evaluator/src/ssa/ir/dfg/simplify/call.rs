@@ -455,7 +455,7 @@ fn simplify_vector_push_back_or_front_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let vector_type = dfg.type_of_value(arguments[1]);
     let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorInsert should only be called on vectors")
+        unreachable!("ICE: VectorPushBack/VectorPushFront should only be called on vectors")
     };
     if !element_types.is_empty() {
         return None;
@@ -476,7 +476,7 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
 ) -> Option<SimplifyResult> {
     let vector_type = dfg.type_of_value(arguments[1]);
     let Type::Vector(element_types) = vector_type.as_ref() else {
-        unreachable!("ICE: VectorInsert should only be called on vectors")
+        unreachable!("ICE: VectorPopBack/VectorPopFront should only be called on vectors")
     };
     if !element_types.is_empty() {
         return None;
