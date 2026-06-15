@@ -447,6 +447,11 @@ fn simplify_as_vector_for_zero_sized_vector(
     Some(SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector]))
 }
 
+/// Simplify a push back/front on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// Zero-sized elements carry no data, so the backing array is always empty and the push only needs
+/// to increment the semantic length. Returns `None` (deferring to the general handling) if the
+/// element type is not zero-sized.
 fn simplify_vector_push_back_or_front_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -468,6 +473,12 @@ fn simplify_vector_push_back_or_front_for_zero_sized_vector(
     Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
 }
 
+/// Simplify a pop back/front on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the pop only decrements the semantic length. In ACIR a
+/// constraint is also inserted to ensure the vector was not empty (in Brillig that check is emitted
+/// in `FunctionContext::codegen_intrinsic_call_checks`). Returns `None` (deferring to the general
+/// handling) if the element type is not zero-sized.
 fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -511,6 +522,11 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
 }
 
+/// Simplify a `vector_insert` on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the insert only increments the semantic length (the
+/// in-bounds check is already emitted in `FunctionContext::codegen_intrinsic_call_checks`). Returns
+/// `None` (deferring to the general handling) if the element type is not zero-sized.
 fn simplify_vector_insert_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -533,6 +549,11 @@ fn simplify_vector_insert_for_zero_sized_vector(
     Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
 }
 
+/// Simplify a `vector_remove` on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the remove only decrements the semantic length (the
+/// in-bounds check is already emitted in `FunctionContext::codegen_intrinsic_call_checks`). Returns
+/// `None` (deferring to the general handling) if the element type is not zero-sized.
 fn simplify_vector_remove_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -723,6 +744,11 @@ fn simplify_vector_push_back(
     SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, set_last_vector])
 }
 
+/// Simplify a `vector_pop_back` whose backing array is a known constant.
+///
+/// Decrements the semantic length and reads the popped element(s) off the end of the flattened
+/// array, returning `[new_length, new_vector, popped_elements..]`. A vector of tuples pops several
+/// flattened slots per element, so the elements are read in reverse from the tail.
 fn simplify_vector_pop_back(
     mut vector: im::Vector<ValueId>,
     vector_type: Type,
