@@ -1,5 +1,5 @@
 [package]
-name = "trait_associated_items_clash"
+name = "cast_regression_7776"
 type = "bin"
 authors = [""]
 
