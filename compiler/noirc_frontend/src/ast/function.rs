@@ -23,8 +23,8 @@ pub struct NoirFunction {
 /// Currently, we support four types of functions:
 /// - Normal functions
 /// - LowLevel/Foreign which link to an OPCODE in ACIR
-/// - BuiltIn which are provided by the runtime
-/// - TraitFunctionWithoutBody for which we don't type-check their body
+/// - `BuiltIn` which are provided by the runtime
+/// - `TraitFunctionWithoutBody` for which we don't type-check their body
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FunctionKind {
     LowLevel,

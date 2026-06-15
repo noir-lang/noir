@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Invalid array length
+   ┌─ src/main.nr:13:14
+   │
+13 │     let _x = intermediate_underflow::<0>();
+   │              ---------------------- `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
+   │
+
+Aborting due to 1 previous error

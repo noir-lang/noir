@@ -13,10 +13,10 @@ fn duplicate_struct_field() {
     let src = r#"
     pub struct Foo {
         x: i32,
-        ~ First struct field found here
+        ~ First definition found here
         x: i32,
         ^ Duplicate definitions of struct field with name x found
-        ~ Second struct field found here
+        ~ Second definition found here
     }
     "#;
     check_errors(src);
@@ -382,13 +382,13 @@ fn overlapping_inherent_impls() {
 
         impl<T> Foo<T> {
             pub fn method(_self: Self) {}
-                   ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-                   ~~~~~~ Overlapping impl
+                   ~~~~~~ Previous impl defined here
         }
 
         impl Foo<i32> {
             pub fn method(_self: Self) {}
-                   ~~~~~~ Previous impl defined here
+                   ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
         }
 
         fn main() {
@@ -527,8 +527,7 @@ fn trait_as_type_overlapping() {
 
         impl<T> Foo<T> {
             pub fn method(_self: Self) -> impl MyTrait<T> {
-                   ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
-                   ~~~~~~ Overlapping impl
+                   ~~~~~~ Previous impl defined here
                 // This return type is TraitAsType with NamedGeneric inside
                 MyImpl { _x: _self._x }
             }
@@ -536,7 +535,8 @@ fn trait_as_type_overlapping() {
 
         impl Foo<i32> {
             pub fn method(_self: Self) -> impl MyTrait<i32> {
-                   ~~~~~~ Previous impl defined here
+                   ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                   ~~~~~~ Overlapping impl
                 MyImpl { _x: _self._x }
             }
         }
@@ -629,7 +629,7 @@ fn returns_trait_as_type_overlap() {
 }
 
 #[test]
-fn type_alias_resolves_to_same_type_in_trait_impl() {
+fn type_alias_resolving_to_same_type_overlaps_in_trait_impl() {
     let src = r#"
     trait Foo {
         fn foo(self) {
@@ -640,9 +640,12 @@ fn type_alias_resolves_to_same_type_in_trait_impl() {
     type Bar<T> = T;
 
     impl<T> Foo for T { }
+            ~~~ Previous impl defined here
     impl<T> Foo for Bar<T> { }
+                    ^^^^^^ Impl for type `Bar<T>` overlaps with existing impl
+                    ~~~~~~ Overlapping impl
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -657,16 +660,19 @@ fn non_overlapping_trait_impls_with_generic() {
     pub struct Bar<T, let N: u32> {}
 
     impl<T> Foo for Bar<T, 0> { }
-                    ^^^^^^^^^ Impl for type `Bar<T, 0>` overlaps with existing impl
-                    ~~~~~~~~~ Overlapping impl
+            ~~~ Previous impl defined here
+            ~~~ Previous impl defined here
+            ~~~ Previous impl defined here
     impl<T> Foo for Bar<T, 1> { }
     impl<T, let N: u32> Foo for Bar<T, N> { }
-                        ~~~ Previous impl defined here
+                                ^^^^^^^^^ Impl for type `Bar<T, N>` overlaps with existing impl
+                                ~~~~~~~~~ Overlapping impl
     impl Foo for Bar<(), 0> { }
                  ^^^^^^^^^^ Impl for type `Bar<(), 0>` overlaps with existing impl
                  ~~~~~~~~~~ Overlapping impl
-                 ~~~~~~~~~~ Previous impl defined here
     impl<let N: u32> Foo for Bar<(), N> { }
+                             ^^^^^^^^^^ Impl for type `Bar<(), N>` overlaps with existing impl
+                             ~~~~~~~~~~ Overlapping impl
     "#;
     check_errors(src);
 }

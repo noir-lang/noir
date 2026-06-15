@@ -51,6 +51,34 @@ fn comptime_type_in_runtime_code() {
 }
 
 #[test]
+fn comptime_type_in_constructor_in_runtime_code() {
+    let source = r#"
+    comptime struct MetaOnly {
+        value: Field,
+    }
+
+    struct RuntimeStruct {
+        value: Field,
+    }
+
+    comptime type MetaAlias = RuntimeStruct;
+
+    fn id<T>(x: T) -> T {
+        x
+    }
+
+    fn main() -> pub Field {
+        let direct = id(MetaOnly { value: 10 });
+                        ^^^^^^^^ Comptime-only type `MetaOnly` cannot be used in non-comptime function
+        let alias = MetaAlias { value: 32 };
+                    ^^^^^^^^^ Comptime-only type `MetaAlias` cannot be used in non-comptime function
+        direct.value + alias.value
+    }
+    "#;
+    check_errors(source);
+}
+
+#[test]
 fn macro_result_type_mismatch() {
     let src = r#"
         fn main() {
@@ -66,6 +94,24 @@ fn macro_result_type_mismatch() {
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn method_macro_call_elaborates_quoted_argument_in_comptime_context() {
+    let src = r#"
+    pub struct Foo {}
+
+    impl Foo {
+        pub comptime fn second(_self: Self, q: Quoted) -> Quoted {
+            q
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}.second!(quote { 1 + 2 });
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -218,7 +264,9 @@ fn generate_function_with_macros_on_impl_method() {
     impl Spam {
         pub fn struct_method() {
         }
+    }
 
+    impl Spam {
         pub fn bar(x: i32) -> i32 {
             x + 1_i32
         }
@@ -763,6 +811,68 @@ fn sibling_modules_run_in_textual_order() {
               let _ = parent();
           }
       "#;
+    assert_no_errors(src);
+}
+
+/// Attributes on methods of macro-generated impl blocks all share the source location
+/// of the quoted fragment they were generated from, so the `(module, span)` run-order
+/// sort cannot order them. Their run order must then follow generation order — which
+/// requires the collection that holds the impls to iterate in insertion order.
+#[test]
+fn macro_generated_impl_attributes_run_in_generation_order() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        pub struct A {}
+        pub struct B {}
+        pub struct C {}
+        pub struct D {}
+        pub struct E {}
+        pub struct F {}
+        pub struct G {}
+        pub struct H {}
+
+        #[gen_impls]
+        fn dummy() {}
+
+        comptime fn gen_impls(_: FunctionDefinition) -> Quoted {
+            let types: [(Quoted, Quoted); 8] = [
+                (quote { A }, quote { 0 }),
+                (quote { B }, quote { 1 }),
+                (quote { C }, quote { 2 }),
+                (quote { D }, quote { 3 }),
+                (quote { E }, quote { 4 }),
+                (quote { F }, quote { 5 }),
+                (quote { G }, quote { 6 }),
+                (quote { H }, quote { 7 }),
+            ];
+            let mut result = quote {};
+            for index in 0..8 {
+                let (typ, i) = types[index];
+                result = quote { $result
+                    impl $typ { #[assert_gen_order($i)] fn method(_self: Self) {} }
+                };
+            }
+            result
+        }
+
+        comptime fn assert_gen_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            dummy();
+            let _ = A {}.method();
+            let _ = B {}.method();
+            let _ = C {}.method();
+            let _ = D {}.method();
+            let _ = E {}.method();
+            let _ = F {}.method();
+            let _ = G {}.method();
+            let _ = H {}.method();
+        }
+    "#;
     assert_no_errors(src);
 }
 
@@ -1366,6 +1476,25 @@ fn zeroed_comptime_type() {
 }
 
 #[test]
+fn zeroed_array_of_references_does_not_alias_in_comptime() {
+    // Each slot of a zeroed `[&mut Field; N]` must own its own allocation in the comptime
+    // interpreter. If the slots aliased, writing through one would be observable through the
+    // others and the comptime asserts below would fail during elaboration.
+    let src = r#"
+    fn main() {
+        comptime {
+            let arr: [&mut Field; 3] = zeroed();
+            *arr[1] = 7;
+            assert_eq(*arr[0], 0);
+            assert_eq(*arr[1], 7);
+            assert_eq(*arr[2], 0);
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED]);
+}
+
+#[test]
 fn recursive_attribute_causes_expansion_limit_error() {
     use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
     use crate::hir::comptime::InterpreterError;
@@ -1407,7 +1536,7 @@ fn recursive_attribute_causes_expansion_limit_error() {
 
 /// Verifies that mutually recursive attributes are caught by the global macro expansion depth limit.
 /// Three mutually recursive attributes: foo -> bar -> baz -> foo -> ...
-/// With a global counter, this correctly errors at [crate::elaborator::MAX_MACRO_EXPANSION_DEPTH] total expansions.
+/// With a global counter, this correctly errors at [`crate::elaborator::MAX_MACRO_EXPANSION_DEPTH`] total expansions.
 #[test]
 fn mutually_recursive_attributes_cause_expansion_limit_error() {
     use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;
@@ -2040,4 +2169,27 @@ fn reference_generated_struct_in_an_enum_variant() {
     "#;
     let features = vec![UnstableFeature::Enums];
     crate::tests::assert_no_errors_using_features(src, &features);
+}
+
+// Regression for https://github.com/noir-lang/noir-claude/issues/1047:
+// `as_witness` is declared `fn(Field) -> ()`, so calling it as the final expression
+// of an inferred `comptime` block must produce a unit value, not the `Field` argument.
+#[test]
+fn comptime_as_witness_returns_unit() {
+    let stdlib = r#"
+        #[builtin(as_witness)]
+        pub fn as_witness(_x: Field) {}
+    "#;
+    let src = r#"
+    fn main() -> pub Field {
+                     ^^^^^ expected type Field, found type ()
+                     ~~~~~ expected Field because of return type
+        let x = comptime {
+            as_witness(1)
+        };
+        x
+        ~ () returned here
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
 }

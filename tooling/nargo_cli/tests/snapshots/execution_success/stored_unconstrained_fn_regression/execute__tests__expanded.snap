@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::runtime::is_unconstrained;
+
+struct Holder {
+    f: unconstrained fn(u32) -> u32,
+}
+
+fn choose(x: u32) -> u32 {
+    if is_unconstrained() {
+        x + 100_u32
+    } else {
+        x + 1_u32
+    }
+}
+
+fn call_unc(f: unconstrained fn(u32) -> u32, x: u32) -> u32 {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        f(x)
+    }
+}
+
+fn get_choose() -> unconstrained fn(u32) -> u32 {
+    choose
+}
+
+fn pick(cond: bool) -> unconstrained fn(u32) -> u32 {
+    if cond {
+        choose
+    } else {
+        choose
+    }
+}
+
+fn block_return() -> unconstrained fn(u32) -> u32 {
+    let _x: Field = 1_Field;
+    choose
+}
+
+fn main() {
+    let f: unconstrained fn(u32) -> u32 = choose;
+    assert(call_unc(f, 1_u32) == 101_u32);
+    let holder: Holder = Holder { f: choose };
+    assert(call_unc(holder.f, 2_u32) == 102_u32);
+    let mut holder2: Holder = Holder { f: choose };
+    holder2.f = choose;
+    assert(call_unc(holder2.f, 3_u32) == 103_u32);
+    assert(call_unc(get_choose(), 4_u32) == 104_u32);
+    let h: unconstrained fn(u32) -> u32 = if true { choose } else { choose };
+    assert(call_unc(h, 5_u32) == 105_u32);
+    assert(call_unc(pick(true), 6_u32) == 106_u32);
+    assert(call_unc(block_return(), 7_u32) == 107_u32);
+}

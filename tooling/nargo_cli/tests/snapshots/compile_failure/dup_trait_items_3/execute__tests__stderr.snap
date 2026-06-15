@@ -13,18 +13,18 @@ error: Duplicate definitions of trait associated item with name SomeType found
   ┌─ src/main.nr:2:8
   │
 2 │   type SomeType;
-  │        -------- First trait associated item found here
+  │        -------- First definition found here
 3 │   type SomeType;
-  │        -------- Second trait associated item found here
+  │        -------- Second definition found here
   │
 
 error: Duplicate definitions of trait associated item with name SomeType found
   ┌─ src/main.nr:2:8
   │
 2 │   type SomeType;
-  │        -------- First trait associated item found here
+  │        -------- First definition found here
 3 │   type SomeType;
-  │        -------- Second trait associated item found here
+  │        -------- Second definition found here
   │
 
 Aborting due to 2 previous errors

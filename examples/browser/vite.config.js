@@ -15,6 +15,21 @@ export default defineConfig({
       protocolImports: true,
     }),
   ],
+  // Serve the app cross-origin isolated so the browser exposes SharedArrayBuffer
+  // and Barretenberg can prove across multiple threads. A production host must
+  // send these same headers on the page (and any documents it embeds).
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+  preview: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
   optimizeDeps: {
     exclude: ['@aztec/bb.js'],
   },

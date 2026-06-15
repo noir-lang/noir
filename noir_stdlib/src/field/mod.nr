@@ -538,6 +538,30 @@ mod tests {
     }
 
     #[test]
+    unconstrained fn zero_field_to_bytes_zero_limbs_unconstrained() {
+        assert_eq((0 as Field).to_le_bytes::<0>().len(), 0);
+        assert_eq((0 as Field).to_be_bytes::<0>().len(), 0);
+        assert_eq((0 as Field).to_le_bits::<0>().len(), 0);
+        assert_eq((0 as Field).to_be_bits::<0>().len(), 0);
+    }
+
+    #[test]
+    fn zero_field_to_bytes_zero_limbs_constrained() {
+        assert_eq((0 as Field).to_le_bytes::<0>().len(), 0);
+        assert_eq((0 as Field).to_be_bytes::<0>().len(), 0);
+        assert_eq((0 as Field).to_le_bits::<0>().len(), 0);
+        assert_eq((0 as Field).to_be_bits::<0>().len(), 0);
+    }
+
+    #[test]
+    fn zero_field_to_bytes_zero_limbs_comptime() {
+        let _: [u8; 0] = comptime { (0 as Field).to_le_bytes() };
+        let _: [u8; 0] = comptime { (0 as Field).to_be_bytes() };
+        let _: [bool; 0] = comptime { (0 as Field).to_le_bits() };
+        let _: [bool; 0] = comptime { (0 as Field).to_be_bits() };
+    }
+
+    #[test]
     unconstrained fn test_field_less_than() {
         assert(field_less_than(0, 1));
         assert(field_less_than(0, 0x100));

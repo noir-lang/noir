@@ -47,8 +47,8 @@ impl NodeInterner {
 
     ///Interns a function's metadata.
     ///
-    /// Note that the FuncId has been created already.
-    /// See ModCollector for it's usage.
+    /// Note that the `FuncId` has been created already.
+    /// See `ModCollector` for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
     }
@@ -104,7 +104,7 @@ impl NodeInterner {
 
     /// Returns the visibility of the given function.
     ///
-    /// The underlying function_visibilities map is populated during def collection,
+    /// The underlying `function_visibilities` map is populated during def collection,
     /// so this function can be called anytime afterward.
     pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
         self.function_modifiers[&func].visibility
@@ -116,7 +116,7 @@ impl NodeInterner {
     }
 
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
-    /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
+    /// _iff_ the expression is an [`HirExpression::Ident`] with a `Function` definition,
     /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
     ///
     /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).

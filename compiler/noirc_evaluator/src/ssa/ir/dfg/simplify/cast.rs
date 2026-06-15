@@ -2,7 +2,7 @@ use acvm::{FieldElement, acir::AcirField};
 use num_bigint::BigUint;
 
 use crate::ssa::ir::{
-    dfg::{DataFlowGraph, simplify::SimplifyResult},
+    dfg::{DataFlowGraph, simplify::SimplifyResult, simplify::bail_malformed},
     instruction::Instruction,
     integer::IntegerConstant,
     types::{NumericType, Type},
@@ -17,11 +17,9 @@ pub(super) fn simplify_cast(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
-    assert!(
-        dfg.type_of_value(value).is_numeric(),
-        "Can only cast numeric types, got {:?}",
-        dfg.type_of_value(value)
-    );
+    if !dfg.type_of_value(value).is_numeric() {
+        bail_malformed!(dfg, "cast operand must be numeric, got {:?}", dfg.type_of_value(value));
+    }
 
     if Type::Numeric(dst_typ) == *dfg.type_of_value(value) {
         return SimplifiedTo(value);
@@ -214,7 +212,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_i8_minus_1_to_i16() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast i8 -1 as i16
             return v0
@@ -223,8 +221,8 @@ mod tests {
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0():
             return i16 -1
         }
@@ -234,7 +232,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_i16_minus_1_to_i8() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast i16 -1 as i8
             return v0
@@ -243,8 +241,8 @@ mod tests {
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0():
             return i8 -1
         }
@@ -254,7 +252,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_field_4_to_i8() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 4 as i8
             return v0
@@ -263,8 +261,8 @@ mod tests {
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0():
             return i8 4
         }
@@ -274,7 +272,7 @@ mod tests {
     #[test]
     fn simplifies_cast_from_field_255_to_i8() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 255 as i8
             return v0
@@ -283,8 +281,8 @@ mod tests {
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0():
             return i8 -1
         }

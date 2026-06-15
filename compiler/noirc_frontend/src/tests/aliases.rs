@@ -1,6 +1,22 @@
 use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
+fn duplicate_type_aliases_report_type_definition() {
+    let src = r#"
+    type Foo = u32;
+         ~~~ First definition found here
+    type Foo = u8;
+         ^^^ Duplicate definitions of type definition with name Foo found
+         ~~~ Second definition found here
+
+    fn main() {
+        let _: Foo = 0;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allows_usage_of_type_alias_as_argument_type() {
     let src = r#"
     type Foo = Field;
@@ -1163,7 +1179,7 @@ fn type_alias_as_closure_environment() {
     assert_no_errors(src);
 }
 
-/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// Regression test: `define_type_alias` did not reset `current_item` after finishing,
 /// which can leak into subsequent elaboration phases.
 #[test]
 fn no_false_cycle_from_stale_current_item_after_type_alias() {

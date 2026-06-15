@@ -216,7 +216,7 @@ fn check_impl_struct_not_trait() {
 fn check_trait_duplicate_declaration() {
     let src = "
     trait Default2 {
-          ~~~~~~~~ First trait definition found here
+          ~~~~~~~~ First definition found here
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -233,7 +233,7 @@ fn check_trait_duplicate_declaration() {
 
     trait Default2 {
           ^^^^^^^^ Duplicate definitions of trait definition with name Default2 found
-          ~~~~~~~~ Second trait definition found here
+          ~~~~~~~~ Second definition found here
         fn default(x: Field) -> Self;
     }
     ";
@@ -500,6 +500,21 @@ fn overlapping_generic_impls() {
     impl<T> Bar for Foo<T> {}
                     ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
                     ~~~~~~ Overlapping impl
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn overlapping_blanket_impl_with_generic_struct() {
+    let src = r#"
+    pub trait Foo {}
+    pub struct Bar<T> {}
+    impl<T> Foo for Bar<T> {}
+            ~~~ Previous impl defined here
+    impl<T> Foo for T {}
+                    ^ Impl for type `T` overlaps with existing impl
+                    ~ Overlapping impl
+    fn main() {}
     "#;
     check_errors(src);
 }

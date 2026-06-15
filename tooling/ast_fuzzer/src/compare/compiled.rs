@@ -53,10 +53,15 @@ impl NargoErrorWithTypes {
                         match ssa_type {
                             ErrorType::String(message) => Some(message.clone()),
                             ErrorType::Dynamic(_hir_type) => {
-                                // This would be the case if we have a format string that needs to be filled with the raw payload
-                                // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
-                                // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
-                                panic!("didn't expect dynamic error types")
+                                // A non-literal assert message — for example an `if`-expression that
+                                // produces a string, as the metamorphic rewriter can introduce — is
+                                // recorded by `codegen_constrain_error` as `ErrorType::Dynamic`, even
+                                // when its type is a plain string. Recover the message from the raw
+                                // payload bytes when they encode a string, matching the encoding of
+                                // `ConstrainError::Dynamic { is_string_type: true, .. }`. Genuine
+                                // format strings need the raw payload decoded as an ABI type, which the
+                                // mapper in `crate::abi` doesn't handle yet, so they fall back to `None`.
+                                decode_raw_string_payload(&raw.data)
                             }
                         }
                     } else {
@@ -82,6 +87,15 @@ impl NargoErrorWithTypes {
                     OpcodeResolutionError::BrilligFunctionFailed {
                         payload: Some(payload), ..
                     } => unwrap_payload(payload),
+                    // An out-of-bounds array read surfaces as a solving error in ACIR rather than a
+                    // user assert. The equivalence check intentionally treats it as comparable to a
+                    // Brillig "attempt to add/multiply with overflow" (the explicit overflow range
+                    // check on an index can be elided by the redundant-range optimizer because the
+                    // array access bounds-check subsumes it). Surfacing a message here is what lets
+                    // that equivalence fire instead of being reported as a spurious divergence.
+                    OpcodeResolutionError::IndexOutOfBounds { .. } => {
+                        Some("Index out of bounds".to_string())
+                    }
                     _ => None,
                 },
             },
@@ -412,8 +426,12 @@ mod tests {
         FieldElement,
         circuit::{ErrorSelector, brillig::BrilligFunctionId},
     };
-    use acvm::pwg::{RawAssertionPayload, ResolvedAssertionPayload};
+    use acvm::pwg::{
+        ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload,
+    };
     use nargo::errors::ExecutionError;
+    use noirc_frontend::hir::comptime::Integer;
+    use noirc_frontend::hir_def::types::Type as HirType;
 
     use super::{ErrorType, NargoErrorWithTypes};
     use crate::compare::Comparable;
@@ -496,5 +514,84 @@ mod tests {
         );
 
         assert!(NargoErrorWithTypes::equivalent(&static_string_error, &inline_string_error));
+    }
+
+    #[test]
+    fn matches_acir_index_out_of_bounds_with_brillig_overflow() {
+        // Regression test for the `acir_vs_brillig` failure with seed 0xb536391000100000.
+        //
+        // The program reads `arr[(134_u8 + c) as u32]` where `c == 134`. The `u8` addition
+        // overflows. In Brillig the addition itself traps with "attempt to add with overflow".
+        // In ACIR the explicit overflow range check on the index is removed by the
+        // redundant-range optimizer (the array access bounds-check is a tighter implicit
+        // range constraint), so the over-large index instead surfaces as a solving-time
+        // `IndexOutOfBounds`. The comparator already intends to treat these as equivalent,
+        // but only if a message can be extracted from the ACIR `IndexOutOfBounds` error.
+        let acir_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::SolvingError(
+                OpcodeResolutionError::IndexOutOfBounds {
+                    opcode_location: ErrorLocation::Unresolved,
+                    index: FieldElement::from(268u32),
+                    array_size: 4,
+                },
+                None,
+            )),
+            BTreeMap::new(),
+        );
+        let brillig_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(14990209321349310352),
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(14990209321349310352),
+                ErrorType::String("attempt to add with overflow".to_string()),
+            )]),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&acir_error, &brillig_error));
+    }
+
+    #[test]
+    fn decodes_dynamic_string_error_type_without_panicking() {
+        // Regression test for the `orig_vs_morph` failure with seed 0xee0040bf00100000.
+        //
+        // The metamorphic rewriter turns a literal `assert(_, "PLH")` message into
+        // `if b { "PLH" } else { "PLH" }`. Being non-literal, `codegen_constrain_error`
+        // records it as `ErrorType::Dynamic` (whose inner type is nonetheless a plain
+        // `str<3>`) in the SSA error type table, with the runtime payload carrying the
+        // string bytes. Extracting the message used to `panic!("didn't expect dynamic error
+        // types")`; instead the bytes must be decoded back into the original string so the
+        // morphed program compares equal to the original.
+        let str_type = HirType::String(Box::new(HirType::Constant(Integer::U32(3))));
+        let selector = ErrorSelector::new(9230725515038505495);
+        let plh_payload = vec![
+            FieldElement::from(u32::from(b'P')),
+            FieldElement::from(u32::from(b'L')),
+            FieldElement::from(u32::from(b'H')),
+        ];
+
+        let dynamic_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data: plh_payload }),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(selector, ErrorType::Dynamic(str_type))]),
+        );
+        let static_string_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::String("PLH".to_string()),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::new(),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&dynamic_error, &static_string_error));
     }
 }

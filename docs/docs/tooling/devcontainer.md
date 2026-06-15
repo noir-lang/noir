@@ -2,7 +2,6 @@
 title: Dev Containers
 description: Learn how to set up and use Noir development environments with Dev Containers in VS Code and GitHub Codespaces.
 keywords: [Noir, Dev Container, Codespaces, Docker, VS Code, Development Environment]
-sidebar_position: 5
 ---
 
 This guide explains how to use Dev Containers for Noir development, enabling consistent development environments across different machines and cloud-based development through GitHub Codespaces.
@@ -115,4 +114,4 @@ You can customize the Dev Container setup by modifying the features in `devconta
 
 - Set up a Dev Container for your Noir project
 - Explore the [Noir VS Code extension](./language_server.md) features
-- Learn about [debugging Noir programs](./debugger.mdx) in your containerized environment
+- Learn about [debugging Noir programs](./debugger/index.mdx) in your containerized environment
