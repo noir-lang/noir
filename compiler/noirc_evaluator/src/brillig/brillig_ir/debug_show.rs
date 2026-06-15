@@ -67,7 +67,6 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::Xor => "^".into(),
             BrilligBinaryOp::Shl => "<<".into(),
             BrilligBinaryOp::Shr => ">>".into(),
-            BrilligBinaryOp::Modulo => "%".into(),
         }
     }
 }
@@ -169,6 +168,16 @@ impl DebugShow {
         operation: BrilligBinaryOp,
     ) {
         debug_println!(self.enable_debug_trace, "  {} = {} {} {}", result, lhs, operation, rhs);
+    }
+
+    /// Processes an unsigned modulo instruction.
+    pub(crate) fn modulo_instruction(
+        &self,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        result: MemoryAddress,
+    ) {
+        debug_println!(self.enable_debug_trace, "  {} = {} % {}", result, lhs, rhs);
     }
 
     /// Stores the value of `constant` in the `result` register.

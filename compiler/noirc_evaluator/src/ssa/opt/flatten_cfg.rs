@@ -176,6 +176,19 @@ impl Ssa {
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
+        // ACIR functions which are neither entry points (`Fold`) nor deferred to the
+        // post-flattening inlining pass (`NoPredicates`) must already have been inlined
+        // into their callers, so no calls to them may remain.
+        #[cfg(debug_assertions)]
+        let must_be_inlined: HashSet<FunctionId> = self
+            .functions
+            .values()
+            .filter(|f| {
+                f.runtime().is_acir() && !f.runtime().is_entry_point() && !f.is_no_predicates()
+            })
+            .map(|f| f.id())
+            .collect();
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -185,7 +198,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function);
+            flatten_cfg_pre_check(function, &must_be_inlined);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -198,13 +211,25 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if the ACIR function being flattened has at least 1 loop or contains a
-/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
+/// Panics if the ACIR function being flattened has at least 1 loop, contains a
+/// `ConstrainNotEqual` instruction, or calls an ACIR function in `must_be_inlined`
+/// (one which the inlining pass should have removed before flattening).
+/// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function) {
+fn flatten_cfg_pre_check(function: &Function, must_be_inlined: &HashSet<FunctionId>) {
     super::checks::assert_no_loops(function);
-    super::checks::for_each_instruction(function, |instruction, _dfg| {
+    super::checks::for_each_instruction(function, |instruction, dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
+        if let Instruction::Call { func, .. } = instruction
+            && let Value::Function(callee) = &dfg[*func]
+        {
+            assert!(
+                !must_be_inlined.contains(callee),
+                "Function {} {} calls {callee}, an ACIR function which should have been inlined before flattening",
+                function.name(),
+                function.id(),
+            );
+        }
     });
 }
 
@@ -2295,6 +2320,24 @@ mod tests {
             return v0
         }
         ");
+    }
+
+    #[test]
+    #[should_panic(expected = "should have been inlined before flattening")]
+    fn assumes_inlining_has_run() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.flatten_cfg();
     }
 }
 

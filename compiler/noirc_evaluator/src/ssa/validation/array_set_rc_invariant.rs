@@ -39,12 +39,26 @@
 //!    parameter that is freshly re-allocated each iteration, the sibling is a
 //!    distinct per-iteration storage and is dropped (see
 //!    [`Context::swap_excluded_aliases`]).
-//! 2. **inc_rc precedence / back-edge-participant.** If some `inc_rc` on an
-//!    alias-set member either RPO-precedes the array_set or sits on a
-//!    non-source alias that's also a loop back-edge arg, accept — the
-//!    frontend is deliberately managing iteration aliasing.
-//! 3. **Protected-participant filter.** Before the forward walk, drop from
-//!    the use-set every alias-set member (other than the source) that both
+//! 2. **Fast full-accept.** Accept the array_set outright (skipping the
+//!    forward walk) when some `inc_rc` on an alias-set member protects it on
+//!    every path by a cheap test: an `inc_rc` earlier in the array_set's own
+//!    block, in a block that **dominates** it, or — for a non-source alias —
+//!    on a loop **back-edge** (the back-edge-participant relaxation, where the
+//!    frontend is deliberately managing iteration aliasing). See
+//!    [`Context::some_inc_rc_precedes`].
+//! 3. **Per-member coverage → use-set.** Otherwise narrow the alias-set to the
+//!    members that are *not* provably protected, and seed the forward walk
+//!    with only those ([`Context::unprotected_aliases`]). Coverage is per
+//!    member: thread the source's storage backward through the CFG
+//!    ([`Context::compute_uncovered_values`]) and drop a member when, on every
+//!    path where it can be the source's storage at the array_set, that storage
+//!    is RC-bumped by an `inc_rc` or is an iteration-local fresh allocation (a
+//!    `MakeArray`/`Call` re-executed each loop iteration). Dropping covered
+//!    members is what stops the forward walk from flagging a read of, say, an
+//!    `inc_rc`'d sibling on a path where the array_set never mutates that
+//!    storage. An empty use-set means every member is protected — accept.
+//! 4. **Protected-participant filter.** A second narrowing inside the forward
+//!    walk: drop every use-set member (other than the source) that both
 //!    carries its own `inc_rc` and is a loop back-edge *participant* (it
 //!    flows — directly or through forward edges — into a back-edge arg
 //!    position). Being in the alias-set means the value flows *into* the
@@ -64,8 +78,8 @@
 //!    shape (an `inc_rc v` placed before `v` is threaded *forward* into the
 //!    latch that then closes the loop) without the unsoundness of crediting
 //!    an `inc_rc` to a value the array_set actually mutates first.
-//! 4. **Forward walk.** Otherwise, walk the CFG forward from the array_set with
-//!    the (filtered) alias-set as the initial use-set. At each block-parameter
+//! 5. **Forward walk.** Walk the CFG forward from the array_set with the
+//!    use-set as the initial set of live aliases. At each block-parameter
 //!    crossing we both **kill** params that the predecessor rebinds to a
 //!    non-alias and **add** params whose arg is still an alias (so alias
 //!    propagation stays accurate as the walk crosses joins and loops). The
@@ -114,10 +128,21 @@
 //! - **Nested-array `MakeArray`**, **`IfElse` on arrays**, **non-inlined
 //!   `Call` returns**, and **`Store`/`Load` on ineligible (nested-ref)
 //!   allocates** are likewise not tracked.
+//! - **Iteration-local fresh array read back within one iteration.** The
+//!   freshness wall (step 3) credits a `MakeArray`/`Call` that shares a loop
+//!   with the array_set as distinct per-iteration storage, which is sound
+//!   only because the result is normally threaded forward rather than the
+//!   freshly-allocated source being re-read after its in-place mutation. A
+//!   hand-written loop body that allocates an array, mutates it in place, and
+//!   then reads the *same* value back within the same iteration would not be
+//!   flagged. The frontend threads the `array_set` result instead of
+//!   re-reading the source, so it does not emit this shape; crediting
+//!   freshness only ever *accepts* more, so this can only be a false negative,
+//!   never a false positive.
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use acvm::FieldElement;
 
@@ -173,11 +198,15 @@ fn verify_function(function: &Function) -> RtResult<()> {
 
             let alias_set = ctx.alias_set_for(array, block_id, idx);
 
-            // Cheap check first: if any `inc_rc` on an alias-set member
-            // precedes this `array_set` in flow order, treat the aliasing
-            // as already protected. See `some_inc_rc_precedes` for the
-            // rationale (relaxed from dominance to RPO precedence).
-            if ctx.some_inc_rc_precedes(&alias_set, array, block_id, idx) {
+            // Narrow the alias-set to the members that are *not* provably
+            // protected on every path to this `array_set`. An empty result
+            // means every member is RC-bumped or freshly allocated before the
+            // array_set on all paths, so the in-place mutation is never
+            // observable — accept without the forward walk. A covered member
+            // (e.g. an `inc_rc`'d sibling) is dropped so the forward walk does
+            // not falsely flag a read of storage the array_set never mutates.
+            let use_set = ctx.unprotected_aliases(&alias_set, array, block_id, idx);
+            if use_set.is_empty() {
                 continue;
             }
 
@@ -192,7 +221,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
             // (RC=1) and a downstream instruction will observe the
             // pre-mutation contents through an aliased name.
             if let Some(hit) = ctx.find_reachable_aliased_use(
-                &alias_set,
+                &use_set,
                 array,
                 *instruction_id,
                 block_id,
@@ -224,8 +253,25 @@ fn verify_function(function: &Function) -> RtResult<()> {
 /// checks read from these structures rather than re-scanning the function.
 struct Context<'f> {
     function: &'f Function,
-    /// Dominator tree. Mutable because `dominates` populates an internal cache.
+    /// Control-flow graph. Used by [`Context::some_inc_rc_precedes`] to walk
+    /// predecessors backward when checking whether the `inc_rc`-carrying
+    /// blocks collectively cover every path to an `array_set`.
+    cfg: ControlFlowGraph,
+    /// Dominator tree. Used by [`Context::some_inc_rc_precedes`] as a fast
+    /// path: a single `inc_rc` block that dominates the `array_set` covers
+    /// every path without the backward value walk.
     dom_tree: DominatorTree,
+    /// Array values that allocate fresh storage at their definition
+    /// (`make_array` / `Call` results). Used as a freshness wall by
+    /// [`Context::compute_uncovered_values`].
+    fresh_array_values: HashSet<ValueId>,
+    /// The block set of each loop in the function. The freshness wall only
+    /// credits a fresh allocation when its defining block and the array_set's
+    /// block lie in a common loop — i.e. the allocation re-executes every
+    /// iteration that reaches the array_set, so its storage is distinct per
+    /// iteration. A one-time allocation outside any shared loop is mutated in
+    /// place exactly once, so reading it back is a genuine hazard.
+    loop_blocks: Vec<BTreeSet<BasicBlockId>>,
     /// For each array-typed value `V`, the set of values that may share
     /// `V`'s storage **at `V`'s program point** — the source itself plus
     /// anything that flows backward into it through block-parameter →
@@ -349,6 +395,16 @@ struct Context<'f> {
     /// requirement on `Q` is the second guard — a loop-invariant `Q`
     /// swapped into `P` would make `P_k = Q_{k-1} = Q_k` and genuinely
     /// alias.
+    ///
+    /// **Forward propagation.** After recording, exclusions are pushed
+    /// forward across non-back-edge parameter edges to a fixed point: on a
+    /// forward edge `R ← P`, `R` *is* `P` within the same iteration, so `R`
+    /// inherits `P`'s exclusions. This carries an exclusion from a swapped
+    /// loop-header parameter onto a successor parameter seeded from it — e.g.
+    /// an inner-loop header (the array_set's source) fed from the swapped
+    /// outer-loop parameter — so `Q` is dropped for the inner source too.
+    /// Back-edges are excluded from propagation: across one, `R` is a *prior*
+    /// iteration's `P`, a distinct storage.
     swap_excluded_aliases: HashMap<ValueId, HashSet<ValueId>>,
 }
 
@@ -370,12 +426,14 @@ impl<'f> Context<'f> {
         // which represent fresh-per-iteration storage and so don't
         // carry the array_set's pre-mutation aliasing forward through
         // the loop header.
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
         let back_edges: HashSet<(BasicBlockId, BasicBlockId)> =
-            Loops::find_all(function, LoopOrder::InsideOut)
-                .yet_to_unroll
-                .iter()
-                .map(|l| (l.back_edge_start, l.header))
-                .collect();
+            loops.yet_to_unroll.iter().map(|l| (l.back_edge_start, l.header)).collect();
+        // The block set of each loop, used by the freshness wall in
+        // [`Context::compute_uncovered_values`] to decide whether a fresh
+        // allocation re-executes on every iteration that reaches an array_set.
+        let loop_blocks: Vec<BTreeSet<BasicBlockId>> =
+            loops.yet_to_unroll.iter().map(|l| l.blocks.clone()).collect();
 
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
@@ -489,6 +547,17 @@ impl<'f> Context<'f> {
             .filter(|v| make_array_values.contains(v) || call_result_values.contains(v))
             .collect();
 
+        // Array values that allocate **fresh** storage at their definition:
+        // `make_array` (a new array) and `Call` results (the callee allocates;
+        // the same heuristic [`Context::non_aliasing_array_values`] makes).
+        // `array_set` results are excluded — they may mutate in place rather
+        // than allocate. Used by the freshness wall in
+        // [`Context::compute_uncovered_values`]: storage that is freshly
+        // allocated on a path has no other live alias, so an in-place mutation
+        // there cannot be observed through one.
+        let fresh_array_values: HashSet<ValueId> =
+            make_array_values.union(&call_result_values).copied().collect();
+
         // Swap exclusions. For every loop back-edge `be_start → header`,
         // inspect each array-typed header parameter at `source_pos`: if
         // the back-edge rebinds it to a *sibling* header parameter
@@ -568,9 +637,47 @@ impl<'f> Context<'f> {
             }
         }
 
+        // Propagate swap exclusions forward across non-back-edge
+        // block-parameter edges. On a forward edge `P ← A`, `P` is `A` within
+        // the same iteration, so `P`'s storage is `A`'s storage; a sibling
+        // distinct from `A`'s per-iteration storage is therefore distinct from
+        // `P`'s too. This carries an exclusion recorded on a loop-header
+        // parameter to a successor parameter seeded from it — e.g. an
+        // inner-loop header (the array_set source) fed from the swapped
+        // outer-loop parameter — so `alias_set_for` drops the sibling for the
+        // inner source as well. Back-edges are excluded: across one, `P` is a
+        // *prior* iteration's `A`, a distinct storage.
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (dest, edges) in &incoming_edges {
+                let params = function.dfg.block_parameters(*dest);
+                for (i, &param) in params.iter().enumerate() {
+                    for (pred, args) in edges {
+                        if back_edges.contains(&(*pred, *dest)) {
+                            continue;
+                        }
+                        let Some(&arg) = args.get(i) else { continue };
+                        let Some(arg_excl) = swap_excluded_aliases.get(&arg).cloned() else {
+                            continue;
+                        };
+                        let entry = swap_excluded_aliases.entry(param).or_default();
+                        for x in arg_excl {
+                            if x != param && entry.insert(x) {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Self {
             function,
+            cfg,
             dom_tree,
+            fresh_array_values,
+            loop_blocks,
             backward_aliases,
             array_value_defs,
             non_aliasing_array_values,
@@ -667,59 +774,63 @@ impl<'f> Context<'f> {
             .collect()
     }
 
-    /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` exists at a
-    /// program point that precedes the `array_set` in flow order — either
-    /// in a strictly-earlier position within the same block, or in a
-    /// different block whose reverse-post-order index is smaller.
+    /// The subset of `alias_set` whose members are **not** provably protected
+    /// on every path to the `array_set` — the use-set the forward walk must
+    /// check. An empty result means every member is protected, so the
+    /// `array_set` can be accepted without the forward walk.
     ///
-    /// # Why RPO precedence, not dominance
+    /// A member is dropped (provably protected) when, on every runtime path,
+    /// the storage it represents is either RC-bumped by an `inc_rc` (so the
+    /// array_set copies) or an iteration-local fresh allocation (so it has no
+    /// other live alias). Dropping covered members is what stops the forward
+    /// walk from flagging a read of an `inc_rc`'d sibling on a path where the
+    /// array_set never mutates that storage (the alias-set-merging
+    /// false-positive). Keeping the uncovered members preserves real hazards,
+    /// such as the issue SSA where the source itself is uncovered and read
+    /// after the array_set.
+    fn unprotected_aliases(
+        &self,
+        alias_set: &im::HashSet<ValueId>,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> im::HashSet<ValueId> {
+        // Fast full-accept short-circuits cover the whole array_set at once.
+        if self.some_inc_rc_precedes(alias_set, source, array_set_block, array_set_idx) {
+            return im::HashSet::new();
+        }
+        // Otherwise compute per-member coverage and keep only uncovered members.
+        let uncovered = self.compute_uncovered_values(source, array_set_block, array_set_idx);
+        alias_set.iter().copied().filter(|m| uncovered.contains(m)).collect()
+    }
+
+    /// Fast, whole-array_set acceptance predicate: returns `true` when some
+    /// `inc_rc` on an alias-set member protects the `array_set` on **every**
+    /// path. This is the cheap common case; per-path coverage that this misses
+    /// (e.g. `inc_rc` on one arm and a fresh allocation on the other) is
+    /// handled by [`Context::compute_uncovered_values`].
     ///
-    /// The strict invariant would be "the `inc_rc` dominates the
-    /// `array_set`" — i.e., is on *every* path. But the frontend in
-    /// practice emits **path-specific** `inc_rc`s: each path that creates
-    /// an alias gets its own `inc_rc`, with no single dominating one. See
-    /// e.g. `brillig_array_ifelse` where `b1` has `inc_rc v8` and `b4` has
-    /// `inc_rc v2`, neither dominating the `array_set` in `b6`. On every
-    /// runtime path the alias is either covered by an `inc_rc` or the
-    /// values are freshly allocated, but the verifier can't observe
-    /// path-specific freshness with the current alias-set model.
+    /// Three acceptances, each sound on every path:
     ///
-    /// We weaken the check accordingly: presence of *any* `inc_rc` on an
-    /// alias-set member, anywhere earlier in flow, is taken as the
-    /// frontend signalling "I'm aware of this aliasing and have handled
-    /// it." Absence of any such `inc_rc` *combined* with a forward aliased
-    /// read (checked separately) still flags as a hazard, which is the
-    /// shape PR-12671 had. The back-edge-participant relaxation below
-    /// widens this further to cover `inc_rc`s placed after the
-    /// array_set, where iteration aliasing makes the bump's program
-    /// point misleading.
+    /// - **Same-block, before the array_set.** The block is on every path to
+    ///   its own array_set, so an earlier `inc_rc` always runs first.
+    /// - **Dominating block.** An `inc_rc` whose block dominates the array_set
+    ///   is on every path to it (e.g. an `inc_rc` in a loop pre-header).
+    /// - **Back-edge-participant relaxation.** An `inc_rc` on a *non-source*
+    ///   alias that appears as a jmp/jmpif arg on a loop **back-edge** is taken
+    ///   as a codegen signal regardless of program-point order: the frontend
+    ///   is deliberately managing iteration aliasing, and the bump's program
+    ///   point can come *after* the array_set — it is the back-edge thread-back
+    ///   that delivers the protection to the next iteration. Forward-edge cases
+    ///   don't need this because [`Context::backward_aliases`] keeps the
+    ///   forward-edge value out of the source's alias-set in the first place.
     ///
-    /// # Back-edge-participant relaxation
+    /// Mere RPO precedence is *not* one of these: a sibling-branch `inc_rc`
+    /// precedes in RPO yet the other branch reaches the array_set without it
+    /// (`end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`).
     ///
-    /// In addition to RPO precedence, an `inc_rc` is also accepted when
-    /// it lives on an alias-set member that:
-    ///
-    /// - is **not** the array_set's own source (an `inc_rc` on the
-    ///   source itself, *after* the array_set, doesn't protect that
-    ///   array_set — it would be suspicious frontend output rather
-    ///   than a signal); and
-    /// - appears as a jmp/jmpif arg on a loop **back-edge** somewhere
-    ///   in the function ([`Context::back_edge_args`]).
-    ///
-    /// The intuition: when the frontend emits an `inc_rc` on a
-    /// non-source alias that's threaded back through a loop, it's
-    /// deliberately managing iteration aliasing. The bump's program
-    /// point can come *after* the array_set in source order — it's
-    /// the back-edge thread-back that delivers the protection to the
-    /// next iteration. Forward-edge cases (e.g. re-seeding a value
-    /// with a global on a non-loop branch) don't need this relaxation
-    /// because [`Context::backward_aliases`] is precise enough to keep
-    /// the forward-edge value out of the source's alias-set in the
-    /// first place.
-    ///
-    /// Well-formed SSA contains no `DecrementRc`, so we don't need to
-    /// worry about a `dec_rc` intervening between the `inc_rc` and the
-    /// `array_set`.
+    /// Well-formed SSA contains no `DecrementRc`, so we don't need to worry
+    /// about a `dec_rc` intervening between the `inc_rc` and the `array_set`.
     fn some_inc_rc_precedes(
         &self,
         alias_set: &im::HashSet<ValueId>,
@@ -731,13 +842,6 @@ impl<'f> Context<'f> {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
             };
-            // Back-edge-participant relaxation: an `inc_rc` on a
-            // non-source alias that's also a loop back-edge arg is a
-            // codegen signal regardless of program-point order. The
-            // backward-alias walk already handles forward-edge
-            // threading precisely (the forward-edge value simply isn't
-            // in the source's backward set), so this relaxation only
-            // needs to cover back-edge iteration aliasing.
             if *value != source && self.back_edge_args.contains(value) {
                 return true;
             }
@@ -746,9 +850,7 @@ impl<'f> Context<'f> {
                     if inc_idx < array_set_idx {
                         return true;
                     }
-                } else if self.dom_tree.reverse_post_order_cmp(inc_block, array_set_block)
-                    == Ordering::Less
-                {
+                } else if self.dom_tree.dominates(inc_block, array_set_block) {
                     return true;
                 }
             }
@@ -756,13 +858,213 @@ impl<'f> Context<'f> {
         false
     }
 
+    /// Whether `value` is a fresh allocation whose storage is distinct on
+    /// every iteration that reaches the array_set in `array_set_block` — i.e.
+    /// a `make_array`/`Call` result whose defining block shares a loop with
+    /// `array_set_block`, so it re-executes each iteration. A fresh allocation
+    /// outside any shared loop is a one-time storage that the array_set
+    /// mutates exactly once; reading it back through the same name would
+    /// observe that mutation, so it does **not** count as protection.
+    fn is_iteration_local_fresh(&self, value: ValueId, array_set_block: BasicBlockId) -> bool {
+        if !self.fresh_array_values.contains(&value) {
+            return false;
+        }
+        let Some(&(def_block, _)) = self.array_value_defs.get(&value) else {
+            return false;
+        };
+        self.loop_blocks
+            .iter()
+            .any(|blocks| blocks.contains(&def_block) && blocks.contains(&array_set_block))
+    }
+
+    /// The set of values that lie on at least one **uncovered** backward path
+    /// from the array_set — a path on which the threaded source storage reaches
+    /// a function parameter / unthreadable root without crossing an `inc_rc` or
+    /// iteration-local-fresh wall. The caller intersects this with the
+    /// alias-set to obtain the forward walk's use-set; an empty intersection
+    /// means every member is protected, so the array_set is accepted.
+    ///
+    /// The walk threads the *exact* source storage backward: across a
+    /// block-parameter edge it follows the predecessor's argument, and at an
+    /// `array_set` result it continues with that `array_set`'s `array` operand
+    /// (the result shares the operand's storage). This recognizes path-specific
+    /// protection a block-level cut cannot — `inc_rc` on one arm of a diamond
+    /// and a fresh `make_array` on the other, threaded through a loop (the
+    /// `func_1`/`v20` fuzzer shape).
+    ///
+    /// It is computed over the `(block, value)` threading graph in two phases,
+    /// iteratively (the predecessor chain can be thousands of blocks deep on
+    /// large functions, which recursion would risk overflowing):
+    ///
+    /// 1. **Build.** From the seed `(array_set_block, source)`, expand each
+    ///    state to its backward successors. A wall (`inc_rc` on the value, or
+    ///    an iteration-local fresh allocation) is a covered sink. Reaching a
+    ///    block with no predecessors, or a value defined by an unthreadable
+    ///    instruction (a non-iteration-local allocation, or an `array_get` of a
+    ///    nested array), or an edge whose argument can't be resolved, is an
+    ///    *uncovered terminal*. `seed_idx` limits the `inc_rc` wall to bumps
+    ///    *before* the array_set in its own block; any other block on a path
+    ///    executes fully before the array_set, so an `inc_rc` anywhere in it
+    ///    counts.
+    /// 2. **Propagate.** A state is uncovered if it is an uncovered terminal or
+    ///    has an uncovered successor; iterate to a fixed point. A cycle with no
+    ///    uncovered terminal stays covered (a back-edge introduces no new
+    ///    entry-originating path).
+    ///
+    /// Crediting freshness only ever shrinks the use-set, so it can add
+    /// false-negatives (a freshly-allocated array read back through its own
+    /// name after an in-place mutation — a shape the frontend does not emit)
+    /// but never false-positives.
+    fn compute_uncovered_values(
+        &self,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> HashSet<ValueId> {
+        struct Node {
+            successors: Vec<(BasicBlockId, ValueId)>,
+            uncovered_terminal: bool,
+        }
+
+        // Phase 1: build the backward threading graph.
+        let mut graph: HashMap<(BasicBlockId, ValueId), Node> = HashMap::default();
+        let mut worklist: Vec<(BasicBlockId, ValueId, Option<usize>)> =
+            vec![(array_set_block, source, Some(array_set_idx))];
+
+        while let Some((block, value, seed_idx)) = worklist.pop() {
+            if graph.contains_key(&(block, value)) {
+                continue;
+            }
+
+            // Wall: an iteration-local `make_array`/`Call` result is newly
+            // allocated storage on this path, distinct each iteration.
+            if self.is_iteration_local_fresh(value, array_set_block) {
+                graph
+                    .insert((block, value), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            // Wall: an `inc_rc` on the threaded value in this block.
+            if let Some(locations) = self.inc_rc_locations.get(&value)
+                && locations
+                    .iter()
+                    .any(|&(b, i)| b == block && seed_idx.is_none_or(|limit| i < limit))
+            {
+                graph
+                    .insert((block, value), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            // If `value` is defined in this block, the walk stops here.
+            if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&value)
+                && def_block == block
+            {
+                let inst_id = self.function.dfg[block].instructions()[def_idx];
+                // An `array_set` result shares its operand's storage; continue
+                // threading with the operand.
+                if let Instruction::ArraySet { array, .. } = self.function.dfg[inst_id] {
+                    graph.insert(
+                        (block, value),
+                        Node { successors: vec![(block, array)], uncovered_terminal: false },
+                    );
+                    worklist.push((block, array, seed_idx));
+                    continue;
+                }
+                // A non-iteration-local allocation or other instruction we
+                // cannot thread: an uncovered terminal.
+                graph.insert((block, value), Node { successors: vec![], uncovered_terminal: true });
+                continue;
+            }
+
+            // Flows in from predecessors.
+            let preds: Vec<BasicBlockId> = self.cfg.predecessors(block).collect();
+            if preds.is_empty() {
+                // Reached the entry / a source-less block unwalled.
+                graph.insert((block, value), Node { successors: vec![], uncovered_terminal: true });
+                continue;
+            }
+            // If `value` is a parameter of this block, follow each predecessor's
+            // argument at that position; otherwise the same value flows in from
+            // every predecessor.
+            let params = self.function.dfg.block_parameters(block);
+            let param_pos = params.iter().position(|&p| p == value);
+            let mut successors = Vec::new();
+            let mut uncovered_terminal = false;
+            for &pred in &preds {
+                let next = match param_pos {
+                    Some(i) => match self.edge_arg(pred, block, i) {
+                        Some(arg) => arg,
+                        // An unresolvable edge argument: conservatively treat
+                        // as uncovered rather than silently dropping the path.
+                        None => {
+                            uncovered_terminal = true;
+                            continue;
+                        }
+                    },
+                    None => value,
+                };
+                successors.push((pred, next));
+                worklist.push((pred, next, None));
+            }
+            graph.insert((block, value), Node { successors, uncovered_terminal });
+        }
+
+        // Phase 2: propagate "uncovered" from terminals to a fixed point.
+        let mut uncovered: HashSet<(BasicBlockId, ValueId)> =
+            graph.iter().filter(|(_, n)| n.uncovered_terminal).map(|(k, _)| *k).collect();
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (state, node) in &graph {
+                if !uncovered.contains(state)
+                    && node.successors.iter().any(|s| uncovered.contains(s))
+                {
+                    uncovered.insert(*state);
+                    changed = true;
+                }
+            }
+        }
+
+        uncovered.into_iter().map(|(_, value)| value).collect()
+    }
+
+    /// The argument passed to parameter position `i` of `dest` on the edge
+    /// from `pred`. `None` if `pred`'s terminator does not target `dest` or has
+    /// no argument at that position.
+    fn edge_arg(&self, pred: BasicBlockId, dest: BasicBlockId, i: usize) -> Option<ValueId> {
+        match self.function.dfg[pred].terminator()? {
+            TerminatorInstruction::Jmp { destination, arguments, .. } if *destination == dest => {
+                arguments.get(i).copied()
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                if *then_destination == dest {
+                    then_arguments.get(i).copied()
+                } else if *else_destination == dest {
+                    else_arguments.get(i).copied()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Forward CFG walk from after the `array_set` looking for a
     /// non-terminator instruction that reads a value still in the alias
     /// use-set.
     ///
-    /// **Use-set evolution.** Starts as `alias_set` and only shrinks. Kills
-    /// are applied **during propagation** to each successor — see
-    /// [`Context::succ_use_set`] for the kill rules.
+    /// **Use-set evolution.** Starts as `alias_set` — which is **already
+    /// narrowed** to the uncovered members by [`Context::unprotected_aliases`]
+    /// before this is called, so provably-protected aliases never enter the
+    /// walk — and only shrinks from there. Kills are applied **during
+    /// propagation** to each successor — see [`Context::succ_use_set`] for the
+    /// kill rules.
     ///
     /// **What counts as a use.** Only non-terminator operands. Terminator
     /// arguments are the legitimate threading mechanism the invariant
@@ -1802,6 +2104,233 @@ mod tests {
                 return v3
             }"#;
         assert_verifier_accepts(src);
+    }
+
+    /// A branch-local `inc_rc` does **not** protect an `array_set` reached on a
+    /// path that skips it. `inc_rc v1` lives only on the `then` path (b1), but
+    /// the `array_set v1` in the join block b3 is also reachable via b2, which
+    /// has no `inc_rc`. On the `v0 = false` path `v1` has RC 1, so the
+    /// `array_set` mutates it in place and the following `array_get v1` observes
+    /// the mutation. The verifier must reject — a non-dominating `inc_rc`
+    /// cannot vouch for the array_set.
+    #[test]
+    fn end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Branch-local `inc_rc`s that **collectively** cover every path do
+    /// protect the `array_set`, even when no single one dominates it. Both
+    /// arms of the diamond (b1 *and* b2) bump `v1` before the join block b3
+    /// holds `array_set v1` and a read of `v1`. Neither `inc_rc` dominates b3
+    /// on its own, but every path to the array_set passes through one of
+    /// them, so `v1` has RC ≥ 2 on every path and the `array_set` always
+    /// copies. The verifier must accept.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case: the frontend emits one `inc_rc` per branch feeding a join, which
+    /// a single-block dominance check would wrongly reject. It is the exact
+    /// counterpart of
+    /// `end_to_end_branch_local_inc_rc_does_not_protect_array_set_in_join_is_rejected`
+    /// — adding the second arm's `inc_rc` is what flips it from a hazard to
+    /// safe.
+    #[test]
+    fn end_to_end_branch_local_inc_rcs_on_all_arms_protect_array_set_in_join_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v1
+                jmp b3()
+              b2():
+                inc_rc v1
+                jmp b3()
+              b3():
+                v2 = array_set v1, index u32 0, value Field 7
+                v3 = array_get v1, index u32 0 -> Field
+                return v3
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "inc_rc v1 on both arms collectively cover every path to the array_set; \
+             neither dominates b3 alone, but together they form a cut",
+        );
+    }
+
+    /// Path-specific protection mixing `inc_rc` and freshness across a loop.
+    /// The loop body block b5 holds `array_set v7` on its parameter and reads
+    /// `v7` (on the next iteration, via the back-edge). `v7` is fed by two
+    /// arms: b2 passes the loop-invariant `v1` after an `inc_rc v1`, while b3
+    /// passes a freshly allocated `make_array`. On every path the storage
+    /// `array_set v7` may mutate is either RC-bumped (`v1` via b2) or freshly
+    /// allocated this iteration (`v4` via b3), so no read ever observes an
+    /// in-place mutation through an alias. The verifier must accept.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case. It is the reason a coverage check that only recognizes `inc_rc`
+    /// blocks is insufficient: the b3 arm carries no `inc_rc`, only a fresh
+    /// allocation, so freshness must count as protection on that path.
+    #[test]
+    fn end_to_end_loop_param_protected_by_inc_rc_and_freshness_on_alternate_arms_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1]):
+                jmp b1(u32 0)
+              b1(v2: u32):
+                v3 = eq v2, u32 5
+                jmpif v3 then: b6(), else: b4()
+              b4():
+                jmpif v0 then: b2(), else: b3()
+              b2():
+                inc_rc v1
+                jmp b5(v1)
+              b3():
+                v4 = make_array [Field 0] : [Field; 1]
+                jmp b5(v4)
+              b5(v7: [Field; 1]):
+                v8 = array_get v7, index u32 0 -> Field
+                v9 = array_set v7, index u32 0, value Field 7
+                v10 = add v2, u32 1
+                jmp b1(v10)
+              b6():
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "every path to array_set v7 either bumps RC (inc_rc v1 on the b2 arm) or \
+             allocates fresh storage (make_array on the b3 arm)",
+        );
+    }
+
+    /// A covered alias that flows into the source must be dropped from the
+    /// forward walk's use-set, not flagged. `v3` (the array_set source) is fed
+    /// by `v2` on the b1 arm — where `v2` is `inc_rc`'d, so on that arm the
+    /// array_set copies and `v2` is never mutated — and by the function
+    /// parameter `v1` on the b2 arm (uncovered). The later `array_get v2` reads
+    /// the *covered* sibling: on the arm where `v3 = v2` the bump protects it,
+    /// and on the arm where `v3 = v1` the array_set mutates `v1`, not `v2`. So
+    /// the read is never a hazard and the verifier must accept — even though
+    /// `v2` is in the source's alias-set and is read after the array_set.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// case. Seeding the forward walk with the *whole* alias-set (including the
+    /// covered `v2`) would falsely flag the `array_get v2`; keeping only the
+    /// uncovered members (`v3`/`v1`) avoids it. The source's own b2 arm stays
+    /// uncovered, so `some_inc_rc_precedes` does not accept the array_set
+    /// outright — the per-member coverage is what makes the difference.
+    #[test]
+    fn end_to_end_inc_rc_covered_alias_read_after_array_set_is_dropped_and_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1, v1: [Field; 1], v2: [Field; 1]):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                inc_rc v2
+                jmp b3(v2)
+              b2():
+                jmp b3(v1)
+              b3(v3: [Field; 1]):
+                v5 = array_set v3, index u32 0, value Field 7
+                v6 = array_get v2, index u32 0 -> Field
+                return v6
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the read is of v2, an inc_rc-covered alias of the source; only the \
+             uncovered members (v3/v1) belong in the forward walk's use-set",
+        );
+    }
+
+    /// Swap exclusion must reach an inner-loop array_set seeded from the
+    /// swapped outer-loop parameter. The outer loop (header b1) rotates its
+    /// array params on the back-edge — `a ← b` while `b ← make_array` — so the
+    /// swap filter records `b` (v4) as excluded from `a` (v3): they are
+    /// distinct per-iteration storage. The inner loop's parameter `c` (v7) is
+    /// seeded from `a` on the forward edge b2→b3, and the inner body does
+    /// `array_set c` and then reads `b`. Because `c = a` within the iteration,
+    /// `b` is distinct from `c` too, so the read is never a hazard. The
+    /// verifier must accept — which requires the swap exclusion on `a` to
+    /// propagate forward onto `c`.
+    ///
+    /// This is the minimized crux of a `comptime_vs_brillig_direct` fuzzer
+    /// false-positive (confirmed valid via `--release`): without the forward
+    /// propagation, `b` stays in `c`'s alias-set and the `array_get b` is
+    /// wrongly flagged.
+    #[test]
+    fn end_to_end_swap_exclusion_propagates_to_inner_loop_source_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 1] : [Field; 1]
+                jmp b1(v1, v2, u32 0)
+              b1(v3: [Field; 1], v4: [Field; 1], v5: u32):
+                v6 = lt v5, u32 3
+                jmpif v6 then: b2(), else: b8()
+              b2():
+                jmp b3(v3, u32 0)
+              b3(v7: [Field; 1], v8: u32):
+                v9 = lt v8, u32 3
+                jmpif v9 then: b4(), else: b6()
+              b4():
+                v10 = array_set v7, index u32 0, value Field 7
+                v11 = array_get v4, index u32 0 -> Field
+                v12 = add v8, u32 1
+                jmp b3(v10, v12)
+              b6():
+                v14 = make_array [Field 2] : [Field; 1]
+                v15 = add v5, u32 1
+                jmp b1(v4, v14, v15)
+              b8():
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "b (v4) is swap-excluded from a (v3); a is forwarded to the inner-loop \
+             source c (v7), so the exclusion must propagate and the array_get v4 is safe",
+        );
+    }
+
+    /// The linear analog of `make_array_with_forward_read` but via a `Call`
+    /// result: `v2 = v1 = v0` is the same fresh call-allocated storage,
+    /// `array_set v2` mutates it in place, and `array_get v1` reads it back —
+    /// a genuine hazard. A `Call` result must NOT be blanket-credited as
+    /// distinct-per-iteration freshness (it is one-time storage here), so the
+    /// verifier must reject, exactly as it does for the `make_array` analog.
+    #[test]
+    fn end_to_end_call_result_aliased_via_forward_block_param_with_forward_read_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = call f1() -> [Field; 1]
+                jmp b1(v0)
+              b1(v1: [Field; 1]):
+                jmp b2(v1)
+              b2(v2: [Field; 1]):
+                v3 = array_set v2, index u32 0, value Field 7
+                v4 = array_get v1, index u32 0 -> Field
+                return v4
+            }
+            brillig(inline) fn alloc f1 {
+              b0():
+                v0 = make_array [Field 0] : [Field; 1]
+                return v0
+            }"#;
+        assert_verifier_rejects(src);
     }
 
     /// Index-aware filter: a constant-index `array_set` followed by a
@@ -3151,19 +3680,20 @@ mod tests {
 
     /// Five `inc_rc` placements, each isolated on its own array parameter
     /// so the inc_rcs don't accidentally cover for each other. Tests the
-    /// **relaxed** precedence check (any `inc_rc` earlier in RPO suffices;
-    /// it does **not** need to dominate the array_set's block):
+    /// precedence check, which requires the `inc_rc` to be on **every** path
+    /// to the array_set — either earlier in the same block, or in a block
+    /// that **dominates** the array_set's block:
     ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **precedes**.
-    ///   - `v1`: inc_rc in entry block → **precedes**.
-    ///   - `v2`: inc_rc in a sibling branch (b1) → **precedes** under the
-    ///     relaxed check (sibling blocks come earlier in RPO than the
-    ///     common-successor block); would fail a strict dominance check.
+    ///   - `v1`: inc_rc in entry block (dominates everything) → **precedes**.
+    ///   - `v2`: inc_rc in a sibling branch (b1) → does **not** precede.
+    ///     b1 doesn't dominate the common-successor block b3 (the b2 path
+    ///     skips the inc_rc), so the bump can't vouch for the array_set.
     ///   - `v3`: same-block, inc_rc *later* than the array_set → does
     ///     **not** precede (same-block comparison still requires earlier
     ///     position).
     ///   - `v4`: no inc_rc anywhere → does **not** precede.
     #[test]
-    fn inc_rc_precedence_recognizes_earlier_in_flow_positions() {
+    fn inc_rc_precedence_requires_dominating_position() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0(v0: [u32; 2], v1: [u32; 2], v2: [u32; 2], v3: [u32; 2], v4: [u32; 2], v5: u1):
@@ -3205,7 +3735,7 @@ mod tests {
             } else if *source == v1 {
                 (true, "v1: entry-block inc_rc")
             } else if *source == v2 {
-                (true, "v2: inc_rc in sibling branch (precedes in RPO)")
+                (false, "v2: inc_rc in sibling branch does not dominate")
             } else if *source == v3 {
                 (false, "v3: same-block later inc_rc")
             } else if *source == v4 {

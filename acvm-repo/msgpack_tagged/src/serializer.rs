@@ -799,7 +799,7 @@ fn begin_product_payload<'ser, 'a, W: Write>(
     })
 }
 
-impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
+impl<W: Write> TaggedSerializeProduct<'_, '_, W> {
     /// Emit one field's wire contribution. Direct path (the common case):
     /// write `(tag, value)` under Tagged or just `value` under Array,
     /// straight to the parent stream. Buffered path (Array with
@@ -858,7 +858,7 @@ impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
 /// `serialize_field(name, value)` call resolves `name` against the
 /// registered `Product` (honoring `#[serde(rename)]`) to derive the wire
 /// tag, then writes `tag` and `value` through the parent.
-impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W> {
+impl<W: Write> SerializeStruct for TaggedSerializeProduct<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -891,7 +891,7 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W>
 /// field under the right wire tag even though the calls arrive in source
 /// order — and the buffer-and-flush in `finish` then writes them on the
 /// wire in tag-ascending order.
-impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, 'a, W> {
+impl<W: Write> SerializeTupleStruct for TaggedSerializeProduct<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -928,7 +928,7 @@ impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, '
 /// `{variant_tag: ...}` map (1-entry discriminator) was written upfront in
 /// `serialize_tuple_variant`; the payload's header is deferred to
 /// `finish()` along with every other product's.
-impl<'ser, 'a, W: Write> SerializeTupleVariant for TaggedSerializeProduct<'ser, 'a, W> {
+impl<W: Write> SerializeTupleVariant for TaggedSerializeProduct<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -955,7 +955,7 @@ impl<'ser, 'a, W: Write> SerializeTupleVariant for TaggedSerializeProduct<'ser, 
 
 /// Struct variant payload (`enum E { ... Named { a: u32, b: bool } }`). Same
 /// payload shape and tag-resolution rule as a top-level named struct.
-impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser, 'a, W> {
+impl<W: Write> SerializeStructVariant for TaggedSerializeProduct<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -997,7 +997,7 @@ pub struct TaggedSerializeViaParent<'ser, 'a, W: Write> {
 
 /// Variable-length sequences (`Vec<T>`, `&[T]`, …). Each element recurses
 /// through the parent so tagged elements stay int-keyed.
-impl<'ser, 'a, W: Write> SerializeSeq for TaggedSerializeViaParent<'ser, 'a, W> {
+impl<W: Write> SerializeSeq for TaggedSerializeViaParent<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -1018,7 +1018,7 @@ impl<'ser, 'a, W: Write> SerializeSeq for TaggedSerializeViaParent<'ser, 'a, W> 
 /// Fixed-length Rust tuples (`(A, B)`, `(A, B, C)`, …). Same wire shape as a
 /// sequence — msgpack has one length-prefixed array, regardless of whether
 /// the source was variable- or fixed-length on the Rust side.
-impl<'ser, 'a, W: Write> SerializeTuple for TaggedSerializeViaParent<'ser, 'a, W> {
+impl<W: Write> SerializeTuple for TaggedSerializeViaParent<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -1038,7 +1038,7 @@ impl<'ser, 'a, W: Write> SerializeTuple for TaggedSerializeViaParent<'ser, 'a, W
 /// routed through the parent. Routing keys is mostly a no-op for the common
 /// primitive-key case (the wrapper forwards primitives to inner verbatim),
 /// but it keeps the door open for tagged keys without a special case here.
-impl<'ser, 'a, W: Write> SerializeMap for TaggedSerializeViaParent<'ser, 'a, W> {
+impl<W: Write> SerializeMap for TaggedSerializeViaParent<'_, '_, W> {
     type Ok = ();
     type Error = RmpError;
 

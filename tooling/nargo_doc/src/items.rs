@@ -239,6 +239,7 @@ impl ItemProperties for StructField {
 pub struct Impl {
     pub generics: Vec<Generic>,
     pub r#type: Type,
+    pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<Function>,
 }
 
