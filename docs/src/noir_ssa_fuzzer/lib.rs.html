@@ -383,12 +383,12 @@
 <a href=#383 id=383 data-nosnippet>383</a>            acir_builder.compile(CompileOptions { show_ssa: <span class="bool-val">true</span>, ..CompileOptions::default() });
 <a href=#384 id=384 data-nosnippet>384</a>        check_expected_validation_error(
 <a href=#385 id=385 data-nosnippet>385</a>            acir_result,
-<a href=#386 id=386 data-nosnippet>386</a>            <span class="string">"Invalid cast from Field, not preceded by valid truncation or known safe value"</span>,
+<a href=#386 id=386 data-nosnippet>386</a>            <span class="string">"Invalid narrowing cast from Field to u64: the value being cast is not preceded by a valid truncation or range check"</span>,
 <a href=#387 id=387 data-nosnippet>387</a>        );
 <a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>brillig_result = brillig_builder.compile(CompileOptions::default());
 <a href=#389 id=389 data-nosnippet>389</a>        check_expected_validation_error(
 <a href=#390 id=390 data-nosnippet>390</a>            brillig_result,
-<a href=#391 id=391 data-nosnippet>391</a>            <span class="string">"Invalid cast from Field, not preceded by valid truncation or known safe value"</span>,
+<a href=#391 id=391 data-nosnippet>391</a>            <span class="string">"Invalid narrowing cast from Field to u64: the value being cast is not preceded by a valid truncation or range check"</span>,
 <a href=#392 id=392 data-nosnippet>392</a>        );
 <a href=#393 id=393 data-nosnippet>393</a>    }
 <a href=#394 id=394 data-nosnippet>394</a>}</code></pre></div></section></main></body></html>
