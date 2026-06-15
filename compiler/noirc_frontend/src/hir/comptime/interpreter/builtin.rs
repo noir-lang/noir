@@ -978,12 +978,19 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
+    let typ = parse(
+        interpreter.elaborator,
+        argument,
+        Parser::parse_type_or_type_expression_or_error,
+        "a type",
+    )?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_type(typ, wildcard_allowed)
+            // `Kind::Any` so a numeric type expression (e.g. `quote { 4 }`) resolves to a
+            // `Type::Constant` rather than being rejected as a non-`Normal` kind.
+            elaborator.use_type_with_kind(typ, &Kind::Any, wildcard_allowed)
         });
     Ok(Value::Type(typ))
 }
