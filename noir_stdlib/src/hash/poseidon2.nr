@@ -26,8 +26,9 @@ impl Hasher for Poseidon2Hasher {
             state = super::poseidon2_permutation(state);
         }
 
+        let absorbed = (input_length / RATE) * RATE;
         for i in 0..input_length % RATE {
-            state[i] += self._state[i];
+            state[i] += self._state[absorbed + i];
         }
 
         crate::hash::poseidon2_permutation(state)[0]
@@ -41,5 +42,53 @@ impl Hasher for Poseidon2Hasher {
 impl Default for Poseidon2Hasher {
     fn default() -> Self {
         Poseidon2Hasher { _state: [].as_vector() }
+    }
+}
+
+mod test {
+    use super::Poseidon2Hasher;
+    use crate::hash::Hasher;
+
+    // The residual block absorbs the unabsorbed tail elements. If it instead
+    // re-absorbed the prefix, mutating the trailing `len % RATE` elements would
+    // leave the digest unchanged, producing a collision.
+    #[test]
+    unconstrained fn finish_ref_does_not_drop_tail_at_length_4() {
+        let mut a = Poseidon2Hasher { _state: [].as_vector() };
+        a.write(1);
+        a.write(2);
+        a.write(3);
+        a.write(4);
+        let h_a = a.finish();
+
+        let mut b = Poseidon2Hasher { _state: [].as_vector() };
+        b.write(1);
+        b.write(2);
+        b.write(3);
+        b.write(99999);
+        let h_b = b.finish();
+
+        assert(h_a != h_b);
+    }
+
+    #[test]
+    unconstrained fn finish_ref_does_not_drop_tail_at_length_5() {
+        let mut a = Poseidon2Hasher { _state: [].as_vector() };
+        a.write(1);
+        a.write(2);
+        a.write(3);
+        a.write(4);
+        a.write(5);
+        let h_a = a.finish();
+
+        let mut b = Poseidon2Hasher { _state: [].as_vector() };
+        b.write(1);
+        b.write(2);
+        b.write(3);
+        b.write(77);
+        b.write(88);
+        let h_b = b.finish();
+
+        assert(h_a != h_b);
     }
 }
