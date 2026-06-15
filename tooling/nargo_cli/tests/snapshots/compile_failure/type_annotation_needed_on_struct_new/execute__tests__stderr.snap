@@ -10,10 +10,10 @@ warning: unused variable foo
    │
 
 error: Type annotation needed
-   ┌─ src/main.nr:11:20
+   ┌─ src/main.nr:11:15
    │
 11 │     let foo = Foo::new();
-   │                    --- Could not determine the type of the generic argument `T` declared on the struct `Foo`
+   │               -------- Could not determine the type of the generic argument `T` declared on the struct `Foo`
    │
 
 Aborting due to 1 previous error
