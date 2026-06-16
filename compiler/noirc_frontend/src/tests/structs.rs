@@ -679,8 +679,13 @@ fn non_overlapping_trait_impls_with_generic() {
 
 #[test]
 fn struct_takes_priority_over_global_with_same_name() {
+    // The struct (type namespace) and the global (value namespace) coexist under the same name.
+    // `Foo::bar()` resolves to the struct's impl, so the global is never referenced and is
+    // correctly reported as unused — the two namespaces are tracked independently.
     let src = r#"
         global Foo: u32 = 10;
+               ^^^ unused global Foo
+               ~~~ unused global
 
         struct Foo {}
 
@@ -692,5 +697,21 @@ fn struct_takes_priority_over_global_with_same_name() {
             Foo::bar();
         }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_struct_field_type() {
+    let src = r#"
+    pub struct Foo {
+        x: [_; _],
+            ^ The placeholder `_` is not allowed in struct field types
+               ^ The placeholder `_` is not allowed in struct field types
+    }
+
+    fn main() {
+        let _ = Foo { x: [1] };
+    }
+    "#;
+    check_errors(src);
 }

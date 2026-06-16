@@ -43,3 +43,32 @@ fn underflowing_i8() {
         "#;
     check_errors(src);
 }
+
+#[test]
+fn regression_10389_1() {
+    let src = r#"
+        fn main() {
+            let x = 255_u8;
+            match x {
+                -1 => {},
+                ^^ The value `-1` cannot fit into `u8` which has range `0..=255`
+                _ => {},
+            }
+        }
+        "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10389_2() {
+    let src = r#"
+        fn main(x: u8) {
+            match x {
+                -1 => {},
+                ^^ The value `-1` cannot fit into `u8` which has range `0..=255`
+                _ => {},
+            }
+        }
+        "#;
+    check_errors(src);
+}

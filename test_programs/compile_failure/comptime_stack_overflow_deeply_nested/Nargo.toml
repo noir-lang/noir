@@ -1,6 +1,0 @@
-[package]
-name = "comptime_stack_overflow_deeply_nested"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -9,6 +9,7 @@ use std::path::Path;
 
 use acvm::acir::circuit::Circuit;
 use acvm::acir::native_types::Witness;
+use noirc_abi::AbiErrorType;
 use noirc_driver::{
     CompileOptions, display_compiled_program, file_manager_with_stdlib, prepare_crate,
 };
@@ -65,6 +66,57 @@ fn print_acir_renders_static_assertion_payload() {
     let parsed = Circuit::from_str(circuit_text).expect("ACIR display should be parseable");
     assert_eq!(parsed.private_parameters, [Witness(0)].into_iter().collect());
     assert_eq!(parsed.opcodes, program.program.functions[0].opcodes);
+}
+
+#[test]
+fn folded_generic_str_assertion_has_no_stale_error_type() {
+    // A generic `str<N>` assertion message records a dynamic `custom string` error
+    // selector during SSA generation, but the constant string folds to a static-string
+    // assertion payload during ACIR lowering. The ABI should only advertise the
+    // reachable static-string selector, not the stale pre-fold dynamic selector.
+    let source = r#"
+    fn fail_with_generic_msg<T>(predicate: bool, msg: T) {
+        assert(predicate, msg);
+    }
+
+    fn main(x: pub Field) {
+        fail_with_generic_msg(x == 0, "bad");
+    }
+    "#;
+
+    let program = compile(source, false);
+
+    let error_types: Vec<&AbiErrorType> = program.abi.error_types.values().collect();
+    assert_eq!(
+        error_types,
+        vec![&AbiErrorType::String { string: "bad".to_string() }],
+        "expected only the reachable static-string error type"
+    );
+}
+
+#[test]
+fn dynamic_custom_error_type_is_preserved() {
+    // A non-string assertion payload is never folded to a static string, so its dynamic
+    // selector is genuinely emitted and must remain in the ABI.
+    let source = r#"
+    struct MyError {
+        code: Field,
+    }
+
+    fn main(x: pub Field) {
+        assert(x == 0, MyError { code: x });
+    }
+    "#;
+
+    let program = compile(source, false);
+
+    let error_types: Vec<&AbiErrorType> = program.abi.error_types.values().collect();
+    assert_eq!(error_types.len(), 1, "expected the dynamic custom error type to be retained");
+    assert!(
+        matches!(error_types[0], AbiErrorType::Custom(_)),
+        "expected a custom error type, got {:?}",
+        error_types[0]
+    );
 }
 
 #[test]
