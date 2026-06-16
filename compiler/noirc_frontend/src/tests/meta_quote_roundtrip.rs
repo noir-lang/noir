@@ -2,7 +2,7 @@
 //!
 //! These tests verify the critical invariant that values can be quoted and unquoted
 //! without loss of information. The roundtrip flow is:
-//! 1. Value → into_tokens() via $value in quote { $value }
+//! 1. Value → `into_tokens()` via $value in quote { $value }
 //! 2. Tokens stored in Quoted
 //! 3. Tokens → parse → evaluate via unquote!(...)
 //! 4. Assert resulting value equals original

@@ -1574,7 +1574,7 @@ fn associated_type_in_generic_impl() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type() {
     let src = r#"
@@ -1601,7 +1601,7 @@ fn associated_type_shorthand_in_return_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     let src = r#"
@@ -1637,7 +1637,7 @@ fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_simple_identity() {
     let src = r#"
@@ -1664,7 +1664,7 @@ fn associated_type_shorthand_simple_identity() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 #[test]
 fn associated_type_of_self_generic_in_param_position_for_parent() {
     let src = r#"
@@ -1687,7 +1687,7 @@ fn associated_type_of_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 #[test]
 fn associated_type_of_non_self_generic_in_param_position_for_parent() {
     // M::Key should resolve when Key is defined on parent trait KeyType
@@ -1711,7 +1711,7 @@ fn associated_type_of_non_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_param_position() {
     let src = r#"
@@ -1743,7 +1743,7 @@ fn associated_type_shorthand_in_param_position() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11549
+/// Regression test for <https://github.com/noir-lang/noir/issues/11549>
 #[test]
 fn nested_associated_type_access_fails() {
     // Bug: nested associated type resolution fails
@@ -1785,7 +1785,7 @@ fn nested_associated_type_access_fails() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_in_generic_function_local_var() {
     let src = r#"
@@ -1819,7 +1819,7 @@ fn associated_type_in_generic_function_local_var() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn generic_impl_with_associated_type_in_method_signature() {
     let src = r#"
@@ -1853,7 +1853,7 @@ fn generic_impl_with_associated_type_in_method_signature() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11550
+/// Regression test for <https://github.com/noir-lang/noir/issues/11550>
 #[test]
 fn generic_fn_returning_tuple_with_associated_type() {
     let src = r#"
@@ -1882,7 +1882,7 @@ fn generic_fn_returning_tuple_with_associated_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11551
+/// Regression test for <https://github.com/noir-lang/noir/issues/11551>
 #[test]
 fn trait_with_associated_type_used_in_other_method_signature() {
     let src = r#"
@@ -2005,7 +2005,7 @@ fn chained_associated_type_in_signature_rejects_wrong_concrete_impl_return() {
     check_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/12889
+/// Regression test for <https://github.com/noir-lang/noir/issues/12889>
 ///
 /// The projection `<Wrapper<T> as Mappable>::Target` has both a real generic impl and a
 /// `where Self: Mappable` assumed impl in scope. The real impl discharges the hypothesis,
@@ -2151,7 +2151,7 @@ fn ambiguous_impl_with_unbound_type_variable_still_errors() {
     check_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11538
+/// Regression test for <https://github.com/noir-lang/noir/issues/11538>
 #[test]
 fn associated_constant_can_reference_generic_from_trait_bound() {
     let src = r#"
@@ -2172,7 +2172,7 @@ fn associated_constant_can_reference_generic_from_trait_bound() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11538
+/// Regression test for <https://github.com/noir-lang/noir/issues/11538>
 #[test]
 fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     let src = r#"
@@ -2196,8 +2196,8 @@ fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
-/// M::Key resolves through a grandparent chain: A: B, B: C, type Key on C.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
+/// `M::Key` resolves through a grandparent chain: A: B, B: C, type Key on C.
 #[test]
 fn associated_type_of_generic_resolves_through_grandparent() {
     let src = r#"
@@ -2223,7 +2223,7 @@ fn associated_type_of_generic_resolves_through_grandparent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 /// Diamond inheritance: both paths to the same associated type should not cause ambiguity.
 /// C inherits from A and B, both of which inherit from Base which defines Key.
 #[test]
@@ -2253,8 +2253,8 @@ fn associated_type_of_generic_diamond_inheritance() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
-/// M::Key from a parent trait used in an impl method signature and body.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
+/// `M::Key` from a parent trait used in an impl method signature and body.
 #[test]
 fn associated_type_of_generic_in_impl_method() {
     let src = r#"
@@ -2283,7 +2283,7 @@ fn associated_type_of_generic_in_impl_method() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 /// Ambiguous associated type: M has bounds on two unrelated traits that each define Key.
 /// This should produce a clear error.
 #[test]
@@ -2364,7 +2364,7 @@ fn associated_type_conflict_with_parent() {
 }
 
 /// Diamond inheritance with a generic parameter: M: B + C where B shadows Key from A,
-/// and C inherits Key from A. M::Key is ambiguous.
+/// and C inherits Key from A. `M::Key` is ambiguous.
 #[test]
 fn associated_type_diamond_ambiguity_on_generic() {
     let src = r#"

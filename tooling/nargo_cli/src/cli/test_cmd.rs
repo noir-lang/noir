@@ -668,7 +668,7 @@ impl<'a> TestRunner<'a> {
         Ok((tests, coverage_baseline))
     }
 
-    /// Compiles a single package and returns the checked [Context] and the root [CrateId].
+    /// Compiles a single package and returns the checked [Context] and the root [`CrateId`].
     fn prepare_package_and_check_crate(
         &'a self,
         package: &'a Package,

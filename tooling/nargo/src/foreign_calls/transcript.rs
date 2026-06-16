@@ -56,7 +56,7 @@ where
     }
 }
 
-/// Replay an oracle transcript which was logged with [LoggingForeignCallExecutor].
+/// Replay an oracle transcript which was logged with [`LoggingForeignCallExecutor`].
 ///
 /// This is expected to be the last executor in the stack, e.g. prints can be handled above it.
 pub struct ReplayForeignCallExecutor<F> {

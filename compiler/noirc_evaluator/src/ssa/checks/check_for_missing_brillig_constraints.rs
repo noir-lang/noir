@@ -1,4 +1,4 @@
-//! This module defines the [Ssa::check_for_missing_brillig_constraints] method.
+//! This module defines the [`Ssa::check_for_missing_brillig_constraints`] method.
 //!
 //! It verifies that the output of Brillig calls is connected to the inputs of the calls
 //! by assertions; in other words, that the circuit has constraints that the output is
@@ -1354,7 +1354,7 @@ mod tests {
     #[traced_test]
     /// Test where Brillig calls' root result values are constrained against
     /// each other (covers a false negative edge case)
-    /// (https://github.com/noir-lang/noir/pull/6658#pullrequestreview-2482170066)
+    /// (<https://github.com/noir-lang/noir/pull/6658#pullrequestreview-2482170066>)
     fn test_root_result_intersection_false_negative() {
         let program = r#"
         acir(inline) fn main f0 {
@@ -1380,7 +1380,8 @@ mod tests {
 
     #[test]
     #[traced_test]
-    /// Test EnableSideEffectsIf conditions do not clear Brillig calls.
+    /// Test `EnableSideEffectsIf` conditions affecting the dependency graph
+    /// do not clear Brillig calls.
     /// (SSA a bit convoluted to work around simplification breaking the flow
     /// of the parsed test code). Note that the side effect variable is a
     /// descendant of the output of the call, and the constraint is on a
@@ -1984,7 +1985,7 @@ mod tests {
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
-    /// The array returned is longer than MAX_ARRAY_OUTPUT_LENGTH so we don't
+    /// The array returned is longer than `MAX_ARRAY_OUTPUT_LENGTH` so we don't
     /// track it item-by-item. The checker must fail closed instead of letting a
     /// constraint on a few items clear the whole array.
     #[test]

@@ -75,7 +75,7 @@ struct DocItemBuilder<'a> {
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
     visibility: ItemVisibility,
-    /// Maps an ItemId to the item it converted to.
+    /// Maps an `ItemId` to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
     /// include the item directly under the module that publicly exports it.
@@ -391,6 +391,8 @@ impl DocItemBuilder<'_> {
             Generic { name, numeric }
         });
         let r#type = self.convert_type(&impl_.typ);
+        let comments =
+            (!impl_.doc_comments.is_empty()).then(|| self.doc_comments_from(&impl_.doc_comments));
         let where_clause =
             vecmap(&impl_.where_clause, |constraint| self.convert_trait_constraint(constraint));
         self.trait_constraints = where_clause.clone();
@@ -401,7 +403,7 @@ impl DocItemBuilder<'_> {
             .map(|(_, func_id)| self.convert_function(func_id))
             .collect();
         self.trait_constraints.clear();
-        Impl { generics, r#type, where_clause, methods }
+        Impl { generics, r#type, where_clause, methods, comments }
     }
 
     fn convert_trait_impl(&mut self, item_trait_impl: expand_items::TraitImpl) -> TraitImpl {
@@ -745,9 +747,13 @@ impl DocItemBuilder<'_> {
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
+        let comments = self.interner.doc_comments(id)?;
+        Some(self.doc_comments_from(comments))
+    }
+
+    fn doc_comments_from(&mut self, comments: &[DocComment]) -> (String, Links) {
         self.link_finder.reset();
 
-        let comments = self.interner.doc_comments(id)?;
         let mut links = Vec::new();
         let mut line = 0;
 
@@ -769,14 +775,14 @@ impl DocItemBuilder<'_> {
 
         let comments =
             vecmap(comments, |comment| comment.contents.clone()).join("\n").trim().to_string();
-        Some((comments, links))
+        (comments, links)
     }
 
     /// The idea of this method is to find occurrences of markdown links and references in comments.
-    /// For each of these we try to resolve them to a ModuleDefId of sort, which
+    /// For each of these we try to resolve them to a `ModuleDefId` of sort, which
     /// is actually represented as a Link to a type, method, module, etc.
     ///
-    /// The doc generator ([html::to_html]) will then replace occurrences of these links
+    /// The doc generator ([`html::to_html`]) will then replace occurrences of these links
     /// with resolved HTML links.
     fn find_links_in_comments(&mut self, comments: &str) -> Links {
         let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
