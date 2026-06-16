@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["PerNs"]};
+window.SIDEBAR_ITEMS = {"enum":["Namespace"],"struct":["PerNs"]};

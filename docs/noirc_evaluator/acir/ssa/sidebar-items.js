@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["codegen_acir"],"type":["Artifacts"]};
+window.SIDEBAR_ITEMS = {"fn":["codegen_acir","used_dynamic_error_selectors"],"type":["Artifacts"]};
