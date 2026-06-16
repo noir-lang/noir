@@ -65,22 +65,24 @@ pub(super) fn optimize_internal<F: AcirField>(
     info!("Number of opcodes before: {}", acir.opcodes.len());
 
     // General optimizer pass: simplify expressions and remove trivially-satisfied constraints.
-    let (opcodes, acir_opcode_positions): (Vec<_>, Vec<_>) = acir
-        .opcodes
-        .into_iter()
-        .zip_eq(acir_opcode_positions)
-        .filter_map(|(opcode, position)| {
-            if let Opcode::AssertZero(arith_expr) = opcode {
-                let optimized = GeneralOptimizer::optimize(arith_expr);
-                if optimized.is_zero() {
-                    return None;
-                }
-                Some((Opcode::AssertZero(optimized), position))
-            } else {
-                Some((opcode, position))
-            }
-        })
-        .unzip();
+    let (opcodes, acir_opcode_positions): (Vec<_>, Vec<_>) =
+        tracing::trace_span!("general_optimizer").in_scope(|| {
+            acir.opcodes
+                .into_iter()
+                .zip_eq(acir_opcode_positions)
+                .filter_map(|(opcode, position)| {
+                    if let Opcode::AssertZero(arith_expr) = opcode {
+                        let optimized = GeneralOptimizer::optimize(arith_expr);
+                        if optimized.is_zero() {
+                            return None;
+                        }
+                        Some((Opcode::AssertZero(optimized), position))
+                    } else {
+                        Some((opcode, position))
+                    }
+                })
+                .unzip()
+        });
     let acir = Circuit { opcodes, ..acir };
 
     // Unused memory optimization pass

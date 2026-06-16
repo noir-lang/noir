@@ -92,6 +92,7 @@ pub(crate) struct RangeOptimizer<'a, F: AcirField> {
 impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
+    #[tracing::instrument(level = "trace", name = "redundant_range_collect", skip_all)]
     pub(crate) fn new(
         circuit: Circuit<F>,
         brillig_side_effects: &'a BTreeMap<BrilligFunctionId, bool>,
@@ -222,6 +223,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// a 'side-effect' opcode (i.e a Brillig call).
     /// As a result, we simply do a backward pass on the opcodes, so that the last Brillig call
     /// is known before reaching a RANGE opcode.
+    #[tracing::instrument(level = "trace", name = "redundant_range_replace", skip_all)]
     pub(crate) fn replace_redundant_ranges(
         self,
         order_list: Vec<usize>,

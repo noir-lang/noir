@@ -54,6 +54,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     ///   Plonk-ish backends. Although they have a limited width, they can potentially
     ///   handle expressions with large linear combinations using 'big-add' gates.
     /// - The CSAT pass should have been run prior to this one.
+    #[tracing::instrument(level = "trace", name = "merge_expressions", skip_all)]
     pub(crate) fn eliminate_intermediate_variable(
         &mut self,
         circuit: &Circuit<F>,
