@@ -329,16 +329,15 @@ fn expands_inherent_impl_inside_module() {
     pub struct Foo {
     }
 
-    impl Foo {
-        pub fn bar(self) -> u32 {
-            let _: Self = self;
-            1_u32
-        }
-    }
-
     mod impls {
         use crate::Foo;
 
+        impl Foo {
+            pub fn bar(self) -> u32 {
+                let _: Self = self;
+                1_u32
+            }
+        }
     }
 
     fn main() {
@@ -390,13 +389,6 @@ fn expands_trait_and_inherent_impl_inside_module() {
     pub struct Foo {
     }
 
-    impl Foo {
-        fn bar(self) -> u32 {
-            let _: Self = self;
-            1_u32
-        }
-    }
-
     impl Bar for Foo {
         fn bar(self) -> u32 {
             let _: Self = self;
@@ -411,6 +403,13 @@ fn expands_trait_and_inherent_impl_inside_module() {
     mod impls {
         use crate::Bar;
         use crate::Foo;
+
+        impl Foo {
+            fn bar(self) -> u32 {
+                let _: Self = self;
+                1_u32
+            }
+        }
 
         pub fn calls_inherent_bar(foo: Foo) -> u32 {
             foo.bar()

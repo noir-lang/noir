@@ -39,7 +39,10 @@ pub fn display_crate(
     interner: &NodeInterner,
     files: &FileMap,
 ) -> String {
-    let module = crate_to_module(crate_id, def_maps, interner);
+    // Reconstructing source: emit impls in their declaring module so module-private visibility is
+    // preserved.
+    let relocate_impls = true;
+    let module = crate_to_module(crate_id, def_maps, interner, relocate_impls);
 
     let dependencies = &crate_graph[crate_id].dependencies;
 
@@ -51,11 +54,22 @@ pub fn display_crate(
     string
 }
 
-pub fn crate_to_module(crate_id: CrateId, def_maps: &DefMaps, interner: &NodeInterner) -> Module {
+/// Reconstructs the crate as a tree of [`Module`]s for printing.
+///
+/// When `relocate_impls` is set, inherent `impl` blocks declared in a module other than the one
+/// defining their type are emitted in their declaring module (preserving method visibility on the
+/// `nargo expand` round-trip). When unset, every impl of a type stays grouped under that type, as
+/// `nargo doc` expects.
+pub fn crate_to_module(
+    crate_id: CrateId,
+    def_maps: &DefMaps,
+    interner: &NodeInterner,
+    relocate_impls: bool,
+) -> Module {
     let root_module_id = def_maps[&crate_id].root();
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
-    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
+    let mut builder = ItemBuilder::new(crate_id, interner, def_maps, relocate_impls);
     let mut module = builder.build_module(module_id);
     if crate_id.is_stdlib() {
         builder.add_primitive_types(&mut module.items);
@@ -124,6 +138,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             }
             Item::Global(global_id) => self.show_global(global_id),
             Item::Function(func_id) => self.show_function(func_id),
+            Item::Impl(impl_) => self.show_impl(impl_),
         }
     }
 
@@ -158,7 +173,12 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str("\n\n");
             }
             self.write_indent();
-            self.show_item_with_visibility(item, visibility);
+            // Relocated inherent impls carry no `ModuleDefId`, so they are shown directly rather
+            // than through the visibility-aware path used for named definitions.
+            match item {
+                Item::Impl(impl_) => self.show_impl(impl_),
+                item => self.show_item_with_visibility(item, visibility),
+            }
         }
 
         self.module_id = previous_module_id;

@@ -217,15 +217,10 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 13] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
     // `nargo expand` prints an associated-constant access by its bare name (e.g. `N`),
     // dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
     "comptime_resolve_associated_constant_scope",
-    // `nargo expand` hoists the `impl` blocks out of their module to the crate root, which makes
-    // the module-private inherent `bar` visible everywhere. The expanded program then resolves
-    // `(Foo {}).bar()` to the inherent method (returning 1) instead of the trait method
-    // (returning 2), so its execution result no longer matches the original program.
-    "private_inherent_method_resolves_to_trait",
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",

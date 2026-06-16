@@ -12,9 +12,7 @@ use crate::{
     hir::def_map::ModuleId,
     hir_def::traits::TraitConstraint,
     modules::module_def_id_to_reference_id,
-    node_interner::{
-        FuncId, GlobalId, ImplId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
-    },
+    node_interner::{FuncId, GlobalId, ImplId, Methods, TraitId, TraitImplId, TypeAliasId, TypeId},
     shared::Signedness,
 };
 use noirc_errors::Location;
@@ -36,6 +34,10 @@ pub enum Item {
     PrimitiveType(PrimitiveType),
     Global(GlobalId),
     Function(FuncId),
+    /// An inherent `impl` block declared in a module other than the one defining its type.
+    /// Such impls are emitted in their declaring module rather than next to the type, so the
+    /// reconstructed source preserves the module-private visibility of their methods.
+    Impl(Impl),
 }
 
 impl Item {
@@ -48,6 +50,7 @@ impl Item {
             Item::PrimitiveType(_) => return None,
             Item::Global(global_id) => ModuleDefId::GlobalId(*global_id),
             Item::Function(func_id) => ModuleDefId::FunctionId(*func_id),
+            Item::Impl(_) => return None,
         })
     }
 }
@@ -84,6 +87,10 @@ pub struct Impl {
     pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<(ItemVisibility, FuncId)>,
     pub doc_comments: Vec<DocComment>,
+    /// The module the `impl` block was declared in.
+    pub module_id: ModuleId,
+    /// The location of the `impl` block, used to order it among the other items of its module.
+    pub location: Location,
 }
 
 #[derive(Clone)]
@@ -110,6 +117,14 @@ pub(super) struct ItemBuilder<'context> {
     def_maps: &'context DefMaps,
     /// All trait implementations in the current crate.
     trait_impls: HashSet<TraitImplId>,
+    /// Whether inherent `impl` blocks declared in a module other than the one defining their type
+    /// should be emitted in their declaring module (`true`, used by `nargo expand` to reconstruct
+    /// faithful, visibility-preserving source) rather than next to the type (`false`, used by
+    /// `nargo doc`, which groups every impl of a type under that type like rustdoc).
+    relocate_impls: bool,
+    /// Inherent `impl` blocks to emit away from their type, keyed by their declaring module.
+    /// Always empty when `relocate_impls` is `false`. See [`Item::Impl`].
+    relocated_impls: BTreeMap<ModuleId, Vec<Impl>>,
 }
 
 impl<'context> ItemBuilder<'context> {
@@ -117,9 +132,47 @@ impl<'context> ItemBuilder<'context> {
         crate_id: CrateId,
         interner: &'context NodeInterner,
         def_maps: &'context DefMaps,
+        relocate_impls: bool,
     ) -> Self {
         let trait_impls = interner.get_trait_implementations_in_crate(crate_id);
-        Self { crate_id, interner, def_maps, trait_impls }
+        let mut builder = Self {
+            crate_id,
+            interner,
+            def_maps,
+            trait_impls,
+            relocate_impls,
+            relocated_impls: BTreeMap::new(),
+        };
+        builder.relocated_impls = builder.collect_relocated_impls();
+        builder
+    }
+
+    /// Builds the map of inherent `impl` blocks that must be emitted away from their type because
+    /// they were declared in a different module. An impl declared in the same module as its type
+    /// keeps being emitted next to the type (see [`Self::build_data_type`]). Empty unless
+    /// [`Self::relocate_impls`] is set.
+    fn collect_relocated_impls(&self) -> BTreeMap<ModuleId, Vec<Impl>> {
+        let mut relocated: BTreeMap<ModuleId, Vec<Impl>> = BTreeMap::new();
+        if !self.relocate_impls {
+            return relocated;
+        }
+        for impl_id in self.interner.get_impls_in_crate(self.crate_id) {
+            let impl_ = self.interner.get_impl(impl_id);
+            let Type::DataType(data_type, _) = impl_.typ.follow_bindings() else {
+                continue;
+            };
+            let type_module = data_type.borrow().id.parent_module_id(self.def_maps);
+            if impl_.module_id == type_module {
+                continue;
+            }
+            if let Some(impl_) = self.build_impl(impl_id) {
+                relocated.entry(impl_.module_id).or_default().push(impl_);
+            }
+        }
+        for impls in relocated.values_mut() {
+            impls.sort_by_key(|impl_| impl_.location);
+        }
+        relocated
     }
 
     pub(super) fn build_module(&mut self, module_id: ModuleId) -> Module {
@@ -170,12 +223,28 @@ impl<'context> ItemBuilder<'context> {
 
         imports.sort_by_key(|import| import.name.location());
 
-        let items = definitions
+        let mut located_items = definitions
             .into_iter()
-            .filter_map(|(module_def_id, visibility, _location)| {
+            .filter_map(|(module_def_id, visibility, location)| {
                 let structure = self.build_module_def_id(module_def_id)?;
-                Some((visibility, structure))
+                Some((location, visibility, structure))
             })
+            .collect::<Vec<_>>();
+
+        // Inherent impls declared in this module but whose type lives elsewhere are emitted here,
+        // ordered by location among the module's other items. An `impl` block has no visibility
+        // keyword in Noir, so the paired visibility is an inert placeholder: `Item::Impl` is shown
+        // via `show_impl`, which never consults the item-level visibility.
+        if let Some(relocated) = self.relocated_impls.remove(&module_id) {
+            for impl_ in relocated {
+                located_items.push((impl_.location, ItemVisibility::Private, Item::Impl(impl_)));
+            }
+            located_items.sort_by_key(|(location, _, _)| *location);
+        }
+
+        let items = located_items
+            .into_iter()
+            .map(|(_location, visibility, item)| (visibility, item))
             .collect();
 
         Module { id: module_id, name, is_contract, imports, items }
@@ -202,13 +271,21 @@ impl<'context> ItemBuilder<'context> {
     fn build_data_type(&self, type_id: TypeId) -> Item {
         let data_type = self.interner.get_type(type_id);
 
-        let impls = if let Some(methods) =
+        let mut impls = if let Some(methods) =
             self.interner.get_type_methods(&Type::DataType(data_type.clone(), vec![]))
         {
             self.build_impls(methods.values())
         } else {
             Vec::new()
         };
+
+        // When relocating, impls declared in a different module than the type are emitted in their
+        // own module (see [`Self::collect_relocated_impls`]); only keep the ones declared alongside
+        // the type here. Otherwise every impl of the type stays grouped under it.
+        if self.relocate_impls {
+            let type_module = type_id.parent_module_id(self.def_maps);
+            impls.retain(|impl_| impl_.module_id == type_module);
+        }
 
         let data_type = data_type.borrow();
         let trait_impls = self.build_data_type_trait_impls(&data_type);
@@ -217,62 +294,56 @@ impl<'context> ItemBuilder<'context> {
     }
 
     fn build_impls<'a, 'b>(&'a self, methods: impl Iterator<Item = &'b Methods>) -> Vec<Impl> {
-        // Gather all impl methods
-        // First split methods by impl methods and trait impl methods
-        let mut impl_methods = Vec::new();
-
-        for methods in methods {
-            impl_methods.extend(methods.direct.clone());
-        }
-
-        // Don't show enum variant functions
-        impl_methods.retain(|method| {
-            let meta = self.interner.function_meta(&method.method);
-            meta.enum_variant_index.is_none()
-        });
-
-        // Group methods by the `impl` block they were declared in, so each `impl` block is
+        // Collect the distinct inherent `impl` blocks that own these methods, so each block is
         // reconstructed individually (preserving its generics and where clause).
-        let mut impl_methods_by_impl_id: BTreeMap<ImplId, Vec<ImplMethod>> = BTreeMap::new();
-        for method in impl_methods {
-            let Some(impl_id) = self.interner.function_meta(&method.method).impl_id else {
-                continue;
-            };
-            impl_methods_by_impl_id.entry(impl_id).or_default().push(method);
+        let mut impl_ids: BTreeSet<ImplId> = BTreeSet::new();
+        for methods in methods {
+            for method in &methods.direct {
+                if let Some(impl_id) = self.interner.function_meta(&method.method).impl_id {
+                    impl_ids.insert(impl_id);
+                }
+            }
         }
 
-        impl_methods_by_impl_id
-            .into_iter()
-            .map(|(impl_id, methods)| self.build_impl(impl_id, methods))
-            .collect()
+        impl_ids.into_iter().filter_map(|impl_id| self.build_impl(impl_id)).collect()
     }
 
-    fn build_impl(&self, impl_id: ImplId, methods: Vec<ImplMethod>) -> Impl {
+    /// Reconstructs a single inherent `impl` block. Returns `None` if the block has no methods to
+    /// show (e.g. it only holds synthesized enum-variant constructors).
+    fn build_impl(&self, impl_id: ImplId) -> Option<Impl> {
         let impl_ = self.interner.get_impl(impl_id);
 
-        let mut methods = methods
-            .into_iter()
-            .map(|method| {
-                let func_id = method.method;
-                let func_meta = self.interner.function_meta(&func_id);
-                let modifiers = self.interner.function_modifiers(&func_id);
+        let mut methods = impl_
+            .methods
+            .iter()
+            // Don't show enum variant functions
+            .filter(|func_id| self.interner.function_meta(func_id).enum_variant_index.is_none())
+            .map(|func_id| {
+                let func_meta = self.interner.function_meta(func_id);
+                let modifiers = self.interner.function_modifiers(func_id);
                 let location = func_meta.name.location;
-                (modifiers.visibility, func_id, location)
+                (modifiers.visibility, *func_id, location)
             })
             .collect::<Vec<_>>();
+
+        if methods.is_empty() {
+            return None;
+        }
 
         methods.sort_by_key(|(_, _, location)| *location);
 
         let methods =
             methods.into_iter().map(|(visibility, func_id, _)| (visibility, func_id)).collect();
 
-        Impl {
+        Some(Impl {
             generics: impl_.generics.clone(),
             typ: impl_.typ.clone(),
             where_clause: impl_.where_clause.clone(),
             methods,
             doc_comments: impl_.doc_comments.clone(),
-        }
+            module_id: impl_.module_id,
+            location: impl_.location,
+        })
     }
 
     fn build_data_type_trait_impls(&self, data_type: &crate::DataType) -> Vec<TraitImpl> {
