@@ -31,6 +31,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 #[cfg(debug_assertions)]
 pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
+#[cfg(debug_assertions)]
 pub(crate) mod flatten_post_check;
 
 use crate::ssa::{
