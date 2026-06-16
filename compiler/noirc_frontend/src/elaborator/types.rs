@@ -1403,8 +1403,7 @@ impl Elaborator<'_> {
     fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
         let path_resolution = self.use_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
-        self.define_function_meta_if_undefined(func_id);
-        let meta = self.interner.try_function_meta(&func_id)?;
+        let meta = self.try_function_meta(func_id)?;
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
         let method = the_trait.find_method(path.last_name(), self.interner)?;
