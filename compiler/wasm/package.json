@@ -76,7 +76,7 @@
     "ts-loader": "^9.6.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
-    "unzipit": "^2.0.1",
+    "unzipit": "^2.0.3",
     "url": "^0.11.4",
     "webpack": "^5.107.2",
     "webpack-cli": "^7.0.2",
