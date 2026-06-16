@@ -1628,6 +1628,53 @@ fn confirmed_move_for_variable_reassigned_in_the_loop() {
     ");
 }
 
+/// Regression: `a = c` reassigns `a` from the bare variable `c`, which holds the
+/// buffer just moved out of `a` via `c = { ...; a }`. Reassignment alone would mark
+/// `a` killed and let its loop-carried last use be moved, but `c` may alias the moved
+/// buffer, so the use of `a` in the block tail must be CLONED. Otherwise `a` and `c`
+/// share one refcount-1 buffer and `c[0] = 99` corrupts `a` in place.
+#[test]
+fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
+    let src = "
+    unconstrained fn main() -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        let mut j: u32 = 0;
+        while j < 2 {
+            j += 1;
+            c = {
+                let mut i: u32 = 0;
+                while i < 1 { i += 1; c[0] = 99; };
+                a
+            };
+            a = c;
+        }
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [Field; 2] {
+        let mut a$l0 = [1, 2];
+        let mut c$l1 = [10, 20];
+        let mut j$l2 = 0;
+        while (j$l2 < 2) {
+            j$l2 = (j$l2 + 1);
+            c$l1 = {
+                let mut i$l3 = 0;
+                while (i$l3 < 1) {
+                    i$l3 = (i$l3 + 1);
+                    c$l1[0] = 99
+                };
+                a$l0.clone()
+            };
+            a$l0 = c$l1.clone()
+        };
+        a$l0
+    }
+    ");
+}
+
 /// Regression: when a nested array is passed alongside one of its inner arrays
 /// (`foo(a, a[1])`), `a[1]` is the textually-last use of `a`, but moving `a`
 /// only transfers the outer array's reference count. The inner array at

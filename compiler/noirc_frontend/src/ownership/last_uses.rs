@@ -391,8 +391,12 @@ impl LastUseContext {
             {
                 let confirmed: Vec<_> = uses.drain(pending_before..).collect();
                 self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
-            } else {
-                // x does not appear in RHS: fresh value, safe to treat as killed
+            } else if rhs_cannot_alias(&assign.expression) {
+                // x does not appear in RHS and RHS is a fresh allocation (or scalar), so each
+                // iteration produces an independent value: safe to treat as killed. A place
+                // expression RHS (e.g. a bare variable) may alias the buffer being moved out of
+                // x within the loop, so it must NOT be marked killed — that would let loop
+                // truncation skip and wrongly enable a move, sharing one refcount-1 buffer.
                 self.killed.insert(*local_id);
             }
             return;
@@ -437,6 +441,35 @@ impl LastUseContext {
                 unreachable!("LValue::Clone should only be inserted by the ownership pass")
             }
         }
+    }
+}
+
+/// Returns `true` if assigning `expr` to a variable produces a value whose outer buffer
+/// identity cannot alias the buffer being moved out of that variable by the same assignment.
+///
+/// Only fresh allocations and scalar literals qualify. A fresh allocation gets a new outer
+/// reference count, so moving the variable's prior in-loop uses cannot recreate a refcount-1
+/// alias with the reassigned value. A place expression (`Ident`, `Index`, member access, …),
+/// call result, or block tail may evaluate to an existing buffer and is treated as aliasing.
+///
+/// Only the OUTER buffer matters here; inner-array aliasing inside `[a, b]` or `[arr; N]` is
+/// handled separately by clone insertion at element/index sites, so array, vector, and repeated
+/// literals are fresh at this level regardless of their element expressions.
+fn rhs_cannot_alias(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(literal) => matches!(
+            literal,
+            Literal::Array(_)
+                | Literal::Vector(_)
+                | Literal::Repeated { .. }
+                | Literal::Integer(..)
+                | Literal::Bool(_)
+                | Literal::Unit
+                | Literal::Str(_)
+        ),
+        // A cast cannot change buffer identity, so it is fresh iff its operand is.
+        Expression::Cast(cast) => rhs_cannot_alias(&cast.lhs),
+        _ => false,
     }
 }
 
