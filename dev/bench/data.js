@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781622867560,
+  "lastUpdate": 1781622950332,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "18906e1adcfacc795ae88d47dabb4fa803faf074",
-          "message": "fix(ssa): keep checked overflow check when simplifying +0/-0/*1 on unfit operands (#12982)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-10T13:00:46Z",
-          "tree_id": "4e1dfd99ed41bed2b8306be079241a50eeddd5df",
-          "url": "https://github.com/noir-lang/noir/commit/18906e1adcfacc795ae88d47dabb4fa803faf074"
-        },
-        "date": 1781099510475,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 287.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 311.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 283.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 360.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 360.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 360.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 467.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 478.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 359.73,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 82.32,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 77.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "d32027552301e087dec5a199b5f5ba9749662d5b",
           "message": "fix(licm): don't use loop bounds as a value range for non-unit-step != loops (#12981)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
           "timestamp": "2026-06-10T13:38:12Z",
@@ -19280,6 +19191,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 360.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 468.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 478.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 360.29,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 82.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 78.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dcb00fde1c8f1eaa15b9c3d42ca4c27669f8fef2",
+          "message": "chore(CI): Consolidate repeat tests (#13064)",
+          "timestamp": "2026-06-16T14:33:28Z",
+          "tree_id": "fbee483ed000cb114ba3f1ef84c5ebc3ccb82b7e",
+          "url": "https://github.com/noir-lang/noir/commit/dcb00fde1c8f1eaa15b9c3d42ca4c27669f8fef2"
+        },
+        "date": 1781622876056,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 287.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 312.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 283.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 360.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 360.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 360.77,
             "unit": "MB"
           },
           {
