@@ -557,13 +557,17 @@ pub fn create_program_with_passes(
 
     let artifacts = optimize_into_acir(program, options, passes, files)?;
 
-    Ok(combine_artifacts(
-        artifacts,
-        &arg_size_and_visibilities,
-        debug_variables,
-        debug_functions,
-        debug_types,
-    ))
+    let combined = time("Combine artifacts", options.print_codegen_timings, || {
+        combine_artifacts(
+            artifacts,
+            &arg_size_and_visibilities,
+            debug_variables,
+            debug_functions,
+            debug_types,
+        )
+    });
+
+    Ok(combined)
 }
 
 pub fn combine_artifacts(
