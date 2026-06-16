@@ -53,6 +53,34 @@ fn comptime_type_in_runtime_code() {
 }
 
 #[test]
+fn comptime_type_in_constructor_in_runtime_code() {
+    let source = r#"
+    comptime struct MetaOnly {
+        value: Field,
+    }
+
+    struct RuntimeStruct {
+        value: Field,
+    }
+
+    comptime type MetaAlias = RuntimeStruct;
+
+    fn id<T>(x: T) -> T {
+        x
+    }
+
+    fn main() -> pub Field {
+        let direct = id(MetaOnly { value: 10 });
+                        ^^^^^^^^ Comptime-only type `MetaOnly` cannot be used in non-comptime function
+        let alias = MetaAlias { value: 32 };
+                    ^^^^^^^^^ Comptime-only type `MetaAlias` cannot be used in non-comptime function
+        direct.value + alias.value
+    }
+    "#;
+    check_errors(source);
+}
+
+#[test]
 fn macro_result_type_mismatch() {
     let src = r#"
         fn main() {
