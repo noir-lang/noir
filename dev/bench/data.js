@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781618938647,
+  "lastUpdate": 1781621889310,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0822a51a73aa1a54d84c4848dfdfb4b4bce83662",
-          "message": "chore(ssa): document why remove_unreachable_instructions is correct (#12991)",
-          "timestamp": "2026-06-10T13:05:52Z",
-          "tree_id": "f54b6f4d5ebbc4fad0ea081dc13aa92aa3f7e5e6",
-          "url": "https://github.com/noir-lang/noir/commit/0822a51a73aa1a54d84c4848dfdfb4b4bce83662"
-        },
-        "date": 1781098420776,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126838,
-            "range": "± 845",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113202,
-            "range": "± 1429",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043975,
-            "range": "± 12400",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656468,
             "range": "± 1749",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dcb00fde1c8f1eaa15b9c3d42ca4c27669f8fef2",
+          "message": "chore(CI): Consolidate repeat tests (#13064)",
+          "timestamp": "2026-06-16T14:33:28Z",
+          "tree_id": "fbee483ed000cb114ba3f1ef84c5ebc3ccb82b7e",
+          "url": "https://github.com/noir-lang/noir/commit/dcb00fde1c8f1eaa15b9c3d42ca4c27669f8fef2"
+        },
+        "date": 1781621815586,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167186,
+            "range": "± 411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136588,
+            "range": "± 509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655149,
+            "range": "± 2271",
             "unit": "ns/iter"
           }
         ]
