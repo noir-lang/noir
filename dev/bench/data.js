@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781629131611,
+  "lastUpdate": 1781629300116,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23215,48 +23215,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "7e0660dccc07a976c82506d32496cb9b4c67f690",
-          "message": "fix: loop pre-header block collection (#12928)",
-          "timestamp": "2026-06-11T13:03:39Z",
-          "tree_id": "3c331627b67ff263429062fdfe53b492776d727b",
-          "url": "https://github.com/noir-lang/noir/commit/7e0660dccc07a976c82506d32496cb9b4c67f690"
-        },
-        "date": 1781185002673,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126809,
-            "range": "± 465",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112801,
-            "range": "± 2333",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042707,
-            "range": "± 2410",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "65339fcf11c5bf5b1da916deacbd2a69ca55f725",
           "message": "chore: unit test to demonstrate the simplification (#13016)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657974,
             "range": "± 4052",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4b972fd171973e6e20f8e87bf1af3bfa861aed4b",
+          "message": "fix(ssa): Add constraint when simplifying zero-sized vector remove (#13069)",
+          "timestamp": "2026-06-16T16:39:08Z",
+          "tree_id": "49113cab2c027141dfd0dd002dc1d126642d5cae",
+          "url": "https://github.com/noir-lang/noir/commit/4b972fd171973e6e20f8e87bf1af3bfa861aed4b"
+        },
+        "date": 1781629230380,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166833,
+            "range": "± 1279",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 134801,
+            "range": "± 4262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650833,
+            "range": "± 16282",
             "unit": "ns/iter"
           }
         ]
