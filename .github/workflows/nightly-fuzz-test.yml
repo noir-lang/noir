@@ -78,8 +78,5 @@ jobs:
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             seed-count: ${{ steps.seeds.outputs.seed_count }}
-            # Quote the seeds: a lone seed like `0x6819c61400001000` is otherwise
-            # parsed as a YAML hex integer and forwarded to Slack in decimal,
-            # losing the exact value needed to reproduce the failure.
             seeds: "${{ steps.seeds.outputs.seeds }}"
             artifact-name: nightly-fuzz-failure
