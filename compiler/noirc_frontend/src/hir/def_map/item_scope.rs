@@ -18,6 +18,13 @@ pub struct NamespaceItem {
 pub struct ItemScope {
     types: BTreeMap<Ident, NamespaceItem>,
     values: BTreeMap<Ident, NamespaceItem>,
+
+    /// Every definition added via [`Self::add_definition`], in declaration (insertion) order.
+    ///
+    /// `types` and `values` are keyed by [Ident] and so are ordered alphabetically; they can't
+    /// recover the order items were written in. `defs` preserves that order for [`Self::definitions`],
+    /// which backs the comptime `Module::functions` / `Module::structs` reflection — those expose a
+    /// module's items in source order (as Rust's proc-macros see them), not alphabetically.
     defs: Vec<ModuleDefId>,
 }
 
