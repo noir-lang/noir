@@ -2,7 +2,7 @@
 //! 1) field addition
 //! 2) jmpif
 //! 3) mutable variable
-//! 4) Test that from_le_radix(to_le_radix(field)) == field
+//! 4) Test that `from_le_radix(to_le_radix(field))` == field
 //! 5) Test that function can return array
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
@@ -14,7 +14,7 @@ use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use std::sync::Arc;
 
-/// Test basic field addition: field_0 + field_1 = 1
+/// Test basic field addition: `field_0` + `field_1` = 1
 #[test]
 fn test_field_addition_zero_plus_one() {
     let _ = env_logger::try_init();
@@ -63,11 +63,13 @@ fn test_field_addition_zero_plus_one() {
     }
 }
 
+/// ```text
 ///                b0
 ///if(LAST_BOOL) ↙   ↘ else
 ///             b1    b2
 ///              ↘   ↙
 ///                b3
+/// ```
 /// suppose that b1 is failing block, b2 is succeeding block
 /// jmpif uses last boolean value defined in the block as condition
 /// for first program last boolean value is false
@@ -131,6 +133,7 @@ fn test_jmp_if() {
     assert!(result.get_return_witnesses().is_empty());
 }
 
+/// ```text
 /// fn main f0 {
 ///   b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///     v7 = allocate -> &mut Field
@@ -143,6 +146,7 @@ fn test_jmp_if() {
 ///     v10 = add v9, v2
 ///     return v10
 /// }
+/// ```
 /// v0 = 0, v2 = 2, so we expect that v10 = 4
 #[test]
 fn test_mutable_variable() {
@@ -203,7 +207,7 @@ fn test_mutable_variable() {
     }
 }
 
-/// from_le_radix(to_le_radix(field)) == field
+/// `from_le_radix(to_le_radix(field))` == field
 #[test]
 fn smoke_test_field_to_bytes_to_field() {
     let _ = env_logger::try_init();

@@ -1,4 +1,4 @@
-//! This can most likely be imported from acvm_js to avoid redefining it here.
+//! This can most likely be imported from `acvm_js` to avoid redefining it here.
 
 use acvm::{
     AcirField, FieldElement,

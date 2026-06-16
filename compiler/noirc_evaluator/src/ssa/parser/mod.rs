@@ -43,7 +43,7 @@ impl FromStr for Ssa {
     type Err = SsaErrorWithSource;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str_impl(s, false, true)
+        Self::from_str_impl(s, false, true, false)
     }
 }
 
@@ -56,22 +56,36 @@ impl Ssa {
 
     /// Creates an Ssa object from the given string without running SSA validation
     pub fn from_str_no_validation(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, false, false)
+        Self::from_str_impl(src, false, false, false)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
-    pub fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, true, true)
+    ///
+    /// Only used in unit tests: simplification runs with the panic-on-malformed
+    /// behavior left enabled, so malformed input is surfaced loudly rather than
+    /// silently passed through.
+    #[cfg(test)]
+    pub(crate) fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        Self::from_str_impl(src, true, true, false)
     }
 
-    fn from_str_impl(src: &str, simplify: bool, validate: bool) -> Result<Ssa, SsaErrorWithSource> {
+    /// Parses the SSA, optionally simplifying each instruction as it's inserted, optionally running
+    /// validation, and optionally allowing the `simplify_*` routines to decline (rather than panic)
+    /// on malformed input. The `allow_malformed` path is only exercised by unit tests; see
+    /// [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
+    pub(crate) fn from_str_impl(
+        src: &str,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         let parsed_ssa =
             parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         parsed_ssa
-            .into_ssa(simplify, validate)
+            .into_ssa(simplify, validate, allow_malformed)
             .map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }
@@ -945,24 +959,30 @@ impl<'a> Parser<'a> {
 
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
-            let value = self.eat_int_or_error()?;
+            let dash_span = self.token.span();
+            let negative = self.eat(Token::Dash)?;
+            let magnitude = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
 
-            let value = if typ.is_signed() {
-                let bit_size = typ.bit_size();
-                let max_bit_pattern = FieldElement::from(2u128.pow(bit_size) - 1);
-                if value > max_bit_pattern {
-                    // Negative literal: eat_int() returned p - magnitude (field negation).
-                    // Convert to two's complement bit pattern: 2^bit_size + (p - magnitude) mod p
-                    FieldElement::from(2u128.pow(bit_size)) + value
-                } else {
-                    value
-                }
+            // The sign is taken from the literal's syntax, not inferred from the
+            // magnitude. The IR does not normalize numeric constants into their type's
+            // range, and the printer emits a signed value whose field representation is
+            // out of range verbatim as a positive literal (e.g. `i8 256`); re-parsing it
+            // must reproduce that field value rather than mistake it for a negative one.
+            let value = if negative && typ.is_signed() {
+                // Two's complement field value of `-magnitude`, computed exactly as the
+                // inverse of how the printer renders a negative signed integer
+                // (`2^bit_size - value`, in field arithmetic).
+                FieldElement::from(2u32).pow(&typ.bit_size().into()) - magnitude
+            } else if negative {
+                // The printer never emits a `-` for an unsigned type (it prints the raw
+                // field value), so a negative unsigned literal is not valid SSA.
+                return Err(ParserError::NegativeUnsignedLiteral { span: dash_span });
             } else {
-                value
+                magnitude
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
@@ -1334,6 +1354,8 @@ pub(crate) enum ParserError {
     UnexpectedOffset { found: Token, span: Span },
     #[error("Invalid integer value")]
     InvalidInteger { found: Token, span: Span },
+    #[error("Unsigned integers cannot be negative, but a negative literal was given")]
+    NegativeUnsignedLiteral { span: Span },
 }
 
 impl ParserError {
@@ -1354,7 +1376,8 @@ impl ParserError {
             | ParserError::ExpectedU32 { span, .. }
             | ParserError::ExpectedUSize { span, .. }
             | ParserError::UnexpectedOffset { span, .. }
-            | ParserError::InvalidInteger { span, .. } => *span,
+            | ParserError::InvalidInteger { span, .. }
+            | ParserError::NegativeUnsignedLiteral { span } => *span,
 
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span

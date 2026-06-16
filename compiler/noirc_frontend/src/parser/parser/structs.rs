@@ -9,9 +9,9 @@ use crate::{
 use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
 impl Parser<'_> {
-    /// Struct = 'struct' identifier Generics '{' StructField* '}'
+    /// Struct = 'struct' identifier Generics '{' `StructField`* '}'
     ///
-    /// StructField = OuterDocComments identifier ':' Type
+    /// `StructField` = `OuterDocComments` identifier ':' Type
     pub(crate) fn parse_struct(
         &mut self,
         attributes: Vec<(Attribute, Location)>,

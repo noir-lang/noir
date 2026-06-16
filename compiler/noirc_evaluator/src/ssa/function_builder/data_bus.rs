@@ -136,7 +136,7 @@ impl DataBus {
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
         self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
-    /// Construct a databus from call_data and return_data data bus builders
+    /// Construct a databus from `call_data` and `return_data` data bus builders
     pub(crate) fn get_data_bus(
         call_data: Vec<DataBusBuilder>,
         return_data: DataBusBuilder,
@@ -186,11 +186,7 @@ impl FunctionBuilder {
                             continue;
                         }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
-                        index += match subitem_typ {
-                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size().0,
-                            Type::Numeric(_) => 1,
-                            _ => unreachable!("Unsupported type for databus"),
-                        };
+                        index += 1;
                         self.add_to_data_bus(element, databus);
                     }
                 }

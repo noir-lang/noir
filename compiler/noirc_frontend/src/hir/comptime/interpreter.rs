@@ -30,7 +30,7 @@
 //! we cannot continue otherwise. This can result in similar errors being issued for the same
 //! code. For example, a function's body may fail to type check, but that same function may
 //! be called in the interpreter later on where we'd presumably halt with a similar error.
-//! [InterpreterError::ArgumentCountMismatch] is an example of such an error.
+//! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
@@ -365,16 +365,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
-        let Some(old_module) = old_module else {
-            // The module should always be set by the time we're interpreting comptime code
-            panic!("ICE: Expected local_module to be set when calling a closure");
-        };
-        self.elaborator.replace_module(old_module);
+        self.elaborator.restore_module(old_module);
         result
     }
 
     /// Performs the bulk of the work for calling a closure function.
-    /// This function is very similar to [Self::call_user_defined_function]
+    /// This function is very similar to [`Self::call_user_defined_function`]
     /// with the main difference being handling of `closure.captures`.
     fn call_closure_inner(
         &mut self,
@@ -415,24 +411,28 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Enters a function, pushing a new scope and resetting any required state.
     /// Returns the previous values of the internal state, to be reset when
-    /// [Self::exit_function] is called.
-    pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
-        // Drain every scope except the global scope
-        let mut scope = Vec::new();
-        if self.elaborator.interner.comptime_scopes.len() > 1 {
-            scope = self.elaborator.interner.comptime_scopes.drain(1..).collect();
-        }
+    /// [`Self::exit_function`] is called.
+    ///
+    /// Rather than physically removing the caller's scopes, the scope floor is raised to the top
+    /// of the scope stack so the callee only sees its own scopes plus the global scope. This keeps
+    /// entering a function O(1) regardless of how deep the call stack is.
+    pub(super) fn enter_function(&mut self) -> (bool, usize) {
+        let interner = &mut self.elaborator.interner;
+        let previous_floor =
+            std::mem::replace(&mut interner.comptime_scope_floor, interner.comptime_scopes.len());
         self.push_scope();
-        (std::mem::take(&mut self.in_loop), scope)
+        (std::mem::take(&mut self.in_loop), previous_floor)
     }
 
-    /// Resets the per-function state to the value previously returned by [Self::enter_function]
-    pub(super) fn exit_function(&mut self, mut state: (bool, Vec<HashMap<DefinitionId, Value>>)) {
+    /// Resets the per-function state to the value previously returned by [`Self::enter_function`]
+    pub(super) fn exit_function(&mut self, state: (bool, usize)) {
         self.in_loop = state.0;
 
-        // Keep only the global scope
-        self.elaborator.interner.comptime_scopes.truncate(1);
-        self.elaborator.interner.comptime_scopes.append(&mut state.1);
+        // Drop every scope this function pushed (the current floor is the length recorded on entry)
+        // before restoring the caller's floor.
+        let interner = &mut self.elaborator.interner;
+        interner.comptime_scopes.truncate(interner.comptime_scope_floor);
+        interner.comptime_scope_floor = state.1;
     }
 
     /// Pushes a new scope to define any variables in.
@@ -615,8 +615,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
-            if let Entry::Occupied(mut entry) = scope.entry(id) {
+        let floor = self.elaborator.interner.comptime_scope_floor;
+        let scopes = &mut self.elaborator.interner.comptime_scopes;
+
+        // Search the current function's scopes from innermost outwards, then fall back to the
+        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
+        // are skipped so a callee cannot mutate its caller's locals.
+        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
+            if let Entry::Occupied(mut entry) = scopes[index].entry(id) {
                 match entry.get() {
                     Value::Pointer(reference, true, _) => {
                         // We can't store to the reference directly, we need to check if the value
@@ -641,8 +647,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Lookup the comptime value of the given definition
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        for scope in self.elaborator.interner.comptime_scopes.iter().rev() {
-            if let Some(value) = scope.get(&id) {
+        let floor = self.elaborator.interner.comptime_scope_floor;
+        let scopes = &self.elaborator.interner.comptime_scopes;
+
+        // Search the current function's scopes from innermost outwards, then fall back to the
+        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
+        // are skipped so a callee cannot see its caller's locals.
+        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
+            if let Some(value) = scopes[index].get(&id) {
                 return Ok(value.clone());
             }
         }
@@ -666,6 +678,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         match self.evaluate_no_dereference(id)? {
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // dereferenced automatically on use, regardless of whether it is mutable: indexing
+            // an immutable array, for instance, yields an immutable auto-deref pointer.
             Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
             other => Ok(other.move_struct()),
         }
@@ -1212,7 +1227,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Err(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
     }
 
-    /// Evaluates a call expression, deferring to [Self::call_function] or [Self::call_closure]
+    /// Evaluates a call expression, deferring to [`Self::call_function`] or [`Self::call_closure`]
     /// once the function is determined.
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
@@ -1981,10 +1996,9 @@ impl Context<'_, '_> {
         let module_id = ModuleId { krate: crate_id, local_id };
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
-        elaborator.replace_module(module_id);
-
-        let mut interpreter = elaborator.setup_interpreter();
-        let instantiation_bindings = TypeBindings::default();
-        interpreter.call_function(main_id, args, instantiation_bindings, location)
+        elaborator.setup_interpreter_for(module_id, |interpreter| {
+            let instantiation_bindings = TypeBindings::default();
+            interpreter.call_function(main_id, args, instantiation_bindings, location)
+        })
     }
 }

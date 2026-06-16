@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Division by zero: 0x05 / 0x00
+   ┌─ src/main.nr:12:14
+   │
+12 │     let _w = foo(w_5);
+   │              ---
+   │
+
+Aborting due to 1 previous error

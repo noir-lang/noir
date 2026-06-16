@@ -312,8 +312,8 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Adds unresolved jumps & function calls from another artifact offset by the current opcode count in the artifact.
     fn add_unresolved_jumps_and_calls(&mut self, obj: &BrilligArtifact<F>) {
         let offset = self.index_of_next_opcode();
-        for (jump_label, jump_location) in &obj.unresolved_jumps {
-            self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
+        for (jump_position, jump_location) in &obj.unresolved_jumps {
+            self.unresolved_jumps.push((jump_position + offset, jump_location.clone()));
         }
 
         for (label_id, position_in_bytecode) in &obj.labels {
@@ -359,7 +359,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         call_instruction: BrilligOpcode<F>,
         destination: UnresolvedJumpLocation,
     ) {
-        // TODO: Add a check to ensure that the opcode is a call instruction
+        assert!(
+            matches!(call_instruction, BrilligOpcode::Call { .. }),
+            "expected a call instruction, but found {call_instruction:?}"
+        );
 
         self.unresolved_external_call_labels.push((self.index_of_next_opcode(), destination));
         self.push_opcode(call_instruction);

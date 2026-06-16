@@ -8,9 +8,9 @@ pub(crate) struct CallArguments {
 }
 
 impl Parser<'_> {
-    /// Arguments = '(' ArgumentsList? ')'
+    /// Arguments = '(' `ArgumentsList`? ')'
     ///
-    /// ArgumentsList = Expression ( ',' Expression )? ','?
+    /// `ArgumentsList` = Expression ( ',' Expression )? ','?
     pub(crate) fn parse_arguments(&mut self) -> Option<Vec<Expression>> {
         if !self.eat_left_paren() {
             return None;
@@ -25,7 +25,7 @@ impl Parser<'_> {
         Some(arguments)
     }
 
-    /// CallArguments = '!'? Arguments
+    /// `CallArguments` = '!'? Arguments
     pub(super) fn parse_call_arguments(&mut self) -> Option<CallArguments> {
         let is_macro_call = self.at(Token::Bang) && self.next_is(Token::LeftParen);
 

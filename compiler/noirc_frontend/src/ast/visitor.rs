@@ -356,7 +356,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_lvalue_dereference(&mut self, _lvalue: &LValue, _span: Span) -> bool {
+    fn visit_lvalue_dereference(&mut self, _expr: &Expression, _span: Span) -> bool {
         true
     }
 
@@ -1358,9 +1358,9 @@ impl LValue {
                     index.accept(visitor);
                 }
             }
-            LValue::Dereference(lvalue, location) => {
-                if visitor.visit_lvalue_dereference(lvalue, location.span) {
-                    lvalue.accept(visitor);
+            LValue::Dereference(expr, location) => {
+                if visitor.visit_lvalue_dereference(expr, location.span) {
+                    expr.accept(visitor);
                 }
             }
             LValue::Interned(id, location) => visitor.visit_lvalue_interned(*id, location.span),

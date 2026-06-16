@@ -41,7 +41,7 @@ pub(crate) type OpcodeAdvisories = HashMap<OpcodeLocation, Vec<OpcodeAdvisory>>;
 
 /// Go through opcodes and collect advisories, indicating opcodes which are potentially unused.
 ///
-/// At the moment this relies on the CFG still available from the SSA via the [FunctionContext].
+/// At the moment this relies on the CFG still available from the SSA via the [`FunctionContext`].
 /// Unfortunately this doesn't work for the artifacts created by `compile_procedures`,
 /// which use looping in the bytecode level. To handle them in isolation, we would need to
 /// reconstruct the CFG from unresolved jump labels, and then establish a post order from that.
@@ -187,7 +187,7 @@ pub(crate) fn show_opcode_advisories<F: Display>(
     }
 }
 
-/// Go through the labels in the [BrilligContext] and collect the opcode locations
+/// Go through the labels in the [`BrilligContext`] and collect the opcode locations
 /// where each block starts and ends.
 ///
 /// # Assumptions on the label set
@@ -681,6 +681,40 @@ trait OpcodeAddressVisitor {
     }
 }
 
+/// The highest relative (stack-frame) register index referenced anywhere in `byte_code`.
+///
+/// Reuses [`OpcodeAddressVisitor`] so it stays in sync with the opcode set. For a call-free
+/// function this is the peak stack-frame register usage, i.e. the allocator high-water mark
+/// that the spill decision is meant to predict.
+#[cfg(test)]
+pub(crate) fn max_relative_register<F: AcirField>(byte_code: &[Opcode<F>]) -> usize {
+    struct MaxRelative(usize);
+
+    impl OpcodeAddressVisitor for MaxRelative {
+        fn should_visit_opcode<G: AcirField>(&mut self, _opcode: &Opcode<G>) -> bool {
+            true
+        }
+
+        fn read(&mut self, addr: &MemoryAddress, _location: OpcodeLocation) {
+            if let MemoryAddress::Relative(index) = addr {
+                self.0 = self.0.max(*index as usize);
+            }
+        }
+
+        fn write(&mut self, addr: &MemoryAddress, _location: OpcodeLocation) {
+            if let MemoryAddress::Relative(index) = addr {
+                self.0 = self.0.max(*index as usize);
+            }
+        }
+    }
+
+    let mut visitor = MaxRelative(0);
+    for (location, opcode) in byte_code.iter().enumerate() {
+        visitor.visit_opcode(opcode, location);
+    }
+    visitor.0
+}
+
 /// Whether the opcode's result must be preserved even if it is never read.
 ///
 /// True for opcodes that can trap on user input (division by zero) or have
@@ -723,7 +757,7 @@ fn is_fallible_opcode<F>(opcode: &Opcode<F>) -> bool {
 /// variants (so any future change to that classification flows through here
 /// automatically), with [`BlackBoxOp::ToRadix`] handled explicitly because
 /// the brillig VM validates its `radix` argument against `[2, 256]` at
-/// runtime and ToRadix has no ACIR analog.
+/// runtime and `ToRadix` has no ACIR analog.
 fn is_fallible_black_box_op(op: &BlackBoxOp) -> bool {
     if let Some(func) = black_box_op_to_acir_func(op) {
         func.has_side_effects()

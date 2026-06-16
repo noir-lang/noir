@@ -139,7 +139,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     validate_ssa_or_err(ssa)
 }
 
-/// Run the panicky validation, and try to turn it into a [RuntimeError] if it fails.
+/// Run the panicky validation, and try to turn it into a [`RuntimeError`] if it fails.
 fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     // Temporarily take the hook, so we don't get the panic printout.
     let old_hook = std::panic::take_hook();
@@ -225,7 +225,7 @@ impl FunctionContext<'_> {
     }
 
     /// Codegen a reference to an ident.
-    /// The only difference between this and codegen_ident is that if the variable is mutable
+    /// The only difference between this and `codegen_ident` is that if the variable is mutable
     /// as in `let mut var = ...;` the `Value::Mutable` will be returned directly instead of
     /// being automatically loaded from. This is needed when taking the reference of a variable
     /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
@@ -522,10 +522,10 @@ impl FunctionContext<'_> {
         )
     }
 
-    /// This is broken off from codegen_index so that it can also be
-    /// used to codegen a LValue::Index.
+    /// This is broken off from `codegen_index` so that it can also be
+    /// used to codegen a `LValue::Index`.
     ///
-    /// Set load_result to true to load from each relevant index of the array
+    /// Set `load_result` to true to load from each relevant index of the array
     /// (it may be multiple in the case of tuples). Set it to false to instead
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
@@ -710,7 +710,13 @@ impl FunctionContext<'_> {
             };
             let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
-            if end_constant.into_numeric_constant().0.to_u128() < max_value {
+            // Compare against the type's maximum using the *signed-aware* value: a negative
+            // signed `end` round-tripped through `to_u128` would look huge and wrongly fail
+            // this check, forcing an unnecessary final-iteration peel. `max_value` is the
+            // type's max (`2^(bit_size-1) - 1` for signed), which always fits in `i128`.
+            let end_below_max = end_constant
+                .apply(|signed| signed < max_value as i128, |unsigned| unsigned < max_value);
+            if end_below_max {
                 let end_constant_plus_one = end_constant.inc().expect(
                     "Expected to be able to increment end_constant as it's less than max_value",
                 );
@@ -1199,11 +1205,11 @@ impl FunctionContext<'_> {
     /// representation of an enum is:
     ///
     /// (
-    ///   tag_value,
-    ///   (field0_0, .. field0_N), // fields of variant 0,
-    ///   (field1_0, .. field1_N), // fields of variant 1,
+    ///   `tag_value`,
+    ///   (`field0_0`, .. `field0_N`), // fields of variant 0,
+    ///   (`field1_0`, .. `field1_N`), // fields of variant 1,
     ///   ..,
-    ///   (fieldM_0, .. fieldM_N), // fields of variant N,
+    ///   (`fieldM_0`, .. `fieldM_N`), // fields of variant N,
     /// )
     fn bind_case_arguments(&mut self, enum_value: Values, case: &MatchCase) {
         if !case.arguments.is_empty() {
@@ -1412,7 +1418,7 @@ impl FunctionContext<'_> {
 
     /// Generate SSA for the given variable.
     /// If the variable is immutable, no special handling is necessary and we can return the given
-    /// ValueId directly. If it is mutable, we'll need to allocate space for the value and store
+    /// `ValueId` directly. If it is mutable, we'll need to allocate space for the value and store
     /// the initial value before returning the allocate instruction.
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;

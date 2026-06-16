@@ -5,7 +5,7 @@
 //! Source file -[Lexing]-> Tokens -[Parsing]-> Ast -[Name Resolution]-> Hir -[Type Checking]-> Hir -[Monomorphization]-> Monomorphized Ast
 //! ```
 //!
-//! After the monomorphized ast is created, it is passed to the noirc_evaluator crate to convert it to SSA form,
+//! After the monomorphized ast is created, it is passed to the `noirc_evaluator` crate to convert it to SSA form,
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]

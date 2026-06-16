@@ -139,7 +139,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         self.functions
     }
 
-    /// Increment the step counter, or return [InterpreterError::OutOfBudget].
+    /// Increment the step counter, or return [`InterpreterError::OutOfBudget`].
     ///
     /// If there is no step limit, then it doesn't increment the counter.
     fn inc_step_counter(&mut self) -> IResult<()> {
@@ -999,7 +999,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// Create uninitialized results for a call that was skipped due to disabled side effects.
     ///
     /// For vector intrinsics, we create properly-sized zeroed vectors rather than empty ones,
-    /// to avoid out-of-bounds error after Remove IfElse that need to do `array_get` to
+    /// to avoid out-of-bounds error after Remove `IfElse` that need to do `array_get` to
     /// merge the vector from a 'side effect disabled' branch.
     fn uninitialized_call_results(
         &self,
@@ -1481,10 +1481,10 @@ macro_rules! apply_fit_comparison_op {
 /// - `$g`: A function that performs the equivalent of `$f` on `Field` values.
 ///
 /// # Panics
-/// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
+/// - If either operand is a [`NumericValue::Field`] or [`NumericValue::U1`] variant, this macro will panic with unreachable.
 ///
 /// # Errors
-/// - If the operand types don't match, returns an [InternalError::MismatchedTypesInBinaryOperator].
+/// - If the operand types don't match, returns an [`InternalError::MismatchedTypesInBinaryOperator`].
 ///
 /// # Returns
 /// A `NumericValue` containing the result of the operation, matching the original type.
@@ -1530,12 +1530,12 @@ macro_rules! apply_int_binop {
 /// - `$display_binary`: A function to display the binary operation for diagnostic purposes.
 ///
 /// # Panics
-/// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
+/// - If either operand is a [`NumericValue::Field`]or [`NumericValue::U1`], this macro panics as those types are not supported.
 ///
 /// # Errors
-/// - Returns [InterpreterError::Overflow] if the checked operation returns `None`.
-/// - Returns [InterpreterError::DivisionByZero] for `Div` and `Mod` on zero.
-/// - Returns [InternalError::MismatchedTypesInBinaryOperator] if the operand types don't match.
+/// - Returns [`InterpreterError::Overflow`] if the checked operation returns `None`.
+/// - Returns [`InterpreterError::DivisionByZero`] for `Div` and `Mod` on zero.
+/// - Returns [`InternalError::MismatchedTypesInBinaryOperator`] if the operand types don't match.
 ///
 /// # Returns
 /// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.

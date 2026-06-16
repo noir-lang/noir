@@ -112,7 +112,8 @@ impl HirExpression {
                 ExpressionKind::Literal(Literal::Str(String::from_utf8_lossy(bytes).into_owned()))
             }
             HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
-                // TODO: Is throwing away the exprs here valid?
+                // Dropping the captures is lossless: interpolations are single identifiers whose
+                // names are already in `fragments`, and re-elaboration re-resolves them by name.
                 ExpressionKind::Literal(Literal::FmtStr(fragments.clone(), *length))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
@@ -536,8 +537,7 @@ impl HirLValue {
                 if *implicitly_added {
                     lvalue
                 } else {
-                    let lvalue = Box::new(lvalue);
-                    LValue::Dereference(lvalue, *location)
+                    LValue::Dereference(Box::new(lvalue.as_expression()), *location)
                 }
             }
             HirLValue::Error { location } => {
