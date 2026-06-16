@@ -1,6 +1,0 @@
-[package]
-name = "trait_impl_in_module_calls_private_method"
-type = "bin"
-authors = [""]
-
-[dependencies]
