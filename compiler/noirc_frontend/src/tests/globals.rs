@@ -503,15 +503,14 @@ fn local_trait_name_static_method() {
 #[test]
 fn errors_if_global_is_needed_in_initialize_and_function_signature() {
     let src = r#"
-    global FOO: u32 = init([0; 10]);
-           ^^^ Dependency cycle found
-           ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
-                      ^^^^^^^^^^^^^ Expected type u32, found type ()
+    pub global FOO: u32 = init([0; 10]);
+               ^^^ Dependency cycle found
+               ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
 
-    fn init(_array: [Field; FOO]) {}
-                            ^^^ Cannot find a global or generic type parameter named `FOO`
-                            ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
-                            ^^^ expected type, found global `FOO`
+    pub fn init(_array: [Field; FOO]) -> u32 { 0 }
+                                ^^^ Cannot find a global or generic type parameter named `FOO`
+                                ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
+                                ^^^ expected type, found global `FOO`
 
     fn main() {}
     "#;
