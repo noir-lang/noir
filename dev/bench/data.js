@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781597389596,
+  "lastUpdate": 1781613834766,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "369212296b7cfbb9ba61471830d6ce9fd5b91472",
-          "message": "fix(ssa): correct transposed sha256_compression constant-fold bindings (#12975)",
-          "timestamp": "2026-06-10T11:16:54Z",
-          "tree_id": "f38456b853357dcf8b3b50abf0397715f9ba255b",
-          "url": "https://github.com/noir-lang/noir/commit/369212296b7cfbb9ba61471830d6ce9fd5b91472"
-        },
-        "date": 1781092158813,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127175,
-            "range": "± 538",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112213,
-            "range": "± 2596",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3038416,
-            "range": "± 1995",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040667,
             "range": "± 3197",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a6cf4a9dafab7e1a3ad38e5e6aade725bbd1c8a",
+          "message": "chore(ci): strip debug info from archived test binaries (#13073)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T12:21:07Z",
+          "tree_id": "c175cf91a6eaf52ea010cd07e2e8492337e2f4fd",
+          "url": "https://github.com/noir-lang/noir/commit/3a6cf4a9dafab7e1a3ad38e5e6aade725bbd1c8a"
+        },
+        "date": 1781613762818,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167020,
+            "range": "± 772",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136803,
+            "range": "± 262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655148,
+            "range": "± 12848",
             "unit": "ns/iter"
           }
         ]
