@@ -1611,6 +1611,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
+        let global_location = global.location;
 
         // Follow bindings otherwise it's not safe to use it as a hash map key.
         let typ = typ.follow_bindings();
@@ -1656,6 +1657,12 @@ impl<'interner> Monomorphizer<'interner> {
             // For simplicity, we chose to instead inline closures at their callsite as we do not expect
             // placing a closure in the global context to change the final result of the program.
             if !contains_function {
+                if typ.contains_function() {
+                    return Err(MonomorphizationError::GlobalContainsFunctionPointer {
+                        typ: typ.to_string(),
+                        location: global_location,
+                    });
+                }
                 let new_id = self.next_global_id();
                 self.globals.entry(id).or_default().insert(typ.clone(), new_id);
                 let typ = Self::convert_type(&typ, location)?;

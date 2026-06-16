@@ -36,6 +36,7 @@ pub enum MonomorphizationError {
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
+    GlobalContainsFunctionPointer { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -73,7 +74,8 @@ impl MonomorphizationError {
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
-            | MonomorphizationError::CannotUseFunctionAsValue { location, .. } => *location,
+            | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
+            | MonomorphizationError::GlobalContainsFunctionPointer { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -233,6 +235,12 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "`{name}` cannot be used as a function value; it must be called directly"
                 );
                 let secondary = "Used as a value here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::GlobalContainsFunctionPointer { typ, location } => {
+                let message = "Globals cannot contain function pointers".to_string();
+                let secondary =
+                    format!("This global has type `{typ}`, which contains a function pointer");
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
