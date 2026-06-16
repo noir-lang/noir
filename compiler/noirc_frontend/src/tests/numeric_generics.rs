@@ -1151,3 +1151,161 @@ fn signed_numeric_generic_negative_turbofish(typ: &str, literal: &str, expected:
     );
     assert_no_errors(&src);
 }
+
+#[test]
+fn cannot_deduce_numeric_generic() {
+    let src = r#"
+    fn foo<let N: u32>() -> u32 {
+        N
+    }
+
+    fn main() {
+        let _ = foo();
+                ^^^ Type annotation needed
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unspecified_generic() {
+    let src = r#"
+    fn foo<T>() {}
+
+    fn main() {
+        foo();
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10520() {
+    let src = r#"
+    fn main() -> pub u8 {
+        foo::<3_u32>()
+              ^^^^^ The numeric generic is not of type `u8`
+              ~~~~~ expected `u8`, found `u32`
+    }
+
+    fn foo<let N: u8>() -> u8 {
+        N
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_incorrect_generic_count() {
+    let src = r#"
+    fn main() {
+        let x: u32 = 0;
+        x.trait_fn();
+        ^^^^^^^^^^^^ Unused expression result of type u32
+        ^^^^^^^^^^ Type annotation needed
+        ~~~~~~~~~~ Could not determine the type of the generic argument `B` declared on the function `trait_fn`
+    }
+
+    trait Trait {
+        fn trait_fn<T>(x: T) -> T {}
+           ~~~~~~~~ () returned here
+                       ^ unused variable x
+                       ~ unused variable
+                                ^ expected type T, found type ()
+                                ~ expected T because of return type
+    }
+
+    impl Trait for u32 {
+        fn trait_fn<A, B>(x: A) -> A { x }
+           ^^^^^^^^ trait_fn expects 1 generic but 2 were given
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_annotation_needed_on_struct_constructor() {
+    let src = r#"
+    struct Foo<T> {
+    }
+
+    fn main() {
+        let _foo = Foo {};
+                   ^^^ Type annotation needed
+                   ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_annotation_needed_on_struct_new() {
+    let src = r#"
+    struct Foo<T> {
+    }
+
+    impl <T> Foo<T> {
+        fn new() -> Foo<T> {
+            Foo {}
+        }
+    }
+
+    fn main() {
+        let _foo = Foo::new();
+                        ^^^ Type annotation needed
+                        ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn array_length_defaulting() {
+    let src = r#"
+    pub fn foo<N>(_array: [Field; N]) {}
+                          ^^^^^^^^^^ Type provided when a numeric generic was expected
+                          ~~~~~~~~~~ the numeric generic is not of type `u32`
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn typevar_default() {
+    let src = r#"
+    pub fn vector_to_array<N>(_vector: [Field]) -> [Field; N] {
+                                                   ^^^^^^^^^^ Type provided when a numeric generic was expected
+                                                   ~~~~~~~~~~ the numeric generic is not of type `u32`
+        let mut array = [0; N];
+                            ^ Type provided when a numeric generic was expected
+                            ~ the numeric generic is not of type `u32`
+        for i in 0 .. N {
+                      ^ cannot find `N` in this scope
+                      ~ not found in this scope
+            array[i] = i as Field;
+        }
+        array
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn normal_generic_as_array_length_in_trait_impl() {
+    let src = r#"
+    pub trait MyEq {
+        fn my_eq(self, other: Self) -> bool;
+    }
+
+    impl<T, N> MyEq for [T; N] where T: MyEq {
+                        ^^^^^^ Type provided when a numeric generic was expected
+                        ~~~~~~ the numeric generic is not of type `u32`
+        fn my_eq(self, _other: Self) -> bool {
+            true
+        }
+    }
+    "#;
+    check_errors(src);
+}

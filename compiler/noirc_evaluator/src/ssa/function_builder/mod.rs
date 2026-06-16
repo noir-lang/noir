@@ -42,6 +42,9 @@ pub struct FunctionBuilder {
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
     call_stack: CallStackId,
+    /// Types of dynamic assertion messages, keyed by their error selector. Only dynamic messages
+    /// are recorded here; static string messages are handled inline (see
+    /// `FunctionContext::codegen_constrain_error`).
     error_types: BTreeMap<ErrorSelector, HirType>,
 
     /// Whether instructions are simplified as soon as they are inserted into this builder.
