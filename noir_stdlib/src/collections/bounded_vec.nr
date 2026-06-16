@@ -334,13 +334,14 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             };
 
             for src in 0..max {
-                // Since we are iterating to the static capacity of the arrays,
-                // the destination could be out of bounds. If that's the case,
-                // overwrite the last item, which we'll fixup in the end.
+                // Real iterations (`src < append_len`) always have `dst` in bounds,
+                // since we asserted `self.len + append_len <= MaxLen`. The padding
+                // iterations are routed to the last slot, which we restore at the end,
+                // so they never clobber meaningful in-bounds tail storage.
                 // NB using cmp::min resulted in more opcodes here.
                 let mut dst = self.len + src;
-                if dst >= MaxLen { dst = MaxLen - 1; };
-                // Assigning the source or zeroed to avoid having to merge arrays in SSA.
+                if src >= append_len { dst = MaxLen - 1; };
+                // Assigning the source or the saved last to avoid having to merge arrays in SSA.
                 self.storage[dst] = if src < append_len {
                     vec.get_unchecked(src)
                 } else {
@@ -1366,8 +1367,8 @@ mod bounded_vec_tests {
 
         #[test]
         fn extend_from_bounded_vec_empty_self() {
-            // self.len == 0 with Len > MaxLen: the loop doesn't reach
-            // the last storage slot, so the fixup must write it.
+            // self.len == 0 with Len > MaxLen: the source is clamped to
+            // MaxLen elements, filling the destination exactly to capacity.
             let mut vec1: BoundedVec<u32, 3> = BoundedVec::new();
             let vec2: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
 
@@ -1377,6 +1378,21 @@ mod bounded_vec_tests {
             assert_eq(vec1.get(0), 1);
             assert_eq(vec1.get(1), 2);
             assert_eq(vec1.get(2), 3);
+        }
+
+        #[test]
+        #[test_unconstrained]
+        fn extend_from_bounded_vec_preserves_tail_storage() {
+            // The destination has meaningful (nonzero) storage past `len`.
+            // Extending must leave that tail untouched, identically in the
+            // constrained and unconstrained branches.
+            let mut dst: BoundedVec<u32, 4> = BoundedVec::from_parts([10, 99, 123, 7], 1);
+            let src: BoundedVec<u32, 4> = BoundedVec::from_parts([20, 0, 0, 0], 1);
+
+            dst.extend_from_bounded_vec(src);
+
+            assert_eq(dst.len(), 2);
+            assert_eq(dst.storage(), [10, 20, 123, 7]);
         }
 
         #[test]
