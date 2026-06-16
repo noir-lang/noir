@@ -492,6 +492,8 @@ pub type GenericTypeVars = Vec<TypeVariable>;
 /// correctly resolving types.
 pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 
+/// A single generic parameter (e.g. one `T` from a `<T, U>` list) after name resolution:
+/// its name, the type variable it binds, and where it was declared.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
     pub name: Rc<String>,
@@ -3226,9 +3228,9 @@ impl Type {
         go(self, f, TYPE_RECURSION_LIMIT);
     }
 
-    pub fn vector_element_type(&self) -> Option<&Type> {
-        match self {
-            Type::Vector(element) => Some(element),
+    pub fn vector_element_type(&self) -> Option<Type> {
+        match self.follow_bindings() {
+            Type::Vector(element) => Some(*element),
             _ => None,
         }
     }

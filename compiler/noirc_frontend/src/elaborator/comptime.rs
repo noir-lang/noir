@@ -591,7 +591,8 @@ impl<'context> Elaborator<'context> {
 
         for (i, arg) in arguments.into_iter().enumerate() {
             let arg_location = arg.location;
-            let param_type = parameters.get(i).or(varargs_elem_type).unwrap_or(&Type::Error);
+            let param_type =
+                parameters.get(i).or(varargs_elem_type.as_ref()).unwrap_or(&Type::Error);
 
             let mut push_arg = |arg| {
                 if i >= parameters.len() {
