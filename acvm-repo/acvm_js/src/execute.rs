@@ -21,10 +21,10 @@ use crate::{
 
 /// Executes an ACIR circuit to generate the solved witness from the initial witness.
 ///
-/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `circuit`..
-/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the circuit.
-/// @returns {WitnessMap} The solved witness calculated by executing the circuit on the provided inputs.
+/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+/// @param {`WitnessMap`} `initial_witness` - The initial witness map defining all of the inputs to `circuit`..
+/// @param {`ForeignCallHandler`} `foreign_call_handler` - A callback to process any foreign calls from the circuit.
+/// @returns {`WitnessMap`} The solved witness calculated by executing the circuit on the provided inputs.
 #[wasm_bindgen(js_name = executeCircuit, skip_jsdoc)]
 pub async fn execute_circuit(
     program: Vec<u8>,
@@ -53,10 +53,10 @@ async fn execute_circuit_pedantic(
 /// Executes an ACIR circuit to generate the solved witness from the initial witness.
 /// This method also extracts the public return values from the solved witness into its own return witness.
 ///
-/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `circuit`..
-/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the circuit.
-/// @returns {SolvedAndReturnWitness} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.
+/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+/// @param {`WitnessMap`} `initial_witness` - The initial witness map defining all of the inputs to `circuit`..
+/// @param {`ForeignCallHandler`} `foreign_call_handler` - A callback to process any foreign calls from the circuit.
+/// @returns {`SolvedAndReturnWitness`} The solved witness calculated by executing the circuit on the provided inputs, as well as the return witness indices as specified by the circuit.
 #[wasm_bindgen(js_name = executeCircuitWithReturnWitness, skip_jsdoc)]
 pub async fn execute_circuit_with_return_witness(
     program: Vec<u8>,
@@ -97,10 +97,10 @@ async fn execute_circuit_with_return_witness_pedantic(
 
 /// Executes an ACIR circuit to generate the solved witness from the initial witness.
 ///
-/// @param {Uint8Array} program - A serialized representation of an ACIR program
-/// @param {WitnessMap} initial_witness - The initial witness map defining all of the inputs to `program`.
-/// @param {ForeignCallHandler} foreign_call_handler - A callback to process any foreign calls from the program.
-/// @returns {WitnessStack} The solved witness calculated by executing the program on the provided inputs.
+/// @param {`Uint8Array`} program - A serialized representation of an ACIR program
+/// @param {`WitnessMap`} `initial_witness` - The initial witness map defining all of the inputs to `program`.
+/// @param {`ForeignCallHandler`} `foreign_call_handler` - A callback to process any foreign calls from the program.
+/// @returns {`WitnessStack`} The solved witness calculated by executing the program on the provided inputs.
 #[wasm_bindgen(js_name = executeProgram, skip_jsdoc)]
 pub async fn execute_program(
     program: Vec<u8>,

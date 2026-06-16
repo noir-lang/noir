@@ -24,9 +24,9 @@
 //!
 //! ## Sub-passes
 //!
-//! ### CSAT: slices AssertZero opcodes towards the backend's preferred width.
+//! ### CSAT: slices `AssertZero` opcodes towards the backend's preferred width.
 //!
-//! For instance, with a width of 4, the AssertZero opcode `x1 + x2 + x3 + x4 + x5 - y = 0` is sliced using
+//! For instance, with a width of 4, the `AssertZero` opcode `x1 + x2 + x3 + x4 + x5 - y = 0` is sliced using
 //! 2 intermediate variables (z1, z2):
 //! ```text
 //! x1 + x2 + x3 = z1
@@ -35,7 +35,7 @@
 //! ```
 //! If x1,..x5 are inputs to the program, they are tagged as 'solvable', and would be used to compute the value of y.
 //! If we generated the intermediate variable `x4 + x5 - y = z3` instead, we would get an unsolvable circuit because
-//! that AssertZero opcode has two unknown values: y and z3.
+//! that `AssertZero` opcode has two unknown values: y and z3.
 //! So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate
 //! solvable intermediate variables. Identical slices are cached, so a subexpression appearing in several opcodes is
 //! assigned a single shared intermediate witness — this is where the common subexpressions are formed.
@@ -43,7 +43,7 @@
 //! ### Eliminate intermediate variables
 //!
 //! The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
-//! that are used in exactly two AssertZero opcodes.
+//! that are used in exactly two `AssertZero` opcodes.
 //! This results in arithmetic opcodes having linear combinations of potentially large width.
 //! For instance if the intermediate variable is z1 and is only used in y:
 //! ```text
@@ -57,7 +57,7 @@
 //! However, it is worthwhile to keep an intermediate variable if it is used in more than two opcodes: that is precisely a
 //! common subexpression, and materializing it once is cheaper than recomputing it in each opcode.
 //!
-//! ### redundant_range
+//! ### `redundant_range`
 //!
 //! The 'range optimization' pass, from the optimizers module, will remove any redundant range opcodes.
 use std::collections::BTreeMap;

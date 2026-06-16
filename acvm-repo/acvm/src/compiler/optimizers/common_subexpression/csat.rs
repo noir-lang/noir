@@ -256,7 +256,7 @@ impl CSatTransformer {
 
     /// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
-    /// This function panics if the input expression is constant or if the first coefficient's inverse is F::zero()
+    /// This function panics if the input expression is constant or if the first coefficient's inverse is `F::zero()`
     fn normalize<F: AcirField>(mut expr: Expression<F>) -> (F, Expression<F>) {
         expr.sort();
         let a = if !expr.linear_combinations.is_empty() {
@@ -270,7 +270,7 @@ impl CSatTransformer {
     }
 
     /// Get or generate a scaled intermediate witness which is equal to the provided expression
-    /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
+    /// The sets of previously generated witness and their (normalized) expression is cached in the `intermediate_variables` map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
     fn get_or_create_intermediate_var<F: AcirField>(

@@ -16,12 +16,12 @@ It's not implemented yet, because nothing has been benched
 
 */
 
-/// This implementation uses the terminology Scope and ScopeTree
+/// This implementation uses the terminology Scope and `ScopeTree`
 /// A Scope is map between Keys and Values, it is possible to search for a Key in Scope, returning a mutable copy
-/// A ScopeTree is a Vector of Scopes, searching for Key in ScopeTree will recursively search from the last scope until the first scope
+/// A `ScopeTree` is a Vector of Scopes, searching for Key in `ScopeTree` will recursively search from the last scope until the first scope
 /// to find the Key, returning None, if the Key is in None of the Scopes.
-/// A ScopeTree is useful for implementing the scoping logic around for-loops, if statements and ClosureCalls.
-/// Implementers will usually store a Vector of ScopeTrees to implement the logic needed for FunctionCalls
+/// A `ScopeTree` is useful for implementing the scoping logic around for-loops, if statements and `ClosureCalls`.
+/// Implementers will usually store a Vector of `ScopeTrees` to implement the logic needed for `FunctionCalls`
 pub struct Scope<K, V>(pub HashMap<K, V>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
@@ -61,7 +61,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> Default for Scope<K, V> {
     }
 }
 
-/// ScopeTree allows one to specify that maps within the same vector are scope extensions
+/// `ScopeTree` allows one to specify that maps within the same vector are scope extensions
 /// This allows one to extend the scope and then remove the extension, without affecting the unextended
 /// part of the scope
 pub struct ScopeTree<K, V>(pub Vec<Scope<K, V>>);
@@ -165,7 +165,7 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeForest<K, V> {
         self.extend_current_scope_tree();
     }
 
-    /// Ends the current scope - this should correspond with the end of a BlockExpression.
+    /// Ends the current scope - this should correspond with the end of a `BlockExpression`.
     pub fn end_scope(&mut self) -> Scope<K, V> {
         self.remove_scope_tree_extension()
     }

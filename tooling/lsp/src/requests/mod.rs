@@ -84,7 +84,7 @@ pub(crate) use {
 };
 
 /// LSP client will send initialization request after the server has started.
-/// [InitializeParams].`initialization_options` will contain the options sent from the client.
+/// [`InitializeParams`].`initialization_options` will contain the options sent from the client.
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
 pub(crate) struct LspInitializationOptions {
     /// Controls whether code lens is enabled by the server

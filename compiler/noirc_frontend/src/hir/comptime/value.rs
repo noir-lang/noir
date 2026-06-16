@@ -480,7 +480,7 @@ impl Value {
 
     /// Lowers this compile-time value into a HIR expression to be used at runtime.
     /// This means that comptime-only types will panic.
-    /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
+    /// This is similar to [`Self::into_expression`] but is used in some cases in the monomorphizer
     /// where code must already be in HIR.
     pub(crate) fn into_runtime_hir_expression(
         self,
@@ -595,8 +595,11 @@ impl Value {
                     return Err(InterpreterError::CannotInlineMacro { value, typ, location });
                 }
             }
-            // Only convert pointers with auto_deref = true. These are mutable variables
-            // and we don't need to wrap them in `&mut`.
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // transparently dereferenced on use, so we convert the pointed-to value directly
+            // rather than wrapping it in `&mut`. The mutability flag is irrelevant here:
+            // auto-deref pointers are produced for both mutable and immutable bindings
+            // (e.g. indexing an immutable array yields an immutable auto-deref pointer).
             Value::Pointer(element, true, _) => {
                 return element
                     .unwrap_or_clone()
@@ -761,7 +764,7 @@ impl Value {
         }
     }
 
-    /// Similar to [Self::into_expression] or [Self::into_runtime_hir_expression] but for converting
+    /// Similar to [`Self::into_expression`] or [`Self::into_runtime_hir_expression`] but for converting
     /// into top-level item(s). Unlike those other methods, most expressions are invalid
     /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
     /// this method is significantly simpler because we only have to parse `Quoted` values
@@ -813,7 +816,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 
 /// Helper to parse the given tokens using the given parse function.
 ///
-/// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
+/// If they fail to parse, [`InterpreterError::FailedToParseMacro`] is returned.
 fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,

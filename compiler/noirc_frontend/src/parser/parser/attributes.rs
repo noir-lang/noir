@@ -13,7 +13,7 @@ use super::Parser;
 use super::parse_many::without_separator;
 
 impl Parser<'_> {
-    /// InnerAttribute = '#![' SecondaryAttribute ']'
+    /// `InnerAttribute` = '#![' `SecondaryAttribute` ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let start_location = self.current_token_location;
         let is_tag = self.eat_inner_attribute_start()?;
@@ -43,41 +43,41 @@ impl Parser<'_> {
         self.parse_many("attributes", without_separator(), Self::parse_attribute)
     }
 
-    /// Attribute = '#[' (FunctionAttribute | SecondaryAttribute) ']'
+    /// Attribute = '#[' (`FunctionAttribute` | `SecondaryAttribute`) ']'
     ///
-    /// FunctionAttribute
-    ///     = 'builtin' '(' AttributeValue ')'
+    /// `FunctionAttribute`
+    ///     = 'builtin' '(' `AttributeValue` ')'
     ///     | 'fold'
-    ///     | 'foreign' '(' AttributeValue ')'
-    ///     | 'inline_always'
-    ///     | 'inline_never'
-    ///     | 'no_predicates'
-    ///     | 'oracle' '(' AttributeValue ')'
+    ///     | 'foreign' '(' `AttributeValue` ')'
+    ///     | '`inline_always`'
+    ///     | '`inline_never`'
+    ///     | '`no_predicates`'
+    ///     | 'oracle' '(' `AttributeValue` ')'
     ///     | 'recursive'
     ///     | 'test'
-    ///     | 'test' '(' 'should_fail' ')'
-    ///     | 'test' '(' 'should_fail_with' '=' string ')'
+    ///     | 'test' '(' '`should_fail`' ')'
+    ///     | 'test' '(' '`should_fail_with`' '=' string ')'
     ///     | 'fuzz'
-    ///     | 'fuzz' '(' 'only_fail_with' '=' string ')'
-    ///     | 'fuzz' '(' 'should_fail' ')'
-    ///     | 'fuzz' '(' 'should_fail_with' '=' string ')'
+    ///     | 'fuzz' '(' '`only_fail_with`' '=' string ')'
+    ///     | 'fuzz' '(' '`should_fail`' ')'
+    ///     | 'fuzz' '(' '`should_fail_with`' '=' string ')'
     ///
-    /// SecondaryAttribute
-    ///     = 'abi' '(' AttributeValue ')'
-    ///     | 'allow' '(' AttributeValue ')'
+    /// `SecondaryAttribute`
+    ///     = 'abi' '(' `AttributeValue` ')'
+    ///     | 'allow' '(' `AttributeValue` ')'
     ///     | 'deprecated'
     ///     | 'deprecated' '(' string ')'
-    ///     | 'contract_library_method'
+    ///     | '`contract_library_method`'
     ///     | 'export'
-    ///     | 'field' '(' AttributeValue ')'
-    ///     | 'use_callers_scope'
+    ///     | 'field' '(' `AttributeValue` ')'
+    ///     | '`use_callers_scope`'
     ///     | 'varargs'
-    ///     | MetaAttribute
+    ///     | `MetaAttribute`
     ///
-    /// MetaAttribute
+    /// `MetaAttribute`
     ///     = Path Arguments?
     ///
-    /// AttributeValue
+    /// `AttributeValue`
     ///     = Path
     ///     | integer
     pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Location)> {

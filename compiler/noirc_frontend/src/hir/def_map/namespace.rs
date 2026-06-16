@@ -11,12 +11,12 @@ pub struct PerNs {
 }
 
 impl PerNs {
-    /// Creates a [PerNs] with a public [ModuleDefId] in `types`, and no `values`.
+    /// Creates a [`PerNs`] with a public [`ModuleDefId`] in `types`, and no `values`.
     pub fn types(t: ModuleDefId) -> PerNs {
         PerNs { types: Some((t, ItemVisibility::Public, false)), values: None }
     }
 
-    /// Iterate the [ModuleDefId]s in both `types` and `values`.
+    /// Iterate the [`ModuleDefId`]s in both `types` and `values`.
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
         self.iter_items().map(|it| it.0)
     }
