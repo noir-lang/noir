@@ -1227,23 +1227,7 @@ mod test {
             return u32 1, v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
-          b0():
-            v1, v2 = call f1() -> (u32, [u32])
-            v4, v5, v6 = call vector_pop_front(v1, v2) -> (u32, u32, [u32])
-            v7, v8 = call f1() -> (u32, [u32])
-            v10 = array_get v8, index u32 0 -> u32
-            return v10
-        }
-        brillig(inline_never) predicate_pure fn get_slice f1 {
-          b0():
-            v1 = make_array [u32 100] : [u32]
-            return u32 1, v1
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     // In ACIR, arrays are value-semantic: `array_set` produces a fresh array and never mutates
