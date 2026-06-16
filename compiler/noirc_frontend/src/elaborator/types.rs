@@ -1826,7 +1826,19 @@ impl Elaborator<'_> {
 
         let (hir_method_reference, error) =
             self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
-        let hir_method_reference = hir_method_reference?;
+        let Some(hir_method_reference) = hir_method_reference else {
+            // The method matches multiple traits (in scope, or none in scope), so there's no single
+            // method to resolve to. Report the ambiguity here rather than deferring to module-based
+            // resolution (which no longer holds trait methods).
+            self.push_errors(errors);
+            let mut errors = path_resolution.errors;
+            errors.extend(error);
+            return Some(TraitPathResolution {
+                method: TraitPathResolutionMethod::MultipleTraitsInScope,
+                item: None,
+                errors,
+            });
+        };
 
         match hir_method_reference {
             HirMethodReference::FuncId(func_id) => {

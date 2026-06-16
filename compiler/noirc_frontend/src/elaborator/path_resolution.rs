@@ -169,17 +169,11 @@ enum IntermediatePathResolutionItem {
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
 enum MethodLookupResult {
-    /// The method could not be found. There might be trait methods that could be imported,
-    /// but none of them are.
-    NotFound(Vec<TraitId>),
-    /// Found a method.
+    /// The name could not be found in the type's module scope.
+    NotFound,
+    /// Found an enum variant constructor (the only function-like items kept in a type's module
+    /// scope; inherent and trait methods resolve through the interner's type-directed lookup).
     FoundMethod(PerNs),
-    /// Found a trait method and it's currently in scope.
-    FoundTraitMethod(PerNs, Ident),
-    /// There's only one trait method that matches, but it's not in scope.
-    FoundOneTraitMethodButNotInScope(PerNs, TraitId),
-    /// Multiple (ambiguous) trait method matches were found and they are all in scope.
-    FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
 /// Determines whether data-types found along a path are to be marked as referenced
@@ -727,8 +721,8 @@ impl Elaborator<'_> {
 
             // Check if namespace
             let found_ns = if current_module_id_is_type {
-                match self.resolve_method(importing_module, current_module, current_ident) {
-                    MethodLookupResult::NotFound(method_traits) => {
+                match self.resolve_method(current_module, current_ident) {
+                    MethodLookupResult::NotFound => {
                         // Before returning an error, try to look up as an associated constant
                         if let Some(result) = self.try_resolve_trait_constant(
                             &intermediate_item,
@@ -738,51 +732,9 @@ impl Elaborator<'_> {
                             return result.map(|item| PathResolution { item, errors });
                         }
 
-                        // Fall back to the original error handling
-                        if method_traits.is_empty() {
-                            return Err(PathResolutionError::Unresolved(current_ident.clone()));
-                        } else {
-                            let traits = vecmap(method_traits, |trait_id| {
-                                let trait_ = self.interner.get_trait(trait_id);
-                                self.fully_qualified_trait_path(trait_)
-                            });
-                            return Err(
-                                PathResolutionError::UnresolvedWithPossibleTraitsToImport {
-                                    ident: current_ident.clone(),
-                                    traits,
-                                },
-                            );
-                        }
+                        return Err(PathResolutionError::Unresolved(current_ident.clone()));
                     }
                     MethodLookupResult::FoundMethod(per_ns) => per_ns,
-                    MethodLookupResult::FoundTraitMethod(per_ns, name) => {
-                        self.usage_tracker.mark_as_used(importing_module, &name, Namespace::Type);
-                        per_ns
-                    }
-                    MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
-                        let trait_ = self.interner.get_trait(trait_id);
-                        let trait_name = self.fully_qualified_trait_path(trait_);
-                        errors.push(PathResolutionError::TraitMethodNotInScope {
-                            ident: current_ident.clone(),
-                            trait_name,
-                        });
-                        per_ns
-                    }
-                    MethodLookupResult::FoundMultipleTraitMethods(vec) => {
-                        let traits = vecmap(vec, |(trait_id, name)| {
-                            let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(
-                                importing_module,
-                                &name,
-                                Namespace::Type,
-                            );
-                            self.fully_qualified_trait_path(trait_)
-                        });
-                        return Err(PathResolutionError::MultipleTraitsInScope {
-                            ident: current_ident.clone(),
-                            traits,
-                        });
-                    }
                 }
             } else {
                 current_module.find_name(current_ident)
@@ -902,62 +854,19 @@ impl Elaborator<'_> {
         item
     }
 
-    /// Assuming that the current path segment is a type or type alias defined in the `current_module`,
-    /// resolve the `ident` as a method on that type.
-    fn resolve_method(
-        &self,
-        importing_module_id: ModuleId,
-        current_module: &ModuleData,
-        ident: &Ident,
-    ) -> MethodLookupResult {
-        // If the current module is a type, next we need to find a function for it.
-        // The function could be in the type itself, or it could be defined in traits.
-        let item_scope = current_module.scope();
-        let Some(values) = item_scope.values().get(ident) else {
-            return MethodLookupResult::NotFound(vec![]);
-        };
-
-        // First search if the function is defined in the type itself
-        if let Some(item) = values.get(&None) {
-            return MethodLookupResult::FoundMethod(PerNs { types: None, values: Some(*item) });
-        }
-
-        // Otherwise, the function could be defined in zero, one or more traits.
-        let starting_module = self.get_module(importing_module_id);
-
-        // Gather a list of items for which their trait is in scope.
-        let mut results = Vec::new();
-
-        for (trait_id, item) in values {
-            let trait_id = trait_id.expect("The None option was already considered before");
-            if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
-                results.push((trait_id, name, item));
+    /// Assuming that the current path segment is a type defined in `current_module`, resolve
+    /// `ident` as one of that type's enum variant constructors.
+    ///
+    /// These are the only function-like items kept in a type's module scope: inherent and trait
+    /// methods are not declared there and resolve through the interner's type-directed lookup (see
+    /// [Elaborator::resolve_type_method_or_trait_method]).
+    fn resolve_method(&self, current_module: &ModuleData, ident: &Ident) -> MethodLookupResult {
+        match current_module.scope().values().get(ident).and_then(|values| values.get(&None)) {
+            Some(item) => {
+                MethodLookupResult::FoundMethod(PerNs { types: None, values: Some(*item) })
             }
+            None => MethodLookupResult::NotFound,
         }
-
-        if results.is_empty() {
-            if values.len() == 1 {
-                // This is the backwards-compatible case where there's a single trait method but it's not in scope
-                let (trait_id, item) = values.iter().next().expect("Expected an item");
-                let trait_id = trait_id.expect("The None option was already considered before");
-                let per_ns = PerNs { types: None, values: Some(*item) };
-                return MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id);
-            } else {
-                let trait_ids = vecmap(values, |(trait_id, _)| {
-                    trait_id.expect("The none option was already considered before")
-                });
-                return MethodLookupResult::NotFound(trait_ids);
-            }
-        }
-
-        if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, name, _)| (trait_id, name.clone()));
-            return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
-        }
-
-        let (_, name, item) = results.remove(0);
-        let per_ns = PerNs { types: None, values: Some(*item) };
-        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 
     /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).

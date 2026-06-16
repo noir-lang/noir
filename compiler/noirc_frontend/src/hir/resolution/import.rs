@@ -448,10 +448,18 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
             self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
-            // In the type namespace, only Mod can be used in a path.
+            // In the type namespace, only a module can be navigated through in a path. A type's
+            // associated items (methods, and for enums their variants) can't be imported through
+            // it, matching Rust: `use Type::method` is rejected. Such items remain reachable via a
+            // qualified path (`Type::method(..)`).
             current_module_id = match typ {
                 ModuleDefId::ModuleId(id) => id,
-                ModuleDefId::TypeId(id) => id.module_id(),
+                ModuleDefId::TypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "type",
+                    });
+                }
                 ModuleDefId::TypeAliasId(..) => {
                     return Err(PathResolutionError::NotAModule {
                         ident: last_segment.ident.clone(),
@@ -464,7 +472,12 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                         kind: "associated type",
                     });
                 }
-                ModuleDefId::TraitId(id) => id.0,
+                ModuleDefId::TraitId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "trait",
+                    });
+                }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };

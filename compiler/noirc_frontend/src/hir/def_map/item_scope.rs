@@ -140,11 +140,6 @@ impl ItemScope {
         &self.values
     }
 
-    pub fn remove_definition(&mut self, name: &Ident) {
-        self.types.remove(name);
-        self.values.remove(name);
-    }
-
     /// Look up an [Ident] in `types` or `values`:
     /// * if a definition without a [`TraitId`] exists, return that
     /// * if there is exactly 1 definition with a [`TraitId`], return that
