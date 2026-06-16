@@ -2,7 +2,7 @@
 //! as long as there are no `array_set` instructions to an array
 //! of the same type in between.
 //!
-//! Note that this pass is very conservative since the array_set
+//! Note that this pass is very conservative since the `array_set`
 //! instruction does not need to be to the same array. This is because
 //! the given array may alias another array (e.g. function parameters or
 //! a `load`ed array from a reference).
@@ -50,10 +50,10 @@ struct RcInstruction {
 }
 
 impl Function {
-    /// This function is very simplistic for now. It takes advantage of the fact that dec_rc
+    /// This function is very simplistic for now. It takes advantage of the fact that `dec_rc`
     /// instructions are currently issued only at the end of a function for parameters and will
     /// only check the first and last block for inc & dec rc instructions to be removed. The rest
-    /// of the function is still checked for array_set instructions.
+    /// of the function is still checked for `array_set` instructions.
     ///
     /// This restriction lets this function largely ignore merging intermediate results from other
     /// blocks and handling loops.
@@ -99,8 +99,8 @@ impl Context {
         }
     }
 
-    /// Find each array_set or call instruction in the function and mark any arrays used
-    /// by the inc_rc instructions as possibly mutated if they're the same type.
+    /// Find each `array_set` or call instruction in the function and mark any arrays used
+    /// by the `inc_rc` instructions as possibly mutated if they're the same type.
     fn scan_for_mutations(&mut self, function: &Function) {
         for block in function.reachable_blocks() {
             for instruction in function.dfg[block].instructions() {
@@ -147,7 +147,7 @@ impl Context {
         }
     }
 
-    /// Find each dec_rc instruction and if the most recent inc_rc instruction for the same value
+    /// Find each `dec_rc` instruction and if the most recent `inc_rc` instruction for the same value
     /// is not possibly mutated, then we can remove them both. Returns each such pair.
     fn find_rcs_to_remove(&mut self, function: &Function) -> HashSet<InstructionId> {
         let last_block = function.find_last_block();
@@ -167,7 +167,7 @@ impl Context {
     }
 }
 
-/// Finds and pops the IncRc for the given array value if possible.
+/// Finds and pops the `IncRc` for the given array value if possible.
 fn pop_rc_for(
     value: ValueId,
     function: &Function,
@@ -503,7 +503,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
-    /// Same as [mutation_through_call_with_mutable_reference] except with a deeply nested reference to an array (e.g., `&mut &mut [Field; 2]`)
+    /// Same as [`mutation_through_call_with_mutable_reference`] except with a deeply nested reference to an array (e.g., `&mut &mut [Field; 2]`)
     #[test]
     #[ignore]
     fn mutation_through_call_with_deeply_nested_reference() {

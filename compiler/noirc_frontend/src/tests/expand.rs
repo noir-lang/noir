@@ -220,6 +220,45 @@ fn expands_separate_inherent_impl_blocks_separately() {
     ");
 }
 
+#[test]
+fn expands_inherent_impl_with_doc_comment() {
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+
+    /// Methods for Foo.
+    impl Foo {
+        fn get(self) -> Field {
+            self.x
+        }
+    }
+
+    fn main() {
+        let foo = Foo { x: 1 };
+        let _ = foo.get();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    struct Foo {
+        x: Field,
+    }
+
+    /// Methods for Foo.
+    impl Foo {
+        fn get(self) -> Field {
+            self.x
+        }
+    }
+
+    fn main() {
+        let foo: Foo = Foo { x: 1_Field};
+        let _: Field = foo.get();
+    }
+    ");
+}
+
 // A method that binds an associated type on the impl's generic (`T: Foo<Assoc = Field>`)
 // keeps that binding: it is distinct from the impl's own `T: Foo` and must not be deduplicated
 // against it just because they share the same type and trait.

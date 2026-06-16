@@ -104,8 +104,8 @@ impl std::fmt::Display for PrintableType {
 }
 
 /// This is what all formats eventually transform into
-/// For example, a toml file will parse into TomlTypes
-/// and those TomlTypes will be mapped to Value
+/// For example, a toml file will parse into `TomlTypes`
+/// and those `TomlTypes` will be mapped to Value
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum PrintableValue<F> {
     Field(F),
@@ -141,7 +141,7 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
     }
 }
 
-/// Format a given [PrintableValue] according to an expected [PrintableType].
+/// Format a given [`PrintableValue`] according to an expected [`PrintableType`].
 ///
 /// Returns `None` if the value is not what we expect based on the type.
 fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
@@ -371,7 +371,7 @@ fn write_template_replacing_interpolations(
     write!(fmt, "{}", &template[last_index..])
 }
 
-/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
+/// Assumes that `field_iterator` contains enough field elements in order to decode the [`PrintableType`].
 pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,

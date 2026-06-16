@@ -445,9 +445,9 @@ impl Elaborator<'_> {
     }
 
     /// Runs every pending where-clause check queued by
-    /// [Self::queue_pending_where_clause_check]. Must be called after the
+    /// [`Self::queue_pending_where_clause_check`]. Must be called after the
     /// post-attribute drain has resolved every involved meta and after
-    /// [Elaborator::populate_resolved_trait_method_records] has updated the
+    /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
     /// trait's `TraitFunction` records.
     pub(super) fn run_pending_where_clause_checks(&mut self) {
         let pending = std::mem::take(&mut self.pending_trait_work.where_clause_checks);
@@ -970,7 +970,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves the trait path from a trait impl declaration.
-    /// Returns (trait_id, trait_generics, path_location).
+    /// Returns (`trait_id`, `trait_generics`, `path_location`).
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_trait_path(
         &mut self,
@@ -1087,7 +1087,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves associated types for a trait impl and checks for missing generics.
-    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
+    /// Sets `resolved_trait_generics` and `unresolved_associated_types` on `trait_impl`.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_associated_types(
         &mut self,
@@ -1134,7 +1134,7 @@ impl Elaborator<'_> {
         trait_impl.unresolved_associated_types = associated_types;
     }
 
-    /// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
+    /// Identical to [`Self::resolve_type_or_trait_args_inner`] but does not allow
     /// associated types to be elided since trait impls must specify them.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_args_from_trait_impl(

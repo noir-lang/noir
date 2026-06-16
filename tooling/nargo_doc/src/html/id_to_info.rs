@@ -17,7 +17,7 @@ pub(super) struct ItemInfo {
     pub(super) visibility: ItemVisibility,
 }
 
-/// Computes an ItemInfo for every item in the workspace, indexed by its Id.
+/// Computes an `ItemInfo` for every item in the workspace, indexed by its Id.
 pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<ItemId, ItemInfo> {
     let mut id_to_info = HashMap::new();
     let mut path = Vec::new();
