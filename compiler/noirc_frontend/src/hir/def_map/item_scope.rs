@@ -1,13 +1,12 @@
 use super::{ModuleDefId, ModuleId, Namespace, namespace::PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, TraitId};
+use crate::node_interner::FuncId;
 
 use std::collections::{BTreeMap, btree_map};
-use std::collections::{HashMap, hash_map};
 
-/// Definitions of an [Ident]: it can be a standalone without a [`TraitId`],
-/// or it can appear across multiple traits.
-type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
+/// A single [Ident]'s definition in a namespace: its [`ModuleDefId`], its visibility, and whether
+/// it came from the prelude.
+type Scope = (ModuleDefId, ItemVisibility, bool /*is_prelude*/);
 
 /// All the definitions of [Ident]s in scope, either as `types` or `values`.
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -25,9 +24,8 @@ impl ItemScope {
         name: Ident,
         visibility: ItemVisibility,
         mod_def: ModuleDefId,
-        trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.add_item_to_namespace(name, visibility, mod_def, trait_id, false)?;
+        self.add_item_to_namespace(name, visibility, mod_def, false)?;
         self.defs.push(mod_def);
         Ok(())
     }
@@ -42,39 +40,30 @@ impl ItemScope {
         name: Ident,
         visibility: ItemVisibility,
         mod_def: ModuleDefId,
-        trait_id: Option<TraitId>,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
         let add_item = |map: &mut BTreeMap<Ident, Scope>| {
             if let btree_map::Entry::Occupied(mut o) = map.entry(name.clone()) {
-                let trait_hashmap = o.get_mut();
-                if let hash_map::Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
-                    // Generally we want to reject having two of the same ident in the same namespace.
-                    // The exception to this is when we're explicitly importing something
-                    // which exists in the Noir stdlib prelude.
-                    //
-                    // In this case we ignore the prelude and favour the explicit import.
-                    let old_is_prelude = n.get().2;
-                    if old_is_prelude && !is_prelude {
-                        // Explicit import or definition overrides prelude
-                        *n.get_mut() = (mod_def, visibility, is_prelude);
-                        Ok(())
-                    } else if is_prelude {
-                        // Prelude cannot override anything: silently drop prelude import
-                        Ok(())
-                    } else {
-                        // Two non-prelude definitions: genuine duplicate
-                        let old_ident = o.key();
-                        Err((old_ident.clone(), name))
-                    }
-                } else {
-                    trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
+                // Generally we want to reject having two of the same ident in the same namespace.
+                // The exception to this is when we're explicitly importing something
+                // which exists in the Noir stdlib prelude.
+                //
+                // In this case we ignore the prelude and favour the explicit import.
+                let old_is_prelude = o.get().2;
+                if old_is_prelude && !is_prelude {
+                    // Explicit import or definition overrides prelude
+                    *o.get_mut() = (mod_def, visibility, is_prelude);
                     Ok(())
+                } else if is_prelude {
+                    // Prelude cannot override anything: silently drop prelude import
+                    Ok(())
+                } else {
+                    // Two non-prelude definitions: genuine duplicate
+                    let old_ident = o.key();
+                    Err((old_ident.clone(), name))
                 }
             } else {
-                let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
-                map.insert(name, trait_hashmap);
+                map.insert(name, (mod_def, visibility, is_prelude));
                 Ok(())
             }
         };
@@ -85,9 +74,9 @@ impl ItemScope {
         }
     }
 
-    /// Look up an [Ident] in `types` with no [`TraitId`], and return it _iff_ it's a [`ModuleDefId::ModuleId`].
+    /// Look up an [Ident] in `types`, and return it _iff_ it's a [`ModuleDefId::ModuleId`].
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
-        let (module_def, _, _) = self.types.get(mod_name)?.get(&None)?;
+        let (module_def, _, _) = self.types.get(mod_name)?;
         match module_def {
             ModuleDefId::ModuleId(id) => Some(id),
             _ => None,
@@ -112,17 +101,6 @@ impl ItemScope {
         }
     }
 
-    /// Look for an [Ident] in both `types` and `values`,
-    ///
-    /// It returns the entry matching the `trait_id`, that is, either the standalone definition,
-    /// or one in a specific trait (regardless of the presence of other traits).
-    pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
-        PerNs {
-            types: self.types.get(name).and_then(|t| t.get(trait_id)).copied(),
-            values: self.values.get(name).and_then(|v| v.get(trait_id)).copied(),
-        }
-    }
-
     /// All [Ident]s in `types` and `values`.
     pub fn names(&self) -> impl Iterator<Item = &Ident> {
         self.types.keys().chain(self.values.keys())
@@ -140,25 +118,9 @@ impl ItemScope {
         &self.values
     }
 
-    /// Look up an [Ident] in `types` or `values`:
-    /// * if a definition without a [`TraitId`] exists, return that
-    /// * if there is exactly 1 definition with a [`TraitId`], return that
-    /// * otherwise return nothing, as the name is ambiguous, exists in multiple traits
-    fn find_name_in<'a>(
-        name: &Ident,
-        map: &'a BTreeMap<Ident, Scope>,
-    ) -> Option<&'a (ModuleDefId, ItemVisibility, bool)> {
-        if let Some(t) = map.get(name) {
-            if let Some(tt) = t.get(&None) {
-                Some(tt)
-            } else if t.len() == 1 {
-                t.values().last()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    /// Look up an [Ident] in `types` or `values`.
+    fn find_name_in<'a>(name: &Ident, map: &'a BTreeMap<Ident, Scope>) -> Option<&'a Scope> {
+        map.get(name)
     }
 
     /// Clears all definitions in this scope.

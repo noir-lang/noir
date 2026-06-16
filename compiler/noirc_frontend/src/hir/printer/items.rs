@@ -134,7 +134,7 @@ impl<'context> ItemBuilder<'context> {
             .types()
             .iter()
             .chain(definitions.values())
-            .flat_map(|(_name, scope)| scope.values())
+            .map(|(_name, entry)| entry)
             .map(|(module_def_id, visibility, _is_prelude)| {
                 let location = self.module_def_id_location(*module_def_id);
                 (*module_def_id, *visibility, location)
@@ -153,7 +153,7 @@ impl<'context> ItemBuilder<'context> {
             .types()
             .iter()
             .chain(scope.values())
-            .flat_map(|(name, scope)| scope.values().map(|value| (name.clone(), value)))
+            .map(|(name, value)| (name.clone(), value))
             .filter_map(|(name, (module_def_id, visibility, is_prelude))| {
                 if !definitions_module_def_ids.contains(module_def_id) {
                     Some(Import {

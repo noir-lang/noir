@@ -861,7 +861,7 @@ impl Elaborator<'_> {
     /// methods are not declared there and resolve through the interner's type-directed lookup (see
     /// [Elaborator::resolve_type_method_or_trait_method]).
     fn resolve_method(&self, current_module: &ModuleData, ident: &Ident) -> MethodLookupResult {
-        match current_module.scope().values().get(ident).and_then(|values| values.get(&None)) {
+        match current_module.scope().values().get(ident) {
             Some(item) => {
                 MethodLookupResult::FoundMethod(PerNs { types: None, values: Some(*item) })
             }
