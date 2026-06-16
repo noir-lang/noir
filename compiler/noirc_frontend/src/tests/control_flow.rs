@@ -96,6 +96,18 @@ fn break_and_continue_outside_loop() {
 }
 
 #[test]
+fn break_in_infix_operand() {
+    let src = r#"
+    unconstrained fn main() {
+        let _ = 1 + { break; };
+                ^^^^^^^^^^^^^^ Types in a binary operation should match, but found Field and ()
+                      ^^^^^^ break is only allowed within loops
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn wrong_type_in_for_range() {
     let src = r#"
     pub fn foo() {
