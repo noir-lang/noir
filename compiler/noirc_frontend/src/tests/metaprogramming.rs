@@ -51,6 +51,34 @@ fn comptime_type_in_runtime_code() {
 }
 
 #[test]
+fn comptime_type_in_constructor_in_runtime_code() {
+    let source = r#"
+    comptime struct MetaOnly {
+        value: Field,
+    }
+
+    struct RuntimeStruct {
+        value: Field,
+    }
+
+    comptime type MetaAlias = RuntimeStruct;
+
+    fn id<T>(x: T) -> T {
+        x
+    }
+
+    fn main() -> pub Field {
+        let direct = id(MetaOnly { value: 10 });
+                        ^^^^^^^^ Comptime-only type `MetaOnly` cannot be used in non-comptime function
+        let alias = MetaAlias { value: 32 };
+                    ^^^^^^^^^ Comptime-only type `MetaAlias` cannot be used in non-comptime function
+        direct.value + alias.value
+    }
+    "#;
+    check_errors(source);
+}
+
+#[test]
 fn macro_result_type_mismatch() {
     let src = r#"
         fn main() {
@@ -1508,7 +1536,7 @@ fn recursive_attribute_causes_expansion_limit_error() {
 
 /// Verifies that mutually recursive attributes are caught by the global macro expansion depth limit.
 /// Three mutually recursive attributes: foo -> bar -> baz -> foo -> ...
-/// With a global counter, this correctly errors at [crate::elaborator::MAX_MACRO_EXPANSION_DEPTH] total expansions.
+/// With a global counter, this correctly errors at [`crate::elaborator::MAX_MACRO_EXPANSION_DEPTH`] total expansions.
 #[test]
 fn mutually_recursive_attributes_cause_expansion_limit_error() {
     use crate::elaborator::MAX_MACRO_EXPANSION_DEPTH;

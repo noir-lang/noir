@@ -371,7 +371,7 @@ pub(crate) fn process_workspace(
 }
 
 /// Type-checks a single file that changed by using existing cached data for the workspace/package,
-/// such as the cached NodeInterner, CrateGraph and DefMaps.
+/// such as the cached `NodeInterner`, `CrateGraph` and `DefMaps`.
 ///
 /// This greatly improves the responsiveness of the LSP server when editing files. However,
 /// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed

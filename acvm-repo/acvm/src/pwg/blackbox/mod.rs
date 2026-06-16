@@ -62,7 +62,7 @@ fn contains_all_inputs<F>(
 /// Our black box solver uses the standard rust implementation for the function if it is available.
 /// However, some functions depend on the backend, such as embedded curve operations, which depend on the
 /// elliptic curve used by the proving system. This is why the 'solve' functions takes a blackbox solver trait.
-/// The 'AcvmBigIntSolver' is also a blackbox solver, but dedicated to the BigInteger blackbox functions.
+/// The '`AcvmBigIntSolver`' is also a blackbox solver, but dedicated to the `BigInteger` blackbox functions.
 pub(crate) fn solve<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,

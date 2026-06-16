@@ -19,7 +19,7 @@
 //! The analysis assumes global values do not hold reference and will panic if they do.
 //!
 //! Supporting globals with reference would not be too difficult:
-//! 1. unify shared 'globals having reference' across functions in the GlobalValueId type
+//! 1. unify shared 'globals having reference' across functions in the `GlobalValueId` type
 //! 2. add them to the signature-based analysis.
 //!
 //! ## Algorithm outline
@@ -31,7 +31,7 @@
 //! as well as the results and the function's return values.
 //! To make the analysis order independent, the unified returned values of a function is stored (and updated after every call)
 //! and initialized either by the results or the returned values (depending on which comes first)
-//! Because ValueIds are per function, we have to reason instead on GlobalValueId: (FunctionId, ValueId).
+//! Because `ValueIds` are per function, we have to reason instead on `GlobalValueId`: (`FunctionId`, `ValueId`).
 //!
 //! After processing all instructions, the union-find partitions every reference
 //! into alias classes. Two references are *may-alias* if and only if they
@@ -62,12 +62,12 @@
 //! Allocate instructions are propagated among blocks following the terminator arguments (when all predecessor arguments have the same allocation site).
 //! Allocation Sites are tracked:
 //! - per value, in `allocation_sites`, and inherited for block parameters when arguments all match to the same site
-//! - per points_to sets, in `points_to_sites`, if all write to a pointer have the same site.
+//! - per `points_to` sets, in `points_to_sites`, if all write to a pointer have the same site.
 //!
 //! A second pass will conservatively associate allocation sites to load operations,
-//! when the points_to sets of the loaded address have a known allocation site.
+//! when the `points_to` sets of the loaded address have a known allocation site.
 //! It is important to skip load operations during pass 1 so that store operations are not polluted by transient load results.
-//! The points-to-set sites are computed using stored values only — load results stay NoAllocation in pass 1 (less precise but sound).
+//! The points-to-set sites are computed using stored values only — load results stay `NoAllocation` in pass 1 (less precise but sound).
 //! Pass 2 then propagates those points-to sites into to the load results.
 //!
 //! #### Must Alias
@@ -119,8 +119,8 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// GlobalValueId are ValueId along with their FunctionId,
-/// allowing to globally use ValueIds coming from several functions.
+/// `GlobalValueId` are `ValueId` along with their `FunctionId`,
+/// allowing to globally use `ValueIds` coming from several functions.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub(crate) struct GlobalValueId(FunctionId, ValueId);
 
@@ -139,7 +139,7 @@ impl GlobalValueId {
 }
 
 pub(crate) struct AliasAnalysis {
-    /// union-find structure mapping GlobalValueId to their alias class.
+    /// union-find structure mapping `GlobalValueId` to their alias class.
     aliases: UnionFind<GlobalValueId>,
 
     /// Maps an alias class representative to the alias class of what it points to.
@@ -343,11 +343,11 @@ enum SignatureTemplate {
     MergeReference(usize, usize),
 }
 
-/// AliasAnalysis stores the result of the alias analysis pass
+/// `AliasAnalysis` stores the result of the alias analysis pass
 /// as well as transient data computed during the analysis
 #[derive(Default)]
 struct AliasAnalysisContext {
-    /// union-find structure mapping GlobalValueId to their alias class.
+    /// union-find structure mapping `GlobalValueId` to their alias class.
     aliases: UnionFind<GlobalValueId>,
 
     /// Maps an alias class representative to the alias class of what it points to.
@@ -365,7 +365,7 @@ struct AliasAnalysisContext {
     /// Known allocation sites
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
 
-    /// Joined allocation site of every value ever placed into the points_to alias class.
+    /// Joined allocation site of every value ever placed into the `points_to` alias class.
     points_to_sites: HashMap<GlobalValueId, AllocationLattice>,
 
     /// Functions whose body may run more than once per program execution.
@@ -903,7 +903,7 @@ impl AliasAnalysisContext {
     }
 
     /// At each Return, merge the returned values with the function's canonical
-    /// return_values (or create them the first time).
+    /// `return_values` (or create them the first time).
     fn merge_return(&mut self, function: &Function, return_values: &[ValueId]) {
         match self.return_values.get(&function.id()).cloned() {
             Some(results) => {
@@ -1046,7 +1046,7 @@ impl AliasAnalysisContext {
         templates
     }
 
-    /// Helper function for unresolved call which put identical types into buckets and merge their corresponding ValueId.
+    /// Helper function for unresolved call which put identical types into buckets and merge their corresponding `ValueId`.
     /// Returns the canonicalized signature (one 'reference' type per bucket, sorted) and its corresponding vector of bucket representatives.
     fn type_representatives(
         &mut self,
@@ -1330,7 +1330,7 @@ mod tests {
     use super::*;
     use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
 
-    /// Collect the result ValueIds of every `Allocate` instruction in the main
+    /// Collect the result `ValueIds` of every `Allocate` instruction in the main
     /// function, in declaration order (across reachable blocks).
     fn collect_allocates(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
@@ -1347,7 +1347,7 @@ mod tests {
         out
     }
 
-    /// Collect the result ValueIds of every `Load` instruction.
+    /// Collect the result `ValueIds` of every `Load` instruction.
     fn collect_loads(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
@@ -1363,7 +1363,7 @@ mod tests {
         out
     }
 
-    /// Collect the result ValueIds of every `ArrayGet` instruction.
+    /// Collect the result `ValueIds` of every `ArrayGet` instruction.
     fn collect_array_gets(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
@@ -1682,7 +1682,7 @@ mod tests {
     // OTHER CASES - more complex cases
     // ============================================================
 
-    /// IfElse on composites merges the composite branches so
+    /// `IfElse` on composites merges the composite branches so
     /// refs extracted from the result alias both branches' underlying refs.
     #[test]
     fn ifelse_composite_extractions_alias() {
@@ -1981,7 +1981,7 @@ mod tests {
     // Intrinsics (unify_on_signature)
     // ============================================================
 
-    /// vector_push_back is handled precisely by `unify_vector_intrinsic`:
+    /// `vector_push_back` is handled precisely by `unify_vector_intrinsic`:
     /// the pushed element is linked into the *pointee* class of the
     /// vector (not merged with the container itself as a generic
     /// signature-level merge would do). This is the element-level
@@ -2040,7 +2040,7 @@ mod tests {
         assert!(analysis.may_alias(ssa.main(), allocs[0], gets[0]));
     }
 
-    /// `vector_push_front` symmetric to push_back: pushed element lands in the
+    /// `vector_push_front` symmetric to `push_back`: pushed element lands in the
     /// new vector's pointee class.
     #[test]
     fn vector_push_front_links_pushed_element_into_pointee_class() {
@@ -2101,7 +2101,7 @@ mod tests {
     }
 
     /// `vector_pop_front`: layout differs (popped element comes before
-    /// new_len and new_vec in the results list). Same aliasing effect.
+    /// `new_len` and `new_vec` in the results list). Same aliasing effect.
     #[test]
     fn vector_pop_front_links_popped_element_with_vector_contents() {
         let src = "
@@ -2136,7 +2136,7 @@ mod tests {
     }
 
     /// `vector_insert`: inserted element lands in the pointee class, exactly
-    /// like push_back/push_front but at an arbitrary index.
+    /// like `push_back/push_front` but at an arbitrary index.
     #[test]
     fn vector_insert_links_inserted_element_into_pointee_class() {
         // Two oracles so v0 and v1 start in separate classes with ⊥ origin,
@@ -2473,7 +2473,7 @@ mod tests {
     /// `array_set` on a global produces a new array (SSA is immutable). The
     /// global itself is unchanged; the new array is independent. Since the
     /// global's type carries no references, the `merge_reference` calls in
-    /// the ArraySet handler are no-ops, and neither the global nor the
+    /// the `ArraySet` handler are no-ops, and neither the global nor the
     /// result enters the union-find.
     ///
     /// This test confirms the analysis handles `array_set` on a global
@@ -2530,7 +2530,7 @@ mod tests {
     // must_alias
     // ============================================================
 
-    /// Result ValueIds of every `IfElse` in main, in declaration order.
+    /// Result `ValueIds` of every `IfElse` in main, in declaration order.
     fn collect_ifelse_results(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();

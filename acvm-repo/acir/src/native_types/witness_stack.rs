@@ -46,7 +46,7 @@ pub struct WitnessStack<F> {
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct StackItem<F> {
-    /// Index into a [crate::circuit::Program] function list for which we have an associated witness
+    /// Index into a [`crate::circuit::Program`] function list for which we have an associated witness
     #[tag(0)]
     pub index: u32,
     /// A full witness for the respective constraint system specified by the index

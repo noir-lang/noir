@@ -1,9 +1,9 @@
 //! The submodules of this module define the various data types required to
-//! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
+//! represent Noir's Ast. Of particular importance are `ExpressionKind` and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
-//! where it is converted into the Hir (defined in the hir_def module).
+//! where it is converted into the Hir (defined in the `hir_def` module).
 mod docs;
 mod enumeration;
 mod expression;
@@ -114,7 +114,7 @@ impl core::fmt::Display for IntegerBitSize {
     }
 }
 
-/// The parser parses types as 'UnresolvedType's which
+/// The parser parses types as '`UnresolvedType`'s which
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -126,7 +126,7 @@ pub enum UnresolvedTypeData {
 
     Parenthesized(Box<UnresolvedType>),
 
-    /// A Named UnresolvedType can be a struct type or a type variable
+    /// A Named `UnresolvedType` can be a struct type or a type variable
     Named(Path, GenericTypeArgs, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
@@ -215,7 +215,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
     }
 }
 
-/// The precursor to TypeExpression, this is the type that the parser allows
+/// The precursor to `TypeExpression`, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constant integers, variables,
 /// and numeric binary operators are allowed here.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
