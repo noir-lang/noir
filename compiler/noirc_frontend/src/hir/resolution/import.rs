@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{
-    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs,
+    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, Namespace, PerNs,
 };
 
 use super::errors::ResolverError;
@@ -407,7 +407,16 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+        // When the path has more than one segment, the first segment is traversed as a module, so
+        // it lives in the type namespace. A single-segment path's only segment is the leaf, marked
+        // after the loop in whichever namespace(s) it resolved to.
+        if path.segments.len() > 1 {
+            self.usage_tracker.mark_as_referenced(
+                current_module_id,
+                first_segment,
+                Namespace::Type,
+            );
+        }
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
@@ -460,9 +469,25 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+            // Every segment but the last is traversed as a module, so it lives in the type
+            // namespace. The last segment is the leaf, marked after the loop.
+            let is_last_segment = index == path.segments.len() - 2;
+            if !is_last_segment {
+                self.usage_tracker.mark_as_referenced(
+                    current_module_id,
+                    current_ident,
+                    Namespace::Type,
+                );
+            }
 
             current_ns = found_ns;
+        }
+
+        // An import references whatever the leaf resolves to, which may occupy both namespaces
+        // (e.g. a re-exported `struct N` and `fn N`), so mark each occupied namespace.
+        let leaf_ident = &path.segments.last().unwrap().ident;
+        for (id, _, _) in current_ns.iter_items() {
+            self.usage_tracker.mark_as_referenced(current_module_id, leaf_ident, id.namespace());
         }
 
         let (module_def_id, _, _) =

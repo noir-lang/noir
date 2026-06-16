@@ -55,6 +55,34 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 }
 
 #[test]
+fn global_without_value() {
+    let src = r#"
+    pub  global X: [Field];
+                ^ Expected the global to have a value
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn global_without_a_type_used_as_array_length() {
+    let src = r#"
+        global BAR = OOPS;
+               ^^^ Globals must have a specified type
+                     ^^^^ cannot find `OOPS` in this scope
+                     ^^^^ Global failed to evaluate
+                     ~~~~ not found in this scope
+                     ~~~~ Inferred type is `_`
+        global X: [Field; BAR] = [];
+               ^ unused global X
+               ~ unused global
+                          ^^^ expected type, found global `BAR`
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn do_not_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
@@ -486,6 +514,48 @@ fn errors_if_global_is_needed_in_initialize_and_function_signature() {
                             ^^^ expected type, found global `FOO`
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_used_in_runtime_code() {
+    let src = r#"
+    fn bar() {}
+
+    unconstrained fn baz(x: Field) {
+        assert_eq(x, 5);
+        bar()
+    }
+
+    pub comptime global foo_global: fn(Field) = |x: Field| baz(x);
+
+    fn main(x: Field) {
+        foo_global(x);
+        ^^^^^^^^^^ Comptime global `foo_global` used in non-comptime code
+        ~~~~~~~~~~ Consider using a comptime function or block
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_closure_cannot_be_inlined_into_runtime() {
+    let src = r#"
+    fn bar() {}
+
+    unconstrained fn baz(x: Field) {
+        assert_eq(x, 5);
+        bar()
+    }
+
+    pub comptime global foo_global: fn(Field) = |x: Field| baz(x);
+
+    fn main(x: Field) {
+        let _ = comptime { foo_global }(x);
+                ^^^^^^^^^^^^^^^^^^^^^^^ Cannot inline values of type `fn(Field) -> ()` into this position
+                ~~~~~~~~~~~~~~~~~~~~~~~ Cannot inline value `(closure)`
+    }
     "#;
     check_errors(src);
 }

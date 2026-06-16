@@ -551,3 +551,195 @@ fn can_use_trait_associated_constant_via_global_in_main_signature() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_on_duplicate_function_declaration() {
+    let src = r#"
+    fn hello(x: Field) -> Field {
+       ~~~~~ First definition found here
+        x
+    }
+
+    fn hello(x: Field) -> Field {
+       ^^^^^ Duplicate definitions of function with name hello found
+       ~~~~~ Second definition found here
+        x
+    }
+
+    fn main() {
+        let _ = hello(1);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_duplicate_generic_names() {
+    let src = r#"
+    fn bar<A, A>(_x: A, _y: A) {}
+              ^ duplicate definitions of A found
+           ~ first definition found here
+              ~ second definition found here
+
+    fn foo<let N: u32, let N: u32>() {}
+                           ^^^^^^ duplicate definitions of N found
+               ~~~~~~ first definition found here
+                           ~~~~~~ second definition found here
+
+    fn main() {
+        bar::<u32, u32>(0, 1);
+        foo::<1, 2>();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_main_with_generics() {
+    let src = r#"
+    fn main<let F: u32>(x: [Field; F]) {
+                ^^^^^^ `main` entry-point function is not allowed to have generic parameters
+                           ^^^^^^^^^^ Invalid type found in the entry point to a program
+                           ~~~~~~~~~~ Invalid entry point type: [Field; F]
+        assert(x[0] != x[1]);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_unknown_integer_bit_size() {
+    let src = r#"
+    fn main() -> pub u63 {
+                     ^^^ Could not resolve 'u63' in path
+        5
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_unit_in_main() {
+    let src = r#"
+    fn main(_: ()) {}
+               ^^ Invalid type found in the entry point to a program
+               ~~ Unit is not a valid entry point type
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_struct_with_vector_field_in_main() {
+    let src = r#"
+    struct Foo {
+           ~~~ Struct Foo has an invalid entry point type
+        bar: Bar,
+        ~~~ Field bar has an invalid entry point type
+    }
+
+    struct Bar {
+           ~~~ Struct Bar has an invalid entry point type
+        baz: [Field],
+        ~~~ Field baz has an invalid entry point type
+        ~~~ Vector is not a valid entry point type. Found: [Field]
+    }
+
+    type SomeAlias = Foo;
+         ~~~~~~~~~ Alias SomeAlias has an invalid entry point type
+
+    fn main(_: SomeAlias) {}
+               ^^^^^^^^^ Invalid type found in the entry point to a program
+               ~~~~~~~~~ This type has an invalid entry point type inside it
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_fold_returning_array_of_references() {
+    let src = r#"
+    fn main() {
+        let _ = foo::<[&mut Field; 0]>();
+    }
+
+    #[fold]
+    fn foo<T>() -> [T; 0] {
+                   ^^^^^^ Invalid type found in the entry point to a program
+                   ~~~~~~ Reference is not a valid entry point type. Found: &mut Field
+        []
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn error_on_reference_in_test_function() {
+    let src = r#"
+    fn main() {}
+
+    #[test]
+    fn test(_arg: &mut i32) {}
+                  ^^^^^^^^ Invalid type found in the entry point to a program
+                  ~~~~~~~~ Reference is not a valid entry point type. Found: &mut i32
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_empty_string_in_call_data_param() {
+    let src = r#"
+    fn main(
+        _a: (i8, u32, i8),
+        _b: call_data(0) [(i8, i8, bool, bool, str<0>); 2],
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid type found in the entry point to a program
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Empty string is not a valid entry point type. Found: str<0>
+    ) -> pub [(bool, str<3>, str<0>, u32); 0] {
+        []
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_empty_array_param_with_call_data() {
+    let src = r#"
+    fn main(_empty: [u32; 0], value_1: u32, value_2: call_data(0) u32) {
+                    ^^^^^^^^ Invalid type found in the entry point to a program
+                    ~~~~~~~~ Invalid entry point type: [u32; 0]
+        assert_eq(value_1 + 1, value_2);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_empty_nested_array_param() {
+    // Regression for https://github.com/noir-lang/noir/issues/7952
+    let src = r#"
+    fn main(a: [[u32; 0]; 1], b: bool) -> pub [u32; 0] {
+               ^^^^^^^^^^^^^ Invalid type found in the entry point to a program
+               ~~~~~~~~~~~~~ Invalid entry point type: [u32; 0]
+        if (b) {
+            a[0]
+        } else {
+            a[0]
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_empty_composite_array_param_and_out_of_bounds_index() {
+    let src = r#"
+    fn main(empty_input: [(Field, Field); 0]) {
+                         ^^^^^^^^^^^^^^^^^^^ Invalid type found in the entry point to a program
+                         ~~~~~~~~~~~~~~~~~~~ Invalid entry point type: [(Field, Field); 0]
+        let empty_array: [(Field, Field); 0] = [];
+        let _ = empty_input[0];
+                            ^ Index 0 is out of bounds for this array of length 0
+        let _ = empty_array[0];
+                            ^ Index 0 is out of bounds for this array of length 0
+    }
+    "#;
+    check_errors(src);
+}
