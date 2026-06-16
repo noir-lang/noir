@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781617717174,
+  "lastUpdate": 1781617814645,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "18906e1adcfacc795ae88d47dabb4fa803faf074",
-          "message": "fix(ssa): keep checked overflow check when simplifying +0/-0/*1 on unfit operands (#12982)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-10T13:00:46Z",
-          "tree_id": "4e1dfd99ed41bed2b8306be079241a50eeddd5df",
-          "url": "https://github.com/noir-lang/noir/commit/18906e1adcfacc795ae88d47dabb4fa803faf074"
-        },
-        "date": 1781098389391,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168502,
-            "range": "± 351",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136578,
-            "range": "± 3079",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653179,
-            "range": "± 1425",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040721,
             "range": "± 3562",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed11f9a8213ffd36cc58d67aa0f7f6bf40fbf5d7",
+          "message": "chore: Clarify attribute order (#13028)",
+          "timestamp": "2026-06-16T13:25:17Z",
+          "tree_id": "bc1c51d212ab5cfe517a3cdec162a8315b44ca67",
+          "url": "https://github.com/noir-lang/noir/commit/ed11f9a8213ffd36cc58d67aa0f7f6bf40fbf5d7"
+        },
+        "date": 1781617741865,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167304,
+            "range": "± 368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136579,
+            "range": "± 3921",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2656468,
+            "range": "± 1749",
             "unit": "ns/iter"
           }
         ]
