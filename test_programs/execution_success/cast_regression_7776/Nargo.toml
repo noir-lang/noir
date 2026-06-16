@@ -1,5 +1,5 @@
 [package]
-name = "array_neq"
+name = "cast_regression_7776"
 type = "bin"
 authors = [""]
 
