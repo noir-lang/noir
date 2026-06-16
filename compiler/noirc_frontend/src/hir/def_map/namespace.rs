@@ -32,11 +32,6 @@ impl PerNs {
         }
     }
 
-    /// Iterate the [`ModuleDefId`]s in both `types` and `values`.
-    pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
-        self.iter_items().map(|item| item.id)
-    }
-
     /// Iterate the results in both `types` and `values`.
     pub fn iter_items(self) -> impl Iterator<Item = NamespaceItem> {
         self.types.into_iter().chain(self.values)
