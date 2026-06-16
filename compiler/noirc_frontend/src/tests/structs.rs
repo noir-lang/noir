@@ -699,3 +699,19 @@ fn struct_takes_priority_over_global_with_same_name() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn placeholder_not_allowed_in_struct_field_type() {
+    let src = r#"
+    pub struct Foo {
+        x: [_; _],
+            ^ The placeholder `_` is not allowed in struct field types
+               ^ The placeholder `_` is not allowed in struct field types
+    }
+
+    fn main() {
+        let _ = Foo { x: [1] };
+    }
+    "#;
+    check_errors(src);
+}

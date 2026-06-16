@@ -1,6 +1,0 @@
-[package]
-name = "comptime_resolve_visibility"
-type = "bin"
-authors = [""]
-
-[dependencies]
