@@ -28,11 +28,47 @@ impl<let N: u32, T> PrimitiveTag for fmtstr<N, T> {
     }
 }
 
+impl<let N: u32, T> PrimitiveTag for [T; N] {
+    fn tag() -> u32 {
+        N
+    }
+
+    fn via_self() -> u32 {
+        Self::tag()
+    }
+}
+
+impl<T> PrimitiveTag for [T] {
+    fn tag() -> u32 {
+        7_u32
+    }
+
+    fn via_self() -> u32 {
+        Self::tag()
+    }
+}
+
+impl<A, B> PrimitiveTag for (A, B) {
+    fn tag() -> u32 {
+        2_u32
+    }
+
+    fn via_self() -> u32 {
+        Self::tag()
+    }
+}
+
 type Str3 = str<3>;
 
 type Str5 = str<5>;
 
 type Fmt3 = fmtstr<3, (Field, Field)>;
+
+type Arr = [u8; 4];
+
+type Sli = [u8];
+
+type Tup = (u8, u32);
 
 fn main() {
     assert(str::<3>::tag() == 3_u32);
@@ -42,4 +78,10 @@ fn main() {
     assert(<str<3> as PrimitiveTag>::tag() == 3_u32);
     assert(fmtstr::<3, (Field, Field)>::tag() == 3_u32);
     assert(fmtstr::<3, (Field, Field)>::via_self() == 3_u32);
+    assert(<[u8; 4]>::tag() == 4_u32);
+    assert(<[u8; 4]>::via_self() == 4_u32);
+    assert(<[u8]>::tag() == 7_u32);
+    assert(<[u8]>::via_self() == 7_u32);
+    assert(<(u8, u32)>::tag() == 2_u32);
+    assert(<(u8, u32)>::via_self() == 2_u32);
 }

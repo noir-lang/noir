@@ -209,13 +209,28 @@ impl Elaborator<'_> {
                     func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
 
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
-                // impl generics differs from the number of struct generics. The turbofish
-                // `S::<u32, bool>` provides type_generics aligned with the struct's params
+                // impl generics differs from the number of the type's generics. The turbofish
+                // `S::<u32, bool>` provides type_generics aligned with the type's params
                 // [A, B], not the impl's generics [B]. Replace each impl generic in
                 // `self_type`'s args with a fresh type variable and unify those with the
                 // turbofish-provided type generics. The fresh type variables get bound by
-                // unification, and we record those bindings for the impl generics.
-                if let Some(Type::DataType(_, self_type_args)) = self_type {
+                // unification, and we record those bindings for the impl generics. Working
+                // through the self type's structural arguments (rather than zipping the
+                // turbofish positionally with the impl generics) also keeps this correct when
+                // the impl declares its generics in a different order than they appear in the
+                // self type, e.g. `impl<let N: u32, T> Trait for [T; N]`.
+                let self_type_args = match &self_type {
+                    Some(
+                        typ @ (Type::DataType(..)
+                        | Type::Array(..)
+                        | Type::Vector(..)
+                        | Type::String(..)
+                        | Type::FmtString(..)
+                        | Type::Tuple(..)),
+                    ) => Some(builtin_type_generic_arguments(typ)),
+                    _ => None,
+                };
+                if let Some(self_type_args) = self_type_args {
                     assert_eq!(
                         type_generics.len(),
                         self_type_args.len(),
@@ -1007,19 +1022,34 @@ impl Elaborator<'_> {
 }
 
 /// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
-/// recursively expanding the generics aliased aliases, finally returning the generics of the
-/// innermost aliased struct.
-///
-/// Panics if it encounters a type other than alias or struct.
+/// recursively expanding aliased aliases, finally returning the generic arguments of the
+/// innermost aliased type.
 fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
-    let typ = type_alias.get_type(generics);
-    match typ {
-        Type::DataType(_, generics) => generics,
+    match type_alias.get_type(generics) {
         Type::Alias(type_alias, generics) => {
             get_type_alias_generics(&type_alias.borrow(), &generics)
         }
-        Type::String(length) => vec![*length],
-        Type::FmtString(length, element) => vec![*length, *element],
+        typ => builtin_type_generic_arguments(&typ),
+    }
+}
+
+/// Returns the generic arguments carried by `typ`, in the structural order they appear, so they
+/// can be unified against an impl's self type to bind the impl's generics.
+///
+/// Returns an empty vector for types that carry no such arguments (e.g. `Field`, `bool`, `()`
+/// or a bare function type). This is intentionally not an exhaustive match with an ICE on
+/// unexpected types: a type alias can target any built-in type that admits an impl (so any of
+/// them may flow in here), and several simply have no generics to bind.
+fn builtin_type_generic_arguments(typ: &Type) -> Vec<Type> {
+    match typ {
+        Type::DataType(_, generics) => generics.clone(),
+        Type::Array(element, length) => vec![element.as_ref().clone(), length.as_ref().clone()],
+        Type::Vector(element) => vec![element.as_ref().clone()],
+        Type::String(length) => vec![length.as_ref().clone()],
+        Type::FmtString(length, element) => {
+            vec![length.as_ref().clone(), element.as_ref().clone()]
+        }
+        Type::Tuple(elements) => elements.clone(),
         _ => Vec::new(),
     }
 }
