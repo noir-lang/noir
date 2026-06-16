@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781625554851,
+  "lastUpdate": 1781626238489,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bf631194998266bffecda67f5ef7f9ff7b1086d1",
-          "message": "chore(ssa): Do not invalidate cached `MakeArray`/`Call` results in ACIR (#12994)",
-          "timestamp": "2026-06-11T10:09:11Z",
-          "tree_id": "d271a42f1673e861f3d779df0efbda33093fc2c4",
-          "url": "https://github.com/noir-lang/noir/commit/bf631194998266bffecda67f5ef7f9ff7b1086d1"
-        },
-        "date": 1781174793963,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162162,
-            "range": "± 1162",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134076,
-            "range": "± 2824",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2121532,
-            "range": "± 4329",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2122182,
             "range": "± 5881",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a724dd4b5cba469a425dfa5b67191859040ac644",
+          "message": "fix(fuzz): Handle `Div` overflow message equivalence (#13036)",
+          "timestamp": "2026-06-16T15:44:32Z",
+          "tree_id": "ddeaafe30b92410426497ae186879b18fa6faf72",
+          "url": "https://github.com/noir-lang/noir/commit/a724dd4b5cba469a425dfa5b67191859040ac644"
+        },
+        "date": 1781626163967,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169210,
+            "range": "± 602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138388,
+            "range": "± 1483",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655218,
+            "range": "± 49916",
             "unit": "ns/iter"
           }
         ]
