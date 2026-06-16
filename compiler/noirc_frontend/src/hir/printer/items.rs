@@ -134,10 +134,9 @@ impl<'context> ItemBuilder<'context> {
             .types()
             .iter()
             .chain(definitions.values())
-            .map(|(_name, entry)| entry)
-            .map(|(module_def_id, visibility, _is_prelude)| {
-                let location = self.module_def_id_location(*module_def_id);
-                (*module_def_id, *visibility, location)
+            .map(|(_name, scope)| {
+                let location = self.module_def_id_location(scope.id);
+                (scope.id, scope.visibility, location)
             })
             .collect::<Vec<_>>();
 
@@ -153,14 +152,13 @@ impl<'context> ItemBuilder<'context> {
             .types()
             .iter()
             .chain(scope.values())
-            .map(|(name, value)| (name.clone(), value))
-            .filter_map(|(name, (module_def_id, visibility, is_prelude))| {
-                if !definitions_module_def_ids.contains(module_def_id) {
+            .filter_map(|(name, scope)| {
+                if !definitions_module_def_ids.contains(&scope.id) {
                     Some(Import {
-                        name,
-                        id: *module_def_id,
-                        visibility: *visibility,
-                        is_prelude: *is_prelude,
+                        name: name.clone(),
+                        id: scope.id,
+                        visibility: scope.visibility,
+                        is_prelude: scope.is_prelude,
                     })
                 } else {
                     None

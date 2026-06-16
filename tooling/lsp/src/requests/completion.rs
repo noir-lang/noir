@@ -946,8 +946,9 @@ impl<'a> NodeFinder<'a> {
 
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
-                for (module_def_id, visibility, is_prelude) in per_ns.iter_items() {
-                    if is_prelude && skip_prelude_items {
+                for item in per_ns.iter_items() {
+                    let module_def_id = item.id;
+                    if item.is_prelude && skip_prelude_items {
                         continue;
                     }
 
@@ -955,7 +956,7 @@ impl<'a> NodeFinder<'a> {
                         self.def_maps,
                         self.module_id,
                         module_id,
-                        visibility,
+                        item.visibility,
                     ) {
                         continue;
                     }

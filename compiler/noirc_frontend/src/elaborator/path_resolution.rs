@@ -631,7 +631,7 @@ impl Elaborator<'_> {
             // We are looking up the `current_segment` in the lookup result of the `prev_segment`.
             let (typ, visibility) = match current_ns.types {
                 None => return Err(PathResolutionError::Unresolved(prev_ident.clone())),
-                Some((typ, visibility, _)) => (typ, visibility),
+                Some(scope) => (scope.id, scope.visibility),
             };
 
             let location = prev_segment.location;
@@ -759,8 +759,8 @@ impl Elaborator<'_> {
             PathResolutionTarget::Value => (current_ns.values, current_ns.types),
         };
 
-        let (module_def_id, visibility, _) =
-            target_ns.or(fallback_ns).expect("A namespace should never be empty");
+        let scope = target_ns.or(fallback_ns).expect("A namespace should never be empty");
+        let (module_def_id, visibility) = (scope.id, scope.visibility);
 
         // Mark the leaf segment as used/referenced in the namespace it resolved to, so that a
         // same-named sibling in the other namespace stays tracked.

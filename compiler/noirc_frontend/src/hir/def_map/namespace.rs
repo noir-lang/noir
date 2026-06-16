@@ -1,4 +1,4 @@
-use super::ModuleDefId;
+use super::{ModuleDefId, Scope};
 use crate::ast::ItemVisibility;
 
 /// The namespace an item lives in. Noir resolves types and values independently, so a
@@ -15,23 +15,26 @@ pub enum Namespace {
 /// This works exactly the same as in r-a, just simplified.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
 pub struct PerNs {
-    pub types: Option<(ModuleDefId, ItemVisibility, bool)>,
-    pub values: Option<(ModuleDefId, ItemVisibility, bool)>,
+    pub types: Option<Scope>,
+    pub values: Option<Scope>,
 }
 
 impl PerNs {
     /// Creates a [`PerNs`] with a public [`ModuleDefId`] in `types`, and no `values`.
     pub fn types(t: ModuleDefId) -> PerNs {
-        PerNs { types: Some((t, ItemVisibility::Public, false)), values: None }
+        PerNs {
+            types: Some(Scope { id: t, visibility: ItemVisibility::Public, is_prelude: false }),
+            values: None,
+        }
     }
 
     /// Iterate the [`ModuleDefId`]s in both `types` and `values`.
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
-        self.iter_items().map(|it| it.0)
+        self.iter_items().map(|item| item.id)
     }
 
     /// Iterate the results in both `types` and `values`.
-    pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, ItemVisibility, bool)> {
+    pub fn iter_items(self) -> impl Iterator<Item = Scope> {
         self.types.into_iter().chain(self.values)
     }
 

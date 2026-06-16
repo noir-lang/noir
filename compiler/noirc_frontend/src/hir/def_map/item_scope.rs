@@ -4,9 +4,14 @@ use crate::node_interner::FuncId;
 
 use std::collections::{BTreeMap, btree_map};
 
-/// A single [Ident]'s definition in a namespace: its [`ModuleDefId`], its visibility, and whether
-/// it came from the prelude.
-type Scope = (ModuleDefId, ItemVisibility, bool /*is_prelude*/);
+/// A single [Ident]'s definition in a namespace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Scope {
+    pub id: ModuleDefId,
+    pub visibility: ItemVisibility,
+    /// Whether this definition was brought into scope by the stdlib prelude.
+    pub is_prelude: bool,
+}
 
 /// All the definitions of [Ident]s in scope, either as `types` or `values`.
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -49,10 +54,9 @@ impl ItemScope {
                 // which exists in the Noir stdlib prelude.
                 //
                 // In this case we ignore the prelude and favour the explicit import.
-                let old_is_prelude = o.get().2;
-                if old_is_prelude && !is_prelude {
+                if o.get().is_prelude && !is_prelude {
                     // Explicit import or definition overrides prelude
-                    *o.get_mut() = (mod_def, visibility, is_prelude);
+                    *o.get_mut() = Scope { id: mod_def, visibility, is_prelude };
                     Ok(())
                 } else if is_prelude {
                     // Prelude cannot override anything: silently drop prelude import
@@ -63,7 +67,7 @@ impl ItemScope {
                     Err((old_ident.clone(), name))
                 }
             } else {
-                map.insert(name, (mod_def, visibility, is_prelude));
+                map.insert(name, Scope { id: mod_def, visibility, is_prelude });
                 Ok(())
             }
         };
@@ -76,19 +80,18 @@ impl ItemScope {
 
     /// Look up an [Ident] in `types`, and return it _iff_ it's a [`ModuleDefId::ModuleId`].
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
-        let (module_def, _, _) = self.types.get(mod_name)?;
-        match module_def {
+        match &self.types.get(mod_name)?.id {
             ModuleDefId::ModuleId(id) => Some(id),
             _ => None,
         }
     }
 
-    /// Look up an [Ident] in `values`, then return the [`FuncId`] if the definition is a [`ModuleDefId::FunctionId`],
-    ///
-    /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
+    /// Look up an [Ident] in `values`, then return the [`FuncId`] if the definition is a [`ModuleDefId::FunctionId`].
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
-        let (module_def, _, _) = Self::find_name_in(func_name, &self.values)?;
-        if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
+        match Self::find_name_in(func_name, &self.values)?.id {
+            ModuleDefId::FunctionId(id) => Some(id),
+            _ => None,
+        }
     }
 
     /// Look for an [Ident] in both `types` and `values`.

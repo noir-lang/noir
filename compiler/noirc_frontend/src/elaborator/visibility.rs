@@ -94,9 +94,7 @@ impl Elaborator<'_> {
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         let parent_module_data = self.get_module(parent_module_id);
         let per_ns = parent_module_data.find_name(&struct_type.name);
-        let (_, visibility, _) =
-            per_ns.types.expect("Expected to find struct in its parent module");
-        visibility
+        per_ns.types.expect("Expected to find struct in its parent module").visibility
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

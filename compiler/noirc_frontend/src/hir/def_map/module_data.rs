@@ -213,13 +213,13 @@ impl ModuleData {
     }
 
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.types().values().map(|(id, _, _)| *id)
+        self.definitions.types().values().map(|scope| scope.id)
     }
 
     /// Return an iterator over all definitions defined within this module,
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.values().values().map(|(id, _, _)| *id)
+        self.definitions.values().values().map(|scope| scope.id)
     }
 
     /// Clears all scope and definitions in this module.
