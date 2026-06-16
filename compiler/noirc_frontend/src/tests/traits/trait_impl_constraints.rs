@@ -430,3 +430,37 @@ fn impl_block_with_cross_trait_where_clause() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn placeholder_not_allowed_in_trait_constraint_and_bound() {
+    let src = r#"
+    pub struct Gen<T> {}
+    pub trait Trait2<T> {}
+
+    pub fn bar<T>()
+    where
+        Gen<_>: Trait2<T>,
+            ^ The placeholder `_` is not allowed in trait constraints
+    {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_trait_bound_generic() {
+    let src = r#"
+    pub struct Gen<T> {}
+    pub trait Trait2<T> {}
+
+    pub fn bar<T>()
+    where
+        Gen<T>: Trait2<_>,
+                       ^ The placeholder `_` is not allowed in trait bounds
+    {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

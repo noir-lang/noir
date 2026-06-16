@@ -1,6 +1,0 @@
-[package]
-name = "comptime_as_typed_expr_visibility"
-type = "bin"
-authors = [""]
-
-[dependencies]
