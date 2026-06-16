@@ -422,3 +422,70 @@ fn expands_trait_and_inherent_impl_inside_module() {
     }
     ");
 }
+
+#[test]
+fn expands_trait_impl_calling_private_inherent_method_inside_module() {
+    // The trait method body calls a module-private inherent method (`secret`). Both impls must be
+    // emitted inside `impls` so the call stays visible; hoisting the trait impl to the root would
+    // make the expanded source fail to compile. `assert_no_errors_and_to_string` re-checks that the
+    // expanded output compiles, so this also guards the round-trip.
+    let src = r#"
+    pub struct Foo {}
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use super::{Bar, Foo};
+
+        impl Foo {
+            fn secret(self) -> u32 {
+                let _ = self;
+                42
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let _ = (Foo {}).bar();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Foo {
+    }
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use crate::Bar;
+        use crate::Foo;
+
+        impl Foo {
+            fn secret(self) -> u32 {
+                let _: Self = self;
+                42_u32
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let _: u32 = Foo { }.bar();
+    }
+    ");
+}
