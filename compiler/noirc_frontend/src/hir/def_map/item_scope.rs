@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, btree_map};
 
 /// A single [Ident]'s definition in a namespace.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Scope {
+pub struct NamespaceItem {
     pub id: ModuleDefId,
     pub visibility: ItemVisibility,
     /// Whether this definition was brought into scope by the stdlib prelude.
@@ -16,8 +16,8 @@ pub struct Scope {
 /// All the definitions of [Ident]s in scope, either as `types` or `values`.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
-    types: BTreeMap<Ident, Scope>,
-    values: BTreeMap<Ident, Scope>,
+    types: BTreeMap<Ident, NamespaceItem>,
+    values: BTreeMap<Ident, NamespaceItem>,
     defs: Vec<ModuleDefId>,
 }
 
@@ -47,7 +47,7 @@ impl ItemScope {
         mod_def: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        let add_item = |map: &mut BTreeMap<Ident, Scope>| {
+        let add_item = |map: &mut BTreeMap<Ident, NamespaceItem>| {
             if let btree_map::Entry::Occupied(mut o) = map.entry(name.clone()) {
                 // Generally we want to reject having two of the same ident in the same namespace.
                 // The exception to this is when we're explicitly importing something
@@ -56,7 +56,7 @@ impl ItemScope {
                 // In this case we ignore the prelude and favour the explicit import.
                 if o.get().is_prelude && !is_prelude {
                     // Explicit import or definition overrides prelude
-                    *o.get_mut() = Scope { id: mod_def, visibility, is_prelude };
+                    *o.get_mut() = NamespaceItem { id: mod_def, visibility, is_prelude };
                     Ok(())
                 } else if is_prelude {
                     // Prelude cannot override anything: silently drop prelude import
@@ -67,7 +67,7 @@ impl ItemScope {
                     Err((old_ident.clone(), name))
                 }
             } else {
-                map.insert(name, Scope { id: mod_def, visibility, is_prelude });
+                map.insert(name, NamespaceItem { id: mod_def, visibility, is_prelude });
                 Ok(())
             }
         };
@@ -113,16 +113,19 @@ impl ItemScope {
         &self.defs
     }
 
-    pub fn types(&self) -> &BTreeMap<Ident, Scope> {
+    pub fn types(&self) -> &BTreeMap<Ident, NamespaceItem> {
         &self.types
     }
 
-    pub fn values(&self) -> &BTreeMap<Ident, Scope> {
+    pub fn values(&self) -> &BTreeMap<Ident, NamespaceItem> {
         &self.values
     }
 
     /// Look up an [Ident] in `types` or `values`.
-    fn find_name_in<'a>(name: &Ident, map: &'a BTreeMap<Ident, Scope>) -> Option<&'a Scope> {
+    fn find_name_in<'a>(
+        name: &Ident,
+        map: &'a BTreeMap<Ident, NamespaceItem>,
+    ) -> Option<&'a NamespaceItem> {
         map.get(name)
     }
 
