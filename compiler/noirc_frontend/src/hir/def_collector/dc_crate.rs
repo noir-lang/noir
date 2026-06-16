@@ -761,12 +761,10 @@ impl DefCollector {
 
             // If we error on path resolution don't also say it's unused (in case it ends up being unused)
             if !has_path_resolution_error {
-                let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
-
-                context.usage_tracker.add_unused_item(
-                    defining_module,
+                context.usage_tracker.add_unused_import(
+                    importing_module,
                     name.clone(),
-                    UnusedItem::Import,
+                    module_def_id.namespace(),
                     visibility,
                 );
 
@@ -776,12 +774,12 @@ impl DefCollector {
                         module_def_id,
                         file_id,
                         visibility,
-                        Some(defining_module),
+                        Some(importing_module),
                     );
 
                     context.def_interner.add_reexport(
                         module_def_id,
-                        defining_module,
+                        importing_module,
                         name.clone(),
                         visibility,
                     );
@@ -804,16 +802,32 @@ impl DefCollector {
     }
 
     fn check_unused_items(context: &Context, crate_id: CrateId, errors: &mut CompilationErrors) {
-        let unused_imports = context.usage_tracker.unused_items().iter();
-        let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
-        let mut unused_errors = unused_imports
+        let in_crate = |module_id: &&ModuleId| module_id.krate == crate_id;
+
+        let unused_definitions = context
+            .usage_tracker
+            .unused_items()
+            .iter()
+            .filter(|(module_id, _)| in_crate(module_id))
             .flat_map(|(_, unused_items)| {
-                unused_items.iter().map(|(ident, unused_item)| {
-                    let ident = ident.clone();
-                    CompilationError::ResolverError(ResolverError::UnusedItem {
-                        ident,
-                        item: *unused_item,
-                    })
+                unused_items.iter().map(|((_namespace, ident), unused_item)| (ident, *unused_item))
+            });
+
+        let unused_imports = context
+            .usage_tracker
+            .unused_imports()
+            .iter()
+            .filter(|(module_id, _)| in_crate(module_id))
+            .flat_map(|(_, names)| {
+                names.keys().map(|(ident, _location)| (ident, UnusedItem::Import))
+            });
+
+        let mut unused_errors = unused_definitions
+            .chain(unused_imports)
+            .map(|(ident, item)| {
+                CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident: ident.clone(),
+                    item,
                 })
             })
             .collect::<Vec<_>>();
