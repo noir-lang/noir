@@ -2,7 +2,7 @@ use acvm::{FieldElement, acir::AcirField};
 use num_bigint::BigUint;
 
 use crate::ssa::ir::{
-    dfg::{DataFlowGraph, simplify::SimplifyResult},
+    dfg::{DataFlowGraph, simplify::SimplifyResult, simplify::bail_malformed},
     instruction::Instruction,
     integer::IntegerConstant,
     types::{NumericType, Type},
@@ -17,11 +17,9 @@ pub(super) fn simplify_cast(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
-    assert!(
-        dfg.type_of_value(value).is_numeric(),
-        "Can only cast numeric types, got {:?}",
-        dfg.type_of_value(value)
-    );
+    if !dfg.type_of_value(value).is_numeric() {
+        bail_malformed!(dfg, "cast operand must be numeric, got {:?}", dfg.type_of_value(value));
+    }
 
     if Type::Numeric(dst_typ) == *dfg.type_of_value(value) {
         return SimplifiedTo(value);

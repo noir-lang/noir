@@ -594,7 +594,7 @@ fn bool_generic_as_loop_bound() {
     check_errors(src);
 }
 
-/// Regression for CI issue in https://github.com/noir-lang/noir/pull/10330
+/// Regression for CI issue in <https://github.com/noir-lang/noir/pull/10330>
 #[test]
 fn integer_with_suffix_used_as_type_in_quote() {
     let src = "
@@ -613,7 +613,7 @@ fn integer_with_suffix_used_as_type_in_quote() {
     assert_no_errors(src);
 }
 
-/// Regression for https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+/// Regression for <https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843>
 #[test]
 fn integer_with_suffix_used_as_tuple_index() {
     let src = "

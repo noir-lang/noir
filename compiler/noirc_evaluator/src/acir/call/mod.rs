@@ -71,7 +71,11 @@ impl Context<'_> {
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
-                        assert_eq!(result_ids.len(), outputs.len());
+                        assert_eq!(
+                            result_ids.len(),
+                            outputs.len(),
+                            "ICE: intrinsic call produced a different number of outputs than result ids"
+                        );
                         self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
                     }
                     Value::ForeignFunction { .. } => unreachable!(
@@ -259,9 +263,9 @@ impl Context<'_> {
 
     /// Convert a `Vec<[AcirVar]>` into a `Vec<[AcirValue]>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
-    /// a single [AcirValue::Array] of the same length.
+    /// a single [`AcirValue::Array`] of the same length.
     /// If the type of a result id is a vector, the vector length must precede it and we can
-    /// convert to an [AcirValue::Array] when the length is known (constant).
+    /// convert to an [`AcirValue::Array`] when the length is known (constant).
     fn convert_vars_to_values(
         &self,
         vars: Vec<AcirVar>,
@@ -288,13 +292,17 @@ impl Context<'_> {
                 values.push(Self::convert_var_type_to_values(&result_type, &mut vars));
             }
         }
+        assert!(
+            vars.next().is_none(),
+            "ICE: not all ACIR vars from a function call were consumed when converting to values"
+        );
         values
     }
 
-    /// Recursive helper for [Self::convert_vars_to_values].
-    /// If the given result_type is an array of length N, this will create an [AcirValue::Array] with
+    /// Recursive helper for [`Self::convert_vars_to_values`].
+    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
     /// the first N elements of the given iterator. Otherwise, the result is a single
-    /// [AcirValue::Var] wrapping the first element of the iterator.
+    /// [`AcirValue::Var`] wrapping the first element of the iterator.
     fn convert_var_type_to_values(
         result_type: &Type,
         vars: &mut impl Iterator<Item = AcirVar>,
@@ -311,12 +319,29 @@ impl Context<'_> {
                 AcirValue::Array(element_values)
             }
             Type::Numeric(numeric_type) => {
-                let var = vars.next().unwrap();
+                let var = vars
+                    .next()
+                    .expect("ICE: ran out of ACIR vars while converting call outputs to values");
                 AcirValue::Var(var, *numeric_type)
             }
             typ => {
                 panic!("Unexpected type {typ} in convert_var_type_to_values");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Context;
+    use crate::acir::AcirVar;
+    use crate::ssa::ir::types::{NumericType, Type};
+
+    #[test]
+    #[should_panic(expected = "ICE: ran out of ACIR vars")]
+    fn convert_var_type_to_values_panics_on_exhausted_vars() {
+        let typ = Type::Numeric(NumericType::NativeField);
+        let mut vars = Vec::<AcirVar>::new().into_iter();
+        let _ = Context::convert_var_type_to_values(&typ, &mut vars);
     }
 }

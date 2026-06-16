@@ -364,7 +364,7 @@ mod reflection {
     }
 
     /// Generate custom code for the msgpack machinery in Barretenberg.
-    /// See https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp
+    /// See <https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/serialize/msgpack.hpp>
     struct MsgPackCodeGenerator<'a> {
         config: MsgPackCodeConfig,
         namespace: Vec<String>,
@@ -569,7 +569,7 @@ mod reflection {
             source.insert_str(pos, &format!("namespace {namespace} {{{helpers}}}\n\n"));
         }
 
-        /// Reduce the opcode size in C++ by doing what Adam came up with in https://github.com/zefchain/serde-reflection/issues/75
+        /// Reduce the opcode size in C++ by doing what Adam came up with in <https://github.com/zefchain/serde-reflection/issues/75>
         fn replace_array_with_shared_ptr(source: &mut String) {
             // Capture `std::array<$TYPE, $LEN>`
             let re = Regex::new(r#"std::array<\s*([^,<>]+?)\s*,\s*([0-9]+)\s*>"#)

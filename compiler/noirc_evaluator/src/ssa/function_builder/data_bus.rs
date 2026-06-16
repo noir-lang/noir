@@ -136,7 +136,7 @@ impl DataBus {
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
         self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
-    /// Construct a databus from call_data and return_data data bus builders
+    /// Construct a databus from `call_data` and `return_data` data bus builders
     pub(crate) fn get_data_bus(
         call_data: Vec<DataBusBuilder>,
         return_data: DataBusBuilder,

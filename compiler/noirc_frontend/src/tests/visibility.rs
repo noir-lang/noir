@@ -1145,6 +1145,112 @@ fn private_inherent_impl_method_accessible_from_nested_child_of_impl_module() {
 }
 
 #[test]
+fn does_not_error_calling_private_methods_from_nested_extension_module() {
+    // Private methods defined in an extension `impl` in module `inner` are callable from
+    // another extension `impl` in `inner2`, because `inner2` is a descendant of `inner`. This
+    // matches Rust: a descendant module can see its ancestors' private associated items
+    // regardless of which `impl` block holds them.
+    //
+    // Each kind of method is checked by a different mechanism: the no-`self` associated
+    // function (`Foo::inner_x()`) during path resolution, and the `self` method
+    // (`self.inner_y()`) during method-call resolution. The parent/child rule must be enforced
+    // identically by both.
+    //
+    // The `self` half is the reason this test exists alongside
+    // `private_inherent_impl_method_accessible_from_nested_child_of_impl_module`: there the
+    // descendant caller is a free function, so `self_type` is `None` and the dot-call takes the
+    // `struct_member_is_visible` branch. Here the caller is itself inside `impl Foo`, so
+    // `self_type` is `Some`, exercising the strict parent/child case of the `self_type` branch
+    // in `method_call_is_visible` that no other test covers.
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        mod inner {
+            use crate::foo::Foo;
+
+            impl Foo {
+                fn inner_x() -> u32 {
+                    0
+                }
+
+                fn inner_y(self) -> u32 {
+                    let _ = self;
+                    0
+                }
+            }
+
+            mod inner2 {
+                use crate::foo::Foo;
+
+                impl Foo {
+                    pub fn x(self) -> u32 {
+                        Foo::inner_x() + self.inner_y()
+                    }
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let f = foo::Foo {};
+        let _ = f.x();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_calling_private_methods_from_sibling_extension_module() {
+    // Mirror of the descendant case: when the calling extension `impl` is in `inner2`, a
+    // sibling of `inner` rather than a descendant, neither the no-`self` associated function
+    // (checked during path resolution) nor the `self` method (checked during method-call
+    // resolution) is visible. Both mechanisms enforce the same parent/child rule.
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        mod inner {
+            use crate::foo::Foo;
+
+            impl Foo {
+                fn inner_x() -> u32 {
+                    0
+                }
+
+                fn inner_y(self) -> u32 {
+                    let _ = self;
+                    0
+                }
+            }
+        }
+
+        mod inner2 {
+            use crate::foo::Foo;
+
+            impl Foo {
+                pub fn x(self) -> u32 {
+                    let a = Foo::inner_x();
+                                 ^^^^^^^ inner_x is private and not visible from the current module
+                                 ~~~~~~~ inner_x is private
+                    let b = self.inner_y();
+                                 ^^^^^^^ inner_y is private and not visible from the current module
+                                 ~~~~~~~ inner_y is private
+                    a + b
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let f = foo::Foo {};
+        let _ = f.x();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_when_using_private_type_imported_via_value_name_collision() {
     // A module has a private type and a public value sharing the same name.
     // Importing the name is allowed (the public value is visible), but using

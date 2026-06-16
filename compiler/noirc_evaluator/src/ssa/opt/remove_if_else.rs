@@ -34,7 +34,7 @@
 //! ```
 //!
 //! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
-//! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
+//! at the basic block level into simple ternary operations returning a value, using these `IfElse` instructions,
 //! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
 //! `Instruction::IfElse` only for arrays and vectors. The remove-if-else pass is used for array and vectors
 //! in order to track their lengths, depending on existing vector intrinsics which modify vectors,
@@ -73,7 +73,7 @@
 //! }
 //! ```
 //!
-//! The IfElse instruction is then replaced by these instruction during the remove if-else pass:
+//! The `IfElse` instruction is then replaced by these instruction during the remove if-else pass:
 //! ```ssa
 //! v13 = cast v0 as u32
 //! v14 = cast v6 as u32
@@ -124,7 +124,7 @@ use crate::ssa::{
 impl Ssa {
     /// Replaces all `Instruction::IfElse` instructions with the result of a
     /// value merger of the then and else values. The specifics of the value merger
-    /// depends on the type but is expected to be an equivalent value to the IfElse.
+    /// depends on the type but is expected to be an equivalent value to the `IfElse`.
     /// For example, on integers, the merger will be:
     /// `then_condition * then_value + !then_condition * else_value`
     /// which should zero out the branch that was not taken.
@@ -321,8 +321,11 @@ impl Context {
         if !matches!(*dfg.type_of_value(new), Type::Vector(_)) {
             return;
         }
-        let capacity = self.get_or_find_capacity(dfg, old);
-        self.vector_sizes.insert(new, f(capacity));
+
+        // Track new's capacity if old's is known, on a best-effort basis.
+        if let Some(capacity) = self.get_or_find_capacity(dfg, old) {
+            self.vector_sizes.insert(new, f(capacity));
+        }
     }
 
     /// Make sure the vector capacity is recorded.
@@ -330,17 +333,16 @@ impl Context {
         self.set_capacity(dfg, vector, vector, |c| c);
     }
 
-    /// Get the tracked size of array/vectors, or retrieve (and track) it for arrays.
-    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> SemanticLength {
+    /// Get size of array/vectors, and track it in `vector_sizes`.
+    fn get_or_find_capacity(
+        &mut self,
+        dfg: &DataFlowGraph,
+        value: ValueId,
+    ) -> Option<SemanticLength> {
         match self.vector_sizes.entry(value) {
-            Entry::Occupied(entry) => *entry.get(),
+            Entry::Occupied(entry) => Some(*entry.get()),
             Entry::Vacant(entry) => {
-                if let Some(length) = dfg.try_get_vector_capacity(value) {
-                    return *entry.insert(length);
-                }
-                // For non-constant vectors we can't tell the size, which would mean we can't merge it.
-                let dbg_value = &dfg[value];
-                unreachable!("ICE: No size for vector {value} = {dbg_value:?}")
+                dfg.try_get_vector_capacity(value).map(|len| *entry.insert(len))
             }
         }
     }
@@ -513,7 +515,7 @@ fn remove_if_else_pre_check(func: &Function) {
     });
 }
 
-/// Post-check condition for [Function::remove_if_else].
+/// Post-check condition for [`Function::remove_if_else`].
 ///
 /// Succeeds if:
 ///   - `func` is a Brillig function, OR
@@ -1268,5 +1270,36 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let _ = ssa.remove_if_else();
+    }
+
+    // The pass only tracks vector capacities through vector intrinsics and `array_set`,
+    // so it cannot recover the size of a vector produced by a `load` (or a non-intrinsic
+    // call). Such SSA is not produced by the frontend, but the SSA fuzzer and `noir-ssa`
+    // can feed it in. When such a vector reaches an `if_else` merge the size is needed but
+    // unavailable; the pass must surface a graceful error rather than panicking.
+    #[test]
+    fn merge_vector_without_determinable_size_errors() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: &mut [Field]):
+            v2 = make_array [] : [Field]
+            v3 = load v1 -> [Field]
+            v4 = not v0
+            v5 = if v0 then v3 else (if v4) v2
+            enable_side_effects u1 1
+            v6 = array_get v5, index u32 0 -> Field
+            constrain v6 == Field 1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(err) = ssa.remove_if_else() else {
+            panic!("expected remove_if_else to error on a vector with no determinable size");
+        };
+        assert!(
+            format!("{err}").contains("without a determinable size"),
+            "unexpected error: {err}"
+        );
     }
 }
