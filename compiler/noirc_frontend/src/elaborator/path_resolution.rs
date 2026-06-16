@@ -631,6 +631,12 @@ impl Elaborator<'_> {
                 prev_segment.ident.is_self_type_name(),
             );
 
+            // An item brought into scope by an import that is not visible from here (kept in scope only
+            // because a colliding item in the other namespace was visible) is private when referenced.
+            if self.get_module(current_module_id).is_private_import_deferred(typ) {
+                errors.push(PathResolutionError::Private(prev_ident.clone()));
+            }
+
             let current_module_id_is_type;
 
             (current_module_id, current_module_id_is_type, intermediate_item) = match typ {

@@ -1380,6 +1380,32 @@ fn errors_on_qualified_access_to_private_type_colliding_with_public_value() {
 }
 
 #[test]
+fn errors_when_using_private_type_imported_via_collision_as_path_prefix() {
+    // The private type must be rejected even when it only appears as an intermediate path
+    // prefix (calling an inherent associated function), not just as the final path item.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        impl Foo {
+            pub fn make() -> Self { Foo {} }
+        }
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo::make();
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_at_import_when_both_colliding_items_are_private() {
     // When a name resolves to a private item in both namespaces there is no visible item to make
     // the import legal, so the error is reported at the `use` itself (and only once), rather than
