@@ -119,6 +119,7 @@ cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 ```
 
 Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs:
+- Always use `insta::assert_snapshot!(actual, expected)` with the inlined expected snapshot, never with just one argument
 - **Do NOT use `cargo insta review`** — it launches an interactive TUI that cannot be used from a CLI agent. Instead, read `.snap.new` files directly to review before accepting.
 - `cargo insta accept` — accept all pending snapshots non-interactively
 - `cargo insta accept --snapshot <pattern>` — accept specific snapshots
