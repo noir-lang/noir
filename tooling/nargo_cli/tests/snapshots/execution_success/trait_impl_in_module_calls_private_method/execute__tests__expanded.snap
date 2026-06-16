@@ -12,26 +12,19 @@ mod impls {
     use crate::{Bar, Foo};
 
     impl Foo {
-        fn bar(self) -> u32 {
+        fn secret(self) -> u32 {
             let _: Self = self;
-            1_u32
+            42_u32
         }
     }
 
     impl Bar for Foo {
         fn bar(self) -> u32 {
-            let _: Self = self;
-            2_u32
+            self.secret()
         }
-    }
-
-    pub fn calls_inherent_bar(foo: Foo) -> u32 {
-        foo.bar()
     }
 }
 
 fn main() {
-    assert(Foo {}.bar() == 2_u32);
-    assert(Foo {}.bar() == 2_u32);
-    assert(impls::calls_inherent_bar(Foo {}) == 1_u32);
+    assert(Foo {}.bar() == 42_u32);
 }

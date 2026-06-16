@@ -389,13 +389,6 @@ fn expands_trait_and_inherent_impl_inside_module() {
     pub struct Foo {
     }
 
-    impl Bar for Foo {
-        fn bar(self) -> u32 {
-            let _: Self = self;
-            2_u32
-        }
-    }
-
     trait Bar {
         fn bar(self) -> u32;
     }
@@ -408,6 +401,13 @@ fn expands_trait_and_inherent_impl_inside_module() {
             fn bar(self) -> u32 {
                 let _: Self = self;
                 1_u32
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                let _: Self = self;
+                2_u32
             }
         }
 

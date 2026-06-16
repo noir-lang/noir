@@ -38,6 +38,10 @@ pub enum Item {
     /// Such impls are emitted in their declaring module rather than next to the type, so the
     /// reconstructed source preserves the module-private visibility of their methods.
     Impl(Impl),
+    /// A trait `impl` block declared in a module other than the one defining its type. Emitted in
+    /// its declaring module for the same reason as [`Item::Impl`]: so the impl's method bodies can
+    /// still see the module-private items they referenced in the original source.
+    TraitImpl(TraitImpl),
 }
 
 impl Item {
@@ -51,6 +55,7 @@ impl Item {
             Item::Global(global_id) => ModuleDefId::GlobalId(*global_id),
             Item::Function(func_id) => ModuleDefId::FunctionId(*func_id),
             Item::Impl(_) => return None,
+            Item::TraitImpl(_) => return None,
         })
     }
 }
@@ -101,6 +106,9 @@ pub struct TraitImpl {
     /// True if the trait impl only mentions types from external crates.
     /// (for example `impl Trait for Field` in a non-stdlib crate)
     pub external_types: bool,
+    /// The location of the `impl` block, used to order it among the other items of its module
+    /// when it is relocated to its declaring module (see [`Item::TraitImpl`]).
+    pub location: Location,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -122,9 +130,11 @@ pub(super) struct ItemBuilder<'context> {
     /// faithful, visibility-preserving source) rather than next to the type (`false`, used by
     /// `nargo doc`, which groups every impl of a type under that type like rustdoc).
     relocate_impls: bool,
-    /// Inherent `impl` blocks to emit away from their type, keyed by their declaring module.
-    /// Always empty when `relocate_impls` is `false`. See [`Item::Impl`].
-    relocated_impls: BTreeMap<ModuleId, Vec<Impl>>,
+    /// Inherent and trait `impl` blocks to emit away from their type because they were declared in
+    /// a different module, keyed by their declaring module and paired with the location used to
+    /// order them among that module's other items. Always empty when `relocate_impls` is `false`.
+    /// See [`Item::Impl`] and [`Item::TraitImpl`].
+    relocated_items: BTreeMap<ModuleId, Vec<(Location, Item)>>,
 }
 
 impl<'context> ItemBuilder<'context> {
@@ -141,21 +151,22 @@ impl<'context> ItemBuilder<'context> {
             def_maps,
             trait_impls,
             relocate_impls,
-            relocated_impls: BTreeMap::new(),
+            relocated_items: BTreeMap::new(),
         };
-        builder.relocated_impls = builder.collect_relocated_impls();
+        builder.relocated_items = builder.collect_relocated_items();
         builder
     }
 
-    /// Builds the map of inherent `impl` blocks that must be emitted away from their type because
-    /// they were declared in a different module. An impl declared in the same module as its type
-    /// keeps being emitted next to the type (see [`Self::build_data_type`]). Empty unless
-    /// [`Self::relocate_impls`] is set.
-    fn collect_relocated_impls(&self) -> BTreeMap<ModuleId, Vec<Impl>> {
-        let mut relocated: BTreeMap<ModuleId, Vec<Impl>> = BTreeMap::new();
+    /// Builds the map of `impl` blocks that must be emitted away from their type because they were
+    /// declared in a different module. An impl declared in the same module as its type keeps being
+    /// emitted next to the type (see [`Self::build_data_type`] / [`Self::build_data_type_trait_impls`]).
+    /// Empty unless [`Self::relocate_impls`] is set.
+    fn collect_relocated_items(&self) -> BTreeMap<ModuleId, Vec<(Location, Item)>> {
+        let mut relocated: BTreeMap<ModuleId, Vec<(Location, Item)>> = BTreeMap::new();
         if !self.relocate_impls {
             return relocated;
         }
+
         for impl_id in self.interner.get_impls_in_crate(self.crate_id) {
             let impl_ = self.interner.get_impl(impl_id);
             let Type::DataType(data_type, _) = impl_.typ.follow_bindings() else {
@@ -166,11 +177,25 @@ impl<'context> ItemBuilder<'context> {
                 continue;
             }
             if let Some(impl_) = self.build_impl(impl_id) {
-                relocated.entry(impl_.module_id).or_default().push(impl_);
+                relocated
+                    .entry(impl_.module_id)
+                    .or_default()
+                    .push((impl_.location, Item::Impl(impl_)));
             }
         }
-        for impls in relocated.values_mut() {
-            impls.sort_by_key(|impl_| impl_.location);
+
+        for trait_impl_id in &self.trait_impls {
+            if let Some(declaring_module) = self.relocated_trait_impl_module(*trait_impl_id) {
+                let trait_impl = self.build_trait_impl(*trait_impl_id);
+                relocated
+                    .entry(declaring_module)
+                    .or_default()
+                    .push((trait_impl.location, Item::TraitImpl(trait_impl)));
+            }
+        }
+
+        for items in relocated.values_mut() {
+            items.sort_by_key(|(location, _)| *location);
         }
         relocated
     }
@@ -231,13 +256,13 @@ impl<'context> ItemBuilder<'context> {
             })
             .collect::<Vec<_>>();
 
-        // Inherent impls declared in this module but whose type lives elsewhere are emitted here,
-        // ordered by location among the module's other items. An `impl` block has no visibility
-        // keyword in Noir, so the paired visibility is an inert placeholder: `Item::Impl` is shown
-        // via `show_impl`, which never consults the item-level visibility.
-        if let Some(relocated) = self.relocated_impls.remove(&module_id) {
-            for impl_ in relocated {
-                located_items.push((impl_.location, ItemVisibility::Private, Item::Impl(impl_)));
+        // Impls declared in this module but whose type lives elsewhere are emitted here, ordered by
+        // location among the module's other items. An `impl` block has no visibility keyword in
+        // Noir, so the paired visibility is an inert placeholder: relocated impls are shown via
+        // `show_impl` / `show_trait_impl`, which never consult the item-level visibility.
+        if let Some(relocated) = self.relocated_items.remove(&module_id) {
+            for (location, item) in relocated {
+                located_items.push((location, ItemVisibility::Private, item));
             }
             located_items.sort_by_key(|(location, _, _)| *location);
         }
@@ -351,6 +376,12 @@ impl<'context> ItemBuilder<'context> {
             .trait_impls
             .iter()
             .filter_map(|trait_impl_id| {
+                // Trait impls declared in a different module than their type are emitted in that
+                // module (see [`Self::collect_relocated_items`]), not next to the type.
+                if self.relocate_impls && self.relocated_trait_impl_module(*trait_impl_id).is_some()
+                {
+                    return None;
+                }
                 let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
                 let trait_impl = trait_impl.borrow();
                 if type_mentions_data_type(&trait_impl.typ, data_type) {
@@ -370,6 +401,11 @@ impl<'context> ItemBuilder<'context> {
         let mut trait_impls = Vec::new();
 
         for trait_impl_id in &self.trait_impls {
+            // Trait impls declared in a different module than their type are emitted in that
+            // module (see [`Self::collect_relocated_items`]), not under the trait.
+            if self.relocate_impls && self.relocated_trait_impl_module(*trait_impl_id).is_some() {
+                continue;
+            }
             let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
             let trait_impl = trait_impl.borrow();
             if trait_impl.trait_id != trait_id {
@@ -410,7 +446,46 @@ impl<'context> ItemBuilder<'context> {
             id: trait_impl_id,
             methods: trait_impl.methods.clone(),
             external_types,
+            location: trait_impl.location,
         }
+    }
+
+    /// The module a trait `impl` block was written in, derived from a method it actually defines.
+    ///
+    /// Returns `None` when the impl defines no methods of its own — either a marker impl
+    /// (`impl Trait for T {}`) or one that only inherits trait defaults. Such impls have no body
+    /// that could reference module-private items, so they never need relocating. Inherited default
+    /// methods are skipped because they share the trait's `FuncId`, whose source module is the
+    /// trait's, not the impl's.
+    fn trait_impl_declaring_module(&self, trait_impl_id: TraitImplId) -> Option<ModuleId> {
+        let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+
+        let trait_ = self.interner.get_trait(trait_impl.trait_id);
+        let default_method_ids: HashSet<FuncId> = trait_.method_ids.values().copied().collect();
+
+        let func_id = trait_impl.methods.iter().find(|f| !default_method_ids.contains(f))?;
+        let func_meta = self.interner.function_meta(func_id);
+        Some(ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module })
+    }
+
+    /// If a trait impl on an in-crate data type was declared in a module other than the one
+    /// defining that type, returns the declaring module so the impl can be emitted there. This
+    /// mirrors inherent-impl relocation and keeps the impl's body able to see module-private items
+    /// it referenced in the original source.
+    fn relocated_trait_impl_module(&self, trait_impl_id: TraitImplId) -> Option<ModuleId> {
+        let declaring_module = self.trait_impl_declaring_module(trait_impl_id)?;
+        let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+        let typ = trait_impl.borrow().typ.clone();
+        let Type::DataType(data_type, _) = typ.follow_bindings() else {
+            return None;
+        };
+        let type_id = data_type.borrow().id;
+        if type_id.krate() != self.crate_id {
+            return None;
+        }
+        let type_module = type_id.parent_module_id(self.def_maps);
+        (declaring_module != type_module).then_some(declaring_module)
     }
 
     fn build_trait(&self, trait_id: TraitId) -> Item {

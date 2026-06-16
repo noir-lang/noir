@@ -139,6 +139,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Item::Global(global_id) => self.show_global(global_id),
             Item::Function(func_id) => self.show_function(func_id),
             Item::Impl(impl_) => self.show_impl(impl_),
+            Item::TraitImpl(trait_impl) => self.show_trait_impl(&trait_impl),
         }
     }
 
@@ -173,10 +174,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str("\n\n");
             }
             self.write_indent();
-            // Relocated inherent impls carry no `ModuleDefId`, so they are shown directly rather
-            // than through the visibility-aware path used for named definitions.
+            // Relocated impls carry no `ModuleDefId`, so they are shown directly rather than
+            // through the visibility-aware path used for named definitions.
             match item {
                 Item::Impl(impl_) => self.show_impl(impl_),
+                Item::TraitImpl(trait_impl) => self.show_trait_impl(&trait_impl),
                 item => self.show_item_with_visibility(item, visibility),
             }
         }

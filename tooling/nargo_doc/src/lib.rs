@@ -361,7 +361,7 @@ impl DocItemBuilder<'_> {
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
             // Documentation builds with `relocate_impls = false`, so impls are always grouped
             // under their type as `DataType`/`PrimitiveType` impls and never produced standalone.
-            expand_items::Item::Impl(_) => {
+            expand_items::Item::Impl(_) | expand_items::Item::TraitImpl(_) => {
                 unreachable!(
                     "nargo doc does not relocate impls, so it never sees a standalone impl"
                 )
