@@ -27,9 +27,9 @@ pub(crate) fn extract_indices(
 
 /// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's return values.
 ///
-/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-/// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
-/// @returns {WitnessMap} A witness map containing the circuit's return values.
+/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+/// @param {`WitnessMap`} `witness_map` - The completed witness map after executing the circuit.
+/// @returns {`WitnessMap`} A witness map containing the circuit's return values.
 #[wasm_bindgen(js_name = getReturnWitness)]
 pub fn get_return_witness(
     // TODO(https://github.com/noir-lang/noir/issues/4428): These need to be updated to match the same interfaces
@@ -61,9 +61,9 @@ pub fn get_return_witness(
 
 /// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's public parameters.
 ///
-/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-/// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
-/// @returns {WitnessMap} A witness map containing the circuit's public parameters.
+/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+/// @param {`WitnessMap`} `witness_map` - The completed witness map after executing the circuit.
+/// @returns {`WitnessMap`} A witness map containing the circuit's public parameters.
 #[wasm_bindgen(js_name = getPublicParametersWitness)]
 pub fn get_public_parameters_witness(
     program: Vec<u8>,
@@ -92,9 +92,9 @@ pub fn get_public_parameters_witness(
 
 /// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's public inputs.
 ///
-/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
-/// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
-/// @returns {WitnessMap} A witness map containing the circuit's public inputs.
+/// @param {`Uint8Array`} circuit - A serialized representation of an ACIR circuit
+/// @param {`WitnessMap`} `witness_map` - The completed witness map after executing the circuit.
+/// @returns {`WitnessMap`} A witness map containing the circuit's public inputs.
 #[wasm_bindgen(js_name = getPublicWitness)]
 pub fn get_public_witness(
     program: Vec<u8>,

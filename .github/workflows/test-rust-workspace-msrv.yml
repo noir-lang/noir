@@ -62,6 +62,12 @@ jobs:
         run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The archive is uploaded once and downloaded by every test partition.
+          # Debug info dominates its size but is never read during a CI test run
+          # (a failure is reproduced locally with a normal debug build), so drop
+          # it to keep the per-partition `Download archive` step off the timeout.
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
 
       # `compile_fail` runs trybuild, which spawns its own `cargo build` and
       # needs the cargo registry to resolve transitive proc-macro deps. The

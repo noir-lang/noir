@@ -70,7 +70,7 @@ pub trait AcirField:
     fn try_to_u32(&self) -> Option<u32>;
 
     /// Computes the inverse or returns zero if the inverse does not exist
-    /// Before using this FieldElement, please ensure that this behavior is necessary
+    /// Before using this `FieldElement`, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;
 
     /// Returns the vale of this field as a hex string without the `0x` prefix.
@@ -87,10 +87,10 @@ pub trait AcirField:
 
     fn to_be_bytes(self) -> Vec<u8>;
 
-    /// Converts bytes into a FieldElement and applies a reduction if needed.
+    /// Converts bytes into a `FieldElement` and applies a reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> Self;
 
-    /// Converts bytes in little-endian order into a FieldElement and applies a reduction if needed.
+    /// Converts bytes in little-endian order into a `FieldElement` and applies a reduction if needed.
     fn from_le_bytes_reduce(bytes: &[u8]) -> Self;
 
     /// Converts the field element to a vector of bytes in little-endian order

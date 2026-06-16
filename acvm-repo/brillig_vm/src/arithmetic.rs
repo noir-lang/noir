@@ -19,7 +19,7 @@ pub(crate) enum BrilligArithmeticError {
     DivisionByZero,
 }
 
-/// Evaluate a binary operation on two FieldElement memory values.
+/// Evaluate a binary operation on two `FieldElement` memory values.
 pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     op: &BinaryFieldOp,
     lhs: MemoryValue<F>,
@@ -212,7 +212,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
 ///
 /// # Returns
 /// - Ok(result) if successful.
-/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+/// - Err([`BrilligArithmeticError::DivisionByZero`]) if division by zero occurs.
 ///
 /// # Panics
 /// If an operation other than `Add`, `Sub`, `Mul`, `Div`, `And`, `Or`, `Xor`, `Equals`, `LessThan`,
@@ -285,7 +285,7 @@ fn evaluate_binary_int_op_shifts<T: ToPrimitive + Zero + Shl<Output = T> + Shr<O
 ///
 /// # Returns
 /// - Ok(result) if successful.
-/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+/// - Err([`BrilligArithmeticError::DivisionByZero`]) if division by zero occurs.
 ///
 /// # Panics
 /// If there an operation other than Add, Sub, Mul, Div, And, Or, Xor is supplied as an argument.

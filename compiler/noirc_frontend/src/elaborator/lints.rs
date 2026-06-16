@@ -384,7 +384,7 @@ pub(super) fn unconstrained_function_return(
     }
 }
 
-/// Errors if func_expr_id is `std::verify_proof_with_type`
+/// Errors if `func_expr_id` is `std::verify_proof_with_type`
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
@@ -539,7 +539,7 @@ pub(crate) fn check_varargs(
     None
 }
 
-/// Checks if an ExprId, which has to be an integer literal, fits in its type.
+/// Checks if an `ExprId`, which has to be an integer literal, fits in its type.
 pub(crate) fn check_integer_literal_fits_its_type(
     interner: &NodeInterner,
     expr_id: &ExprId,
