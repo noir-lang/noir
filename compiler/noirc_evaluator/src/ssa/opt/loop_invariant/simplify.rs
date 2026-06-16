@@ -8,7 +8,7 @@ use crate::ssa::{
         integer::IntegerConstant,
         value::ValueId,
     },
-    opt::loop_invariant::BlockContext,
+    opt::{LoopBounds, loop_invariant::BlockContext},
 };
 use noirc_errors::call_stack::CallStackId;
 
@@ -27,7 +27,7 @@ impl LoopInvariantContext<'_> {
         match binary.operator {
             BinaryOp::Div | BinaryOp::Mod => {
                 // Division can be evaluated if we ensure that the divisor cannot be zero
-                let Some((left, value, lower, upper)) =
+                let Some((left, value, bounds)) =
                     self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, true)
                 else {
                     // Not a constant vs non-constant case, we cannot evaluate it.
@@ -37,7 +37,7 @@ impl LoopInvariantContext<'_> {
                 // An inverted range means the variable is not a proper ascending induction
                 // variable, so these bounds are bogus and cannot prove the divisor is non-zero.
                 // Mirrors the guard in `simplify_induction_variable_in_binary`.
-                if lower > upper {
+                if bounds.lower > bounds.upper {
                     return false;
                 }
 
@@ -49,9 +49,9 @@ impl LoopInvariantContext<'_> {
                 } else {
                     // Otherwise we are dividing a constant with the induction variable, and we have to check whether
                     // at any point in the loop the induction variable can be zero.
-                    let can_be_zero = lower.is_negative() && !upper.is_negative()
-                        || lower.is_zero()
-                        || upper.is_zero();
+                    let can_be_zero = bounds.lower.is_negative() && !bounds.upper.is_negative()
+                        || bounds.lower.is_zero()
+                        || bounds.upper.is_zero();
 
                     if !can_be_zero {
                         return true;
@@ -194,20 +194,20 @@ impl LoopInvariantContext<'_> {
         lhs: &ValueId,
         rhs: &ValueId,
     ) -> Option<(bool, ValueId, ValueId, IntegerConstant)> {
-        let (is_left, lower, upper) = match (
+        let (is_left, bounds) = match (
             loop_context.get_current_induction_variable_bounds(*lhs),
             loop_context.get_current_induction_variable_bounds(*rhs),
         ) {
-            (_, Some((lower, upper))) => Some((false, lower, upper)),
-            (Some((lower, upper)), _) => Some((true, lower, upper)),
+            (_, Some(bounds)) => Some((false, bounds)),
+            (Some(bounds), _) => Some((true, bounds)),
             _ => None,
         }?;
 
         let induction_variable = if is_left { *lhs } else { *rhs };
         let step = loop_context.get_current_induction_step(induction_variable)?;
 
-        let (upper_field, upper_type) = upper.dec()?.into_numeric_constant();
-        let (lower_field, lower_type) = lower.into_numeric_constant();
+        let (upper_field, upper_type) = bounds.upper.dec()?.into_numeric_constant();
+        let (lower_field, lower_type) = bounds.lower.into_numeric_constant();
 
         let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
         let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
@@ -258,7 +258,7 @@ impl LoopInvariantContext<'_> {
         lhs: &ValueId,
         rhs: &ValueId,
         only_outer_induction: bool,
-    ) -> Option<(bool, IntegerConstant, IntegerConstant, IntegerConstant)> {
+    ) -> Option<(bool, IntegerConstant, LoopBounds)> {
         let lhs_const = self.inserter.function.dfg.get_integer_constant(*lhs);
         let rhs_const = self.inserter.function.dfg.get_integer_constant(*rhs);
         match (
@@ -267,20 +267,16 @@ impl LoopInvariantContext<'_> {
             loop_context
                 .get_current_induction_variable_bounds(*lhs)
                 .filter(|_| !only_outer_induction)
-                .or(self.outer_induction_variables.get(lhs).map(|b| (b.lower, b.upper))),
+                .or(self.outer_induction_variables.get(lhs).copied()),
             loop_context
                 .get_current_induction_variable_bounds(*rhs)
                 .filter(|_| !only_outer_induction)
-                .or(self.outer_induction_variables.get(rhs).map(|b| (b.lower, b.upper))),
+                .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
             // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
-            (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
-                Some((false, lhs, lower_bound, upper_bound))
-            }
+            (Some(lhs), None, None, Some(bounds)) => Some((false, lhs, bounds)),
             // RHS is a constant, LHS is the induction variable with a known lower an upper bound
-            (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
-                Some((true, rhs, lower_bound, upper_bound))
-            }
+            (None, Some(rhs), Some(bounds), None) => Some((true, rhs, bounds)),
             _ => None,
         }
     }
@@ -302,7 +298,7 @@ impl LoopInvariantContext<'_> {
         // Note that here we allow all_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
-        let Some((is_induction_var_lhs, constant, lower_bound, upper_bound)) =
+        let Some((is_induction_var_lhs, constant, bounds)) =
             self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, is_header)
         else {
             return SimplifyResult::None;
@@ -312,7 +308,7 @@ impl LoopInvariantContext<'_> {
         // (see `back_edge_advances_monotonically`), so `i` truly counts upward through
         // `[lower_bound, upper_bound)`. If the constants are still inverted the loop
         // body never executes; bail out instead of simplifying dead code.
-        if lower_bound > upper_bound {
+        if bounds.lower > bounds.upper {
             return SimplifyResult::None;
         }
 
@@ -332,15 +328,15 @@ impl LoopInvariantContext<'_> {
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
                     // `i - const` can overflow at either extreme of `i`.
-                    Some([(lower_bound, constant), (upper_bound, constant)])
+                    Some([(bounds.lower, constant), (bounds.upper, constant)])
                 } else {
                     // `const - i` can overflow at either extreme of `i`.
-                    Some([(constant, lower_bound), (constant, upper_bound)])
+                    Some([(constant, bounds.lower), (constant, bounds.upper)])
                 }
             }
             BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
                 // `i + const` / `i * const` can overflow at either extreme of `i`.
-                Some([(constant, lower_bound), (constant, upper_bound)])
+                Some([(constant, bounds.lower), (constant, bounds.upper)])
             }
             BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
             _ => None,
@@ -368,7 +364,7 @@ impl LoopInvariantContext<'_> {
         // Handle comparisons. (The upper_bound is exclusive).
         match binary.operator {
             BinaryOp::Eq => {
-                if constant >= upper_bound || constant < lower_bound {
+                if constant >= bounds.upper || constant < bounds.lower {
                     // `i == const` cannot be true if the constant is out of range.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 } else {
@@ -377,11 +373,11 @@ impl LoopInvariantContext<'_> {
             }
             BinaryOp::Lt => match is_induction_var_lhs {
                 // `i < const`
-                true if upper_bound <= constant => SimplifyResult::SimplifiedTo(self.true_value),
-                true if lower_bound >= constant => SimplifyResult::SimplifiedTo(self.false_value),
+                true if bounds.upper <= constant => SimplifyResult::SimplifiedTo(self.true_value),
+                true if bounds.lower >= constant => SimplifyResult::SimplifiedTo(self.false_value),
                 // `const < i`
-                false if lower_bound > constant => SimplifyResult::SimplifiedTo(self.true_value),
-                false if constant.inc().is_some_and(|constant| upper_bound <= constant) => {
+                false if bounds.lower > constant => SimplifyResult::SimplifiedTo(self.true_value),
+                false if constant.inc().is_some_and(|constant| bounds.upper <= constant) => {
                     // If `const >= upper_bound - 1` then it will never be less than `i`.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }

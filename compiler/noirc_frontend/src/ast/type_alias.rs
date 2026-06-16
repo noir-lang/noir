@@ -4,7 +4,7 @@ use noirc_errors::Location;
 use std::fmt::Display;
 
 /// Ast node for type aliases
-/// Depending on 'numeric_type', a Type Alias can be an alias to a normal type, or to a numeric generic type
+/// Depending on '`numeric_type`', a Type Alias can be an alias to a normal type, or to a numeric generic type
 #[derive(Clone, Debug)]
 pub struct TypeAlias {
     pub name: Ident,

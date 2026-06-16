@@ -81,14 +81,12 @@ fn main() -> Result<(), String> {
 /// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
 /// because they need register spilling (not yet implemented).
 /// Remove tests from this list as spilling is implemented.
-const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 2] = [
     // TODO: Enabling this would require an indirect call convention. We are returning more args than allowed in the stack.
     // To enable this code we would need to pass/return call args through a pointer.
     "brillig_block_parameter_liveness",
-    // These tests rely on specific inliner settings, while we only run
+    // This test relies on a specific inliner setting, while we only run
     // the small stack tests with the default maximally aggressive inliner.
-    "reference_counts_inliner_0",
-    "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
 ];
 
@@ -219,7 +217,10 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
+    // `nargo expand` prints an associated-constant access by its bare name (e.g. `N`),
+    // dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
+    "comptime_resolve_associated_constant_scope",
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",

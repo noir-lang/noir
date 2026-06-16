@@ -8,7 +8,7 @@ The name 'Brillig' has not specific meaning, apart from being a reference to the
 Why we need Brillig
 ---
 
-Zero-knowledge (ZK) domain-specific languages (DSL) enable developers to generate ZK proofs from their programs by compiling code down to the constraints of an NP complete language (such as R1CS or PLONKish languages). However, the hard bounds of a constraint system can be very limiting to the functionality of a ZK DSL, and integrating a general VM is very useful for the following reasons:
+Zero-knowledge (ZK) domain-specific languages (DSL) enable developers to generate ZK proofs from their programs by compiling code down to the constraints of an NP complete language (such as R1CS or `PLONKish` languages). However, the hard bounds of a constraint system can be very limiting to the functionality of a ZK DSL, and integrating a general VM is very useful for the following reasons:
 
 1) Unconstrained execution
 
@@ -238,7 +238,7 @@ One possible Brillig output would be:
 The execution and interpretation of the program would be as follows:
 1. The three `Const` instructions load values into reg0, reg1, reg2, reg3. These are variables a, b and c, and a temporary equal to 15
 2. At location 4, let reg2 (c) equal reg0 plus reg1 (a + b)
-3. Let reg4 (a temporary value) equal reg2 LessThanEquals reg3 (c <= 15)
+3. Let reg4 (a temporary value) equal reg2 `LessThanEquals` reg3 (c <= 15)
 4. If reg4 is 0 (so c > 15), jump to location 9 where we set b = a + b then go to location 10. Otherwise if c <= 15, we fall through to location 7, set a = a * b, and then go to location 10.
 5. At location 10, we queue up inputs to a foreign call from reg0, reg1, reg2 (variables a, b, and c). This interrupts execution, calls to the outer system, and then returns to Brillig execution. If this had outputs, they might be written to registers and memory.
 6. We finally reach the final location where we `Stop`. If this were a function to be called by another Brillig function, we would `Return`.

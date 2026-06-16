@@ -4,6 +4,64 @@ use crate::tests::{
 };
 
 #[test]
+fn assign_through_explicit_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let mut x = 10;
+        *(&mut x) = 20;
+        assert(x == 20);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assign_through_explicit_mutable_reference_executes_at_comptime() {
+    // The comptime interpreter evaluates the lowered assignment, so a passing assertion proves
+    // the store actually reaches `x` through the synthesized reference binding.
+    let src = r#"
+    fn main() {
+        comptime {
+            let mut x = 10;
+            *(&mut x) = 20;
+            assert(x == 20);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assign_through_reference_chosen_by_conditional() {
+    // The dereferenced operand can be any value expression of reference type, not just a place.
+    let src = r#"
+    fn main() {
+        comptime {
+            let mut a = 1;
+            let mut b = 2;
+            let c = true;
+            *(if c { &mut a } else { &mut b }) = 10;
+            assert(a == 10);
+            assert(b == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_assign_through_explicit_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = 10;
+        *(&x) = 20;
+        ^^^^^ Expected type &mut _, found type &Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn cannot_mutate_immutable_variable() {
     let src = r#"
     fn main() {

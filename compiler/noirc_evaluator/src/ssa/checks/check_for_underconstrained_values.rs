@@ -1,4 +1,4 @@
-//! This module defines the [Ssa::check_for_underconstrained_values] pass.
+//! This module defines the [`Ssa::check_for_underconstrained_values`] pass.
 //!
 //! The pass detects whether there are Brillig calls which are not connected to circuit inputs.
 use crate::ssa::checks::is_numeric_constant;
@@ -165,7 +165,7 @@ impl Default for Context {
 }
 
 impl Context {
-    /// Compute sets of variable ValueIds that are connected with constraints
+    /// Compute sets of variable `ValueIds` that are connected with constraints
     ///
     /// Additionally, store information about Brillig calls in the context
     fn compute_sets_of_connected_value_ids(
@@ -196,7 +196,7 @@ impl Context {
         input_output_values.into_iter().map(|id| self.uf.find(id)).collect()
     }
 
-    /// Go through each instruction in the block and union ValueIds connected through that instruction
+    /// Go through each instruction in the block and union `ValueIds` connected through that instruction
     ///
     /// Additionally, this function adds mappings of Brillig return values to call arguments and instruction ids from calls to Brillig functions in the block
     fn connect_value_ids_in_block(

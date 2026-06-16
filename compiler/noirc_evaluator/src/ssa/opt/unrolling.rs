@@ -7,7 +7,7 @@
 //!    2. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
 //!    3. If not, try to unroll the loop. If successful, remember the modified
-//!       blocks. If unsuccessful either error if the abort_on_error flag is set,
+//!       blocks. If unsuccessful either error if the `abort_on_error` flag is set,
 //!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
@@ -38,7 +38,7 @@
 //! Conditions:
 //!   - Pre-condition: The first block parameter of each loop header is the induction variable.
 //!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
-//!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
+//!   - Pre-condition: No loop header has a `JmpIf` with a constant condition (run `simplify_cfg` first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
 //!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
@@ -395,7 +395,7 @@ impl Function {
         }
 
         // Try to unroll.
-        match loop_.unroll(self, &loops.cfg) {
+        match loop_.unroll(self, &loops.cfg, &loops.dom) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -423,7 +423,7 @@ pub(crate) struct Loop {
     /// other blocks in the loop.
     pub(crate) header: BasicBlockId,
 
-    /// The start of the back_edge n -> d is the block n at the end of
+    /// The start of the `back_edge` n -> d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
     pub(crate) back_edge_start: BasicBlockId,
 
@@ -445,6 +445,9 @@ pub(crate) enum LoopBoundKind {
     /// `i == upper - 1` (an `Eq`/`Not` header with the body on the `then` branch):
     /// the body executes iff `lower == upper - 1`.
     Equal,
+    /// `i != upper` (an `Eq` header with the body on the *else* branch): the body executes iff
+    /// `lower != upper`.
+    NotEqual,
 }
 
 /// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
@@ -460,12 +463,31 @@ impl LoopBounds {
     /// Whether the loop body is guaranteed to execute at least once.
     pub(super) fn loop_executes(self) -> bool {
         match self.kind {
-            LoopBoundKind::LessThan => {
+            // `lower < upper` for `LessThan`, and `lower != upper` for `NotEqual`; for an
+            // ascending induction variable starting at or below `upper` these coincide, so both
+            // reduce to `upper > lower`.
+            LoopBoundKind::LessThan | LoopBoundKind::NotEqual => {
                 self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
             }
             // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
             // maximum (where `inc` would overflow) correctly reads as "does not execute".
             LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
+        }
+    }
+
+    /// Whether every value the induction variable takes on stays inside `[lower, upper)`, given
+    /// its per-iteration `step`. When this holds we can safely use the bounds as the variable's
+    /// value range (e.g. to fold a comparison or prove an arithmetic operation cannot overflow).
+    ///
+    /// `LessThan` and `Equal` keep the variable inside the bounds for any step: their guards stop
+    /// the loop at or before `upper`. A `NotEqual` guard only stops the loop when the variable
+    /// lands exactly on `upper`, so a step larger than `1` can jump past `upper` and keep going,
+    /// taking on values outside `[lower, upper)`. So `NotEqual` only stays within the bounds when
+    /// the step is `0` (the variable never moves) or `1` (it can't skip over `upper`).
+    pub(super) fn visited_values_stay_within_bounds(self, step: IntegerConstant) -> bool {
+        match self.kind {
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
+            LoopBoundKind::NotEqual => step.is_zero() || step.is_one(),
         }
     }
 }
@@ -489,7 +511,11 @@ pub(crate) struct Loops {
     pub(crate) yet_to_unroll: Vec<Loop>,
     /// The CFG so we can query the predecessors of blocks when needed.
     pub(crate) cfg: ControlFlowGraph,
-    /// The [DominatorTree] used during the discovery of loops.
+    /// The [`DominatorTree`] used during the discovery of loops.
+    ///
+    /// Also queried during unrolling to decide whether a folded constant-`JmpIf`'s destination
+    /// parameters can be specialized to the taken edge (see [`LoopIteration::handle_jmpif`]).
+    /// `dominates` caches its results, so on-demand queries stay cheap.
     pub(crate) dom: DominatorTree,
     /// Body weights of callees that will be inlined, used to estimate the true cost
     /// of call instructions in loop bodies instead of using call overhead.
@@ -536,7 +562,7 @@ impl Loops {
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut loops = vec![];
 
@@ -570,7 +596,7 @@ impl Loops {
 
 impl Loop {
     /// Return each block that is in a loop starting in the given header block.
-    /// Expects back_edge_start -> header to be the back edge of the loop.
+    /// Expects `back_edge_start` -> header to be the back edge of the loop.
     pub(crate) fn find_blocks_in_loop(
         header: BasicBlockId,
         back_edge_start: BasicBlockId,
@@ -690,7 +716,7 @@ impl Loop {
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
     ///
-    /// `resolve_value` maps ValueIds through an external substitution
+    /// `resolve_value` maps `ValueIds` through an external substitution
     /// (e.g. `FunctionInserter::resolve`).
     /// If `get_const_upper_bound` is called within a pass that modifies instructions
     /// e.g through a `FunctionInserter`, the terminator check below might reference
@@ -793,13 +819,15 @@ impl Loop {
                 //
                 // If `b2` is the loop body: the body runs only on the single value `rhs`, so
                 // upper = rhs + 1 and the bound is `Equal` (it enters iff `lower == rhs`).
-                // If `b3` is the loop body: the body runs while `v != rhs` (i.e. `v < rhs` for an
-                // increasing induction variable), so upper = rhs and the bound is `LessThan`.
+                // If `b3` is the loop body: the body runs while `v != rhs`, so upper = rhs and the
+                // bound is `NotEqual`. For a unit step this matches `v < rhs`, but a non-unit step
+                // can skip over `rhs` and run the body on larger values, which `NotEqual` records
+                // so later value-range reasoning does not assume `v < rhs`.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
                 if then_branch_is_body {
                     Some((const_rhs.inc()?, LoopBoundKind::Equal))
                 } else {
-                    Some((const_rhs, LoopBoundKind::LessThan))
+                    Some((const_rhs, LoopBoundKind::NotEqual))
                 }
             }
             Instruction::Not(operand) => {
@@ -918,6 +946,7 @@ impl Loop {
         &self,
         function: &mut Function,
         cfg: &ControlFlowGraph,
+        dom: &DominatorTree,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -929,7 +958,7 @@ impl Loop {
         let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
         while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args)?
+            self.unroll_header(function, unroll_into, &header_args, dom)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
         }
@@ -970,19 +999,20 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some((iteration context, loop_header_id)) if we should perform another iteration.
+    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
+        dom: &'a DominatorTree,
     ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
         let fresh_block = function.dfg.make_block();
 
-        let mut context = LoopIteration::new(function, self, fresh_block, self.header);
+        let mut context = LoopIteration::new(function, self, fresh_block, self.header, dom);
         let loop_header_id = context.source_block;
 
         // Collect all header parameters before mutably borrowing context.
@@ -1056,10 +1086,10 @@ impl Loop {
     }
 
     /// Find all reference values which were allocated before the pre-header.
+    /// This also include allocations done after the loop in case of nested loops.
     ///
-    /// These are accessible inside the loop body, and they can be involved
-    /// in load/store operations that could be eliminated if we unrolled the
-    /// body into the pre-header.
+    /// They can be involved in load/store operations that could be eliminated
+    /// if we unrolled the body into the pre-header.
     ///
     /// Consider this loop:
     /// ```text
@@ -1112,13 +1142,9 @@ impl Loop {
         function: &Function,
         cfg: &ControlFlowGraph,
     ) -> Option<(HashSet<ValueId>, HashSet<ValueId>)> {
-        // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let function_entry = function.entry_block();
 
-        // The algorithm in `find_blocks_in_loop` expects to collect the blocks between the header and the back-edge of the loop,
-        // but technically works the same if we go from the pre-header up to the function entry as well.
-        let blocks = Self::find_blocks_in_loop(function_entry, pre_header, cfg).blocks;
+        let blocks = self.blocks_reaching_pre_header(pre_header, cfg);
 
         // Collect allocations in all blocks above the header.
         let allocations = blocks.iter().flat_map(|block| {
@@ -1138,15 +1164,9 @@ impl Loop {
         // Find refs whose pre-header stores all have constant values.
         // A ref is "constant initial" if it has at least one store in the pre-header blocks
         // AND every such store has a constant value.
-        //
-        // We must exclude the loop's own blocks from this scan: for nested loops,
-        // `find_blocks_in_loop(entry, pre_header)` traverses backward through the
-        // outer loop's back-edge and re-enters the inner loop blocks. Without this
-        // filter, stores *inside* the loop body (which are not initial values) would
-        // incorrectly prevent the ref from being recognized as constant-initial.
         let mut has_store: HashSet<ValueId> = HashSet::default();
         let mut has_non_constant_store: HashSet<ValueId> = HashSet::default();
-        for block in blocks.iter().filter(|b| !self.blocks.contains(b)) {
+        for block in &blocks {
             for instruction_id in function.dfg[*block].instructions() {
                 if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
                     && refs.contains(address)
@@ -1174,6 +1194,29 @@ impl Loop {
             has_store.difference(&has_non_constant_store).copied().collect();
 
         Some((refs, constant_initial_refs))
+    }
+
+    /// Collect the blocks that may execute before this loop is entered.
+    /// `test_find_pre_header_reference_values_outer_back_edge_constant_store()` below
+    /// demonstrates that collecting blocks re-entering the loop is important.
+    fn blocks_reaching_pre_header(
+        &self,
+        pre_header: BasicBlockId,
+        cfg: &ControlFlowGraph,
+    ) -> HashSet<BasicBlockId> {
+        let mut blocks: HashSet<BasicBlockId> = HashSet::default();
+        blocks.insert(pre_header);
+
+        let mut stack = vec![pre_header];
+        while let Some(block) = stack.pop() {
+            for predecessor in cfg.predecessors(block) {
+                if !self.blocks.contains(&predecessor) && blocks.insert(predecessor) {
+                    stack.push(predecessor);
+                }
+            }
+        }
+
+        blocks
     }
 
     /// Count the number of load and store instructions of specific variables in the loop.
@@ -1207,7 +1250,7 @@ impl Loop {
     ///
     /// After unrolling, all Jmp terminators within the loop are eliminated, so every
     /// argument on them (except the induction variable on back-edge Jmps) is boilerplate.
-    /// Similarly, JmpIf `then_arguments`/`else_arguments` that thread promoted values
+    /// Similarly, `JmpIf` `then_arguments`/`else_arguments` that thread promoted values
     /// to loop-internal blocks are also boilerplate.
     /// Sum the Brillig-weighted cost of all terminators in the loop whose
     /// destinations are within the loop (including the header). These terminators
@@ -1475,7 +1518,7 @@ impl Loop {
     }
 
     /// Check whether `source`'s terminator sends a constant value at position
-    /// `param_index` to `target`. For JmpIf where both branches go to the same
+    /// `param_index` to `target`. For `JmpIf` where both branches go to the same
     /// target, both must send constants.
     fn pred_sends_constant_at(
         dfg: &DataFlowGraph,
@@ -1568,7 +1611,7 @@ impl Loop {
 /// `array_get` instructions. Returns true if:
 /// - The value is a compile-time constant (`dfg.is_constant`), OR
 /// - The value is the result of an `array_get` whose array operand
-///   recursively traces back to a constant source (global, MakeArray)
+///   recursively traces back to a constant source (global, `MakeArray`)
 ///
 /// This lets the cost model recognize that `array_get constant_array, index`
 /// will fold away after unrolling, even when `constant_array` is itself
@@ -1633,7 +1676,7 @@ impl BoilerplateStats {
         self.total_cost + pre_header_jmp
     }
 
-    /// Per-iteration cost excluding boilerplate but NOT subtracting useless_cost.
+    /// Per-iteration cost excluding boilerplate but NOT subtracting `useless_cost`.
     /// This is the conservative estimate: it assumes no constant folding happens.
     fn conservative_useful_cost(&self) -> usize {
         let load_and_store = self.loads.min(self.stores) * 2;
@@ -1657,13 +1700,13 @@ impl BoilerplateStats {
         self.useful_cost().saturating_mul(self.iterations)
     }
 
-    /// Conservative estimate of unrolled cost that excludes useless_cost.
+    /// Conservative estimate of unrolled cost that excludes `useless_cost`.
     ///
     /// Unlike `unrolled_cost()` which assumes constant-foldable instructions will be
     /// eliminated, this gives the cost if NO folding happens. Used by `is_small()` to
     /// avoid over-aggressive unrolling of large loops whose `useless_cost` may be
     /// overestimated (e.g. loops containing previously-unrolled inner loops).
-    /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
+    /// The `force_unroll` path still uses `unrolled_cost()` with full `useless_cost`
     /// subtraction, ensuring genuinely tiny loops are still unrolled.
     fn conservative_unrolled_cost(&self) -> usize {
         self.conservative_useful_cost().saturating_mul(self.iterations)
@@ -1674,7 +1717,7 @@ impl BoilerplateStats {
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access overhead.
     ///
-    /// Uses `conservative_unrolled_cost` (without useless_cost subtraction) to avoid
+    /// Uses `conservative_unrolled_cost` (without `useless_cost` subtraction) to avoid
     /// false positives from overestimated constant folding, particularly for loops
     /// containing previously-unrolled inner loops.
     fn is_small(&self) -> bool {
@@ -1778,6 +1821,13 @@ struct LoopIteration<'f> {
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
+
+    /// Dominator tree of the original (pre-unroll) function. When a constant-`JmpIf` is folded,
+    /// its destination's block parameters can only be specialized to the taken edge if the folding
+    /// block dominates the destination; otherwise the destination is a join reachable from an
+    /// independent predecessor and its parameters must be preserved (see [`Self::handle_jmpif`]).
+    /// Queries use original block ids, which the original dominator tree still describes correctly.
+    dom: &'f DominatorTree,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1786,6 +1836,7 @@ impl<'f> LoopIteration<'f> {
         loop_: &'f Loop,
         insert_block: BasicBlockId,
         source_block: BasicBlockId,
+        dom: &'f DominatorTree,
     ) -> Self {
         Self {
             inserter: FunctionInserter::new(function),
@@ -1798,6 +1849,7 @@ impl<'f> LoopIteration<'f> {
             encountered_loop_header: false,
 
             induction_value: None,
+            dom,
         }
     }
 
@@ -1926,6 +1978,13 @@ impl<'f> LoopIteration<'f> {
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
+        // The block whose `JmpIf` we are folding. Captured before `source_block` is
+        // reassigned to the chosen destination below. `source_block` always holds an
+        // original (pre-unroll) block id, so no `get_original_block` mapping is needed:
+        // every assignment to it is either the loop header or already passed through
+        // `get_original_block`.
+        let folding_block = self.source_block;
+
         match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
                 let (destination, arguments) = if constant.is_zero() {
@@ -1934,16 +1993,28 @@ impl<'f> LoopIteration<'f> {
                     (then_destination, then_arguments)
                 };
 
-                self.source_block = self.get_original_block(destination);
+                let original_destination = self.get_original_block(destination);
+                self.source_block = original_destination;
 
                 // The body block's instructions will be inlined directly into the
                 // current insert_block, not into the fresh destination block created
                 // by `get_or_insert_block`. Map the destination's block params to the
                 // jmp arguments so that inlined instructions resolve to the actual
                 // values rather than the fresh block's (now unreachable) params.
-                let destination_params = self.dfg().block_parameters(destination).to_vec();
-                for (param, arg) in destination_params.iter().zip(&arguments) {
-                    self.inserter.map_value(*param, *arg);
+                //
+                // This specialization is only sound when the folding block dominates the
+                // destination, i.e. every path to the destination passes through this folded
+                // `JmpIf`. Otherwise the destination is a join also reachable from an
+                // independent predecessor carrying a different argument, and its parameters
+                // must be preserved so the join body runs once over the merged parameter;
+                // specializing would copy the body for this edge and drop it for the others.
+                let folding_block_dominates_destination =
+                    self.dom.dominates(folding_block, original_destination);
+                if folding_block_dominates_destination {
+                    let destination_params = self.dfg().block_parameters(destination).to_vec();
+                    for (param, arg) in destination_params.iter().zip(&arguments) {
+                        self.inserter.map_value(*param, *arg);
+                    }
                 }
 
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
@@ -2044,13 +2115,13 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
     new_size.saturating_mul(100) <= max_size
 }
 
-/// Pre-check condition for [Function::unroll_loops_iteratively].
+/// Pre-check condition for [`Function::unroll_loops_iteratively`].
 #[cfg(debug_assertions)]
 fn unroll_loops_pre_check(function: &Function) {
     super::checks::assert_no_constant_jmpif(function);
 }
 
-/// Post-check condition for [Function::unroll_loops_iteratively].
+/// Post-check condition for [`Function::unroll_loops_iteratively`].
 ///
 /// Panics if:
 ///   - Any ACIR function still contains loops after unrolling.
@@ -2074,7 +2145,11 @@ mod tests {
     use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
-    use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
+    use crate::ssa::{
+        Ssa,
+        ir::value::ValueId,
+        opt::{assert_normalized_ssa_equals, assert_pass_does_not_affect_execution},
+    };
 
     use super::{
         BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopBoundKind, LoopBounds, LoopOrder,
@@ -2371,7 +2446,11 @@ mod tests {
     fn test_boilerplate_stats_i64_empty() {
         // Looping 0..-1, which should be 0 iterations.
         // u64::MAX is how -1 is represented as a Field.
-        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470_with_params(
+        // This fixture reuses the shared loop body, whose `cast v1 as u32` (an
+        // array index) becomes a raw `i64 -> u32` narrowing cast for the signed
+        // induction variable. That is not a shape SSA gen produces, so skip
+        // validation: the test exercises the unroller, not cast validity.
+        let ssa = Ssa::from_str_no_validation(&brillig_unroll_test_case_6470_with_params(
             "i64",
             "0",
             &format!("{}", u64::MAX),
@@ -2387,7 +2466,9 @@ mod tests {
     fn test_boilerplate_stats_i64_non_empty() {
         // Looping -4..-1, which should be 3 iterations.
         // u64::MAX-3 is how -4 is represented as a Field.
-        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470_with_params(
+        // See `test_boilerplate_stats_i64_empty`: the shared body's `cast v1 as
+        // u32` is a raw `i64 -> u32` narrowing cast here, so skip validation.
+        let ssa = Ssa::from_str_no_validation(&brillig_unroll_test_case_6470_with_params(
             "i64",
             &format!("{}", u64::MAX - 3),
             &format!("{}", u64::MAX),
@@ -2473,7 +2554,7 @@ mod tests {
         assert_eq!(stats.unrolled_cost(), 0);
     }
 
-    /// Regression test for nested loops with an accumulator (simplified regression_4709).
+    /// Regression test for nested loops with an accumulator (simplified `regression_4709`).
     ///
     /// The inner loop (b3, b4) accumulates values from a constant array indexed by
     /// the outer loop's induction variable. Without the filter that excludes `self.blocks`
@@ -2599,6 +2680,175 @@ mod tests {
         );
     }
 
+    /// An allocation made *inside* the inner loop body must not be treated as a
+    /// pre-header reference value of that loop.
+    ///
+    /// The in-loop allocation in b4 is a fresh address every iteration; its
+    /// load/store is NOT eliminable by unrolling and must not be counted as a gain.
+    #[test]
+    fn test_find_pre_header_reference_values_nested_loop_in_body_allocation() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v3 = lt v1, u32 4
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            jmp b3(u32 0)
+          b3(v4: u32):
+            v6 = lt v4, u32 35
+            jmpif v6 then: b4(), else: b6()
+          b4():
+            v8 = allocate -> &mut Field
+            store Field 7 at v8
+            v10 = load v8 -> Field
+            v11 = load v0 -> Field
+            v12 = add v11, v10
+            store v12 at v0
+            v13 = unchecked_add v4, u32 1
+            jmp b3(v13)
+          b6():
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14)
+          b5():
+            v15 = load v0 -> Field
+            return v15
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn puts the outer loop last; remove(0) gets the inner loop.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+        let inner = loops.yet_to_unroll.remove(0);
+
+        let (refs, _) = inner.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        // Only v0 is a genuine pre-header reference. The allocation in b4 (the inner
+        // loop body) must not be collected.
+        assert_eq!(refs.len(), 1, "the in-loop allocation in b4 must not be a pre-header ref");
+
+        // The inner loop performs exactly one load and one store through the genuine
+        // pre-header ref v0. The in-loop allocation's own load/store must not be counted.
+        let (loads, stores) = inner.count_loads_and_stores(function, &refs);
+        assert_eq!(loads, 1, "only v0's load should count, not the in-loop allocation's");
+        assert_eq!(stores, 1, "only v0's store should count, not the in-loop allocation's");
+    }
+
+    /// A pre-header ref that receives a non-constant store in the outer loop's
+    /// back-edge block (the block after the inner loop) is NOT constant-initial.
+    ///
+    /// `v2` is allocated and given a constant store (`Field 0`) in the function
+    /// entry, which is the outer pre-header. When we analyze the *inner* loop
+    /// (header `b3`, body `b4`), its pre-header is `b2`, and the blocks reaching
+    /// that pre-header include the outer back-edge `b6` (since `b6 -> b1 -> b2`).
+    /// `b6` stores a non-constant value (`v7`, an `array_get` result) into `v2`,
+    /// so not all of `v2`'s pre-header stores are constant and it must be excluded.
+    #[test]
+    fn test_find_pre_header_reference_values_outer_back_edge_non_constant_store() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [Field; 4]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 4
+            jmpif v5 then: b2(), else: b5()
+          b2():
+            v7 = array_get v3, index v0 -> Field
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v8 = lt v1, u32 35
+            jmpif v8 then: b4(), else: b6()
+          b4():
+            v9 = load v2 -> Field
+            v10 = add v9, v7
+            store v10 at v2
+            v11 = unchecked_add v1, u32 1
+            jmp b3(v11)
+          b6():
+            store v7 at v2
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b5():
+            v13 = load v2 -> Field
+            return v13
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn puts the outer loop last; remove(0) gets the inner loop.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+        let inner = loops.yet_to_unroll.remove(0);
+
+        let v2 = ValueId::test_new(2);
+        let (refs, constant_initial_refs) =
+            inner.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        assert!(refs.contains(&v2), "v2 is a pre-header reference of the inner loop");
+        // The outer back-edge block b6 reaches the inner pre-header and stores a
+        // non-constant value into v2, so v2 is not constant-initial.
+        assert!(
+            !constant_initial_refs.contains(&v2),
+            "v2 should NOT be constant-initial (non-constant store in outer back-edge)"
+        );
+    }
+
+    /// Sibling of [`test_find_pre_header_reference_values_outer_back_edge_non_constant_store`]:
+    /// when the outer back-edge block stores a *constant* value into the pre-header
+    /// ref, every pre-header store of `v2` is constant, so it stays constant-initial.
+    #[test]
+    fn test_find_pre_header_reference_values_outer_back_edge_constant_store() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [Field; 4]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 4
+            jmpif v5 then: b2(), else: b5()
+          b2():
+            v7 = array_get v3, index v0 -> Field
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v8 = lt v1, u32 35
+            jmpif v8 then: b4(), else: b6()
+          b4():
+            v9 = load v2 -> Field
+            v10 = add v9, v7
+            store v10 at v2
+            v11 = unchecked_add v1, u32 1
+            jmp b3(v11)
+          b6():
+            store Field 5 at v2
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b5():
+            v13 = load v2 -> Field
+            return v13
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+        let inner = loops.yet_to_unroll.remove(0);
+
+        let v2 = ValueId::test_new(2);
+        let (refs, constant_initial_refs) =
+            inner.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        assert!(refs.contains(&v2), "v2 is a pre-header reference of the inner loop");
+        // Both pre-header stores of v2 (Field 0 in b0, Field 5 in the outer back-edge
+        // b6) are constant, so v2 remains constant-initial.
+        assert!(
+            constant_initial_refs.contains(&v2),
+            "v2 should be constant-initial (all pre-header stores are constant)"
+        );
+    }
+
     /// Test that we can unroll a small loop.
     #[test]
     fn test_brillig_unroll_small_loop() {
@@ -2711,11 +2961,11 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 1, "The loop should be unrolled");
     }
 
-    /// Test that setting force_unroll_threshold to 0 disables force-unrolling.
+    /// Test that setting `force_unroll_threshold` to 0 disables force-unrolling.
     ///
     /// This uses a loop with 6 iterations where:
-    /// - is_small() = false (unrolled cost exceeds baseline)
-    /// - unrolled_cost = 78 (within default threshold of 128)
+    /// - `is_small()` = false (unrolled cost exceeds baseline)
+    /// - `unrolled_cost` = 78 (within default threshold of 128)
     ///
     /// With the default threshold, this loop would be force-unrolled.
     /// With threshold=0, it should NOT be unrolled.
@@ -2865,8 +3115,8 @@ mod tests {
     }
 
     /// Generate a loop with a large body containing `num_adds` chained add instructions.
-    /// All instructions are constant-foldable after unrolling (useful_cost = 0),
-    /// but total_cost is high due to the many instructions.
+    /// All instructions are constant-foldable after unrolling (`useful_cost` = 0),
+    /// but `total_cost` is high due to the many instructions.
     fn brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -> Ssa {
         assert!(num_adds >= 1, "need at least one add");
         let mut body_instructions = String::new();
@@ -3013,7 +3263,7 @@ mod tests {
     }
 
     /// Regression test: when `useful_cost` is zero and the loop body is small,
-    /// force_unroll correctly allows the unroll (the folding prediction is trusted
+    /// `force_unroll` correctly allows the unroll (the folding prediction is trusted
     /// because even if wrong, the transient expansion is bounded).
     #[test]
     fn force_unroll_allows_small_body_zero_useful_cost() {
@@ -3041,7 +3291,7 @@ mod tests {
     }
 
     /// Regression test: when `useful_cost` is zero but the loop body is large
-    /// (total_cost > force_unroll_threshold), force_unroll is blocked. This prevents
+    /// (`total_cost` > `force_unroll_threshold`), `force_unroll` is blocked. This prevents
     /// the catastrophic blowup seen in `noir_bigcurve` where a 754-iteration
     /// scalar-multiplication loop was fully unrolled into ~300k lines after
     /// `inc_rc` removal dropped `useful_cost` from 3 to 0.
@@ -3238,10 +3488,10 @@ mod tests {
         assert_eq!(lower, upper);
     }
 
-    /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
-    /// alongside a constant-condition JmpIf.
+    /// Prior passes can place non-comparison instructions (like `MakeArray`) into a loop header block
+    /// alongside a constant-condition `JmpIf`.
     ///
-    /// The pre-check should catch this and require simplify_cfg to be run first.
+    /// The pre-check should catch this and require `simplify_cfg` to be run first.
     #[test]
     #[should_panic(expected = "has a JmpIf with a constant condition")]
     fn pre_check_rejects_const_condition_jmpif_in_loop_header() {
@@ -3542,9 +3792,9 @@ mod tests {
     /// Regression test: after mem2reg promotes loads/stores to block parameters,
     /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
     /// block parameters. Without this, nested loops over constant 2D arrays won't see
-    /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
+    /// inner loop accumulators as constant, inflating `useful_cost` and preventing unrolling.
     ///
-    /// This models the pattern from the regression_4709 integration test: outer loop indexes a constant 2D
+    /// This models the pattern from the `regression_4709` integration test: outer loop indexes a constant 2D
     /// global array, inner loop accumulates over the row. After mem2reg, the row value
     /// is passed as a block parameter to the inner loop header.
     #[test]
@@ -3823,7 +4073,7 @@ mod tests {
     ///
     /// In this test, the loop header b1 has `not v0` (where v0 is a u1 parameter)
     /// and the actual loop exit is `eq v1, u32 1` in b2 (where v1 is the induction
-    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (bit_size 1),
+    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (`bit_size` 1),
     /// and LICM's `simplify_induction_variable_in_binary` replaces `eq v1, u32 1` with
     /// constant `false`, creating an infinite loop.
     #[test]
@@ -3903,6 +4153,141 @@ mod tests {
         ");
     }
 
+    /// Regression for noir-claude#1381: a constant-folded `JmpIf` whose chosen destination is a
+    /// shared join block — reachable from another, independent predecessor carrying a different
+    /// edge argument — must not specialize the join's block parameter to one edge's argument and
+    /// copy the join body only once. Doing so collapses the join value, so the other edge observes
+    /// the wrong value (in the audit's framing, a path-specific constraint is dropped).
+    ///
+    /// The join value is surfaced through the loop into the return value: `v0 = 1` takes the
+    /// independent `b3` edge (`Field 1`) and `v0 = 0` takes the folded `b4` edge (`Field 2`). The
+    /// bug made the `b3` path also observe `Field 2`. `assert_pass_does_not_affect_execution`
+    /// checks that unrolling preserves each result.
+    #[test]
+    fn unroll_constant_jmpif_into_shared_join_preserves_per_edge_values() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0, Field 0)
+          b1(v1: u32, v2: Field):
+            v3 = lt v1, u32 1
+            jmpif v3 then: b2(), else: b7()
+          b2():
+            jmpif v0 then: b3(), else: b4()
+          b3():
+            jmp b6(Field 1)
+          b4():
+            v4 = eq v1, u32 0
+            jmpif v4 then: b6(Field 2), else: b6(Field 3)
+          b6(v5: Field):
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6, v5)
+          b7():
+            return v2
+        }
+        ";
+        let run_unroll = |ssa: Ssa| -> Ssa {
+            let (ssa, errors) = try_unroll_loops(ssa);
+            assert_eq!(errors.len(), 0, "Unroll should have no errors");
+            ssa
+        };
+
+        // `v0 = 1` reaches the join via the independent `b3` edge (`Field 1`); the bug instead
+        // collapsed the join to the folded `b4` edge's `Field 2`.
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(true)],
+            run_unroll,
+        );
+        assert_eq!(result, Ok(vec![Value::field(1_u128.into())]), "v0 = 1 observes the b3 edge");
+
+        // `v0 = 0` takes the folded `b4` edge (`Field 2`).
+        let (_, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(false)],
+            run_unroll,
+        );
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]), "v0 = 0 observes the b4 edge");
+
+        // The join keeps its parameter and the return surfaces it per edge, rather than the join
+        // body being specialized to a single edge.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2(), else: b3()
+          b1():
+            return v1
+          b2():
+            jmp b4(Field 1)
+          b3():
+            jmp b4(Field 2)
+          b4(v1: Field):
+            jmp b1()
+        }
+        ");
+    }
+
+    /// Counterpart to [`Self::unroll_constant_jmpif_into_shared_join_preserves_constraint`]:
+    /// when the folding block *dominates* the constant-`JmpIf` destination, that destination is
+    /// reached only through this folded edge, so its block parameters are safely specialized to
+    /// the taken edge's arguments. This must NOT preserve the join parameters: doing so leaves
+    /// redundant block parameters that `flatten_cfg` later turns into predicate multiplications,
+    /// inflating circuit size (the regression observed in `regression_5252`).
+    #[test]
+    fn unroll_constant_jmpif_into_dominated_join_specializes_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v3 = lt v1, u32 2
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            v4 = eq v1, u32 0
+            v5 = mul v0, u32 10
+            v6 = mul v0, u32 20
+            jmpif v4 then: b3(v5), else: b3(v6)
+          b3(v7: u32):
+            v8 = add v2, v7
+            v9 = unchecked_add v1, u32 1
+            jmp b1(v9, v8)
+          b5():
+            return v2
+        }
+        ";
+        let u32_ty = crate::ssa::ir::types::NumericType::unsigned(32);
+        let input = vec![Value::from_constant(1_u128.into(), u32_ty).unwrap()];
+
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), input, |ssa| {
+                let (ssa, errors) = try_unroll_loops(ssa);
+                assert_eq!(errors.len(), 0, "Unroll should have no errors");
+                ssa
+            });
+        // `1 * 10 + 1 * 20 == 30` over the two unrolled iterations.
+        assert_eq!(result, Ok(vec![Value::from_constant(30_u128.into(), u32_ty).unwrap()]));
+
+        // The dominated join is specialized: the accumulating `add` reads the per-edge
+        // multiplications directly (`v4`, `v8`) rather than a preserved join block parameter.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = mul v0, u32 10
+            v6 = mul v0, u32 20
+            jmp b2(v4)
+          b1():
+            return v9
+          b2(v1: u32):
+            v7 = mul v0, u32 10
+            v8 = mul v0, u32 20
+            jmp b3(v8)
+          b3(v2: u32):
+            v9 = add v4, v8
+            jmp b1()
+        }
+        ");
+    }
+
     /// Documents that loop unrolling does NOT propagate instruction results defined
     /// in the loop header (only block parameters) to exit blocks.
     ///
@@ -3955,9 +4340,9 @@ mod upper_loop_bound_resolution {
 
     use super::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
 
-    /// Regression test for vector_loop: after mem2reg promotes the vector length
+    /// Regression test for `vector_loop`: after mem2reg promotes the vector length
     /// allocation to a block parameter, the iterative unrolling must still resolve the
-    /// sum loop's bound to a constant through the vector_push_back simplification chain.
+    /// sum loop's bound to a constant through the `vector_push_back` simplification chain.
     ///
     /// This is the SSA input to unrolling from the
     /// `test_programs/execution_success/vector_loop` test program.
@@ -4035,15 +4420,15 @@ mod upper_loop_bound_resolution {
 
     /// Regression test: when a loop accumulates a counter via store/load (like BoundedVec.push
     /// incrementing `len`), a second loop that loads that counter as its bound requires
-    /// load-store forwarding (LSF) in simplify_between_unrolls to resolve the bound
+    /// load-store forwarding (LSF) in `simplify_between_unrolls` to resolve the bound
     /// after the first loop is unrolled.
     ///
-    /// This reproduces the pattern from Aztec's FixtureBuilder where:
+    /// This reproduces the pattern from Aztec's `FixtureBuilder` where:
     ///   1. A setup loop stores to a counter (e.g. `append_items` incrementing `BoundedVec.len`)
     ///   2. After the loop, the counter is loaded as the bound of a second loop
     ///      (e.g. `for i in 0..vec.len()` in `get_split_ordered_side_effects`)
     ///
-    /// Without LSF in simplify_between_unrolls, the load is never resolved to a
+    /// Without LSF in `simplify_between_unrolls`, the load is never resolved to a
     /// constant, leaving the second loop's bound non-constant and unrolling fails.
     #[test]
     fn acir_unroll_with_store_load_loop_bound() {
@@ -4089,7 +4474,7 @@ mod upper_loop_bound_resolution {
         );
     }
 
-    /// Regression test: a BoundedVec's length is stored in an allocation.
+    /// Regression test: a `BoundedVec`'s length is stored in an allocation.
     /// Two sequential loops use the same length as their bound.
     /// After Loop 1 unrolls, Loop 2's bound is still a `load` from a different block
     /// because `simplify_function` cannot merge the blocks (a conditional branch in

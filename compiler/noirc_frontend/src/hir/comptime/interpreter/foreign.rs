@@ -19,9 +19,9 @@ use crate::{
 use super::{
     Interpreter,
     builtin::builtin_helpers::{
-        check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-        get_array_map, get_field, get_fixed_array_map, get_struct_field, get_struct_fields, get_u8,
-        get_u32, get_u64, to_struct,
+        check_arguments, check_one_argument, check_return_type_shape, check_three_arguments,
+        check_two_arguments, get_array_map, get_field, get_fixed_array_map, get_struct_field,
+        get_struct_fields, get_u8, get_u32, get_u64, to_struct, type_shape,
     },
 };
 
@@ -46,7 +46,8 @@ fn call_foreign(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    match name {
+    let expected_return_shape = type_shape(&return_type);
+    let result = match name {
         "aes128_encrypt" => aes128_encrypt(args, location),
         "blake2s" => blake_hash(args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(args, location, acvm::blackbox_solver::blake3),
@@ -77,7 +78,10 @@ fn call_foreign(
             let item = format!("Attempting to evaluate foreign function '{name}'");
             Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
         }
-    }
+    }?;
+
+    check_return_type_shape(&result, expected_return_shape, location)?;
+    Ok(result)
 }
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`

@@ -25,7 +25,7 @@ use crate::token::{LocatedToken, SecondaryAttribute, Token};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
-/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+/// This is used to represent an `UnresolvedTypeData::Unspecified` in a Path
 pub const WILDCARD_TYPE: &str = "_";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -42,7 +42,7 @@ impl Display for Statement {
 
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
-/// ends in a block, such as a Statement::Expression containing an if expression.
+/// ends in a block, such as a `Statement::Expression` containing an if expression.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
@@ -58,8 +58,8 @@ pub enum StatementKind {
     Comptime(Box<Statement>),
     /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    /// This is an interned StatementKind during comptime code.
-    /// The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned `StatementKind` during comptime code.
+    /// The actual `StatementKind` can be retrieved with a `NodeInterner`.
     Interned(InternedStatementKind),
     /// This statement is the result of a recovered parse error.
     /// To avoid issuing multiple errors in later steps, it should
@@ -473,13 +473,13 @@ impl Path {
         self
     }
 
-    /// Construct a [PathKind::Plain] from a single identifier name.
+    /// Construct a [`PathKind::Plain`] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
-    /// Construct a [PathKind::Plain] from a single [Ident].
+    /// Construct a [`PathKind::Plain`] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)
@@ -645,10 +645,16 @@ impl AssignOpKind {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
+    /// A path like `foo::bar`
     Path(Path),
+    /// `object.field_name`
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
+    /// `array[index]`
     Index { array: Box<LValue>, index: Expression, location: Location },
-    Dereference(Box<LValue>, Location),
+    /// A dereference `*expression`. Its target can be any expression.
+    /// However, during elaboration we check that its type is a mutable reference.
+    Dereference(Box<Expression>, Location),
+    /// An `LValue` wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
 }
 
@@ -736,10 +742,10 @@ impl LValue {
                     index: index.clone(),
                 }))
             }
-            LValue::Dereference(lvalue, _span) => {
+            LValue::Dereference(expr, _span) => {
                 ExpressionKind::Prefix(Box::new(crate::ast::PrefixExpression {
                     operator: crate::ast::UnaryOp::Dereference { implicitly_added: false },
-                    rhs: lvalue.as_expression(),
+                    rhs: expr.as_ref().clone(),
                 }))
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
@@ -769,10 +775,7 @@ impl LValue {
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    Some(LValue::Dereference(
-                        Box::new(LValue::from_expression(prefix.rhs)?),
-                        location,
-                    ))
+                    Some(LValue::Dereference(Box::new(prefix.rhs), location))
                 } else {
                     None
                 }
