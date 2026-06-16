@@ -269,10 +269,10 @@ fn add_locations_to_folded_stack_items(
 /// Creates a vector of lines in the format that inferno expects from a nested hashmap of stack items
 /// The lines have to be sorted in the following way, exploring the graph in a depth-first manner:
 /// main 100
-/// main::foo 0
-/// main::foo::bar 200
-/// main::baz 27
-/// main::baz::qux 800
+/// `main::foo` 0
+/// `main::foo::bar` 200
+/// `main::baz` 27
+/// `main::baz::qux` 800
 fn to_folded_sorted_lines(
     folded_stack_items: &BTreeMap<String, FoldedStackItem>,
     parent_stacks: im::Vector<String>,

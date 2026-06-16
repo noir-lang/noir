@@ -80,9 +80,12 @@ use noirc_errors::Location;
 
 use crate::{
     Type,
-    ast::{UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType},
+    ast::UnresolvedType,
     hir::{
-        def_collector::{dc_crate::UnresolvedFunctions, errors::DefCollectorErrorKind},
+        def_collector::{
+            dc_crate::{UnresolvedFunctions, UnresolvedImpl},
+            errors::DefCollectorErrorKind,
+        },
         def_map::LocalModuleId,
     },
     node_interner::{FuncId, TraitId},
@@ -103,28 +106,24 @@ impl Elaborator<'_> {
     /// - `self_type`: The type being implemented (e.g., `Foo` in `impl Foo { ... }`)
     ///
     /// # Panics
-    /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+    /// If the `self_type` is not already resolved in each impl's function set.
+    /// The self type should be resolved by [`Self::register_function_metas`] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_impls(
         &mut self,
         module: LocalModuleId,
-        impls: &mut [(
-            UnresolvedGenerics,
-            Vec<UnresolvedTraitConstraint>,
-            Location,
-            UnresolvedFunctions,
-        )],
+        impls: &mut [UnresolvedImpl],
         self_type: &UnresolvedType,
     ) {
         let previous_local_module = self.replace_local_module(module);
 
-        for (generics, _, location, unresolved) in impls {
-            self.check_generics_appear_in_types(generics, &[self_type], &[]);
+        for unresolved_impl in impls {
+            self.check_generics_appear_in_types(&unresolved_impl.generics, &[self_type], &[]);
 
+            let location = unresolved_impl.object_type_location;
             self.recover_generics(|this| {
                 let no_trait_id = None;
-                this.declare_methods_on_data_type(no_trait_id, unresolved, *location);
+                this.declare_methods_on_data_type(no_trait_id, &unresolved_impl.methods, location);
             });
         }
 
@@ -138,7 +137,7 @@ impl Elaborator<'_> {
     ///
     /// # Parameters
     /// - `trait_id`: `Some(trait_id)` if this is a trait impl, `None` for inherent impls
-    /// - `functions`: The functions/methods to declare (self_type must already be resolved)
+    /// - `functions`: The functions/methods to declare (`self_type` must already be resolved)
     /// - `location`: Location of the impl block for error reporting
     ///
     /// # Error Cases
@@ -147,8 +146,8 @@ impl Elaborator<'_> {
     /// - Primitive impl: Non-stdlib code trying to impl methods on primitive types
     ///
     /// # Panics
-    /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
+    /// If the `self_type` is not already resolved in each impl's function set.
+    /// The self type should be resolved by [`Self::register_function_metas`] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn declare_methods_on_data_type(
         &mut self,

@@ -93,8 +93,8 @@ fn trait_with_same_generic_in_different_default_methods() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/8632
-/// (tracked as part of https://github.com/noir-lang/noir/issues/9020).
+/// Regression test for <https://github.com/noir-lang/noir/issues/8632>
+/// (tracked as part of <https://github.com/noir-lang/noir/issues/9020>).
 ///
 /// A default method body must resolve paths relative to the trait's defining
 /// module, not the impl's module. Here `helper` is defined in `my_trait` and
@@ -135,7 +135,7 @@ fn default_method_resolves_paths_in_trait_module() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/9020.
+/// Regression test for <https://github.com/noir-lang/noir/issues/9020>.
 #[test]
 fn default_method_type_error_reported_once() {
     let src = r#"
@@ -232,7 +232,7 @@ fn shared_default_method_with_multiple_impls_ambiguous_receiver() {
     check_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11552.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11552>.
 /// A numeric generic on a generic trait must be visible in a default method body.
 /// Was fixed as a side effect of #9020 (default bodies are now typed once at the
 /// trait definition, so trait generics naturally flow through).
@@ -272,7 +272,7 @@ fn generic_trait_numeric_generic_default_method() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/8687.
+/// Regression test for <https://github.com/noir-lang/noir/issues/8687>.
 #[test]
 fn issue_8687_trait_default_method_return_type_is_trait_generic() {
     let src = r#"

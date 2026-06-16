@@ -407,7 +407,7 @@ impl Elaborator<'_> {
         (id, numeric_type)
     }
 
-    /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
+    /// Resolve a [`TypedPath`] to a [`HirIdent`] of either some trait method, or a local or global variable.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
@@ -572,7 +572,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
-    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
+    /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts unresolved generics.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl(
         &mut self,
@@ -607,7 +607,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl_inner(&typ, typ_location, ident_location, method, generics)
     }
 
-    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
+    /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts already resolved generics.
     /// Used when the turbofish generics have already been resolved.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_with_resolved_generics(
@@ -706,7 +706,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
-    /// Given an [HirIdent], look up its definition, and:
+    /// Given an [`HirIdent`], look up its definition, and:
     /// * mark it as referenced at the ident [Location] (LSP mode only)
     /// * mark the item currently being elaborated as a dependency of it
     /// * elaborate a global definition, if needed
@@ -936,7 +936,7 @@ impl Elaborator<'_> {
         typ
     }
 
-    /// If the type of the [HirIdent] is a function that returns an `impl Trait`,
+    /// If the type of the [`HirIdent`] is a function that returns an `impl Trait`,
     /// then it might need elaboration before it can be substituted to a [Type].
     /// Try to elaborate it now.
     ///
@@ -968,7 +968,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+    /// Instantiate a [Type] with the given [`TypeBindings`], returning the bindings potentially
     /// extended from any turbofish generics.
     ///
     /// If there are turbofish generics and their number matches the expectations of the function,

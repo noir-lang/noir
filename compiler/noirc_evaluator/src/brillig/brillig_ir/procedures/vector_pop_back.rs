@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorPopBack].
+    /// Copy arguments to [`ScratchSpace`] and call [`ProcedureId::VectorPopBack`].
     ///
     /// Pops `item_pop_count` items from the back of a `source_vector`, returning the new `destination_vector`
     /// and the pointer to the popped items in `read_pointer`.
@@ -43,7 +43,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::VectorPopBack].
+/// Compile [`ProcedureId::VectorPopBack`].
 pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

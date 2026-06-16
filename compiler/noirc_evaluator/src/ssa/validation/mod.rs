@@ -7,10 +7,12 @@
 //! - That the function contains exactly one return block.
 //! - That every checked signed addition or subtraction instruction is
 //!   followed by a corresponding truncate instruction with the expected bit sizes.
+//! - That every narrowing cast is preceded by an instruction proving the value
+//!   being cast fits into the destination type.
 //!
 //! Type checking
 //! - Check that the input values of certain instructions matches that instruction's constraint
-//!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
+//!   At the moment, only [`Instruction::Binary`], [`Instruction::ArrayGet`], and [`Instruction::ArraySet`]
 //!   are type checked.
 use core::panic;
 use std::borrow::Cow;
@@ -51,10 +53,10 @@ struct Validator<'f> {
     function: &'f Function,
     ssa: &'f Ssa,
 
-    // State for valid Field to integer casts
+    // State for validating narrowing casts.
     // Range checks are laid down in isolation and can make for safe casts
-    // If they occurred before the value being cast to a smaller type
-    // Stores: A set of (value being range constrained, the value's max bit size)
+    // if they occurred before the value being cast to a smaller type.
+    // Stores: A map of (value being range constrained, the value's max bit size)
     range_checks: HashMap<ValueId, u32>,
 
     // Element type of each `allocate` result, populated as we traverse blocks in
@@ -72,20 +74,38 @@ impl<'f> Validator<'f> {
         }
     }
 
-    /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
-    /// The value being cast is either:
-    /// 1. A truncate instruction that ensures the cast is valid
-    /// 2. A constant value known to be in-range
-    /// 3. A division or other operation whose result is known to fit within the target bit size
+    /// Enforces that every narrowing cast is preceded by an instruction that
+    /// guarantees the value being cast fits into the destination type.
+    ///
+    /// A `Cast` lowers to an assertion that the value fits in the destination
+    /// type (see the SSA interpreter's handling of [`Instruction::Cast`], which
+    /// errors when the value does not fit), so a *narrowing* cast — one whose
+    /// source type can hold values that do not fit in the destination — is only
+    /// sound when an earlier instruction has already constrained the value. A
+    /// raw narrowing cast on e.g. a program input would otherwise let a value
+    /// that should fail to convert slip through, and downstream passes are then
+    /// free to drop the now-dead failing cast (see the cast-chain simplifier).
+    ///
+    /// The value being cast must therefore be one of:
+    /// 1. A value that was range-checked to a bit size that fits the destination.
+    /// 2. The result of a `Truncate` to a bit size that fits the destination.
+    /// 3. The quotient of a division by a constant whose result is known to fit.
+    /// 4. A constant that is already in-range.
     ///
     /// Our initial SSA gen only generates preceding truncates for safe casts.
-    /// The cases accepted here are extended past what we perform during our initial SSA gen
-    /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
-    fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
+    /// The cases accepted here are extended past what we perform during our
+    /// initial SSA gen to mirror the instruction simplifier and other logic that
+    /// could be accepted as a safe cast.
+    ///
+    /// Widening casts, identity casts, and casts to `Field` cannot fail and are
+    /// not checked.
+    fn validate_narrowing_cast_invariant(&mut self, instruction_id: InstructionId) {
         let dfg = &self.function.dfg;
 
-        let (cast_input, typ) = match &dfg[instruction_id] {
-            Instruction::Cast(cast_input, typ) => (*cast_input, *typ),
+        let (cast_input, target_type) = match &dfg[instruction_id] {
+            Instruction::Cast(cast_input, target_type) => (*cast_input, *target_type),
+            // Range checks are laid down in isolation; record the constrained bit
+            // size so a later cast of the same value can be recognized as safe.
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 self.range_checks.insert(*value, *max_bit_size);
                 return;
@@ -93,56 +113,76 @@ impl<'f> Validator<'f> {
             _ => return,
         };
 
-        if !matches!(*dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
-            return;
-        }
-
-        let (NumericType::Signed { bit_size: target_type_size }
-        | NumericType::Unsigned { bit_size: target_type_size }) = typ
-        else {
+        let source_type = dfg.type_of_value(cast_input).unwrap_numeric();
+        let Some(target_bit_size) = narrowing_cast_target_bit_size(source_type, target_type) else {
             return;
         };
 
         // If the cast input has already been range constrained to a bit size that fits
         // in the destination type, we have a safe cast.
         if let Some(max_bit_size) = self.range_checks.get(&cast_input) {
-            assert!(*max_bit_size <= target_type_size);
+            assert!(
+                *max_bit_size <= target_bit_size,
+                "Narrowing cast is preceded by a range check to {max_bit_size} bits, \
+                 which does not fit in the {target_bit_size}-bit destination type {target_type}"
+            );
             return;
         }
 
         match &dfg[cast_input] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::Truncate { value: _, bit_size, max_bit_size } => {
-                    assert!(*bit_size <= target_type_size);
+                    assert!(
+                        *bit_size <= target_bit_size,
+                        "Narrowing cast is preceded by a truncate to {bit_size} bits, \
+                         which does not fit in the {target_bit_size}-bit destination type {target_type}"
+                    );
                     assert!(*max_bit_size <= FieldElement::max_num_bits());
                 }
+                // Dividing a `numerator_bits`-bit value by a constant with `divisor_bits`
+                // significant bits bounds the quotient: the divisor is ≥ 2^(divisor_bits - 1),
+                // so the quotient is < 2^numerator_bits / 2^(divisor_bits - 1), i.e. it occupies
+                // at most `numerator_bits - divisor_bits + 1` bits. (This matches the `< bit_size`
+                // check in `simplify_truncate`, which folds the same `+ 1` into a strict
+                // comparison.) The bound reasons about magnitude, so it only holds for
+                // non-negative values: a signed division can yield a negative quotient whose
+                // field representation spans the full source width, so signed numerators are
+                // not accepted here.
                 Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. })
-                    if dfg.is_constant(*rhs) =>
+                    if dfg.is_constant(*rhs)
+                        && !matches!(source_type, NumericType::Signed { .. }) =>
                 {
                     let numerator_bits = dfg.type_of_value(*lhs).bit_size();
                     let divisor = dfg.get_numeric_constant(*rhs).unwrap();
                     let divisor_bits = divisor.num_bits();
-                    let max_quotient_bits = numerator_bits - divisor_bits;
+                    let max_quotient_bits = numerator_bits.saturating_sub(divisor_bits) + 1;
 
                     assert!(
-                        max_quotient_bits <= target_type_size,
-                        "Cast from field after div could exceed bit size: expected ≤ {target_type_size}, got {max_quotient_bits}"
+                        max_quotient_bits <= target_bit_size,
+                        "Cast after div could exceed bit size: expected ≤ {target_bit_size}, got {max_quotient_bits}"
                     );
                 }
                 _ => {
-                    panic!("Invalid cast from Field, must be truncated or provably safe");
+                    panic!(
+                        "Invalid narrowing cast from {source_type} to {target_type}: the value \
+                         being cast is not guaranteed to fit in the destination type. A narrowing \
+                         cast must be preceded by a truncate, a range check, or a division by a \
+                         constant that bounds the value."
+                    );
                 }
             },
             Value::NumericConstant { constant, .. } => {
                 let max_val_bits = constant.num_bits();
                 assert!(
-                    max_val_bits <= target_type_size,
-                    "Constant too large for cast target: {max_val_bits} bits > {target_type_size}"
+                    max_val_bits <= target_bit_size,
+                    "Constant too large for cast target: {max_val_bits} bits > {target_bit_size}"
                 );
             }
             _ => {
                 panic!(
-                    "Invalid cast from Field, not preceded by valid truncation or known safe value"
+                    "Invalid narrowing cast from {source_type} to {target_type}: the value being \
+                     cast is not preceded by a valid truncation or range check, nor otherwise \
+                     known to be in range."
                 );
             }
         }
@@ -1094,7 +1134,7 @@ impl<'f> Validator<'f> {
         for block in PostOrder::with_function_from_entry(self.function).into_vec_reverse() {
             for instruction in self.function.dfg[block].instructions() {
                 self.track_allocate_and_check_load_store(*instruction);
-                self.validate_field_to_integer_cast_invariant(*instruction);
+                self.validate_narrowing_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
                 self.check_calls_in_constrained(*instruction);
@@ -1153,11 +1193,11 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     validator.run();
 }
 
-/// Validates every reachable block's terminator: see [validate_block_terminator].
+/// Validates every reachable block's terminator: see [`validate_block_terminator`].
 ///
 /// This is a general SSA well-formedness property which must hold at every point in the
 /// pipeline, so passes which rewrite block parameters or terminator arguments (e.g.
-/// mem2reg, remove_redundant_params) call this in their debug post-checks.
+/// mem2reg, `remove_redundant_params`) call this in their debug post-checks.
 #[cfg(debug_assertions)]
 pub(crate) fn validate_terminators(function: &Function) {
     for block in function.reachable_blocks() {
@@ -1279,6 +1319,25 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<
         }
     }
     Ok(())
+}
+
+/// Returns the destination bit size when casting `source` to `target` is a
+/// narrowing cast — one where the source may hold values that do not fit in the
+/// destination, so the cast can fail at runtime. Returns `None` when the cast is
+/// always safe (widening, identity, or a cast to `Field`).
+///
+/// Every numeric value is represented as a field element in `[0, 2^bit_size)`
+/// (signed values are stored in two's complement and zero-extended — see the
+/// interpreter's `convert_to_field`), so casting `source` to `target` is safe
+/// for every input exactly when `source`'s bit size does not exceed `target`'s.
+fn narrowing_cast_target_bit_size(source: NumericType, target: NumericType) -> Option<u32> {
+    // Any value fits in a field.
+    if matches!(target, NumericType::NativeField) {
+        return None;
+    }
+    let source_bit_size = source.bit_size::<FieldElement>();
+    let target_bit_size = target.bit_size::<FieldElement>();
+    (source_bit_size > target_bit_size).then_some(target_bit_size)
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1681,7 +1740,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Invalid cast from Field")]
+    #[should_panic(expected = "Invalid narrowing cast from Field to u8")]
     fn cast_from_raw_field() {
         let src = "
         acir(inline) pure fn main f0 {
@@ -1695,7 +1754,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "assertion")]
+    #[should_panic(expected = "does not fit in the 8-bit destination type u8")]
     fn cast_after_unsafe_truncate() {
         let src = "
         acir(inline) pure fn main f0 {
@@ -1703,6 +1762,231 @@ mod tests {
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8
             return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid narrowing cast from u16 to u8")]
+    fn cast_narrowing_integer_param_is_rejected() {
+        // Audit repro: a raw `u16 -> u8` narrowing cast on a program input, with
+        // nothing proving the value fits in `u8`. Such SSA lets later passes erase
+        // a cast that should fail at runtime.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u16):
+            v1 = cast v0 as u8
+            v2 = cast v1 as u16
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid narrowing cast from i16 to i8")]
+    fn cast_narrowing_signed_param_is_rejected() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: i16):
+            v1 = cast v0 as i8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_integer_after_truncate_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u16):
+            v1 = truncate v0 to 8 bits, max_bit_size: 16
+            v2 = cast v1 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_integer_after_range_check_is_allowed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u16):
+            range_check v0 to 8 bits
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_widening_integer_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_signed_to_unsigned_same_bit_size_is_allowed() {
+        // `i8` and `u8` share the field representation `[0, 2^8)`, so this
+        // reinterpretation can never fail and needs no preceding guard.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: i8):
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_integer_to_field_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u64):
+            v1 = cast v0 as Field
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Constant too large for cast target")]
+    fn cast_narrowing_integer_constant_too_large_is_rejected() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast u16 300 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_integer_constant_in_range_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast u16 200 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cast after div could exceed bit size")]
+    fn cast_after_div_quotient_too_large_is_rejected() {
+        // `u16 / 128` (128 has 9 significant bits) can yield 65535/128 = 511, which
+        // needs 9 bits and does not fit `u8`. The bound is `16 - 9 + 1 = 9 > 8`.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u16):
+            v1 = div v0, u16 128
+            v2 = cast v1 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid narrowing cast from i16 to i8")]
+    fn cast_after_signed_div_is_rejected() {
+        // A signed division can produce a negative quotient (e.g. -32768 / 256 = -128),
+        // whose field representation spans the full source width and does not fit `i8`.
+        // The magnitude-based div bound does not apply to signed numerators.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = div v0, i16 256
+            v2 = cast v1 as i8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_after_div_with_sufficient_divisor_is_allowed() {
+        // `u16 / 256` yields at most 65535/256 = 255, which fits `u8`.
+        // The bound is `16 - 9 + 1 = 8 <= 8`.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u16):
+            v1 = div v0, u16 256
+            v2 = cast v1 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_signed_after_truncate_is_allowed() {
+        // A truncate bounds the value's field representation regardless of signedness,
+        // so a signed narrowing cast guarded by a truncate is safe.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: i16):
+            v1 = truncate v0 to 8 bits, max_bit_size: 16
+            v2 = cast v1 as i8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_signed_after_range_check_is_allowed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            range_check v0 to 8 bits
+            v1 = cast v0 as i8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_signed_constant_in_range_is_allowed() {
+        // `i16 200` has field representation 200 (8 bits), which fits `i8`
+        // (where it is reinterpreted as -56).
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i16 200 as i8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Constant too large for cast target")]
+    fn cast_narrowing_signed_negative_constant_is_rejected() {
+        // `i16 -1` has field representation 65535 (16 bits), which does not fit `i8`:
+        // a raw signed narrowing cast does not sign-extend, it reinterprets the field
+        // representation, so this cast fails at runtime.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i16 -1 as i8
+            return v0
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

@@ -1138,7 +1138,7 @@ fn associated_type_as_generic_trait_param_spaced() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11546
+/// Regression test for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn where_clause_on_associated_type_shorthand_ignored() {
     let src = r#"
@@ -1184,7 +1184,7 @@ fn where_clause_on_associated_type_shorthand_ignored() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11546
+/// Regression test for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn where_clause_on_associated_type_shorthand_in_function() {
     let src = r#"
@@ -1225,7 +1225,7 @@ fn where_clause_on_associated_type_shorthand_in_function() {
     assert_no_errors(src);
 }
 
-/// Regression for https://github.com/noir-lang/noir/issues/11546
+/// Regression for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn multiple_associated_types_in_where_clause() {
     let src = r#"
@@ -1277,7 +1277,7 @@ fn multiple_associated_types_in_where_clause() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11546
+/// Regression test for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn where_clause_on_associated_type_of_generic_in_trait_impl() {
     let src = r#"
@@ -1327,7 +1327,7 @@ fn where_clause_on_associated_type_of_generic_in_trait_impl() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11553
+/// Regression test for <https://github.com/noir-lang/noir/issues/11553>
 #[test]
 fn associated_type_as_generic_trait_param_with_nested_angle_brackets() {
     // Bug: Parser fails on << in type position: Store<<T as HasKey>::Key>

@@ -1,8 +1,8 @@
 #![cfg(test)]
 //! The easiest way to test this pass is a bit indirect. We have to run
 //! ownership in its entirety and look at where the clones are inserted.
-//! Testing e.g. the last_use pass directly is difficult since it returns
-//! sets of IdentIds which can't be matched to the source code easily.
+//! Testing e.g. the `last_use` pass directly is difficult since it returns
+//! sets of `IdentIds` which can't be matched to the source code easily.
 
 use crate::elaborator::FrontendOptions;
 use crate::test_utils::{
@@ -655,7 +655,7 @@ fn overwrite_conditional() {
 }
 
 /// Regression: reassigning inside a while loop then using in a for loop.
-/// The while loop must restore the variable's loop_index so the for loop
+/// The while loop must restore the variable's `loop_index` so the for loop
 /// correctly sees the variable as defined outside and clones it.
 #[test]
 fn while_reassign_then_for_loop() {
@@ -696,7 +696,7 @@ fn while_reassign_then_for_loop() {
     ");
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11574
+/// Regression test for <https://github.com/noir-lang/noir/issues/11574>
 /// When the reassignment is in the else branch, uses in the then branch
 /// should still get cloned if the variable is used after the if/else.
 #[test]
