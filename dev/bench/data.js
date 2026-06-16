@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781628788808,
+  "lastUpdate": 1781628797946,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "dd40bc452d70f7e3f2f5759e0090edf6a84949a9",
-          "message": "fix(ssa): preserve shared join block params when unrolling a constant JmpIf (#12964)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-06-11T11:31:10Z",
-          "tree_id": "d219d9c544b0aca9e917129a09d314e6c6ffe58c",
-          "url": "https://github.com/noir-lang/noir/commit/dd40bc452d70f7e3f2f5759e0090edf6a84949a9"
-        },
-        "date": 1781180734535,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 287.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 311.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 283.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 360.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 360.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 360.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 467.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 478.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 359.73,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 82.32,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 77.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -19255,6 +19166,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 283.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 360.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 360.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 360.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 468.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 478.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 360.29,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 82.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 78.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "62313c183c4a368079ff94628edbef1676c0cdd5",
+          "message": "chore: more unit tests (#13096)",
+          "timestamp": "2026-06-16T16:13:39Z",
+          "tree_id": "753be722962e926833c970753771701d78eb994b",
+          "url": "https://github.com/noir-lang/noir/commit/62313c183c4a368079ff94628edbef1676c0cdd5"
+        },
+        "date": 1781628721420,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 287.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 312.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 283.93,
             "unit": "MB"
           },
           {
