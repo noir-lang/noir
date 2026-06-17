@@ -1420,7 +1420,7 @@
 <a href=#1420 id=1420 data-nosnippet>1420</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
 <a href=#1421 id=1421 data-nosnippet>1421</a>        <span class="kw">let </span>path_resolution = <span class="self">self</span>.resolve_path_as_type(path.clone()).ok()<span class="question-mark">?</span>;
 <a href=#1422 id=1422 data-nosnippet>1422</a>        <span class="kw">let </span>func_id = path_resolution.item.function_id()<span class="question-mark">?</span>;
-<a href=#1423 id=1423 data-nosnippet>1423</a>        <span class="kw">let </span>meta = <span class="self">self</span>.interner.try_function_meta(<span class="kw-2">&amp;</span>func_id)<span class="question-mark">?</span>;
+<a href=#1423 id=1423 data-nosnippet>1423</a>        <span class="kw">let </span>meta = <span class="self">self</span>.try_function_meta(func_id)<span class="question-mark">?</span>;
 <a href=#1424 id=1424 data-nosnippet>1424</a>        <span class="kw">let </span>trait_id = meta.trait_id<span class="question-mark">?</span>;
 <a href=#1425 id=1425 data-nosnippet>1425</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
 <a href=#1426 id=1426 data-nosnippet>1426</a>        <span class="kw">let </span>method = the_trait.find_method(path.last_name(), <span class="self">self</span>.interner)<span class="question-mark">?</span>;
