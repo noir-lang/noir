@@ -8,7 +8,7 @@ mod types;
 
 use crate::{
     Kind, NamedGeneric, QuotedType, ResolvedGenerics, Type,
-    ast::{IntegerBitSize, ItemVisibility},
+    ast::{DocComment, IntegerBitSize, ItemVisibility},
     hir::def_map::ModuleId,
     hir_def::traits::TraitConstraint,
     modules::module_def_id_to_reference_id,
@@ -83,6 +83,7 @@ pub struct Impl {
     pub typ: Type,
     pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<(ItemVisibility, FuncId)>,
+    pub doc_comments: Vec<DocComment>,
 }
 
 #[derive(Clone)]
@@ -270,6 +271,7 @@ impl<'context> ItemBuilder<'context> {
             typ: impl_.typ.clone(),
             where_clause: impl_.where_clause.clone(),
             methods,
+            doc_comments: impl_.doc_comments.clone(),
         }
     }
 

@@ -1,6 +1,0 @@
-[package]
-name = "invalid_entry_point_type"
-type = "bin"
-authors = [""]
-
-[dependencies]

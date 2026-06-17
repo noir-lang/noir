@@ -76,7 +76,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Function::remove_redundant_params].
+/// Post-check condition for [`Function::remove_redundant_params`].
 ///
 /// Panics if:
 ///   - The entry block's parameter count changed (entry parameters are the function's
@@ -579,6 +579,151 @@ mod tests {
             jmp b1(v11, v9)
           b3(v4: u32):
             return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn swapping_self_loop_kept() {
+        // A self-loop that swaps its two parameters on the back-edge. The preheader
+        // passes distinct values (Field 1, Field 2), so on each iteration the two
+        // params exchange values and neither is a single constant — both must stay.
+        // This guards against a naive "every predecessor passes the param itself or
+        // one constant" analysis, which would wrongly treat the swap as redundant.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(Field 1, Field 2)
+          b1(v1: Field, v2: Field):
+            jmpif v0 then: b1(v2, v1), else: b2()
+          b2():
+            v3 = add v1, v2
+            return v3
+        }";
+
+        assert_ssa_does_not_change(src, Ssa::remove_redundant_params);
+    }
+
+    #[test]
+    fn resolves_to_entry_parameter() {
+        // Every predecessor of b3 passes the entry parameter v1. The replacement
+        // value is therefore a live SSA value, not a constant, and must be wired
+        // into b3's use of the removed parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(v1)
+          b2():
+            jmp b3(v1)
+          b3(v2: Field):
+            return v2
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_params();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn nested_loop_inner_redundant_outer_kept() {
+        // Outer loop header b1 carries a real counter (v0 then v0 + 1) — its
+        // parameter must stay. Inner loop header b3 carries a parameter that the
+        // inner back-edge passes back unchanged from a constant preheader value,
+        // so it resolves to u32 0 and is removed.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(v0)
+          b1(v1: u32):
+            v2 = lt v1, u32 10
+            jmpif v2 then: b2(), else: b6()
+          b2():
+            jmp b3(u32 0)
+          b3(v3: u32):
+            v4 = lt v3, u32 5
+            jmpif v4 then: b4(), else: b5()
+          b4():
+            jmp b3(v3)
+          b5():
+            v5 = add v1, u32 1
+            jmp b1(v5)
+          b6():
+            return v1
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_params();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(v0)
+          b1(v1: u32):
+            v3 = lt v1, u32 10
+            jmpif v3 then: b2(), else: b6()
+          b2():
+            jmp b3()
+          b3():
+            v6 = lt u32 0, u32 5
+            jmpif v6 then: b4(), else: b5()
+          b4():
+            jmp b3()
+          b5():
+            v8 = add v1, u32 1
+            jmp b1(v8)
+          b6():
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn unreachable_predecessor_ignored() {
+        // b3 is reachable from b1 and b2, which both pass Field 7. The unreachable
+        // block b4 also jumps to b3 passing the distinct value Field 9, but the
+        // analysis is driven by `reachable_blocks`, so b4's edge is never seen: the
+        // parameter still collapses to Field 7 and the dead block drops out entirely.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 7)
+          b2():
+            jmp b3(Field 7)
+          b3(v1: Field):
+            return v1
+          b4():
+            jmp b3(Field 9)
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_params();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return Field 7
         }
         ");
     }

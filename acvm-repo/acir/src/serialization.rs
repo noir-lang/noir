@@ -46,7 +46,7 @@ impl Format {
     }
 }
 
-/// Serialize a value using MessagePack, based on `serde`.
+/// Serialize a value using `MessagePack`, based on `serde`.
 ///
 /// This format is compact can be configured to be backwards compatible.
 ///
@@ -81,7 +81,7 @@ pub(crate) fn msgpack_serialize<T: Serialize>(
     }
 }
 
-/// Deserialize a value using MessagePack, based on `serde`.
+/// Deserialize a value using `MessagePack`, based on `serde`.
 pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
     rmp_serde::from_slice(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }

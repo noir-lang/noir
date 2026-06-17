@@ -94,7 +94,7 @@ impl AsRef<Instruction> for CacheKey {
     }
 }
 
-/// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
+/// `HashMap` from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
@@ -165,10 +165,10 @@ impl InstructionResultCache {
         self.0.remove(&CacheKeyRef::from(instruction))
     }
 
-    /// Remove all cached MakeArray instructions that produce the given type.
+    /// Remove all cached `MakeArray` instructions that produce the given type.
     /// Used when we encounter a mutation of an array value that we can't trace back
     /// to a specific instruction (e.g. block parameters), so we must conservatively
-    /// invalidate all cached MakeArrays that could be the source.
+    /// invalidate all cached `MakeArrays` that could be the source.
     fn remove_make_arrays_of_type(&mut self, typ: &Type) {
         self.0.retain(|instruction, _| {
             !matches!(instruction.as_ref(), Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)
@@ -230,7 +230,6 @@ impl InstructionResultCache {
 
         let mut remove_if_array = |value| go(dfg, self, value);
 
-        // Should we consider calls to vector_push_back and similar to be mutating operations as well?
         match instruction {
             // A mutable `array_set` writes through its input array's backing store in place rather
             // than producing a fresh array, so the input is no longer safe to reuse. In ACIR the
@@ -250,13 +249,23 @@ impl InstructionResultCache {
                 remove_if_array(value);
             }
             Call { arguments, func } if dfg.runtime().is_brillig() => {
-                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
-                let Value::Function(func_id) = &dfg[*func] else { return };
-                if matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
-                    // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
-                    // placed *before* the call to protect them. Currently we don't track the ref count in this
-                    // context, so be conservative and do not reuse any array shared with a callee.
-                    // In ACIR we don't track refcounts, so it should be fine.
+                // Arrays passed to a callee might be mutated by it if there are no `inc_rc` instructions
+                // placed *before* the call to protect them. Currently we don't track the ref count in this
+                // context, so be conservative and do not reuse any array shared with such a callee.
+                // In ACIR we don't track refcounts, so it should be fine.
+                let mutates_arguments = match &dfg[*func] {
+                    // A non-pure user-defined function may mutate its array arguments in place.
+                    Value::Function(func_id) => {
+                        matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure))
+                    }
+                    // The vector mutators (`push`/`pop`/`insert`/`remove`) write through their
+                    // vector argument when its copy-on-write reference count is 1, even though they
+                    // are otherwise "pure". Treat them like an impure call so a later identical
+                    // array-producing instruction is not deduplicated against the now-mutated value.
+                    Value::Intrinsic(intrinsic) => intrinsic.unsafe_for_clone_elision_in_brillig(),
+                    _ => false,
+                };
+                if mutates_arguments {
                     for arg in arguments {
                         remove_if_array(arg);
                     }

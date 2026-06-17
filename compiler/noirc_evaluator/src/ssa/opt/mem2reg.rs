@@ -58,7 +58,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Function::mem2reg].
+/// Post-check condition for [`Function::mem2reg`].
 ///
 /// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
 /// passing a different number of arguments (or differently typed arguments) than its
@@ -248,18 +248,18 @@ fn compute_visible_vars(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &DominatorTree,
-) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+) -> HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> {
     // Group variables by their declaration block
     let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
     for (var, decl_block) in variables {
         vars_by_decl_block.entry(*decl_block).or_default().push(*var);
     }
 
-    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    let mut visible: HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> = HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
-            None => BTreeMap::new(),
+            None => im::OrdMap::new(),
         };
         if let Some(declared_here) = vars_by_decl_block.get(&block) {
             for var in declared_here {
@@ -273,11 +273,11 @@ fn compute_visible_vars(
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    visible_vars: &HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
@@ -307,7 +307,7 @@ fn add_block_params_and_find_exit_states(
 /// - If this block is in the variable's IDF: add a fresh block parameter
 /// - Otherwise: inherit the value from a visited predecessor's exit state
 fn compute_entry_state(
-    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &im::OrdMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
@@ -415,7 +415,7 @@ impl BlockState {
 ///
 /// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
 /// same successor, in which case `f` is called once per matching edge so the caller
-/// can wire each one. Panics if the given block does not terminate in a Jmp or JmpIf.
+/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
 fn for_each_terminator_edge_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,

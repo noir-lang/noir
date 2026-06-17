@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{
-    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs,
+    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, Namespace, PerNs,
 };
 
 use super::errors::ResolverError;
@@ -210,11 +210,11 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
     TypedPathSegment::without_generics(segment.ident, segment.location)
 }
 
-/// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
-/// and a [ModuleId] where that `TypedPath` should be resolved.
+/// Given a `TypedPath` and a [`ModuleId`] it's being used in, this function returns a `TypedPath`
+/// and a [`ModuleId`] where that `TypedPath` should be resolved.
 ///
-/// For a [PathKind::Absolute] with a value such as `::foo::bar::baz`, the path will be turned into a
-/// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
+/// For a [`PathKind::Absolute`] with a value such as `::foo::bar::baz`, the path will be turned into a
+/// [`PathKind::Plain`] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
 /// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
 /// up with the module where it should be looked up. If the module cannot be found, and error is
 /// returned.
@@ -237,7 +237,7 @@ pub fn resolve_path_kind<'r>(
 /// Returns `true` if the first segment of a `TypedPath` in the `starting_module`
 /// should always be visible to the `importing_module`.
 ///
-/// Assumes that we have called [resolve_path_kind] before.
+/// Assumes that we have called [`resolve_path_kind`] before.
 pub(crate) fn first_segment_is_always_visible(
     path: &TypedPath,
     importing_module: ModuleId,
@@ -260,7 +260,7 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
 }
 
 impl PathResolutionTargetResolver<'_, '_> {
-    /// Resolve a `TypedPath` based on its [PathKind] to the target [ModuleId].
+    /// Resolve a `TypedPath` based on its [`PathKind`] to the target [`ModuleId`].
     fn resolve(&mut self, path: TypedPath) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
@@ -339,7 +339,7 @@ impl PathResolutionTargetResolver<'_, '_> {
 
     /// Resolve a path such as `super::foo::bar` or `super::super::foo::bar`:
     /// * walk up `extras + 1` parents of the current importing module (one per `super`)
-    /// * return the path still with [PathKind::Super], paired up with the ancestor module
+    /// * return the path still with [`PathKind::Super`], paired up with the ancestor module
     fn resolve_super_path(
         &self,
         path: TypedPath,
@@ -376,7 +376,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Self { importing_module, def_maps, usage_tracker, references_tracker }
     }
 
-    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
+    /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
     ///
     /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
@@ -407,7 +407,16 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             return Err(PathResolutionError::Unresolved(first_segment.clone()));
         }
 
-        self.usage_tracker.mark_as_referenced(current_module_id, first_segment);
+        // When the path has more than one segment, the first segment is traversed as a module, so
+        // it lives in the type namespace. A single-segment path's only segment is the leaf, marked
+        // after the loop in whichever namespace(s) it resolved to.
+        if path.segments.len() > 1 {
+            self.usage_tracker.mark_as_referenced(
+                current_module_id,
+                first_segment,
+                Namespace::Type,
+            );
+        }
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
@@ -460,9 +469,25 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
-            self.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+            // Every segment but the last is traversed as a module, so it lives in the type
+            // namespace. The last segment is the leaf, marked after the loop.
+            let is_last_segment = index == path.segments.len() - 2;
+            if !is_last_segment {
+                self.usage_tracker.mark_as_referenced(
+                    current_module_id,
+                    current_ident,
+                    Namespace::Type,
+                );
+            }
 
             current_ns = found_ns;
+        }
+
+        // An import references whatever the leaf resolves to, which may occupy both namespaces
+        // (e.g. a re-exported `struct N` and `fn N`), so mark each occupied namespace.
+        let leaf_ident = &path.segments.last().unwrap().ident;
+        for (id, _, _) in current_ns.iter_items() {
+            self.usage_tracker.mark_as_referenced(current_module_id, leaf_ident, id.namespace());
         }
 
         let (module_def_id, _, _) =

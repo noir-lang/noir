@@ -1,7 +1,0 @@
-[package]
-name = "comptime_var_not_defined"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.31.0"
-
-[dependencies]
