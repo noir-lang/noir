@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781684350767,
+  "lastUpdate": 1781686649140,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "523e1b8b7dc7b6bd3601ee807a302f53228dab87",
-          "message": "chore: fix `bench-show` label name in CLAUDE.md (#13029)",
-          "timestamp": "2026-06-11T19:33:02+01:00",
-          "tree_id": "99ae5de44df0adc843d7e7e7903fd124e37de256",
-          "url": "https://github.com/noir-lang/noir/commit/523e1b8b7dc7b6bd3601ee807a302f53228dab87"
-        },
-        "date": 1781202936301,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126842,
-            "range": "± 218",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113230,
-            "range": "± 3968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041038,
-            "range": "± 4803",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042422,
             "range": "± 4433",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e18f896406762fdf01024eeb07196d6d2c4f323",
+          "message": "fix: missing lazy FuncMeta elaboration in global resolution (#13059)",
+          "timestamp": "2026-06-17T08:36:54Z",
+          "tree_id": "73320cd4c2f45d2dd9a8579ba1b41a9927122327",
+          "url": "https://github.com/noir-lang/noir/commit/0e18f896406762fdf01024eeb07196d6d2c4f323"
+        },
+        "date": 1781686577688,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126245,
+            "range": "± 924",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 111585,
+            "range": "± 10140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3038909,
+            "range": "± 9466",
             "unit": "ns/iter"
           }
         ]
