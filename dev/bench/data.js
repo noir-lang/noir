@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781716943174,
+  "lastUpdate": 1781716950648,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "339f7f9674d9c3e28008207bc077a0eeac66cee5",
-          "message": "chore(ssa): Add `bail_malformed!` for early-exit in `simplify_*` functions (#13021)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
-          "timestamp": "2026-06-12T13:33:13Z",
-          "tree_id": "3dffa1cb7b90a1f930a533caa430de75c01968fc",
-          "url": "https://github.com/noir-lang/noir/commit/339f7f9674d9c3e28008207bc077a0eeac66cee5"
-        },
-        "date": 1781272872619,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126684,
-            "range": "± 444",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112505,
-            "range": "± 4179",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040021,
-            "range": "± 16265",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651394,
             "range": "± 10287",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74e7c0c61e6688a0faa4a0128a07be2fb3f72072",
+          "message": "chore: unit test for predicated range-checks (#13107)",
+          "timestamp": "2026-06-17T17:01:10Z",
+          "tree_id": "599e2a6a6471384e1639240df7e796b9accc8499",
+          "url": "https://github.com/noir-lang/noir/commit/74e7c0c61e6688a0faa4a0128a07be2fb3f72072"
+        },
+        "date": 1781716880232,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166818,
+            "range": "± 670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135963,
+            "range": "± 4806",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2666825,
+            "range": "± 10016",
             "unit": "ns/iter"
           }
         ]
