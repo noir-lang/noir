@@ -3359,7 +3359,6 @@ dependencies = [
  "acvm",
  "brillig",
  "fm",
- "iter-extended",
  "jsonrpsee",
  "noir_greybox_fuzzer",
  "noirc_abi",

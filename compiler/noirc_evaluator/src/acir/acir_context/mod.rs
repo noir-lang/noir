@@ -1615,6 +1615,7 @@ mod tests {
             let circuit = convert_generated_acir_into_circuit(
                 circuit,
                 &[(1, Visibility::Private)],
+                &BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
@@ -1670,6 +1671,7 @@ mod tests {
         let circuit = convert_generated_acir_into_circuit(
             circuit,
             &[(1, Visibility::Private)],
+            &BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

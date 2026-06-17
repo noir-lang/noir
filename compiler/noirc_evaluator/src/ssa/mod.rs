@@ -27,7 +27,11 @@ use crate::{
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs},
+        brillig::Opcode as BrilligOpcode,
+        circuit::{
+            AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs,
+            brillig::{BrilligBytecode, BrilligFunctionId},
+        },
         native_types::Witness,
     },
 };
@@ -512,8 +516,8 @@ pub fn optimize_into_acir(
 ///
 /// The output ACIR has already been optimized and transformed for the proving backend (the
 /// width-bounding CSAT pass and intermediate-variable elimination, via [`acvm::compiler::optimize`]
-/// during artifact combination), so it is ready for proof generation. It can still be refined once
-/// the whole program is assembled — see `nargo::ops::optimize_program`.
+/// during artifact combination, using the assembled program's Brillig side-effect information), so it
+/// is ready for proof generation with no further optimization pass required.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program(
     program: Program,
@@ -588,6 +592,12 @@ pub fn combine_artifacts(
         arg_size_and_visibilities.len(),
         "The generated ACIRs should match the supplied function signatures"
     );
+    // The whole program, including all Brillig functions, is available here, so we can tell which
+    // unconstrained calls have side effects and pass that to the ACIR optimizer. This makes the
+    // optimization done during code generation final: there is no need for a second pass over the
+    // assembled artifact to take advantage of Brillig side-effect information.
+    let brillig_side_effects = brillig_side_effects(&generated_brillig);
+
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
         .zip_eq(arg_size_and_visibilities)
@@ -595,6 +605,7 @@ pub fn combine_artifacts(
             convert_generated_acir_into_circuit(
                 acir,
                 arg_size_and_visibility,
+                &brillig_side_effects,
                 // TODO: get rid of these clones
                 debug_variables.clone(),
                 debug_functions.clone(),
@@ -611,6 +622,29 @@ pub fn combine_artifacts(
     SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
+/// Determine, for each Brillig function, whether it might have side effects.
+///
+/// A Brillig function has a side effect if it makes a foreign call, which can interact with the
+/// outside world. The `RangeOptimizer` uses this to decide whether a range check guarding a Brillig
+/// call can be removed: removing it is only safe if failing the check could not have skipped a
+/// side-effecting call that an unrelated, later constraint would have caught.
+fn brillig_side_effects(
+    brillig: &[BrilligBytecode<FieldElement>],
+) -> BTreeMap<BrilligFunctionId, bool> {
+    brillig
+        .iter()
+        .enumerate()
+        .map(|(idx, function)| {
+            let id = BrilligFunctionId(idx as u32);
+            let has_side_effect = function
+                .bytecode
+                .iter()
+                .any(|opcode| matches!(opcode, BrilligOpcode::ForeignCall { .. }));
+            (id, has_side_effect)
+        })
+        .collect()
+}
+
 /// Given a function, return each parameter's field count and visibility
 fn resolve_function_signature(function: &ast::Function) -> Vec<(u32, Visibility)> {
     function
@@ -623,6 +657,7 @@ fn resolve_function_signature(function: &ast::Function) -> Vec<(u32, Visibility)
 pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
     arg_size_and_visibility: &[(u32, Visibility)],
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -673,11 +708,9 @@ pub fn convert_generated_acir_into_circuit(
         brillig_procedure_locs,
     );
 
-    // We don't have Brillig info available here yet.
-    let brillig_side_effects = BTreeMap::new();
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) =
-        acvm::compiler::optimize(circuit, &brillig_side_effects);
+        acvm::compiler::optimize(circuit, brillig_side_effects);
     debug_info.update_acir(transformation_map);
 
     SsaCircuitArtifact {
@@ -761,5 +794,46 @@ mod minimal_passes_tests {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         assert!(matches!(run_minimal(ssa), Err(RuntimeError::StaticAssertDynamicPredicate { .. })));
+    }
+}
+
+#[cfg(test)]
+mod brillig_side_effects_tests {
+    use acvm::{
+        FieldElement,
+        acir::{
+            brillig::Opcode as BrilligOpcode,
+            circuit::brillig::{BrilligBytecode, BrilligFunctionId},
+        },
+    };
+
+    use super::brillig_side_effects;
+
+    fn function(bytecode: Vec<BrilligOpcode<FieldElement>>) -> BrilligBytecode<FieldElement> {
+        BrilligBytecode { function_name: String::new(), bytecode }
+    }
+
+    fn foreign_call() -> BrilligOpcode<FieldElement> {
+        BrilligOpcode::ForeignCall {
+            function: "noop".to_string(),
+            destinations: vec![],
+            destination_value_types: vec![],
+            inputs: vec![],
+            input_value_types: vec![],
+        }
+    }
+
+    #[test]
+    fn flags_only_functions_that_make_foreign_calls() {
+        let brillig = vec![
+            function(vec![BrilligOpcode::Return]),
+            function(vec![BrilligOpcode::Return, foreign_call()]),
+        ];
+
+        let side_effects = brillig_side_effects(&brillig);
+
+        // A foreign call is the only thing that lets a Brillig function affect the outside world.
+        assert!(!side_effects[&BrilligFunctionId(0)]);
+        assert!(side_effects[&BrilligFunctionId(1)]);
     }
 }

@@ -940,19 +940,15 @@ pub fn filter_relevant_files(
 ///
 /// This function assumes [`check_crate`] is called beforehand.
 ///
-/// Whether returned from cache or freshly compiled, the program has already been optimized and
+/// Whether returned from cache or freshly compiled, the program has already been fully optimized and
 /// transformed for the proving backend (the width-bounding CSAT pass and intermediate-variable
-/// elimination) as part of SSA-to-ACIR generation, so it is ready for proof generation.
+/// elimination, using the assembled program's Brillig side-effect information) as part of
+/// SSA-to-ACIR generation, so it is ready for proof generation with no further optimization pass.
 ///
-/// Callers nonetheless run `nargo::ops::optimize_program` over a freshly compiled program to apply
-/// the optimizations that only become possible once the whole program is assembled — namely removing
-/// range checks that guard Brillig calls now known to be side-effect free. That is a refinement, not a
-/// requirement, and is skipped entirely when there is no such call to take advantage of.
-///
-/// This refinement is _not_ covered by the check that decides whether we can use the cached artifact.
-/// That comparison is based on [CompiledProgram::hash] which is a persisted version of the hash of the input
-/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
-/// contains the final optimized ACIR opcodes, including any refinement done after this compilation.
+/// Note that the optimized ACIR is _not_ covered by the check that decides whether we can use the cached
+/// artifact. That comparison is based on [CompiledProgram::hash] which is a persisted version of the hash
+/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output
+/// [`circuit::Program`][acvm::acir::circuit::Program] contains the final optimized ACIR opcodes.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
