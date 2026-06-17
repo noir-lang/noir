@@ -88,58 +88,67 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             if !matches!(opcode, Opcode::AssertZero(_)) {
                 continue;
             }
-            if let Some(opcode) = self.get_opcode(op1, &circuit) {
-                let input_witnesses = self.witness_inputs(&opcode);
-                for w in input_witnesses {
-                    let Some(gates_using_w) = used_witnesses.get(&w) else {
-                        continue;
+            // The opcode might have been modified by an earlier merge, so use its current version.
+            let input_witnesses = match self.get_opcode(op1, &circuit) {
+                Some(opcode) => self.witness_inputs(opcode),
+                None => continue,
+            };
+            for w in input_witnesses {
+                let Some(gates_using_w) = used_witnesses.get(&w) else {
+                    continue;
+                };
+                // We only consider witness which are used in exactly two arithmetic gates
+                if gates_using_w.len() == 2 {
+                    let first = *gates_using_w.first().expect("gates_using_w.len == 2");
+                    let second = *gates_using_w.last().expect("gates_using_w.len == 2");
+                    let op2 = if second == op1 {
+                        first
+                    } else {
+                        // sanity check
+                        assert!(op1 == first);
+                        second
                     };
-                    // We only consider witness which are used in exactly two arithmetic gates
-                    if gates_using_w.len() == 2 {
-                        let first = *gates_using_w.first().expect("gates_using_w.len == 2");
-                        let second = *gates_using_w.last().expect("gates_using_w.len == 2");
-                        let op2 = if second == op1 {
-                            first
-                        } else {
-                            // sanity check
-                            assert!(op1 == first);
-                            second
-                        };
 
-                        // Merge the opcode with smaller index into the other one
-                        // by updating modified_gates/deleted_gates/used_witnesses
-                        // returns false if it could not merge them
-                        if op1 != op2 {
-                            let (source, target) = if op1 < op2 { (op1, op2) } else { (op2, op1) };
-                            let source_opcode = self.get_opcode(source, &circuit);
-                            let target_opcode = self.get_opcode(target, &circuit);
+                    // Merge the opcode with smaller index into the other one
+                    // by updating modified_gates/deleted_gates/used_witnesses.
+                    if op1 != op2 {
+                        let (source, target) = if op1 < op2 { (op1, op2) } else { (op2, op1) };
 
-                            if let (
+                        // Compute the merged expression and the witnesses it touches from the
+                        // borrowed opcodes, collecting owned results so the borrows are released
+                        // before we mutate the optimizer state below.
+                        let merge = match (
+                            self.get_opcode(target, &circuit),
+                            self.get_opcode(source, &circuit),
+                        ) {
+                            (
                                 Some(Opcode::AssertZero(expr_use)),
                                 Some(Opcode::AssertZero(expr_define)),
-                            ) = (target_opcode, source_opcode)
-                                && let Some(expr) =
-                                    Self::merge_expression(&expr_use, &expr_define, w)
-                            {
-                                self.modified_gates.insert(target, Opcode::AssertZero(expr));
-                                self.deleted_gates.insert(source);
-                                // Update the 'used_witnesses' map to account for the merge.
-                                let witness_list = CircuitSimulator::expr_witness(&expr_use);
-                                let witness_list = witness_list
-                                    .chain(CircuitSimulator::expr_witness(&expr_define));
+                            ) => Self::merge_expression(expr_use, expr_define, w).map(|expr| {
+                                let witnesses: Vec<Witness> =
+                                    CircuitSimulator::expr_witness(expr_use)
+                                        .chain(CircuitSimulator::expr_witness(expr_define))
+                                        .collect();
+                                (expr, witnesses)
+                            }),
+                            _ => None,
+                        };
 
-                                for w2 in witness_list {
-                                    if !circuit_io.contains(&w2) {
-                                        used_witnesses.entry(w2).and_modify(|v| {
-                                            v.insert(target);
-                                            v.remove(&source);
-                                        });
-                                    }
+                        if let Some((expr, witnesses)) = merge {
+                            self.modified_gates.insert(target, Opcode::AssertZero(expr));
+                            self.deleted_gates.insert(source);
+                            // Update the 'used_witnesses' map to account for the merge.
+                            for w2 in witnesses {
+                                if !circuit_io.contains(&w2) {
+                                    used_witnesses.entry(w2).and_modify(|v| {
+                                        v.insert(target);
+                                        v.remove(&source);
+                                    });
                                 }
-                                // We need to stop here and continue with the next opcode
-                                // because the merge invalidates the current opcode.
-                                break;
                             }
+                            // We need to stop here and continue with the next opcode
+                            // because the merge invalidates the current opcode.
+                            break;
                         }
                     }
                 }
@@ -279,15 +288,15 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         None
     }
 
-    /// Returns the 'updated' opcode at the given index in the circuit
-    /// The modifications to the circuits are stored with 'deleted_gates' and 'modified_gates'
+    /// Returns a reference to the 'updated' opcode at the given index in the circuit.
+    /// The modifications to the circuit are stored with 'deleted_gates' and 'modified_gates'.
     /// These structures are used to give the 'updated' opcode.
     /// For instance, if the opcode has been deleted inside 'deleted_gates', then it returns None.
-    fn get_opcode(&self, index: usize, circuit: &Circuit<F>) -> Option<Opcode<F>> {
+    fn get_opcode<'a>(&'a self, index: usize, circuit: &'a Circuit<F>) -> Option<&'a Opcode<F>> {
         if self.deleted_gates.contains(&index) {
             return None;
         }
-        self.modified_gates.get(&index).or(circuit.opcodes.get(index)).cloned()
+        self.modified_gates.get(&index).or_else(|| circuit.opcodes.get(index))
     }
 }
 

@@ -249,7 +249,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 _ => None,
             }) else {
                 // If its not the range opcode, add it to the opcode list and continue.
-                optimized_opcodes.push(opcode.clone());
+                optimized_opcodes.push(opcode);
                 new_order_list.push(order_list[idx]);
                 continue;
             };
@@ -273,7 +273,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
             }
 
             new_order_list.push(order_list[idx]);
-            optimized_opcodes.push(opcode.clone());
+            optimized_opcodes.push(opcode);
         }
 
         // Restore forward order.
