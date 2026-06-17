@@ -304,8 +304,10 @@ fn read_test_cases(
     test_sub_dir: &str,
 ) -> impl Iterator<Item = (String, PathBuf)> {
     let test_data_dir = test_data_dir.join(test_sub_dir);
+    // A missing directory means the test category currently has no tests, so we yield nothing
+    // rather than panicking. The inner `flatten` also skips any entry that fails to read.
     let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+        fs::read_dir(test_data_dir).into_iter().flatten().flatten().filter(|c| c.path().is_dir());
 
     test_case_dirs.into_iter().filter_map(|dir| {
         // When switching git branches we might end up with non-empty directories that have a `target`
