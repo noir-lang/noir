@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781718117881,
+  "lastUpdate": 1781725575461,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d3838cf9f9a4db7b8831fe1ff52415349277f653",
-          "message": "fix(comptime): reject Field division by zero in Integer::Div (#13017)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-12T15:18:09+01:00",
-          "tree_id": "465ae02f3a97967eb5ae6832c7386f57908a9400",
-          "url": "https://github.com/noir-lang/noir/commit/d3838cf9f9a4db7b8831fe1ff52415349277f653"
-        },
-        "date": 1781274044620,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126415,
-            "range": "± 793",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112549,
-            "range": "± 766",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042347,
-            "range": "± 68146",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2666825,
             "range": "± 10016",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2a6b6be7a4aae17dd7b1cbe26e24c680fddb46c1",
+          "message": "fix(stdlib): preserve tail storage in constrained extend_from_bounded_vec (#13098)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-17T19:24:22Z",
+          "tree_id": "184d185f175175020b3c93b78a01763a82ec7052",
+          "url": "https://github.com/noir-lang/noir/commit/2a6b6be7a4aae17dd7b1cbe26e24c680fddb46c1"
+        },
+        "date": 1781725403859,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166714,
+            "range": "± 642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137077,
+            "range": "± 5054",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2641961,
+            "range": "± 18423",
             "unit": "ns/iter"
           }
         ]
