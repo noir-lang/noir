@@ -478,8 +478,12 @@ fn collect_eligible_variables_and_def_sites(
     // Whether there's any allocate that can't be optimized out
     let mut has_ineligible_variables = false;
 
-    // Workaround for https://github.com/noir-lang/noir/issues/11482
+    // Workaround for https://github.com/noir-lang/noir/issues/11482:
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
+    // This is because the current implementation expects a value for forwarding the loads.
+    // A use before initialization (load before store) is an invalid program, but still,
+    // a valid program may have an allocate without a store in the same allocate block.
+    // This case is currently skipped and would panic if not.
     let mut variables_with_stores_in_decl_block = HashSet::default();
 
     for block_id in blocks.iter().copied() {
@@ -1551,5 +1555,28 @@ brillig(inline) fn main f0 {
             unreachable
         }
         ");
+    }
+
+    #[test]
+    fn regression_11482() {
+        // An allocate with no stores (an orphan, as earlier passes can leave behind) must be
+        // left untouched and not promoted: there is no stored value to forward, and treating it
+        // as eligible would break the "every eligible variable has a def site" invariant.
+        let src = "
+    brillig(inline) fn foo f0 {
+      b0():
+        v0 = allocate -> &mut u1
+        return
+    }
+    ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn foo f0 {
+      b0():
+        v0 = allocate -> &mut u1
+        return
+    }
+    ");
     }
 }
