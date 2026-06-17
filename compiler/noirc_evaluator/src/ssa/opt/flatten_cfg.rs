@@ -2158,8 +2158,8 @@ mod tests {
 
     #[test]
     fn predicate_range_checks() {
-        // `predicate_value` maps a range-checked value to its predicated form 
-        // for the rest of the branch. 
+        // `predicate_value` maps a range-checked value to its predicated form
+        // for the rest of the branch.
         // As a result, the truncate in this test is optimized.
         let src = "
         acir(inline) fn main f0 {
