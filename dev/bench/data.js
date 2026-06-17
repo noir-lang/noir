@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781709098669,
+  "lastUpdate": 1781716097167,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ce326aaad9225972e8a951b3cec3bd2a3f514d50",
-          "message": "chore(ssa): enforce more SSA pass pre/post-conditions with debug checks (#13034)",
-          "timestamp": "2026-06-12T12:43:43Z",
-          "tree_id": "24a93e581e260244e1082fc021d89f9e49082cf3",
-          "url": "https://github.com/noir-lang/noir/commit/ce326aaad9225972e8a951b3cec3bd2a3f514d50"
-        },
-        "date": 1781269777946,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167050,
-            "range": "± 609",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137043,
-            "range": "± 803",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2656068,
-            "range": "± 9398",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2658270,
             "range": "± 25119",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4870148ebe98d152f3bff82de5e4e9ff0b6fe00b",
+          "message": "chore(ci): retry flaky browser tests on a clean relaunch (#13095)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-17T16:46:01Z",
+          "tree_id": "091e20a1e5f6883e09a2b009da2873fe0fe27a56",
+          "url": "https://github.com/noir-lang/noir/commit/4870148ebe98d152f3bff82de5e4e9ff0b6fe00b"
+        },
+        "date": 1781716037367,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98327,
+            "range": "± 638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87206,
+            "range": "± 3661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2358014,
+            "range": "± 5044",
             "unit": "ns/iter"
           }
         ]
