@@ -1552,4 +1552,156 @@
 <a href=#1552 id=1552 data-nosnippet>1552</a>        }
 <a href=#1553 id=1553 data-nosnippet>1553</a>        "</span>);
 <a href=#1554 id=1554 data-nosnippet>1554</a>    }
-<a href=#1555 id=1555 data-nosnippet>1555</a>}</code></pre></div></section></main></body></html>
+<a href=#1555 id=1555 data-nosnippet>1555</a>
+<a href=#1556 id=1556 data-nosnippet>1556</a>    <span class="doccomment">/// mem2reg runs on ACIR functions too, not just Brillig. This exercises the full
+<a href=#1557 id=1557 data-nosnippet>1557</a>    /// load/store removal and block-parameter insertion path on an `acir` function with a
+<a href=#1558 id=1558 data-nosnippet>1558</a>    /// control-flow merge (the IDF of {b0, b1} is {b3}).
+<a href=#1559 id=1559 data-nosnippet>1559</a>    </span><span class="attr">#[test]
+<a href=#1560 id=1560 data-nosnippet>1560</a>    </span><span class="kw">fn </span>acir_function_is_optimized() {
+<a href=#1561 id=1561 data-nosnippet>1561</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1562 id=1562 data-nosnippet>1562</a>        acir(inline) fn func f0 {
+<a href=#1563 id=1563 data-nosnippet>1563</a>          b0(v0: u1):
+<a href=#1564 id=1564 data-nosnippet>1564</a>            v1 = allocate -&gt; &amp;mut Field
+<a href=#1565 id=1565 data-nosnippet>1565</a>            store Field 0 at v1
+<a href=#1566 id=1566 data-nosnippet>1566</a>            jmpif v0 then: b1(), else: b2()
+<a href=#1567 id=1567 data-nosnippet>1567</a>          b1():
+<a href=#1568 id=1568 data-nosnippet>1568</a>            store Field 1 at v1
+<a href=#1569 id=1569 data-nosnippet>1569</a>            jmp b3()
+<a href=#1570 id=1570 data-nosnippet>1570</a>          b2():
+<a href=#1571 id=1571 data-nosnippet>1571</a>            store Field 2 at v1
+<a href=#1572 id=1572 data-nosnippet>1572</a>            jmp b3()
+<a href=#1573 id=1573 data-nosnippet>1573</a>          b3():
+<a href=#1574 id=1574 data-nosnippet>1574</a>            v4 = load v1 -&gt; Field
+<a href=#1575 id=1575 data-nosnippet>1575</a>            return v4
+<a href=#1576 id=1576 data-nosnippet>1576</a>        }
+<a href=#1577 id=1577 data-nosnippet>1577</a>        "</span>;
+<a href=#1578 id=1578 data-nosnippet>1578</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1579 id=1579 data-nosnippet>1579</a>        <span class="kw">let </span>ssa = ssa.mem2reg();
+<a href=#1580 id=1580 data-nosnippet>1580</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#1581 id=1581 data-nosnippet>1581</a>        acir(inline) fn func f0 {
+<a href=#1582 id=1582 data-nosnippet>1582</a>          b0(v0: u1):
+<a href=#1583 id=1583 data-nosnippet>1583</a>            jmpif v0 then: b1(), else: b2()
+<a href=#1584 id=1584 data-nosnippet>1584</a>          b1():
+<a href=#1585 id=1585 data-nosnippet>1585</a>            jmp b3(Field 1)
+<a href=#1586 id=1586 data-nosnippet>1586</a>          b2():
+<a href=#1587 id=1587 data-nosnippet>1587</a>            jmp b3(Field 2)
+<a href=#1588 id=1588 data-nosnippet>1588</a>          b3(v1: Field):
+<a href=#1589 id=1589 data-nosnippet>1589</a>            return v1
+<a href=#1590 id=1590 data-nosnippet>1590</a>        }
+<a href=#1591 id=1591 data-nosnippet>1591</a>        "</span>);
+<a href=#1592 id=1592 data-nosnippet>1592</a>    }
+<a href=#1593 id=1593 data-nosnippet>1593</a>
+<a href=#1594 id=1594 data-nosnippet>1594</a>    <span class="doccomment">/// Storing a tracked reference *as a value* into another reference aliases it: the
+<a href=#1595 id=1595 data-nosnippet>1595</a>    /// reference could now be mutated through the holder, so it is no longer eligible for
+<a href=#1596 id=1596 data-nosnippet>1596</a>    /// mem2reg. Here `v1` is stored into the `&amp;mut &amp;mut Field` parameter `v0`, so neither
+<a href=#1597 id=1597 data-nosnippet>1597</a>    /// `v1` nor its load may be optimized away.
+<a href=#1598 id=1598 data-nosnippet>1598</a>    </span><span class="attr">#[test]
+<a href=#1599 id=1599 data-nosnippet>1599</a>    </span><span class="kw">fn </span>store_of_tracked_reference_prevents_optimization() {
+<a href=#1600 id=1600 data-nosnippet>1600</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1601 id=1601 data-nosnippet>1601</a>        brillig(inline) fn func f0 {
+<a href=#1602 id=1602 data-nosnippet>1602</a>          b0(v0: &amp;mut &amp;mut Field):
+<a href=#1603 id=1603 data-nosnippet>1603</a>            v1 = allocate -&gt; &amp;mut Field
+<a href=#1604 id=1604 data-nosnippet>1604</a>            store Field 1 at v1
+<a href=#1605 id=1605 data-nosnippet>1605</a>            store v1 at v0
+<a href=#1606 id=1606 data-nosnippet>1606</a>            v2 = load v1 -&gt; Field
+<a href=#1607 id=1607 data-nosnippet>1607</a>            return v2
+<a href=#1608 id=1608 data-nosnippet>1608</a>        }
+<a href=#1609 id=1609 data-nosnippet>1609</a>        "</span>;
+<a href=#1610 id=1610 data-nosnippet>1610</a>        assert_ssa_does_not_change(src, Ssa::mem2reg);
+<a href=#1611 id=1611 data-nosnippet>1611</a>    }
+<a href=#1612 id=1612 data-nosnippet>1612</a>
+<a href=#1613 id=1613 data-nosnippet>1613</a>    <span class="doccomment">/// Passing a tracked reference to a function call is a first-class use of the address:
+<a href=#1614 id=1614 data-nosnippet>1614</a>    /// the callee may mutate it, so the reference and its surrounding load/store cannot be
+<a href=#1615 id=1615 data-nosnippet>1615</a>    /// optimized away.
+<a href=#1616 id=1616 data-nosnippet>1616</a>    </span><span class="attr">#[test]
+<a href=#1617 id=1617 data-nosnippet>1617</a>    </span><span class="kw">fn </span>reference_passed_to_call_prevents_optimization() {
+<a href=#1618 id=1618 data-nosnippet>1618</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1619 id=1619 data-nosnippet>1619</a>        brillig(inline) fn func f0 {
+<a href=#1620 id=1620 data-nosnippet>1620</a>          b0():
+<a href=#1621 id=1621 data-nosnippet>1621</a>            v1 = allocate -&gt; &amp;mut Field
+<a href=#1622 id=1622 data-nosnippet>1622</a>            store Field 1 at v1
+<a href=#1623 id=1623 data-nosnippet>1623</a>            call f1(v1)
+<a href=#1624 id=1624 data-nosnippet>1624</a>            v3 = load v1 -&gt; Field
+<a href=#1625 id=1625 data-nosnippet>1625</a>            return v3
+<a href=#1626 id=1626 data-nosnippet>1626</a>        }
+<a href=#1627 id=1627 data-nosnippet>1627</a>        brillig(inline) fn callee f1 {
+<a href=#1628 id=1628 data-nosnippet>1628</a>          b0(v0: &amp;mut Field):
+<a href=#1629 id=1629 data-nosnippet>1629</a>            return
+<a href=#1630 id=1630 data-nosnippet>1630</a>        }
+<a href=#1631 id=1631 data-nosnippet>1631</a>        "</span>;
+<a href=#1632 id=1632 data-nosnippet>1632</a>        assert_ssa_does_not_change(src, Ssa::mem2reg);
+<a href=#1633 id=1633 data-nosnippet>1633</a>    }
+<a href=#1634 id=1634 data-nosnippet>1634</a>
+<a href=#1635 id=1635 data-nosnippet>1635</a>    <span class="doccomment">/// A store inside a loop body forces a block parameter at the loop header via the
+<a href=#1636 id=1636 data-nosnippet>1636</a>    /// *iterated* dominance frontier: the store in b2 has b1 (the header) in its dominance
+<a href=#1637 id=1637 data-nosnippet>1637</a>    /// frontier through the back edge, and the worklist in `iterated_dominance_frontier`
+<a href=#1638 id=1638 data-nosnippet>1638</a>    /// then re-examines b1's own frontier before converging. The header therefore receives
+<a href=#1639 id=1639 data-nosnippet>1639</a>    /// the merged value as a parameter.
+<a href=#1640 id=1640 data-nosnippet>1640</a>    </span><span class="attr">#[test]
+<a href=#1641 id=1641 data-nosnippet>1641</a>    </span><span class="kw">fn </span>iterated_dominance_frontier_through_loop() {
+<a href=#1642 id=1642 data-nosnippet>1642</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1643 id=1643 data-nosnippet>1643</a>        brillig(inline) fn func f0 {
+<a href=#1644 id=1644 data-nosnippet>1644</a>          b0(v0: u1):
+<a href=#1645 id=1645 data-nosnippet>1645</a>            v1 = allocate -&gt; &amp;mut Field
+<a href=#1646 id=1646 data-nosnippet>1646</a>            store Field 0 at v1
+<a href=#1647 id=1647 data-nosnippet>1647</a>            jmp b1()
+<a href=#1648 id=1648 data-nosnippet>1648</a>          b1():
+<a href=#1649 id=1649 data-nosnippet>1649</a>            v2 = load v1 -&gt; Field
+<a href=#1650 id=1650 data-nosnippet>1650</a>            jmpif v0 then: b2(), else: b3()
+<a href=#1651 id=1651 data-nosnippet>1651</a>          b2():
+<a href=#1652 id=1652 data-nosnippet>1652</a>            v3 = add v2, Field 1
+<a href=#1653 id=1653 data-nosnippet>1653</a>            store v3 at v1
+<a href=#1654 id=1654 data-nosnippet>1654</a>            jmp b1()
+<a href=#1655 id=1655 data-nosnippet>1655</a>          b3():
+<a href=#1656 id=1656 data-nosnippet>1656</a>            return v2
+<a href=#1657 id=1657 data-nosnippet>1657</a>        }
+<a href=#1658 id=1658 data-nosnippet>1658</a>        "</span>;
+<a href=#1659 id=1659 data-nosnippet>1659</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1660 id=1660 data-nosnippet>1660</a>        <span class="kw">let </span>ssa = ssa.mem2reg();
+<a href=#1661 id=1661 data-nosnippet>1661</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#1662 id=1662 data-nosnippet>1662</a>        brillig(inline) fn func f0 {
+<a href=#1663 id=1663 data-nosnippet>1663</a>          b0(v0: u1):
+<a href=#1664 id=1664 data-nosnippet>1664</a>            jmp b1(Field 0)
+<a href=#1665 id=1665 data-nosnippet>1665</a>          b1(v1: Field):
+<a href=#1666 id=1666 data-nosnippet>1666</a>            jmpif v0 then: b2(), else: b3()
+<a href=#1667 id=1667 data-nosnippet>1667</a>          b2():
+<a href=#1668 id=1668 data-nosnippet>1668</a>            v4 = add v1, Field 1
+<a href=#1669 id=1669 data-nosnippet>1669</a>            jmp b1(v4)
+<a href=#1670 id=1670 data-nosnippet>1670</a>          b3():
+<a href=#1671 id=1671 data-nosnippet>1671</a>            return v1
+<a href=#1672 id=1672 data-nosnippet>1672</a>        }
+<a href=#1673 id=1673 data-nosnippet>1673</a>        "</span>);
+<a href=#1674 id=1674 data-nosnippet>1674</a>    }
+<a href=#1675 id=1675 data-nosnippet>1675</a>
+<a href=#1676 id=1676 data-nosnippet>1676</a>    <span class="doccomment">/// `get_value_from_visited_predecessor` returns `None` when none of a block's
+<a href=#1677 id=1677 data-nosnippet>1677</a>    /// predecessors have a recorded `BlockState` yet. `compute_entry_state` relies on this
+<a href=#1678 id=1678 data-nosnippet>1678</a>    /// to drop a variable whose value cannot be inherited (e.g. for a block that is not
+<a href=#1679 id=1679 data-nosnippet>1679</a>    /// reached through any already-visited predecessor). Exercised directly because the
+<a href=#1680 id=1680 data-nosnippet>1680</a>    /// reverse-post-order traversal always visits a forward predecessor first for reachable
+<a href=#1681 id=1681 data-nosnippet>1681</a>    /// blocks, so the branch is otherwise defensive.
+<a href=#1682 id=1682 data-nosnippet>1682</a>    </span><span class="attr">#[test]
+<a href=#1683 id=1683 data-nosnippet>1683</a>    </span><span class="kw">fn </span>get_value_from_visited_predecessor_returns_none_without_visited_predecessor() {
+<a href=#1684 id=1684 data-nosnippet>1684</a>        <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{cfg::ControlFlowGraph, map::Id};
+<a href=#1685 id=1685 data-nosnippet>1685</a>
+<a href=#1686 id=1686 data-nosnippet>1686</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1687 id=1687 data-nosnippet>1687</a>        brillig(inline) fn func f0 {
+<a href=#1688 id=1688 data-nosnippet>1688</a>          b0():
+<a href=#1689 id=1689 data-nosnippet>1689</a>            jmp b1()
+<a href=#1690 id=1690 data-nosnippet>1690</a>          b1():
+<a href=#1691 id=1691 data-nosnippet>1691</a>            return
+<a href=#1692 id=1692 data-nosnippet>1692</a>        }
+<a href=#1693 id=1693 data-nosnippet>1693</a>        "</span>;
+<a href=#1694 id=1694 data-nosnippet>1694</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1695 id=1695 data-nosnippet>1695</a>        <span class="kw">let </span>function = ssa.main();
+<a href=#1696 id=1696 data-nosnippet>1696</a>        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+<a href=#1697 id=1697 data-nosnippet>1697</a>
+<a href=#1698 id=1698 data-nosnippet>1698</a>        <span class="comment">// b1 is reached from b0, but with an empty `block_states` no predecessor is "visited".
+<a href=#1699 id=1699 data-nosnippet>1699</a>        </span><span class="kw">let </span>b1 = cfg.successors(function.entry_block()).next().expect(<span class="string">"b0 has a successor"</span>);
+<a href=#1700 id=1700 data-nosnippet>1700</a>        <span class="kw">let </span>block_states = <span class="kw">super</span>::BlockStates::default();
+<a href=#1701 id=1701 data-nosnippet>1701</a>        <span class="kw">let </span>dummy_var = Id::test_new(<span class="number">0</span>);
+<a href=#1702 id=1702 data-nosnippet>1702</a>
+<a href=#1703 id=1703 data-nosnippet>1703</a>        <span class="macro">assert!</span>(
+<a href=#1704 id=1704 data-nosnippet>1704</a>            <span class="kw">super</span>::get_value_from_visited_predecessor(dummy_var, b1, <span class="kw-2">&amp;</span>cfg, <span class="kw-2">&amp;</span>block_states).is_none()
+<a href=#1705 id=1705 data-nosnippet>1705</a>        );
+<a href=#1706 id=1706 data-nosnippet>1706</a>    }
+<a href=#1707 id=1707 data-nosnippet>1707</a>}</code></pre></div></section></main></body></html>
