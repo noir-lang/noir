@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781649733109,
+  "lastUpdate": 1781683247957,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23216,48 +23216,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "b5c4448d2e0f138f596f9a228e8e0c12aac31d4e",
-          "message": "chore: fix `elidable_lifetime_names` clippy lint in msgpack_tagged (#13024)",
-          "timestamp": "2026-06-11T16:23:56Z",
-          "tree_id": "117f0d0337f0182ee156d02ed91360e8ef6a286a",
-          "url": "https://github.com/noir-lang/noir/commit/b5c4448d2e0f138f596f9a228e8e0c12aac31d4e"
-        },
-        "date": 1781197043701,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167027,
-            "range": "± 1297",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136209,
-            "range": "± 2238",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2658884,
-            "range": "± 2241",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "523e1b8b7dc7b6bd3601ee807a302f53228dab87",
           "message": "chore: fix `bench-show` label name in CLAUDE.md (#13029)",
           "timestamp": "2026-06-11T19:33:02+01:00",
@@ -25299,6 +25257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654813,
             "range": "± 6222",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7294c91fad48221c8afbe8d94c87de31f755467c",
+          "message": "chore: use persistent data structure to avoid clones (#13097)",
+          "timestamp": "2026-06-17T07:40:09Z",
+          "tree_id": "d1ff239b48c6496ad6868f6435428b41d40416f5",
+          "url": "https://github.com/noir-lang/noir/commit/7294c91fad48221c8afbe8d94c87de31f755467c"
+        },
+        "date": 1781683174533,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126484,
+            "range": "± 1208",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 115885,
+            "range": "± 2480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042422,
+            "range": "± 4433",
             "unit": "ns/iter"
           }
         ]
