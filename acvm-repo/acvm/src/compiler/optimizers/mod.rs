@@ -96,7 +96,7 @@ pub(super) fn optimize_internal<F: AcirField>(
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
     let max_transformer_passes_or_default = None;
-    let (acir, acir_opcode_positions, _opcode_count_stabilized) =
+    let (acir, acir_opcode_positions, opcode_count_stabilized) =
         common_subexpression::transform_internal(
             acir,
             acir_opcode_positions,
@@ -105,6 +105,7 @@ pub(super) fn optimize_internal<F: AcirField>(
         );
 
     info!("Number of opcodes after: {}", acir.opcodes.len());
+    info!("Opcode count stabilized: {}", opcode_count_stabilized);
 
     (acir, acir_opcode_positions)
 }

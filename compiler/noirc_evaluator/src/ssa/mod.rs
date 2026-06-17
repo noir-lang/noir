@@ -510,7 +510,10 @@ pub fn optimize_into_acir(
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
 ///
-/// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
+/// The output ACIR has already been optimized and transformed for the proving backend (the
+/// width-bounding CSAT pass and intermediate-variable elimination, via [`acvm::compiler::optimize`]
+/// during artifact combination), so it is ready for proof generation. It can still be refined once
+/// the whole program is assembled — see `nargo::ops::optimize_program`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program(
     program: Program,
