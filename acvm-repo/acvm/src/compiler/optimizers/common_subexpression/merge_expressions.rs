@@ -57,9 +57,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     #[tracing::instrument(level = "trace", name = "merge_expressions", skip_all)]
     pub(crate) fn eliminate_intermediate_variable(
         &mut self,
-        mut circuit: Circuit<F>,
+        circuit: &Circuit<F>,
         acir_opcode_positions: Vec<usize>,
-    ) -> (Circuit<F>, Vec<usize>) {
+    ) -> (Vec<Opcode<F>>, Vec<usize>) {
         // Initialization
         self.modified_gates.clear();
         self.deleted_gates.clear();
@@ -89,7 +89,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 continue;
             }
             // The opcode might have been modified by an earlier merge, so use its current version.
-            let input_witnesses = match self.get_opcode(op1, &circuit) {
+            let input_witnesses = match self.get_opcode(op1, circuit) {
                 Some(opcode) => self.witness_inputs(opcode),
                 None => continue,
             };
@@ -118,8 +118,8 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                         // borrowed opcodes, collecting owned results so the borrows are released
                         // before we mutate the optimizer state below.
                         let merge = match (
-                            self.get_opcode(target, &circuit),
-                            self.get_opcode(source, &circuit),
+                            self.get_opcode(target, circuit),
+                            self.get_opcode(source, circuit),
                         ) {
                             (
                                 Some(Opcode::AssertZero(expr_use)),
@@ -155,26 +155,17 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             }
         }
 
-        // Construct the new circuit by consuming the original opcodes: unmodified gates are moved
-        // as-is, modified gates are taken from `modified_gates`, and deleted gates are dropped.
-        // This mirrors the decision made by `get_opcode`, but without cloning every surviving gate.
-        let opcodes = std::mem::take(&mut circuit.opcodes);
-        let mut new_circuit = Vec::with_capacity(opcodes.len());
-        let mut new_acir_opcode_positions = Vec::with_capacity(acir_opcode_positions.len());
+        // Construct the new circuit from modified/deleted gates
+        let mut new_circuit = Vec::new();
+        let mut new_acir_opcode_positions = Vec::new();
 
-        for (i, (opcode, opcode_position)) in
-            opcodes.into_iter().zip(acir_opcode_positions).enumerate()
-        {
-            if self.deleted_gates.contains(&i) {
-                continue;
+        for (i, opcode_position) in acir_opcode_positions.iter().enumerate() {
+            if let Some(opcode) = self.get_opcode(i, circuit) {
+                new_circuit.push(opcode.clone());
+                new_acir_opcode_positions.push(*opcode_position);
             }
-            let opcode = self.modified_gates.remove(&i).unwrap_or(opcode);
-            new_circuit.push(opcode);
-            new_acir_opcode_positions.push(opcode_position);
         }
-
-        circuit.opcodes = new_circuit;
-        (circuit, new_acir_opcode_positions)
+        (new_circuit, new_acir_opcode_positions)
     }
 
     fn for_each_brillig_input_witness(&self, input: &BrilligInputs<F>, mut f: impl FnMut(Witness)) {
@@ -319,8 +310,10 @@ mod tests {
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
         let mut merge_optimizer = MergeExpressionsOptimizer::new();
         let acir_opcode_positions = vec![0; 20];
-        let (optimized_circuit, _) =
-            merge_optimizer.eliminate_intermediate_variable(circuit, acir_opcode_positions);
+        let (opcodes, _) =
+            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
+        let mut optimized_circuit = circuit;
+        optimized_circuit.opcodes = opcodes;
 
         // check that the circuit is still valid after optimization
         assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
