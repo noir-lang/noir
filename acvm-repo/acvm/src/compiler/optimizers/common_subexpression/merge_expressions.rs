@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
 use acir::{
     AcirField,
@@ -9,6 +9,7 @@ use acir::{
     },
     native_types::{Expression, Witness},
 };
+use rustc_hash::FxHashMap;
 
 use crate::compiler::{CircuitSimulator, optimizers::GeneralOptimizer};
 
@@ -69,7 +70,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         let circuit_io: BTreeSet<Witness> =
             circuit.circuit_arguments().union(&circuit.public_inputs().0).copied().collect();
 
-        let mut used_witnesses: BTreeMap<Witness, BTreeSet<usize>> = BTreeMap::new();
+        let mut used_witnesses: FxHashMap<Witness, BTreeSet<usize>> = FxHashMap::default();
         for (i, opcode) in circuit.opcodes.iter().enumerate() {
             let witnesses = self.witness_inputs(opcode);
             if let Opcode::MemoryInit { block_id, .. } = opcode {
