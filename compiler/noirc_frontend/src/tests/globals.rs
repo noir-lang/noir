@@ -442,17 +442,75 @@ fn can_refer_to_complex_global_in_method_signature() {
 }
 
 #[test]
+fn global_trait_name_static_method_initializer() {
+    let src = r#"
+    trait Make {
+        fn make() -> Self;
+    }
+
+    impl Make for u32 {
+        fn make() -> Self { 12 }
+    }
+
+    global X: u32 = Make::make();
+
+    fn main() {
+        assert(X == 12);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn global_fully_qualified_trait_static_method_initializer() {
+    let src = r#"
+    trait Make {
+        fn make() -> Self;
+    }
+
+    impl Make for u32 {
+        fn make() -> Self { 12 }
+    }
+
+    global X: u32 = <u32 as Make>::make();
+
+    fn main() {
+        assert(X == 12);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn local_trait_name_static_method() {
+    let src = r#"
+    trait Make {
+        fn make() -> Self;
+    }
+
+    impl Make for u32 {
+        fn make() -> Self { 12 }
+    }
+
+    fn main() {
+        let x: u32 = Make::make();
+        assert(x == 12);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_global_is_needed_in_initialize_and_function_signature() {
     let src = r#"
-    global FOO: u32 = init([0; 10]);
-           ^^^ Dependency cycle found
-           ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
-                      ^^^^^^^^^^^^^ Expected type u32, found type ()
+    pub global FOO: u32 = init([0; 10]);
+               ^^^ Dependency cycle found
+               ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
 
-    fn init(_array: [Field; FOO]) {}
-                            ^^^ Cannot find a global or generic type parameter named `FOO`
-                            ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
-                            ^^^ expected type, found global `FOO`
+    pub fn init(_array: [Field; FOO]) -> u32 { 0 }
+                                ^^^ Cannot find a global or generic type parameter named `FOO`
+                                ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
+                                ^^^ expected type, found global `FOO`
 
     fn main() {}
     "#;
