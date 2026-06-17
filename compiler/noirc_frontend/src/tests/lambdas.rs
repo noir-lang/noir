@@ -609,3 +609,39 @@ fn nested_lambda_does_not_underflow_on_comptime_local_capture() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn global_captured_closure_cannot_be_inlined() {
+    let src = r#"
+    global ADD_ONE: fn[(Field,)](Field) -> Field = {
+           ^^^^^^^ Cannot inline values of type `fn[(Field,)](Field) -> Field` into this position
+           ~~~~~~~ Cannot inline value `(closure)`
+        let offset = 1;
+        |x: Field| x + offset
+    };
+
+    fn main(x: Field) -> pub Field {
+        ADD_ONE(x)
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn macro_unquote_captured_closure_cannot_be_inlined() {
+    let src = r#"
+    comptime fn make_adder() -> Quoted {
+        let offset = 1;
+        let f = |x: Field| x + offset;
+        quote { $f }
+                 ^ Cannot inline values of type `fn[(Field,)](Field) -> Field` into this position
+                 ~ Cannot inline value `(closure)`
+    }
+
+    fn main(x: Field) -> pub Field {
+        let f = make_adder!();
+        f(x)
+    }
+    "#;
+    check_errors(src);
+}

@@ -26,7 +26,7 @@ use std::collections::BTreeSet;
 use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
-/// circuits is dictated by construction of the [crate::native_types::WitnessStack].
+/// circuits is dictated by construction of the [`crate::native_types::WitnessStack`].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[tagged(allow_unknown_tags)]
@@ -38,7 +38,7 @@ pub struct Program<F: AcirField> {
 }
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
-/// is dictated by the construction of a [crate::native_types::WitnessMap]
+/// is dictated by the construction of a [`crate::native_types::WitnessMap`]
 #[derive(Clone, PartialEq, Eq, Default, Hash, Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[tagged(allow_unknown_tags)]
@@ -106,7 +106,7 @@ pub struct AssertionPayload<F> {
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
-/// Value for differentiating error types. Used internally by an [AssertionPayload].
+/// Value for differentiating error types. Used internally by an [`AssertionPayload`].
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct ErrorSelector(u64);
 
@@ -213,7 +213,7 @@ pub enum OpcodeLocationFromStrError {
     InvalidOpcodeLocationString(String),
 }
 
-/// The implementation of display and FromStr allows serializing and deserializing a OpcodeLocation to a string.
+/// The implementation of display and `FromStr` allows serializing and deserializing a `OpcodeLocation` to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML, for example when mapping an opcode to its metadata.
 impl FromStr for OpcodeLocation {
     type Err = OpcodeLocationFromStrError;

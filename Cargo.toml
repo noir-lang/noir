@@ -65,7 +65,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
@@ -117,13 +117,13 @@ useless_conversion = "warn"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.21", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.21", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.21", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.21", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.21", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.21", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.21", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.22", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.22", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.22", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.22", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.22", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.22", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.22", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 msgpack_tagged = { version = "1.0.0-beta.20", path = "acvm-repo/msgpack_tagged", default-features = false }
 msgpack_tagged_derive = { version = "1.0.0-beta.20", path = "acvm-repo/msgpack_tagged_derive" }
 
@@ -215,6 +215,7 @@ toml = "0.8"
 url = "2.5.4"
 base64 = "^0.22.1"
 rustc-hash = "2.1.2"
+siphasher = "1.0.3"
 build-data = "^0.3.3"
 hex = "0.4.2"
 const_format = "0.2.36"
@@ -243,8 +244,8 @@ proptest = { version = "1.11.0", default-features = false, features = [
 proptest-derive = "^0.8.0"
 rayon = "1.8.0"
 sha2 = "0.11.0"
-k256 = "0.14.0-rc.9"
-p256 = "0.14.0-rc.9"
+k256 = "0.14.0-rc.10"
+p256 = "0.14.0-rc.10"
 strum = "0.28"
 strum_macros = "0.28"
 tokio = "1.52"

@@ -15,66 +15,88 @@ pub enum InvalidType {
 
 impl InvalidType {
     pub(crate) fn add_to_diagnostic(&self, location: Location, diagnostic: &mut CustomDiagnostic) {
+        self.add_to_diagnostic_in_context(location, diagnostic, "entry point");
+    }
+
+    pub(crate) fn add_to_abi_diagnostic(
+        &self,
+        location: Location,
+        diagnostic: &mut CustomDiagnostic,
+    ) {
+        self.add_to_diagnostic_in_context(location, diagnostic, "ABI");
+    }
+
+    fn add_to_diagnostic_in_context(
+        &self,
+        location: Location,
+        diagnostic: &mut CustomDiagnostic,
+        context: &str,
+    ) {
         match self {
             InvalidType::Primitive(typ) => match typ {
-                // Use a slightly better message for common types that might be used as entry point types
                 Type::Unit => {
-                    diagnostic.add_secondary(
-                        "Unit is not a valid entry point type".to_string(),
-                        location,
-                    );
+                    diagnostic
+                        .add_secondary(format!("Unit is not a valid {context} type"), location);
                 }
                 Type::Reference(..) => {
                     diagnostic.add_secondary(
-                        format!("Reference is not a valid entry point type. Found: {typ}"),
+                        format!("Reference is not a valid {context} type. Found: {typ}"),
                         location,
                     );
                 }
                 Type::Vector(..) => {
                     diagnostic.add_secondary(
-                        format!("Vector is not a valid entry point type. Found: {typ}"),
+                        format!("Vector is not a valid {context} type. Found: {typ}"),
                         location,
                     );
                 }
                 _ => {
-                    diagnostic.add_secondary(format!("Invalid entry point type: {typ}"), location);
+                    diagnostic.add_secondary(format!("Invalid {context} type: {typ}"), location);
                 }
             },
             InvalidType::Enum(typ) => {
                 diagnostic.add_secondary(
-                    format!("Enum is not yet allowed as an entry point type. Found: {typ}"),
+                    format!("Enum is not yet allowed as an {context} type. Found: {typ}"),
                     location,
                 );
             }
             InvalidType::EmptyArray(typ) => {
                 diagnostic.add_secondary(
-                    format!("Empty array is not a valid entry point type. Found: {typ}"),
+                    format!("Empty array is not a valid {context} type. Found: {typ}"),
                     location,
                 );
             }
             InvalidType::EmptyString(typ) => {
                 diagnostic.add_secondary(
-                    format!("Empty string is not a valid entry point type. Found: {typ}"),
+                    format!("Empty string is not a valid {context} type. Found: {typ}"),
                     location,
                 );
             }
             InvalidType::StructField { struct_name, field_name, invalid_type } => {
                 diagnostic.add_secondary(
-                    format!("Struct {struct_name} has an invalid entry point type"),
+                    format!("Struct {struct_name} has an invalid {context} type"),
                     struct_name.location(),
                 );
                 diagnostic.add_secondary(
-                    format!("Field {field_name} has an invalid entry point type"),
+                    format!("Field {field_name} has an invalid {context} type"),
                     field_name.location(),
                 );
-                invalid_type.add_to_diagnostic(field_name.location(), diagnostic);
+                invalid_type.add_to_diagnostic_in_context(
+                    field_name.location(),
+                    diagnostic,
+                    context,
+                );
             }
             InvalidType::Alias { alias_name, invalid_type } => {
                 diagnostic.add_secondary(
-                    format!("Alias {alias_name} has an invalid entry point type"),
+                    format!("Alias {alias_name} has an invalid {context} type"),
                     alias_name.location(),
                 );
-                invalid_type.add_to_diagnostic(alias_name.location(), diagnostic);
+                invalid_type.add_to_diagnostic_in_context(
+                    alias_name.location(),
+                    diagnostic,
+                    context,
+                );
             }
         }
     }
@@ -86,7 +108,7 @@ impl Type {
     /// This is only Some for unsized types like vectors or vectors that do not make sense
     /// as a program input such as named generics or mutable references.
     ///
-    /// This function should match the same check done in `create_value_from_type` in acir_gen.
+    /// This function should match the same check done in `create_value_from_type` in `acir_gen`.
     /// If this function does not catch a case where a type should be valid, it will later lead to a
     /// panic in that function instead of a user-facing compiler error message.
     ///
@@ -231,10 +253,10 @@ impl Type {
     /// function that is not `main` or a contract function.
     /// This encapsulates functions for which we may not want to inline during compilation.
     ///
-    /// This check is intentionally more permissive than [Self::program_validity]:
+    /// This check is intentionally more permissive than [`Self::program_validity`]:
     /// - It does not enforce entry-point sizing rules (e.g. concrete array/string lengths).
-    /// - It allows symbolic size expressions such as [Type::InfixExpr].
-    /// - It does not special-case entry point only rules like allowing [Type::Unit] outputs.
+    /// - It allows symbolic size expressions such as [`Type::InfixExpr`].
+    /// - It does not special-case entry point only rules like allowing [`Type::Unit`] outputs.
     ///
     /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
     /// certain types which through compilation we know what their size should be.
@@ -412,17 +434,25 @@ impl Type {
                 )
             }),
             Type::DataType(definition, generics) => {
-                if type_recursion_context.insert_data_type(definition.borrow().id, generics.clone())
-                {
-                    if let Some(fields) = definition.borrow().get_fields(generics) {
+                let definition = definition.borrow();
+                if type_recursion_context.insert_data_type(definition.id, generics.clone()) {
+                    if let Some(fields) = definition.get_fields(generics) {
                         fields.into_iter().all(|(_, field, _)| {
                             field.is_valid_for_unconstrained_boundary_helper(
                                 type_recursion_context.clone().recur(),
                             )
                         })
+                    } else if let Some(variants) = definition.get_variants(generics) {
+                        // An enum can be passed into an unconstrained function: it was built in
+                        // the constrained caller so its tag is already valid. Returning one the
+                        // other way is rejected separately (see `unconstrained_function_return`).
+                        variants.into_iter().flat_map(|(_, args)| args).all(|typ| {
+                            typ.is_valid_for_unconstrained_boundary_helper(
+                                type_recursion_context.clone().recur(),
+                            )
+                        })
                     } else {
-                        // enum (unimplemented)
-                        false
+                        true
                     }
                 } else {
                     true

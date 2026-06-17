@@ -3,7 +3,7 @@
 //!
 //! # Usage
 //!
-//! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
+//! ACIR generation is performed by calling the [`Ssa::into_acir`] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
 use noirc_artifacts::ssa::{InternalWarning, SsaReport};
@@ -60,7 +60,7 @@ struct Context<'a> {
     /// Maps SSA values to `AcirVar`'s.
     ///
     /// This is needed so that we only create a single
-    /// AcirVar per SSA value. Before creating an `AcirVar`
+    /// `AcirVar` per SSA value. Before creating an `AcirVar`
     /// for an SSA value, we check this map. If an `AcirVar`
     /// already exists for this Value, we return the `AcirVar`.
     ssa_values: HashMap<Id<Value>, AcirValue>,
@@ -74,37 +74,37 @@ struct Context<'a> {
 
     /// Track initialized acir dynamic arrays
     ///
-    /// An acir array must start with a MemoryInit ACIR opcodes
-    /// and then have MemoryOp opcodes
-    /// This set is used to ensure that a MemoryOp opcode is only pushed to the circuit
-    /// if there is already a MemoryInit opcode.
+    /// An acir array must start with a `MemoryInit` ACIR opcodes
+    /// and then have `MemoryOp` opcodes
+    /// This set is used to ensure that a `MemoryOp` opcode is only pushed to the circuit
+    /// if there is already a `MemoryInit` opcode.
     initialized_arrays: HashSet<BlockId>,
 
-    /// Maps SSA values to BlockId's
-    /// A BlockId is an ACIR structure which identifies a memory block
+    /// Maps SSA values to `BlockId`'s
+    /// A `BlockId` is an ACIR structure which identifies a memory block
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
-    /// The BlockId dedicated to return_data
-    /// It is not managed by memory_blocks to ensure getting always a fresh block for return_data, even if
+    /// The `BlockId` dedicated to `return_data`
+    /// It is not managed by `memory_blocks` to ensure getting always a fresh block for `return_data`, even if
     /// the SSA array has already been initialized to a block.
     return_data_block_id: Option<BlockId>,
 
-    /// Maps SSA values to BlockId's used internally for computing the accurate flattened
+    /// Maps SSA values to `BlockId`'s used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
     ///
-    /// A BlockId is an ACIR structure which identifies a memory block
+    /// A `BlockId` is an ACIR structure which identifies a memory block
     /// Each memory blocks corresponds to a different SSA value
     /// which utilizes this internal memory for ACIR generation.
     element_type_sizes_blocks: HashMap<Id<Value>, BlockId>,
 
-    /// Maps type sizes to BlockId. This is used to reuse the same BlockId if different
+    /// Maps type sizes to `BlockId`. This is used to reuse the same `BlockId` if different
     /// non-homogenous arrays end up having the same type sizes layout.
     type_sizes_to_blocks: HashMap<Vec<u32>, BlockId>,
 
-    /// Number of the next BlockId, it is used to construct
-    /// a new BlockId
+    /// Number of the next `BlockId`, it is used to construct
+    /// a new `BlockId`
     max_block_id: u32,
 
     data_bus: DataBus,
@@ -876,11 +876,11 @@ impl<'a> Context<'a> {
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
 
-    /// Fetch a flat list of [AcirVar].
+    /// Fetch a flat list of [`AcirVar`].
     ///
-    /// Flattens an [AcirValue] into a vector of `AcirVar`.
+    /// Flattens an [`AcirValue`] into a vector of `AcirVar`.
     ///
-    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
+    /// This is an extension of [`AcirValue::flatten`] that also supports [`AcirValue::DynamicArray`].
     fn flatten(&mut self, value: &AcirValue) -> Result<Vec<AcirVar>, RuntimeError> {
         Ok(match value {
             AcirValue::Var(var, _) => vec![*var],

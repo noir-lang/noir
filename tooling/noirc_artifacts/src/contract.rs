@@ -1,5 +1,5 @@
 use acvm::{FieldElement, acir::circuit::Program};
-use noirc_abi::{Abi, AbiType, AbiValue};
+use noirc_abi::{Abi, AbiNamedValue, AbiType};
 use serde::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap};
@@ -17,7 +17,7 @@ use super::{deserialize_hash, serialize_hash};
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractOutputsArtifact {
     pub structs: HashMap<String, Vec<AbiType>>,
-    pub globals: HashMap<String, Vec<AbiValue>>,
+    pub globals: HashMap<String, Vec<AbiNamedValue>>,
 }
 
 impl From<CompiledContractOutputs> for ContractOutputsArtifact {
@@ -127,7 +127,7 @@ impl From<ContractFunction> for ContractFunctionArtifact {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompiledContractOutputs {
     pub structs: HashMap<String, Vec<AbiType>>,
-    pub globals: HashMap<String, Vec<AbiValue>>,
+    pub globals: HashMap<String, Vec<AbiNamedValue>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

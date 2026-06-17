@@ -36,6 +36,9 @@ impl Ssa {
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.mem2reg();
+
+            #[cfg(debug_assertions)]
+            mem2reg_post_check(function);
         }
         self
     }
@@ -46,17 +49,30 @@ impl Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
                 function.mem2reg();
+
+                #[cfg(debug_assertions)]
+                mem2reg_post_check(function);
             }
         }
         self
     }
 }
 
+/// Post-check condition for [`Function::mem2reg`].
+///
+/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
+/// passing a different number of arguments (or differently typed arguments) than its
+/// destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn mem2reg_post_check(function: &Function) {
+    crate::ssa::validation::validate_terminators(function);
+}
+
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let mut dom_frontiers = None;
         let blocks = post_order.into_vec_reverse();
 
@@ -139,8 +155,12 @@ type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 /// Contains the starting & ending values of each variable in one block
 #[derive(Default)]
 struct BlockState {
-    /// Maps each variable visible in this block to its starting value in the block. This is always
-    /// a block parameter or a forwarded value from a previous block.
+    /// Maps each variable visible in this block to its starting value in the block. This is
+    /// normally a block parameter or a value forwarded from a previous block.
+    ///
+    /// In the block where a variable is declared the variable is not yet defined at block entry,
+    /// so it is mapped to its own allocate result as a placeholder. `abstract_interpret_block`
+    /// overwrites this with the real value once it processes the variable's initial `Store`.
     entry_state: BTreeMap<ValueId, ValueId>,
 
     /// Maps each variable modified within this block to the value it is set to at the end of
@@ -204,18 +224,18 @@ fn compute_visible_vars(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &DominatorTree,
-) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+) -> HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> {
     // Group variables by their declaration block
     let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
     for (var, decl_block) in variables {
         vars_by_decl_block.entry(*decl_block).or_default().push(*var);
     }
 
-    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    let mut visible: HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> = HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
-            None => BTreeMap::new(),
+            None => im::OrdMap::new(),
         };
         if let Some(declared_here) = vars_by_decl_block.get(&block) {
             for var in declared_here {
@@ -229,11 +249,11 @@ fn compute_visible_vars(
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    visible_vars: &HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
@@ -263,7 +283,7 @@ fn add_block_params_and_find_exit_states(
 /// - If this block is in the variable's IDF: add a fresh block parameter
 /// - Otherwise: inherit the value from a visited predecessor's exit state
 fn compute_entry_state(
-    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &im::OrdMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
@@ -274,7 +294,9 @@ fn compute_entry_state(
         .iter()
         .filter_map(|(var, decl_block)| {
             let value = if block == *decl_block {
-                // Declaration block: use original allocate result
+                // Declaration block: the variable is not yet defined at block entry, so map it to
+                // its own allocate result as a placeholder. `abstract_interpret_block` replaces it
+                // with the real value when it processes the variable's initial `Store`.
                 *var
             } else if param_locations[var].contains(&block) {
                 // IDF block: add a block parameter for this variable
@@ -369,7 +391,7 @@ impl BlockState {
 ///
 /// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
 /// same successor, in which case `f` is called once per matching edge so the caller
-/// can wire each one. Panics if the given block does not terminate in a Jmp or JmpIf.
+/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
 fn for_each_terminator_edge_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
@@ -393,7 +415,7 @@ fn for_each_terminator_edge_mut(
             }
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
-            "for_each_terminator_edge_mut called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+            "for_each_terminator_edge_mut called on edge: {block} -> {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
         ),
     }
 }

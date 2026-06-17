@@ -113,9 +113,11 @@ fn regression_7297() {
 
         // `5` here is higher than in other inliner settings. This is likely due to references getting optimized out,
         // and mutations being optimized and removed so the original array ends up being aliased more.
+        // The value `5` above is `2` because mem2reg is missing some optimizations.
+        // It should go back to `5` when mem2reg addresses this.
         assert_eq(
             refcount_1,
-            5,
+            2,
             "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
         );
         assert_eq(

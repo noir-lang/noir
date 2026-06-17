@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed
+   ┌─ src/main.nr:19:15
+   │
+19 │     assert_eq(v1, 0);
+   │               -----
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:6:4
+     2: main
+             at src/main.nr:8:5
+     3: foo
+             at src/main.nr:13:5
+
+Error interpreting main function

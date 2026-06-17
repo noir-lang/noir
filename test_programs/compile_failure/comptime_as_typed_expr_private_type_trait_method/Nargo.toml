@@ -1,0 +1,7 @@
+[package]
+name = "comptime_as_typed_expr_private_type_trait_method"
+type = "bin"
+authors = [""]
+
+[dependencies]
+foo = { path = "./foo" }

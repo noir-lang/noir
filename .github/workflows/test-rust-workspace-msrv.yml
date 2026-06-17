@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Delete android SDK
         run: sudo rm -rf /usr/local/lib/android/sdk
@@ -58,10 +58,21 @@ jobs:
         with:
           tool: nextest@0.9.88
 
+      - name: Install mold linker
+        run: sudo apt-get update && sudo apt-get install -y mold
+
       - name: Build and archive tests
         run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The archive is uploaded once and downloaded by every test partition.
+          # Debug info dominates its size but is never read during a CI test run
+          # (a failure is reproduced locally with a normal debug build), so drop
+          # it to keep the per-partition `Download archive` step off the timeout.
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
+          # Link test binaries with mold instead of GNU ld to cut link time.
+          RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
 
       # `compile_fail` runs trybuild, which spawns its own `cargo build` and
       # needs the cargo registry to resolve transitive proc-macro deps. The
@@ -90,7 +101,7 @@ jobs:
       matrix:
         partition: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -146,7 +157,7 @@ jobs:
 
       - name: Checkout
         if: ${{ failure() }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       # Raise an issue if the tests failed
       - name: Alert on failed publish
