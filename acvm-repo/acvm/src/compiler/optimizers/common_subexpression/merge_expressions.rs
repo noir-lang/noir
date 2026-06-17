@@ -57,9 +57,9 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     #[tracing::instrument(level = "trace", name = "merge_expressions", skip_all)]
     pub(crate) fn eliminate_intermediate_variable(
         &mut self,
-        circuit: &Circuit<F>,
+        mut circuit: Circuit<F>,
         acir_opcode_positions: Vec<usize>,
-    ) -> (Vec<Opcode<F>>, Vec<usize>) {
+    ) -> (Circuit<F>, Vec<usize>) {
         // Initialization
         self.modified_gates.clear();
         self.deleted_gates.clear();
@@ -88,7 +88,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             if !matches!(opcode, Opcode::AssertZero(_)) {
                 continue;
             }
-            if let Some(opcode) = self.get_opcode(op1, circuit) {
+            if let Some(opcode) = self.get_opcode(op1, &circuit) {
                 let input_witnesses = self.witness_inputs(&opcode);
                 for w in input_witnesses {
                     let Some(gates_using_w) = used_witnesses.get(&w) else {
@@ -111,8 +111,8 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                         // returns false if it could not merge them
                         if op1 != op2 {
                             let (source, target) = if op1 < op2 { (op1, op2) } else { (op2, op1) };
-                            let source_opcode = self.get_opcode(source, circuit);
-                            let target_opcode = self.get_opcode(target, circuit);
+                            let source_opcode = self.get_opcode(source, &circuit);
+                            let target_opcode = self.get_opcode(target, &circuit);
 
                             if let (
                                 Some(Opcode::AssertZero(expr_use)),
@@ -146,17 +146,26 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             }
         }
 
-        // Construct the new circuit from modified/deleted gates
-        let mut new_circuit = Vec::new();
-        let mut new_acir_opcode_positions = Vec::new();
+        // Construct the new circuit by consuming the original opcodes: unmodified gates are moved
+        // as-is, modified gates are taken from `modified_gates`, and deleted gates are dropped.
+        // This mirrors the decision made by `get_opcode`, but without cloning every surviving gate.
+        let opcodes = std::mem::take(&mut circuit.opcodes);
+        let mut new_circuit = Vec::with_capacity(opcodes.len());
+        let mut new_acir_opcode_positions = Vec::with_capacity(acir_opcode_positions.len());
 
-        for (i, opcode_position) in acir_opcode_positions.iter().enumerate() {
-            if let Some(opcode) = self.get_opcode(i, circuit) {
-                new_circuit.push(opcode);
-                new_acir_opcode_positions.push(*opcode_position);
+        for (i, (opcode, opcode_position)) in
+            opcodes.into_iter().zip(acir_opcode_positions).enumerate()
+        {
+            if self.deleted_gates.contains(&i) {
+                continue;
             }
+            let opcode = self.modified_gates.remove(&i).unwrap_or(opcode);
+            new_circuit.push(opcode);
+            new_acir_opcode_positions.push(opcode_position);
         }
-        (new_circuit, new_acir_opcode_positions)
+
+        circuit.opcodes = new_circuit;
+        (circuit, new_acir_opcode_positions)
     }
 
     fn for_each_brillig_input_witness(&self, input: &BrilligInputs<F>, mut f: impl FnMut(Witness)) {
@@ -301,10 +310,8 @@ mod tests {
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
         let mut merge_optimizer = MergeExpressionsOptimizer::new();
         let acir_opcode_positions = vec![0; 20];
-        let (opcodes, _) =
-            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
-        let mut optimized_circuit = circuit;
-        optimized_circuit.opcodes = opcodes;
+        let (optimized_circuit, _) =
+            merge_optimizer.eliminate_intermediate_variable(circuit, acir_opcode_positions);
 
         // check that the circuit is still valid after optimization
         assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());

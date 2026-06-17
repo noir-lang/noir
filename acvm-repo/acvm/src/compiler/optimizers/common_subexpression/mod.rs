@@ -226,16 +226,11 @@ fn transform_internal_once<F: AcirField>(
     drop(csat_span);
 
     // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
+    // The optimizer does not add new public inputs.
     let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
-    let (opcodes, new_acir_opcode_positions) =
-        merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
-
-    acir = Circuit {
-        opcodes,
-        // The optimizer does not add new public inputs
-        ..acir
-    };
+    let (acir, new_acir_opcode_positions) =
+        merge_optimizer.eliminate_intermediate_variable(acir, new_acir_opcode_positions);
 
     // 3. Remove redundant range constraints.
     // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
