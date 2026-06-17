@@ -224,18 +224,18 @@
 <a href=#224 id=224 data-nosnippet>224</a>    blocks: <span class="kw-2">&amp;</span>[BasicBlockId],
 <a href=#225 id=225 data-nosnippet>225</a>    variables: <span class="kw-2">&amp;</span>BTreeMap&lt;ValueId, BasicBlockId&gt;,
 <a href=#226 id=226 data-nosnippet>226</a>    dom_tree: <span class="kw-2">&amp;</span>DominatorTree,
-<a href=#227 id=227 data-nosnippet>227</a>) -&gt; HashMap&lt;BasicBlockId, BTreeMap&lt;ValueId, BasicBlockId&gt;&gt; {
+<a href=#227 id=227 data-nosnippet>227</a>) -&gt; HashMap&lt;BasicBlockId, im::OrdMap&lt;ValueId, BasicBlockId&gt;&gt; {
 <a href=#228 id=228 data-nosnippet>228</a>    <span class="comment">// Group variables by their declaration block
 <a href=#229 id=229 data-nosnippet>229</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>vars_by_decl_block: HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt; = HashMap::default();
 <a href=#230 id=230 data-nosnippet>230</a>    <span class="kw">for </span>(var, decl_block) <span class="kw">in </span>variables {
 <a href=#231 id=231 data-nosnippet>231</a>        vars_by_decl_block.entry(<span class="kw-2">*</span>decl_block).or_default().push(<span class="kw-2">*</span>var);
 <a href=#232 id=232 data-nosnippet>232</a>    }
 <a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">let </span><span class="kw-2">mut </span>visible: HashMap&lt;BasicBlockId, BTreeMap&lt;ValueId, BasicBlockId&gt;&gt; = HashMap::default();
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">let </span><span class="kw-2">mut </span>visible: HashMap&lt;BasicBlockId, im::OrdMap&lt;ValueId, BasicBlockId&gt;&gt; = HashMap::default();
 <a href=#235 id=235 data-nosnippet>235</a>    <span class="kw">for </span><span class="kw-2">&amp;</span>block <span class="kw">in </span>blocks {
 <a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">let </span><span class="kw-2">mut </span>vars = <span class="kw">match </span>dom_tree.immediate_dominator(block) {
 <a href=#237 id=237 data-nosnippet>237</a>            <span class="prelude-val">Some</span>(idom) =&gt; visible[<span class="kw-2">&amp;</span>idom].clone(),
-<a href=#238 id=238 data-nosnippet>238</a>            <span class="prelude-val">None </span>=&gt; BTreeMap::new(),
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="prelude-val">None </span>=&gt; im::OrdMap::new(),
 <a href=#239 id=239 data-nosnippet>239</a>        };
 <a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(declared_here) = vars_by_decl_block.get(<span class="kw-2">&amp;</span>block) {
 <a href=#241 id=241 data-nosnippet>241</a>            <span class="kw">for </span>var <span class="kw">in </span>declared_here {
@@ -253,7 +253,7 @@
 <a href=#253 id=253 data-nosnippet>253</a>/// For all other blocks, the entry value is inherited from the predecessor's exit state.
 <a href=#254 id=254 data-nosnippet>254</a></span><span class="kw">fn </span>add_block_params_and_find_exit_states(
 <a href=#255 id=255 data-nosnippet>255</a>    blocks: <span class="kw-2">&amp;</span>[BasicBlockId],
-<a href=#256 id=256 data-nosnippet>256</a>    visible_vars: <span class="kw-2">&amp;</span>HashMap&lt;BasicBlockId, BTreeMap&lt;ValueId, BasicBlockId&gt;&gt;,
+<a href=#256 id=256 data-nosnippet>256</a>    visible_vars: <span class="kw-2">&amp;</span>HashMap&lt;BasicBlockId, im::OrdMap&lt;ValueId, BasicBlockId&gt;&gt;,
 <a href=#257 id=257 data-nosnippet>257</a>    param_locations: <span class="kw-2">&amp;</span>ParamLocations,
 <a href=#258 id=258 data-nosnippet>258</a>    inserter: <span class="kw-2">&amp;mut </span>FunctionInserter,
 <a href=#259 id=259 data-nosnippet>259</a>    block_states: <span class="kw-2">&amp;mut </span>BlockStates,
@@ -283,7 +283,7 @@
 <a href=#283 id=283 data-nosnippet>283</a>/// - If this block is in the variable's IDF: add a fresh block parameter
 <a href=#284 id=284 data-nosnippet>284</a>/// - Otherwise: inherit the value from a visited predecessor's exit state
 <a href=#285 id=285 data-nosnippet>285</a></span><span class="kw">fn </span>compute_entry_state(
-<a href=#286 id=286 data-nosnippet>286</a>    visible_vars: <span class="kw-2">&amp;</span>BTreeMap&lt;ValueId, BasicBlockId&gt;,
+<a href=#286 id=286 data-nosnippet>286</a>    visible_vars: <span class="kw-2">&amp;</span>im::OrdMap&lt;ValueId, BasicBlockId&gt;,
 <a href=#287 id=287 data-nosnippet>287</a>    param_locations: <span class="kw-2">&amp;</span>ParamLocations,
 <a href=#288 id=288 data-nosnippet>288</a>    block: BasicBlockId,
 <a href=#289 id=289 data-nosnippet>289</a>    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
