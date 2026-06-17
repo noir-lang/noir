@@ -49,6 +49,7 @@
 
 use std::collections::hash_map::Entry;
 
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -127,9 +128,7 @@ impl SpillManager {
     ///    (only `Permanent` and `PermanentReloaded` records may survive).
     /// 2. Restores permanently-spilled values by marking them as currently spilled.
     /// 3. Removes spilled values from the live-in set (they have no register).
-    /// 4. Updates the LRU: retains existing entries still live-in and not spilled
-    ///    (preserving eviction hints from the previous block), then appends any
-    ///    new live-in values sorted by [`ValueId`] for determinism.
+    /// 4. Updates the LRU: rebuilds the LRU from the live-in set in [`ValueId`] order.
     pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
         // No transient spills should survive across block boundaries.
         assert!(
@@ -271,25 +270,10 @@ impl SpillManager {
         self.records.get(value_id).filter(|r| r.status.is_spilled())
     }
 
-    /// Reset the LRU for a new block, retaining ordering from the previous block.
-    ///
-    /// Entries already in `lru_order` that are still live-in and not spilled are kept
-    /// in their existing order (preserving eviction hints from the previous block).
-    /// New live-in values not yet in the LRU are appended, sorted by [`ValueId`] for
-    /// determinism.
+    /// Rebuild `lru_order` for a new block from scratch, retaining only live-in
+    /// values that are not currently spilled, in deterministic ValueId order.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
-        let records = &self.records;
-        let is_spilled = |v: &ValueId| records.get(v).is_some_and(|r| r.status.is_spilled());
-
-        // Retain existing entries that are still live-in and not spilled.
-        self.lru_order.retain(|v| live_in.contains(v) && !is_spilled(v));
-
-        // Collect live-in values not already present in LRU, sorted for determinism.
-        let existing: HashSet<ValueId> = self.lru_order.iter().copied().collect();
-        let mut new_entries: Vec<ValueId> =
-            live_in.iter().copied().filter(|v| !existing.contains(v) && !is_spilled(v)).collect();
-        new_entries.sort();
-        self.lru_order.extend(new_entries);
+        self.lru_order = live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
     }
 
     /// Record a value as permanently spilled.
