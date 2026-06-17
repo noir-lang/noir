@@ -61,13 +61,23 @@ impl Integer {
         }
     }
 
+    /// Returns whether this integer is strictly less than zero.
+    ///
+    /// Only the signed variants can be negative. Unsigned integers cannot represent a negative
+    /// value, and a Noir `Field` has no signedness: `Integer::Field` wraps a `FieldElement`,
+    /// which is an element of a prime field with no notion of sign. Both therefore return `false`.
     pub fn is_negative(&self) -> bool {
         match self {
             Integer::I8(x) => *x < 0,
             Integer::I16(x) => *x < 0,
             Integer::I32(x) => *x < 0,
             Integer::I64(x) => *x < 0,
-            _ => false, // Unsigned or Field types are never negative
+            Integer::Field(_)
+            | Integer::U8(_)
+            | Integer::U16(_)
+            | Integer::U32(_)
+            | Integer::U64(_)
+            | Integer::U128(_) => false,
         }
     }
 

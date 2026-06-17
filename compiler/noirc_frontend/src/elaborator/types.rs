@@ -23,7 +23,7 @@ use crate::{
     hir::{
         comptime::{Integer, Value, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
-        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        def_map::{ModuleDefId, ModuleId, Namespace, fully_qualified_module_path},
         resolution::{
             errors::ResolverError,
             import::PathResolutionError,
@@ -686,7 +686,11 @@ impl Elaborator<'_> {
 
     /// Reports an error if `typ` is a comptime-only type and we are not in a comptime item
     #[tracing::instrument(level = "trace", skip_all)]
-    fn check_comptime_type_in_non_comptime_item(&mut self, typ: &Type, location: Location) {
+    pub(super) fn check_comptime_type_in_non_comptime_item(
+        &mut self,
+        typ: &Type,
+        location: Location,
+    ) {
         if self.in_comptime_context() {
             return;
         }
@@ -1401,9 +1405,22 @@ impl Elaborator<'_> {
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
-        let path_resolution = self.use_path_as_type(path.clone()).ok()?;
+        // This is a speculative probe: the path may turn out not to be a trait static method at
+        // all (e.g. a plain `N()` call where `N` is also a struct or imported type). Resolving it
+        // marks the segments along the way as used/referenced, but a *failed* probe must not leave
+        // those marks behind — otherwise a same-named type or import is wrongly considered used.
+        // When it *does* resolve to a trait static method (e.g. `T::from(..)`), this resolution is
+        // the only thing that marks the trait/type used, so the marks must be kept.
+        self.speculatively(|this| this.resolve_trait_static_method_inner(path))
+    }
+
+    fn resolve_trait_static_method_inner(
+        &mut self,
+        path: &TypedPath,
+    ) -> Option<TraitPathResolution> {
+        let path_resolution = self.resolve_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
-        let meta = self.interner.try_function_meta(&func_id)?;
+        let meta = self.try_function_meta(func_id)?;
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
         let method = the_trait.find_method(path.last_name(), self.interner)?;
@@ -2890,7 +2907,7 @@ impl Elaborator<'_> {
             .collect();
 
         for (_, trait_name) in &traits_in_scope {
-            self.usage_tracker.mark_as_used(module_id, trait_name);
+            self.usage_tracker.mark_as_used(module_id, trait_name, Namespace::Type);
         }
 
         if traits_in_scope.is_empty() {

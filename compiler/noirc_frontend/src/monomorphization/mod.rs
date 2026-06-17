@@ -1875,7 +1875,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Not all generic arguments may be used in a datatype's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
-                    Self::check_type(arg, location)?;
+                    Self::check_type_helper(arg, location, seen_types)?;
                 }
 
                 if !seen_types.insert(typ.clone()) {
@@ -1913,7 +1913,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Similar to the struct case above: generics of an alias might not end up being
                 // used in the type that is aliased.
                 for arg in args {
-                    Self::check_type(arg, location)?;
+                    Self::check_type_helper(arg, location, seen_types)?;
                 }
 
                 Self::convert_type_helper(&def.borrow().get_type(args), location, seen_types)?
@@ -1977,105 +1977,39 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
-    /// Similar to `convert_type` but only checks for errors and does not actually convert to a
-    /// [`ast::Type`].
-    ///
-    /// This function also does not recur completely on a type (for example, it does
-    /// not check fields of a struct) to prevent infinite recursion.
+    /// Checks that `typ` is a valid type to monomorphize, returning the same errors
+    /// `convert_type` would, without producing an [ast::Type].
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
+        Self::check_type_helper(typ, location, &mut HashSet::default())
+    }
+
+    fn check_type_helper(
+        typ: &HirType,
+        location: Location,
+        seen_types: &mut HashSet<Type>,
+    ) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
-            HirType::FieldElement
-            | HirType::Integer(..)
-            | HirType::Bool
-            | HirType::String(..)
-            | HirType::Unit
+            // `convert_type` cannot lower these: it panics on `Forall`/`TraitAsType` and emits
+            // dedicated errors for `Error`/`Quoted`. `check_type` runs in contexts that
+            // legitimately see them (e.g. unresolved placeholders), so tolerate them here.
+            HirType::Forall(..)
             | HirType::TraitAsType(..)
-            | HirType::Forall(_, _)
             | HirType::Error
-            | HirType::Constant(_)
             | HirType::Quoted(_) => Ok(()),
+            // A `CheckedCast` over numeric generics must still have its cast validated, but its
+            // `to` side is a type-level numeric value that `convert_type` cannot lower, so check
+            // it rather than convert it.
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
-                Self::check_type(to, location)
+                Self::check_type_helper(to, location, seen_types)
             }
-
-            HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(element, _length) => {
-                if element.contains_vector() {
-                    return Err(MonomorphizationError::NestedVectors { location });
-                }
-                Self::check_type(element.as_ref(), location)
-            }
-            HirType::Vector(element) => {
-                if element.contains_vector() {
-                    return Err(MonomorphizationError::NestedVectors { location });
-                }
-                Self::check_type(element.as_ref(), location)
-            }
-            HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                if let TypeBinding::Bound(binding) = &*type_var.borrow() {
-                    return Self::check_type(binding, location);
-                }
-
-                Ok(())
-            }
-            HirType::TypeVariable(binding) => {
-                let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        return Self::check_type(binding, location);
-                    }
-                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
-                };
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                let Some(default) = type_var_kind.default_type() else {
-                    return Err(MonomorphizationError::NoDefaultType { location });
-                };
-
-                Self::check_type(&default, location)
-            }
-
-            HirType::DataType(_def, args) => {
-                for arg in args {
-                    Self::check_type(arg, location)?;
-                }
-
-                Ok(())
-            }
-
-            HirType::Alias(_def, args) => {
-                for arg in args {
-                    Self::check_type(arg, location)?;
-                }
-
-                Ok(())
-            }
-
-            HirType::Tuple(fields) => {
-                for field in fields {
-                    Self::check_type(field, location)?;
-                }
-
-                Ok(())
-            }
-
-            HirType::Function(args, ret, env, _) => {
-                for arg in args {
-                    Self::check_type(arg, location)?;
-                }
-
-                Self::check_type(ret, location)?;
-                Self::check_type(env, location)
-            }
-
-            HirType::Reference(element, _mutable) => Self::check_type(element, location),
-            HirType::InfixExpr(lhs, _, rhs, _) => {
-                Self::check_type(lhs, location)?;
-                Self::check_type(rhs, location)
-            }
+            // Type-level numeric values — a `Constant`, an `InfixExpr`, or a numeric generic —
+            // are not lowerable runtime value types and would hit `convert_type`'s
+            // `unreachable!`. They reach `check_type` through numeric generic bindings, so
+            // tolerate them here rather than delegating.
+            _ if matches!(typ.kind(), Kind::Numeric(..)) => Ok(()),
+            _ => Self::convert_type_helper(typ.as_ref(), location, seen_types).map(|_| ()),
         }
     }
 
