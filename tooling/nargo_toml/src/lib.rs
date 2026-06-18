@@ -33,7 +33,7 @@ use git::{clone_git_repo, lock_git_deps};
 /// * `/workspace/package`,
 /// * `/workspace`.
 ///
-/// Returns the [PathBuf] of the `Nargo.toml` file if found, otherwise returns None.
+/// Returns the [`PathBuf`] of the `Nargo.toml` file if found, otherwise returns None.
 ///
 /// It will return innermost `Nargo.toml` file, which is the one closest to the current directory.
 /// For example, if the current directory is `/workspace/package/src`, then this function
@@ -47,18 +47,18 @@ pub fn find_file_manifest(current_path: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
+/// Returns the [`PathBuf`] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 /// When `workspace` is `true` it returns the topmost directory, when `false` the innermost one.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if no parent directories of `current_path` contain a manifest file.
 pub fn find_root(current_path: &Path, workspace: bool) -> Result<PathBuf, ManifestError> {
     if workspace { find_package_root(current_path) } else { find_file_root(current_path) }
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// Returns the [`PathBuf`] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
 /// returning at the innermost directory found, i.e. the one corresponding to the package that contains the `current_path`.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if no parent directories of `current_path` contain a manifest file.
 pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     match find_file_manifest(current_path) {
         Some(manifest_path) => {
@@ -71,10 +71,10 @@ pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     }
 }
 
-/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
+/// Returns the [`PathBuf`] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
 /// returning the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
-/// Returns a [ManifestError] if none of the ancestor directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if none of the ancestor directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let root = path_root(current_path);
     let manifest_path = find_package_manifest(&root, current_path)?;
@@ -104,9 +104,9 @@ fn path_root(path: &Path) -> PathBuf {
     }
 }
 
-/// Returns the [PathBuf] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
+/// Returns the [`PathBuf`] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [`ManifestError`] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_manifest(
     root_path: &Path,
     current_path: &Path,
@@ -133,9 +133,9 @@ pub fn find_package_manifest(
     }
 }
 
-/// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
+/// Returns the [`PathBuf`] of the `Nargo.toml` file in the `current_path` directory.
 ///
-/// Returns a [ManifestError] if `current_path` does not contain a manifest file.
+/// Returns a [`ManifestError`] if `current_path` does not contain a manifest file.
 pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let toml_path = current_path.join("Nargo.toml");
     if toml_path.exists() {
@@ -276,7 +276,7 @@ impl TryFrom<&str> for Config {
     }
 }
 
-/// Tracks the root_dir of a `Nargo.toml` and the contents inside the file.
+/// Tracks the `root_dir` of a `Nargo.toml` and the contents inside the file.
 pub struct NargoToml {
     pub root_dir: PathBuf,
     pub config: Config,
@@ -475,6 +475,11 @@ fn resolve_package_from_toml(
     toml_path: &Path,
     processed: &mut Vec<String>,
 ) -> Result<Package, ManifestError> {
+    // Normalize the path so a manifest reached through different spellings of
+    // the same location (e.g. `a/../b` and `b`) maps to a single entry. This
+    // keeps cycle detection consistent with `read_toml`, which derives each
+    // package's root directory from the normalized path.
+    let toml_path = toml_path.normalize();
     // Checks for cyclic dependencies
     let str_path = toml_path.to_str().expect("ICE - path is empty");
     if processed.contains(&str_path.to_string()) {
@@ -494,16 +499,14 @@ fn resolve_package_from_toml(
         processed.push(str.to_string());
     }
 
-    let nargo_toml = read_toml(toml_path)?;
+    let nargo_toml = read_toml(&toml_path)?;
 
     let result = match nargo_toml.config {
         Config::Package { package_config } => {
             let assume_default_entry = false;
             package_config.resolve_to_package(&nargo_toml.root_dir, processed, assume_default_entry)
         }
-        Config::Workspace { .. } => {
-            Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
-        }
+        Config::Workspace { .. } => Err(ManifestError::UnexpectedWorkspace(toml_path.clone())),
     };
     let pos =
         processed.iter().position(|toml| toml == str_path).expect("added package must be here");
@@ -750,5 +753,48 @@ mod tests {
         assert_ok("project/workspace/packages/bar", false, "project/workspace/packages/bar");
         assert_ok("project/examples/baz/src", true, "project/examples/baz");
         assert_ok("project/examples/baz/src", false, "project/examples/baz");
+    }
+
+    /// A dependency cycle should be reported against normalized paths, no matter
+    /// how the cyclic `path` dependencies are spelled in each `Nargo.toml`.
+    #[test]
+    fn cyclic_dependency_is_reported_with_normalized_paths() {
+        use crate::{PackageSelection, resolve_workspace_from_toml};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        let write_lib = |name: &str, dep_name: &str, dep_path: &str| {
+            let dir = root.join(name);
+            std::fs::create_dir_all(dir.join("src")).unwrap();
+            std::fs::write(
+                dir.join("Nargo.toml"),
+                format!(
+                    "[package]\nname = \"{name}\"\ntype = \"lib\"\nauthors = [\"\"]\n\n[dependencies]\n{dep_name} = {{ path = \"{dep_path}\" }}\n"
+                ),
+            )
+            .unwrap();
+            std::fs::write(dir.join("src").join("lib.nr"), "").unwrap();
+        };
+
+        // `a` depends on `b` and `b` depends on `a`, forming a cycle. The `path`
+        // dependencies are spelled with `..` segments so the raw and normalized
+        // forms of each manifest path differ.
+        write_lib("a", "b", "../b");
+        write_lib("b", "a", "../a");
+
+        let error =
+            resolve_workspace_from_toml(&root.join("a/Nargo.toml"), PackageSelection::All, None)
+                .err()
+                .expect("a <-> b is a dependency cycle");
+
+        let ManifestError::CyclicDependency { cycle } = error else {
+            panic!("expected a cyclic dependency error, got: {error:?}");
+        };
+
+        assert!(
+            !cycle.contains(".."),
+            "cycle should be reported with normalized paths, got: {cycle}"
+        );
     }
 }

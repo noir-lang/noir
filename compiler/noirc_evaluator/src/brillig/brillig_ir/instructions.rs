@@ -20,8 +20,8 @@ use super::{
     registers::RegisterAllocator,
 };
 
-/// Low level instructions of the brillig IR, used by the brillig ir codegens and brillig_gen
-/// Printed using debug_slow
+/// Low level instructions of the brillig IR, used by the brillig ir codegens and `brillig_gen`
+/// Printed using `debug_slow`
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Processes a binary instruction according `operation`.
     ///
@@ -36,6 +36,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) {
         self.debug_show.binary_instruction(lhs.address, rhs.address, result.address, operation);
         self.binary(lhs, rhs, result, operation);
+    }
+
+    /// Computes `left % right` for unsigned operands, writing the result to `result`.
+    pub(crate) fn unsigned_modulo_instruction(
+        &mut self,
+        result: SingleAddrVariable,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+    ) {
+        self.debug_show.modulo_instruction(left.address, right.address, result.address);
+        self.modulo(result, left, right);
     }
 
     /// Processes a not instruction.
@@ -123,10 +134,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             result.bit_size,
             operation
         );
+        assert!(
+            lhs.bit_size == rhs.bit_size,
+            "Binary operation {operation:?} on mismatched bit sizes: lhs {}, rhs {}",
+            lhs.bit_size,
+            rhs.bit_size
+        );
 
-        if let BrilligBinaryOp::Modulo = operation {
-            self.modulo(result, lhs, rhs);
-        } else if is_field_op {
+        if is_field_op {
             self.push_opcode(BrilligOpcode::BinaryFieldOp {
                 op: operation.into(),
                 destination: result.address,
@@ -398,7 +413,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.constant(result_pointer, bit_size, constant, true);
     }
 
-    /// Pushes a [IndirectConst][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
+    /// Pushes a [`IndirectConst`][BrilligOpcode::IndirectConst] or [Const][BrilligOpcode::Const] opcode.
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
@@ -445,7 +460,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         register.map(SingleAddrVariable::new_usize)
     }
 
-    /// Pushes a [CalldataCopy][BrilligOpcode::CalldataCopy] opcode to copy the calldata
+    /// Pushes a [`CalldataCopy`][BrilligOpcode::CalldataCopy] opcode to copy the calldata
     /// at a specific offset with and size to the `destination` address.
     pub(super) fn calldata_copy_instruction(
         &mut self,
@@ -488,8 +503,6 @@ pub enum BrilligBinaryOp {
     Xor,
     Shl,
     Shr,
-    // Modulo operation requires more than one brillig opcode
-    Modulo,
 }
 
 impl From<BrilligBinaryOp> for BinaryFieldOp {
@@ -503,7 +516,13 @@ impl From<BrilligBinaryOp> for BinaryFieldOp {
             BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
-            _ => panic!("Unsupported operation: {operation:?} on a field"),
+            BrilligBinaryOp::And
+            | BrilligBinaryOp::Or
+            | BrilligBinaryOp::Xor
+            | BrilligBinaryOp::Shl
+            | BrilligBinaryOp::Shr => {
+                panic!("Unsupported operation: {operation:?} on a field")
+            }
         }
     }
 }
@@ -523,7 +542,9 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Xor => BinaryIntOp::Xor,
             BrilligBinaryOp::Shl => BinaryIntOp::Shl,
             BrilligBinaryOp::Shr => BinaryIntOp::Shr,
-            _ => panic!("Unsupported operation: {operation:?} on an integer"),
+            BrilligBinaryOp::FieldDiv => {
+                panic!("Unsupported operation: {operation:?} on an integer")
+            }
         }
     }
 }

@@ -120,10 +120,10 @@ fn format_merged_import(segment: Segment, import_tree: ImportTree) -> ChunkGroup
 #[derive(Debug, PartialEq, Eq)]
 enum Segment {
     /// Represents the end of a path.
-    /// This is needed because we have want to merge "foo" and "foo::bar",
-    /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", losing "foo",
-    /// when we actually want "foo::{self, bar}".
+    /// This is needed because we have want to merge "foo" and "`foo::bar`",
+    /// we need to know that "foo" is the end of a path, and "`foo::bar`" is another one.
+    /// If we don't, merging "foo" and "`foo::bar`" will result in just "`foo::bar`", losing "foo",
+    /// when we actually want "`foo::{self`, bar}".
     SelfReference,
     Crate,
     Super,
@@ -190,10 +190,10 @@ impl Ord for Segment {
 /// An import tree to represent merged imports.
 /// For example for the given imports:
 ///
-/// use foo::bar::{baz, qux};
-/// use foo::another;
+/// use `foo::bar::{baz`, qux};
+/// use `foo::another`;
 ///
-/// an ImportTree that represents the merged imports would be:
+/// an `ImportTree` that represents the merged imports would be:
 ///
 /// {
 ///     "foo" => {
@@ -236,7 +236,7 @@ impl ImportTree {
     /// will be simplified to:
     ///
     /// {
-    ///     "foo::bar" => {"baz", "qux"}
+    ///     "`foo::bar`" => {"baz", "qux"}
     /// }
     fn simplify(self) -> ImportTree {
         let mut new_tree = ImportTree::new();
@@ -254,7 +254,7 @@ impl ImportTree {
     }
 }
 
-/// Combines all use trees to form a single ImportTree.
+/// Combines all use trees to form a single `ImportTree`.
 fn merge_imports(imports: Vec<UseTree>) -> ImportTree {
     let mut tree = ImportTree::new();
     merge_imports_in_tree(imports, &mut tree);
@@ -265,7 +265,13 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
     for import in imports {
         let mut tree = match import.prefix.kind {
             PathKind::Crate => tree.insert(Segment::Crate),
-            PathKind::Super => tree.insert(Segment::Super),
+            PathKind::Super(extras) => {
+                let mut subtree = tree.insert(Segment::Super);
+                for _ in 0..extras {
+                    subtree = subtree.insert(Segment::Super);
+                }
+                subtree
+            }
             PathKind::Absolute => tree.insert(Segment::Absolute),
             PathKind::Plain => &mut tree,
             PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
@@ -350,6 +356,13 @@ mod tests {
     fn format_simple_use_with_path_kind() {
         let src = "use  super :: foo ;";
         let expected = "use super::foo;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_merged_use_with_stacked_super() {
+        let src = "use super::super::foo; use super::super::bar;";
+        let expected = "use super::super::{bar, foo};\n";
         assert_format(src, expected);
     }
 

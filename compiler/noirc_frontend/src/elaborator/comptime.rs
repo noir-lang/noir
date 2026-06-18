@@ -118,7 +118,7 @@ impl<'context> Elaborator<'context> {
 
     /// Elaborate an expression from the middle of a comptime scope within a module.
     ///
-    /// Similar to [Self::elaborate_item_from_comptime_in_function], but for module-level comptime code.
+    /// Similar to [`Self::elaborate_item_from_comptime_in_function`], but for module-level comptime code.
     pub fn elaborate_item_from_comptime_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
@@ -197,22 +197,28 @@ impl<'context> Elaborator<'context> {
         result
     }
 
-    /// Populate the elaborator's scope with all comptime variables.
+    /// Populate the elaborator's scope with the comptime variables visible to the current function.
     ///
-    /// When elaborating code generated at comptime, we need to make all comptime
-    /// variables available in the runtime scope. We iterate from global to local
-    /// scope so that more local definitions naturally shadow outer ones.
+    /// When elaborating code generated at comptime, we need to make the comptime variables in scope
+    /// available in the runtime scope. The visible scopes are the global scope together with those
+    /// at or above the comptime scope floor; scopes belonging to enclosing callers are skipped, just
+    /// as the interpreter skips them. We iterate from global to local scope so that more local
+    /// definitions naturally shadow outer ones.
     ///
     /// Within a single scope, bindings are registered in ascending
-    /// [crate::node_interner::DefinitionId] order. `DefinitionId`s are minted monotonically
+    /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
     /// as definitions are collected, so this matches source order: when a name is shadowed
     /// within a comptime block (`let x = ...; let x = ...;`) the last `let` is registered
     /// last and wins, just as it does at runtime. Iterating the scope's `FxHashMap`
     /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
-        for scope in &self.interner.comptime_scopes {
-            let mut definition_ids: Vec<_> = scope.keys().copied().collect();
+        let floor = self.interner.comptime_scope_floor;
+        let len = self.interner.comptime_scopes.len();
+
+        for index in std::iter::once(0).chain(floor..len) {
+            let mut definition_ids: Vec<_> =
+                self.interner.comptime_scopes[index].keys().copied().collect();
             definition_ids.sort();
             for definition_id in &definition_ids {
                 let definition = self.interner.definition(*definition_id);
@@ -325,15 +331,15 @@ impl<'context> Elaborator<'context> {
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for ((object_type, _impl_module), impls_in_module) in impls {
-            for (generics, where_clause, type_location, methods) in impls_in_module {
+            for unresolved_impl in impls_in_module {
                 let impl_target = AttributeImplTarget {
                     object_type: object_type.clone(),
-                    generics: generics.clone(),
-                    where_clause: where_clause.clone(),
-                    type_location: *type_location,
+                    generics: unresolved_impl.generics.clone(),
+                    where_clause: unresolved_impl.where_clause.clone(),
+                    type_location: unresolved_impl.object_type_location,
                 };
                 self.collect_attributes_on_functions(
-                    std::slice::from_ref(methods),
+                    std::slice::from_ref(&unresolved_impl.methods),
                     Some(&impl_target),
                     attributes_to_run,
                 );
@@ -423,46 +429,48 @@ impl<'context> Elaborator<'context> {
         impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
-        self.local_module = Some(attribute_context.attribute_module);
+        self.in_local_module(attribute_context.attribute_module, |this| {
+            let kind = match &attribute.name {
+                MetaAttributeName::Path(path) => ExpressionKind::Variable(path.clone()),
+                MetaAttributeName::Resolved(expr_id) => ExpressionKind::Resolved(*expr_id),
+            };
 
-        let kind = match &attribute.name {
-            MetaAttributeName::Path(path) => ExpressionKind::Variable(path.clone()),
-            MetaAttributeName::Resolved(expr_id) => ExpressionKind::Resolved(*expr_id),
-        };
+            let function = Expression { kind, location };
+            let arguments = attribute.arguments.clone();
 
-        let function = Expression { kind, location };
-        let arguments = attribute.arguments.clone();
+            // Elaborate the function, rolling back any errors generated in case it is unknown
+            let error_count = this.errors.len();
+            let function_string = function.to_string();
+            let function = this.elaborate_expression(function).0;
+            this.errors.truncate(error_count);
 
-        // Elaborate the function, rolling back any errors generated in case it is unknown
-        let error_count = self.errors.len();
-        let function_string = function.to_string();
-        let function = self.elaborate_expression(function).0;
-        self.errors.truncate(error_count);
+            let definition_id = match this.interner.expression(&function) {
+                HirExpression::Ident(ident, _) => ident.id,
+                _ => {
+                    let error = ResolverError::AttributeFunctionNotInScope {
+                        name: function_string,
+                        location,
+                    };
+                    return Err(error.into());
+                }
+            };
 
-        let definition_id = match self.interner.expression(&function) {
-            HirExpression::Ident(ident, _) => ident.id,
-            _ => {
-                let error =
-                    ResolverError::AttributeFunctionNotInScope { name: function_string, location };
-                return Err(error.into());
-            }
-        };
+            let definition = this.interner.definition(definition_id);
 
-        let definition = self.interner.definition(definition_id);
+            let DefinitionKind::Function(function) = definition.kind else {
+                return Err(ResolverError::NonFunctionInAnnotation { location }.into());
+            };
 
-        let DefinitionKind::Function(function) = definition.kind else {
-            return Err(ResolverError::NonFunctionInAnnotation { location }.into());
-        };
-
-        attributes_to_run.push(CollectedAttribute {
-            function,
-            item,
-            arguments,
-            context: attribute_context,
-            impl_target: impl_target.cloned(),
-            location,
-        });
-        Ok(())
+            attributes_to_run.push(CollectedAttribute {
+                function,
+                item,
+                arguments,
+                context: attribute_context,
+                impl_target: impl_target.cloned(),
+                location,
+            });
+            Ok(())
+        })
     }
 
     /// Execute an attribute function on an item.
@@ -485,53 +493,54 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
         // Arguments must be resolved relative to the module where the attribute happens
-        self.local_module = Some(attribute_context.attribute_module);
+        self.in_local_module(attribute_context.attribute_module, |this| {
+            let mut interpreter = this.setup_interpreter();
 
-        let mut interpreter = self.setup_interpreter();
+            let mut arguments = Self::handle_attribute_arguments(
+                &mut interpreter,
+                &item,
+                function,
+                arguments,
+                location,
+            )?;
 
-        let mut arguments = Self::handle_attribute_arguments(
-            &mut interpreter,
-            &item,
-            function,
-            arguments,
-            location,
-        )?;
+            arguments.insert(0, (item, location));
 
-        arguments.insert(0, (item, location));
+            let result =
+                interpreter.call_function(function, arguments, TypeBindings::default(), location);
 
-        let result =
-            interpreter.call_function(function, arguments, TypeBindings::default(), location);
+            let value = result.map_err(CompilationError::from)?;
 
-        let value = result.map_err(CompilationError::from)?;
+            this.debug_comptime(location, |interner, file_manager| {
+                value.display(interner, file_manager).to_string()
+            });
 
-        self.debug_comptime(location, |interner, file_manager| {
-            value.display(interner, file_manager).to_string()
-        });
+            if value != Value::Unit {
+                // Items must be added in the correct module (for a module attribute, this will be
+                // the module itself; for a function, it will be the module where the function is
+                // defined, etc.)
+                this.local_module = Some(attribute_context.module);
 
-        if value != Value::Unit {
-            // Items must be added in the correct module (for a module attribute, this will be the
-            // module itself; for a function, it will be the module where the function is defined, etc.)
-            self.local_module = Some(attribute_context.module);
+                let items =
+                    value.into_top_level_items(location, this).map_err(CompilationError::from)?;
+                this.add_items(items, impl_target, generated_items, location);
+            }
 
-            let items =
-                value.into_top_level_items(location, self).map_err(CompilationError::from)?;
-            self.add_items(items, impl_target, generated_items, location);
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Elaborate and type-check arguments passed to an attribute function.
     ///
     /// Attribute functions have a special calling convention:
-    /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
+    /// - First parameter must match the type of the attributed item (e.g., `FunctionDefinition`)
     /// - Remaining parameters are provided explicitly in the attribute syntax
     /// - If the function has `#[varargs]`, extra arguments are collected into a vector
     ///
     /// This function:
     /// 1. Validates the first parameter matches the item type
     /// 2. Elaborates and type-checks each argument expression
-    /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
+    /// 3. Handles special cases like [`TraitDefinition`][crate::QuotedType::TraitDefinition] arguments
     /// 4. Collects varargs into a vector if applicable
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
@@ -661,7 +670,7 @@ impl<'context> Elaborator<'context> {
     /// Add a generated item to the collected items (unquoting) for further elaboration.
     ///
     /// Supported item kinds:
-    /// - [Functions][ItemKind::Function], [TraitImpls][ItemKind::TraitImpl],
+    /// - [Functions][ItemKind::Function], [`TraitImpls`][ItemKind::TraitImpl],
     ///   [Globals][ItemKind::Global], [Structs][ItemKind::Struct],
     ///   [Enums][ItemKind::Enum], [Impls][ItemKind::Impl]
     ///
@@ -692,6 +701,7 @@ impl<'context> Elaborator<'context> {
                     generics: target.generics.clone(),
                     where_clause: target.where_clause.clone(),
                     methods: vec![(Documented::new(function, item.doc_comments), location)],
+                    doc_comments: Vec::new(),
                 };
                 let module = self.module_id();
                 dc_mod::collect_impl(
@@ -835,6 +845,20 @@ impl<'context> Elaborator<'context> {
             _ => None,
         };
         Interpreter::new(self, current_function)
+    }
+
+    /// Runs `f` with an interpreter set up in the context of `module`, restoring the
+    /// elaborator's previous module afterwards (on every exit path).
+    pub(crate) fn setup_interpreter_for<T>(
+        &mut self,
+        module: ModuleId,
+        f: impl FnOnce(&mut Interpreter) -> T,
+    ) -> T {
+        let old_module = self.replace_module(module);
+        let mut interpreter = self.setup_interpreter();
+        let result = f(&mut interpreter);
+        self.restore_module(old_module);
+        result
     }
 
     /// Debug helper to print comptime evaluation results.

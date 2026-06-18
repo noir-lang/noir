@@ -200,7 +200,7 @@ fn read_workspace(
     Ok(workspace)
 }
 
-/// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+/// "`with_workspace`", but use a dummy workspace when '`debug_compile_stdin`' is enabled
 #[allow(clippy::field_reassign_with_default)]
 fn compile_with_maybe_dummy_workspace(
     cmd: compile_cmd::CompileCommand,

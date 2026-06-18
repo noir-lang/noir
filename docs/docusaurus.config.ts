@@ -7,6 +7,15 @@ const darkTheme = themes.dracula;
 import math from 'remark-math';
 import katex from 'rehype-katex';
 
+// noindex every served documentation version except the latest stable (`versions[0]`, the
+// default served at the site root): the unreleased `dev` version and the older stable
+// snapshots. This stops search engines indexing duplicate copies of the docs and treats
+// the latest version as canonical. Docusaurus also omits noindexed pages from the sitemap.
+const docsVersions = {
+  current: { label: 'dev', path: 'dev', noIndex: true },
+  ...Object.fromEntries(versions.slice(1).map((v: string) => [v, { noIndex: true }])),
+};
+
 export default {
   title: 'Noir Documentation',
   tagline: 'The Universal ZK Circuit Language',
@@ -31,12 +40,7 @@ export default {
           routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
-          versions: {
-            current: {
-              label: 'dev',
-              path: 'dev',
-            },
-          },
+          versions: docsVersions,
           editUrl: ({ versionDocsDirPath, docPath }) =>
             `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath.replace('processed-docs', 'docs')}/${docPath}`,
         },
