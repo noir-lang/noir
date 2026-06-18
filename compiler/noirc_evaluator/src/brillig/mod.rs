@@ -3,7 +3,7 @@
 //!
 //! # Usage
 //!
-//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! Brillig generation is performed by calling the [`Ssa::to_brillig`] method.
 //! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 mod brillig_check;
 pub(crate) mod brillig_gen;
@@ -487,7 +487,7 @@ mod spill_runtime {
             .collect()
     }
 
-    /// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (start_offset=2).
+    /// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (`start_offset=2`).
     /// Two params (v0, v1) use 2 slots, leaving 2 free. Computing v2, v3 fills the
     /// frame. Computing v4 requires a constant temp that pushes past 4, forcing a spill.
     ///

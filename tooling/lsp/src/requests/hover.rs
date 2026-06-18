@@ -206,6 +206,53 @@ pub fn caller() {
     }
 
     #[test]
+    async fn hover_on_function_with_where_clause() {
+        assert_hover(
+            r#"pub trait Foo {}
+
+pub fn takes_foo<T>(value: T) where T: Foo {
+    let _ = value;
+}
+
+pub fn caller() {
+    >|<takes_foo(1);
+}"#,
+            r#"    two
+    pub fn takes_foo<T>(value: T) where T: Foo"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_method_shows_only_its_own_where_clause_not_the_impls() {
+        // For an inherent impl, the compiler merges the impl's `where` clause into each
+        // method's own constraints during collection. Hovering a method should show only the
+        // method's own `where` clause (`U: Foo`), not the impl's (`T: Foo`), which belongs on
+        // the impl shown above the signature.
+        assert_hover(
+            r#"pub trait Foo {}
+
+pub struct Wrapper<T> {
+    value: T,
+}
+
+impl<T> Wrapper<T> where T: Foo {
+    pub fn combine<U>(self, other: U) where U: Foo {
+        let _ = (self, other);
+    }
+}
+
+pub fn caller(w: Wrapper<u32>) {
+    w.>|<combine(1);
+}"#,
+            r#"    two::Wrapper
+    impl<T> Wrapper<T>
+    pub fn combine<U>(self, other: U) where U: Foo"#,
+        )
+        .await;
+    }
+
+    #[test]
     async fn hover_on_struct_method() {
         // cSpell:disable
         assert_hover(

@@ -107,8 +107,7 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(generic.kind())
                     });
                     let mut errors = Vec::new();
-                    let type_alias_ref = self.interner.get_type_alias(type_alias_id);
-                    let type_alias_ref = type_alias_ref.borrow();
+                    let type_alias_ref = type_alias.borrow();
                     let resolved_generics = self.resolve_alias_turbofish_generics(
                         &type_alias_ref,
                         alias_generic_types,
@@ -351,10 +350,7 @@ impl Elaborator<'_> {
         if let Some((definition_id, numeric_type)) =
             self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
         {
-            let hir_ident = HirIdent::non_trait_method(definition_id, location);
-            let hir_expr = HirExpression::Ident(hir_ident, None);
-            let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-            return Some((id, numeric_type));
+            return Some(self.intern_associated_constant(definition_id, numeric_type, location));
         }
 
         // Check if the constant exists in the trait definition (even if impl is missing it).
@@ -365,10 +361,11 @@ impl Elaborator<'_> {
             let trait_ = self.interner.get_trait(trait_id);
             if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
                 let numeric_type = self.interner.definition_type(definition_id);
-                let hir_ident = HirIdent::non_trait_method(definition_id, location);
-                let hir_expr = HirExpression::Ident(hir_ident, None);
-                let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-                return Some((id, numeric_type));
+                return Some(self.intern_associated_constant(
+                    definition_id,
+                    numeric_type,
+                    location,
+                ));
             }
         }
 
@@ -382,7 +379,20 @@ impl Elaborator<'_> {
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
 
-    /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
+    /// Intern an identifier expression referring to an associated constant of the given type.
+    fn intern_associated_constant(
+        &mut self,
+        definition_id: DefinitionId,
+        numeric_type: Type,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let hir_ident = HirIdent::non_trait_method(definition_id, location);
+        let hir_expr = HirExpression::Ident(hir_ident, None);
+        let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+        (id, numeric_type)
+    }
+
+    /// Resolve a [`TypedPath`] to a [`HirIdent`] of either some trait method, or a local or global variable.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
@@ -547,7 +557,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
-    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
+    /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts unresolved generics.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl(
         &mut self,
@@ -582,7 +592,7 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl_inner(&typ, typ_location, ident_location, method, generics)
     }
 
-    /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
+    /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts already resolved generics.
     /// Used when the turbofish generics have already been resolved.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_with_resolved_generics(
@@ -681,7 +691,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
-    /// Given an [HirIdent], look up its definition, and:
+    /// Given an [`HirIdent`], look up its definition, and:
     /// * mark it as referenced at the ident [Location] (LSP mode only)
     /// * mark the item currently being elaborated as a dependency of it
     /// * elaborate a global definition, if needed
@@ -794,10 +804,15 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
+        let func_id = match definition.kind {
+            DefinitionKind::Function(func_id) => Some(func_id),
+            _ => None,
+        };
+
         // If the variable is a function whose meta hasn't been resolved yet, resolve
         // it now. This handles forward references — a global's RHS may name a
         // function whose meta would otherwise only be drained at end-of-elaboration.
-        if let DefinitionKind::Function(func_id) = definition.kind {
+        if let Some(func_id) = func_id {
             let item_name = definition.name.clone();
             self.define_function_meta_if_undefined(func_id);
 
@@ -820,14 +835,11 @@ impl Elaborator<'_> {
         // variable to handle generic functions.
         let t = self.type_substitute_trait_as_type(&ident);
 
-        let definition_kind = self.interner.definition(ident.id).kind.clone();
-        let direct_generic_ids = match definition_kind {
-            DefinitionKind::Function(function) => {
-                vecmap(&self.function_meta(function).direct_generics, |generic| {
-                    generic.type_var.id()
-                })
-            }
-            _ => Vec::new(),
+        let direct_generic_ids = match func_id {
+            Some(function) => vecmap(&self.function_meta(function).direct_generics, |generic| {
+                generic.type_var.id()
+            }),
+            None => Vec::new(),
         };
 
         let location = self.interner.expr_location(expr_id);
@@ -881,8 +893,7 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        let definition_kind = self.interner.definition(ident.id).kind.clone();
-        if let DefinitionKind::Function(function) = definition_kind {
+        if let Some(function) = func_id {
             let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
                 constraint.apply_bindings(&bindings);
@@ -910,7 +921,7 @@ impl Elaborator<'_> {
         typ
     }
 
-    /// If the type of the [HirIdent] is a function that returns an `impl Trait`,
+    /// If the type of the [`HirIdent`] is a function that returns an `impl Trait`,
     /// then it might need elaboration before it can be substituted to a [Type].
     /// Try to elaborate it now.
     ///
@@ -942,7 +953,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+    /// Instantiate a [Type] with the given [`TypeBindings`], returning the bindings potentially
     /// extended from any turbofish generics.
     ///
     /// If there are turbofish generics and their number matches the expectations of the function,
@@ -995,7 +1006,7 @@ impl Elaborator<'_> {
     }
 }
 
-/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+/// Bind the generics of the [Type] aliased by the [`TypeAlias`] to a list of generic arguments,
 /// recursively expanding the generics aliased aliases, finally returning the generics of the
 /// innermost aliased struct.
 ///

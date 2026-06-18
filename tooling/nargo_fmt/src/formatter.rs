@@ -69,7 +69,7 @@ pub(crate) struct Formatter<'a> {
     /// we won't format the next node (in some cases: only applies to statements and items).
     ignore_next: bool,
 
-    /// A counter to create GroupTags.
+    /// A counter to create `GroupTags`.
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups

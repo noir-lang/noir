@@ -123,7 +123,7 @@ impl CallStackHelper {
         &self.locations
     }
 
-    /// Construct a CallStack from a CallStackId
+    /// Construct a `CallStack` from a `CallStackId`
     pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
         let mut result = Vec::new();
         while let Some(parent) = self.locations[call_stack.index()].parent {
@@ -134,7 +134,7 @@ impl CallStackHelper {
         CallStack::new(result)
     }
 
-    /// Returns a new [CallStackId] which extends the `call_stack` with the provided `locations`.
+    /// Returns a new [`CallStackId`] which extends the `call_stack` with the provided `locations`.
     pub fn extend_call_stack(
         &mut self,
         mut call_stack: CallStackId,
@@ -164,7 +164,7 @@ impl CallStackHelper {
         new_location_id
     }
 
-    /// Retrieve the CallStackId corresponding to call_stack with the last 'len' locations removed.
+    /// Retrieve the `CallStackId` corresponding to `call_stack` with the last 'len' locations removed.
     pub fn unwind_call_stack(&self, mut call_stack: CallStackId, mut len: usize) -> CallStackId {
         while len > 0 {
             if let Some(parent) = self.locations[call_stack.index()].parent {
@@ -186,7 +186,7 @@ impl CallStackHelper {
         }
     }
 
-    /// Get (or create) a CallStackId corresponding to the given locations.
+    /// Get (or create) a `CallStackId` corresponding to the given locations.
     pub fn get_or_insert_locations(&mut self, locations: &CallStack) -> CallStackId {
         self.extend_call_stack(CallStackId::root(), locations)
     }

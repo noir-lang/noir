@@ -10,9 +10,9 @@ use super::context::FunctionContext;
 /// to represent both values and types which may be tuples.
 ///
 /// Since the underlying SSA intermediate representation (IR) does not
-/// support tuples directly, they're instead represented as Tree::Branch
-/// nodes. For example, a single ssa value may be a Tree::Leaf(Value),
-/// while a tuple would be a Tree::Branch(values).
+/// support tuples directly, they're instead represented as `Tree::Branch`
+/// nodes. For example, a single ssa value may be a `Tree::Leaf(Value)`,
+/// while a tuple would be a `Tree::Branch(values)`.
 #[derive(Debug, Clone)]
 pub(super) enum Tree<T> {
     Branch(Vec<Tree<T>>),
@@ -20,10 +20,10 @@ pub(super) enum Tree<T> {
 }
 
 /// A single value in ssa form. This wrapper enum is needed mostly to enable
-/// us to automatically create a Instruction::Load whenever a mutable variable
+/// us to automatically create a `Instruction::Load` whenever a mutable variable
 /// is referenced.
 ///
-/// Note that these values wrap the ValueIds
+/// Note that these values wrap the `ValueIds`
 /// used internally by functions in the ssa ir and should thus be isolated
 /// to a given function. If used outside their function of origin, the IDs
 /// would be invalid.
@@ -36,8 +36,8 @@ pub(super) enum Value {
 }
 
 impl Value {
-    /// Evaluate a value, returning an IrValue from it.
-    /// This has no effect on Value::Normal, but any variables will
+    /// Evaluate a value, returning an `IrValue` from it.
+    /// This has no effect on `Value::Normal`, but any variables will
     /// need to be loaded from memory
     pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
@@ -47,7 +47,7 @@ impl Value {
     }
 
     /// Evaluates the value, returning a reference to the mutable variable found within
-    /// if possible. Compared to .eval, this method will not load from self if it is Value::Mutable.
+    /// if possible. Compared to .eval, this method will not load from self if it is `Value::Mutable`.
     pub(super) fn eval_reference(self) -> IrValueId {
         match self {
             Value::Normal(value) => value,
@@ -59,8 +59,8 @@ impl Value {
 /// A tree of values.
 ///
 /// Compared to Value alone, the addition of being able to represent structs/tuples as
-/// a Tree::Branch means this type can hold any kind of value a frontend expression may return.
-/// This is why it is used as the return type for every codegen_* function in ssa_gen/mod.rs.
+/// a `Tree::Branch` means this type can hold any kind of value a frontend expression may return.
+/// This is why it is used as the return type for every codegen_* function in `ssa_gen/mod.rs`.
 pub(super) type Values = Tree<Value>;
 
 impl<T> Tree<T> {
@@ -165,8 +165,8 @@ impl From<IrValueId> for Value {
 
 // Specialize this impl just to give a better name for this function
 impl Tree<Type> {
-    /// Returns the size of the type in terms of the number of FieldElements it contains.
-    /// Non-field types like functions and references are also counted as 1 FieldElement.
+    /// Returns the size of the type in terms of the number of `FieldElements` it contains.
+    /// Non-field types like functions and references are also counted as 1 `FieldElement`.
     pub(super) fn size_of_type(&self) -> usize {
         self.count_leaves()
     }

@@ -115,11 +115,11 @@ struct NodeFinder<'a> {
     /// Type parameters in the current scope. These are collected when entering
     /// a struct, a function, etc., and cleared afterwards.
     type_parameters: HashSet<String>,
-    /// ModuleDefIds we already suggested, so we don't offer these for auto-import.
+    /// `ModuleDefIds` we already suggested, so we don't offer these for auto-import.
     suggested_module_def_ids: HashSet<ModuleDefId>,
     /// How many nested `mod` we are in deep
     nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     auto_import_line: usize,
     use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
@@ -1161,7 +1161,8 @@ impl<'a> NodeFinder<'a> {
                 let typ = self.get_lvalue_type(array)?;
                 get_array_element_type(typ)
             }
-            LValue::Dereference(lvalue, ..) => self.get_lvalue_type(lvalue),
+            LValue::Dereference(expr, ..) => LValue::from_expression(expr.as_ref().clone())
+                .and_then(|lvalue| self.get_lvalue_type(&lvalue)),
             LValue::Interned(..) => None,
         }
     }
@@ -1689,9 +1690,11 @@ impl Visitor for NodeFinder<'_> {
         true
     }
 
-    fn visit_lvalue_dereference(&mut self, lvalue: &LValue, span: Span) -> bool {
+    fn visit_lvalue_dereference(&mut self, expr: &Expression, span: Span) -> bool {
         if self.byte == Some(b'.') && span.end() as usize == self.byte_index - 1 {
-            if let Some(typ) = self.get_lvalue_type(lvalue) {
+            if let Some(typ) = LValue::from_expression(expr.clone())
+                .and_then(|lvalue| self.get_lvalue_type(&lvalue))
+            {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
@@ -2022,6 +2025,7 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
+/// ```text
 /// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
 /// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
@@ -2030,6 +2034,7 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// // neither "compute" nor "merkle" nor "root" start with "oot"
 /// name_matches("compute_merkle_root", "oot") == false
+/// ```
 fn name_matches(name: &str, prefix: &str) -> bool {
     let name = name.to_case(Case::Snake);
     let name_parts: Vec<&str> = name.split('_').collect();

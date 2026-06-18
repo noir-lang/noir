@@ -934,8 +934,8 @@ fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue 
             index: remove_interned_in_expression(interner, index),
             location: span,
         },
-        LValue::Dereference(lvalue, span) => {
-            LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, *lvalue)), span)
+        LValue::Dereference(expr, span) => {
+            LValue::Dereference(Box::new(remove_interned_in_expression(interner, *expr)), span)
         }
         LValue::Interned(id, span) => {
             let lvalue = interner.get_lvalue(id, span);

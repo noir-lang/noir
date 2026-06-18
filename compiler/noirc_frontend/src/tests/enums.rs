@@ -10,11 +10,11 @@ fn error_with_duplicate_enum_variant() {
     let src = r#"
     pub enum Foo {
         Bar(i32),
-        ~~~ First enum variant found here
+        ~~~ First definition found here
         ~~~ Previous impl defined here
         Bar(u8),
         ^^^ Duplicate definitions of enum variant with name Bar found
-        ~~~ Second enum variant found here
+        ~~~ Second definition found here
         ^^^ Impl for type `Foo` overlaps with existing impl
         ~~~ Overlapping impl
     }

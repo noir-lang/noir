@@ -36,11 +36,11 @@ impl ChunkFormatter<'_, '_> {
                     formatter.write_right_bracket();
                 }));
             }
-            LValue::Dereference(lvalue, _span) => {
+            LValue::Dereference(expr, _span) => {
                 group.text(self.chunk(|formatter| {
                     formatter.write_token(Token::Star);
                 }));
-                self.format_lvalue(*lvalue, group);
+                self.format_expression(*expr, group);
             }
             LValue::Interned(..) => {
                 unreachable!("Should not be present in the AST")

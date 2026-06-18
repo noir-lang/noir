@@ -29,7 +29,7 @@ use super::{
 #[derive(Default)]
 pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
-    /// such as with globals, we are not within a function and do not have a [FunctionId].
+    /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form,
     /// we insert them here on when we allocate them at their definition.
@@ -148,7 +148,7 @@ impl FunctionContext {
             .collect()
     }
 
-    /// Converts an SSA [Type] into a corresponding [BrilligParameter].
+    /// Converts an SSA [Type] into a corresponding [`BrilligParameter`].
     ///
     /// This conversion defines the calling convention for Brillig functions,
     /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
