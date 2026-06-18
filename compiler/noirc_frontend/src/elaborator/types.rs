@@ -1420,7 +1420,7 @@ impl Elaborator<'_> {
     ) -> Option<TraitPathResolution> {
         let path_resolution = self.resolve_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
-        let meta = self.interner.try_function_meta(&func_id)?;
+        let meta = self.try_function_meta(func_id)?;
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
         let method = the_trait.find_method(path.last_name(), self.interner)?;
