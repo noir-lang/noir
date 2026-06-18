@@ -1,0 +1,6 @@
+[package]
+name = "vector_insert_after_dynamic_read"
+type = "bin"
+authors = [""]
+
+[dependencies]
