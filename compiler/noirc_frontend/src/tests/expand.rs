@@ -321,7 +321,7 @@ fn expands_inherent_impl_inside_module() {
     }
 
     fn main() {
-        let _ = impls::Foo::bar(Foo {});
+        let _ = Foo::bar(Foo {});
     }
     "#;
     let expanded = assert_no_errors_and_to_string(src);
