@@ -276,6 +276,12 @@ impl<F: AcirField> CSatTransformer<F> {
         if a == F::one() {
             return (a, expr);
         }
+        // A leading coefficient of -1 normalizes to a plain negation: the inverse of -1 is -1, so
+        // the scaled copy is just `-expr`. Negating in place avoids the field inversion, the cache
+        // lookup, and the allocation a general scale would do.
+        if a == -F::one() {
+            return (a, -expr);
+        }
         // Coefficients repeat heavily, so memoize the inverse to avoid recomputing it.
         let a_inverse = *self.inverse_cache.entry(a).or_insert_with(|| a.inverse());
         assert!(a_inverse != F::zero(), "normalize: the first coefficient is non-invertible");
