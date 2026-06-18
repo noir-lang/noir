@@ -638,7 +638,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::from(&expr * constant))
+                self.add_data(AcirVarData::from(expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
