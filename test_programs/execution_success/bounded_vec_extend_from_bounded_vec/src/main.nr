@@ -6,7 +6,14 @@
 // array-set chain makes that rework unnecessary, so this guards the real `BoundedVec`
 // path against the balloon returning. Mirrors `bounded_vec_extend_pattern`, which is
 // the same loop inlined without the stdlib.
-fn main(x: [u8; 64], x_len: u32, y: [u8; 64], y_len: u32, z: [u8; 64], z_len: u32) -> pub [u8; 192] {
+fn main(
+    x: [u8; 64],
+    x_len: u32,
+    y: [u8; 64],
+    y_len: u32,
+    z: [u8; 64],
+    z_len: u32,
+) -> pub [u8; 192] {
     let mut vec: BoundedVec<u8, 192> = BoundedVec::new();
     let vec_x: BoundedVec<u8, 64> = BoundedVec::from_parts(x, x_len);
     let vec_y: BoundedVec<u8, 64> = BoundedVec::from_parts(y, y_len);

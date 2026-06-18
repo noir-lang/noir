@@ -5,19 +5,32 @@
 // whole-array `IfElse` merge and the circuit balloons. This is a guard: removing that
 // optimization re-introduces the balloon here, and it shows the stdlib rework is not
 // needed once the chain is collapsed.
-fn main(x: [u8; 64], x_len: u32, y: [u8; 64], y_len: u32, z: [u8; 64], z_len: u32) -> pub [u8; 192] {
+fn main(
+    x: [u8; 64],
+    x_len: u32,
+    y: [u8; 64],
+    y_len: u32,
+    z: [u8; 64],
+    z_len: u32,
+) -> pub [u8; 192] {
     let mut storage: [u8; 192] = [0; 192];
     let mut len: u32 = 0;
     for i in 0..64 {
-        if i < x_len { storage[len + i] = x[i]; }
+        if i < x_len {
+            storage[len + i] = x[i];
+        }
     }
     len = len + x_len;
     for i in 0..64 {
-        if i < y_len { storage[len + i] = y[i]; }
+        if i < y_len {
+            storage[len + i] = y[i];
+        }
     }
     len = len + y_len;
     for i in 0..64 {
-        if i < z_len { storage[len + i] = z[i]; }
+        if i < z_len {
+            storage[len + i] = z[i];
+        }
     }
     storage
 }
