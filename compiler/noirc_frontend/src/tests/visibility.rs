@@ -18,6 +18,29 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
 }
 
 #[test]
+fn errors_on_private_module_accessed_via_use_and_path() {
+    let src = r#"
+    pub mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+    }
+
+    use foo::bar::baz;
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
+
+    fn main() {
+        foo::bar::baz();
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
+        baz();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
@@ -503,12 +526,20 @@ fn error_when_accessing_private_struct_field() {
         pub struct Foo {
             x: Field
         }
+
+        pub fn new() -> Foo {
+            Foo { x: 1 }
+        }
     }
 
     fn foo(foo: moo::Foo) -> Field {
         foo.x
             ^ x is private and not visible from the current module
             ~ x is private
+    }
+
+    fn main() {
+        let _ = foo(moo::new());
     }
     "#;
     check_errors(src);
@@ -525,10 +556,14 @@ fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
         fn foo(foo: super::Foo) -> Field {
             foo.x
         }
+
+        pub fn run() -> Field {
+            foo(super::Foo { x: 1 })
+        }
     }
 
     fn main() {
-        let _ = Foo { x: 1 };
+        let _ = nested::run();
     }
     "#;
     assert_no_errors(src);
@@ -548,7 +583,7 @@ fn does_not_error_when_accessing_pub_crate_struct_field_from_nested_module() {
     }
 
     fn main() {
-        let _ = moo::Foo { x: 1 };
+        let _ = foo(moo::Foo { x: 1 });
     }
     "#;
     assert_no_errors(src);
@@ -579,6 +614,10 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
         pub struct Foo {
             x: Field
         }
+
+        pub fn new() -> Foo {
+            Foo { x: 1 }
+        }
     }
 
     fn foo(foo: moo::Foo) -> Field {
@@ -589,6 +628,7 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
     }
 
     fn main() {
+        let _ = foo(moo::new());
     }
     "#;
     check_errors(src);
@@ -808,11 +848,16 @@ fn same_name_in_types_and_values_namespace_works() {
 
 #[test]
 fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    // `moo::foo {}` constructs the struct (type namespace); the same-named `fn foo` (value
+    // namespace) is never called, so it is correctly reported as unused — the two namespaces
+    // are tracked independently.
     let src = "
     mod moo {
         struct foo {}
 
         fn foo() {}
+           ^^^ unused function foo
+           ~~~ unused function
     }
 
     fn main() {
@@ -1374,6 +1419,32 @@ fn errors_on_qualified_access_to_private_type_colliding_with_public_value() {
         let _ = moo::Foo {};
                      ^^^ Foo is private and not visible from the current module
                      ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_type_imported_via_collision_as_path_prefix() {
+    // The private type must be rejected even when it only appears as an intermediate path
+    // prefix (calling an inherent associated function), not just as the final path item.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        impl Foo {
+            pub fn make() -> Self { Foo {} }
+        }
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo::make();
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
     }
     "#;
     check_errors(src);

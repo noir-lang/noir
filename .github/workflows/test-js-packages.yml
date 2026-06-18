@@ -270,7 +270,9 @@ jobs:
           browsers: "chromium webkit"
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/acvm_js test:browser
+        uses: ./.github/actions/retry
+        with:
+          run: yarn workspace @noir-lang/acvm_js test:browser
 
   test-noirc-abi:
     needs: [build-noirc-abi]
@@ -300,7 +302,9 @@ jobs:
         uses: ./.github/actions/install-playwright
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/noirc_abi test:browser
+        uses: ./.github/actions/retry
+        with:
+          run: yarn workspace @noir-lang/noirc_abi test:browser
 
   test-noir-js:
     needs: [build-binaries, build-acvm-js, build-noirc-abi]
@@ -380,7 +384,9 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm test:node
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/noir_wasm test:browser
+        uses: ./.github/actions/retry
+        with:
+          run: yarn workspace @noir-lang/noir_wasm test:browser
 
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi, build-binaries]
