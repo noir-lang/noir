@@ -1,4 +1,4 @@
-use super::{ModuleDefId, ModuleId, namespace::PerNs};
+use super::{ModuleDefId, ModuleId, Namespace, namespace::PerNs};
 use crate::ast::{Ident, ItemVisibility};
 use crate::node_interner::{FuncId, TraitId};
 
@@ -79,14 +79,9 @@ impl ItemScope {
             }
         };
 
-        match mod_def {
-            ModuleDefId::ModuleId(_) => add_item(&mut self.types),
-            ModuleDefId::FunctionId(_) => add_item(&mut self.values),
-            ModuleDefId::TypeId(_) => add_item(&mut self.types),
-            ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
-            ModuleDefId::TraitId(_) => add_item(&mut self.types),
-            ModuleDefId::TraitAssociatedTypeId(_) => add_item(&mut self.types),
-            ModuleDefId::GlobalId(_) => add_item(&mut self.values),
+        match mod_def.namespace() {
+            Namespace::Type => add_item(&mut self.types),
+            Namespace::Value => add_item(&mut self.values),
         }
     }
 

@@ -1,7 +1,0 @@
-[package]
-name = "arithmetic_generics_field_division_by_zero"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

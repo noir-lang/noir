@@ -508,34 +508,65 @@ impl<W: Write> Interpreter<'_, W> {
         Ok(vec![Value::array(elements, vec![Type::Numeric(element_type)])])
     }
 
+    /// Whether a vector mutator may write through the shared backing store instead of copying.
+    ///
+    /// In Brillig, vector operations reuse the input vector's allocation when its copy-on-write
+    /// reference count is 1, mutating it in place; otherwise they copy. We mirror that here so the
+    /// interpreter agrees with Brillig execution. In a constrained (ACIR) context reference counts
+    /// are not tracked, so we always copy.
+    fn vector_mutates_in_place(&self, vector: &ArrayValue) -> bool {
+        self.in_unconstrained_context() && *vector.rc.borrow() == 1
+    }
+
+    /// Apply `f` to a vector's backing elements, mutating them in place when
+    /// [`Self::vector_mutates_in_place`] allows it (matching Brillig's copy-on-write), or operating
+    /// on a fresh copy otherwise. Returns whatever `f` produces alongside the resulting vector.
+    ///
+    /// When mutating in place the returned vector shares its backing store with `vector`, so any
+    /// other handle to the same vector observes the mutation as well — exactly as in Brillig when
+    /// the reference count is 1 and the ownership pass did not insert a protecting `inc_rc`.
+    fn update_vector_elements<R>(
+        &self,
+        vector: ArrayValue,
+        f: impl FnOnce(&mut Vec<Value>) -> IResult<R>,
+    ) -> IResult<(R, Value)> {
+        if self.vector_mutates_in_place(&vector) {
+            let result = f(&mut vector.elements.borrow_mut())?;
+            Ok((result, Value::ArrayOrVector(vector)))
+        } else {
+            let mut elements = vector.elements.borrow().to_vec();
+            let result = f(&mut elements)?;
+            Ok((result, Value::vector(elements, vector.element_types)))
+        }
+    }
+
     /// (length, vector, elem...) -> (length, vector)
     fn vector_push_back(&self, args: &[ValueId]) -> IResults {
         let length = self.lookup_u32(args[0], "call to vector_push_back")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_back")?;
+        let width = vector.element_types.len();
 
-        // The resulting vector should be cloned - should we check RC here to try mutating it?
-        // It'd need to be brillig-only if so since RC is always 1 in acir.
-        let mut new_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types;
+        let new_values = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
 
-        // The vector might contain more elements than its length.
-        // We need to either insert before the extras, overwrite, or remove them.
-        // We could remove any extras and then append:
-        //  new_elements.truncate(element_types.len() * length as usize);
-        // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
-        // so instead of truncating, we append as well as overwrite.
-        let end_index = element_types.len() * (length as usize);
-        let push_only = end_index == new_elements.len();
-        for (i, arg) in args.iter().skip(2).enumerate() {
-            let value = self.lookup(*arg)?;
-            if !push_only {
-                new_elements[end_index + i] = value.clone();
+        let (_, new_vector) = self.update_vector_elements(vector, |elements| {
+            // The vector might contain more elements than its length.
+            // We need to either insert before the extras, overwrite, or remove them.
+            // We could remove any extras and then append:
+            //  elements.truncate(width * length as usize);
+            // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
+            // so instead of truncating, we append as well as overwrite.
+            let end_index = width * (length as usize);
+            let push_only = end_index == elements.len();
+            for (i, value) in new_values.into_iter().enumerate() {
+                if !push_only {
+                    elements[end_index + i] = value.clone();
+                }
+                elements.push(value);
             }
-            new_elements.push(value);
-        }
+            Ok(())
+        })?;
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(new_elements, element_types);
         Ok(vec![new_length, new_vector])
     }
 
@@ -543,14 +574,17 @@ impl<W: Write> Interpreter<'_, W> {
     fn vector_push_front(&self, args: &[ValueId]) -> IResults {
         let length = self.lookup_u32(args[0], "call to vector_push_front")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_front")?;
-        let vector_elements = vector.elements.clone();
-        let element_types = vector.element_types;
 
-        let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
-        new_elements.extend_from_slice(&vector_elements.borrow());
+        let new_values = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
+
+        let (_, new_vector) = self.update_vector_elements(vector, |elements| {
+            let mut prefixed = new_values;
+            prefixed.append(elements);
+            *elements = prefixed;
+            Ok(())
+        })?;
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(new_elements, element_types);
         Ok(vec![new_length, new_vector])
     }
 
@@ -559,10 +593,7 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_pop_back")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_pop_back")?;
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
-
-        if vector_elements.is_empty() || length == 0 {
+        if vector.elements.borrow().is_empty() || length == 0 {
             let instruction = "vector_pop_back";
             return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
@@ -574,13 +605,16 @@ impl<W: Write> Interpreter<'_, W> {
         // only shrinks by one element, matching how `vector_pop_front`/`vector_remove` and ACIR
         // codegen keep the trailing capacity. Truncating to the semantic length here instead would
         // make a later merge over-read this result when the semantic length is below the capacity.
-        let width = element_types.len();
+        let width = vector.element_types.len();
         let last_index = width * (length as usize - 1);
-        let popped_elements = vector_elements[last_index..last_index + width].to_vec();
-        vector_elements.truncate(vector_elements.len() - width);
+
+        let (popped_elements, new_vector) = self.update_vector_elements(vector, |elements| {
+            let popped = elements[last_index..last_index + width].to_vec();
+            elements.truncate(elements.len() - width);
+            Ok(popped)
+        })?;
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         let mut results = vec![new_length, new_vector];
         results.extend(popped_elements);
         Ok(results)
@@ -591,19 +625,19 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_pop_front")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_pop_front")?;
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
-
-        if vector_elements.is_empty() || length == 0 {
+        if vector.elements.borrow().is_empty() || length == 0 {
             let instruction = "vector_pop_front";
             return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let mut results = vector_elements.drain(0..element_types.len()).collect::<Vec<_>>();
+        let width = vector.element_types.len();
+
+        let (mut results, new_vector) = self.update_vector_elements(vector, |elements| {
+            Ok(elements.drain(0..width).collect::<Vec<_>>())
+        })?;
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         results.push(new_length);
         results.push(new_vector);
         Ok(results)
@@ -614,18 +648,20 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_insert")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_insert")?;
         let index = self.lookup_u32(args[2], "call to vector_insert")?;
+        let width = vector.element_types.len();
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types;
+        let new_values = try_vecmap(args.iter().skip(3), |arg| self.lookup(*arg))?;
 
-        let mut index = index as usize * element_types.len();
-        for arg in args.iter().skip(3) {
-            vector_elements.insert(index, self.lookup(*arg)?);
-            index += 1;
-        }
+        let (_, new_vector) = self.update_vector_elements(vector, |elements| {
+            let mut index = index as usize * width;
+            for value in new_values {
+                elements.insert(index, value);
+                index += 1;
+            }
+            Ok(())
+        })?;
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         Ok(vec![new_length, new_vector])
     }
 
@@ -635,20 +671,20 @@ impl<W: Write> Interpreter<'_, W> {
         let vector = self.lookup_array_or_vector(args[1], "call to vector_remove")?;
         let index = self.lookup_u32(args[2], "call to vector_remove")?;
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
-
-        if vector_elements.is_empty() {
+        if vector.elements.borrow().is_empty() {
             let instruction = "vector_remove";
             return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let index = index as usize * element_types.len();
-        let removed: Vec<_> = vector_elements.drain(index..index + element_types.len()).collect();
+        let width = vector.element_types.len();
+        let index = index as usize * width;
+
+        let (removed, new_vector) = self.update_vector_elements(vector, |elements| {
+            Ok(elements.drain(index..index + width).collect::<Vec<_>>())
+        })?;
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         let mut results = vec![new_length, new_vector];
         results.extend(removed);
         Ok(results)
