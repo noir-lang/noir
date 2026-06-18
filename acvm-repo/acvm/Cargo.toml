@@ -22,6 +22,7 @@ brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
+rustc-hash.workspace = true
 bn254_blackbox_solver = { workspace = true, optional = true }
 
 [features]
