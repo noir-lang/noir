@@ -1255,8 +1255,8 @@ fn type_annotation_needed_on_struct_new() {
 
     fn main() {
         let _foo = Foo::new();
-                        ^^^ Type annotation needed
-                        ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+                   ^^^^^^^^ Type annotation needed
+                   ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
     check_errors(src);

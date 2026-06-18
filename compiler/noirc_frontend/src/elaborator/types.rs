@@ -1420,7 +1420,7 @@ impl Elaborator<'_> {
     ) -> Option<TraitPathResolution> {
         let path_resolution = self.resolve_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
-        let meta = self.interner.try_function_meta(&func_id)?;
+        let meta = self.try_function_meta(func_id)?;
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
         let method = the_trait.find_method(path.last_name(), self.interner)?;
@@ -1665,6 +1665,11 @@ impl Elaborator<'_> {
         let before_last_segment = path.last_segment();
         let turbofish = before_last_segment.turbofish();
 
+        // `Self::method` keeps its dedicated resolution below (it must anchor on the impl's own
+        // `self_type` and produce a `SelfMethod`), so it is excluded from the inherent-method
+        // handling that resolves `TypeName::method` here.
+        let is_self_prefix = path.first_name() == Some(SELF_TYPE_NAME);
+
         let path_resolution = self.use_path_as_type(path).ok()?;
 
         let mut errors = Vec::new();
@@ -1718,37 +1723,18 @@ impl Elaborator<'_> {
         let check_self_param = false;
         let direct_method = self.lookup_direct_method(&typ, method_name, check_self_param);
 
-        // When turbofish generics are provided, use type-directed method lookup to pick the
-        // correct impl. Without turbofish, fall through to module-based lookup, which handles
-        // Self::method resolution, visibility checking, and associated constants correctly.
+        // Resolve inherent methods (`TypeName::method`, and `Self::method` below) through this
+        // type-directed lookup. Names that aren't an inherent method here (associated constants,
+        // trait methods not in scope) return `None` and fall through to module-based resolution.
         if turbofish.is_some() {
             if let Some(func_id) = direct_method {
                 self.push_errors(errors);
-                let mut all_errors = path_resolution.errors;
-
-                let visibility = self.interner.function_visibility(func_id);
-                if let Some(func_meta) = self.interner.try_function_meta(&func_id) {
-                    let source_module = ModuleId {
-                        krate: func_meta.source_crate,
-                        local_id: func_meta.source_module,
-                    };
-                    let importing_module =
-                        ModuleId { krate: self.crate_id, local_id: self.local_module() };
-                    if !item_in_module_is_visible(
-                        self.def_maps,
-                        importing_module,
-                        source_module,
-                        visibility,
-                    ) {
-                        all_errors.push(PathResolutionError::Private(last_segment.ident.clone()));
-                    }
-                }
-
-                return Some(Self::type_method_or_trait_method_func_id_resolution(
+                return Some(self.resolve_direct_method(
                     path_resolution.item,
                     turbofish,
                     func_id,
-                    all_errors,
+                    &last_segment.ident,
+                    path_resolution.errors,
                 ));
             }
 
@@ -1782,10 +1768,52 @@ impl Elaborator<'_> {
             }
 
             trait_methods = Some(type_trait_methods);
-        } else if direct_method.is_some() {
-            // If there's no turbofish, but there's a direct method, let the lookup continue regularly
-            // (outside of this method) as the resolution will not be a trait method.
-            return None;
+        } else if let Some(direct_method) = direct_method {
+            if is_self_prefix {
+                // `Self::method` anchors on the impl's own concrete self type, so pick the matching
+                // impl among any non-overlapping inherent impls and resolve to a `SelfMethod` (so
+                // the impl's generics — not the path's fresh ones — anchor the call).
+                let func_id = self
+                    .self_type
+                    .clone()
+                    .and_then(|self_type| self.lookup_direct_method(&self_type, method_name, true))
+                    .unwrap_or(direct_method);
+                self.push_errors(errors);
+                let mut errors = path_resolution.errors;
+                self.record_direct_method_reference(func_id, &last_segment.ident);
+                self.push_direct_method_visibility_error(func_id, &last_segment.ident, &mut errors);
+                let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
+                let item = Some(PathResolutionItem::SelfMethod(func_id));
+                return Some(TraitPathResolution { method, item, errors });
+            }
+
+            // `TypeName::method` is ambiguous when more than one non-overlapping inherent impl
+            // defines a `method` applicable to `typ` (mirroring Rust's E0034): the path names more
+            // than one function and nothing here disambiguates. Require a method call
+            // (`value.method(..)`) or turbofish (`TypeName::<..>::method(..)`) instead.
+            let impl_types = self.interner.matching_direct_method_types(&typ, method_name);
+            if impl_types.len() >= 2 {
+                self.push_errors(errors);
+                let mut errors = path_resolution.errors;
+                errors.push(PathResolutionError::MultipleApplicableMethods {
+                    ident: last_segment.ident.clone(),
+                    impl_types: vecmap(&impl_types, |typ| typ.to_string()),
+                });
+                return Some(TraitPathResolution {
+                    method: TraitPathResolutionMethod::MultipleTraitsInScope,
+                    item: None,
+                    errors,
+                });
+            }
+
+            self.push_errors(errors);
+            return Some(self.resolve_direct_method(
+                path_resolution.item,
+                turbofish,
+                direct_method,
+                &last_segment.ident,
+                path_resolution.errors,
+            ));
         }
 
         let has_self_arg = false;
@@ -1850,6 +1878,59 @@ impl Elaborator<'_> {
 
                 let method = TraitPathResolutionMethod::TraitItem(trait_method);
                 Some(TraitPathResolution { method, item: Some(item), errors })
+            }
+        }
+    }
+
+    /// Builds the resolution for an inherent `TypeName::method` (or turbofished `TypeName::<..>::method`)
+    /// call, reporting a `Private` error if `func_id` is not visible from the current module.
+    fn resolve_direct_method(
+        &mut self,
+        path_resolution_item: PathResolutionItem,
+        turbofish: Option<Turbofish>,
+        func_id: FuncId,
+        method_ident: &Ident,
+        mut errors: Vec<PathResolutionError>,
+    ) -> TraitPathResolution {
+        self.record_direct_method_reference(func_id, method_ident);
+        self.push_direct_method_visibility_error(func_id, method_ident, &mut errors);
+        Self::type_method_or_trait_method_func_id_resolution(
+            path_resolution_item,
+            turbofish,
+            func_id,
+            errors,
+        )
+    }
+
+    /// Records the dependency and the LSP reference (at the method name) for an inherent method
+    /// resolved here. Inherent methods aren't in the module scope that would otherwise record this.
+    fn record_direct_method_reference(&mut self, func_id: FuncId, method_ident: &Ident) {
+        if let Some(current_item) = self.current_item {
+            self.interner.add_function_dependency(current_item, func_id);
+        }
+        self.interner.add_function_reference(func_id, method_ident.location());
+    }
+
+    /// Pushes a `Private` error onto `errors` if the inherent method `func_id` is not visible from
+    /// the current module (checked against the impl's defining module, not the type's module).
+    fn push_direct_method_visibility_error(
+        &self,
+        func_id: FuncId,
+        method_ident: &Ident,
+        errors: &mut Vec<PathResolutionError>,
+    ) {
+        let visibility = self.interner.function_visibility(func_id);
+        if let Some(func_meta) = self.interner.try_function_meta(&func_id) {
+            let source_module =
+                ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
+            let importing_module = ModuleId { krate: self.crate_id, local_id: self.local_module() };
+            if !item_in_module_is_visible(
+                self.def_maps,
+                importing_module,
+                source_module,
+                visibility,
+            ) {
+                errors.push(PathResolutionError::Private(method_ident.clone()));
             }
         }
     }
