@@ -143,6 +143,13 @@ use super::{
 };
 
 impl Context<'_> {
+    /// Allocate a fresh, unique [`BlockId`] for a memory block.
+    fn next_block_id(&mut self) -> BlockId {
+        let block_id = BlockId(self.max_block_id);
+        self.max_block_id += 1;
+        block_id
+    }
+
     /// Get the `BlockId` corresponding to the `ValueId`
     /// If there is no matching `BlockId`, we create a new one.
     pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
@@ -155,8 +162,7 @@ impl Context<'_> {
 
     pub(crate) fn return_data_block_id(&mut self) -> BlockId {
         self.return_data_block_id.unwrap_or_else(|| {
-            let block_id = BlockId(self.max_block_id);
-            self.max_block_id += 1;
+            let block_id = self.next_block_id();
             self.return_data_block_id = Some(block_id);
             block_id
         })
@@ -910,7 +916,7 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.type_sizes_block_id(array_id);
+        let base_block = self.type_sizes_block_id(array_id);
         // Check whether an internal type sizes array has already been initialized.
         // Need to look into how to optimize for vectors as this could lead to different element type sizes
         // for different vectors that do not have consistent sizes.
@@ -918,11 +924,24 @@ impl Context<'_> {
         // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
         // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
         // that is bigger than what is needed for the supplied type/value.
-        if self.initialized_arrays.contains(&element_type_sizes)
+        if self.initialized_arrays.contains(&base_block)
             && matches!(shift, ElementTypeSizesArrayShift::None)
         {
-            return Ok(element_type_sizes);
+            return Ok(base_block);
         }
+
+        // A growth operation (e.g. vector insert/remove) needs a *shifted* helper table whose
+        // contents differ from the base table. If the base block was already initialized by a
+        // prior unshifted access to this same value, reusing it would initialize the same memory
+        // block twice. Allocate a fresh block for the shifted table instead, leaving the base
+        // `element_type_sizes_blocks` mapping for `array_id` untouched.
+        let element_type_sizes = if !matches!(shift, ElementTypeSizesArrayShift::None)
+            && self.initialized_arrays.contains(&base_block)
+        {
+            self.next_block_id()
+        } else {
+            base_block
+        };
 
         if !matches!(array_typ, Type::Array(_, _) | Type::Vector(_)) {
             return Err(InternalError::Unexpected {
