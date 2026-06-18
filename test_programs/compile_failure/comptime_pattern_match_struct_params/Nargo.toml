@@ -1,6 +1,0 @@
-[package]
-name = "comptime_pattern_match_struct_params"
-type = "bin"
-authors = [""]
-
-[dependencies]

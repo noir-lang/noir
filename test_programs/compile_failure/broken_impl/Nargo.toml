@@ -1,7 +1,0 @@
-[package]
-name = "broken_impl"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.26.0"
-
-[dependencies]

@@ -2471,6 +2471,147 @@ fn trait_associated_constant_duplicate_is_an_error() {
 }
 
 #[test]
+fn duplicate_trait_function_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        fn SomeFunc();
+           ~~~~~~~~ First definition found here
+        fn SomeFunc();
+           ^^^^^^^^ Duplicate definitions of trait associated item with name SomeFunc found
+           ~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_associated_constant_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        let SomeConst: u32;
+            ~~~~~~~~~ First definition found here
+        let SomeConst: Field;
+            ^^^^^^^^^ Duplicate definitions of trait associated item with name SomeConst found
+            ~~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_associated_type_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        type SomeType;
+             ~~~~~~~~ First definition found here
+        type SomeType;
+             ^^^^^^^^ Duplicate definitions of trait associated item with name SomeType found
+             ~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_function_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        let MyItem: u32;
+            ~~~~~~ First definition found here
+        fn MyItem();
+           ^^^^^^ Duplicate definitions of trait associated item with name MyItem found
+           ~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_function_and_associated_constant_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        fn MyItem();
+           ~~~~~~ First definition found here
+        let MyItem: u32;
+            ^^^^^^ Duplicate definitions of trait associated item with name MyItem found
+            ~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_type_and_constant_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        type Tralala;
+             ~~~~~~~ First definition found here
+        let Tralala: u32;
+            ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+            ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_type_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        let Tralala: u32;
+            ~~~~~~~ First definition found here
+        type Tralala;
+             ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+             ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_type_and_function_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        type Tralala;
+             ~~~~~~~ First definition found here
+        fn Tralala();
+           ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+           ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_function_and_associated_type_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        fn Tralala();
+           ~~~~~~~ First definition found here
+        type Tralala;
+             ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+             ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_function_name_clash() {
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+            ~ First definition found here
+
+        fn N() {}
+           ^ Duplicate definitions of trait associated item with name N found
+           ~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn resolves_associated_constant_shorthand_on_generic_trait() {
     let src = r#"
     trait Foo<T> {
@@ -2552,6 +2693,24 @@ fn elided_bounded_associated_type_does_not_wildcard_match_unrelated_type() {
         let m: M = M {};
         let _ = caller(m);
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cyclic_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    impl Foo for () {
+        type Bar = Self::Bar;
+                   ^^^^^^^^^ Binding `<() as Foo>::Bar` here to the `_` inside would create a cyclic type
+                   ~~~~~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    }
+
+    fn main() { }
     "#;
     check_errors(src);
 }
