@@ -79,8 +79,8 @@
     "unzipit": "^2.0.3",
     "url": "^0.11.4",
     "webpack": "^5.107.2",
-    "webpack-cli": "^7.0.2",
-    "webpack-dev-server": "^5.2.4"
+    "webpack-cli": "^7.0.3",
+    "webpack-dev-server": "^5.2.5"
   },
   "dependencies": {
     "@noir-lang/types": "workspace:*",

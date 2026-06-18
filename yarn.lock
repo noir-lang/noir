@@ -691,10 +691,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@discoveryjs/json-ext@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@discoveryjs/json-ext@npm:1.0.0"
-  checksum: 10/18e55d22132ea2b2088966a87ad6a80b5806e6d92c8ff7f3e2284fafa6b5d92060373145ddaf25593f9b2fcdbbe1587de18afe62ee4137d7ab02cb30a079d6a1
+"@discoveryjs/json-ext@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@discoveryjs/json-ext@npm:1.1.0"
+  checksum: 10/c941e41fcfa0d40bfd0b12e5cd5995b609328adb5fa881b1e8bebcae57784d505ccb92ae5d470055336802197a664d3856decccfd09a59c8feef2bf214591ff5
   languageName: node
   linkType: hard
 
@@ -2163,8 +2163,8 @@ __metadata:
     unzipit: "npm:^2.0.3"
     url: "npm:^0.11.4"
     webpack: "npm:^5.107.2"
-    webpack-cli: "npm:^7.0.2"
-    webpack-dev-server: "npm:^5.2.4"
+    webpack-cli: "npm:^7.0.3"
+    webpack-dev-server: "npm:^5.2.5"
   languageName: unknown
   linkType: soft
 
@@ -7140,13 +7140,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fastest-levenshtein@npm:^1.0.12":
-  version: 1.0.16
-  resolution: "fastest-levenshtein@npm:1.0.16"
-  checksum: 10/ee85d33b5cef592033f70e1c13ae8624055950b4eb832435099cd56aa313d7f251b873bedbc06a517adfaff7b31756d139535991e2406967438e03a1bf1b008e
-  languageName: node
-  linkType: hard
-
 "fastq@npm:^1.6.0":
   version: 1.15.0
   resolution: "fastq@npm:1.15.0"
@@ -8764,12 +8757,12 @@ __metadata:
   linkType: hard
 
 "launch-editor@npm:^2.6.1":
-  version: 2.13.2
-  resolution: "launch-editor@npm:2.13.2"
+  version: 2.14.1
+  resolution: "launch-editor@npm:2.14.1"
   dependencies:
     picocolors: "npm:^1.1.1"
-    shell-quote: "npm:^1.8.3"
-  checksum: 10/2b718ae4d3494526c9493a8c8f32e3824a79885e3b3be2e7e0db5ff74811b12af41760c4b904692cb43ddbd815ce65be245910e7ae84c3cc8ecbad4923657115
+    shell-quote: "npm:^1.8.4"
+  checksum: 10/335d12ca437280e77070657531c251b6c91c62bc653f70ab66ddd2a6e50131b1b043480411c5b93d54955a0a6eb8ec01e9a5b5cfe2d887341d878d19394a126b
   languageName: node
   linkType: hard
 
@@ -11295,7 +11288,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shell-quote@npm:^1.8.3":
+"shell-quote@npm:^1.8.4":
   version: 1.8.4
   resolution: "shell-quote@npm:1.8.4"
   checksum: 10/a3e3796385f2cd5cf0b78207a4439f0c7395c0833fc75b2473084b5d298c109c5c0fa687fcd1c04e4b4484866e5bb8eaae7efae443b80fff71ea7e29baf11f0c
@@ -11804,15 +11797,15 @@ __metadata:
   linkType: hard
 
 "tar@npm:^7.5.4":
-  version: 7.5.13
-  resolution: "tar@npm:7.5.13"
+  version: 7.5.16
+  resolution: "tar@npm:7.5.16"
   dependencies:
     "@isaacs/fs-minipass": "npm:^4.0.0"
     chownr: "npm:^3.0.0"
     minipass: "npm:^7.1.2"
     minizlib: "npm:^3.1.0"
     yallist: "npm:^5.0.0"
-  checksum: 10/2bc2b6f0349038a6621dbba1c4522d45752d5071b2994692257113c2050cd23fafc30308f820e5f8ad6fda3f7d7f92adc9a432aa733daa04c42af2061c021c3f
+  checksum: 10/fafa22efceb9f056bf29ddc47d9bd90bb82fe3ce57b8d1242fc45771251741964cebba69d4e14a24fd1643f3c7f68478e945a19def534703cf370c2d9dca2e09
   languageName: node
   linkType: hard
 
@@ -12568,15 +12561,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack-cli@npm:^7.0.2":
-  version: 7.0.2
-  resolution: "webpack-cli@npm:7.0.2"
+"webpack-cli@npm:^7.0.3":
+  version: 7.0.3
+  resolution: "webpack-cli@npm:7.0.3"
   dependencies:
-    "@discoveryjs/json-ext": "npm:^1.0.0"
+    "@discoveryjs/json-ext": "npm:^1.1.0"
     commander: "npm:^14.0.3"
     cross-spawn: "npm:^7.0.6"
     envinfo: "npm:^7.14.0"
-    fastest-levenshtein: "npm:^1.0.12"
     import-local: "npm:^3.0.2"
     interpret: "npm:^3.1.1"
     rechoir: "npm:^0.8.0"
@@ -12592,7 +12584,7 @@ __metadata:
       optional: true
   bin:
     webpack-cli: bin/cli.js
-  checksum: 10/44ccbdccd1684d9e340e932680db62c237caa7b11f90799ae9a73aed5cf9033db32b8fae00a127ebe37ec5adafb4be5e5a3096b1ab52ae8ee51c2a445895695d
+  checksum: 10/e7e04acd95c0190f806aad14e5d967cf09239f20d6d31fba360090dd68b9ea82a3c67df135831222f5dfe1f7fd5df5506124147f30f86f2eba9c34f444e6e2e4
   languageName: node
   linkType: hard
 
@@ -12615,9 +12607,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack-dev-server@npm:^5.2.4":
-  version: 5.2.4
-  resolution: "webpack-dev-server@npm:5.2.4"
+"webpack-dev-server@npm:^5.2.5":
+  version: 5.2.5
+  resolution: "webpack-dev-server@npm:5.2.5"
   dependencies:
     "@types/bonjour": "npm:^3.5.13"
     "@types/connect-history-api-fallback": "npm:^1.5.4"
@@ -12656,7 +12648,7 @@ __metadata:
       optional: true
   bin:
     webpack-dev-server: bin/webpack-dev-server.js
-  checksum: 10/5e5382f8cc7a73e2957542de0c755769548cbca8e7c6d17ed6b526364f11af35025be74f03827afa6723ccbdcc93730b0a0a59882d332fb3c6694a6d290c41e7
+  checksum: 10/2bd8e03615c32ecac53e783e2be5670ccac051d051ef4ed7fe944df8fd8745b508c8ebc63bfecfdccd23c2200ca4c373b22ea2da76ce4e1c0a6f58d900c11ecb
   languageName: node
   linkType: hard
 

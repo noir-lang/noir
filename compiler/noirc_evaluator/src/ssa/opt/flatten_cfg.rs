@@ -2157,6 +2157,50 @@ mod tests {
     }
 
     #[test]
+    fn predicate_range_checks() {
+        // `predicate_value` maps a range-checked value to its predicated form
+        // for the rest of the branch.
+        // As a result, the truncate in this test is optimized.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            range_check v1 to 16 bits
+            v2 = truncate v1 to 16 bits, max_bit_size: 32
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: u32):
+            return v3
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg().remove_truncate_after_range_check();
+
+        // No `truncate` remains: the range-checked `v3` (= `v1 * v0`) is the value used by
+        // the merge. Drop the `predicate_value` call and a `truncate v1` reappears here.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v2 = cast v0 as u32
+            v3 = unchecked_mul v1, v2
+            range_check v3 to 16 bits
+            v4 = not v0
+            enable_side_effects u1 1
+            v6 = cast v0 as u32
+            v7 = cast v4 as u32
+            v8 = unchecked_mul v6, v3
+            v9 = unchecked_mul v7, v1
+            v10 = unchecked_add v8, v9
+            return v10
+        }
+        ");
+    }
+
+    #[test]
     fn use_predicated_value() {
         let src = "
         acir(inline) fn main f0 {

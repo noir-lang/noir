@@ -1205,6 +1205,31 @@ mod test {
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
+    // Regression for NRSEC-903.
+    // Two identical calls to a pure brillig function each return a fresh array. A
+    // `vector_pop_front` between them mutates the first call's array in place (RC == 1 in
+    // brillig, no protecting `inc_rc`), so the second call must NOT be deduplicated against
+    // the first: reusing the mutated array makes the trailing `array_get` read the wrong value.
+    #[test]
+    fn mutating_vector_intrinsic_prevents_call_dedup() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1, v2 = call f1() -> (u32, [u32])
+            v5, v6, v7 = call vector_pop_front(v1, v2) -> (u32, u32, [u32])
+            v8, v9 = call f1() -> (u32, [u32])
+            v10 = array_get v9, index u32 0 -> u32
+            return v10
+        }
+        brillig(inline_never) predicate_pure fn get_slice f1 {
+          b0():
+            v1 = make_array [u32 100] : [u32]
+            return u32 1, v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
     // In ACIR, arrays are value-semantic: `array_set` produces a fresh array and never mutates
     // its input, so a later identical `make_array` can still be deduplicated against the original
     // even though `array_set` wrote "to" it. (In Brillig the same dedup would be unsafe because the
