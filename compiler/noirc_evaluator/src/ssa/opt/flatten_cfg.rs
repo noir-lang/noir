@@ -1207,13 +1207,7 @@ impl<'f> Context<'f> {
     ) -> Option<ValueId> {
         // If the condition along which we would merge is a constant 1 or 0,
         // then the simplification of the `IfElse` is easier than what we do here.
-        if self
-            .inserter
-            .function
-            .dfg
-            .get_numeric_constant(self.inserter.resolve(then_condition))
-            .is_some()
-        {
+        if self.inserter.function.dfg.is_constant(self.inserter.resolve(then_condition)) {
             return None;
         }
 
