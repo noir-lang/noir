@@ -47,12 +47,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          key: ${{ matrix.target }}
-          cache-on-failure: true
-          save-if: ${{ github.event_name != 'merge_group' }}
-
       - uses: taiki-e/install-action@just
 
       - name: Build binaries
@@ -153,12 +147,6 @@ jobs:
         uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          key: ${{ matrix.target }}
-          cache-on-failure: true
-          save-if: ${{ github.event_name != 'merge_group' }}
 
       - uses: taiki-e/install-action@just
 

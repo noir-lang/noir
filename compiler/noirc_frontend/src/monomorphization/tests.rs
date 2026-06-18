@@ -16,7 +16,7 @@ fn bounded_recursive_type_errors() {
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
-                                              ^^^^^^^^^^^^ Type `Tree<Tree<()>>` is recursive
+                                              ^^^^^^^^^^^^ Type `Tree<()>` is recursive
                                               ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
@@ -65,6 +65,58 @@ fn recursive_type_with_alias_errors() {
         ";
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features, false);
+}
+
+#[test]
+fn recursive_type_behind_unused_generic_errors() {
+    // A recursive type used only as an *unused* generic argument reaches monomorphization
+    // through `check_type` rather than `convert_type` (the argument is never lowered to a
+    // field). `check_type` must still detect the recursion, exactly as `convert_type` does for
+    // a used position. Recursive types cannot be declared (the resolver rejects them with a
+    // dependency-cycle error), so we let monomorphization run past that error to exercise the
+    // `check_type` path directly.
+    let src = r#"
+    struct Phantom<T> { x: Field }
+    struct A { b: B }
+    struct B { a: A }
+    fn main() {
+        let _p: Phantom<A> = Phantom { x: 1 };
+    }
+    "#;
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::RecursiveType { .. }),
+        "expected RecursiveType, got: {err:?}"
+    );
+}
+
+#[test]
+fn numeric_generic_checked_cast_in_instantiation_bindings() {
+    // Chaining calls that return arithmetic-sized arrays instantiates a numeric generic to a
+    // `CheckedCast` over an `InfixExpr` (e.g. `M -> 3 + 1`). That binding is validated through
+    // `check_type`, which must not hand a type-level numeric value to `convert_type` — doing so
+    // hits `convert_type`'s `unreachable!` for non-value types. This is a valid program and must
+    // monomorphize successfully.
+    let src = r#"
+    fn make<let N: u32>(x: [Field; N]) -> [Field; N + 1] {
+        let mut r = [0; N + 1];
+        for i in 0..N {
+            r[i] = x[i];
+        }
+        r
+    }
+    fn use_it<let M: u32>(x: [Field; M]) -> [Field; M + 2] {
+        make(make(x))
+    }
+    fn main() {
+        let _ = use_it([1, 2, 3]);
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
 }
 
 #[test]
@@ -813,6 +865,7 @@ fn fail_to_call_enum_member_without_panic() {
         }
 
         fn main() {
+            foo(Foo::A);
             let foo: Foo = Foo::A;
             foo(foo);
             ^^^^^^^^ Expected a function, but found a(n) Foo

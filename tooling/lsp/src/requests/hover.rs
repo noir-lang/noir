@@ -224,11 +224,11 @@ pub fn caller() {
     }
 
     #[test]
-    async fn hover_on_method_shows_where_clause_including_enclosing_impl_bounds() {
+    async fn hover_on_method_shows_only_its_own_where_clause_not_the_impls() {
         // For an inherent impl, the compiler merges the impl's `where` clause into each
-        // method's own constraints during collection, so both `U: Foo` (the method's) and
-        // `T: Foo` (the impl's) appear here. They can't be told apart at this point because
-        // a method's own `where` clause may also constrain an impl generic.
+        // method's own constraints during collection. Hovering a method should show only the
+        // method's own `where` clause (`U: Foo`), not the impl's (`T: Foo`), which belongs on
+        // the impl shown above the signature.
         assert_hover(
             r#"pub trait Foo {}
 
@@ -247,7 +247,7 @@ pub fn caller(w: Wrapper<u32>) {
 }"#,
             r#"    two::Wrapper
     impl<T> Wrapper<T>
-    pub fn combine<U>(self, other: U) where U: Foo, T: Foo"#,
+    pub fn combine<U>(self, other: U) where U: Foo"#,
         )
         .await;
     }

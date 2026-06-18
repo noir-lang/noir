@@ -9,7 +9,7 @@ use crate::{
 use super::Parser;
 
 impl Parser<'_> {
-    /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
+    /// Global = 'global' identifier `OptionalTypeAnnotation` '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
         attributes: Vec<(Attribute, Location)>,

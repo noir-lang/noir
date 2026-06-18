@@ -1662,7 +1662,7 @@ fn associated_type_in_generic_impl() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type() {
     let src = r#"
@@ -1689,7 +1689,7 @@ fn associated_type_shorthand_in_return_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     let src = r#"
@@ -1725,7 +1725,7 @@ fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_simple_identity() {
     let src = r#"
@@ -1752,7 +1752,7 @@ fn associated_type_shorthand_simple_identity() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 #[test]
 fn associated_type_of_self_generic_in_param_position_for_parent() {
     let src = r#"
@@ -1775,7 +1775,7 @@ fn associated_type_of_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 #[test]
 fn associated_type_of_non_self_generic_in_param_position_for_parent() {
     // M::Key should resolve when Key is defined on parent trait KeyType
@@ -1799,7 +1799,7 @@ fn associated_type_of_non_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_param_position() {
     let src = r#"
@@ -1831,7 +1831,7 @@ fn associated_type_shorthand_in_param_position() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11549
+/// Regression test for <https://github.com/noir-lang/noir/issues/11549>
 #[test]
 fn nested_associated_type_access_fails() {
     // Bug: nested associated type resolution fails
@@ -1873,7 +1873,7 @@ fn nested_associated_type_access_fails() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_in_generic_function_local_var() {
     let src = r#"
@@ -1907,7 +1907,7 @@ fn associated_type_in_generic_function_local_var() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn generic_impl_with_associated_type_in_method_signature() {
     let src = r#"
@@ -1941,7 +1941,7 @@ fn generic_impl_with_associated_type_in_method_signature() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11550
+/// Regression test for <https://github.com/noir-lang/noir/issues/11550>
 #[test]
 fn generic_fn_returning_tuple_with_associated_type() {
     let src = r#"
@@ -1970,7 +1970,7 @@ fn generic_fn_returning_tuple_with_associated_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11551
+/// Regression test for <https://github.com/noir-lang/noir/issues/11551>
 #[test]
 fn trait_with_associated_type_used_in_other_method_signature() {
     let src = r#"
@@ -2093,7 +2093,7 @@ fn chained_associated_type_in_signature_rejects_wrong_concrete_impl_return() {
     check_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/12889
+/// Regression test for <https://github.com/noir-lang/noir/issues/12889>
 ///
 /// The projection `<Wrapper<T> as Mappable>::Target` has both a real generic impl and a
 /// `where Self: Mappable` assumed impl in scope. The real impl discharges the hypothesis,
@@ -2239,7 +2239,7 @@ fn ambiguous_impl_with_unbound_type_variable_still_errors() {
     check_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11538
+/// Regression test for <https://github.com/noir-lang/noir/issues/11538>
 #[test]
 fn associated_constant_can_reference_generic_from_trait_bound() {
     let src = r#"
@@ -2260,7 +2260,7 @@ fn associated_constant_can_reference_generic_from_trait_bound() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11538
+/// Regression test for <https://github.com/noir-lang/noir/issues/11538>
 #[test]
 fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     let src = r#"
@@ -2284,8 +2284,8 @@ fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
-/// M::Key resolves through a grandparent chain: A: B, B: C, type Key on C.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
+/// `M::Key` resolves through a grandparent chain: A: B, B: C, type Key on C.
 #[test]
 fn associated_type_of_generic_resolves_through_grandparent() {
     let src = r#"
@@ -2311,7 +2311,7 @@ fn associated_type_of_generic_resolves_through_grandparent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 /// Diamond inheritance: both paths to the same associated type should not cause ambiguity.
 /// C inherits from A and B, both of which inherit from Base which defines Key.
 #[test]
@@ -2341,8 +2341,8 @@ fn associated_type_of_generic_diamond_inheritance() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
-/// M::Key from a parent trait used in an impl method signature and body.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
+/// `M::Key` from a parent trait used in an impl method signature and body.
 #[test]
 fn associated_type_of_generic_in_impl_method() {
     let src = r#"
@@ -2371,7 +2371,7 @@ fn associated_type_of_generic_in_impl_method() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 /// Ambiguous associated type: M has bounds on two unrelated traits that each define Key.
 /// This should produce a clear error.
 #[test]
@@ -2452,7 +2452,7 @@ fn associated_type_conflict_with_parent() {
 }
 
 /// Diamond inheritance with a generic parameter: M: B + C where B shadows Key from A,
-/// and C inherits Key from A. M::Key is ambiguous.
+/// and C inherits Key from A. `M::Key` is ambiguous.
 #[test]
 fn associated_type_diamond_ambiguity_on_generic() {
     let src = r#"
@@ -2559,6 +2559,147 @@ fn trait_associated_constant_duplicate_is_an_error() {
 }
 
 #[test]
+fn duplicate_trait_function_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        fn SomeFunc();
+           ~~~~~~~~ First definition found here
+        fn SomeFunc();
+           ^^^^^^^^ Duplicate definitions of trait associated item with name SomeFunc found
+           ~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_associated_constant_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        let SomeConst: u32;
+            ~~~~~~~~~ First definition found here
+        let SomeConst: Field;
+            ^^^^^^^^^ Duplicate definitions of trait associated item with name SomeConst found
+            ~~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_associated_type_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        type SomeType;
+             ~~~~~~~~ First definition found here
+        type SomeType;
+             ^^^^^^^^ Duplicate definitions of trait associated item with name SomeType found
+             ~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_function_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        let MyItem: u32;
+            ~~~~~~ First definition found here
+        fn MyItem();
+           ^^^^^^ Duplicate definitions of trait associated item with name MyItem found
+           ~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_function_and_associated_constant_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        fn MyItem();
+           ~~~~~~ First definition found here
+        let MyItem: u32;
+            ^^^^^^ Duplicate definitions of trait associated item with name MyItem found
+            ~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_type_and_constant_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        type Tralala;
+             ~~~~~~~ First definition found here
+        let Tralala: u32;
+            ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+            ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_type_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        let Tralala: u32;
+            ~~~~~~~ First definition found here
+        type Tralala;
+             ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+             ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_type_and_function_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        type Tralala;
+             ~~~~~~~ First definition found here
+        fn Tralala();
+           ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+           ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_function_and_associated_type_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        fn Tralala();
+           ~~~~~~~ First definition found here
+        type Tralala;
+             ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+             ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_function_name_clash() {
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+            ~ First definition found here
+
+        fn N() {}
+           ^ Duplicate definitions of trait associated item with name N found
+           ~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn resolves_associated_constant_shorthand_on_generic_trait() {
     let src = r#"
     trait Foo<T> {
@@ -2601,6 +2742,63 @@ fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_imp
         let _: u32 = Bar::CONST;
                           ^^^^^ Multiple `impl`s of `Foo` apply to `Bar`
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_bounded_associated_type_does_not_wildcard_match_unrelated_type() {
+    // `where T: Foo` elides `Foo`'s bounded associated type `Bar: Baz`, so the
+    // elaborator synthesizes an implicit generic for it and assumes `<T as Foo>::Bar: Baz`.
+    // That assumed bound must be keyed on the rigid associated-type generic, not on a
+    // bindable type variable. Otherwise the assumed `Baz` impl wildcard-matches the
+    // unrelated `u32` query from `needs_baz`, binding the synthetic generic to `u32` and
+    // misreporting the failure at the call site instead of in `caller`'s body.
+    let src = r#"
+    pub trait Baz { fn baz() -> u32; }
+    pub trait Foo {
+        type Bar: Baz;
+        fn make_bar(self) -> Self::Bar;
+    }
+
+    fn needs_baz<X>(_x: X) -> u32 where X: Baz { X::baz() }
+
+    fn caller<T>(_t: T) -> u32 where T: Foo {
+        needs_baz(5_u32)
+        ^^^^^^^^^ No matching impl found for `u32: Baz`
+        ~~~~~~~~~ No impl for `u32: Baz`
+    }
+
+    pub struct S {}
+    impl Baz for S { fn baz() -> u32 { 2 } }
+    pub struct M {}
+    impl Foo for M {
+        type Bar = S;
+        fn make_bar(self) -> S { S {} }
+    }
+
+    fn main() {
+        let m: M = M {};
+        let _ = caller(m);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cyclic_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    impl Foo for () {
+        type Bar = Self::Bar;
+                   ^^^^^^^^^ Binding `<() as Foo>::Bar` here to the `_` inside would create a cyclic type
+                   ~~~~~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    }
+
+    fn main() { }
     "#;
     check_errors(src);
 }

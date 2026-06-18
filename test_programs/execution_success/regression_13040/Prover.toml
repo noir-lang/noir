@@ -1,0 +1,4 @@
+cond = true
+idx = 0
+go = true
+return = 99

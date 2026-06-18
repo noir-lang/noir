@@ -13,6 +13,7 @@ use acvm::AcirField;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
+/// ```text
 /// brillig(inline) fn main f0 {
 ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///      v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
@@ -23,7 +24,7 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 ///      v7 = add v2, v2
 ///      return v7
 ///  }
-///  
+/// ```
 #[test]
 fn simple_function_call() {
     let _ = env_logger::try_init();
@@ -66,10 +67,13 @@ fn simple_function_call() {
     }
 }
 
+/// ```text
 /// main() { f1() + f2() } -> 8 + 4 => 12
 /// f1() { let var = f2(); var + var } -> 4 + 4 => 8
 /// f2(v2) { v2 + v2 } -> 2 + 2 => 4
+/// ```
 ///
+/// ```text
 ///   brillig(inline) fn main f0 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
@@ -88,6 +92,7 @@ fn simple_function_call() {
 ///       v7 = add v2, v2
 ///       return v7
 ///   }
+/// ```
 #[test]
 fn several_functions_several_calls() {
     let dummy_var = NumericArgument { index: 2, numeric_type: NumericType::I64 };
@@ -150,6 +155,7 @@ fn several_functions_several_calls() {
     }
 }
 
+/// ```text
 ///   brillig(inline) fn main f0 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = allocate -> &mut Field
@@ -177,6 +183,7 @@ fn several_functions_several_calls() {
 ///       v7 = add v2, v2
 ///       return v7
 ///   }
+/// ```
 #[test]
 fn call_in_if_else() {
     let _ = env_logger::try_init();
