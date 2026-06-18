@@ -320,40 +320,12 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 self.storage[self.len + i] = vec.get_unchecked(i);
             }
         } else {
-            // The source vector can be longer than the destination, or vice versa;
-            // regardless we will only ever be able to read or write whichever is
-            // the shorter max length of the two. We asserted that the actual content fits,
-            // but the capacity of the source vector could be higher.
+            // Iterate to a static bound: the smaller of the two capacities, since we can
+            // neither read nor write past either. The source's actual length is dynamic.
             let max = crate::cmp::min(Len, MaxLen);
-
-            // Save the last item in case we have to do a fixup on an already full array.
-            let last = if MaxLen > 0 {
-                self.storage[MaxLen - 1]
-            } else {
-                crate::mem::zeroed()
-            };
-
-            for src in 0..max {
-                // Since we are iterating to the static capacity of the arrays,
-                // the destination could be out of bounds. If that's the case,
-                // overwrite the last item, which we'll fixup in the end.
-                // NB using cmp::min resulted in more opcodes here.
-                let mut dst = self.len + src;
-                if dst >= MaxLen { dst = MaxLen - 1; };
-                // Assigning the source or zeroed to avoid having to merge arrays in SSA.
-                self.storage[dst] = if src < append_len {
-                    vec.get_unchecked(src)
-                } else {
-                    last
-                }
-            }
-
-            // Fixup the last item if we have to.
-            if MaxLen > 0 {
-                self.storage[MaxLen - 1] = if (self.len + append_len == MaxLen) & (append_len > 0) {
-                    vec.get_unchecked(append_len - 1)
-                } else {
-                    last
+            for i in 0..max {
+                if i < append_len {
+                    self.storage[self.len + i] = vec.get_unchecked(i);
                 }
             }
         }
@@ -453,10 +425,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
-                ret.storage[i] = if i < self.len() {
-                    f(self.get_unchecked(i))
-                } else {
-                    crate::mem::zeroed()
+                if i < self.len() {
+                    ret.storage[i] = f(self.get_unchecked(i));
                 }
             }
         }
@@ -486,10 +456,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
-                ret.storage[i] = if i < self.len() {
-                    f(i, self.get_unchecked(i))
-                } else {
-                    crate::mem::zeroed()
+                if i < self.len() {
+                    ret.storage[i] = f(i, self.get_unchecked(i));
                 }
             }
         }
