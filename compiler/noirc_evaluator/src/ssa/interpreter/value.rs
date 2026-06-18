@@ -290,11 +290,24 @@ impl Value {
         assert!(!element_types.is_empty());
 
         let length = assert_u32(elements.len() / element_types.len());
+        Self::array_with_length(elements, element_types, SemanticLength(length))
+    }
+
+    /// Build an array value with an explicit semantic length.
+    ///
+    /// Unlike [`Value::array`], this supports zero-sized element types (empty `element_types`),
+    /// where the length cannot be recovered by dividing the flattened element count by the number
+    /// of element types.
+    pub(crate) fn array_with_length(
+        elements: Vec<Value>,
+        element_types: Vec<Type>,
+        length: SemanticLength,
+    ) -> Self {
         Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
-            length: Some(SemanticLength(length)),
+            length: Some(length),
         })
     }
 
@@ -330,7 +343,7 @@ impl Value {
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
                 let elements = std::iter::repeat_n(first_elements, assert_usize(length.0));
                 let elements = elements.flatten().collect();
-                Self::array(elements, element_types.to_vec())
+                Self::array_with_length(elements, element_types.to_vec(), *length)
             }
             Type::Vector(element_types) => Self::uninitialized_vector(element_types, 0, id),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
