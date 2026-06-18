@@ -180,17 +180,16 @@ pub fn compile_program(
             })?
             .0;
 
-    let optimized_program = nargo::ops::optimize_program(compiled_program);
-    nargo::ops::check_program(&optimized_program).map_err(|errs| {
+    nargo::ops::check_program(&compiled_program).map_err(|errs| {
         CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
             &context.file_manager,
         )
     })?;
-    let warnings = optimized_program.warnings.clone();
+    let warnings = compiled_program.warnings.clone();
 
-    Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
+    Ok(JsCompileProgramResult::new(compiled_program.into(), warnings))
 }
 
 #[wasm_bindgen]
@@ -215,10 +214,9 @@ pub fn compile_contract(
             })?
             .0;
 
-    let optimized_contract = nargo::ops::optimize_contract(compiled_contract);
-    let warnings = optimized_contract.warnings.clone();
+    let warnings = compiled_contract.warnings.clone();
 
-    Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
+    Ok(JsCompileContractResult::new(compiled_contract.into(), warnings))
 }
 
 fn prepare_context(

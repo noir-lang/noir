@@ -115,6 +115,8 @@ describe('noir-compiler/node', () => {
     'regression_5252',
     'regression_5615',
     'uhashmap',
+    // The unrolled `u64` array merge balloons the SSA enough to overflow the wasm call stack.
+    'large_nested_array_merge_loop',
   ];
   getSubdirs(join(testProgramsDir, 'execution_success'))
     .filter((name) => !filteredExecutionSuccessTests.includes(name))

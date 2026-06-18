@@ -1007,15 +1007,16 @@ pub fn filter_relevant_files(
 ///
 /// This function assumes [`check_crate`] is called beforehand.
 ///
-/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
-/// pass before usage in proof generation; if it's returned from cache these transformations might have
-/// already been applied.
+/// Whether returned from cache or freshly compiled, the program has already been fully optimized and
+/// transformed for the proving backend (the width-bounding CSAT pass and intermediate-variable
+/// elimination, using the assembled program's Brillig side-effect information) as part of
+/// SSA-to-ACIR generation, so it is ready for proof generation with no further optimization pass.
 ///
-/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-/// That comparison is based on [CompiledProgram::hash] which is a persisted version of the hash of
-/// the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program] and the relevant
-/// compile options, whereas the output [`circuit::Program`][acvm::acir::circuit::Program] contains
-/// the final optimized ACIR opcodes, including the transformation done after this compilation.
+/// Note that the optimized ACIR is _not_ covered by the check that decides whether we can use the cached
+/// artifact. That comparison is based on [`CompiledProgram::hash`] which is a persisted version of the hash
+/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program] and the relevant
+/// compile options, whereas the output [`circuit::Program`][acvm::acir::circuit::Program] contains the
+/// final optimized ACIR opcodes.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
