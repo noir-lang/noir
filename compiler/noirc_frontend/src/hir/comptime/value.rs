@@ -595,8 +595,11 @@ impl Value {
                     return Err(InterpreterError::CannotInlineMacro { value, typ, location });
                 }
             }
-            // Only convert pointers with auto_deref = true. These are mutable variables
-            // and we don't need to wrap them in `&mut`.
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // transparently dereferenced on use, so we convert the pointed-to value directly
+            // rather than wrapping it in `&mut`. The mutability flag is irrelevant here:
+            // auto-deref pointers are produced for both mutable and immutable bindings
+            // (e.g. indexing an immutable array yields an immutable auto-deref pointer).
             Value::Pointer(element, true, _) => {
                 return element
                     .unwrap_or_clone()

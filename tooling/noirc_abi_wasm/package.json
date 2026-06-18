@@ -45,6 +45,6 @@
     "@web/test-runner-playwright": "^0.11.1",
     "eslint": "^10.4.1",
     "mocha": "^11.7.6",
-    "tsx": "^4.21.0"
+    "tsx": "^4.22.4"
   }
 }

@@ -379,6 +379,20 @@ fn let_comptime_block_inner_semicolon_unused_warning() {
 }
 
 #[test]
+fn comptime_var_not_defined() {
+    let src = r#"
+        fn main() {
+            comptime {
+                foo();
+                ^^^ cannot find `foo` in this scope
+                ~~~ not found in this scope
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn let_comptime_block_semicolon_no_warning() {
     let src = r#"
         fn main() {
