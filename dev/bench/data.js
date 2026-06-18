@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781790495428,
+  "lastUpdate": 1781799417282,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23225,48 +23225,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "1767211c085f0f9a6efe9ace74126eb331b637a4",
-          "message": "chore: fix `doc_markdown` clippy lint warnings (#13023)",
-          "timestamp": "2026-06-15T15:08:01Z",
-          "tree_id": "203c5cb6edfed028d803b09d6d416bf71a5358ff",
-          "url": "https://github.com/noir-lang/noir/commit/1767211c085f0f9a6efe9ace74126eb331b637a4"
-        },
-        "date": 1781537720536,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128638,
-            "range": "± 453",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112981,
-            "range": "± 1079",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041172,
-            "range": "± 4047",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "dfb2f421afc542e557544f86918b0f45550efdc3",
           "message": "fix(stdlib): absorb tail not prefix in Poseidon2Hasher residual block (#13063)",
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655850,
             "range": "± 4006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d09400c81b6c61cac5802edf8bc788b5417ae4b1",
+          "message": "fix(ssa): truncate signed-to-signed narrowing cast constants (#12826)",
+          "timestamp": "2026-06-18T15:55:59Z",
+          "tree_id": "2602d9e4e8616f770bf7fec45a0ad13ad475d80e",
+          "url": "https://github.com/noir-lang/noir/commit/d09400c81b6c61cac5802edf8bc788b5417ae4b1"
+        },
+        "date": 1781799344185,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167993,
+            "range": "± 443",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137586,
+            "range": "± 682",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2656681,
+            "range": "± 9344",
             "unit": "ns/iter"
           }
         ]
