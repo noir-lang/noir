@@ -1563,20 +1563,12 @@ brillig(inline) fn main f0 {
         // left untouched and not promoted: there is no stored value to forward, and treating it
         // as eligible would break the "every eligible variable has a def site" invariant.
         let src = "
-    brillig(inline) fn foo f0 {
-      b0():
-        v0 = allocate -> &mut u1
-        return
-    }
-    ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_ssa_snapshot!(ssa, @r"
-    brillig(inline) fn foo f0 {
-      b0():
-        v0 = allocate -> &mut u1
-        return
-    }
-    ");
+        brillig(inline) fn foo f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
