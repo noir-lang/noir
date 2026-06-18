@@ -1573,7 +1573,7 @@ brillig(inline) fn main f0 {
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
-  
+
     /// mem2reg runs on ACIR functions too, not just Brillig. This exercises the full
     /// load/store removal and block-parameter insertion path on an `acir` function with a
     /// control-flow merge (the IDF of {b0, b1} is {b3}).
