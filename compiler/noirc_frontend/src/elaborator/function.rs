@@ -261,6 +261,12 @@ impl Elaborator<'_> {
         self.interner.function_meta(&func_id)
     }
 
+    /// Lazily resolves a function's [FuncMeta] if needed, then returns it if it exists .
+    pub(crate) fn try_function_meta(&mut self, func_id: FuncId) -> Option<&FuncMeta> {
+        self.define_function_meta_if_undefined(func_id);
+        self.interner.try_function_meta(&func_id)
+    }
+
     /// Mutable counterpart of [`Self::function_meta`].
     pub(crate) fn function_meta_mut(&mut self, func_id: FuncId) -> &mut FuncMeta {
         self.define_function_meta_if_undefined(func_id);

@@ -92,6 +92,27 @@ impl Methods {
         None
     }
 
+    /// Returns the self types of every direct (inherent) method that matches `typ`.
+    ///
+    /// Unlike keying by `typ`'s method key, this matches each impl's self type against `typ`, so it
+    /// distinguishes `Foo<i32>` and `Foo<u64>` (both match `Foo<_>`) from `u8` and `u16` (only `u8`
+    /// matches `u8`) — even though same-key types like the integers share a single `Methods` entry.
+    /// Used to detect when `TypeName::method` is ambiguous (more than one applies).
+    pub(super) fn matching_direct_method_types(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Vec<Type> {
+        self.direct
+            .iter()
+            .filter(|method| {
+                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+            })
+            .map(|method| method.typ.clone())
+            .collect()
+    }
+
     pub(super) fn find_trait_methods(
         &self,
         typ: &Type,
