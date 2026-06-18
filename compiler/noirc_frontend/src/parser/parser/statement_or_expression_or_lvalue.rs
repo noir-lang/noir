@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AssignStatement, Expression, ExpressionKind, LValue, Statement, StatementKind},
+    ast::{Expression, ExpressionKind, LValue, Statement, StatementKind},
     token::{Token, TokenKind},
 };
 
@@ -23,41 +23,36 @@ impl Parser<'_> {
     ) -> StatementOrExpressionOrLValue {
         let start_location = self.current_token_location;
 
-        // First check if it's an interned LValue
+        // First check if it's an interned LValue. An interned lvalue is really an interned
+        // expression (see `NodeInterner::push_lvalue`), so we treat it as the leading atom of
+        // an expression and let the normal postfix and assignment machinery consume whatever
+        // follows: `$lv`, `$lv.field`, `$lv.method(args)`, `$lv[i]`, `$lv = rhs`, `$lv += rhs`.
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
-            match token.into_token() {
-                Token::InternedLValue(interned) => {
-                    let location = self.location_since(start_location);
-                    let interned_lvalue = || LValue::Interned(interned, location);
+            let Token::InternedLValue(interned) = token.into_token() else {
+                unreachable!("eat_kind(InternedLValue) only matches InternedLValue tokens")
+            };
 
-                    // If it is, it could be something like `lvalue = expr`: check that.
-                    if self.eat(Token::Assign) {
-                        let expression = self.parse_expression_or_error();
-                        let kind = StatementKind::Assign(AssignStatement {
-                            lvalue: interned_lvalue(),
-                            expression,
-                        });
-                        return StatementOrExpressionOrLValue::Statement(Statement {
-                            kind,
-                            location: self.location_since(start_location),
-                        });
-                    } else if self.current_is(Token::Dot) {
-                        let object = Expression {
-                            kind: ExpressionKind::Interned(interned),
-                            location: self.location_since(start_location),
-                        };
-                        let access = self.parse_member_accesses_or_method_calls_after_expression(
-                            object,
-                            start_location,
-                        );
-                        if let Some(lvalue) = LValue::from_expression(access) {
-                            return StatementOrExpressionOrLValue::LValue(lvalue);
-                        }
-                    }
-                    return StatementOrExpressionOrLValue::LValue(interned_lvalue());
-                }
-                _ => unreachable!(),
-            }
+            let atom = Expression {
+                kind: ExpressionKind::Interned(interned),
+                location: self.location_since(start_location),
+            };
+            let atom = self.parse_atom_rhs_after_expression(atom, start_location);
+            let kind = self.parse_assignment_or_expression_statement(atom);
+
+            return match kind {
+                // We started from a spliced lvalue, so prefer an `LValue` result whenever the
+                // (postfix-extended) expression still denotes a place (`$lv`, `$lv.field`,
+                // `$lv[i]`). A non-place tail such as a method call stays an `Expression`
+                // rather than being silently dropped back to the bare lvalue.
+                StatementKind::Expression(expr) => match LValue::from_expression(expr.clone()) {
+                    Some(lvalue) => StatementOrExpressionOrLValue::LValue(lvalue),
+                    None => StatementOrExpressionOrLValue::Expression(expr),
+                },
+                kind => StatementOrExpressionOrLValue::Statement(Statement {
+                    kind,
+                    location: self.location_since(start_location),
+                }),
+            };
         }
 
         // Otherwise, check if it's a statement (which in turn checks if it's an expression)

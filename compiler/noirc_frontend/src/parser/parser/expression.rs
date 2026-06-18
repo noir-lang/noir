@@ -188,6 +188,28 @@ impl Parser<'_> {
         self.parse_index(atom, start_location)
     }
 
+    /// Parses any postfix tail after an already-parsed atom: calls, member accesses,
+    /// method calls and indexing (`AtomRhs*`). This is the same loop `parse_atom` runs
+    /// after its leading quark, exposed for callers that build the leading atom themselves.
+    pub(super) fn parse_atom_rhs_after_expression(
+        &mut self,
+        mut atom: Expression,
+        start_location: Location,
+    ) -> Expression {
+        let mut parsed;
+
+        loop {
+            (atom, parsed) = self.parse_atom_rhs(atom, start_location);
+            if parsed {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        atom
+    }
+
     pub(super) fn parse_member_accesses_or_method_calls_after_expression(
         &mut self,
         mut atom: Expression,

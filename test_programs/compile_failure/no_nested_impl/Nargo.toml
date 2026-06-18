@@ -1,7 +1,0 @@
-[package]
-name = "no_nested_impl"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.18.0"
-
-[dependencies]

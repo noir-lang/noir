@@ -1,6 +1,0 @@
-[package]
-name = "global_captured_closure"
-type = "bin"
-authors = [""]
-
-[dependencies]
