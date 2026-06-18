@@ -749,27 +749,29 @@ impl<'f> Context<'f> {
     /// - `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`
     /// - `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`
     ///
-    /// Returns `(new_then_condition, new_then_value, new_else_value)` if collapsible.
+    /// Returns `(new_then_condition, new_then_value, new_else_condition, new_else_value)`
+    /// if collapsible. The `new_then_condition` is the inner merge's condition, which
+    /// already incorporates all outer conditions, and `new_else_condition` is its negation.
     fn try_collapse_merge(
         &mut self,
         then_arg: ValueId,
         else_arg: ValueId,
-    ) -> Option<(ValueId, ValueId, ValueId)> {
+    ) -> Option<(ValueId, ValueId, ValueId, ValueId)> {
         // Check then_arg provenance
         if let Some(prov) = self.merge_provenance.get(&then_arg) {
             let prov_else = self.inserter.resolve(prov.else_value);
             let prov_then = self.inserter.resolve(prov.then_value);
             if prov_else == else_arg {
                 // Group 1: IfElse(c1, IfElse(c2, x, _, y), _, y) → IfElse(c2, x, _, y)
-                let result = (prov.then_condition, prov_then, else_arg);
+                let then_condition = prov.then_condition;
                 self.merge_provenance.remove(&then_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_then, else_arg));
             }
             if prov_then == else_arg {
                 // Group 2: IfElse(c1, IfElse(_, x, c2e, z), _, x) → IfElse(c2e, z, _, x)
-                let result = (prov.else_condition, prov_else, else_arg);
+                let then_condition = prov.else_condition;
                 self.merge_provenance.remove(&then_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_else, else_arg));
             }
         }
         // Check else_arg provenance (safe because merge_provenance is cleared at
@@ -779,18 +781,32 @@ impl<'f> Context<'f> {
             let prov_then = self.inserter.resolve(prov.then_value);
             if prov_else == then_arg {
                 // Group 1: IfElse(c1, y, _, IfElse(c2, x, _, y)) → IfElse(c2, x, _, y)
-                let result = (prov.then_condition, prov_then, then_arg);
+                let then_condition = prov.then_condition;
                 self.merge_provenance.remove(&else_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_then, then_arg));
             }
             if prov_then == then_arg {
                 // Group 2: IfElse(c1, x, _, IfElse(_, x, c2e, z)) → IfElse(c2e, z, _, x)
-                let result = (prov.else_condition, prov_else, then_arg);
+                let then_condition = prov.else_condition;
                 self.merge_provenance.remove(&else_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_else, then_arg));
             }
         }
         None
+    }
+
+    /// Build the collapsed merge tuple, deriving the else_condition as `NOT(then_condition)`.
+    fn with_else_condition(
+        &mut self,
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+    ) -> (ValueId, ValueId, ValueId, ValueId) {
+        let else_condition = self.not_instruction(
+            then_condition,
+            self.inserter.function.dfg.get_value_call_stack_id(then_condition),
+        );
+        (then_condition, then_value, else_condition, else_value)
     }
 
     /// Switch context the 'exit' block of a conditional statement:
@@ -878,59 +894,50 @@ impl<'f> Context<'f> {
         let block = self.target_block;
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
-        let args = vecmap(args, |(then_arg, else_arg)| {
-            let call_stack = cond_context.call_stack;
+        let args =
+            vecmap(args, |(then_arg, else_arg)| {
+                let call_stack = cond_context.call_stack;
 
-            // Try to collapse a redundant nested merge. When the inner merge's
-            // else_value (or then_value) matches the outer merge's corresponding
-            // argument, the two merges can be combined into one.
-            let collapsed = self.try_collapse_merge(then_arg, else_arg);
-            let (then_condition, then_value, else_condition, else_value) =
-                if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    // For the collapsed merge, the then_condition is the inner's
-                    // condition which already incorporates all outer conditions.
-                    // The correct else_condition is NOT(then_condition).
-                    let inner_else_cond = self.not_instruction(
-                        inner_then_cond,
-                        self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
-                    );
-                    (inner_then_cond, inner_then_val, inner_else_cond, shared_val)
-                } else {
-                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
-                };
-
-            let instruction =
-                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
-            let result = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(instruction, block, None, call_stack)
-                .first();
-
-            // Record provenance only for non-collapsed merges — collapsed results
-            // carry conditions from an inner nesting level that may not be "under"
-            // the next outer condition. Provenance is also consumed (removed) on
-            // use by `try_collapse_merge`, preventing stale entries from matching
-            // at unrelated merge points. Skip when the IfElse simplified to an
-            // existing value (e.g. then_value == else_value, or one of the conditions).
-            // If we don't skip conditions, an inner merge that simplifies to its
-            // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
-            // to v0, causing false collapses at outer merges that use v0 as an argument.
-            if collapsed.is_none()
-                && result != then_condition
-                && result != then_value
-                && result != else_condition
-                && result != else_value
-            {
-                self.merge_provenance.insert(
-                    result,
-                    MergeProvenance { then_condition, then_value, else_condition, else_value },
+                // Try to collapse a redundant nested merge. When the inner merge's
+                // else_value (or then_value) matches the outer merge's corresponding
+                // argument, the two merges can be combined into one.
+                let collapsed = self.try_collapse_merge(then_arg, else_arg);
+                let (then_condition, then_value, else_condition, else_value) = collapsed.unwrap_or(
+                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg),
                 );
-            }
 
-            result
-        });
+                let instruction =
+                    Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+                let result = self
+                    .inserter
+                    .function
+                    .dfg
+                    .insert_instruction_and_results(instruction, block, None, call_stack)
+                    .first();
+
+                // Record provenance only for non-collapsed merges — collapsed results
+                // carry conditions from an inner nesting level that may not be "under"
+                // the next outer condition. Provenance is also consumed (removed) on
+                // use by `try_collapse_merge`, preventing stale entries from matching
+                // at unrelated merge points. Skip when the IfElse simplified to an
+                // existing value (e.g. then_value == else_value, or one of the conditions).
+                // If we don't skip conditions, an inner merge that simplifies to its
+                // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
+                // to v0, causing false collapses at outer merges that use v0 as an argument.
+                if collapsed.is_none()
+                    && result != then_condition
+                    && result != then_value
+                    && result != else_condition
+                    && result != else_value
+                {
+                    self.merge_provenance.insert(
+                        result,
+                        MergeProvenance { then_condition, then_value, else_condition, else_value },
+                    );
+                }
+
+                result
+            });
 
         self.prepare_args(args);
     }

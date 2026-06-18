@@ -92,6 +92,7 @@ pub(crate) struct RangeOptimizer<'a, F: AcirField> {
 impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
+    #[tracing::instrument(level = "trace", name = "redundant_range_collect", skip_all)]
     pub(crate) fn new(
         circuit: Circuit<F>,
         brillig_side_effects: &'a BTreeMap<BrilligFunctionId, bool>,
@@ -222,6 +223,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// a 'side-effect' opcode (i.e a Brillig call).
     /// As a result, we simply do a backward pass on the opcodes, so that the last Brillig call
     /// is known before reaching a RANGE opcode.
+    #[tracing::instrument(level = "trace", name = "redundant_range_replace", skip_all)]
     pub(crate) fn replace_redundant_ranges(
         self,
         order_list: Vec<usize>,
@@ -247,7 +249,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 _ => None,
             }) else {
                 // If its not the range opcode, add it to the opcode list and continue.
-                optimized_opcodes.push(opcode.clone());
+                optimized_opcodes.push(opcode);
                 new_order_list.push(order_list[idx]);
                 continue;
             };
@@ -271,7 +273,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
             }
 
             new_order_list.push(order_list[idx]);
-            optimized_opcodes.push(opcode.clone());
+            optimized_opcodes.push(opcode);
         }
 
         // Restore forward order.

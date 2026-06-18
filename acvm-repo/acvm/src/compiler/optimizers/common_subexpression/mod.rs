@@ -85,6 +85,7 @@ use super::RangeOptimizer;
 
 /// We use multiple passes to stabilize the output in many cases
 const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 3;
+const DEFAULT_EXPRESSION_WIDTH: usize = 4;
 
 /// Applies backend specific optimizations to a [`Circuit`].
 ///
@@ -163,7 +164,8 @@ fn transform_internal_once<F: AcirField>(
     // Process each opcode in the circuit by marking the solvable witnesses and slicing the AssertZero opcodes
     // towards the backend's preferred width by creating intermediate variables.
     // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
-    let mut transformer = CSatTransformer::new(4);
+    let csat_span = tracing::trace_span!("csat_transformer").entered();
+    let mut transformer = CSatTransformer::new(DEFAULT_EXPRESSION_WIDTH);
     for value in acir.circuit_arguments() {
         transformer.mark_solvable(value);
     }
@@ -254,6 +256,7 @@ fn transform_internal_once<F: AcirField>(
         // The transformer does not add new public inputs
         ..acir
     };
+    drop(csat_span);
 
     // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
     let mut merge_optimizer = MergeExpressionsOptimizer::new();
