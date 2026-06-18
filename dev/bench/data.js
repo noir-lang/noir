@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781800488573,
+  "lastUpdate": 1781803730207,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23216,48 +23216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "dfb2f421afc542e557544f86918b0f45550efdc3",
-          "message": "fix(stdlib): absorb tail not prefix in Poseidon2Hasher residual block (#13063)",
-          "timestamp": "2026-06-15T17:20:21Z",
-          "tree_id": "f49e914688f64024651b7a41eecae70a8a2a409c",
-          "url": "https://github.com/noir-lang/noir/commit/dfb2f421afc542e557544f86918b0f45550efdc3"
-        },
-        "date": 1781545805737,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166705,
-            "range": "± 964",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136573,
-            "range": "± 4213",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2657577,
-            "range": "± 2059",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656681,
             "range": "± 9344",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a5195d4b0fe4025cc2054c75e76a8c26fba0b67d",
+          "message": "chore(test): Large nested array baseline tests (#13108)",
+          "timestamp": "2026-06-18T16:59:20Z",
+          "tree_id": "994214186eb91c78feaf880ef8807d45c340f340",
+          "url": "https://github.com/noir-lang/noir/commit/a5195d4b0fe4025cc2054c75e76a8c26fba0b67d"
+        },
+        "date": 1781803591328,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166974,
+            "range": "± 970",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136973,
+            "range": "± 531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651430,
+            "range": "± 8256",
             "unit": "ns/iter"
           }
         ]
