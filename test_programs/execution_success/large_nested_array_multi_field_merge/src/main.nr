@@ -1,14 +1,16 @@
-// Large array of structs, conditionally modifying several `Field` members per loop
-// iteration. Each conditional forms a chain of array_sets over the flattened array
+// Adversarial case for collapsing the conditional array-set chain: a struct-of-`Field`
+// array that is deliberately *mostly discarded* — only `arr[0].a` is read at the end.
+// Each conditional forms a chain of array_sets over the flattened array
 // (offsets +0/+2/+4 within the element):
 //   arr1 = array_set arr0, offset+0, val_a
 //   arr2 = array_set arr1, offset+2, val_c
 //   arr3 = array_set arr2, offset+4, val_e
-// Because `Field` arithmetic is side-effect free, the element-wise branch merges for
-// elements that are never read again are pure dead code and get eliminated, leaving
-// only the live element. This case stays small regardless of how the array_set chain
-// is handled. The `_u64` twin is where the element type changes the calculation:
-// integer side effects keep those merges live, so collapsing the chain matters there.
+// Because `Field` arithmetic is side-effect free, the per-element branch merges for the
+// discarded elements are dead code and get eliminated, leaving a small circuit. Merging
+// the chain into explicit predicated array_sets keeps work for those elements instead,
+// so for this discard-heavy `Field` shape it costs more than it saves. The `_u64` twin
+// is the opposite: integer side effects keep the merges live regardless, so collapsing
+// the chain there is a clear win.
 struct Element {
     a: Field,
     b: Field,
