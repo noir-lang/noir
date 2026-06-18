@@ -1004,11 +1004,8 @@ impl<'f> Context<'f> {
     ///   `requires_acir_gen_predicate = true` and would be zeroed by
     ///   `remove_unreachable_instructions`.
     ///
-    /// To handle potentially out-of-bounds dynamic indices (which would error under
-    /// `enable_side_effects u1 1`), we create a "safe index":
-    ///   `safe_idx = IfElse(then_condition, real_index, 0)`
-    /// When the condition is false, this reads/writes at index 0 with the original value,
-    /// producing a no-op. When true, it uses the real index.
+    /// Potentially out-of-bounds dynamic indices (which would error under the unconditional
+    /// `enable_side_effects u1 1`) are made safe first via [`Self::safe_index`].
     #[allow(clippy::too_many_arguments)]
     fn create_merged_array_set(
         &mut self,
@@ -1023,43 +1020,10 @@ impl<'f> Context<'f> {
     ) -> ValueId {
         let typ = self.inserter.function.dfg.type_of_value(new_value).into_owned();
 
-        // Create a safe index to avoid OOB errors when the condition is false.
-        // When condition is false, the real index might be OOB (the branch wasn't taken),
-        // so we use a known-valid fallback index. The merged value at the fallback will be
-        // the original value (IfElse selects else_value), making it a no-op.
-        // For constant in-bounds indices, no safe index is needed (avoids opcode overhead).
-        let dfg = &self.inserter.function.dfg;
-        let safe_index = if dfg.is_safe_index(index, base_array) {
-            index
-        } else {
-            // The fallback must be a valid index of the correct type to avoid type
-            // mismatches in heterogeneous arrays (e.g., [(Field, u1); N]).
-            let Type::Numeric(index_type) = dfg.type_of_value(index).into_owned() else {
-                unreachable!("ICE: array index must be numeric")
-            };
-            let array_type = dfg.type_of_value(base_array);
-            let offset = match array_type.as_ref() {
-                Type::Array(element_types, _) | Type::Vector(element_types) => element_types
-                    .iter()
-                    .position(|t| *t == typ)
-                    .expect("ICE: cannot find element with type {typ}")
-                    as u128,
-                other => unreachable!("ICE: unexpected array/vector type: {other}"),
-            };
-            let fallback =
-                self.inserter.function.dfg.make_constant(FieldElement::from(offset), index_type);
-            self.insert_instruction(
-                Instruction::IfElse {
-                    then_condition,
-                    then_value: index,
-                    else_condition,
-                    else_value: fallback,
-                },
-                call_stack,
-            )
-        };
+        let safe_index =
+            self.safe_index(index, base_array, &typ, then_condition, else_condition, call_stack);
 
-        // We can skip emitting `enable_side_effects u1 1` if the wouldn't have no additional effect.
+        // We can skip emitting `enable_side_effects u1 1` if it wouldn't have any additional effect.
         if self.no_predicate || self.get_last_condition().is_none() {
             protect_array_set = false;
         }
@@ -1105,6 +1069,63 @@ impl<'f> Context<'f> {
         }
 
         result
+    }
+
+    /// Produce an index into `base_array` that is safe to read and write even when
+    /// `then_condition` is false.
+    ///
+    /// [`Self::create_merged_array_set`] emits its `array_get`/`array_set` under an
+    /// unconditional `enable_side_effects u1 1`, so the access happens regardless of the
+    /// condition. If `index` is dynamic and only in bounds on the taken branch, accessing
+    /// it while the condition is false would be out of bounds. When `index` isn't provably
+    /// safe we therefore select a valid fallback for the false case:
+    ///   `safe_idx = IfElse(then_condition, index, fallback)`
+    /// The fallback is the offset of the first element of type `typ` in the array's
+    /// (flattened) element layout, so it is a valid, correctly-typed index even for
+    /// heterogeneous arrays such as `[(Field, u1); N]`. Reading/writing it is harmless: on
+    /// the false branch the merged value is the original value, so the set is a no-op.
+    ///
+    /// A constant, in-bounds `index` is already safe and is returned unchanged, avoiding
+    /// the extra `IfElse` opcodes.
+    fn safe_index(
+        &mut self,
+        index: ValueId,
+        base_array: ValueId,
+        typ: &Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let dfg = &self.inserter.function.dfg;
+        if dfg.is_safe_index(index, base_array) {
+            return index;
+        }
+
+        // The fallback must be a valid index of the correct type to avoid type
+        // mismatches in heterogeneous arrays (e.g., [(Field, u1); N]).
+        let Type::Numeric(index_type) = dfg.type_of_value(index).into_owned() else {
+            unreachable!("ICE: array index must be numeric")
+        };
+        let array_type = dfg.type_of_value(base_array);
+        let offset = match array_type.as_ref() {
+            Type::Array(element_types, _) | Type::Vector(element_types) => element_types
+                .iter()
+                .position(|t| t == typ)
+                .expect("ICE: cannot find element with type {typ}")
+                as u128,
+            other => unreachable!("ICE: unexpected array/vector type: {other}"),
+        };
+        let fallback =
+            self.inserter.function.dfg.make_constant(FieldElement::from(offset), index_type);
+        self.insert_instruction(
+            Instruction::IfElse {
+                then_condition,
+                then_value: index,
+                else_condition,
+                else_value: fallback,
+            },
+            call_stack,
+        )
     }
 
     /// Try to optimize a Store of an ArraySet by merging just the value at the modified index.
