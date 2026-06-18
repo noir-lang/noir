@@ -9,7 +9,7 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned integers to represent a field element
+/// Field modulus has 254 bits, and `FieldElement::from` supports u128, so we use two unsigned integers to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {

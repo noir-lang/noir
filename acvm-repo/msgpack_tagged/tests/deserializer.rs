@@ -140,7 +140,7 @@ fn newtype_struct_with_primitive_roundtrips() {
 }
 
 /// Generic newtype around a tagged inner type. The inner deserializer
-/// invocation must go through our wrapper (not rmp_serde's inner) so
+/// invocation must go through our wrapper (not `rmp_serde`'s inner) so
 /// the inner type's `deserialize_seq` / etc. ends up at our
 /// interception once those methods land.
 #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
@@ -401,7 +401,7 @@ fn struct_variant_roundtrips() {
 }
 
 /// Newtype variant carrying a tagged inner type — verifies the payload
-/// recurses through the wrapper instead of falling back to rmp_serde for
+/// recurses through the wrapper instead of falling back to `rmp_serde` for
 /// the inner struct.
 #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
 enum NewtypeWithTagged {

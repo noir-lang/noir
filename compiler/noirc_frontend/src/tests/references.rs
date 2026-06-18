@@ -573,6 +573,233 @@ fn calling_immutable_self_method_on_mutable_ref_binds_generic_params() {
 }
 
 #[test]
+fn brillig_mut_ref_from_acir() {
+    let src = r#"
+    unconstrained fn mut_ref_identity(value: &mut Field) -> Field {
+        *value
+    }
+
+    fn main(mut x: Field) {
+        // Safety: testing context
+        let returned_x = unsafe { mut_ref_identity(&mut x) };
+                                                   ^^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+        assert(returned_x == x);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn brillig_complex_ref_from_acir() {
+    let src = r#"
+    unconstrained fn read_double_ref(r: &&Field) -> Field {
+        **r
+    }
+
+    fn main(x: pub Field) {
+        // Safety:
+        let result = unsafe { read_double_ref(&&x) };
+                                              ^^^ Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+        assert_eq(result, x);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn unconstrained_ref_returned_to_constrained() {
+    let src = r#"
+    unconstrained fn uncon_ref() -> &mut Field {
+        let lr = &mut 7;
+        lr
+    }
+
+    fn main() {
+        // Safety: testing context
+        let _e = unsafe { uncon_ref() };
+                          ^^^^^^^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_5008() {
+    let src = r#"
+    struct Bar {
+        value: Field,
+    }
+
+    struct Foo {
+        bar: &mut Bar,
+    }
+
+    impl Foo {
+        unconstrained fn crash_fn(self) {}
+                                  ^^^^ unused variable self
+                                  ~~~~ unused variable
+    }
+
+    fn main() {
+        let foo = Foo { bar: &mut Bar { value: 0 } };
+
+        // Safety: testing context
+        unsafe { foo.crash_fn() };
+                 ^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_7288() {
+    let src = r#"
+    unconstrained fn foo<T>(x: T) -> T {
+        x
+    }
+
+    fn bar<T>(x: T) -> T {
+        // Safety: testing
+        unsafe {
+            foo(x)
+                ^ Cannot pass mutable reference `&mut Field` from a constrained runtime to an unconstrained runtime
+        }
+    }
+
+    fn main() {
+        let mut y = 0;
+        let x = &mut y;
+        assert(*(bar(x)) == 0);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_10216() {
+    let src = r#"
+    unconstrained fn consume<T>(_x: T) {}
+
+    fn main(mut x: u32) {
+        let xs = @[&mut x];
+        // Safety: testing
+        unsafe {
+            consume(xs);
+                    ^^ Cannot pass mutable reference `[&mut u32]` from a constrained runtime to an unconstrained runtime
+        }
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_10497() {
+    let src = r#"
+    struct MyStruct {
+        x: &mut Field,
+        y: u32,
+    }
+
+    fn main(safe: bool) -> pub u32 {
+        let mut x = 1;
+        let s = MyStruct { x: &mut x, y: 2 };
+        foo(safe, || s.y)
+    }
+
+    fn foo<Env, T>(safe: bool, f: fn[Env]() -> T) -> T {
+        if safe {
+            f()
+        } else {
+            // Safety: this is actually unsafe, potentially trying to pass an &mut from ACIR to Brillig.
+            unsafe {
+                bar(f)
+                    ^ Cannot pass mutable reference `fn[(MyStruct,)]() -> u32` from a constrained runtime to an unconstrained runtime
+            }
+        }
+    }
+
+    unconstrained fn bar<Env, T>(f: fn[Env]() -> T) -> T {
+        f()
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn nested_mutable_ref_in_if() {
+    let src = r#"
+    fn main() {
+        let mut r = &mut 0;
+        if false {
+            r = &mut 1;
+                ^^^^^^ Cannot assign to a mutable variable which contains a reference internally
+                ~~~~~~ Assigned expression has the type `&mut Field`
+        } else {
+            r = &mut 2;
+        }
+        let _ = *r;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_8741() {
+    let src = r#"
+    fn main(c: bool) -> pub bool {
+        let mut e: &mut bool = (&mut false);
+        if c { e = (&mut true); };
+                    ^^^^^^^^^ Cannot assign to a mutable variable which contains a reference internally
+                    ~~~~~~~~~ Assigned expression has the type `&mut bool`
+        *e
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_8748() {
+    let src = r#"
+    fn main(c: bool) {
+        let mut a: [&mut bool; 2] = [&mut false, &mut true];
+
+        if (c) {
+            a = [a[1], a[0]];
+                ^^^^^^^^^^^^ Cannot assign to a mutable variable which contains a reference internally
+                ~~~~~~~~~~~~ Assigned expression has the type `[&mut bool; 2]`, which contains a reference type internally
+            a[0] = &mut true;
+        };
+
+        a = [&mut true, a[1]];
+        a[1] = &mut false;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn if_returning_reference() {
+    let src = r#"
+    fn main() {
+        let s1: Alias<_> = S { r: &mut 0 };
+        let s2: Alias<_> = S { r: &mut 1 };
+
+        let s = if false { s1 } else { s2 };
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot return a reference type from an if or match expression
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~ `Alias<S>`, which contains a reference type internally, returned here
+        let _ = s;
+    }
+
+    type Alias<T> = T;
+
+    struct S {
+        r: &mut u32,
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
 fn can_mutate_mutable_reference_inside_immutable_reference() {
     let src = r#"
     fn main() {

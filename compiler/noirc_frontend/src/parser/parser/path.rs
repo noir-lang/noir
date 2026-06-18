@@ -24,9 +24,9 @@ impl Parser<'_> {
     /// Tries to parse a Path.
     /// Note that `crate::`, `super::`, etc., are not valid paths on their own.
     ///
-    /// Path = PathKind identifier Turbofish? ( '::' identifier Turbofish? )*
+    /// Path = `PathKind` identifier Turbofish? ( '::' identifier Turbofish? )*
     ///
-    /// Turbofish = '::' PathGenerics
+    /// Turbofish = '::' `PathGenerics`
     pub(crate) fn parse_path(&mut self) -> Option<Path> {
         self.parse_path_impl(
             true, // allow turbofish
@@ -44,7 +44,7 @@ impl Parser<'_> {
         }
     }
 
-    /// PathNoTurbofish = PathKind identifier ( '::' identifier )*
+    /// `PathNoTurbofish` = `PathKind` identifier ( '::' identifier )*
     pub fn parse_path_no_turbofish(&mut self) -> Option<Path> {
         self.parse_path_impl(
             false, // allow turbofish
@@ -155,7 +155,7 @@ impl Parser<'_> {
         Path { segments, kind, kind_location: start_location, location }
     }
 
-    /// PathGenerics = GenericTypeArgs
+    /// `PathGenerics` = `GenericTypeArgs`
     pub(super) fn parse_path_generics(
         &mut self,
         on_named_arg_error: ParserErrorReason,
@@ -172,7 +172,7 @@ impl Parser<'_> {
         Some(generics.ordered_args)
     }
 
-    /// PathKind
+    /// `PathKind`
     ///     = '::'
     ///     | 'dep' '::'
     ///     | 'crate' '::'
@@ -224,7 +224,7 @@ impl Parser<'_> {
         kind
     }
 
-    /// AsTraitPath = '<' Type 'as' PathNoTurbofish GenericTypeArgs '>' '::' identifier ( '::' GenericTypeArgs )?
+    /// `AsTraitPath` = '<' Type 'as' `PathNoTurbofish` `GenericTypeArgs` '>' '::' identifier ( '::' `GenericTypeArgs` )?
     pub(super) fn parse_as_trait_path(&mut self) -> Option<AsTraitPath> {
         if !self.eat_less() {
             return None;

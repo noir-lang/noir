@@ -1,15 +1,15 @@
 //! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
-//! [BlockVariables] maintains a set of SSA [ValueId]s that currently have a register
+//! [`BlockVariables`] maintains a set of SSA [`ValueId`]s that currently have a register
 //! allocated and usable ("available") during the compilation of a single SSA block into
 //! Brillig instructions. "Available" means "has a register currently allocated" — not
 //! merely "is SSA-live". A value can be SSA-live but unavailable if it has been spilled
 //! to the heap spill region. Spill tracking is managed separately by
-//! [SpillManager](super::spill_manager::SpillManager).
+//! [`SpillManager`](super::spill_manager::SpillManager).
 //!
-//! [BlockVariables] cooperates with the [FunctionContext] to manage the mapping from
-//! SSA values to [BrilligVariable]s and with the [BrilligContext] for allocating registers.
+//! [`BlockVariables`] cooperates with the [`FunctionContext`] to manage the mapping from
+//! SSA values to [`BrilligVariable`]s and with the [`BrilligContext`] for allocating registers.
 //!
 //! Variables are:
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
@@ -44,13 +44,13 @@ use super::brillig_fn::FunctionContext;
 ///
 /// "Available" specifically means "has a register allocated right now". Values that are
 /// SSA-live but have been spilled to the heap spill region are *not* in this set.
-/// Spill tracking is the responsibility of [SpillManager](super::spill_manager::SpillManager).
+/// Spill tracking is the responsibility of [`SpillManager`](super::spill_manager::SpillManager).
 ///
 /// This structure is instantiated per SSA basic block and initialized from the set of
 /// live-in variables that are not spilled.
 ///
 /// It implements:
-/// - A set of active [ValueId]s that are allocated and usable.
+/// - A set of active [`ValueId`]s that are allocated and usable.
 /// - The interface to define new variables as needed for instructions within the block.
 /// - Utilities to remove, check, and retrieve variables during Brillig codegen.
 #[derive(Debug, Default)]
@@ -59,7 +59,7 @@ pub(crate) struct BlockVariables {
 }
 
 impl BlockVariables {
-    /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
+    /// Creates a `BlockVariables` instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>) -> Self {
         BlockVariables { available_variables: live_in }
     }
@@ -88,11 +88,11 @@ impl BlockVariables {
 
     /// For a given SSA value id, define the variable and return the corresponding cached memory allocation.
     ///
-    /// The allocation will be cached in [FunctionContext::ssa_value_allocations], which is how it will be
+    /// The allocation will be cached in [`FunctionContext::ssa_value_allocations`], which is how it will be
     /// passed on to the next block as a pre-allocated register, if it's still alive at that point.
     ///
-    /// The variable is added to [Self::available_variables] to show that it's live, where it stays until
-    /// [Self::remove_variable] deletes it.
+    /// The variable is added to [`Self::available_variables`] to show that it's live, where it stays until
+    /// [`Self::remove_variable`] deletes it.
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
@@ -184,8 +184,8 @@ impl BlockVariables {
     /// For a given SSA value id, return the corresponding cached allocation.
     ///
     /// Panics if
-    /// * the variable is not in [Self::available_variables], which means it is no longer live
-    /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
+    /// * the variable is not in [`Self::available_variables`], which means it is no longer live
+    /// * the variable is not in [`FunctionContext::ssa_value_allocations`], which means it was never defined
     pub(crate) fn get_allocation(
         &self,
         function_context: &FunctionContext,
@@ -213,7 +213,7 @@ pub(crate) fn compute_array_length(
     ElementTypesLength(assert_u32(item_typ.len())) * elem_count
 }
 
-/// For a given [ValueId], allocates the necessary registers to hold it.
+/// For a given [`ValueId`], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
     brillig_context: &BrilligContext<F, Registers>,

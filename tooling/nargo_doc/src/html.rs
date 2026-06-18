@@ -843,6 +843,9 @@ impl HTMLCreator {
         let indent = 0;
         self.render_where_clause(&impl_.where_clause, indent);
         self.output.push_str("</code></h3>\n\n");
+
+        self.render_comments(impl_.comments.as_ref(), 3);
+
         let output_id = true;
 
         self.self_type = Some(impl_.r#type.clone());
