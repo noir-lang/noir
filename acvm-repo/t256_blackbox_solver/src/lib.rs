@@ -46,32 +46,17 @@ impl T256BlackboxSolver {
                 BlackBoxResolutionError::Failed(BlackBoxFunc::MultiScalarMul, e.to_string())
             })?;
 
-            let scalar_low: u128 = T256BlackboxSolver::field_to_u128_limb(
-                &scalars_lo[i / 2],
-                BlackBoxFunc::MultiScalarMul,
-            )?;
+            // let scalar_high: u128 = T256BlackboxSolver::field_to_u128_limb(
+            //     &scalars_hi[i / 2],
+            //     BlackBoxFunc::MultiScalarMul,
+            // )?;
 
-            let scalar_high: u128 = T256BlackboxSolver::field_to_u128_limb(
-                &scalars_hi[i / 2],
-                BlackBoxFunc::MultiScalarMul,
-            )?;
-
-            // Convert to BigInt<4>, using u64 limbs.
-            let limbs_array = [
-                scalar_low as u64,
-                (scalar_low >> 64) as u64,
-                scalar_high as u64,
-                (scalar_high >> 64) as u64,
-            ];
-            let scalar_bigint = BigInt::new(limbs_array);
+            let scalar_bigint = scalars_lo[0].into_repr().into_bigint();
 
             // Check if this is smaller than the P256 modulus
             if scalar_bigint >= ark_secp256r1::FrConfig::MODULUS {
                 // Format as hex string (big-endian, most significant limb first)
-                let hex_str = format!(
-                    "{:016x}{:016x}{:016x}{:016x}",
-                    limbs_array[3], limbs_array[2], limbs_array[1], limbs_array[0]
-                );
+                let hex_str = format!("{}", scalar_bigint);
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::MultiScalarMul,
                     format!("{hex_str} is not a valid T256 scalar"),
