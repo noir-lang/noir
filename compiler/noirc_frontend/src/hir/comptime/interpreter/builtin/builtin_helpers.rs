@@ -268,15 +268,19 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 ) -> IResult<([T; N], Type)> {
     let (values, typ) = get_array_map((value, location), f)?;
 
+    let len = values.len();
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
-        // Assuming that `values.len()` corresponds to `typ`.
         let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let len: u32 =
+        let expected_len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
-        InterpreterError::TypeMismatch { expected, actual: typ, location }
+        let expected =
+            Type::Array(elem.clone(), Box::new(Type::constant_u32(expected_len))).to_string();
+        let actual_len: u32 =
+            len.try_into().expect("ICE: get_fixed_array_map: array length should fit into a u32");
+        let actual = Type::Array(elem.clone(), Box::new(Type::constant_u32(actual_len)));
+        InterpreterError::TypeMismatch { expected, actual, location }
     })
 }
 
