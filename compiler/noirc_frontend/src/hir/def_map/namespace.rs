@@ -1,6 +1,15 @@
 use super::ModuleDefId;
 use crate::ast::ItemVisibility;
 
+/// The namespace an item lives in. Noir resolves types and values independently, so a
+/// type-namespace item and a value-namespace item can legally share a name within a module
+/// (e.g. `struct N` and `fn N`).
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Namespace {
+    Type,
+    Value,
+}
+
 /// Result of looking up a name in type and value definitions in scope.
 ///
 /// This works exactly the same as in r-a, just simplified.
@@ -11,12 +20,12 @@ pub struct PerNs {
 }
 
 impl PerNs {
-    /// Creates a [PerNs] with a public [ModuleDefId] in `types`, and no `values`.
+    /// Creates a [`PerNs`] with a public [`ModuleDefId`] in `types`, and no `values`.
     pub fn types(t: ModuleDefId) -> PerNs {
         PerNs { types: Some((t, ItemVisibility::Public, false)), values: None }
     }
 
-    /// Iterate the [ModuleDefId]s in both `types` and `values`.
+    /// Iterate the [`ModuleDefId`]s in both `types` and `values`.
     pub fn iter_defs(self) -> impl Iterator<Item = ModuleDefId> {
         self.iter_items().map(|it| it.0)
     }

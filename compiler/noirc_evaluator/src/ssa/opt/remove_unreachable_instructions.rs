@@ -69,7 +69,7 @@
 //! return u8 0
 //! ```
 //!
-//! ## Handling of array_get and array_set
+//! ## Handling of `array_get` and `array_set`
 //!
 //! If an array operation in ACIR is guaranteed to produce an index-out-of-bounds:
 //!
@@ -133,12 +133,12 @@
 //! [`Function::remove_unreachable_instructions`].
 //!
 //! ## Preconditions:
-//! - this pass must run *after* [flatten_cfg][`super::flatten_cfg`] and
-//!   [make_constrain_not_equal][`super::make_constrain_not_equal`]; see the `Constrain` and
+//! - this pass must run *after* [`flatten_cfg`][`super::flatten_cfg`] and
+//!   [`make_constrain_not_equal`][`super::make_constrain_not_equal`]; see the `Constrain` and
 //!   `ConstrainNotEqual` handling in [`Function::remove_unreachable_instructions`] for why.
 //!   Nothing may re-introduce branches or predicated constraints between those passes and this
 //!   one.
-//! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
+//! - the [inlining][`super::inlining`] and [`flatten_cfg`][`super::flatten_cfg`] must
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 

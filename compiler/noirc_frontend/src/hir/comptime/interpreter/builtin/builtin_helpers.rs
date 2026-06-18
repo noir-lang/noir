@@ -45,6 +45,95 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
+/// The top-level "shape" of a [Type], used to catch builtins whose produced value is grossly
+/// inconsistent with their declared return type.
+///
+/// Types whose shape cannot be judged cheaply and reliably (type variables, generics, aliases,
+/// references, functions, ...) have no shape and are therefore never flagged. Arrays and slices
+/// share a shape because some builtins legitimately return one where the other is declared.
+#[derive(PartialEq, Clone, Copy)]
+pub(crate) enum TypeShape {
+    Field,
+    Integer(Signedness, IntegerBitSize),
+    Bool,
+    Unit,
+    Sequence,
+    String,
+    FmtString,
+    Tuple(usize),
+    DataType,
+    Quoted,
+}
+
+impl std::fmt::Display for TypeShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TypeShape::Field => write!(f, "Field"),
+            TypeShape::Integer(sign, size) => write!(f, "{}", Type::Integer(*sign, *size)),
+            TypeShape::Bool => write!(f, "bool"),
+            TypeShape::Unit => write!(f, "()"),
+            TypeShape::Sequence => write!(f, "an array or slice"),
+            TypeShape::String => write!(f, "a string"),
+            TypeShape::FmtString => write!(f, "a format string"),
+            TypeShape::Tuple(arity) => write!(f, "a {arity}-element tuple"),
+            TypeShape::DataType => write!(f, "a struct or enum"),
+            TypeShape::Quoted => write!(f, "a quoted value"),
+        }
+    }
+}
+
+pub(crate) fn type_shape(typ: &Type) -> Option<TypeShape> {
+    match typ {
+        Type::FieldElement => Some(TypeShape::Field),
+        Type::Integer(sign, size) => Some(TypeShape::Integer(*sign, *size)),
+        Type::Bool => Some(TypeShape::Bool),
+        Type::Unit => Some(TypeShape::Unit),
+        Type::Array(..) | Type::Vector(_) => Some(TypeShape::Sequence),
+        Type::String(_) => Some(TypeShape::String),
+        Type::FmtString(..) => Some(TypeShape::FmtString),
+        Type::Tuple(types) => Some(TypeShape::Tuple(types.len())),
+        Type::DataType(..) => Some(TypeShape::DataType),
+        Type::Quoted(_) => Some(TypeShape::Quoted),
+        Type::Alias(..)
+        | Type::TypeVariable(_)
+        | Type::TraitAsType(..)
+        | Type::NamedGeneric(_)
+        | Type::CheckedCast { .. }
+        | Type::Function(..)
+        | Type::Reference(..)
+        | Type::Forall(..)
+        | Type::Constant(..)
+        | Type::InfixExpr(..)
+        | Type::Error => None,
+    }
+}
+
+/// A defensive check guarding the `return_type` contract of `call_builtin`/`call_foreign`.
+///
+/// Type checking already validates that a builtin's produced value matches its declared return
+/// type, so this only catches a builtin implementation that contradicts its declaration. The
+/// expected shape is computed once by the caller (a cheap top-level inspection that borrows the
+/// return type, avoiding a clone); this only materializes owned types and error strings on the
+/// cold mismatch path. A mismatch is flagged only when both the produced and expected types have
+/// known, conflicting shapes; anything that cannot be judged for certain is treated as compatible
+/// to avoid false positives on generic returns.
+pub(crate) fn check_return_type_shape(
+    result: &Value,
+    expected_shape: Option<TypeShape>,
+    location: Location,
+) -> IResult<()> {
+    let Some(expected) = expected_shape else { return Ok(()) };
+    let produced_type = result.get_type();
+    if type_shape(&produced_type).is_some_and(|produced| produced != expected) {
+        return Err(InterpreterError::TypeMismatch {
+            expected: expected.to_string(),
+            actual: produced_type.into_owned(),
+            location,
+        });
+    }
+    Ok(())
+}
+
 pub(crate) fn check_argument_count(
     expected: usize,
     arguments: &[(Value, Location)],
@@ -179,15 +268,19 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 ) -> IResult<([T; N], Type)> {
     let (values, typ) = get_array_map((value, location), f)?;
 
+    let len = values.len();
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
-        // Assuming that `values.len()` corresponds to `typ`.
         let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let len: u32 =
+        let expected_len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
-        InterpreterError::TypeMismatch { expected, actual: typ, location }
+        let expected =
+            Type::Array(elem.clone(), Box::new(Type::constant_u32(expected_len))).to_string();
+        let actual_len: u32 =
+            len.try_into().expect("ICE: get_fixed_array_map: array length should fit into a u32");
+        let actual = Type::Array(elem.clone(), Box::new(Type::constant_u32(actual_len)));
+        InterpreterError::TypeMismatch { expected, actual, location }
     })
 }
 
@@ -390,13 +483,13 @@ impl From<Type> for TypeOrString {
     }
 }
 
-/// Helper function to report an [InterpreterError::TypeMismatch] where a [Value] could not be unwrapped
+/// Helper function to report an [`InterpreterError::TypeMismatch`] where a [Value] could not be unwrapped
 /// into an expected type, which can either be a concrete [Type] or a textual description, e.g. "tuple".
 ///
-/// It has special handling for [Value::Zeroed], which wraps a [Type] that might actually be the
+/// It has special handling for [`Value::Zeroed`], which wraps a [Type] that might actually be the
 /// one we expected, but we expected a concrete _value_ with that type, not a zeroed placeholder,
 /// which we optimistically created expecting that it will never be used. In such cases
-/// [InterpreterError::UnexpectedZeroedValue] is returned.
+/// [`InterpreterError::UnexpectedZeroedValue`] is returned.
 fn type_mismatch<T>(
     value: Value,
     expected: impl Into<TypeOrString>,
@@ -667,7 +760,7 @@ fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
 /// unspecified implementation detail that may change between Rust releases, this
 /// wraps a fixed-keyed SipHash-1-3 (`siphasher`) so a given Noir compiler version
 /// produces identical hashes regardless of the Rust toolchain it was built with.
-/// SipHash also keeps a keyed mixing structure, so collisions cannot be crafted by
+/// `SipHash` also keeps a keyed mixing structure, so collisions cannot be crafted by
 /// trivial arithmetic the way they can for a plain multiplicative hash.
 ///
 /// `siphasher` already encodes byte streams little-endian, but its `write_usize`
@@ -680,7 +773,7 @@ pub(super) struct DeterministicHasher {
 }
 
 impl DeterministicHasher {
-    /// The canonical SipHash reference key (bytes `0x00..=0x0f`), used as a fixed,
+    /// The canonical `SipHash` reference key (bytes `0x00..=0x0f`), used as a fixed,
     /// publicly specified key rather than a per-process random seed.
     const KEY0: u64 = 0x0706_0504_0302_0100;
     const KEY1: u64 = 0x0f0e_0d0c_0b0a_0908;
@@ -889,7 +982,59 @@ mod tests {
 
     use siphasher::sip::SipHasher13;
 
+    use im::Vector;
+    use noirc_errors::Location;
+
     use super::DeterministicHasher;
+    use super::{check_return_type_shape, type_shape};
+    use crate::Shared;
+    use crate::Type;
+    use crate::ast::IntegerBitSize;
+    use crate::hir::comptime::Integer;
+    use crate::hir::comptime::value::Value;
+    use crate::shared::Signedness;
+
+    #[test]
+    fn matching_shapes_pass() {
+        let loc = Location::dummy();
+        check_return_type_shape(&Value::Bool(true), type_shape(&Type::Bool), loc).unwrap();
+
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        check_return_type_shape(&Value::u32(0), type_shape(&u32), loc).unwrap();
+
+        // Arrays and slices share a shape, so an array value satisfies a slice-declared return.
+        let array = Value::Array(
+            Vector::new(),
+            Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(0))),
+        );
+        let slice = Type::Vector(Box::new(Type::Bool));
+        check_return_type_shape(&array, type_shape(&slice), loc).unwrap();
+    }
+
+    #[test]
+    fn unjudgeable_expected_shape_passes() {
+        // A return type without a known shape (e.g. `Type::Error`) must never be flagged.
+        let loc = Location::dummy();
+        check_return_type_shape(&Value::Bool(true), type_shape(&Type::Error), loc).unwrap();
+    }
+
+    #[test]
+    fn conflicting_shapes_fail() {
+        let loc = Location::dummy();
+        assert!(
+            check_return_type_shape(&Value::Bool(true), type_shape(&Type::FieldElement), loc)
+                .is_err()
+        );
+
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        let u8_value = Value::Integer(Integer::U8(0));
+        assert!(check_return_type_shape(&u8_value, type_shape(&u32), loc).is_err());
+
+        let pair =
+            Value::Tuple(vec![Shared::new(Value::Bool(true)), Shared::new(Value::Bool(true))]);
+        let triple = Type::Tuple(vec![Type::Bool, Type::Bool, Type::Bool]);
+        assert!(check_return_type_shape(&pair, type_shape(&triple), loc).is_err());
+    }
 
     fn hash_bytes(bytes: &[u8]) -> u64 {
         let mut hasher = DeterministicHasher::new();

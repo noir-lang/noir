@@ -88,12 +88,17 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
         }
     }
 
-    // Trait impl methods aren't reachable through `module.value_definitions()` — they
-    // live in the trait impl, not in any module's name scope. Enumerate them directly
-    // so the baseline includes impl methods that no test ever calls.
+    // Trait impl methods and inherent impl methods aren't reachable through
+    // `module.value_definitions()` — they live in the impl, not in any module's name scope.
+    // Enumerate them directly so the baseline includes impl methods that no test ever calls.
     for impl_id in context.def_interner.get_trait_implementations_in_crate(crate_id) {
         let trait_impl = context.def_interner.get_trait_implementation(impl_id);
         for func_id in trait_impl.borrow().methods.clone() {
+            record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
+        }
+    }
+    for impl_id in context.def_interner.get_impls_in_crate(crate_id) {
+        for func_id in context.def_interner.get_impl(impl_id).methods.clone() {
             record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
         }
     }

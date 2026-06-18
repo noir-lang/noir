@@ -78,5 +78,5 @@ jobs:
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             seed-count: ${{ steps.seeds.outputs.seed_count }}
-            seeds: ${{ steps.seeds.outputs.seeds }}
+            seeds: "${{ steps.seeds.outputs.seeds }}"
             artifact-name: nightly-fuzz-failure

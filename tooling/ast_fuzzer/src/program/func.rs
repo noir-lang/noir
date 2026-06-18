@@ -2387,7 +2387,7 @@ impl<'a> FunctionContext<'a> {
     /// Random decision whether to allow "Index out of bounds" errors to happen
     /// on a specific array or vector access operation.
     ///
-    /// If [Config::avoid_index_out_of_bounds] is turned on, then this is always `true`.
+    /// If [`Config::avoid_index_out_of_bounds`] is turned on, then this is always `true`.
     ///
     /// It also returns `true` when `in_no_dynamic` mode is on, because an overflowing
     /// index might not be simplified out of the SSA in ACIR, and end up being considered
