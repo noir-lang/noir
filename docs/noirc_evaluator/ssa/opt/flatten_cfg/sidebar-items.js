@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BranchPhase"],"fn":["flatten_cfg_post_check","flatten_cfg_pre_check","flatten_function_cfg"],"mod":["branch_analysis"],"struct":["ConditionalBranch","ConditionalContext","Context","MergeProvenance"],"type":["WorkList"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_ARRAY_SET_CHAIN_DEPTH"],"enum":["BranchPhase"],"fn":["flatten_cfg_post_check","flatten_cfg_pre_check","flatten_function_cfg"],"mod":["branch_analysis"],"struct":["ConditionalBranch","ConditionalContext","Context","MergeProvenance"],"type":["WorkList"]};
