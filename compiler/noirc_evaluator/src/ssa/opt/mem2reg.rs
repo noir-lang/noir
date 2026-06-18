@@ -1572,6 +1572,27 @@ brillig(inline) fn main f0 {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
+    /// Passing a tracked reference as a block terminator argument is a first-class use of
+    /// the address: the successor block receives the reference as a parameter and may mutate
+    /// it, so the reference and its surrounding load/store cannot be optimized away. This
+    /// exercises the terminator scan in `collect_eligible_variables_and_def_sites`, distinct
+    /// from instruction-operand uses like `call` or `make_array`.
+    #[test]
+    fn reference_passed_as_terminator_argument_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            v3 = load v1 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
     /// mem2reg runs on ACIR functions too, not just Brillig. This exercises the full
     /// load/store removal and block-parameter insertion path on an `acir` function with a
     /// control-flow merge (the IDF of {b0, b1} is {b3}).

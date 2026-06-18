@@ -638,7 +638,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::from(&expr * constant))
+                self.add_data(AcirVarData::from(expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
@@ -1646,6 +1646,7 @@ mod tests {
             let circuit = convert_generated_acir_into_circuit(
                 circuit,
                 &[(1, Visibility::Private)],
+                &BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
@@ -1701,6 +1702,7 @@ mod tests {
         let circuit = convert_generated_acir_into_circuit(
             circuit,
             &[(1, Visibility::Private)],
+            &BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
