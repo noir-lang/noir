@@ -1,32 +1,32 @@
 //! The goal of the "remove enable side effects" optimization pass is to delay any
-//! [Instruction::EnableSideEffectsIf] instructions in ACIR functions such that they cover
+//! [`Instruction::EnableSideEffectsIf`] instructions in ACIR functions such that they cover
 //! the minimum number of instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this
-//!   [InstructionId][crate::ssa::ir::instruction::InstructionId].
+//! - Insert instructions until an [`Instruction::EnableSideEffectsIf`] is encountered, save this
+//!   [`InstructionId`][crate::ssa::ir::instruction::InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous
-//!       [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour of this one.
+//!     - Another [`Instruction::EnableSideEffectsIf`] is encountered, if so then drop the previous
+//!       [`InstructionId`][crate::ssa::ir::instruction::InstructionId] in favour of this one.
 //!     - An [Instruction] that is affected by the side-effects variable is encountered, if so
-//!       then insert the currently saved [Instruction::EnableSideEffectsIf] before the
+//!       then insert the currently saved [`Instruction::EnableSideEffectsIf`] before the
 //!       [Instruction]. Continue inserting instructions until the next
-//!       [Instruction::EnableSideEffectsIf] is encountered.
+//!       [`Instruction::EnableSideEffectsIf`] is encountered.
 //!
-//! The pass will also remove redundant [Instruction::EnableSideEffectsIf] instructions,
-//! for example if two consecutive [Instruction::EnableSideEffectsIf] instructions have the same
+//! The pass will also remove redundant [`Instruction::EnableSideEffectsIf`] instructions,
+//! for example if two consecutive [`Instruction::EnableSideEffectsIf`] instructions have the same
 //! condition.
 //!
 //! ## Dropping `EnableSideEffectsIf` instructions which have no effect
 //!
-//! An [Instruction::EnableSideEffectsIf] only influences the generated circuit through the
+//! An [`Instruction::EnableSideEffectsIf`] only influences the generated circuit through the
 //! instructions which read the side-effects predicate during ACIR generation: those for which
 //! [`requires_acir_gen_predicate`][crate::ssa::ir::instruction::Instruction::requires_acir_gen_predicate]
-//! returns `true`, along with [Instruction::Constrain].
+//! returns `true`, along with [`Instruction::Constrain`].
 //!
-//! When a deferred [Instruction::EnableSideEffectsIf] (one whose condition is not the constant
+//! When a deferred [`Instruction::EnableSideEffectsIf`] (one whose condition is not the constant
 //! `u1 1`) is not followed by any such instruction before the end of the block — or before another
-//! [Instruction::EnableSideEffectsIf] supersedes it — then it is dropped entirely rather than
+//! [`Instruction::EnableSideEffectsIf`] supersedes it — then it is dropped entirely rather than
 //! re-inserted. This is expected behavior and is safe: if no instruction is affected by an
 //! `enable_side_effects` instruction then removing it does not change the behavior of the circuit.
 //! In particular a trailing `enable_side_effects` sitting immediately before the `return`
@@ -36,7 +36,7 @@
 //! flattening, so there is no successor block whose instructions could observe the dropped
 //! predicate.
 //!
-//! This pass doesn't run in Brillig functions as [Instruction::EnableSideEffectsIf] is not allowed
+//! This pass doesn't run in Brillig functions as [`Instruction::EnableSideEffectsIf`] is not allowed
 //! in Brillig functions.
 //!
 //! ## Preconditions:
@@ -143,7 +143,7 @@ fn should_insert_side_effects_before_instruction(
     instruction.requires_acir_gen_predicate(dfg)
 }
 
-/// Pre-check condition for remove_enable_side_effects.
+/// Pre-check condition for `remove_enable_side_effects`.
 ///
 /// Panics if:
 ///   - The CFG has not been flattened for ACIR functions.

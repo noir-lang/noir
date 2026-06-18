@@ -545,7 +545,6 @@ fn vector_insert_no_predicate() {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE input: w1, bits: 32
     ASSERT w2 = 2
     ASSERT w3 = 3
     ASSERT w4 = 5

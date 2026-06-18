@@ -262,18 +262,27 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
                 else_arguments,
                 call_stack,
             } => {
-                let then_destination =
-                    if then_destination == block { final_destination } else { then_destination };
-                let else_destination =
-                    if else_destination == block { final_destination } else { else_destination };
-                assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
-                assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
+                // Only the branch targeting `block` is guaranteed to be argument-less, as `block`
+                // has no parameters. The other branch may validly target a parameterized block, so
+                // its destination and arguments must be preserved.
+                let (then_destination, then_arguments) = if then_destination == block {
+                    assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
+                    (final_destination, Vec::new())
+                } else {
+                    (then_destination, then_arguments)
+                };
+                let (else_destination, else_arguments) = if else_destination == block {
+                    assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
+                    (final_destination, Vec::new())
+                } else {
+                    (else_destination, else_arguments)
+                };
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
-                    then_arguments: Vec::new(),
+                    then_arguments,
                     else_destination,
-                    else_arguments: Vec::new(),
+                    else_arguments,
                     call_stack,
                 }
             }
@@ -1120,6 +1129,47 @@ mod tests {
     }
 
     #[test]
+    fn double_jmp_jmpif_predecessor_preserves_other_branch_arguments() {
+        // Regression: when removing an empty argument-less jump block, a `JmpIf`
+        // predecessor may target the removed block on one branch while the other
+        // branch validly targets a parameterized block with arguments. Only the
+        // branch targeting the removed block must be argument-less; the other
+        // branch's destination and arguments must be preserved.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            jmpif v0 then: b1(), else: b4()
+          b1():
+            jmp b3()
+          b2(v2: Field):
+            jmp b5()
+          b3():
+            jmp b5()
+          b4():
+            jmpif v0 then: b1(), else: b2(v1)
+          b5():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            jmpif v0 then: b3(), else: b2()
+          b1(v2: Field):
+            jmp b3()
+          b2():
+            jmpif v0 then: b3(), else: b1(v1)
+          b3():
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn fold_constant_jmpif_after_negation_swap() {
         // Regression: simplify_cfg must fold constant-condition jmpifs that become
         // visible after a negation swap. When `not v0` produces a constant that
@@ -1357,7 +1407,7 @@ mod tests {
     }
 
     /// A `jmpif` whose two edges point at the same block with *matching* arguments is
-    /// observationally redundant. simplify_cfg must fold it into a `jmp` while
+    /// observationally redundant. `simplify_cfg` must fold it into a `jmp` while
     /// preserving the shared arguments — the previous implementation silently
     /// constructed the replacement `jmp` with an empty argument vector, producing
     /// malformed SSA whenever the target block had parameters.
@@ -1385,7 +1435,7 @@ mod tests {
 
     /// A `jmpif` whose two edges point at the same block with *differing* arguments
     /// is semantically meaningful — the condition selects between the two argument
-    /// lists. simplify_cfg must leave it alone rather than folding.
+    /// lists. `simplify_cfg` must leave it alone rather than folding.
     #[test]
     fn preserve_jmpif_same_target_differing_arguments() {
         let src = "

@@ -12,9 +12,9 @@ use super::{
 };
 
 impl Parser<'_> {
-    /// Enum = 'enum' identifier Generics '{' EnumVariant* '}'
+    /// Enum = 'enum' identifier Generics '{' `EnumVariant`* '}'
     ///
-    /// EnumField = OuterDocComments identifier ':' Type
+    /// `EnumField` = `OuterDocComments` identifier ':' Type
     pub(crate) fn parse_enum(
         &mut self,
         attributes: Vec<(Attribute, Location)>,

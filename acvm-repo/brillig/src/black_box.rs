@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.
 /// They are implemented as native functions in the VM.
-/// For more information, see the ACIR blackbox functions in acir::circuit::opcodes::BlackBoxFuncCall
+/// For more information, see the ACIR blackbox functions in `acir::circuit::opcodes::BlackBoxFuncCall`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]

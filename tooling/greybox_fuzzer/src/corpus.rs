@@ -56,14 +56,14 @@ impl<'a> TestCase<'a> {
         self.id
     }
 
-    /// Creates a new TestCase with a specified ID and input values
+    /// Creates a new `TestCase` with a specified ID and input values
     pub fn with_id(id: TestCaseId, value: &'a InputMap) -> Self {
         Self { id, value }
     }
 }
 
 impl<'a> From<&'a InputMap> for TestCase<'a> {
-    /// Converts an InputMap into a TestCase by generating a new unique ID
+    /// Converts an `InputMap` into a `TestCase` by generating a new unique ID
     fn from(value: &'a InputMap) -> Self {
         Self { value, id: generate_testcase_id() }
     }
@@ -82,7 +82,7 @@ pub struct CorpusFileManager {
 }
 
 impl CorpusFileManager {
-    /// Creates a new CorpusFileManager for a specific package and test harness
+    /// Creates a new `CorpusFileManager` for a specific package and test harness
     pub fn new(root: &Path, package_name: &str, harness_name: &str, abi: Abi) -> Self {
         let corpus_path = root.join(package_name).join(harness_name);
 
@@ -227,7 +227,7 @@ pub struct TestCaseOrchestrator {
 type NextSelection = (TestCaseId, Option<TestCaseId>);
 
 impl TestCaseOrchestrator {
-    /// Creates a new empty TestCaseOrchestrator
+    /// Creates a new empty `TestCaseOrchestrator`
     pub fn new() -> Self {
         Self {
             executions_per_testcase: HashMap::new(),

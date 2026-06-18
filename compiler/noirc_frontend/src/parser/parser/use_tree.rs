@@ -9,11 +9,11 @@ use crate::{
 use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
 impl Parser<'_> {
-    /// Use = 'use' PathKind PathNoTurbofish UseTree
+    /// Use = 'use' `PathKind` `PathNoTurbofish` `UseTree`
     ///
-    /// UseTree = PathNoTurbofish ( '::' '{' UseTreeList? '}' )?
+    /// `UseTree` = `PathNoTurbofish` ( '::' '{' `UseTreeList`? '}' )?
     ///
-    /// UseTreeList = UseTree (',' UseTree)* ','?
+    /// `UseTreeList` = `UseTree` (',' `UseTree`)* ','?
     pub(super) fn parse_use_tree(&mut self) -> UseTree {
         let start_location = self.current_token_location;
 
