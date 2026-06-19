@@ -275,26 +275,30 @@ impl Value {
                             FmtStrFragment::String(string.clone())
                         }
                         FormatStringFragment::Value { name, value } => {
-                            // A name might be interpolated multiple times. In that case it will always
-                            // have the same value: we just need one `let` for it.
-                            if !seen_names.insert(name.clone()) {
-                                continue;
-                            }
-
                             has_values = true;
 
-                            let expression = value.clone().into_expression(elaborator, location)?;
-                            let let_statement = LetStatement {
-                                pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
-                                r#type: None,
-                                expression,
-                                attributes: Vec::new(),
-                                comptime: false,
-                                is_global_let: false,
-                            };
-                            let statement =
-                                Statement { kind: StatementKind::Let(let_statement), location };
-                            statements.push(statement);
+                            // A name might be interpolated multiple times. In that case it will always
+                            // have the same value: we just need one `let` for it. We must still emit an
+                            // interpolation fragment per occurrence so the lowered format string keeps
+                            // the same number of captures as the source template.
+                            if seen_names.insert(name.clone()) {
+                                let expression =
+                                    value.clone().into_expression(elaborator, location)?;
+                                let let_statement = LetStatement {
+                                    pattern: Pattern::Identifier(Ident::new(
+                                        name.clone(),
+                                        location,
+                                    )),
+                                    r#type: None,
+                                    expression,
+                                    attributes: Vec::new(),
+                                    comptime: false,
+                                    is_global_let: false,
+                                };
+                                let statement =
+                                    Statement { kind: StatementKind::Let(let_statement), location };
+                                statements.push(statement);
+                            }
                             FmtStrFragment::Interpolation(name.clone(), location)
                         }
                     };
