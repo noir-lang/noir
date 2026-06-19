@@ -92,13 +92,28 @@ pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
 
 fn assert_no_errors_and_to_string(src: &str) -> String {
     let context = assert_no_errors(src);
-    display_crate(
+    let expanded = display_crate(
         *context.crate_graph.root_crate_id(),
         &context.crate_graph,
         &context.def_maps,
         &context.def_interner,
         context.file_manager.as_file_map(),
-    )
+    );
+
+    // The expanded source must compile on its own. A faithful expansion reconstructs the original
+    // module structure (and therefore its visibility), so re-elaborating the output should not
+    // surface new errors. This guards against expansions that, for example, hoist an `impl` out of
+    // its module and break access to a module-private item. Only hard errors are checked: the
+    // printer can legitimately produce code whose warnings (e.g. unused imports) differ from the
+    // original.
+    let errors = get_program_errors(&expanded);
+    let errors: Vec<_> =
+        errors.iter().map(CustomDiagnostic::from).filter(CustomDiagnostic::is_error).collect();
+    if !errors.is_empty() {
+        panic!("Expanded source failed to compile:\n\n{expanded}\n\nErrors: {errors:#?}");
+    }
+
+    expanded
 }
 
 /// Given a source file with annotated errors, like this
