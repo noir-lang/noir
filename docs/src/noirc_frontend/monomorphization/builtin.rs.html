@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>noirc_errors::Location;
 <a href=#6 id=6 data-nosnippet>6</a>
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use crate</span>::{
-<a href=#8 id=8 data-nosnippet>8</a>    Type, TypeBindings,
+<a href=#8 id=8 data-nosnippet>8</a>    Type,
 <a href=#9 id=9 data-nosnippet>9</a>    ast::IntegerBitSize,
 <a href=#10 id=10 data-nosnippet>10</a>    monomorphization::{
 <a href=#11 id=11 data-nosnippet>11</a>        CanonicalBindings, Monomorphizer,
@@ -128,7 +128,7 @@
 <a href=#128 id=128 data-nosnippet>128</a>        expected: <span class="kw-2">&amp;</span>Type,
 <a href=#129 id=129 data-nosnippet>129</a>        location: Location,
 <a href=#130 id=130 data-nosnippet>130</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">if </span>actual.try_unify(expected, <span class="kw-2">&amp;mut </span>TypeBindings::default()).is_ok() {
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">if </span>actual.try_unify_with_default_bindings(expected).is_ok() {
 <a href=#132 id=132 data-nosnippet>132</a>            <span class="prelude-val">Ok</span>(())
 <a href=#133 id=133 data-nosnippet>133</a>        } <span class="kw">else </span>{
 <a href=#134 id=134 data-nosnippet>134</a>            <span class="kw">let </span>actual = actual.to_string();

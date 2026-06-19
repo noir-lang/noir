@@ -392,7 +392,7 @@
 <a href=#392 id=392 data-nosnippet>392</a>) -&gt; IResult&lt;Value&gt; {
 <a href=#393 id=393 data-nosnippet>393</a>    <span class="kw">let </span>(value, location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 <a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">if </span>value.get_type().as_ref() != <span class="kw-2">&amp;</span>return_type {
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="kw">if </span>value.get_type().try_unify_with_default_bindings(<span class="kw-2">&amp;</span>return_type).is_err() {
 <a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::CheckedTransmuteFailed {
 <a href=#397 id=397 data-nosnippet>397</a>            actual: value.get_type().into_owned(),
 <a href=#398 id=398 data-nosnippet>398</a>            expected: return_type,
