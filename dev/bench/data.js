@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781865197353,
+  "lastUpdate": 1781874430213,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23231,48 +23231,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "b82949971de6c369c681b1e399c48ba4655b84a7",
-          "message": "fix: check deferred private import in intermediate segments (#13039)",
-          "timestamp": "2026-06-16T13:01:28Z",
-          "tree_id": "20f4be2eba02062ed3f402b77f8c4ff89723fc3d",
-          "url": "https://github.com/noir-lang/noir/commit/b82949971de6c369c681b1e399c48ba4655b84a7"
-        },
-        "date": 1781616356427,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166772,
-            "range": "± 553",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136519,
-            "range": "± 2528",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655249,
-            "range": "± 4831",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "39140f1d7f1800b18c535694fe31f39284a11369",
           "message": "fix(parser): preserve tails spliced onto interned lvalues in as_expr (#13032)\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
           "timestamp": "2026-06-16T13:03:44Z",
@@ -25314,6 +25272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2123075,
             "range": "± 4397",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f9e5e57298b47a1076bb1991288c1a41255c4bb5",
+          "message": "chore: Retry `install-playwright` with a timeout (#13127)",
+          "timestamp": "2026-06-19T12:45:54Z",
+          "tree_id": "472aa983be435569aaedde1e249c9df0860668a6",
+          "url": "https://github.com/noir-lang/noir/commit/f9e5e57298b47a1076bb1991288c1a41255c4bb5"
+        },
+        "date": 1781874355123,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166879,
+            "range": "± 432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136543,
+            "range": "± 2115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652259,
+            "range": "± 1455",
             "unit": "ns/iter"
           }
         ]
