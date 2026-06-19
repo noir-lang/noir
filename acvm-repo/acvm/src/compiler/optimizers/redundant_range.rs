@@ -564,6 +564,40 @@ mod tests {
     }
 
     #[test]
+    fn acir_call_is_a_side_effect_boundary() {
+        // An `Opcode::Call` dispatches into a separate ACIR circuit that can transitively run
+        // side-effecting Brillig. Just like a `BrilligCall`, it must act as a side-effect boundary:
+        // a caller-side explicit RANGE before the call must not be removed even when a later
+        // implied constraint (here `ASSERT w1 = 0`) would otherwise make it redundant.
+        let src = "
+        private parameters: [w1, w2]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        CALL func: 1, predicate: 1, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions: Vec<usize> =
+            circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+
+        // BUG: the range is dropped across the `CALL`, which is wrongly treated as transparent.
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w1, w2]
+        public parameters: []
+        return values: []
+        CALL func: 1, predicate: 1, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        ");
+    }
+
+    #[test]
     fn array_implied_ranges() {
         // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes, when possible.
         // The `BLACKBOX::RANGE` call is removed because its range is larger than the array's length

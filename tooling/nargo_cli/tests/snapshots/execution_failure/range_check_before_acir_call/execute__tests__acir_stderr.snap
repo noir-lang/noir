@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed constraint
+   ┌─ src/main.nr:14:5
+   │
+14 │     assert(w1 == 5);
+   │     ---------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:14:5
+
+Failed to solve program: 'Cannot satisfy constraint'
