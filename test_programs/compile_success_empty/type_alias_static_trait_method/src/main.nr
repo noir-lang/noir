@@ -103,4 +103,18 @@ fn main() {
     // self type against the impl's self type does.
     assert(Func::tag() == 8);
     assert(Func::via_self() == 8);
+
+    // The same calls written directly as `<Type>::method()` type paths (without an alias),
+    // which bind the impl generics through a separate code path.
+    assert(<str<3>>::tag() == 3);
+    assert(<str<3>>::via_self() == 3);
+    assert(<fmtstr<3, (Field, Field)>>::tag() == 3);
+    assert(<[u8; 4]>::tag() == 4);
+    assert(<[u8; 4]>::via_self() == 4);
+    assert(<[u8]>::tag() == 7);
+    assert(<[u8]>::via_self() == 7);
+    assert(<(u8, u32)>::tag() == 2);
+    assert(<(u8, u32)>::via_self() == 2);
+    assert(<fn() -> u8>::tag() == 8);
+    assert(<fn() -> u8>::via_self() == 8);
 }

@@ -98,4 +98,15 @@ fn main() {
     assert(<(u8, u32)>::via_self() == 2_u32);
     assert(<fn() -> u8>::tag() == 8_u32);
     assert(<fn() -> u8>::via_self() == 8_u32);
+    assert(str::<3>::tag() == 3_u32);
+    assert(str::<3>::via_self() == 3_u32);
+    assert(fmtstr::<3, (Field, Field)>::tag() == 3_u32);
+    assert(<[u8; 4]>::tag() == 4_u32);
+    assert(<[u8; 4]>::via_self() == 4_u32);
+    assert(<[u8]>::tag() == 7_u32);
+    assert(<[u8]>::via_self() == 7_u32);
+    assert(<(u8, u32)>::tag() == 2_u32);
+    assert(<(u8, u32)>::via_self() == 2_u32);
+    assert(<fn() -> u8>::tag() == 8_u32);
+    assert(<fn() -> u8>::via_self() == 8_u32);
 }
