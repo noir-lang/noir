@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781875461409,
+  "lastUpdate": 1781875830134,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23216,48 +23216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ef7c1c5df856d878926e89dcd039038e9af4afe9",
-          "message": "fix(nargo): report dependency cycles using normalized manifest paths (#13048)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-06-16T13:11:51Z",
-          "tree_id": "d9c903849ff9a1a25dd2e66aad38c08f78ec797d",
-          "url": "https://github.com/noir-lang/noir/commit/ef7c1c5df856d878926e89dcd039038e9af4afe9"
-        },
-        "date": 1781617606007,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126966,
-            "range": "± 204",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113112,
-            "range": "± 1827",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040721,
-            "range": "± 3562",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2660977,
             "range": "± 4798",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "79c9b2c559c265640ee10f073857a24a0533e4b0",
+          "message": "fix: avoid constant-folding ICE on const Brillig calls with ZST array arguments (#13119)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-19T13:08:38Z",
+          "tree_id": "544cb8bded1ad223f6cd7cdaf1bf6ecbdf12d15a",
+          "url": "https://github.com/noir-lang/noir/commit/79c9b2c559c265640ee10f073857a24a0533e4b0"
+        },
+        "date": 1781875747427,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 163233,
+            "range": "± 379",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 133927,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2122296,
+            "range": "± 3297",
             "unit": "ns/iter"
           }
         ]
