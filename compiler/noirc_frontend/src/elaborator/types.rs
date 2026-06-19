@@ -1127,6 +1127,29 @@ impl Elaborator<'_> {
                 }
             }
             UnresolvedTypeExpression::Negation(rhs, location) => {
+                // Fold `-<magnitude>` of a signed integer literal into a single constant so the
+                // range check sees the negative value instead of rejecting the magnitude (e.g.
+                // `128` is out of `i8` range, but `-128` is `i8::MIN`).
+                if let UnresolvedTypeExpression::Constant(int, Some(suffix), const_location) =
+                    rhs.as_ref()
+                    && matches!(
+                        suffix,
+                        crate::token::IntegerTypeSuffix::I8
+                            | crate::token::IntegerTypeSuffix::I16
+                            | crate::token::IntegerTypeSuffix::I32
+                            | crate::token::IntegerTypeSuffix::I64
+                    )
+                {
+                    let folded =
+                        UnresolvedTypeExpression::Constant(-*int, Some(*suffix), *const_location);
+                    return self.convert_expression_type(
+                        folded,
+                        expected_kind,
+                        location,
+                        wildcard_allowed,
+                    );
+                }
+
                 let rhs_location = rhs.location();
                 let rhs = self.convert_expression_type(
                     *rhs,
