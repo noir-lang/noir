@@ -246,6 +246,12 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     }
                     None
                 }
+                Opcode::Call { .. } => {
+                    // A call into a separate ACIR circuit can transitively execute side-effecting
+                    // Brillig, so it must act as a side-effect boundary like a direct Brillig call.
+                    next_side_effect = idx;
+                    None
+                }
                 _ => None,
             }) else {
                 // If its not the range opcode, add it to the opcode list and continue.
@@ -587,11 +593,12 @@ mod tests {
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
 
-        // BUG: the range is dropped across the `CALL`, which is wrongly treated as transparent.
+        // The range must be retained before the `CALL`.
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w1, w2]
         public parameters: []
         return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
         CALL func: 1, predicate: 1, inputs: [w2], outputs: []
         ASSERT w1 = 0
         ");

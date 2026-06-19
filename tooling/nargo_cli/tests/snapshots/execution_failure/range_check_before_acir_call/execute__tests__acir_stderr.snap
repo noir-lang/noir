@@ -2,14 +2,16 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Failed constraint
-   ┌─ src/main.nr:14:5
+error: Assertion failed: call to assert_max_bit_size
+   ┌─ std/field/mod.nr:17:9
    │
-14 │     assert(w1 == 5);
-   │     ---------------
+17 │         __assert_max_bit_size(self, BIT_SIZE);
+   │         -------------------------------------
    │
    = Call stack:
      1: main
-             at src/main.nr:14:5
+             at src/main.nr:5:5
+     2: Field::assert_max_bit_size
+             at std/field/mod.nr:17:9
 
-Failed to solve program: 'Cannot satisfy constraint'
+Failed assertion
