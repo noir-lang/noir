@@ -1232,6 +1232,40 @@ mod test {
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
+    // Regression for noir-claude#1224.
+    // A constant zero-sized-type array (empty `element_types`, e.g. `[(); 3]`) passed as a
+    // constant argument to a brillig call reaches the constant-folding interpreter, which must
+    // rehydrate it into an interpreter value without panicking on the empty element-type list.
+    #[test]
+    fn interpret_call_with_zero_sized_type_array_argument() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 3]
+            v1 = call f1(v0) -> [(); 3]
+            return v1
+        }
+        brillig(inline) fn id_zst f1 {
+          b0(v0: [(); 3]):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 3]
+            v1 = make_array [] : [(); 3]
+            return v1
+        }
+        brillig(inline) fn id_zst f1 {
+          b0(v0: [(); 3]):
+            return v0
+        }
+        ");
+    }
+
     // In ACIR, arrays are value-semantic: `array_set` produces a fresh array and never mutates
     // its input, so a later identical `make_array` can still be deduplicated against the original
     // even though `array_set` wrote "to" it. (In Brillig the same dedup would be unsafe because the
