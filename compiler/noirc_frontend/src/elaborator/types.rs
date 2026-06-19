@@ -2920,9 +2920,14 @@ impl Elaborator<'_> {
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
-        // First search in the type methods. If there is one, that's the one.
-        if let Some(method_id) =
-            self.lookup_direct_method(object_type, method_name, check_self_param)
+        // First search in the type methods. A directly-defined (inherent) method that is
+        // visible from here always wins. If it exists but is not visible, we do not commit to
+        // it yet: an accessible trait method may exist that should be called instead. We keep
+        // the inherent method around as a fallback so that, if no trait method resolves, the
+        // caller still reports the appropriate "private" visibility error against it.
+        let direct_method = self.lookup_direct_method(object_type, method_name, check_self_param);
+        if let Some(method_id) = direct_method
+            && self.method_call_is_visible(method_id, object_type)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
@@ -2941,6 +2946,12 @@ impl Elaborator<'_> {
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
+        }
+
+        // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
+        // caller reports its visibility error rather than a misleading "method not found".
+        if let Some(method_id) = direct_method {
+            return Some(HirMethodReference::FuncId(method_id));
         }
 
         // It could be that this type is a composite type that is bound to a trait,
