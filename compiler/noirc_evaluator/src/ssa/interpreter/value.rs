@@ -303,6 +303,7 @@ impl Value {
         element_types: Vec<Type>,
         length: SemanticLength,
     ) -> Self {
+        assert_eq!(length.0 as usize * element_types.len(), elements.len());
         Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
