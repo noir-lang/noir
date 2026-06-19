@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781814346168,
+  "lastUpdate": 1781855698527,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23216,48 +23216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f26edad81e7ef6a467d4e9828cf5cf18dc7c074a",
-          "message": "chore: document why fmtstr capture drop in hir_to_display_ast is safe (#13062)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-15T21:10:37Z",
-          "tree_id": "56b40a17efc73fd35511720b32a398eb2d797bad",
-          "url": "https://github.com/noir-lang/noir/commit/f26edad81e7ef6a467d4e9828cf5cf18dc7c074a"
-        },
-        "date": 1781559648944,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166852,
-            "range": "± 260",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135944,
-            "range": "± 3410",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655113,
-            "range": "± 2886",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649735,
             "range": "± 2315",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5472b291d126e2319ee0d641198d92ab8df5fcbf",
+          "message": "chore: improve test coverage of liveness analysis (#13110)",
+          "timestamp": "2026-06-19T07:34:50Z",
+          "tree_id": "f0fe2707a376202b9a12376a1e882eff3ca21d61",
+          "url": "https://github.com/noir-lang/noir/commit/5472b291d126e2319ee0d641198d92ab8df5fcbf"
+        },
+        "date": 1781855616353,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 164183,
+            "range": "± 806",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 134334,
+            "range": "± 217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2121629,
+            "range": "± 2408",
             "unit": "ns/iter"
           }
         ]
