@@ -101,8 +101,14 @@ impl ValueMapping {
         }
     }
 
-    pub(crate) fn get(&self, value: ValueId) -> ValueId {
-        if let Some(replacement) = self.map.get(&value) { self.get(*replacement) } else { value }
+    pub(crate) fn get(&self, mut value: ValueId) -> ValueId {
+        // Follow the replacement chain iteratively. A recursive walk would use one stack
+        // frame per link, and on large programs the chain can be thousands deep — enough
+        // to overflow the (smaller) wasm stack.
+        while let Some(replacement) = self.map.get(&value) {
+            value = *replacement;
+        }
+        value
     }
 
     pub(crate) fn is_empty(&self) -> bool {
