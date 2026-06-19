@@ -47,6 +47,7 @@
 //! [`BrilligBlock::spill_value`]: super::brillig_block::BrilligBlock::spill_value
 //! [`BrilligBlock::reload_spilled_value`]: super::brillig_block::BrilligBlock::reload_spilled_value
 
+use std::collections::BTreeSet;
 use std::collections::hash_map::Entry;
 
 use itertools::Itertools;
@@ -90,9 +91,8 @@ impl SpillStatus {
 pub(crate) struct SpillManager {
     /// Map of all spill records
     records: HashMap<ValueId, SpillRecord>,
-    /// LRU order: front = least recently used, back = most recently used.
-    /// Only tracks local SSA values (not globals, not hoisted constants).
-    lru_order: Vec<ValueId>,
+    /// Least-recently-used tracker over local SSA values (not globals, not hoisted constants).
+    lru: Lru,
     /// Next offset within the spill region (relative to spill base register).
     next_spill_offset: usize,
     /// Free list of spill slots that have been reclaimed.
@@ -111,11 +111,61 @@ pub(crate) struct SpillRecord {
     pub(crate) status: SpillStatus,
 }
 
+/// Least-recently-used tracker over local SSA values, keyed by a monotonic touch clock.
+///
+/// Backs the eviction heuristic with logarithmic `touch`/`remove` instead of the linear
+/// scans and shifts a `Vec` would require (see <https://github.com/noir-lang/noir/issues/11694>).
+/// Values are ordered by the time they were last touched: the least-recently-used value is
+/// the first element of `order`, the most-recently-used the last.
+#[derive(Default)]
+struct Lru {
+    /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
+    /// ever share a key and the ordering is total and deterministic.
+    clock: u64,
+    /// Last touch time of each tracked value.
+    last_used: HashMap<ValueId, u64>,
+    /// Tracked values ordered by touch time (ascending): first = least recently used.
+    order: BTreeSet<(u64, ValueId)>,
+}
+
+impl Lru {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    /// Mark `value_id` as the most recently used value, inserting it if not already tracked.
+    fn touch(&mut self, value_id: ValueId) {
+        self.clock += 1;
+        if let Some(previous) = self.last_used.insert(value_id, self.clock) {
+            self.order.remove(&(previous, value_id));
+        }
+        self.order.insert((self.clock, value_id));
+    }
+
+    /// Stop tracking `value_id` entirely.
+    fn remove(&mut self, value_id: &ValueId) {
+        if let Some(previous) = self.last_used.remove(value_id) {
+            self.order.remove(&(previous, *value_id));
+        }
+    }
+
+    /// Iterate tracked values from least- to most-recently used.
+    fn iter_lru(&self) -> impl Iterator<Item = ValueId> + '_ {
+        self.order.iter().map(|&(_, value_id)| value_id)
+    }
+
+    /// Forget all tracked values. The clock is left untouched so it stays monotonic.
+    fn clear(&mut self) {
+        self.last_used.clear();
+        self.order.clear();
+    }
+}
+
 impl SpillManager {
     pub(crate) fn new() -> Self {
         Self {
             records: HashMap::default(),
-            lru_order: Vec::new(),
+            lru: Lru::new(),
             next_spill_offset: 0,
             free_spill_slots: Vec::new(),
             max_spill_offset: 0,
@@ -162,15 +212,12 @@ impl SpillManager {
     /// Move a value to the back of the LRU (most recently used).
     /// If the value isn't tracked yet, add it.
     pub(crate) fn touch(&mut self, value_id: ValueId) {
-        self.remove_from_lru(&value_id);
-        self.lru_order.push(value_id);
+        self.lru.touch(value_id);
     }
 
     /// Remove a value from LRU tracking entirely.
     pub(crate) fn remove_from_lru(&mut self, value_id: &ValueId) {
-        if let Some(pos) = self.lru_order.iter().position(|v| v == value_id) {
-            self.lru_order.remove(pos);
-        }
+        self.lru.remove(value_id);
     }
 
     /// Remove a value from the spill tracking.
@@ -220,12 +267,7 @@ impl SpillManager {
     /// reloaded (which calls `touch()`). This is correct — a reloaded value
     /// has a register and is a valid eviction candidate.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
-        for value_id in &self.lru_order {
-            if !self.is_spilled(value_id) {
-                return Some(*value_id);
-            }
-        }
-        None
+        self.lru.iter_lru().find(|value_id| !self.is_spilled(value_id))
     }
 
     /// Batched version of [`Self::lru_victim`]
@@ -233,12 +275,14 @@ impl SpillManager {
     /// Return up to `k` least-recently-used values that are not currently spilled,
     /// ordered least-recently-used first.
     pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
-        self.lru_order.iter().copied().filter(|v| !self.is_spilled(v)).take(k).collect()
+        self.lru.iter_lru().filter(|v| !self.is_spilled(v)).take(k).collect()
     }
 
     /// Remove every value in `victims` from LRU tracking in one shot.
     pub(crate) fn remove_victims_from_lru(&mut self, victims: &HashSet<ValueId>) {
-        self.lru_order.retain(|v| !victims.contains(v));
+        for victim in victims {
+            self.lru.remove(victim);
+        }
     }
 
     /// Record that a value has been spilled.
@@ -285,7 +329,7 @@ impl SpillManager {
 
     /// Rebuild `lru_order` for a new block from scratch, retaining only live-in
     /// values that are not currently spilled, in deterministic ValueId order.
-    ///  
+    ///
     /// This discards any ordering carried over from the previous block, which is sound while
     /// spilling is enabled: every value live across a block boundary is permanently spilled
     /// before its block is entered (block parameters via `convert_block_params`, other
@@ -298,11 +342,16 @@ impl SpillManager {
     /// here rather than re-sorted by `ValueId`.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
         debug_assert!(
-            !self.lru_order.iter().any(|v| live_in.contains(v) && !self.is_spilled(v)),
+            !self.lru.iter_lru().any(|v| live_in.contains(&v) && !self.is_spilled(&v)),
             "cross-block LRU carryover is non-empty; preserve the previous block's order instead of re-sorting: {:?}",
-            self.lru_order
+            self.lru.iter_lru().collect::<Vec<_>>()
         );
-        self.lru_order = live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
+        let seed: Vec<ValueId> =
+            live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
+        self.lru.clear();
+        for value_id in seed {
+            self.lru.touch(value_id);
+        }
     }
 
     /// Record a value as permanently spilled.
@@ -399,10 +448,63 @@ mod tests {
         ssa::ir::map::Id,
     };
 
-    use super::{SpillManager, SpillStatus};
+    use super::{Lru, SpillManager, SpillStatus};
 
     fn test_var(n: u32) -> BrilligVariable {
         BrilligVariable::SingleAddr(SingleAddrVariable::new(MemoryAddress::relative(n), 32))
+    }
+
+    #[test]
+    fn lru_orders_values_by_touch_recency() {
+        let mut lru = Lru::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+
+        lru.touch(v0);
+        lru.touch(v1);
+        lru.touch(v2);
+        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v0, v1, v2]);
+
+        // Re-touching a tracked value moves it to the most-recently-used end.
+        lru.touch(v0);
+        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1, v2, v0]);
+    }
+
+    #[test]
+    fn lru_remove_drops_value_from_both_collections() {
+        let mut lru = Lru::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+
+        lru.touch(v0);
+        lru.touch(v1);
+
+        lru.remove(&v0);
+        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1]);
+        assert!(!lru.last_used.contains_key(&v0), "stamp must be dropped too");
+
+        // Removing an untracked value is a no-op.
+        lru.remove(&v0);
+        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1]);
+    }
+
+    #[test]
+    fn lru_clear_empties_order_but_keeps_clock_monotonic() {
+        let mut lru = Lru::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+
+        lru.touch(v0);
+        let clock_before_clear = lru.clock;
+
+        lru.clear();
+        assert!(lru.iter_lru().next().is_none());
+
+        // A later touch must outrank anything from before the clear.
+        lru.touch(v1);
+        assert!(lru.clock > clock_before_clear, "clock must keep increasing across clear");
+        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1]);
     }
 
     #[test]
