@@ -58,6 +58,16 @@ impl<A, B> PrimitiveTag for (A, B) {
     }
 }
 
+impl<T> PrimitiveTag for fn() -> T {
+    fn tag() -> u32 {
+        8_u32
+    }
+
+    fn via_self() -> u32 {
+        Self::tag()
+    }
+}
+
 type Str3 = str<3>;
 
 type Str5 = str<5>;
@@ -69,6 +79,8 @@ type Arr = [u8; 4];
 type Sli = [u8];
 
 type Tup = (u8, u32);
+
+type Func = fn() -> u8;
 
 fn main() {
     assert(str::<3>::tag() == 3_u32);
@@ -84,4 +96,6 @@ fn main() {
     assert(<[u8]>::via_self() == 7_u32);
     assert(<(u8, u32)>::tag() == 2_u32);
     assert(<(u8, u32)>::via_self() == 2_u32);
+    assert(<fn() -> u8>::tag() == 8_u32);
+    assert(<fn() -> u8>::via_self() == 8_u32);
 }
