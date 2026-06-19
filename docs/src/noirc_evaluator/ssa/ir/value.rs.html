@@ -101,26 +101,32 @@
 <a href=#101 id=101 data-nosnippet>101</a>        }
 <a href=#102 id=102 data-nosnippet>102</a>    }
 <a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; ValueId {
-<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = <span class="self">self</span>.map.get(<span class="kw-2">&amp;</span>value) { <span class="self">self</span>.get(<span class="kw-2">*</span>replacement) } <span class="kw">else </span>{ value }
-<a href=#106 id=106 data-nosnippet>106</a>    }
-<a href=#107 id=107 data-nosnippet>107</a>
-<a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#109 id=109 data-nosnippet>109</a>        <span class="self">self</span>.map.is_empty()
-<a href=#110 id=110 data-nosnippet>110</a>    }
-<a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: ValueMapping) {
-<a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">for </span>(from, to) <span class="kw">in </span>other.map {
-<a href=#114 id=114 data-nosnippet>114</a>            <span class="self">self</span>.insert(from, to);
-<a href=#115 id=115 data-nosnippet>115</a>        }
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>value: ValueId) -&gt; ValueId {
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="comment">// Follow the replacement chain iteratively. A recursive walk would use one stack
+<a href=#106 id=106 data-nosnippet>106</a>        // frame per link, and on large programs the chain can be thousands deep — enough
+<a href=#107 id=107 data-nosnippet>107</a>        // to overflow the (smaller) wasm stack.
+<a href=#108 id=108 data-nosnippet>108</a>        </span><span class="kw">while let </span><span class="prelude-val">Some</span>(replacement) = <span class="self">self</span>.map.get(<span class="kw-2">&amp;</span>value) {
+<a href=#109 id=109 data-nosnippet>109</a>            value = <span class="kw-2">*</span>replacement;
+<a href=#110 id=110 data-nosnippet>110</a>        }
+<a href=#111 id=111 data-nosnippet>111</a>        value
+<a href=#112 id=112 data-nosnippet>112</a>    }
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="self">self</span>.map.is_empty()
 <a href=#116 id=116 data-nosnippet>116</a>    }
 <a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
-<a href=#119 id=119 data-nosnippet>119</a>    ///
-<a href=#120 id=120 data-nosnippet>120</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
-<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="attr">#[must_use]
-<a href=#122 id=122 data-nosnippet>122</a>    #[cfg(debug_assertions)]
-<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
-<a href=#124 id=124 data-nosnippet>124</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
-<a href=#125 id=125 data-nosnippet>125</a>    }
-<a href=#126 id=126 data-nosnippet>126</a>}</code></pre></div></section></main></body></html>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: ValueMapping) {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">for </span>(from, to) <span class="kw">in </span>other.map {
+<a href=#120 id=120 data-nosnippet>120</a>            <span class="self">self</span>.insert(from, to);
+<a href=#121 id=121 data-nosnippet>121</a>        }
+<a href=#122 id=122 data-nosnippet>122</a>    }
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+<a href=#125 id=125 data-nosnippet>125</a>    ///
+<a href=#126 id=126 data-nosnippet>126</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="attr">#[must_use]
+<a href=#128 id=128 data-nosnippet>128</a>    #[cfg(debug_assertions)]
+<a href=#129 id=129 data-nosnippet>129</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
+<a href=#130 id=130 data-nosnippet>130</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
+<a href=#131 id=131 data-nosnippet>131</a>    }
+<a href=#132 id=132 data-nosnippet>132</a>}</code></pre></div></section></main></body></html>
