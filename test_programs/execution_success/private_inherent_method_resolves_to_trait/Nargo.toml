@@ -1,0 +1,6 @@
+[package]
+name = "private_inherent_method_resolves_to_trait"
+type = "bin"
+authors = [""]
+
+[dependencies]
