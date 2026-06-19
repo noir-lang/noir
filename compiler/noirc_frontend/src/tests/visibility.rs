@@ -18,6 +18,29 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
 }
 
 #[test]
+fn errors_on_private_module_accessed_via_use_and_path() {
+    let src = r#"
+    pub mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+    }
+
+    use foo::bar::baz;
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
+
+    fn main() {
+        foo::bar::baz();
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
+        baz();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
@@ -503,12 +526,20 @@ fn error_when_accessing_private_struct_field() {
         pub struct Foo {
             x: Field
         }
+
+        pub fn new() -> Foo {
+            Foo { x: 1 }
+        }
     }
 
     fn foo(foo: moo::Foo) -> Field {
         foo.x
             ^ x is private and not visible from the current module
             ~ x is private
+    }
+
+    fn main() {
+        let _ = foo(moo::new());
     }
     "#;
     check_errors(src);
@@ -525,10 +556,14 @@ fn does_not_error_when_accessing_private_struct_field_from_nested_module() {
         fn foo(foo: super::Foo) -> Field {
             foo.x
         }
+
+        pub fn run() -> Field {
+            foo(super::Foo { x: 1 })
+        }
     }
 
     fn main() {
-        let _ = Foo { x: 1 };
+        let _ = nested::run();
     }
     "#;
     assert_no_errors(src);
@@ -548,7 +583,7 @@ fn does_not_error_when_accessing_pub_crate_struct_field_from_nested_module() {
     }
 
     fn main() {
-        let _ = moo::Foo { x: 1 };
+        let _ = foo(moo::Foo { x: 1 });
     }
     "#;
     assert_no_errors(src);
@@ -579,6 +614,10 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
         pub struct Foo {
             x: Field
         }
+
+        pub fn new() -> Foo {
+            Foo { x: 1 }
+        }
     }
 
     fn foo(foo: moo::Foo) -> Field {
@@ -589,6 +628,7 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
     }
 
     fn main() {
+        let _ = foo(moo::new());
     }
     "#;
     check_errors(src);
@@ -808,11 +848,16 @@ fn same_name_in_types_and_values_namespace_works() {
 
 #[test]
 fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    // `moo::foo {}` constructs the struct (type namespace); the same-named `fn foo` (value
+    // namespace) is never called, so it is correctly reported as unused — the two namespaces
+    // are tracked independently.
     let src = "
     mod moo {
         struct foo {}
 
         fn foo() {}
+           ^^^ unused function foo
+           ~~~ unused function
     }
 
     fn main() {
@@ -1145,6 +1190,112 @@ fn private_inherent_impl_method_accessible_from_nested_child_of_impl_module() {
 }
 
 #[test]
+fn does_not_error_calling_private_methods_from_nested_extension_module() {
+    // Private methods defined in an extension `impl` in module `inner` are callable from
+    // another extension `impl` in `inner2`, because `inner2` is a descendant of `inner`. This
+    // matches Rust: a descendant module can see its ancestors' private associated items
+    // regardless of which `impl` block holds them.
+    //
+    // Each kind of method is checked by a different mechanism: the no-`self` associated
+    // function (`Foo::inner_x()`) during path resolution, and the `self` method
+    // (`self.inner_y()`) during method-call resolution. The parent/child rule must be enforced
+    // identically by both.
+    //
+    // The `self` half is the reason this test exists alongside
+    // `private_inherent_impl_method_accessible_from_nested_child_of_impl_module`: there the
+    // descendant caller is a free function, so `self_type` is `None` and the dot-call takes the
+    // `struct_member_is_visible` branch. Here the caller is itself inside `impl Foo`, so
+    // `self_type` is `Some`, exercising the strict parent/child case of the `self_type` branch
+    // in `method_call_is_visible` that no other test covers.
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        mod inner {
+            use crate::foo::Foo;
+
+            impl Foo {
+                fn inner_x() -> u32 {
+                    0
+                }
+
+                fn inner_y(self) -> u32 {
+                    let _ = self;
+                    0
+                }
+            }
+
+            mod inner2 {
+                use crate::foo::Foo;
+
+                impl Foo {
+                    pub fn x(self) -> u32 {
+                        Foo::inner_x() + self.inner_y()
+                    }
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let f = foo::Foo {};
+        let _ = f.x();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_calling_private_methods_from_sibling_extension_module() {
+    // Mirror of the descendant case: when the calling extension `impl` is in `inner2`, a
+    // sibling of `inner` rather than a descendant, neither the no-`self` associated function
+    // (checked during path resolution) nor the `self` method (checked during method-call
+    // resolution) is visible. Both mechanisms enforce the same parent/child rule.
+    let src = r#"
+    mod foo {
+        pub struct Foo {}
+
+        mod inner {
+            use crate::foo::Foo;
+
+            impl Foo {
+                fn inner_x() -> u32 {
+                    0
+                }
+
+                fn inner_y(self) -> u32 {
+                    let _ = self;
+                    0
+                }
+            }
+        }
+
+        mod inner2 {
+            use crate::foo::Foo;
+
+            impl Foo {
+                pub fn x(self) -> u32 {
+                    let a = Foo::inner_x();
+                                 ^^^^^^^ inner_x is private and not visible from the current module
+                                 ~~~~~~~ inner_x is private
+                    let b = self.inner_y();
+                                 ^^^^^^^ inner_y is private and not visible from the current module
+                                 ~~~~~~~ inner_y is private
+                    a + b
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let f = foo::Foo {};
+        let _ = f.x();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_when_using_private_type_imported_via_value_name_collision() {
     // A module has a private type and a public value sharing the same name.
     // Importing the name is allowed (the public value is visible), but using
@@ -1268,6 +1419,32 @@ fn errors_on_qualified_access_to_private_type_colliding_with_public_value() {
         let _ = moo::Foo {};
                      ^^^ Foo is private and not visible from the current module
                      ~~~ Foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_using_private_type_imported_via_collision_as_path_prefix() {
+    // The private type must be rejected even when it only appears as an intermediate path
+    // prefix (calling an inherent associated function), not just as the final path item.
+    let src = r#"
+    mod moo {
+        struct Foo {}
+
+        impl Foo {
+            pub fn make() -> Self { Foo {} }
+        }
+
+        pub fn Foo() {}
+    }
+
+    use moo::Foo;
+
+    fn main() {
+        let _ = Foo::make();
+                ^^^ Foo is private and not visible from the current module
+                ~~~ Foo is private
     }
     "#;
     check_errors(src);

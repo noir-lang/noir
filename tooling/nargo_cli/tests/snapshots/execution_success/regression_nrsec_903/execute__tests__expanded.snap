@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+#[inline_never]
+unconstrained fn get_slice() -> [u32] {
+    @[100_u32]
+}
+
+unconstrained fn main() -> pub u32 {
+    let _: (u32, [u32]) = get_slice().pop_front();
+    get_slice()[0_u32]
+}

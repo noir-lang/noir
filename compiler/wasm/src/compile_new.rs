@@ -15,7 +15,7 @@ use std::path::Path;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 /// This is a wrapper class that is wasm-bindgen compatible
-/// We do not use js_name and rename it like CrateId because
+/// We do not use `js_name` and rename it like `CrateId` because
 /// then the impl block is not picked up in javascript.
 #[wasm_bindgen]
 pub struct CompilerContext {
@@ -108,17 +108,16 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::optimize_program(compiled_program);
-        nargo::ops::check_program(&optimized_program).map_err(|errs| {
+        nargo::ops::check_program(&compiled_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
                 &self.context.file_manager,
             )
         })?;
-        let warnings = optimized_program.warnings.clone();
+        let warnings = compiled_program.warnings.clone();
 
-        Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
+        Ok(JsCompileProgramResult::new(compiled_program.into(), warnings))
     }
 
     pub fn compile_contract(
@@ -139,15 +138,14 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract = nargo::ops::optimize_contract(compiled_contract);
-        let warnings = optimized_contract.warnings.clone();
+        let warnings = compiled_contract.warnings.clone();
 
-        Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
+        Ok(JsCompileContractResult::new(compiled_contract.into(), warnings))
     }
 }
 
 /// This is a method that exposes the same API as `compile`
-/// But uses the Context based APi internally
+/// But uses the Context based `APi` internally
 #[wasm_bindgen]
 pub fn compile_program_(
     entry_point: String,
@@ -164,7 +162,7 @@ pub fn compile_program_(
 }
 
 /// This is a method that exposes the same API as `compile`
-/// But uses the Context based APi internally
+/// But uses the Context based `APi` internally
 #[wasm_bindgen]
 pub fn compile_contract_(
     entry_point: String,

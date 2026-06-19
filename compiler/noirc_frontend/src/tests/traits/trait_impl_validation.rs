@@ -216,7 +216,7 @@ fn check_impl_struct_not_trait() {
 fn check_trait_duplicate_declaration() {
     let src = "
     trait Default2 {
-          ~~~~~~~~ First trait definition found here
+          ~~~~~~~~ First definition found here
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -233,7 +233,7 @@ fn check_trait_duplicate_declaration() {
 
     trait Default2 {
           ^^^^^^^^ Duplicate definitions of trait definition with name Default2 found
-          ~~~~~~~~ Second trait definition found here
+          ~~~~~~~~ Second definition found here
         fn default(x: Field) -> Self;
     }
     ";
@@ -520,6 +520,83 @@ fn overlapping_blanket_impl_with_generic_struct() {
 }
 
 #[test]
+fn overlapping_impls_via_different_paths_to_same_trait_and_type_in_one_module() {
+    // The two impls refer to the same trait and struct via different paths
+    // (imported vs. fully-qualified), but still overlap.
+    let src = r#"
+    pub mod module1 {
+        pub(crate) trait MyTrait {}
+    }
+    pub mod module2 {
+        pub(crate) struct MyStruct {}
+    }
+    pub mod module3 {
+        use crate::module1::MyTrait;
+        use crate::module2::MyStruct;
+
+        impl MyTrait for MyStruct {}
+             ~~~~~~~ Previous impl defined here
+        impl crate::module1::MyTrait for crate::module2::MyStruct {}
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^ Impl for type `MyStruct` overlaps with existing impl
+                                         ~~~~~~~~~~~~~~~~~~~~~~~~ Overlapping impl
+    }
+
+    fn main() {
+        let _ = crate::module2::MyStruct {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn overlapping_impls_via_different_paths_across_modules() {
+    // The overlapping impls live in separate modules but target the same trait and struct.
+    let src = r#"
+    pub mod module1 {
+        pub(crate) trait MyTrait {}
+    }
+    pub mod module2 {
+        pub(crate) struct MyStruct {}
+    }
+    pub mod module3 {
+        use crate::module1::MyTrait;
+        use crate::module2::MyStruct;
+
+        impl MyTrait for MyStruct {}
+             ~~~~~~~ Previous impl defined here
+    }
+    pub mod module4 {
+        impl crate::module1::MyTrait for crate::module2::MyStruct {}
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^ Impl for type `MyStruct` overlaps with existing impl
+                                         ~~~~~~~~~~~~~~~~~~~~~~~~ Overlapping impl
+    }
+
+    fn main() {
+        let _ = crate::module2::MyStruct {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_item_constraint_in_impl_trait_is_an_error() {
+    let src = r#"
+    trait Trait {
+        type T;
+    }
+
+    impl Trait<T = i32> for bool {
+         ^^^^^ `Trait` is missing the associated type `T`
+               ^^^^^^^ Associated item constraints are not allowed here
+               ~~~~~~~ Consider removing this associated item binding
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn does_not_crash_when_trait_impl_is_defined_multiple_times() {
     let src = r#"
     pub struct Wrap { }
@@ -545,4 +622,12 @@ fn does_not_crash_when_trait_impl_is_defined_multiple_times() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn does_not_crash_on_broken_impl_header() {
+    // Regression test: a truncated `impl` header used to crash the compiler.
+    let src = "impl< Foo for";
+    let errors = crate::tests::get_program_errors(src);
+    assert!(!errors.is_empty(), "expected the broken impl header to produce errors");
 }

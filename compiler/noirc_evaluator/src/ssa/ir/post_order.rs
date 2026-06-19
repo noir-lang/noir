@@ -204,13 +204,13 @@ mod tests {
         assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
     }
 
-    /// Helper to construct a BasicBlockId with a syntax resembling the `b0`
+    /// Helper to construct a `BasicBlockId` with a syntax resembling the `b0`
     /// syntax used in comments/ssa output.
     fn b(id: u32) -> BasicBlockId {
         BasicBlockId::test_new(id)
     }
 
-    /// Documents the somewhat odd behavior from https://github.com/noir-lang/noir/issues/9771
+    /// Documents the somewhat odd behavior from <https://github.com/noir-lang/noir/issues/9771>
     #[test]
     fn loop_regression() {
         // b0 -> b1 <-> b2

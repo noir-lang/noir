@@ -345,6 +345,7 @@ impl Elaborator<'_> {
         self.push_errors(errors);
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
+        let struct_id = struct_type.borrow().id;
 
         self.unify_or_type_mismatch_with_source(
             &actual_type,
@@ -352,6 +353,10 @@ impl Elaborator<'_> {
             Source::Assignment,
             location,
         );
+
+        // The struct's fields may still be deferred, so resolve them now before
+        // `resolve_constructor_pattern_fields` reads them.
+        self.define_struct_fields_if_undefined(struct_id);
 
         let fields = self.resolve_constructor_pattern_fields(
             fields,
@@ -363,8 +368,6 @@ impl Elaborator<'_> {
             pattern_names,
             parameter_names_in_list,
         );
-
-        let struct_id = struct_type.borrow().id;
 
         self.interner.add_type_reference(struct_id, name_location, is_self_type);
 
@@ -458,7 +461,7 @@ impl Elaborator<'_> {
     ///
     /// Returns the created identifier.
     ///
-    /// Panics if the `definition` is [DefinitionKind::Global].
+    /// Panics if the `definition` is [`DefinitionKind::Global`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_variable_decl(
         &mut self,
@@ -491,7 +494,7 @@ impl Elaborator<'_> {
         ident
     }
 
-    /// Add a [ResolverMeta] to the last scope for a given [HirIdent], which already has its definition interned,
+    /// Add a [`ResolverMeta`] to the last scope for a given [`HirIdent`], which already has its definition interned,
     /// unless its name is `"_"`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn add_existing_variable_to_scope(
@@ -530,7 +533,7 @@ impl Elaborator<'_> {
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
     ///
-    /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
+    /// This method is private and is expected to be called through [`Self::get_ident_from_path_or_error`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn use_variable(&mut self, name: &Ident) -> Result<Variable, ResolverError> {
         // Find the definition for this Ident
@@ -590,7 +593,7 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Resolve generics using the generic kinds of a struct [DataType].
+    /// Resolve generics using the generic kinds of a struct [`DataType`].
     ///
     /// If there are no turbofish, returns the generics of the struct itself, as constructed by the caller.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -638,7 +641,7 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Resolve generics using the generic and generic kinds of a [TypeAlias].
+    /// Resolve generics using the generic and generic kinds of a [`TypeAlias`].
     ///
     /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -724,7 +727,7 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Create a validated [TypedPath] from a [Path] by resolving all generics in every [PathSegment] in it.
+    /// Create a validated [`TypedPath`] from a [Path] by resolving all generics in every [`PathSegment`] in it.
     ///
     /// Pushes an error if the first segment is `Self` and it has turbofish generics.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -750,8 +753,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
-    /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
+    /// Create a validated [`TypedPathSegment`] from a [PathSegment] by resolving all turbofish generics
+    /// in it with [`Kind::Any`], allowing wildcards, and marking them as _used_.
     #[tracing::instrument(level = "trace", skip_all)]
     fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
         let generics = segment.generics.map(|generics| {
@@ -765,7 +768,7 @@ impl Elaborator<'_> {
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
     }
 
-    /// Get the [DataType] of a [TypeId] and call [Elaborator::resolve_struct_turbofish_generics].
+    /// Get the [`DataType`] of a [`TypeId`] and call [`Elaborator::resolve_struct_turbofish_generics`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_struct_id_turbofish_generics(
         &mut self,
@@ -789,7 +792,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Get the [TypeAlias] of a [TypeAliasId] and call [Elaborator::resolve_alias_turbofish_generics].
+    /// Get the [TypeAlias] of a [`TypeAliasId`] and call [`Elaborator::resolve_alias_turbofish_generics`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_type_alias_id_turbofish_generics(
         &mut self,
@@ -816,7 +819,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolve a [TypedPath] into a local or global [HirIdent].
+    /// Resolve a [`TypedPath`] into a local or global [`HirIdent`].
     ///
     /// If it cannot be found, then it pushes the error and returns [None].
     #[tracing::instrument(level = "trace", skip_all)]
@@ -830,7 +833,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
+    /// Resolve a [`TypedPath`] into a local or global [`HirIdent`], or return `Err` if it could not be found.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,

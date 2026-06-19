@@ -137,7 +137,7 @@ fn format_integer(typ: &Type, value: FieldElement) -> String {
     }
 }
 
-/// Returns the MarkupContent for the given primitive type name, if the name denotes
+/// Returns the `MarkupContent` for the given primitive type name, if the name denotes
 /// a primitive type.
 fn primitive_type_markup_content(name: &str, interner: &NodeInterner) -> Option<MarkupContent> {
     PrimitiveType::lookup_by_name(name)?;

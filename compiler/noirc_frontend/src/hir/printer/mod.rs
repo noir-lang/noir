@@ -7,7 +7,7 @@ use crate::hir::resolution::visibility::module_def_id_visibility;
 use crate::node_interner::TraitImplId;
 use crate::{
     DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
-    ast::{Ident, ItemVisibility},
+    ast::{DocComment, Ident, ItemVisibility},
     graph::Dependency,
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
@@ -75,8 +75,10 @@ struct ItemPrinter<'context, 'string> {
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
 
-    /// Trait constraints in scope.
-    /// These are set when a trait, trait impl or function is visited.
+    /// Trait constraints in scope from an enclosing trait, trait impl, inherent impl, or
+    /// function. A method's own where clause is filtered against these (see
+    /// [`Self::parent_constraints_contain`]) so constraints already shown on the enclosing item
+    /// aren't repeated.
     trait_constraints: Vec<TraitConstraint>,
     /// Keep track of trait impls that have been printed so we don't show a
     /// same trait impl multiple times.
@@ -171,7 +173,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     }
 
     fn show_item_with_visibility(&mut self, item: Item, visibility: ItemVisibility) {
-        let module_def_id = item.module_def_id();
+        let Some(module_def_id) = item.module_def_id() else { return };
         let reference_id = module_def_id_to_reference_id(module_def_id);
         self.show_doc_comments(reference_id);
         self.show_module_def_id_attributes(module_def_id);
@@ -183,7 +185,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let Some(doc_comments) = self.interner.doc_comments(reference_id) else {
             return;
         };
+        self.show_doc_comment_lines(doc_comments);
+    }
 
+    fn show_doc_comment_lines(&mut self, doc_comments: &[DocComment]) {
         for located_comment in doc_comments {
             let comment = &located_comment.contents;
             if comment.contains('\n') {
@@ -340,14 +345,21 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn show_impl(&mut self, impl_: Impl) {
         let typ = impl_.typ;
 
+        self.show_doc_comment_lines(&impl_.doc_comments);
         self.push_str("impl");
-        self.show_generic_type_variables(&impl_.generics);
+        self.show_generics(&impl_.generics);
         self.push(' ');
         self.show_type(&typ);
+        self.show_where_clause(&impl_.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
 
         self.self_type = Some(typ.clone());
+
+        // The impl's where clause is also copied onto each method during def collection.
+        // Tracking it as a parent constraint keeps `show_function` from printing it again on
+        // each method.
+        self.trait_constraints = impl_.where_clause.clone();
 
         for (index, (visibility, func_id)) in impl_.methods.iter().enumerate() {
             if index != 0 {
@@ -364,6 +376,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.self_type = None;
+        self.trait_constraints.clear();
     }
 
     fn show_trait_impls(&mut self, trait_impls: &[&TraitImpl]) {
@@ -589,6 +602,21 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(";");
     }
 
+    /// Whether a constraint already in scope from an enclosing item subsumes the given one, so
+    /// it shouldn't be repeated on a method's where clause.
+    ///
+    /// Constraints aren't compared by equality: a constraint propagated onto a method (an
+    /// inherent impl's where clause, or a trait's supertrait bound) is re-resolved independently
+    /// and so mints fresh type variables for any associated types it introduces (e.g.
+    /// `<T as Foo>::E`), making two otherwise-identical constraints compare unequal. We instead
+    /// match on the parts that identify the constraint — the constrained type, the trait, and
+    /// its ordered generics — ignoring the associated (named) generics.
+    fn parent_constraints_contain(&self, constraint: &TraitConstraint) -> bool {
+        self.trait_constraints
+            .iter()
+            .any(|parent| parent.matches_ignoring_unspecified_associated_types(constraint))
+    }
+
     fn show_function(&mut self, func_id: FuncId) {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
@@ -651,7 +679,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let func_trait_constraints = func_meta
             .trait_constraints
             .iter()
-            .filter(|trait_constraint| !self.trait_constraints.contains(trait_constraint))
+            .filter(|trait_constraint| !self.parent_constraints_contain(trait_constraint))
             .cloned()
             .collect::<Vec<_>>();
 

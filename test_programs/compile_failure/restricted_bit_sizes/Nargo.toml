@@ -1,5 +1,0 @@
-[package]
-name = "restricted_bit_sizes"
-type = "bin"
-authors = [""]
-[dependencies]

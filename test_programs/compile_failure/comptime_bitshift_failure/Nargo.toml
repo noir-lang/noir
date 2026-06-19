@@ -1,6 +1,0 @@
-[package]
-name = "comptime_bitshift_failure"
-type = "bin"
-authors = [""]
-
-[dependencies]
