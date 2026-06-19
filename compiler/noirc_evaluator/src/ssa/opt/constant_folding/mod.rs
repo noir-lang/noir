@@ -781,17 +781,19 @@ fn resolve_cache(
     block: BasicBlockId,
     dom: &mut DominatorTree,
     cache: Option<&HashMap<ValueId, SimplificationCache>>,
-    value_id: ValueId,
+    mut value_id: ValueId,
 ) -> ValueId {
-    match cache.and_then(|cache| cache.get(&value_id)) {
-        Some(simplification_cache) => {
-            if let Some(simplified) = simplification_cache.get(block, dom) {
-                resolve_cache(block, dom, cache, simplified)
-            } else {
-                value_id
-            }
-        }
-        None => value_id,
+    // Follow the simplification chain iteratively. A recursive walk would use one stack
+    // frame per link, and on large programs the chain can be thousands deep — enough to
+    // overflow the (smaller) wasm stack.
+    loop {
+        let Some(simplification_cache) = cache.and_then(|cache| cache.get(&value_id)) else {
+            return value_id;
+        };
+        let Some(simplified) = simplification_cache.get(block, dom) else {
+            return value_id;
+        };
+        value_id = simplified;
     }
 }
 
