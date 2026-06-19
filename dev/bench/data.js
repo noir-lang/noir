@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781860587821,
+  "lastUpdate": 1781860590201,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25318,105 +25318,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d087da6f0ce444e8b677b365a4d84e865accf6d5",
-          "message": "chore: store is not used on forwarded load (#13020)",
-          "timestamp": "2026-06-16T07:20:57Z",
-          "tree_id": "622883b1d129a2ab9ae5cace8d90a76308ff51e3",
-          "url": "https://github.com/noir-lang/noir/commit/d087da6f0ce444e8b677b365a4d84e865accf6d5"
-        },
-        "date": 1781597029080,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1049.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2248.2,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 533.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 272.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 275.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 333.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 413.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30603.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30627.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 438.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4946.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 5157.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 206.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.8,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -30186,6 +30087,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0e46906cd08fc72ec7700a32974f0a4cf3935a38"
         },
         "date": 1781859500003,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1047.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2247.5,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 533.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 272.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 275.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 333.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 413.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30628.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30663.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 438.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4579.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 5167.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 206.2,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.8,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450.9,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0b8f27095e2b8ad8926fdad3fd15194639f0767",
+          "message": "fix: parse parenthesized numeric type expressions before outer operators (#13109)",
+          "timestamp": "2026-06-19T08:43:35Z",
+          "tree_id": "0eee4f5b032966426ae5f12dcadfac41194bb8b7",
+          "url": "https://github.com/noir-lang/noir/commit/e0b8f27095e2b8ad8926fdad3fd15194639f0767"
+        },
+        "date": 1781860504643,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
