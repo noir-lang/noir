@@ -158,7 +158,7 @@ impl Function {
             })
             .collect::<HashMap<_, _>>();
 
-        let mut dom = loops.dom;
+        let dom = loops.dom;
         let mutated_types = find_mutated_block_param_array_types(self);
         let mut context = Context::new(use_constraint_info, mutated_types.clone());
 
@@ -168,7 +168,7 @@ impl Function {
             while let Some(block) = context.block_queue.pop_front() {
                 context.fold_constants_in_block(
                     &mut self.dfg,
-                    &mut dom,
+                    &dom,
                     &mut loop_headers,
                     block,
                     interpreter,
@@ -344,7 +344,7 @@ impl Context {
     fn fold_constants_in_block(
         &mut self,
         dfg: &mut DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
         interpreter: &mut Interpreter<Empty>,
@@ -398,7 +398,7 @@ impl Context {
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block: BasicBlockId,
         id: InstructionId,
@@ -579,7 +579,7 @@ impl Context {
         instruction_id: InstructionId,
         block: BasicBlockId,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         constraint_simplification_mapping: Option<&HashMap<ValueId, SimplificationCache>>,
     ) -> Instruction {
         let mut instruction = dfg[instruction_id].clone();
@@ -779,7 +779,7 @@ impl Context {
 // constraints to the cache.
 fn resolve_cache(
     block: BasicBlockId,
-    dom: &mut DominatorTree,
+    dom: &DominatorTree,
     cache: Option<&HashMap<ValueId, SimplificationCache>>,
     mut value_id: ValueId,
 ) -> ValueId {
