@@ -701,7 +701,7 @@ impl DataFlowGraph {
                 let elements_size = typ.element_size();
 
                 let length = if elements_size.0 == 0 {
-                    SemanticLength(assert_u32(array.len()))
+                    SemanticLength(0)
                 } else {
                     SemiFlattenedLength(assert_u32(array.len())) / elements_size
                 };
