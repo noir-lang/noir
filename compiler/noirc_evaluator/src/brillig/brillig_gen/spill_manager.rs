@@ -117,6 +117,10 @@ pub(crate) struct SpillRecord {
 /// scans and shifts a `Vec` would require (see <https://github.com/noir-lang/noir/issues/11694>).
 /// Values are ordered by the time they were last touched: the least-recently-used value is
 /// the first element of `order`, the most-recently-used the last.
+///
+/// Invariant: every tracked value is currently in a register. A value is removed from the LRU
+/// when it is spilled (`BrilligBlock::spill_value`), so `order` and `last_used` only ever hold
+/// eviction candidates; `SpillManager::lru_victim` asserts this.
 #[derive(Default)]
 struct Lru {
     /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
@@ -150,7 +154,7 @@ impl Lru {
     }
 
     /// Iterate tracked values from least- to most-recently used.
-    fn iter_lru(&self) -> impl Iterator<Item = ValueId> + '_ {
+    fn iter(&self) -> impl Iterator<Item = ValueId> + '_ {
         self.order.iter().map(|&(_, value_id)| value_id)
     }
 
@@ -260,14 +264,19 @@ impl SpillManager {
         self.max_spill_offset
     }
 
-    /// Return the least recently used value that is not currently spilled.
-    /// Returns None if there are no eligible values in the LRU.
+    /// Return the least recently used value tracked in the LRU, or `None` if it is empty.
     ///
-    /// Note: permanently-spilled values may appear in the LRU if they were
-    /// reloaded (which calls `touch()`). This is correct — a reloaded value
-    /// has a register and is a valid eviction candidate.
+    /// Spilling a value removes it from the LRU (`BrilligBlock::spill_value` calls
+    /// `remove_from_lru` before recording the spill), so by the time we pick a victim every
+    /// tracked value is in a register. The `assert!` guards that invariant: handing back a
+    /// spilled value would be a bug, since re-spilling it is a no-op that frees no register.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
-        self.lru.iter_lru().find(|value_id| !self.is_spilled(value_id))
+        let victim = self.lru.iter().next();
+        assert!(
+            victim.is_none_or(|v| !self.is_spilled(&v)),
+            "lru_victim returned a spilled value: {victim:?}"
+        );
+        victim
     }
 
     /// Batched version of [`Self::lru_victim`]
@@ -275,7 +284,7 @@ impl SpillManager {
     /// Return up to `k` least-recently-used values that are not currently spilled,
     /// ordered least-recently-used first.
     pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
-        self.lru.iter_lru().filter(|v| !self.is_spilled(v)).take(k).collect()
+        self.lru.iter().filter(|v| !self.is_spilled(v)).take(k).collect()
     }
 
     /// Remove every value in `victims` from LRU tracking in one shot.
@@ -342,9 +351,9 @@ impl SpillManager {
     /// here rather than re-sorted by `ValueId`.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
         debug_assert!(
-            !self.lru.iter_lru().any(|v| live_in.contains(&v) && !self.is_spilled(&v)),
+            !self.lru.iter().any(|v| live_in.contains(&v) && !self.is_spilled(&v)),
             "cross-block LRU carryover is non-empty; preserve the previous block's order instead of re-sorting: {:?}",
-            self.lru.iter_lru().collect::<Vec<_>>()
+            self.lru.iter().collect::<Vec<_>>()
         );
         let seed: Vec<ValueId> =
             live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
@@ -464,11 +473,11 @@ mod tests {
         lru.touch(v0);
         lru.touch(v1);
         lru.touch(v2);
-        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v0, v1, v2]);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v0, v1, v2]);
 
         // Re-touching a tracked value moves it to the most-recently-used end.
         lru.touch(v0);
-        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1, v2, v0]);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1, v2, v0]);
     }
 
     #[test]
@@ -481,12 +490,12 @@ mod tests {
         lru.touch(v1);
 
         lru.remove(&v0);
-        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1]);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1]);
         assert!(!lru.last_used.contains_key(&v0), "stamp must be dropped too");
 
         // Removing an untracked value is a no-op.
         lru.remove(&v0);
-        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1]);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1]);
     }
 
     #[test]
@@ -499,12 +508,12 @@ mod tests {
         let clock_before_clear = lru.clock;
 
         lru.clear();
-        assert!(lru.iter_lru().next().is_none());
+        assert!(lru.iter().next().is_none());
 
         // A later touch must outrank anything from before the clear.
         lru.touch(v1);
         assert!(lru.clock > clock_before_clear, "clock must keep increasing across clear");
-        assert_eq!(lru.iter_lru().collect::<Vec<_>>(), vec![v1]);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1]);
     }
 
     #[test]
@@ -550,7 +559,7 @@ mod tests {
     }
 
     #[test]
-    fn spill_record_and_victim_skips_spilled() {
+    fn spilling_removes_value_from_lru_so_it_is_not_a_victim() {
         let mut sm = SpillManager::new();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
@@ -560,7 +569,8 @@ mod tests {
         sm.touch(v1);
         sm.touch(v2);
 
-        // Spill v0 (the LRU victim)
+        // Spill v0 the way `BrilligBlock::spill_value` does: drop it from the LRU, then record.
+        sm.remove_from_lru(&v0);
         let offset = sm.allocate_spill_offset();
         sm.record_spill(v0, offset, test_var(0));
 
@@ -571,8 +581,24 @@ mod tests {
         assert_eq!(record.offset, 0);
         assert_eq!(record.status, SpillStatus::Transient);
 
-        // Victim should skip v0 (spilled) and return v1
+        // v0 is no longer tracked, so the next-oldest live value is the victim.
         assert_eq!(sm.lru_victim(), Some(v1));
+    }
+
+    #[test]
+    #[should_panic(expected = "returned a spilled value")]
+    fn lru_victim_rejects_a_spilled_oldest_value() {
+        // Recording a spill without first removing the value from the LRU breaks the
+        // manager's invariant; lru_victim must catch it rather than hand back a value
+        // whose re-spill would free no register.
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        sm.touch(v0);
+        let offset = sm.allocate_spill_offset();
+        sm.record_spill(v0, offset, test_var(0));
+
+        let _ = sm.lru_victim();
     }
 
     #[test]
