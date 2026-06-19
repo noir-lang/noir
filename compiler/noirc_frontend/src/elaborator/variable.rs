@@ -219,17 +219,7 @@ impl Elaborator<'_> {
                 // turbofish positionally with the impl generics) also keeps this correct when
                 // the impl declares its generics in a different order than they appear in the
                 // self type, e.g. `impl<let N: u32, T> Trait for [T; N]`.
-                let self_type_args = match &self_type {
-                    Some(
-                        typ @ (Type::DataType(..)
-                        | Type::Array(..)
-                        | Type::Vector(..)
-                        | Type::String(..)
-                        | Type::FmtString(..)
-                        | Type::Tuple(..)),
-                    ) => Some(builtin_type_generic_arguments(typ)),
-                    _ => None,
-                };
+                let self_type_args = self_type.as_ref().and_then(builtin_type_generic_arguments);
                 if let Some(self_type_args) = self_type_args {
                     assert_eq!(
                         type_generics.len(),
@@ -1029,19 +1019,17 @@ fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Typ
         Type::Alias(type_alias, generics) => {
             get_type_alias_generics(&type_alias.borrow(), &generics)
         }
-        typ => builtin_type_generic_arguments(&typ),
+        typ => builtin_type_generic_arguments(&typ).unwrap_or_default(),
     }
 }
 
 /// Returns the generic arguments carried by `typ`, in the structural order they appear, so they
 /// can be unified against an impl's self type to bind the impl's generics.
 ///
-/// Returns an empty vector for types that carry no such arguments (e.g. `Field`, `bool`, `()`
-/// or a bare function type). This is intentionally not an exhaustive match with an ICE on
-/// unexpected types: a type alias can target any built-in type that admits an impl (so any of
-/// them may flow in here), and several simply have no generics to bind.
-fn builtin_type_generic_arguments(typ: &Type) -> Vec<Type> {
-    match typ {
+/// Returns None for types that carry no such arguments (e.g. `Field`, `bool`, `()`
+/// or a bare function type).
+fn builtin_type_generic_arguments(typ: &Type) -> Option<Vec<Type>> {
+    let generics = match typ {
         Type::DataType(_, generics) => generics.clone(),
         Type::Array(element, length) => vec![element.as_ref().clone(), length.as_ref().clone()],
         Type::Vector(element) => vec![element.as_ref().clone()],
@@ -1050,6 +1038,7 @@ fn builtin_type_generic_arguments(typ: &Type) -> Vec<Type> {
             vec![length.as_ref().clone(), element.as_ref().clone()]
         }
         Type::Tuple(elements) => elements.clone(),
-        _ => Vec::new(),
-    }
+        _ => return None,
+    };
+    Some(generics)
 }
