@@ -415,7 +415,7 @@ impl ModCollector<'_> {
                 parent_module_id,
                 name.clone(),
                 UnusedItem::TypeAlias(type_alias_id),
-                effective_item_visibility(&context.def_interner, parent_module_id, visibility),
+                visibility,
             );
 
             if let Err((first_def, second_def)) = result {
@@ -494,7 +494,7 @@ impl ModCollector<'_> {
                     parent_module_id,
                     name.clone(),
                     UnusedItem::Trait(trait_id),
-                    effective_item_visibility(&context.def_interner, parent_module_id, visibility),
+                    visibility,
                 );
             }
 
@@ -1295,7 +1295,7 @@ pub fn collect_struct(
             parent_module_id,
             name.clone(),
             UnusedItem::Struct(id),
-            effective_item_visibility(interner, parent_module_id, visibility),
+            visibility,
         );
     }
 
@@ -1403,7 +1403,7 @@ pub fn collect_enum(
             parent_module_id,
             name.clone(),
             UnusedItem::Enum(id),
-            effective_item_visibility(interner, parent_module_id, visibility),
+            visibility,
         );
     }
 
@@ -1665,7 +1665,7 @@ pub(crate) fn collect_global(
             parent_module_id,
             name,
             UnusedItem::Global(global_id),
-            effective_item_visibility(interner, parent_module_id, visibility),
+            visibility,
         );
     }
 

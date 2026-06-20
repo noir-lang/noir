@@ -771,12 +771,12 @@ impl DefCollector {
                     effective_visibility,
                 );
 
-                if effective_visibility != ItemVisibility::Private {
+                if visibility != ItemVisibility::Private {
                     context.def_interner.register_name_for_auto_import(
                         name.to_string(),
                         module_def_id,
                         file_id,
-                        effective_visibility,
+                        visibility,
                         Some(importing_module),
                     );
 
@@ -784,7 +784,7 @@ impl DefCollector {
                         module_def_id,
                         importing_module,
                         name.clone(),
-                        effective_visibility,
+                        visibility,
                     );
                 }
             }
@@ -814,7 +814,8 @@ impl DefCollector {
             .filter(|(module_id, _)| in_crate(module_id))
             .flat_map(|(_, unused_items)| {
                 unused_items.iter().map(|((_namespace, ident), unused_item)| (ident, *unused_item))
-            });
+            })
+            .filter(|(_, unused_item)| !item_is_publicly_reexported(context, *unused_item));
 
         let unused_imports = context
             .usage_tracker
@@ -850,6 +851,22 @@ impl DefCollector {
 
         errors.extend(unused_errors);
     }
+}
+
+fn item_is_publicly_reexported(context: &Context, item: UnusedItem) -> bool {
+    let module_def_id = match item {
+        UnusedItem::Import => return false,
+        UnusedItem::Function(id) => ModuleDefId::FunctionId(id),
+        UnusedItem::Struct(id) | UnusedItem::Enum(id) => ModuleDefId::TypeId(id),
+        UnusedItem::Trait(id) => ModuleDefId::TraitId(id),
+        UnusedItem::TypeAlias(id) => ModuleDefId::TypeAliasId(id),
+        UnusedItem::Global(id) => ModuleDefId::GlobalId(id),
+    };
+
+    context.def_interner.get_reexports(module_def_id).iter().any(|reexport| {
+        effective_item_visibility(&context.def_interner, reexport.module_id, reexport.visibility)
+            == ItemVisibility::Public
+    })
 }
 
 fn add_import_reference(
