@@ -44,6 +44,7 @@ use crate::hir::Context;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir_def::stmt::HirStatement;
+use crate::modules::effective_item_visibility;
 
 /// Given a module collect all definitions into `ModuleData`
 struct ModCollector<'a> {
@@ -414,7 +415,7 @@ impl ModCollector<'_> {
                 parent_module_id,
                 name.clone(),
                 UnusedItem::TypeAlias(type_alias_id),
-                visibility,
+                effective_item_visibility(&context.def_interner, parent_module_id, visibility),
             );
 
             if let Err((first_def, second_def)) = result {
@@ -493,7 +494,7 @@ impl ModCollector<'_> {
                     parent_module_id,
                     name.clone(),
                     UnusedItem::Trait(trait_id),
-                    visibility,
+                    effective_item_visibility(&context.def_interner, parent_module_id, visibility),
                 );
             }
 
@@ -1158,7 +1159,12 @@ pub fn collect_function(
         && !has_allow_dead_code
     {
         let item = UnusedItem::Function(func_id);
-        usage_tracker.add_unused_item(module, name.clone(), item, visibility);
+        usage_tracker.add_unused_item(
+            module,
+            name.clone(),
+            item,
+            effective_item_visibility(interner, module, visibility),
+        );
     }
 
     interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
@@ -1289,7 +1295,7 @@ pub fn collect_struct(
             parent_module_id,
             name.clone(),
             UnusedItem::Struct(id),
-            visibility,
+            effective_item_visibility(interner, parent_module_id, visibility),
         );
     }
 
@@ -1397,7 +1403,7 @@ pub fn collect_enum(
             parent_module_id,
             name.clone(),
             UnusedItem::Enum(id),
-            visibility,
+            effective_item_visibility(interner, parent_module_id, visibility),
         );
     }
 
@@ -1659,7 +1665,7 @@ pub(crate) fn collect_global(
             parent_module_id,
             name,
             UnusedItem::Global(global_id),
-            visibility,
+            effective_item_visibility(interner, parent_module_id, visibility),
         );
     }
 

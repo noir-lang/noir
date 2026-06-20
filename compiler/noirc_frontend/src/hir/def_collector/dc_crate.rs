@@ -17,6 +17,7 @@ use crate::hir::resolution::import::{
     ImportDirective, PathResolutionError, ResolvedImport, resolve_import,
 };
 use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
+use crate::modules::effective_item_visibility;
 
 use crate::ast::{DocComment, Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
@@ -751,6 +752,8 @@ impl DefCollector {
                 });
             }
             let visibility = visibility.min(item_visibility);
+            let effective_visibility =
+                effective_item_visibility(&context.def_interner, importing_module, visibility);
 
             let result = current_def_map.index_mut(local_module_id).import(
                 name.clone(),
@@ -765,15 +768,15 @@ impl DefCollector {
                     importing_module,
                     name.clone(),
                     module_def_id.namespace(),
-                    visibility,
+                    effective_visibility,
                 );
 
-                if visibility != ItemVisibility::Private {
+                if effective_visibility != ItemVisibility::Private {
                     context.def_interner.register_name_for_auto_import(
                         name.to_string(),
                         module_def_id,
                         file_id,
-                        visibility,
+                        effective_visibility,
                         Some(importing_module),
                     );
 
@@ -781,7 +784,7 @@ impl DefCollector {
                         module_def_id,
                         importing_module,
                         name.clone(),
-                        visibility,
+                        effective_visibility,
                     );
                 }
             }
