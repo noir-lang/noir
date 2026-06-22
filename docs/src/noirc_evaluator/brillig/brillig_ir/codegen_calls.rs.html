@@ -73,62 +73,60 @@
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="comment">// Pass the arguments starting at the callee's start offset.
 <a href=#74 id=74 data-nosnippet>74</a>        // Offset 0 holds the saved stack pointer;
 <a href=#75 id=75 data-nosnippet>75</a>        // when spill support is active, offset 1 is reserved for the spill base pointer.
-<a href=#76 id=76 data-nosnippet>76</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>current_argument_location = stack_size + reserved_len;
-<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">for </span>item <span class="kw">in </span>arguments {
+<a href=#76 id=76 data-nosnippet>76</a>        </span><span class="kw">let </span>arguments_start = stack_size + reserved_len;
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">for </span>(offset, item) <span class="kw">in </span>arguments.iter().enumerate() {
 <a href=#78 id=78 data-nosnippet>78</a>            <span class="comment">// Here we are still using addresses relative to the current stack pointer.
 <a href=#79 id=79 data-nosnippet>79</a>            </span><span class="self">self</span>.mov_instruction(
-<a href=#80 id=80 data-nosnippet>80</a>                MemoryAddress::relative(current_argument_location),
+<a href=#80 id=80 data-nosnippet>80</a>                MemoryAddress::relative(arguments_start + offset <span class="kw">as </span>u32),
 <a href=#81 id=81 data-nosnippet>81</a>                item.extract_register(),
 <a href=#82 id=82 data-nosnippet>82</a>            );
-<a href=#83 id=83 data-nosnippet>83</a>            current_argument_location += <span class="number">1</span>;
-<a href=#84 id=84 data-nosnippet>84</a>        }
-<a href=#85 id=85 data-nosnippet>85</a>
-<a href=#86 id=86 data-nosnippet>86</a>        <span class="comment">// Increment the stack pointer for the call: stack_pointer := stack_pointer + stack_size.
-<a href=#87 id=87 data-nosnippet>87</a>        // By increasing it with the stack size before arguments where copied, it will include the
-<a href=#88 id=88 data-nosnippet>88</a>        // arguments at the intended relative addresses.
-<a href=#89 id=89 data-nosnippet>89</a>        </span><span class="self">self</span>.memory_op_instruction(
-<a href=#90 id=90 data-nosnippet>90</a>            ReservedRegisters::stack_pointer(),
-<a href=#91 id=91 data-nosnippet>91</a>            stack_size_register.address,
-<a href=#92 id=92 data-nosnippet>92</a>            ReservedRegisters::stack_pointer(),
-<a href=#93 id=93 data-nosnippet>93</a>            BrilligBinaryOp::Add,
-<a href=#94 id=94 data-nosnippet>94</a>        );
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>        <span class="self">self</span>.add_external_call_instruction(func_id);
-<a href=#97 id=97 data-nosnippet>97</a>
-<a href=#98 id=98 data-nosnippet>98</a>        <span class="comment">// Restore the previous stack pointer, which was copied into the 0th slot.
-<a href=#99 id=99 data-nosnippet>99</a>        </span><span class="self">self</span>.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(<span class="number">0</span>));
-<a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="comment">// Move the return values back. The return values are expected to overwrite the args.
-<a href=#102 id=102 data-nosnippet>102</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>current_return_location = stack_size + reserved_len;
-<a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">for </span>item <span class="kw">in </span>returns {
-<a href=#104 id=104 data-nosnippet>104</a>            <span class="self">self</span>.mov_instruction(
-<a href=#105 id=105 data-nosnippet>105</a>                item.extract_register(),
-<a href=#106 id=106 data-nosnippet>106</a>                MemoryAddress::relative(current_return_location),
-<a href=#107 id=107 data-nosnippet>107</a>            );
-<a href=#108 id=108 data-nosnippet>108</a>            current_return_location += <span class="number">1</span>;
-<a href=#109 id=109 data-nosnippet>109</a>        }
-<a href=#110 id=110 data-nosnippet>110</a>    }
-<a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a>    <span class="doccomment">/// Codegens a return from the current function.
-<a href=#113 id=113 data-nosnippet>113</a>    ///
-<a href=#114 id=114 data-nosnippet>114</a>    /// Takes the variables with the addresses of the values that need to be returned.
-<a href=#115 id=115 data-nosnippet>115</a>    /// The values are copied to the beginning of the stack space, into an equal number of slots.
-<a href=#116 id=116 data-nosnippet>116</a>    ///
-<a href=#117 id=117 data-nosnippet>117</a>    /// Any potential overlap between the source of the return variables and the final destination
-<a href=#118 id=118 data-nosnippet>118</a>    /// on the beginning of the stack is handled by [`Self::codegen_mov_registers_to_registers`].
-<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_variables: <span class="kw-2">&amp;</span>[BrilligVariable]) {
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span><span class="kw-2">mut </span>sources = Vec::with_capacity(return_variables.len());
-<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">let </span><span class="kw-2">mut </span>destinations = Vec::with_capacity(return_variables.len());
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">for </span>(destination_index, return_variable) <span class="kw">in </span>return_variables.iter().enumerate() {
-<a href=#124 id=124 data-nosnippet>124</a>            <span class="comment">// In case we have fewer return registers than indices to write to, ensure we've allocated this register.
-<a href=#125 id=125 data-nosnippet>125</a>            </span><span class="kw">let </span>destination_register =
-<a href=#126 id=126 data-nosnippet>126</a>                MemoryAddress::relative(assert_u32(<span class="self">self</span>.registers().start() + destination_index));
-<a href=#127 id=127 data-nosnippet>127</a>            <span class="self">self</span>.registers_mut().ensure_register_is_allocated(destination_register);
-<a href=#128 id=128 data-nosnippet>128</a>            destinations.push(destination_register);
-<a href=#129 id=129 data-nosnippet>129</a>            sources.push(return_variable.extract_register());
-<a href=#130 id=130 data-nosnippet>130</a>        }
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="self">self</span>.codegen_mov_registers_to_registers(<span class="kw-2">&amp;</span>sources, <span class="kw-2">&amp;</span>destinations);
-<a href=#132 id=132 data-nosnippet>132</a>        <span class="self">self</span>.return_instruction();
-<a href=#133 id=133 data-nosnippet>133</a>    }
-<a href=#134 id=134 data-nosnippet>134</a>}</code></pre></div></section></main></body></html>
+<a href=#83 id=83 data-nosnippet>83</a>        }
+<a href=#84 id=84 data-nosnippet>84</a>
+<a href=#85 id=85 data-nosnippet>85</a>        <span class="comment">// Increment the stack pointer for the call: stack_pointer := stack_pointer + stack_size.
+<a href=#86 id=86 data-nosnippet>86</a>        // By increasing it with the stack size before arguments where copied, it will include the
+<a href=#87 id=87 data-nosnippet>87</a>        // arguments at the intended relative addresses.
+<a href=#88 id=88 data-nosnippet>88</a>        </span><span class="self">self</span>.memory_op_instruction(
+<a href=#89 id=89 data-nosnippet>89</a>            ReservedRegisters::stack_pointer(),
+<a href=#90 id=90 data-nosnippet>90</a>            stack_size_register.address,
+<a href=#91 id=91 data-nosnippet>91</a>            ReservedRegisters::stack_pointer(),
+<a href=#92 id=92 data-nosnippet>92</a>            BrilligBinaryOp::Add,
+<a href=#93 id=93 data-nosnippet>93</a>        );
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>        <span class="self">self</span>.add_external_call_instruction(func_id);
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="comment">// Restore the previous stack pointer, which was copied into the 0th slot.
+<a href=#98 id=98 data-nosnippet>98</a>        </span><span class="self">self</span>.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(<span class="number">0</span>));
+<a href=#99 id=99 data-nosnippet>99</a>
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="comment">// Move the return values back. The return values are expected to overwrite the args.
+<a href=#101 id=101 data-nosnippet>101</a>        </span><span class="kw">let </span>returns_start = stack_size + reserved_len;
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">for </span>(offset, item) <span class="kw">in </span>returns.iter().enumerate() {
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="self">self</span>.mov_instruction(
+<a href=#104 id=104 data-nosnippet>104</a>                item.extract_register(),
+<a href=#105 id=105 data-nosnippet>105</a>                MemoryAddress::relative(returns_start + offset <span class="kw">as </span>u32),
+<a href=#106 id=106 data-nosnippet>106</a>            );
+<a href=#107 id=107 data-nosnippet>107</a>        }
+<a href=#108 id=108 data-nosnippet>108</a>    }
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a>    <span class="doccomment">/// Codegens a return from the current function.
+<a href=#111 id=111 data-nosnippet>111</a>    ///
+<a href=#112 id=112 data-nosnippet>112</a>    /// Takes the variables with the addresses of the values that need to be returned.
+<a href=#113 id=113 data-nosnippet>113</a>    /// The values are copied to the beginning of the stack space, into an equal number of slots.
+<a href=#114 id=114 data-nosnippet>114</a>    ///
+<a href=#115 id=115 data-nosnippet>115</a>    /// Any potential overlap between the source of the return variables and the final destination
+<a href=#116 id=116 data-nosnippet>116</a>    /// on the beginning of the stack is handled by [`Self::codegen_mov_registers_to_registers`].
+<a href=#117 id=117 data-nosnippet>117</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_variables: <span class="kw-2">&amp;</span>[BrilligVariable]) {
+<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">let </span><span class="kw-2">mut </span>sources = Vec::with_capacity(return_variables.len());
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span><span class="kw-2">mut </span>destinations = Vec::with_capacity(return_variables.len());
+<a href=#120 id=120 data-nosnippet>120</a>
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">for </span>(destination_index, return_variable) <span class="kw">in </span>return_variables.iter().enumerate() {
+<a href=#122 id=122 data-nosnippet>122</a>            <span class="comment">// In case we have fewer return registers than indices to write to, ensure we've allocated this register.
+<a href=#123 id=123 data-nosnippet>123</a>            </span><span class="kw">let </span>destination_register =
+<a href=#124 id=124 data-nosnippet>124</a>                MemoryAddress::relative(assert_u32(<span class="self">self</span>.registers().start() + destination_index));
+<a href=#125 id=125 data-nosnippet>125</a>            <span class="self">self</span>.registers_mut().ensure_register_is_allocated(destination_register);
+<a href=#126 id=126 data-nosnippet>126</a>            destinations.push(destination_register);
+<a href=#127 id=127 data-nosnippet>127</a>            sources.push(return_variable.extract_register());
+<a href=#128 id=128 data-nosnippet>128</a>        }
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">self</span>.codegen_mov_registers_to_registers(<span class="kw-2">&amp;</span>sources, <span class="kw-2">&amp;</span>destinations);
+<a href=#130 id=130 data-nosnippet>130</a>        <span class="self">self</span>.return_instruction();
+<a href=#131 id=131 data-nosnippet>131</a>    }
+<a href=#132 id=132 data-nosnippet>132</a>}</code></pre></div></section></main></body></html>

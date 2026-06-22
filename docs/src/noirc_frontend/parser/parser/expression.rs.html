@@ -646,10 +646,10 @@
 <a href=#646 id=646 data-nosnippet>646</a>                        Token::LeftParen =&gt; closing_delimiters.push(Token::RightParen),
 <a href=#647 id=647 data-nosnippet>647</a>                        Token::LeftBracket =&gt; closing_delimiters.push(Token::RightBracket),
 <a href=#648 id=648 data-nosnippet>648</a>                        Token::LeftBrace =&gt; closing_delimiters.push(Token::RightBrace),
-<a href=#649 id=649 data-nosnippet>649</a>                        Token::RightParen | Token::RightBracket | Token::RightBrace =&gt; {
-<a href=#650 id=650 data-nosnippet>650</a>                            <span class="kw">if </span>closing_delimiters.last() == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>token) {
-<a href=#651 id=651 data-nosnippet>651</a>                                closing_delimiters.pop();
-<a href=#652 id=652 data-nosnippet>652</a>                            }
+<a href=#649 id=649 data-nosnippet>649</a>                        Token::RightParen | Token::RightBracket | Token::RightBrace
+<a href=#650 id=650 data-nosnippet>650</a>                            <span class="kw">if </span>closing_delimiters.last() == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>token) =&gt;
+<a href=#651 id=651 data-nosnippet>651</a>                        {
+<a href=#652 id=652 data-nosnippet>652</a>                            closing_delimiters.pop();
 <a href=#653 id=653 data-nosnippet>653</a>                        }
 <a href=#654 id=654 data-nosnippet>654</a>                        <span class="kw">_ </span>=&gt; {}
 <a href=#655 id=655 data-nosnippet>655</a>                    }

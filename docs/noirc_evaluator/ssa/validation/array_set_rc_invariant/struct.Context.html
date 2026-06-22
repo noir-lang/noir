@@ -151,7 +151,7 @@ an inner-loop header (the <code>array_set</code>’s source) fed from the swappe
 outer-loop parameter — so <code>Q</code> is dropped for the inner source too.
 Back-edges are excluded from propagation: across one, <code>R</code> is a <em>prior</em>
 iteration’s <code>P</code>, a distinct storage.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#411-1443">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#412-690">Source</a><h4 class="code-header">fn <a href="#method.new" class="fn">new</a>(function: &amp;'f <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.alias_set_for" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#740-775">Source</a><h4 class="code-header">fn <a href="#method.alias_set_for" class="fn">alias_set_for</a>(
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'f%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#411-1441">Source</a><a href="#impl-Context%3C'f%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'f&gt; <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::validation::array_set_rc_invariant::Context">Context</a>&lt;'f&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#412-690">Source</a><h4 class="code-header">fn <a href="#method.new" class="fn">new</a>(function: &amp;'f <a class="struct" href="../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.alias_set_for" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#740-775">Source</a><h4 class="code-header">fn <a href="#method.alias_set_for" class="fn">alias_set_for</a>(
     &amp;self,
     source: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     array_set_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
@@ -311,7 +311,7 @@ but never false-positives.</p>
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>The argument passed to parameter position <code>i</code> of <code>dest</code> on the edge
 from <code>pred</code>. <code>None</code> if <code>pred</code>’s terminator does not target <code>dest</code> or has
 no argument at that position.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.find_reachable_aliased_use" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1118-1353">Source</a><h4 class="code-header">fn <a href="#method.find_reachable_aliased_use" class="fn">find_reachable_aliased_use</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.find_reachable_aliased_use" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1118-1352">Source</a><h4 class="code-header">fn <a href="#method.find_reachable_aliased_use" class="fn">find_reachable_aliased_use</a>(
     &amp;self,
     alias_set: &amp;HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     source: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -373,7 +373,7 @@ already explored adds no new information. Each component is
 unioned into the frontier on entry; for <code>tainted_indices</code>, <code>None</code>
 is the absorbing element (a previously-<code>None</code> frontier covers any
 re-entry).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_walk_state" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1359-1371">Source</a><h4 class="code-header">fn <a href="#method.succ_walk_state" class="fn">succ_walk_state</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_walk_state" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1358-1370">Source</a><h4 class="code-header">fn <a href="#method.succ_walk_state" class="fn">succ_walk_state</a>(
     &amp;self,
     dest: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     arguments: &amp;[<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
@@ -383,7 +383,7 @@ re-entry).</p>
 and <code>derived</code> follow the same kill/add rules (<a href="struct.Context.html#method.succ_use_set" title="method noirc_evaluator::ssa::validation::array_set_rc_invariant::Context::succ_use_set"><code>Context::succ_use_set</code></a>);
 <code>tainted</code> is carried unchanged, since it tracks storage positions
 (not SSA values).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_use_set" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1402-1442">Source</a><h4 class="code-header">fn <a href="#method.succ_use_set" class="fn">succ_use_set</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.succ_use_set" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/validation/array_set_rc_invariant.rs.html#1402-1440">Source</a><h4 class="code-header">fn <a href="#method.succ_use_set" class="fn">succ_use_set</a>(
     &amp;self,
     dest: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     arguments: &amp;[<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
@@ -410,9 +410,9 @@ of the use-set for the whole walk (its own <code>inc_rc</code> keeps it
 RC ≥ 2). Without this exclusion a protected participant that
 is itself a loop-header parameter would be re-introduced the
 moment any in-use alias flowed into its position.</li>
-<li>Otherwise (both in or both out), no change.
-Only array-typed params participate.</li>
+<li>Otherwise (both in or both out), no change.</li>
 </ul>
+<p>Only array-typed params participate.</p>
 </li>
 <li>
 <p><strong>Unconditional kill — instructions defined in <code>dest</code>.</strong> For

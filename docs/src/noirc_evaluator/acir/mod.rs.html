@@ -923,18 +923,16 @@
 <a href=#923 id=923 data-nosnippet>923</a>                    <span class="string">"ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
 <a href=#924 id=924 data-nosnippet>924</a>                </span>);
 <a href=#925 id=925 data-nosnippet>925</a>            }
-<a href=#926 id=926 data-nosnippet>926</a>            Opcode::MemoryOp { block_id, op } =&gt; {
-<a href=#927 id=927 data-nosnippet>927</a>                <span class="kw">if </span>op.operation == MemOpKind::Write {
-<a href=#928 id=928 data-nosnippet>928</a>                    <span class="comment">// Check that we have no writes to the type size arrays
-<a href=#929 id=929 data-nosnippet>929</a>                    </span><span class="kw">let </span>is_type_sizes_array =
-<a href=#930 id=930 data-nosnippet>930</a>                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
-<a href=#931 id=931 data-nosnippet>931</a>                    <span class="macro">assert!</span>(
-<a href=#932 id=932 data-nosnippet>932</a>                        !is_type_sizes_array,
-<a href=#933 id=933 data-nosnippet>933</a>                        <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
-<a href=#934 id=934 data-nosnippet>934</a>                    </span>);
-<a href=#935 id=935 data-nosnippet>935</a>                }
-<a href=#936 id=936 data-nosnippet>936</a>            }
-<a href=#937 id=937 data-nosnippet>937</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#938 id=938 data-nosnippet>938</a>        }
-<a href=#939 id=939 data-nosnippet>939</a>    }
-<a href=#940 id=940 data-nosnippet>940</a>}</code></pre></div></section></main></body></html>
+<a href=#926 id=926 data-nosnippet>926</a>            Opcode::MemoryOp { block_id, op } <span class="kw">if </span>op.operation == MemOpKind::Write =&gt; {
+<a href=#927 id=927 data-nosnippet>927</a>                <span class="comment">// Check that we have no writes to the type size arrays
+<a href=#928 id=928 data-nosnippet>928</a>                </span><span class="kw">let </span>is_type_sizes_array =
+<a href=#929 id=929 data-nosnippet>929</a>                    context.element_type_sizes_blocks.values().any(|id| id == block_id);
+<a href=#930 id=930 data-nosnippet>930</a>                <span class="macro">assert!</span>(
+<a href=#931 id=931 data-nosnippet>931</a>                    !is_type_sizes_array,
+<a href=#932 id=932 data-nosnippet>932</a>                    <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
+<a href=#933 id=933 data-nosnippet>933</a>                </span>);
+<a href=#934 id=934 data-nosnippet>934</a>            }
+<a href=#935 id=935 data-nosnippet>935</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#936 id=936 data-nosnippet>936</a>        }
+<a href=#937 id=937 data-nosnippet>937</a>    }
+<a href=#938 id=938 data-nosnippet>938</a>}</code></pre></div></section></main></body></html>

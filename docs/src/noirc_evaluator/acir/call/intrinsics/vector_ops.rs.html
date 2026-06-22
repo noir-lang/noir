@@ -934,14 +934,12 @@
 <a href=#934 id=934 data-nosnippet>934</a>            <span class="kw">let </span>index_const = index_const.to_u128() <span class="kw">as </span>usize;
 <a href=#935 id=935 data-nosnippet>935</a>            <span class="comment">// A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
 <a href=#936 id=936 data-nosnippet>936</a>            // As a result, every index will be out-of-bound.
-<a href=#937 id=937 data-nosnippet>937</a>            </span><span class="kw">if </span>acir_fields_per_element == <span class="number">0 </span>{
-<a href=#938 id=938 data-nosnippet>938</a>                <span class="bool-val">false
-<a href=#939 id=939 data-nosnippet>939</a>            </span>} <span class="kw">else </span>{
-<a href=#940 id=940 data-nosnippet>940</a>                <span class="kw">let </span>num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
-<a href=#941 id=941 data-nosnippet>941</a>                index_const &lt; num_logical_elements
-<a href=#942 id=942 data-nosnippet>942</a>            }
-<a href=#943 id=943 data-nosnippet>943</a>        } <span class="kw">else </span>{
-<a href=#944 id=944 data-nosnippet>944</a>            <span class="bool-val">false
-<a href=#945 id=945 data-nosnippet>945</a>        </span>}
-<a href=#946 id=946 data-nosnippet>946</a>    }
-<a href=#947 id=947 data-nosnippet>947</a>}</code></pre></div></section></main></body></html>
+<a href=#937 id=937 data-nosnippet>937</a>            </span><span class="kw">match </span>vector_size.to_usize().checked_div(acir_fields_per_element) {
+<a href=#938 id=938 data-nosnippet>938</a>                <span class="prelude-val">Some</span>(num_logical_elements) =&gt; index_const &lt; num_logical_elements,
+<a href=#939 id=939 data-nosnippet>939</a>                <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
+<a href=#940 id=940 data-nosnippet>940</a>            }
+<a href=#941 id=941 data-nosnippet>941</a>        } <span class="kw">else </span>{
+<a href=#942 id=942 data-nosnippet>942</a>            <span class="bool-val">false
+<a href=#943 id=943 data-nosnippet>943</a>        </span>}
+<a href=#944 id=944 data-nosnippet>944</a>    }
+<a href=#945 id=945 data-nosnippet>945</a>}</code></pre></div></section></main></body></html>
