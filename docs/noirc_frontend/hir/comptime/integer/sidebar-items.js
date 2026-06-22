@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Integer"]};
+window.SIDEBAR_ITEMS = {"enum":["Integer"],"fn":["bigint_to_field","field_to_bigint","field_to_signed_bigint","try_bigint_to_field"]};

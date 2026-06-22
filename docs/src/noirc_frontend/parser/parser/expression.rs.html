@@ -1178,7 +1178,7 @@
 <a href=#1178 id=1178 data-nosnippet>1178</a>            parser::tests::{check_errors, expect_no_errors},
 <a href=#1179 id=1179 data-nosnippet>1179</a>        },
 <a href=#1180 id=1180 data-nosnippet>1180</a>    };
-<a href=#1181 id=1181 data-nosnippet>1181</a>    <span class="kw">use </span>acvm::FieldElement;
+<a href=#1181 id=1181 data-nosnippet>1181</a>    <span class="kw">use </span>num_bigint::BigInt;
 <a href=#1182 id=1182 data-nosnippet>1182</a>
 <a href=#1183 id=1183 data-nosnippet>1183</a>    <span class="kw">fn </span>parse_expression_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; Expression {
 <a href=#1184 id=1184 data-nosnippet>1184</a>        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(src);
@@ -1217,7 +1217,7 @@
 <a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">None</span>)) = expr.kind <span class="kw">else </span>{
 <a href=#1218 id=1218 data-nosnippet>1218</a>            <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
 <a href=#1219 id=1219 data-nosnippet>1219</a>        };
-<a href=#1220 id=1220 data-nosnippet>1220</a>        <span class="macro">assert_eq!</span>(value, -FieldElement::from(<span class="number">42u128</span>));
+<a href=#1220 id=1220 data-nosnippet>1220</a>        <span class="macro">assert_eq!</span>(value, BigInt::from(-<span class="number">42</span>));
 <a href=#1221 id=1221 data-nosnippet>1221</a>    }
 <a href=#1222 id=1222 data-nosnippet>1222</a>
 <a href=#1223 id=1223 data-nosnippet>1223</a>    <span class="attr">#[test]

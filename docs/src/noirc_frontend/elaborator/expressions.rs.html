@@ -2,9 +2,9 @@
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>std::collections::HashMap;
 <a href=#4 id=4 data-nosnippet>4</a>
-<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>acvm::{AcirField, FieldElement};
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>iter_extended::vecmap;
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>noirc_errors::{Located, Location, Span};
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>iter_extended::vecmap;
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>noirc_errors::{Located, Location, Span};
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>num_bigint::BigInt;
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 <a href=#9 id=9 data-nosnippet>9</a>
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use crate</span>::{
@@ -477,7 +477,7 @@
 <a href=#477 id=477 data-nosnippet>477</a>                <span class="kw">let </span>length = UnresolvedTypeExpression::from_expr(<span class="kw-2">*</span>length, location).unwrap_or_else(
 <a href=#478 id=478 data-nosnippet>478</a>                    |error| {
 <a href=#479 id=479 data-nosnippet>479</a>                        <span class="self">self</span>.push_err(ResolverError::ParserError(Box::new(error)));
-<a href=#480 id=480 data-nosnippet>480</a>                        UnresolvedTypeExpression::Constant(FieldElement::zero(), <span class="prelude-val">None</span>, location)
+<a href=#480 id=480 data-nosnippet>480</a>                        UnresolvedTypeExpression::Constant(BigInt::ZERO, <span class="prelude-val">None</span>, location)
 <a href=#481 id=481 data-nosnippet>481</a>                    },
 <a href=#482 id=482 data-nosnippet>482</a>                );
 <a href=#483 id=483 data-nosnippet>483</a>

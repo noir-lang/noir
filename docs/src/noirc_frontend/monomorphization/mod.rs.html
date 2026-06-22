@@ -49,7 +49,7 @@
 <a href=#49 id=49 data-nosnippet>49</a>//! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 <a href=#50 id=50 data-nosnippet>50</a>//! which shouldn't leave the current context.
 <a href=#51 id=51 data-nosnippet>51</a></span><span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, ItemVisibility, UnaryOp};
-<a href=#52 id=52 data-nosnippet>52</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
+<a href=#52 id=52 data-nosnippet>52</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::{InterpreterError, bigint_to_field};
 <a href=#53 id=53 data-nosnippet>53</a><span class="kw">use </span><span class="kw">crate</span>::hir::type_check::NoMatchingImplFoundError;
 <a href=#54 id=54 data-nosnippet>54</a><span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 <a href=#55 id=55 data-nosnippet>55</a><span class="kw">use </span><span class="kw">crate</span>::recursion::TypeRecursionContext;
@@ -776,7 +776,7 @@
 <a href=#776 id=776 data-nosnippet>776</a>            HirExpression::Literal(HirLiteral::Integer(value)) =&gt; {
 <a href=#777 id=777 data-nosnippet>777</a>                <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(expr);
 <a href=#778 id=778 data-nosnippet>778</a>                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(expr), location)<span class="question-mark">?</span>;
-<a href=#779 id=779 data-nosnippet>779</a>                Literal(Integer(value, typ, location))
+<a href=#779 id=779 data-nosnippet>779</a>                Literal(Integer(bigint_to_field(<span class="kw-2">&amp;</span>value), typ, location))
 <a href=#780 id=780 data-nosnippet>780</a>            }
 <a href=#781 id=781 data-nosnippet>781</a>            HirExpression::Literal(HirLiteral::Array(array)) =&gt; <span class="kw">match </span>array {
 <a href=#782 id=782 data-nosnippet>782</a>                HirArrayLiteral::Standard(array) =&gt; <span class="self">self</span>.standard_array(expr, array, <span class="bool-val">false</span>)<span class="question-mark">?</span>,

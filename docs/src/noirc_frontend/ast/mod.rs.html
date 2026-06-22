@@ -14,9 +14,9 @@
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">mod </span>type_alias;
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">mod </span>visitor;
 <a href=#16 id=16 data-nosnippet>16</a>
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>acvm::FieldElement;
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>noirc_errors::Located;
-<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>noirc_errors::Location;
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>noirc_errors::Located;
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>noirc_errors::Location;
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>num_bigint::BigInt;
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub use </span>visitor::AttributeTarget;
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">pub use </span>visitor::Visitor;
 <a href=#22 id=22 data-nosnippet>22</a>
@@ -221,7 +221,7 @@
 <a href=#221 id=221 data-nosnippet>221</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 <a href=#222 id=222 data-nosnippet>222</a></span><span class="kw">pub enum </span>UnresolvedTypeExpression {
 <a href=#223 id=223 data-nosnippet>223</a>    Variable(Path),
-<a href=#224 id=224 data-nosnippet>224</a>    Constant(FieldElement, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
+<a href=#224 id=224 data-nosnippet>224</a>    Constant(BigInt, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
 <a href=#225 id=225 data-nosnippet>225</a>    BinaryOperation(
 <a href=#226 id=226 data-nosnippet>226</a>        Box&lt;UnresolvedTypeExpression&gt;,
 <a href=#227 id=227 data-nosnippet>227</a>        BinaryTypeOperator,
@@ -528,7 +528,7 @@
 <a href=#528 id=528 data-nosnippet>528</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#529 id=529 data-nosnippet>529</a>            UnresolvedTypeExpression::Variable(path) =&gt; ExpressionKind::Variable(path.clone()),
 <a href=#530 id=530 data-nosnippet>530</a>            UnresolvedTypeExpression::Constant(int, suffix, <span class="kw">_</span>) =&gt; {
-<a href=#531 id=531 data-nosnippet>531</a>                ExpressionKind::Literal(Literal::Integer(<span class="kw-2">*</span>int, <span class="kw-2">*</span>suffix))
+<a href=#531 id=531 data-nosnippet>531</a>                ExpressionKind::Literal(Literal::Integer(int.clone(), <span class="kw-2">*</span>suffix))
 <a href=#532 id=532 data-nosnippet>532</a>            }
 <a href=#533 id=533 data-nosnippet>533</a>            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) =&gt; {
 <a href=#534 id=534 data-nosnippet>534</a>                ExpressionKind::Infix(Box::new(InfixExpression {
