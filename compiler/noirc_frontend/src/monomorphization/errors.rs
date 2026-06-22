@@ -37,6 +37,7 @@ pub enum MonomorphizationError {
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
     GlobalContainsFunctionPointer { typ: String, location: Location },
+    CalledDisabledFunction { name: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -75,7 +76,8 @@ impl MonomorphizationError {
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
             | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
-            | MonomorphizationError::GlobalContainsFunctionPointer { location, .. } => *location,
+            | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
+            | MonomorphizationError::CalledDisabledFunction { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -117,6 +119,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CalledDisabledFunction { name, location } => {
+                let message = format!("Called disabled function `{name}`");
+                let secondary = "This function was disabled by a comptime attribute".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::RecursiveType { typ, location } => {
