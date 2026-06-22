@@ -646,10 +646,10 @@ impl Parser<'_> {
                         Token::LeftParen => closing_delimiters.push(Token::RightParen),
                         Token::LeftBracket => closing_delimiters.push(Token::RightBracket),
                         Token::LeftBrace => closing_delimiters.push(Token::RightBrace),
-                        Token::RightParen | Token::RightBracket | Token::RightBrace => {
-                            if closing_delimiters.last() == Some(&token) {
-                                closing_delimiters.pop();
-                            }
+                        Token::RightParen | Token::RightBracket | Token::RightBrace
+                            if closing_delimiters.last() == Some(&token) =>
+                        {
+                            closing_delimiters.pop();
                         }
                         _ => {}
                     }

@@ -923,16 +923,14 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
                 );
             }
-            Opcode::MemoryOp { block_id, op } => {
-                if op.operation == MemOpKind::Write {
-                    // Check that we have no writes to the type size arrays
-                    let is_type_sizes_array =
-                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
-                    assert!(
-                        !is_type_sizes_array,
-                        "ICE: Writes to the internal type sizes array are forbidden"
-                    );
-                }
+            Opcode::MemoryOp { block_id, op } if op.operation == MemOpKind::Write => {
+                // Check that we have no writes to the type size arrays
+                let is_type_sizes_array =
+                    context.element_type_sizes_blocks.values().any(|id| id == block_id);
+                assert!(
+                    !is_type_sizes_array,
+                    "ICE: Writes to the internal type sizes array are forbidden"
+                );
             }
             _ => {}
         }
