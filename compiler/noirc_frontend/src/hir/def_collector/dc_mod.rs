@@ -235,6 +235,13 @@ impl ModCollector<'_> {
                     errors.push(error);
                 }
 
+                if noir_function.def.attributes.is_fuzzing_harness() {
+                    let error = DefCollectorErrorKind::FuzzOnAssociatedFunction {
+                        location: noir_function.name_ident().location(),
+                    };
+                    errors.push(error);
+                }
+
                 if noir_function.def.attributes.has_export() {
                     let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
                         location: noir_function.name_ident().location(),
@@ -1439,6 +1446,13 @@ pub fn collect_impl(
 
         if method.def.attributes.is_test_function() {
             let error = DefCollectorErrorKind::TestOnAssociatedFunction {
+                location: method.name_ident().location(),
+            };
+            errors.push(error);
+            continue;
+        }
+        if method.def.attributes.is_fuzzing_harness() {
+            let error = DefCollectorErrorKind::FuzzOnAssociatedFunction {
                 location: method.name_ident().location(),
             };
             errors.push(error);

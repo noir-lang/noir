@@ -408,6 +408,40 @@ fn disallows_test_attribute_on_trait_impl_method() {
 }
 
 #[test]
+fn disallows_fuzz_attribute_on_impl_method() {
+    // TODO: improve the error location
+    let src = "
+        pub struct Foo { }
+
+        impl Foo {
+
+#[fuzz]
+            fn foo(x: u32) { let _ = x; }
+               ^^^ The `#[fuzz]` attribute is disallowed on `impl` methods
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_fuzz_attribute_on_trait_impl_method() {
+    let src = "
+        pub trait Trait {
+            fn foo(x: u32);
+        }
+
+        pub struct Foo { }
+
+        impl Trait for Foo {
+            #[fuzz]
+            fn foo(x: u32) { let _ = x; }
+               ^^^ The `#[fuzz]` attribute is disallowed on `impl` methods
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
 fn disallows_export_attribute_on_impl_method() {
     // TODO: improve the error location
     let src = "
