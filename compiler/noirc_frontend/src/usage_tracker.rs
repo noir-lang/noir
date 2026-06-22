@@ -83,7 +83,7 @@ pub struct UsageTracker {
 /// A single removal recorded during a speculative transaction, kept so it can be re-inserted on
 /// rollback.
 #[derive(Debug)]
-enum SpeculativeUndo {
+pub(crate) enum SpeculativeUndo {
     Item(ModuleId, (Namespace, Ident), UnusedItem),
     Import(ModuleId, (Ident, Location), HashSet<Namespace>),
 }
@@ -250,6 +250,23 @@ impl UsageTracker {
     /// Commit a speculative transaction, keeping every change made while it was open.
     pub(crate) fn commit_speculative(&mut self, _tx: SpeculativeTx) {
         self.speculative_undo = None;
+    }
+
+    /// Temporarily detach any in-progress speculative undo log, returning it so it can be restored
+    /// with [`resume_speculative`](Self::resume_speculative). While detached, removals are committed
+    /// unconditionally (never recorded for rollback). Used to run a committed side effect — e.g.
+    /// resolving a function's [`FuncMeta`], which structurally strikes the function off the
+    /// to-be-resolved list and so cannot be undone — from inside a speculative probe without its
+    /// usage-marks being rolled back when the probe fails.
+    ///
+    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
+    pub(crate) fn suspend_speculative(&mut self) -> Option<Vec<SpeculativeUndo>> {
+        self.speculative_undo.take()
+    }
+
+    /// Restore an undo log detached by [`suspend_speculative`](Self::suspend_speculative).
+    pub(crate) fn resume_speculative(&mut self, undo: Option<Vec<SpeculativeUndo>>) {
+        self.speculative_undo = undo;
     }
 
     /// Roll back a speculative transaction, restoring every entry removed while it was open.

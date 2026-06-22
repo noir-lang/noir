@@ -249,6 +249,26 @@ fn trait_static_method_call_marks_trait_import_used() {
 }
 
 #[test]
+fn import_used_only_in_signature_not_dropped_by_speculative_probe() {
+    // `Bar` is imported into `mod m` and used *only* in `mk`'s parameter type. Calling `crate::m::mk`
+    // via a multi-segment path from a global initializer (where `mk`'s meta is still unresolved)
+    // routes through the speculative trait-static-method probe. The probe resolves `mk`'s meta —
+    // marking `Bar` used — then fails (mk is not a trait method). Resolving a function's meta is a
+    // committed structural change, so its usage marks must survive the probe's rollback; otherwise
+    // `mk` is never re-resolved and `Bar` is wrongly reported unused.
+    let src = r#"
+    mod other { pub struct Bar {} }
+    mod m {
+        use crate::other::Bar;
+        pub fn mk(_x: Bar) -> u32 { 0 }
+    }
+    global X: u32 = crate::m::mk(crate::other::Bar {});
+    fn main() { let _ = X; }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn same_namespace_imports_with_same_name_clash() {
     // Contrast with the cross-namespace case above: when two `use`s bring the same name into the
     // *same* namespace (here both `foo::N` and `bar::N` are type-namespace `struct`s), they are no
