@@ -484,7 +484,7 @@ impl<'f> Context<'f> {
                         incoming_edges
                             .entry(*destination)
                             .or_default()
-                            .push((block_id, arguments.to_vec()));
+                            .push((block_id, arguments.clone()));
                         if back_edges.contains(&(block_id, *destination)) {
                             back_edge_args.extend(arguments.iter().copied());
                         }
@@ -499,11 +499,11 @@ impl<'f> Context<'f> {
                         incoming_edges
                             .entry(*then_destination)
                             .or_default()
-                            .push((block_id, then_arguments.to_vec()));
+                            .push((block_id, then_arguments.clone()));
                         incoming_edges
                             .entry(*else_destination)
                             .or_default()
-                            .push((block_id, else_arguments.to_vec()));
+                            .push((block_id, else_arguments.clone()));
                         if back_edges.contains(&(block_id, *then_destination)) {
                             back_edge_args.extend(then_arguments.iter().copied());
                         }
@@ -1212,8 +1212,7 @@ impl<'f> Context<'f> {
             }
 
             let instructions = self.function.dfg[block].instructions();
-            for inst_idx in start_idx..instructions.len() {
-                let inst_id = instructions[inst_idx];
+            for &inst_id in instructions.iter().skip(start_idx) {
                 if inst_id == array_set_id {
                     continue;
                 }
@@ -1391,6 +1390,7 @@ impl<'f> Context<'f> {
     ///      is itself a loop-header parameter would be re-introduced the
     ///      moment any in-use alias flowed into its position.
     ///    - Otherwise (both in or both out), no change.
+    ///
     ///    Only array-typed params participate.
     ///
     /// 2. **Unconditional kill — instructions defined in `dest`.** For
@@ -1420,10 +1420,8 @@ impl<'f> Context<'f> {
                 (true, false) => {
                     result.remove(&param);
                 }
-                (false, true) => {
-                    if !protected.contains(&param) {
-                        result.insert(param);
-                    }
+                (false, true) if !protected.contains(&param) => {
+                    result.insert(param);
                 }
                 _ => {}
             }
