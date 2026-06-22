@@ -228,17 +228,13 @@ impl ModCollector<'_> {
             let module = ModuleId { krate, local_id: self.module_id };
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
-                if noir_function.def.attributes.is_test_function() {
-                    let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                        location: noir_function.name_ident().location(),
-                    };
+                if let Some((_, location)) = noir_function.def.attributes.as_test_function() {
+                    let error = DefCollectorErrorKind::TestOnAssociatedFunction { location };
                     errors.push(error);
                 }
 
-                if noir_function.def.attributes.is_fuzzing_harness() {
-                    let error = DefCollectorErrorKind::FuzzOnAssociatedFunction {
-                        location: noir_function.name_ident().location(),
-                    };
+                if let Some((_, location)) = noir_function.def.attributes.as_fuzzing_harness() {
+                    let error = DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
                     errors.push(error);
                 }
 
@@ -1444,17 +1440,13 @@ pub fn collect_impl(
         let doc_comments = method.doc_comments;
         let mut method = method.item;
 
-        if method.def.attributes.is_test_function() {
-            let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                location: method.name_ident().location(),
-            };
+        if let Some((_, location)) = method.def.attributes.as_test_function() {
+            let error = DefCollectorErrorKind::TestOnAssociatedFunction { location };
             errors.push(error);
             continue;
         }
-        if method.def.attributes.is_fuzzing_harness() {
-            let error = DefCollectorErrorKind::FuzzOnAssociatedFunction {
-                location: method.name_ident().location(),
-            };
+        if let Some((_, location)) = method.def.attributes.as_fuzzing_harness() {
+            let error = DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
             errors.push(error);
             continue;
         }
