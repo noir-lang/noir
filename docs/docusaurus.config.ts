@@ -7,6 +7,15 @@ const darkTheme = themes.dracula;
 import math from 'remark-math';
 import katex from 'rehype-katex';
 
+// noindex every served documentation version except the latest stable (`versions[0]`, the
+// default served at the site root): the unreleased `dev` version and the older stable
+// snapshots. This stops search engines indexing duplicate copies of the docs and treats
+// the latest version as canonical. Docusaurus also omits noindexed pages from the sitemap.
+const docsVersions = {
+  current: { label: 'dev', path: 'dev', noIndex: true },
+  ...Object.fromEntries(versions.slice(1).map((v: string) => [v, { noIndex: true }])),
+};
+
 // Routes kept OUT of both the llms.txt/markdown index and the sitemap, so the
 // agent-readiness coverage denominator equals exactly the pages we index: the latest
 // stable version (`versions[0]`, served at the site root) plus the reference. Older
@@ -53,12 +62,7 @@ export default {
           routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
-          versions: {
-            current: {
-              label: 'dev',
-              path: 'dev',
-            },
-          },
+          versions: docsVersions,
           editUrl: ({ versionDocsDirPath, docPath }) =>
             `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath.replace('processed-docs', 'docs')}/${docPath}`,
         },

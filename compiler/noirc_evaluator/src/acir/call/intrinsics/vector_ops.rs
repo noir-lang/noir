@@ -934,11 +934,9 @@ impl Context<'_> {
             let index_const = index_const.to_u128() as usize;
             // A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
             // As a result, every index will be out-of-bound.
-            if acir_fields_per_element == 0 {
-                false
-            } else {
-                let num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
-                index_const < num_logical_elements
+            match vector_size.to_usize().checked_div(acir_fields_per_element) {
+                Some(num_logical_elements) => index_const < num_logical_elements,
+                None => false,
             }
         } else {
             false

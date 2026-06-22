@@ -1154,8 +1154,13 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
 /// Regression test: a type alias and a global with the same name
 #[test]
 fn type_alias_takes_priority_over_global_with_same_name() {
+    // The type alias (type namespace) and the global (value namespace) coexist under the same
+    // name. `Foo` in type position resolves to the alias, so the global is never referenced and
+    // is correctly reported as unused — the two namespaces are tracked independently.
     let src = r#"
         global Foo: u32 = 10;
+               ^^^ unused global Foo
+               ~~~ unused global
 
         type Foo = u32;
 
@@ -1164,7 +1169,7 @@ fn type_alias_takes_priority_over_global_with_same_name() {
             assert(x == 20);
         }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]

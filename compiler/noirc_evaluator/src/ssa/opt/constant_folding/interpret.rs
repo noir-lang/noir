@@ -94,14 +94,14 @@ fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -
                 .expect("Should be a valid constant")
         }
         Type::Reference(..) => unreachable!("References cannot be constant values"),
-        Type::Array(element_types, _) => {
+        Type::Array(element_types, length) => {
             let (array_constant, _) =
                 dfg.get_array_constant(value_id).expect("Should have an array constant");
             let mut elements = Vec::new();
             for element in array_constant {
                 elements.push(const_ir_value_to_interpreter_value(element, dfg));
             }
-            InterpreterValue::array(elements, element_types.to_vec())
+            InterpreterValue::array_with_length(elements, element_types.to_vec(), *length)
         }
         Type::Vector(element_types) => {
             let (array_constant, _) =

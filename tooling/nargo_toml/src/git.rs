@@ -47,11 +47,13 @@ fn collect_cached_git_dependencies(cache_root: &Path) -> BTreeSet<PathBuf> {
     found
 }
 
-/// Creates a unique folder name for a GitHub repo
-/// by using its URL and tag
+/// Creates a unique folder name for a git repository by using its URL and tag.
+///
+/// The host (a domain like `github.com`, or an IP for a self-hosted server) is used as-is, so
+/// repositories on the same host share a parent directory in the cache.
 fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     let mut folder = PathBuf::from("");
-    for part in [base.domain().unwrap(), base.path(), tag] {
+    for part in [base.host_str().expect("git dependency URL must have a host"), base.path(), tag] {
         folder.push(part.trim_start_matches('/'));
     }
     folder.to_string_lossy().into_owned()
@@ -126,6 +128,14 @@ mod tests {
         let tag = "v0.4.2";
         let dir = resolve_folder_name(&Url::parse(url).unwrap(), tag);
         assert_eq!(dir, "github.com/noir-lang/noir-bignum/v0.4.2");
+    }
+
+    /// A self-hosted repository can be served from an IP address, which has no registrable domain.
+    #[test]
+    fn test_resolve_folder_name_with_ip_host() {
+        let dir =
+            resolve_folder_name(&Url::parse("https://192.168.1.10/me/repo").unwrap(), "v1.0.0");
+        assert_eq!(dir, "192.168.1.10/me/repo/v1.0.0");
     }
 
     /// Creates a clone root by making the directory tree `relative` under `cache_root` and
