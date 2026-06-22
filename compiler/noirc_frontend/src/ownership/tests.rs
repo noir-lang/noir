@@ -1741,6 +1741,57 @@ fn no_confirmed_move_for_variable_reassigned_in_loop_in_disabled_if() {
     ");
 }
 
+// Regression for issue https://github.com/noir-lang/noir-claude/issues/1436
+#[test]
+fn no_confirmed_move_for_assignment_rhs_that_can_break() {
+    // `x = if cond { let mut y = x; ...; break; ... } else { x }` inside a loop.
+    // The RHS reads `x` into `y` and then mutates `y`. On the `break` path the
+    // assignment to `x` never commits, so the old value of `x` is still live after
+    // the loop. If `let mut y = x` were treated as a move (no clone), the mutation
+    // of `y` would corrupt the still-live `x`. The RHS use must therefore be cloned.
+    let src = "
+    unconstrained fn main(cond: bool, should_break: bool) {
+        let mut x = [1];
+        loop {
+            x = if cond {
+                let mut y = x;
+                y[0] = 9;
+                if should_break {
+                    break;
+                }
+                [0]
+            } else {
+                x
+            };
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, should_break$l1: bool) -> () {
+        let mut x$l2 = [1];
+        loop {
+            x$l2 = if cond$l0 {
+                let mut y$l3 = x$l2;
+                y$l3[0] = 9;
+                if should_break$l1 {
+                    break
+                };
+                [0]
+            } else {
+                x$l2
+            }
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
 // Regression for issue https://github.com/noir-lang/noir-claude/issues/1069
 #[test]
 fn closure_captured_array_used_twice_clones_first_use() {
