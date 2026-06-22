@@ -1,4 +1,5 @@
 use clap::{ArgGroup, Args};
+use nargo::constants::PKG_FILE;
 use nargo::package::CrateName;
 use nargo::workspace::Workspace;
 use nargo_toml::{
@@ -61,7 +62,7 @@ pub(crate) fn run(args: AddCommand, workspace: Workspace) -> Result<(), CliError
     // A workspace root without a `default-member` (or `--workspace`) leaves no package selected.
     let index = workspace.selected_package_index.ok_or(CliError::AddRequiresPackageSelection)?;
     let package = &workspace.members[index];
-    let manifest_path = package.root_dir.join("Nargo.toml");
+    let manifest_path = package.root_dir.join(PKG_FILE);
 
     let dependency = match (&args.path, &args.git) {
         (Some(path), _) => DependencyConfig::Path { path: path.clone() },
@@ -114,7 +115,7 @@ mod tests {
         let pkg_dir = root.join(dir);
         std::fs::create_dir_all(pkg_dir.join("src")).unwrap();
         std::fs::write(
-            pkg_dir.join("Nargo.toml"),
+            pkg_dir.join(PKG_FILE),
             format!("[package]\nname = \"{name}\"\ntype = \"{package_type}\"\nauthors = [\"\"]\n\n[dependencies]\n"),
         )
         .unwrap();
@@ -125,7 +126,7 @@ mod tests {
     /// Resolves the package at `root/dir` into a single-package workspace.
     fn workspace_for(root: &Path, dir: &str) -> Workspace {
         resolve_workspace_from_toml(
-            &root.join(dir).join("Nargo.toml"),
+            &root.join(dir).join(PKG_FILE),
             PackageSelection::DefaultOrAll,
             None,
         )
@@ -151,7 +152,7 @@ mod tests {
         write_pkg(root, "the_bin", "demo", "bin");
         write_pkg(root, "the_lib", "cool_lib", "lib");
 
-        let manifest = root.join("the_bin").join("Nargo.toml");
+        let manifest = root.join("the_bin").join(PKG_FILE);
 
         // First add: the name is inferred from the dependency's own `Nargo.toml`.
         run(add_command("../the_lib", false), workspace_for(root, "the_bin")).unwrap();

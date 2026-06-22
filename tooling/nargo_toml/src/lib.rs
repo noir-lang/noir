@@ -10,6 +10,7 @@ use std::{
 use errors::SemverError;
 use fm::{FILE_EXTENSION, NormalizePath};
 use nargo::{
+    constants::PKG_FILE,
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
@@ -137,7 +138,7 @@ pub fn find_package_manifest(
 ///
 /// Returns a [`ManifestError`] if `current_path` does not contain a manifest file.
 pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
-    let toml_path = current_path.join("Nargo.toml");
+    let toml_path = current_path.join(PKG_FILE);
     if toml_path.exists() {
         Ok(toml_path)
     } else {
@@ -161,14 +162,14 @@ impl PackageConfig {
     ) -> Result<Package, ManifestError> {
         let name = &self.package.name;
         let name: CrateName = name.parse().map_err(|_| ManifestError::InvalidPackageName {
-            toml: root_dir.join("Nargo.toml"),
+            toml: root_dir.join(PKG_FILE),
             name: name.into(),
         })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in &self.dependencies {
             let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
-                toml: root_dir.join("Nargo.toml"),
+                toml: root_dir.join(PKG_FILE),
                 name: name.into(),
             })?;
             let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed)?;
@@ -182,11 +183,11 @@ impl PackageConfig {
             Some("contract") => PackageType::Contract,
             Some(invalid) => {
                 return Err(ManifestError::InvalidPackageType(
-                    root_dir.join("Nargo.toml"),
+                    root_dir.join(PKG_FILE),
                     invalid.to_string(),
                 ));
             }
-            None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
+            None => return Err(ManifestError::MissingPackageType(root_dir.join(PKG_FILE))),
         };
 
         let entry_path = if let Some(entry_path) = &self.package.entry {
@@ -195,7 +196,7 @@ impl PackageConfig {
                 custom_entry_path
             } else {
                 return Err(ManifestError::MissingEntryFile {
-                    toml: root_dir.join("Nargo.toml"),
+                    toml: root_dir.join(PKG_FILE),
                     entry: custom_entry_path,
                 });
             }
@@ -213,7 +214,7 @@ impl PackageConfig {
                 default_entry_path
             } else {
                 return Err(ManifestError::MissingDefaultEntryFile {
-                    toml: root_dir.join("Nargo.toml"),
+                    toml: root_dir.join(PKG_FILE),
                     entry: default_entry_path,
                     package_type,
                 });
@@ -335,7 +336,7 @@ impl DependencyConfig {
                     let internal_path = dir_path.join(directory).normalize();
                     if !internal_path.starts_with(&dir_path) {
                         return Err(ManifestError::InvalidDirectory {
-                            toml: pkg_root.join("Nargo.toml"),
+                            toml: pkg_root.join(PKG_FILE),
                             directory: directory.into(),
                         });
                     }
@@ -343,13 +344,13 @@ impl DependencyConfig {
                 } else {
                     dir_path
                 };
-                let toml_path = project_path.join("Nargo.toml");
+                let toml_path = project_path.join(PKG_FILE);
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Remote { package }
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
-                let toml_path = dir_path.join("Nargo.toml");
+                let toml_path = dir_path.join(PKG_FILE);
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Local { package }
             }
@@ -459,7 +460,7 @@ fn toml_to_workspace(
             let mut selected_package_index = None;
             for (index, member_path) in workspace_config.members.into_iter().enumerate() {
                 let package_root_dir = nargo_toml.root_dir.join(&member_path);
-                let package_toml_path = package_root_dir.join("Nargo.toml");
+                let package_toml_path = package_root_dir.join(PKG_FILE);
                 let member = resolve_package_from_toml(&package_toml_path, &mut resolved)?;
 
                 match &package_selection {
@@ -626,13 +627,15 @@ mod tests {
 
     use test_case::test_matrix;
 
+    use nargo::constants::PKG_FILE;
+
     use crate::{Config, DependencyConfig, ManifestError, add_dependency_to_manifest, find_root};
 
     /// Writes `contents` to a `Nargo.toml` in a fresh temp dir and returns the temp dir and the
     /// manifest path. The temp dir must be kept alive for the duration of the test.
     fn manifest_with(contents: &str) -> (tempfile::TempDir, PathBuf) {
         let tmp = tempfile::tempdir().unwrap();
-        let toml_path = tmp.path().join("Nargo.toml");
+        let toml_path = tmp.path().join(PKG_FILE);
         std::fs::write(&toml_path, contents).unwrap();
         (tmp, toml_path)
     }
@@ -809,7 +812,7 @@ my_lib = { path = "../my_lib" }
             let pkg_dir = root.join(dir);
             std::fs::create_dir_all(pkg_dir.join("src")).unwrap();
             std::fs::write(
-                pkg_dir.join("Nargo.toml"),
+                pkg_dir.join(PKG_FILE),
                 format!(
                     "[package]\nname = \"{name}\"\ntype = \"{package_type}\"\nauthors = [\"\"]\n"
                 ),
@@ -1034,7 +1037,7 @@ my_lib = { path = "../my_lib" }
             let dir = root.join(name);
             std::fs::create_dir_all(dir.join("src")).unwrap();
             std::fs::write(
-                dir.join("Nargo.toml"),
+                dir.join(PKG_FILE),
                 format!(
                     "[package]\nname = \"{name}\"\ntype = \"lib\"\nauthors = [\"\"]\n\n[dependencies]\n{dep_name} = {{ path = \"{dep_path}\" }}\n"
                 ),
