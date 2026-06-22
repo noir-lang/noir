@@ -148,8 +148,15 @@ fn set_len_docs_example() {
     v.set_unchecked(6, 7);
     v.set_unchecked(7, 8);
     assert(v.len() == 5);
-    v.set_len(9);
-    assert(v.len() == 9);
+
+    // Grow the length to expose the elements written above.
+    v.set_len(8);
+    assert(v.len() == 8);
+    assert(v.get(7) == 8);
+
+    // The length can also be reduced.
+    v.set_len(2);
+    assert(v.len() == 2);
     // docs:end:bounded-vec-set-len-example
 }
 
