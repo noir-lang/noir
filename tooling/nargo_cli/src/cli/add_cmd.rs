@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use clap::{ArgGroup, Args};
 use nargo::constants::PKG_FILE;
 use nargo::package::CrateName;
@@ -5,10 +7,60 @@ use nargo::workspace::Workspace;
 use nargo_toml::{
     DependencyConfig, PackageSelection, add_dependency_to_manifest, resolve_dependency,
 };
+use thiserror::Error;
+use url::Url;
 
 use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
+
+/// URL of a git repository for a dependency, validated as it is parsed from the command line.
+///
+/// Only `https` URLs are accepted. A repository's web page offers an HTTPS and an SSH URL to copy;
+/// the SSH one is the scp-style `git@github.com:owner/repo.git`, which is not a URL and cannot be
+/// cached by host and path, so it is rejected with guidance to use the HTTPS form. `http` is
+/// rejected so credentials are never sent unencrypted.
+#[derive(Debug, Clone)]
+pub(crate) struct GitUrl(String);
+
+impl GitUrl {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum GitUrlParseError {
+    #[error(
+        "`{input}` is not a valid git URL: {source}.\n\
+         Use the HTTPS URL from the repository's web page, e.g. `https://github.com/owner/repo`.\n\
+         SSH URLs like `git@github.com:owner/repo.git` are not supported."
+    )]
+    InvalidUrl { input: String, source: url::ParseError },
+    #[error(
+        "git dependencies must use an `https` URL, but `{input}` uses `{scheme}`.\n\
+         Use the HTTPS URL from the repository's web page, e.g. `https://github.com/owner/repo`."
+    )]
+    UnsupportedScheme { input: String, scheme: String },
+}
+
+impl FromStr for GitUrl {
+    type Err = GitUrlParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let url = Url::parse(s)
+            .map_err(|source| GitUrlParseError::InvalidUrl { input: s.to_string(), source })?;
+        // `https` is a special scheme, so a successfully parsed URL is guaranteed to have a host
+        // (a domain or an IP for a self-hosted server), which is all the cache path needs.
+        if url.scheme() != "https" {
+            return Err(GitUrlParseError::UnsupportedScheme {
+                input: s.to_string(),
+                scheme: url.scheme().to_string(),
+            });
+        }
+        Ok(GitUrl(s.to_string()))
+    }
+}
 
 /// Add a dependency to the package's `Nargo.toml`.
 ///
@@ -27,7 +79,7 @@ pub(crate) struct AddCommand {
 
     /// URL of a git repository to depend on.
     #[clap(long, conflicts_with = "path", requires = "tag")]
-    git: Option<String>,
+    git: Option<GitUrl>,
 
     /// Git branch or tag to use (required with `--git`).
     #[clap(long, requires = "git")]
@@ -67,7 +119,7 @@ pub(crate) fn run(args: AddCommand, workspace: Workspace) -> Result<(), CliError
     let dependency = match (&args.path, &args.git) {
         (Some(path), _) => DependencyConfig::Path { path: path.clone() },
         (None, Some(git)) => DependencyConfig::Git {
-            git: git.clone(),
+            git: git.as_str().to_string(),
             // `clap` guarantees `--tag` is present whenever `--git` is.
             tag: args.tag.clone().expect("--git requires --tag"),
             directory: args.directory.clone(),
@@ -172,5 +224,41 @@ mod tests {
 
         // With `--override` it succeeds.
         run(add_command("../the_lib", true), workspace_for(root, "the_bin")).unwrap();
+    }
+
+    #[test]
+    fn git_url_accepts_https_and_preserves_the_original_string() {
+        let url: GitUrl = "https://github.com/noir-lang/noir-bignum".parse().unwrap();
+        assert_eq!(url.as_str(), "https://github.com/noir-lang/noir-bignum");
+    }
+
+    #[test]
+    fn git_url_rejects_http_to_avoid_sending_credentials_in_the_clear() {
+        let err = "http://github.com/noir-lang/noir-bignum".parse::<GitUrl>().unwrap_err();
+        assert!(
+            matches!(err, GitUrlParseError::UnsupportedScheme { scheme, .. } if scheme == "http")
+        );
+    }
+
+    #[test]
+    fn git_url_rejects_ssh_scheme() {
+        let err = "ssh://git@github.com/noir-lang/noir-bignum".parse::<GitUrl>().unwrap_err();
+        assert!(
+            matches!(err, GitUrlParseError::UnsupportedScheme { scheme, .. } if scheme == "ssh")
+        );
+    }
+
+    #[test]
+    fn git_url_rejects_scp_style_ssh_url() {
+        // This is the form that produced the bare "relative URL without a base" error.
+        let err = "git@github.com:noir-lang/sha256.git".parse::<GitUrl>().unwrap_err();
+        assert!(matches!(err, GitUrlParseError::InvalidUrl { .. }));
+    }
+
+    #[test]
+    fn git_url_accepts_https_with_ip_host() {
+        // A self-hosted repository may be served from an IP address rather than a domain.
+        let url: GitUrl = "https://192.168.1.10/me/repo".parse().unwrap();
+        assert_eq!(url.as_str(), "https://192.168.1.10/me/repo");
     }
 }

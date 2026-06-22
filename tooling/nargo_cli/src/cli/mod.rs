@@ -361,6 +361,12 @@ mod tests {
     }
 
     #[test]
+    fn add_rejects_scp_style_git_url() {
+        parse_cli("nargo add --git git@github.com:noir-lang/sha256.git --tag v0.3.0")
+            .expect_err("scp-style SSH URLs are not valid URLs and should be rejected");
+    }
+
+    #[test]
     fn add_accepts_path() {
         parse_cli("nargo add --path ../lib").expect("a path dependency should parse");
     }
