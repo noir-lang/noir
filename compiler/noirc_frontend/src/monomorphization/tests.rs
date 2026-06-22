@@ -16,7 +16,7 @@ fn bounded_recursive_type_errors() {
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
-                                              ^^^^^^^^^^^^ Type `Tree<Tree<()>>` is recursive
+                                              ^^^^^^^^^^^^ Type `Tree<()>` is recursive
                                               ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
@@ -65,6 +65,58 @@ fn recursive_type_with_alias_errors() {
         ";
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features(src, &features, false);
+}
+
+#[test]
+fn recursive_type_behind_unused_generic_errors() {
+    // A recursive type used only as an *unused* generic argument reaches monomorphization
+    // through `check_type` rather than `convert_type` (the argument is never lowered to a
+    // field). `check_type` must still detect the recursion, exactly as `convert_type` does for
+    // a used position. Recursive types cannot be declared (the resolver rejects them with a
+    // dependency-cycle error), so we let monomorphization run past that error to exercise the
+    // `check_type` path directly.
+    let src = r#"
+    struct Phantom<T> { x: Field }
+    struct A { b: B }
+    struct B { a: A }
+    fn main() {
+        let _p: Phantom<A> = Phantom { x: 1 };
+    }
+    "#;
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::RecursiveType { .. }),
+        "expected RecursiveType, got: {err:?}"
+    );
+}
+
+#[test]
+fn numeric_generic_checked_cast_in_instantiation_bindings() {
+    // Chaining calls that return arithmetic-sized arrays instantiates a numeric generic to a
+    // `CheckedCast` over an `InfixExpr` (e.g. `M -> 3 + 1`). That binding is validated through
+    // `check_type`, which must not hand a type-level numeric value to `convert_type` — doing so
+    // hits `convert_type`'s `unreachable!` for non-value types. This is a valid program and must
+    // monomorphize successfully.
+    let src = r#"
+    fn make<let N: u32>(x: [Field; N]) -> [Field; N + 1] {
+        let mut r = [0; N + 1];
+        for i in 0..N {
+            r[i] = x[i];
+        }
+        r
+    }
+    fn use_it<let M: u32>(x: [Field; M]) -> [Field; M + 2] {
+        make(make(x))
+    }
+    fn main() {
+        let _ = use_it([1, 2, 3]);
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
 }
 
 #[test]
@@ -813,6 +865,7 @@ fn fail_to_call_enum_member_without_panic() {
         }
 
         fn main() {
+            foo(Foo::A);
             let foo: Foo = Foo::A;
             foo(foo);
             ^^^^^^^^ Expected a function, but found a(n) Foo
@@ -1233,6 +1286,33 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
 }
 
 #[test]
+fn return_enum_from_unconstrained_to_constrained() {
+    // The elaborator rejects this first (see tests/enums.rs); this asserts the
+    // monomorphization defense-in-depth check also rejects an enum return, so the gap
+    // cannot reappear through a boundary-crossing call the elaborator did not lint.
+    let src = r#"
+    enum E {
+        A,
+        B,
+    }
+
+    fn main() {
+        // safety: test
+        unsafe {
+            let _e = choose();
+                     ^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^^^^ Enum `E` cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn choose() -> E {
+        E::A
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[UnstableFeature::Enums], true);
+}
+
+#[test]
 fn evaluates_builtin_zeroed() {
     let src = r#"
     fn main() {
@@ -1268,6 +1348,34 @@ fn evaluates_builtin_zeroed_function() {
         [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
+        [0; 2]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_zeroed_closure_type() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
         [0; 2]
     }
     ");
@@ -1724,4 +1832,27 @@ fn static_assert_called_directly_still_works() {
     "#;
     get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
         .expect("direct call to static_assert should still monomorphize");
+}
+
+const ZEROED_STDLIB: &str = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+";
+
+#[test]
+fn zeroed_array_of_references_does_not_alias() {
+    // Each slot of a zeroed `[&mut Field; N]` must get its own `allocate`. Wrapping a single
+    // `&mut 0` sub-expression in a repeated array literal would make every slot share one
+    // allocation, so a write through one slot would be visible through all the others.
+    let src = r#"
+    fn main() {
+        let _arr: [&mut Field; 3] = zeroed();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _arr$l0 = [(&mut 0), (&mut 0), (&mut 0)]
+    }
+    ");
 }

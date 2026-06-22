@@ -34,7 +34,7 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
     }
 }
 
-/// Mutations config for single FuzzerData mutations
+/// Mutations config for single `FuzzerData` mutations
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum FuzzerDataMutationOptions {
     Functions,

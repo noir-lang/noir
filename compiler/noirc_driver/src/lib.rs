@@ -6,13 +6,13 @@ use insta as _;
 
 use std::hash::BuildHasher;
 
-use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use abi_gen::{abi_type_from_hir_type, value_to_abi_value};
 use acvm::AcirField;
 use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -42,7 +42,7 @@ use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
+use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -53,7 +53,7 @@ mod stdlib;
 
 pub use abi_gen::gen_abi;
 pub use noirc_frontend::graph::{CrateId, CrateName};
-pub use stdlib::{stdlib_nargo_toml_source, stdlib_paths_with_source};
+pub use stdlib::{stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source};
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -175,7 +175,7 @@ pub struct CompileOptions {
     pub force_brillig: bool,
 
     /// Enable printing results of comptime evaluation: provide a path suffix
-    /// for the module to debug, e.g. "package_name/src/main.nr"
+    /// for the module to debug, e.g. "`package_name/src/main.nr`"
     #[arg(long)]
     pub debug_comptime_in_file: Option<String>,
 
@@ -583,7 +583,7 @@ pub fn compute_function_abi(
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
 ///
-/// See [compile_no_check] for further information about the use of `cached_program`.
+/// See [`compile_no_check`] for further information about the use of `cached_program`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
@@ -613,12 +613,7 @@ pub fn compile_main(
         return Err(compilation_warnings);
     }
 
-    // Make sure we don't hide bugs, only warnings can be silenced.
-    warnings.extend(
-        compilation_warnings
-            .into_iter()
-            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
-    );
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
@@ -635,7 +630,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options)?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
     let mut contracts = def_map.get_all_contracts();
@@ -660,18 +655,21 @@ pub fn compile_contract(
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
     let contract = read_contract(context, module_id, name);
 
-    let mut errors = warnings;
-
     let compiled_contract = match compile_contract_inner(context, contract, options) {
         Ok(contract) => contract,
         Err(mut more_errors) => {
+            let mut errors = warnings;
             errors.append(&mut more_errors);
             return Err(errors);
         }
     };
 
-    if has_errors(&errors, options.deny_warnings) {
-        Err(errors)
+    let compilation_warnings =
+        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+    warnings.extend(drop_silenced_warnings(compilation_warnings, options));
+
+    if options.deny_warnings && !warnings.is_empty() {
+        Err(warnings)
     } else {
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
@@ -687,8 +685,7 @@ pub fn compile_contract(
                 println!("{}", contract_function.bytecode);
             }
         }
-        // errors here is either empty or contains only warnings
-        Ok((compiled_contract, errors))
+        Ok((compiled_contract, warnings))
     }
 }
 
@@ -848,14 +845,20 @@ fn compile_contract_inner(
             .globals
             .iter()
             .map(|(tag, globals)| {
-                let globals: Vec<AbiValue> = globals
+                let globals: Vec<AbiNamedValue> = globals
                     .iter()
                     .map(|global_id| {
-                        let let_statement =
-                            context.def_interner.get_global_let_statement(*global_id).unwrap();
-                        let hir_expression =
-                            context.def_interner.expression(&let_statement.expression);
-                        value_from_hir_expression(context, hir_expression)
+                        let GlobalValue::Resolved(value) =
+                            &context.def_interner.get_global(*global_id).value
+                        else {
+                            unreachable!(
+                                "Global with #[abi(tag)] must be resolved at comptime before ABI emission"
+                            );
+                        };
+                        let global_info = context.def_interner.get_global(*global_id);
+                        let name = global_info.ident.to_string();
+                        let value = value_to_abi_value(value);
+                        AbiNamedValue { name, value }
                     })
                     .collect();
                 (tag.clone(), globals)
@@ -940,14 +943,15 @@ pub fn filter_relevant_files(
 ///
 /// This function assumes [`check_crate`] is called beforehand.
 ///
-/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
-/// pass before usage in proof generation; if it's returned from cache these transformations might have
-/// already been applied.
+/// Whether returned from cache or freshly compiled, the program has already been fully optimized and
+/// transformed for the proving backend (the width-bounding CSAT pass and intermediate-variable
+/// elimination, using the assembled program's Brillig side-effect information) as part of
+/// SSA-to-ACIR generation, so it is ready for proof generation with no further optimization pass.
 ///
-/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
-/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
-/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
+/// Note that the optimized ACIR is _not_ covered by the check that decides whether we can use the cached
+/// artifact. That comparison is based on [`CompiledProgram::hash`] which is a persisted version of the hash
+/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output
+/// [`circuit::Program`][acvm::acir::circuit::Program] contains the final optimized ACIR opcodes.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
@@ -1049,12 +1053,24 @@ struct ContractOutputs {
 }
 
 /// A 'contract' in Noir source code with a given name, functions and events.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+/// This is not an AST node, it is just a convenient form to return for `CrateDefMap::get_all_contracts`.
 struct Contract {
-    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via `CrateDefMap::get_module_path`
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,
+}
+
+/// Removes warning diagnostics when `silence_warnings` is set, while always retaining bugs
+/// so that a `silence_warnings` flag cannot hide them.
+fn drop_silenced_warnings(
+    diagnostics: Vec<CustomDiagnostic>,
+    options: &CompileOptions,
+) -> Vec<CustomDiagnostic> {
+    diagnostics
+        .into_iter()
+        .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
+        .collect()
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {

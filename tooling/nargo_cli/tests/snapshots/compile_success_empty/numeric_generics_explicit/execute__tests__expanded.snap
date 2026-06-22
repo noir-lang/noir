@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global N: u32 = 1000;
+pub global N: u32 = 1000;
 
 fn main() {
     let a: [Field; 2] = id([1_Field, 2_Field]);

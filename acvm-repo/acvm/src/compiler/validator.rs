@@ -52,6 +52,17 @@ fn check_fits_in_bits<F: AcirField>(
     Ok(())
 }
 
+/// Checks that an already-complete `witness_map` satisfies every *constraint* imposed by
+/// `circuit`, returning the first violation found.
+///
+/// This is a debugging/checking aid that re-evaluates each opcode's constraint against the
+/// provided witness, mirroring what a proving backend enforces: a witness that passes here is
+/// one the backend should accept, and a witness that fails here is one it should reject.
+///
+/// The unit of correctness is constraint satisfaction. Only opcodes that *impose constraints*
+/// are checked here; opcodes that impose none are intentionally skipped, because there is
+/// nothing about them for a witness to satisfy or violate. The most important example is
+/// [`Opcode::BrilligCall`], which runs unconstrained bytecode and is ignored entirely.
 pub fn validate_witness<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     witness_map: WitnessMap<F>,
@@ -374,7 +385,9 @@ pub fn validate_witness<F: AcirField>(
                     ));
                 }
             }
-            // BrilligCall is unconstrained
+            // A `BrilligCall` runs unconstrained bytecode: it generates no constraints on either
+            // its inputs or its outputs, so there is nothing for a witness to satisfy and the
+            // opcode is ignored entirely.
             Opcode::BrilligCall { .. } => (),
             Opcode::Call { id: _, inputs, outputs, predicate } => {
                 // Skip validation when predicate is false
@@ -893,6 +906,60 @@ mod tests {
 
         let backend = Bn254BlackBoxSolver;
         assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
+
+    #[test]
+    fn test_brillig_call_outputs_are_not_validated() {
+        // A `BrilligCall` imposes no constraints, so the validator must not check its outputs.
+        // Here the output witness holds an arbitrary value that no Brillig program needs to have
+        // produced, and nothing constrained consumes it. Validation must still succeed because the
+        // witness satisfies every constraint in the circuit (there are none). This is exactly the
+        // behaviour audit finding noir-claude#502 mistook for a bug.
+        let circuit = make_circuit(vec![Opcode::BrilligCall {
+            id: BrilligFunctionId(0),
+            inputs: vec![BrilligInputs::Single(Witness(1).into())],
+            outputs: vec![BrilligOutputs::Simple(Witness(2))],
+            predicate: Expression::one(),
+        }]);
+
+        let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(7u128)),
+            (Witness(2), FieldElement::from(123_456u128)), // arbitrary; intentionally not checked
+        ]));
+
+        let backend = Bn254BlackBoxSolver;
+        assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
+
+    #[test]
+    fn test_brillig_output_validated_by_consuming_constraint() {
+        // Brillig outputs are only ever "checked" via the later *constrained* opcodes that read
+        // them. A wrong value is reported against that constrained opcode (index 1 here), never
+        // against the unconstrained `BrilligCall` (index 0).
+        let circuit = make_circuit(vec![
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(0),
+                inputs: vec![],
+                outputs: vec![BrilligOutputs::Simple(Witness(1))],
+                predicate: Expression::one(),
+            },
+            // Constrain the Brillig output: w1 - 5 == 0.
+            Opcode::AssertZero(Expression {
+                mul_terms: vec![],
+                linear_combinations: vec![(FieldElement::one(), Witness(1))],
+                q_c: -FieldElement::from(5u128),
+            }),
+        ]);
+
+        let witness_map =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(6u128))]));
+
+        let backend = Bn254BlackBoxSolver;
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            1,
+            "Invalid witness assignment: w1 - 5",
+        );
     }
 
     #[test]

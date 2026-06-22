@@ -1,8 +1,8 @@
 //! Noir Evaluator has two types of errors
 //!
-//! [RuntimeError]s that should be displayed to the user
+//! [`RuntimeError`]s that should be displayed to the user
 //!
-//! [InternalError]s that are used for checking internal logics of the SSA
+//! [`InternalError`]s that are used for checking internal logics of the SSA
 //!
 //! An Error of the former is a user Error
 //!
@@ -62,6 +62,10 @@ pub enum RuntimeError {
     BigIntModulus { call_stack: CallStack },
     #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedVectorReturnToConstrained { call_stack: CallStack },
+    #[error(
+        "Cannot dispatch to an unconstrained function value from a constrained runtime: its signature passes an unsupported reference (a nested reference, or a reference inside an aggregate) or returns a reference, vector, or function across the boundary"
+    )]
+    InvalidUnconstrainedDispatch { call_stack: CallStack },
     #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
@@ -151,6 +155,7 @@ impl RuntimeError {
             | RuntimeError::NestedVector { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedVectorReturnToConstrained { call_stack }
+            | RuntimeError::InvalidUnconstrainedDispatch { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }

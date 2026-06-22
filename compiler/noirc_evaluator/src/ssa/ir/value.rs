@@ -41,7 +41,7 @@ pub enum Value {
     NumericConstant { constant: FieldElement, typ: NumericType },
 
     /// This Value refers to a function in the IR.
-    /// Functions always have the type Type::Function.
+    /// Functions always have the type `Type::Function`.
     /// If the argument or return types are needed, users should retrieve
     /// their types via the Call instruction's arguments or the Call instruction's
     /// result types respectively.
@@ -52,7 +52,7 @@ pub enum Value {
     Intrinsic(Intrinsic),
 
     /// This Value refers to an external function in the IR.
-    /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
+    /// `ForeignFunction`'s always have the type `Type::Function` and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
     ///
     /// `pure` is `true` when the user marked the oracle declaration with `#[pure]`.
@@ -78,7 +78,7 @@ impl Value {
 
 /// Like `HashMap<ValueId, ValueId>` but handles:
 /// 1. recursion (if v0 -> v1 and v1 -> v2, then v0 -> v2)
-/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
+/// 2. self-mapping values (a value mapped to itself won't be inserted into the `HashMap`)
 #[derive(Default, Debug)]
 pub(crate) struct ValueMapping {
     map: HashMap<ValueId, ValueId>,
@@ -101,8 +101,14 @@ impl ValueMapping {
         }
     }
 
-    pub(crate) fn get(&self, value: ValueId) -> ValueId {
-        if let Some(replacement) = self.map.get(&value) { self.get(*replacement) } else { value }
+    pub(crate) fn get(&self, mut value: ValueId) -> ValueId {
+        // Follow the replacement chain iteratively. A recursive walk would use one stack
+        // frame per link, and on large programs the chain can be thousands deep — enough
+        // to overflow the (smaller) wasm stack.
+        while let Some(replacement) = self.map.get(&value) {
+            value = *replacement;
+        }
+        value
     }
 
     pub(crate) fn is_empty(&self) -> bool {

@@ -16,10 +16,10 @@ use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
 use super::types::{DataType, Type};
 
-/// A HirExpression is the result of an Expression in the AST undergoing
+/// A `HirExpression` is the result of an Expression in the AST undergoing
 /// name resolution. It is almost identical to the Expression AST node, but
 /// references other HIR nodes indirectly via IDs rather than directly via
-/// boxing. Variables in HirExpressions are tagged with their DefinitionId
+/// boxing. Variables in `HirExpressions` are tagged with their `DefinitionId`
 /// from the definition that refers to them so there is no ambiguity with names.
 #[derive(Debug, Clone)]
 pub enum HirExpression {
@@ -53,13 +53,13 @@ pub struct HirIdent {
     pub location: Location,
     pub id: DefinitionId,
 
-    /// If this HirIdent refers to a trait method, this field stores
+    /// If this `HirIdent` refers to a trait method, this field stores
     /// whether the impl for this method is known or not.
     pub impl_kind: ImplKind,
 }
 
 impl HirIdent {
-    /// Create a [HirIdent] with [ImplKind::NotATraitMethod].
+    /// Create a [`HirIdent`] with [`ImplKind::NotATraitMethod`].
     ///
     /// It may not be a method at all.
     pub fn non_trait_method(id: DefinitionId, location: Location) -> Self {
@@ -158,7 +158,7 @@ pub struct HirPrefixExpression {
 }
 
 impl HirPrefixExpression {
-    /// Creates a basic HirPrefixExpression with `trait_method_id = None` and `skip = false`
+    /// Creates a basic `HirPrefixExpression` with `trait_method_id = None` and `skip = false`
     pub fn new(operator: UnaryOp, rhs: ExprId) -> Self {
         Self { operator, rhs, trait_method_id: None, skip: false }
     }
@@ -178,7 +178,7 @@ pub struct HirInfixExpression {
 }
 
 /// This is always a struct field access `my_struct.field`
-/// and never a method call. The later is represented by HirMethodCallExpression.
+/// and never a method call. The later is represented by `HirMethodCallExpression`.
 #[derive(Debug, Clone)]
 pub struct HirMemberAccess {
     pub lhs: ExprId,
@@ -216,7 +216,7 @@ pub struct HirCallExpression {
 }
 
 /// These nodes are temporary, they're
-/// lowered into HirCallExpression nodes
+/// lowered into `HirCallExpression` nodes
 /// after type checking resolves the object
 /// type and the method it calls.
 #[derive(Debug, Clone)]
@@ -230,7 +230,7 @@ pub struct HirMethodCallExpression {
 }
 
 /// Corresponds to `assert` and `assert_eq` in the source code.
-/// This node also contains the FileId of the file the constrain
+/// This node also contains the `FileId` of the file the constrain
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
@@ -262,7 +262,7 @@ pub struct HirTraitMethodReference {
 }
 
 impl HirMethodReference {
-    /// Return the [FuncId] of a method if it's known.
+    /// Return the [`FuncId`] of a method if it's known.
     ///
     /// Returns `None` for trait methods don't have a know function definition.
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
@@ -385,7 +385,7 @@ pub struct HirConstructorExpression {
 /// represented when using enums with named fields.
 ///
 /// During monomorphization, these expressions are translated to tuples of
-/// (tag, variant0_fields, variant1_fields, ..) since we cannot actually
+/// (tag, `variant0_fields`, `variant1_fields`, ..) since we cannot actually
 /// make a true union in a circuit.
 #[derive(Debug, Clone)]
 pub struct HirEnumConstructorExpression {
@@ -443,7 +443,7 @@ pub struct HirLambda {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirMatch {
-    /// Jump directly to ExprId
+    /// Jump directly to `ExprId`
     Success(ExprId),
 
     /// A Failure node in the match. `missing_case` is true if this node is the result of a missing

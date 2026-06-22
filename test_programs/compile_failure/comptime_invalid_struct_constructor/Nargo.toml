@@ -1,6 +1,0 @@
-[package]
-name = "comptime_invalid_struct_constructor"
-type = "bin"
-authors = [""]
-
-[dependencies]

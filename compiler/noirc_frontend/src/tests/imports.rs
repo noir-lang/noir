@@ -44,6 +44,56 @@ fn use_super_in_path() {
 }
 
 #[test]
+fn use_super_super() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        mod bar {
+            use super::super::some_func;
+
+            pub fn baz() {
+                some_func();
+            }
+        }
+    }
+
+    fn main() { }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super_super_in_path() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        mod bar {
+            pub fn func() {
+                super::super::some_func();
+            }
+        }
+    }
+
+    fn main() { }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_super_super() {
+    // `foo` is only one level deep, so `super::super` walks past the crate root.
+    let src = "
+    mod foo {
+        use super::super::some_func;
+            ^^^^^ There is no super module
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
 fn can_use_pub_use_item() {
     let src = r#"
     mod foo {
@@ -135,4 +185,18 @@ fn pub_use_reexports_that_comes_later() {
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn invalid_mod_crate_path() {
+    let src = r#"
+mod crate::mod;
+    ^^^^^ Expected an identifier but found 'crate'
+         ^^ Expected an item but found '::'
+              ^ Expected an identifier but found ';'
+
+fn main() {
+}
+"#;
+    check_errors(src);
 }

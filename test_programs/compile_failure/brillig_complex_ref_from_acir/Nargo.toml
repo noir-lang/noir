@@ -1,7 +1,0 @@
-[package]
-name = "brillig_complex_ref_from_acir"
-type = "bin"
-authors = [""]
-compiler_unstable_features = ["ownership"]
-
-[dependencies]

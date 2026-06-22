@@ -118,7 +118,7 @@ impl From<FunctionContextOptions> for SsaBlockOptions {
 /// Options for the fuzzer commands that can be used in the program context
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FuzzerCommandOptions {
-    /// If false, we don't insert jmp_if
+    /// If false, we don't insert `jmp_if`
     pub(crate) jmp_if_enabled: bool,
     /// If false, we don't insert jmp command
     pub(crate) jmp_block_enabled: bool,
