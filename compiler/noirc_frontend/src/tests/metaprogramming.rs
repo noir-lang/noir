@@ -2892,3 +2892,88 @@ fn comptime_error_on_macro_expansion() {
         "Expected a binary operation type error from each generated function, got: {messages:?}"
     );
 }
+
+#[test]
+fn self_in_macro_inside_comptime_block_inside_impl_method() {
+    let src = r#"
+    struct S { x: Field }
+
+    impl S {
+        fn foo(_self: Self) {
+            comptime {
+                let _: Quoted = quote { Self { x: 0 } };
+                let _ = make_self!();
+            };
+        }
+    }
+
+    comptime fn make_self() -> Quoted {
+        quote { Self { x: 0 } }
+    }
+
+    fn main() {
+        S { x: 0 }.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assoc_type_in_macro_inside_comptime_block_inside_impl_method() {
+    let src = r#"
+    struct S {}
+
+    trait HasAssoc {
+        type Assoc;
+        fn foo(self);
+    }
+
+    impl HasAssoc for S {
+        type Assoc = Field;
+        fn foo(_self: Self) {
+            comptime {
+                let _ = make!();
+            };
+        }
+    }
+
+    comptime fn make() -> Quoted {
+        quote { let _: Self::Assoc = 0; }
+    }
+
+    fn main() {
+        S {}.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn qualified_self_assoc_in_macro_inside_comptime_block_inside_impl_method() {
+    let src = r#"
+    struct S {}
+
+    trait HasAssoc {
+        type Assoc;
+        fn foo(self);
+    }
+
+    impl HasAssoc for S {
+        type Assoc = Field;
+        fn foo(_self: Self) {
+            comptime {
+                let _ = make!();
+            };
+        }
+    }
+
+    comptime fn make() -> Quoted {
+        quote { let _: <Self as HasAssoc>::Assoc = 0; }
+    }
+
+    fn main() {
+        S {}.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
