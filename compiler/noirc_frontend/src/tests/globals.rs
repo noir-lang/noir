@@ -560,6 +560,20 @@ fn comptime_global_used_in_runtime_code() {
 }
 
 #[test]
+fn global_containing_function_pointer_errors() {
+    let src = r#"
+    global FN_ARRAY: [fn()] = @[];
+           ^^^^^^^^ Globals cannot contain function pointers
+           ~~~~~~~~ This global has type `[fn() -> ()]`, which contains a function pointer
+
+    fn main() {
+        let _ = FN_ARRAY;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
 fn comptime_global_closure_cannot_be_inlined_into_runtime() {
     let src = r#"
     fn bar() {}
