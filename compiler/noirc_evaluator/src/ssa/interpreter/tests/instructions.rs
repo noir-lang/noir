@@ -112,6 +112,61 @@ fn add_unchecked_signed() {
     assert_eq!(value, make_unfit(129u32, NumericType::signed(8)));
 }
 
+// Regression test for noir-lang/noir-claude#1430.
+//
+// A checked arithmetic op whose operand escaped its type via an earlier overflowing unchecked
+// op (a `Fitted::Unfit` value) must evaluate against the operand's wrapped, in-range value —
+// the value ACIR (which truncates when lowering the checked op) and Brillig (fixed-width
+// registers) carry forward — instead of erroring. Otherwise the interpreter reports an overflow
+// where the backends, and the expanded SSA after `expand_signed_checks`, return the wrapped
+// result.
+#[test]
+fn checked_signed_op_over_unfit_operand_wraps() {
+    // `unchecked_mul i32 i32::MAX, 2` yields the field 4294967294, whose i32 bit pattern is -2.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i32 2147483647, i32 2
+            v1 = add v0, i32 0
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(-2));
+
+    // The second operand is irrelevant; the divergence was about the unfit operand: -2 + 5 = 3.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i32 2147483647, i32 2
+            v1 = add v0, i32 5
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(3));
+}
+
+// Companion to [`checked_signed_op_over_unfit_operand_wraps`] exercising an unfit value that
+// exceeds the type's bit width (so wrapping must truncate modulo `2^bit_size`, not just
+// reinterpret): `unchecked_add u8 200, u8 100` yields 300, which wraps to `u8 44`.
+#[test]
+fn checked_unsigned_op_over_unfit_operand_wraps() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add u8 200, u8 100
+            v1 = add v0, u8 0
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::u8(44));
+}
+
 #[test]
 fn sub_unsigned() {
     let value = expect_value(
