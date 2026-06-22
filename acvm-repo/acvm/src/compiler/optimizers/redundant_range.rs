@@ -246,6 +246,12 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     }
                     None
                 }
+                Opcode::Call { .. } => {
+                    // A call into a separate ACIR circuit can transitively execute side-effecting
+                    // Brillig, so it must act as a side-effect boundary like a direct Brillig call.
+                    next_side_effect = idx;
+                    None
+                }
                 _ => None,
             }) else {
                 // If its not the range opcode, add it to the opcode list and continue.
@@ -561,6 +567,41 @@ mod tests {
         let (double_optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.to_string(), double_optimized_circuit.to_string());
+    }
+
+    #[test]
+    fn acir_call_is_a_side_effect_boundary() {
+        // An `Opcode::Call` dispatches into a separate ACIR circuit that can transitively run
+        // side-effecting Brillig. Just like a `BrilligCall`, it must act as a side-effect boundary:
+        // a caller-side explicit RANGE before the call must not be removed even when a later
+        // implied constraint (here `ASSERT w1 = 0`) would otherwise make it redundant.
+        let src = "
+        private parameters: [w1, w2]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        CALL func: 1, predicate: 1, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions: Vec<usize> =
+            circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+
+        // The range must be retained before the `CALL`.
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w1, w2]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        CALL func: 1, predicate: 1, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        ");
     }
 
     #[test]
