@@ -609,9 +609,13 @@ jobs:
           path: ./tooling/noirc_abi_wasm
 
       - name: Build noir_js
+        # @noir-lang/types and @noir-lang/noir_js are pure TypeScript (tsc) and
+        # don't need the wasm toolchain that `just build-package` installs via
+        # install-js-tools; the wasm packages they depend on are downloaded as
+        # prebuilt artifacts above. Build them directly to skip that install.
         run: |
-          just build-package @noir-lang/types
-          just build-package @noir-lang/noir_js
+          yarn workspace @noir-lang/types build
+          yarn workspace @noir-lang/noir_js build
 
       - name: Run examples
         run: just run-examples
