@@ -14,6 +14,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
   cancel-in-progress: true
 
+# Authenticate cargo-binstall's GitHub API requests (run by `just build-package`
+# via install-js-tools). Unauthenticated they hit GitHub's 60 req/hour limit, get
+# 403, and binstall falls back to compiling the wasm toolchain from source —
+# turning a ~30s step into minutes. A valid token raises the limit to 5000/hour;
+# it needs no permission scopes for this (only public release metadata is read).
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   critical-library-list:
     name: Load critical library list
