@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["GitUrlParseError"],"fn":["run"],"struct":["AddCommand","GitUrl"]};
