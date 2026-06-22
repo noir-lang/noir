@@ -186,3 +186,17 @@ fn pub_use_reexports_that_comes_later() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn invalid_mod_crate_path() {
+    let src = r#"
+mod crate::mod;
+    ^^^^^ Expected an identifier but found 'crate'
+         ^^ Expected an item but found '::'
+              ^ Expected an identifier but found ';'
+
+fn main() {
+}
+"#;
+    check_errors(src);
+}

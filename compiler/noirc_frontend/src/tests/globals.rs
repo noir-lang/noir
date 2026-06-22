@@ -55,6 +55,34 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 }
 
 #[test]
+fn global_without_value() {
+    let src = r#"
+    pub  global X: [Field];
+                ^ Expected the global to have a value
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn global_without_a_type_used_as_array_length() {
+    let src = r#"
+        global BAR = OOPS;
+               ^^^ Globals must have a specified type
+                     ^^^^ cannot find `OOPS` in this scope
+                     ^^^^ Global failed to evaluate
+                     ~~~~ not found in this scope
+                     ~~~~ Inferred type is `_`
+        global X: [Field; BAR] = [];
+               ^ unused global X
+               ~ unused global
+                          ^^^ expected type, found global `BAR`
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn do_not_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
@@ -414,19 +442,140 @@ fn can_refer_to_complex_global_in_method_signature() {
 }
 
 #[test]
+fn global_trait_name_static_method_initializer() {
+    let src = r#"
+    trait Make {
+        fn make() -> Self;
+    }
+
+    impl Make for u32 {
+        fn make() -> Self { 12 }
+    }
+
+    global X: u32 = Make::make();
+
+    fn main() {
+        assert(X == 12);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn global_fully_qualified_trait_static_method_initializer() {
+    let src = r#"
+    trait Make {
+        fn make() -> Self;
+    }
+
+    impl Make for u32 {
+        fn make() -> Self { 12 }
+    }
+
+    global X: u32 = <u32 as Make>::make();
+
+    fn main() {
+        assert(X == 12);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn local_trait_name_static_method() {
+    let src = r#"
+    trait Make {
+        fn make() -> Self;
+    }
+
+    impl Make for u32 {
+        fn make() -> Self { 12 }
+    }
+
+    fn main() {
+        let x: u32 = Make::make();
+        assert(x == 12);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_global_is_needed_in_initialize_and_function_signature() {
     let src = r#"
-    global FOO: u32 = init([0; 10]);
-           ^^^ Dependency cycle found
-           ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
-                      ^^^^^^^^^^^^^ Expected type u32, found type ()
+    pub global FOO: u32 = init([0; 10]);
+               ^^^ Dependency cycle found
+               ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
 
-    fn init(_array: [Field; FOO]) {}
-                            ^^^ Cannot find a global or generic type parameter named `FOO`
-                            ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
-                            ^^^ expected type, found global `FOO`
+    pub fn init(_array: [Field; FOO]) -> u32 { 0 }
+                                ^^^ Cannot find a global or generic type parameter named `FOO`
+                                ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
+                                ^^^ expected type, found global `FOO`
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_report_false_cycle_after_failed_comptime_global() {
+    let src = r#"
+    global LATE: u32 = {
+        assert(false);
+               ^^^^^ Assertion failed
+        0
+    };
+    global SECOND: u32 = LATE;
+                         ^^^^ Failed to resolve this global
+    global THIRD: u32 = LATE;
+                        ^^^^ Failed to resolve this global
+    fn main() {
+        let _ = LATE;
+        let _ = SECOND;
+        let _ = THIRD;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_used_in_runtime_code() {
+    let src = r#"
+    fn bar() {}
+
+    unconstrained fn baz(x: Field) {
+        assert_eq(x, 5);
+        bar()
+    }
+
+    pub comptime global foo_global: fn(Field) = |x: Field| baz(x);
+
+    fn main(x: Field) {
+        foo_global(x);
+        ^^^^^^^^^^ Comptime global `foo_global` used in non-comptime code
+        ~~~~~~~~~~ Consider using a comptime function or block
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_closure_cannot_be_inlined_into_runtime() {
+    let src = r#"
+    fn bar() {}
+
+    unconstrained fn baz(x: Field) {
+        assert_eq(x, 5);
+        bar()
+    }
+
+    pub comptime global foo_global: fn(Field) = |x: Field| baz(x);
+
+    fn main(x: Field) {
+        let _ = comptime { foo_global }(x);
+                ^^^^^^^^^^^^^^^^^^^^^^^ Cannot inline values of type `fn(Field) -> ()` into this position
+                ~~~~~~~~~~~~~~~~~~~~~~~ Cannot inline value `(closure)`
+    }
     "#;
     check_errors(src);
 }

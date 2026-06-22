@@ -54,7 +54,7 @@ pub enum ExpressionKind {
     Interned(InternedExpressionKind),
 
     /// Interned statements are allowed to be parsed as expressions in case they resolve
-    /// to an StatementKind::Expression or StatementKind::Semi.
+    /// to an `StatementKind::Expression` or `StatementKind::Semi`.
     InternedStatement(InternedStatementKind),
 
     Error,
@@ -77,7 +77,7 @@ pub enum IdentOrQuotedType {
     /// Already-resolved generics can be parsed as generics when a macro
     /// splices existing types into a generic list. In this case we have
     /// to validate the type refers to a named generic and treat that
-    /// as a ResolvedGeneric when this is resolved.
+    /// as a `ResolvedGeneric` when this is resolved.
     Quoted(QuotedTypeId, Location),
 }
 

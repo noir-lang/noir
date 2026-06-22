@@ -50,23 +50,23 @@ impl Default for FunctionData {
 
 /// Represents set of commands for the fuzzer
 ///
-/// After executing all commands, terminates all blocks from current_block_queue with return
+/// After executing all commands, terminates all blocks from `current_block_queue` with return
 #[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize, EnumCount)]
 pub(crate) enum FuzzerFunctionCommand {
-    /// Adds instructions to current_block_context from stored instruction_blocks
+    /// Adds instructions to `current_block_context` from stored `instruction_blocks`
     InsertSimpleInstructionBlock { instruction_block_idx: usize },
-    /// terminates current SSA block with jmp_if_else. Creates two new SSA blocks from chosen InstructionBlocks.
+    /// terminates current SSA block with `jmp_if_else`. Creates two new SSA blocks from chosen `InstructionBlocks`.
     /// If in loop, finalizes then and else branches with jump to the loop iter block. Switches context to the loop end block.
-    /// Otherwise, switches current_block_context to then_branch.
-    /// Adds else_branch to the next_block_queue. If current SSA block is already terminated, skip.
+    /// Otherwise, switches `current_block_context` to `then_branch`.
+    /// Adds `else_branch` to the `next_block_queue`. If current SSA block is already terminated, skip.
     InsertJmpIfBlock { block_then_idx: usize, block_else_idx: usize },
     /// Terminates current SSA block with jmp.
     /// If in loop, finalizes the loop and switches context to the loop end block.
     ///
-    /// Otherwise, creates new SSA block from chosen InstructionBlock.
-    /// Switches current_block_context to jmp_destination.
+    /// Otherwise, creates new SSA block from chosen `InstructionBlock`.
+    /// Switches `current_block_context` to `jmp_destination`.
     InsertJmpBlock { block_idx: usize },
-    /// Adds current SSA block to the next_block_queue. Switches context to stored in next_block_queue.
+    /// Adds current SSA block to the `next_block_queue`. Switches context to stored in `next_block_queue`.
     SwitchToNextBlock,
 
     /// Adds loop to the program.
@@ -77,7 +77,7 @@ pub(crate) enum FuzzerFunctionCommand {
     InsertFunctionCall { function_idx: usize, args: [usize; NUMBER_OF_VARIABLES_INITIAL as usize] },
 }
 
-/// Default command is InsertSimpleInstructionBlock with instruction_block_idx = 0
+/// Default command is `InsertSimpleInstructionBlock` with `instruction_block_idx` = 0
 ///
 /// Only used for mutations
 impl Default for FuzzerFunctionCommand {
@@ -118,7 +118,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Number of SSA blocks inserted in the program
     inserted_ssa_blocks_count: usize,
 
-    /// Stored cycles info, to handle loops in Jmp, JmpIf and finalization
+    /// Stored cycles info, to handle loops in Jmp, `JmpIf` and finalization
     cycle_bodies_to_iters_ids: BTreeMap<BasicBlockId, CycleInfo>,
     /// Number of iterations of loops in the program
     parent_iterations_count: usize,
@@ -246,7 +246,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// Stores variables of the current block
     ///
     /// SSA block can use variables from predecessor that is not in branch.
-    /// Look [Self::find_closest_parent] for more details.
+    /// Look [`Self::find_closest_parent`] for more details.
     fn store_variables(&mut self) {
         self.stored_variables_for_block.insert(
             self.current_block.block_id,
@@ -413,12 +413,12 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///
     /// Loops in Noir on SSA level work as follows:
     /// 1) Create constant for start iteration
-    /// 2) Jump to the "block_if" (block that checks if the loop should continue)
-    /// 3) In "block_if" create constant for end iteration
-    /// 4) Finalize "block_if" with jmp_if iter < end_iter then "block_body" else "block_end"
-    /// 5) In "block_body" do everything you want
-    /// 6) "body_block" must be finalized with jmp to "block_iter"
-    /// 7) "block_iter" increment the iterator and jump to "block_if"
+    /// 2) Jump to the "`block_if`" (block that checks if the loop should continue)
+    /// 3) In "`block_if`" create constant for end iteration
+    /// 4) Finalize "`block_if`" with `jmp_if` iter < `end_iter` then "`block_body`" else "`block_end`"
+    /// 5) In "`block_body`" do everything you want
+    /// 6) "`body_block`" must be finalized with jmp to "`block_iter`"
+    /// 7) "`block_iter`" increment the iterator and jump to "`block_if`"
     ///
     /// For example following Noir program:
     /// ```noir
@@ -631,8 +631,8 @@ impl<'a> FuzzerFunctionContext<'a> {
     }
 
     /// Merges two blocks into one
-    /// Creates empty merged_block. Terminates first_block and second_block with jmp to merged_block
-    /// Returns merged_block
+    /// Creates empty `merged_block`. Terminates `first_block` and `second_block` with jmp to `merged_block`
+    /// Returns `merged_block`
     fn merge_blocks(
         &mut self,
         mut first_block: StoredBlock,
@@ -752,7 +752,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// There are several restrictions for CFG
     /// 1) We can only have one return block;
     /// 2) Every block should have not more than two predecessors;
-    /// 3) Every block must be terminated with return/jmp/jmp_if;
+    /// 3) Every block must be terminated with `return/jmp/jmp_if`;
     /// 4) Blocks from different branches should not be merged, e.g.
     ///    ```text
     ///          b0
@@ -806,7 +806,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         }
     }
 
-    /// Creates return block and terminates all blocks from current_block_queue with return
+    /// Creates return block and terminates all blocks from `current_block_queue` with return
     pub(crate) fn finalize(&mut self, return_instruction_block_idx: usize) {
         // save all not-terminated blocks to stored_blocks
         self.finalize_cycles();

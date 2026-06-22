@@ -61,8 +61,8 @@ impl Function {
     }
 }
 
-/// MAX_NON_OVERFLOWING_CONST_ARG is expected to be [p/U],
-/// where U=U128::max() and p is the field modulus.
+/// `MAX_NON_OVERFLOWING_CONST_ARG` is expected to be [p/U],
+/// where `U=U128::max()` and p is the field modulus.
 ///
 /// Then x<=[p/U]<p/U, so x*U<p
 static MAX_NON_OVERFLOWING_CONST_ARG: std::sync::LazyLock<u128> = std::sync::LazyLock::new(|| {

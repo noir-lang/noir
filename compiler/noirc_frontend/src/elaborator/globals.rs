@@ -5,14 +5,14 @@
 //! Global constants in Noir are elaborated in a two-phase process:
 //!
 //! ### Name resolution and type Checking and HIR Generation
-//! [Elaborator::elaborate_global] validates the global definition and generates its HIR
+//! [`Elaborator::elaborate_global`] validates the global definition and generates its HIR
 //! representation. Key constraints enforced:
 //! - Globals must be immutable (unless marked `comptime` for compile-time mutation)
 //! - Global types cannot contain references
 //! - ABI attributes are only valid within contracts
 //!
 //! ### Comptime Evaluation
-//! The [Elaborator::elaborate_comptime_global] function evaluates the global's initializer expression
+//! The [`Elaborator::elaborate_comptime_global`] function evaluates the global's initializer expression
 //! at compile time using the interpreter. The resulting value is stored in the interner and can be used
 //! later for compile-time operations such as a type-level arithmetic.
 //!
@@ -33,7 +33,7 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
-    /// Order the set of unresolved globals by their [GlobalId].
+    /// Order the set of unresolved globals by their [`GlobalId`].
     /// This set will be used to determine the ordering in which globals are elaborated.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
@@ -42,7 +42,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Elaborate any globals which were not brought into scope by other items through [Self::elaborate_global_if_unresolved].
+    /// Elaborate any globals which were not brought into scope by other items through [`Self::elaborate_global_if_unresolved`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_remaining_globals(&mut self) {
         // Start at the first global IDs to maintain the dependency order
@@ -168,8 +168,12 @@ impl Elaborator<'_> {
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
-            // Globals must be elaborated at the global scope
+            // Globals must be elaborated at the global scope: drain every non-global scope so the
+            // initializer is defined into the global scope, and lower the scope floor to one so the
+            // initializer's own block-local scopes (which may be pushed when evaluating it during an
+            // enclosing comptime call) remain visible.
             let saved_scopes: Vec<_> = self.interner.comptime_scopes.drain(1..).collect();
+            let saved_floor = std::mem::replace(&mut self.interner.comptime_scope_floor, 1);
 
             let mut interpreter = self.setup_interpreter();
 
@@ -192,6 +196,7 @@ impl Elaborator<'_> {
             }
 
             self.interner.comptime_scopes.extend(saved_scopes);
+            self.interner.comptime_scope_floor = saved_floor;
         }
     }
 

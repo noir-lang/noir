@@ -160,7 +160,7 @@ impl Context {
         }
     }
 
-    /// Handle an [Expression::ExtractTupleField] by moving the cloning to limit its scope to the
+    /// Handle an [`Expression::ExtractTupleField`] by moving the cloning to limit its scope to the
     /// innermost item it needs to be applied to.
     ///
     /// Panics if called on a different kind of expression.
@@ -472,7 +472,7 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
     }
 }
 
-/// Returns the element types of a [Type::Tuple], or a reference to a tuple.
+/// Returns the element types of a [`Type::Tuple`], or a reference to a tuple.
 ///
 /// Returns `None` for any other type.
 fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {

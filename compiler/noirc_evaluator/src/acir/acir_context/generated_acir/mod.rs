@@ -42,7 +42,7 @@ pub struct GeneratedAcir<F: AcirField> {
     /// and thus next witness index that be declared is zero.
     /// This field is private should only ever be accessed through its getter and setter.
     ///
-    /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
+    /// Equivalent to `acvm::acir::circuit::Circuit`'s field of the same name.
     current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
@@ -428,7 +428,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         Ok(limb_witnesses)
     }
 
-    /// Adds brillig opcode for to_radix
+    /// Adds brillig opcode for `to_radix`
     ///
     /// This code will decompose `expr` in a radix-base
     /// and return  `Witnesses` which may (or not, because it does not apply constraints)

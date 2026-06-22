@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given [InstructionBlock](crate::fuzz_lib::instruction::InstructionBlock) value
+//! This file contains mechanisms for deterministically mutating a given [`InstructionBlock`](crate::fuzz_lib::instruction::InstructionBlock) value
 
 use crate::fuzz_lib::instruction::{Argument, Instruction, InstructionBlock, NumericArgument};
 use crate::mutations::configuration::SIZE_OF_LARGE_ARBITRARY_BUFFER;

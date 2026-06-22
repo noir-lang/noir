@@ -103,7 +103,7 @@ pub enum VMStatus<F> {
     /// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
     /// reached where the outputs are yet to be resolved.
     ///
-    /// The caller should interpret the information returned to compute a [ForeignCallResult]
+    /// The caller should interpret the information returned to compute a [`ForeignCallResult`]
     /// and update the Brillig process. The VM can then be restarted to fully solve the previously
     /// unresolved foreign call as well as the remaining Brillig opcodes.
     ForeignCallWait {
@@ -149,7 +149,7 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     ///   unprocessed responses returned from the external foreign call handler.
     foreign_call_counter: usize,
     /// Accumulates the outputs of all foreign calls during a Brillig process.
-    /// The list is appended onto by the caller upon reaching a [VMStatus::ForeignCallWait].
+    /// The list is appended onto by the caller upon reaching a [`VMStatus::ForeignCallWait`].
     foreign_call_results: Vec<ForeignCallResult<F>>,
     /// Executable opcodes.
     bytecode: &'a [Opcode<F>],
@@ -302,7 +302,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         call_stack
     }
 
-    /// Returns the VM's call stack, but unlike [Self::get_call_stack] without the attaching
+    /// Returns the VM's call stack, but unlike [`Self::get_call_stack`] without the attaching
     /// the program counter in the last position of the returned vector.
     /// This is meant only for fetching the call stack after execution has completed.
     pub fn get_call_stack_no_current_counter(&self) -> Vec<usize> {
@@ -534,7 +534,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Sets the program counter to `value`.
     /// If the program counter no longer points to an opcode
-    /// in the bytecode, then the VMStatus reports `Finished`.
+    /// in the bytecode, then the `VMStatus` reports `Finished`.
     fn set_program_counter(&mut self, value: usize) -> &VMStatus<F> {
         assert!(self.program_counter < self.bytecode.len());
         self.program_counter = value;

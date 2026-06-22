@@ -532,7 +532,7 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/8963
+/// Regression test for <https://github.com/noir-lang/noir/issues/8963>
 ///
 /// When a path-based trait call like `U60Repr::from2(x)` has multiple candidate
 /// impls, only one of which is compatible with the argument type, the trait
@@ -937,7 +937,7 @@ fn two_traits_same_method_name_disambiguated_by_constraint() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11540
+/// Regression test for <https://github.com/noir-lang/noir/issues/11540>
 #[test]
 fn trait_method_resolved_with_multiple_impls_different_type_params() {
     let src = r#"
@@ -1114,4 +1114,18 @@ fn trait_method_and_struct_method_with_same_name_and_turbofish() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn no_eq_impl_for_struct_in_assert_eq() {
+    let src = r#"
+    struct myStruct {}
+
+    fn main(x: myStruct, y: pub myStruct) {
+        assert_eq(x, y);
+                  ^^^^ No matching impl found for `myStruct: Eq`
+                  ~~~~ No impl for `myStruct: Eq`
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }

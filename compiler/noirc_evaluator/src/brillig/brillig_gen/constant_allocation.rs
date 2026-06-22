@@ -112,7 +112,7 @@ impl ConstantAllocation {
         }
     }
 
-    /// Based on the [Self::constant_usage] collected, find the common dominator of all the block where a constant is used
+    /// Based on the [`Self::constant_usage`] collected, find the common dominator of all the block where a constant is used
     /// and mark it as the allocation point for the constant.
     fn decide_allocation_points(&mut self, func: &Function) {
         for (constant_id, usage_in_blocks) in &self.constant_usage {
@@ -172,7 +172,7 @@ impl ConstantAllocation {
         current_block
     }
 
-    /// Return the SSA [ValueId] of all constants (the same numeric constant might appear with multiple IDs).
+    /// Return the SSA [`ValueId`] of all constants (the same numeric constant might appear with multiple IDs).
     pub(crate) fn get_constants(&self) -> BTreeSet<ValueId> {
         self.constant_usage.keys().copied().collect()
     }

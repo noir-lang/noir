@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Element {
+    a: Field,
+    b: Field,
+    c: Field,
+    d: Field,
+    e: Field,
+}
+
+fn main(input: [Element; 256], condition: bool) {
+    let mut arr: [Element; 256] = input;
+    for i in 0_u32..256_u32 {
+        if condition {
+            arr[i].a = arr[i].a + 1_Field;
+            arr[i].c = arr[i].c + 2_Field;
+            arr[i].e = arr[i].e + 3_Field;
+        }
+    }
+    assert(arr[0_u32].a != 0_Field);
+}

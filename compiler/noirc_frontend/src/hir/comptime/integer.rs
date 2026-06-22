@@ -64,7 +64,7 @@ pub enum Integer {
 }
 
 impl Integer {
-    /// Converts this [Integer] to a [FieldElement]. Any negative values are
+    /// Converts this [Integer] to a [`FieldElement`]. Any negative values are
     /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
     /// In other words, the resulting field is not in two's complement form.
     pub fn as_field(self) -> FieldElement {
@@ -82,7 +82,7 @@ impl Integer {
         }
     }
 
-    /// Converts this [Integer] to a [FieldElement]. Any negative values are
+    /// Converts this [Integer] to a [`FieldElement`]. Any negative values are
     /// encoded in two's complement such that `-x_iN == 2^N - x`.
     /// In other words, the resulting field is in two's complement form.
     pub(crate) fn as_field_twos_complement(self) -> FieldElement {
@@ -100,13 +100,23 @@ impl Integer {
         }
     }
 
+    /// Returns whether this integer is strictly less than zero.
+    ///
+    /// Only the signed variants can be negative. Unsigned integers cannot represent a negative
+    /// value, and a Noir `Field` has no signedness: `Integer::Field` wraps a `FieldElement`,
+    /// which is an element of a prime field with no notion of sign. Both therefore return `false`.
     pub fn is_negative(&self) -> bool {
         match self {
             Integer::I8(x) => *x < 0,
             Integer::I16(x) => *x < 0,
             Integer::I32(x) => *x < 0,
             Integer::I64(x) => *x < 0,
-            _ => false, // Unsigned or Field types are never negative
+            Integer::Field(_)
+            | Integer::U8(_)
+            | Integer::U16(_)
+            | Integer::U32(_)
+            | Integer::U64(_)
+            | Integer::U128(_) => false,
         }
     }
 
@@ -424,6 +434,7 @@ impl std::ops::Div for Integer {
 
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
+            (Integer::Field(_), Integer::Field(rhs)) if rhs.is_zero() => None,
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs / rhs)),
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_div(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_div(rhs).map(Integer::U16),
@@ -462,11 +473,12 @@ impl std::ops::Rem for Integer {
 
 impl Integer {
     /// `self < rhs`
-    /// Similar to the derived `impl Ord for Integer` but will return `None` when the integer
-    /// variants do not match.
+    /// Returns `None` when the integer variants do not match, and for `Field` operands:
+    /// fields have no ordering (their canonical representatives encode `-k` as `p - k`,
+    /// which would invert signed intuition), matching the elaborator's rejection of
+    /// `<`/`<=`/`>`/`>=` on `Field`.
     pub fn lt(&self, rhs: &Self) -> Option<bool> {
         match (self, rhs) {
-            (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs < rhs),
             (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs < rhs),
             (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs < rhs),
             (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs < rhs),
@@ -481,11 +493,12 @@ impl Integer {
     }
 
     /// `self <= rhs`
-    /// Similar to the derived `impl Ord for Integer` but will return `None` when the integer
-    /// variants do not match.
+    /// Returns `None` when the integer variants do not match, and for `Field` operands:
+    /// fields have no ordering (their canonical representatives encode `-k` as `p - k`,
+    /// which would invert signed intuition), matching the elaborator's rejection of
+    /// `<`/`<=`/`>`/`>=` on `Field`.
     pub fn lte(&self, rhs: &Self) -> Option<bool> {
         match (self, rhs) {
-            (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs <= rhs),
             (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs <= rhs),
             (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs <= rhs),
             (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs <= rhs),
@@ -747,8 +760,9 @@ mod tests {
     fn field_division_by_zero() {
         let a = Integer::Field(FieldElement::from(5u64));
         let b = Integer::Field(FieldElement::zero());
-        // Field division always "succeeds" (FieldElement handles it internally)
-        assert!((a / b).is_some());
+        // Division by zero must honor the `None`-on-failure contract rather than
+        // silently canonicalizing to the field-element inverse of zero (which is zero).
+        assert_eq!(a / b, None);
     }
 
     #[test]
@@ -756,6 +770,22 @@ mod tests {
         let a = Integer::Field(FieldElement::from(10u64));
         let b = Integer::Field(FieldElement::from(3u64));
         assert_eq!(a % b, None);
+    }
+
+    #[test]
+    fn field_lt_is_unordered() {
+        let neg_one = Integer::Field(Integer::I64(-1).as_field());
+        let zero = Integer::Field(FieldElement::zero());
+        assert_eq!(neg_one.lt(&zero), None);
+        assert_eq!(zero.lt(&neg_one), None);
+    }
+
+    #[test]
+    fn field_lte_is_unordered() {
+        let neg_one = Integer::Field(Integer::I64(-1).as_field());
+        let zero = Integer::Field(FieldElement::zero());
+        assert_eq!(neg_one.lte(&zero), None);
+        assert_eq!(zero.lte(&neg_one), None);
     }
 
     // === BigInt conversions ===

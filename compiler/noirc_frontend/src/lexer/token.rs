@@ -166,7 +166,7 @@ pub enum Token {
     Whitespace(String),
 
     /// This is an implementation detail on how macros are implemented by quoting token streams.
-    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// This token marks where an unquote operation is performed. The `ExprId` argument is the
     /// resolved variable which is being unquoted at this position in the token stream.
     UnquoteMarker(ExprId),
 
@@ -597,14 +597,14 @@ impl IntType {
     }
 }
 
-/// TestScope is used to specify additional annotations for test functions
+/// `TestScope` is used to specify additional annotations for test functions
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum TestScope {
-    /// If a test has a scope of ShouldFailWith, then it can only pass
+    /// If a test has a scope of `ShouldFailWith`, then it can only pass
     /// if it fails with the specified reason. If the reason is None, then
     /// the test must unconditionally fail
     ShouldFailWith { reason: Option<String> },
-    /// If a test has a scope of OnlyFailWith, then it can only fail
+    /// If a test has a scope of `OnlyFailWith`, then it can only fail
     /// if it fails with the specified reason.
     OnlyFailWith { reason: String },
     /// No scope is applied and so the test must pass
@@ -626,16 +626,16 @@ impl Display for TestScope {
     }
 }
 
-/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
+/// `FuzzingScope` is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
-    /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
+    /// If the fuzzing harness has a scope of `ShouldFailWith`, then it should only pass
     /// if it fails with the specified reason. If the reason is None, then
     /// the harness must unconditionally fail
     ShouldFailWith {
         reason: Option<String>,
     },
-    /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
+    /// If a fuzzing harness has a scope of `OnlyFailWith`, then it will only detect an assert
     /// if it fails with the specified reason.
     OnlyFailWith {
         reason: String,
@@ -798,7 +798,7 @@ impl Display for Attribute {
 }
 
 /// Primary Attributes are those which a function can only have one of.
-/// They change the FunctionKind and thus have direct impact on the IR output
+/// They change the `FunctionKind` and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct FunctionAttribute {
     pub kind: FunctionAttributeKind,
@@ -806,7 +806,7 @@ pub struct FunctionAttribute {
 }
 
 /// Primary Attributes are those which a function can only have one of.
-/// They change the FunctionKind and thus have direct impact on the IR output
+/// They change the `FunctionKind` and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FunctionAttributeKind {
     Foreign(String),
