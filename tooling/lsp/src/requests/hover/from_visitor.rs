@@ -1,6 +1,3 @@
-use std::str::FromStr;
-
-use acvm::FieldElement;
 use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -59,7 +56,7 @@ impl<'a> HoverFinder<'a> {
 impl Visitor for HoverFinder<'_> {
     fn visit_literal_integer(
         &mut self,
-        value: FieldElement,
+        value: &BigInt,
         _suffix: Option<IntegerTypeSuffix>,
         span: Span,
     ) {
@@ -118,22 +115,11 @@ impl Visitor for HoverFinder<'_> {
     }
 }
 
-fn format_integer(typ: &Type, value: FieldElement) -> String {
-    let value_base_10 = if typ.is_signed() {
-        let bit_size = typ.integer_bit_size().unwrap();
-        value.to_string_as_signed_integer(bit_size)
+fn format_integer(typ: &Type, value: &BigInt) -> String {
+    if *value < BigInt::ZERO {
+        format!("    {typ}\n---\nvalue of literal: `{value} (-0x{:02x})`", -value)
     } else {
-        value.to_string()
-    };
-
-    // For simplicity we parse the value as a BigInt to convert it to hex
-    // because `FieldElement::to_hex` will include many leading zeros.
-    let value_big_int = BigInt::from_str(&value_base_10).unwrap();
-
-    if value_big_int < BigInt::ZERO {
-        format!("    {typ}\n---\nvalue of literal: `{value_base_10} (-0x{:02x})`", -value_big_int)
-    } else {
-        format!("    {typ}\n---\nvalue of literal: `{value_base_10} (0x{value_big_int:02x})`")
+        format!("    {typ}\n---\nvalue of literal: `{value} (0x{value:02x})`")
     }
 }
 
@@ -159,32 +145,32 @@ fn primitive_type_markup_content(name: &str, interner: &NodeInterner) -> Option<
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
     use noirc_frontend::{Type, ast::IntegerBitSize, shared::Signedness};
+    use num_bigint::BigInt;
 
     use super::format_integer;
 
     #[test]
     fn format_integer_zero() {
         let typ = Type::FieldElement;
-        let value = 0_u128.into();
+        let value = BigInt::ZERO;
         let expected = "    Field\n---\nvalue of literal: `0 (0x00)`";
-        assert_eq!(format_integer(&typ, value), expected);
+        assert_eq!(format_integer(&typ, &value), expected);
     }
 
     #[test]
     fn format_positive_integer() {
         let typ = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        let value = 123456_u128.into();
+        let value = BigInt::from(123456);
         let expected = "    u32\n---\nvalue of literal: `123456 (0x1e240)`";
-        assert_eq!(format_integer(&typ, value), expected);
+        assert_eq!(format_integer(&typ, &value), expected);
     }
 
     #[test]
     fn format_negative_integer() {
         let typ = Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour);
-        let value = -FieldElement::from(987654_u128);
+        let value = BigInt::from(-987654);
         let expected = "    i64\n---\nvalue of literal: `-987654 (-0xf1206)`";
-        assert_eq!(format_integer(&typ, value), expected);
+        assert_eq!(format_integer(&typ, &value), expected);
     }
 }
