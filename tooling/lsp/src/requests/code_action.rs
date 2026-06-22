@@ -88,7 +88,7 @@ struct CodeActionFinder<'a> {
     usage_tracker: &'a UsageTracker,
     /// How many nested `mod` we are in deep
     nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     auto_import_line: usize,
     use_segment_positions: UseSegmentPositions,
     /// Text edits for the "Remove all unused imports" code action

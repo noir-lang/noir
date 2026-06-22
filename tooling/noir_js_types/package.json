@@ -40,8 +40,8 @@
   },
   "devDependencies": {
     "@types/prettier": "^3.0.0",
-    "eslint": "^10.4.0",
-    "eslint-plugin-prettier": "^5.5.5",
+    "eslint": "^10.4.1",
+    "eslint-plugin-prettier": "^5.5.6",
     "prettier": "3.8.3",
     "typescript": "^6.0.3"
   }

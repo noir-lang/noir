@@ -103,3 +103,6 @@ could be written as:
 let mut i = 0;
 i += 1;
 ```
+
+### Shift right
+Noir performs a logical shift for unsigned integers and an arithmetic (sign-preserving) shift for signed operands.

@@ -9,12 +9,12 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
-    check_function_not_yet_resolved, check_one_argument, check_three_arguments,
-    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_location, get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl,
-    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
-    parse, quote_ident, visibility_to_quoted,
+    check_function_not_yet_resolved, check_one_argument, check_return_type_shape,
+    check_three_arguments, check_two_arguments, get_bool, get_expr, get_field, get_format_string,
+    get_function_def, get_location, get_module, get_quoted, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
+    get_vector, has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op,
+    new_unary_op, parse, quote_ident, type_shape, visibility_to_quoted,
 };
 use fm::FileMap;
 use im::Vector;
@@ -59,7 +59,9 @@ use crate::{
     token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
+use self::builtin_helpers::{
+    DeterministicHasher, eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex,
+};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -73,8 +75,9 @@ impl Interpreter<'_, '_> {
         location: Location,
     ) -> IResult<Value> {
         let call_stack = &self.elaborator.interpreter_call_stack().clone();
+        let expected_return_shape = type_shape(&return_type);
         let interner = &mut self.elaborator.interner;
-        match name {
+        let result = match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
@@ -295,7 +298,10 @@ impl Interpreter<'_, '_> {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
-        }
+        }?;
+
+        check_return_type_shape(&result, expected_return_shape, location)?;
+        Ok(result)
     }
 }
 
@@ -386,7 +392,7 @@ fn checked_transmute(
 ) -> IResult<Value> {
     let (value, location) = check_one_argument(arguments, location)?;
 
-    if value.get_type().as_ref() != &return_type {
+    if value.get_type().try_unify_with_default_bindings(&return_type).is_err() {
         return Err(InterpreterError::CheckedTransmuteFailed {
             actual: value.get_type().into_owned(),
             expected: return_type,
@@ -507,7 +513,7 @@ fn type_def_add_abi(
     Ok(Value::Unit)
 }
 
-/// fn as_type(self) -> Type
+/// fn `as_type(self)` -> Type
 fn type_def_as_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -633,8 +639,8 @@ fn type_def_has_attribute(
     Ok(Value::Bool(matched))
 }
 
-/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)]
-/// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
+/// fn fields(self, `generic_args`: [Type]) -> [(Quoted, Type, Quoted)]
+/// Returns (name, type, visibility) tuples of each field of this `TypeDefinition`.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
     interpreter: &mut Interpreter,
@@ -702,8 +708,8 @@ fn type_def_fields(
     Ok(Value::Vector(fields, typ))
 }
 
-/// fn fields_as_written(self) -> [(Quoted, Type, Quoted)]
-/// Returns (name, type) pairs of each field of this TypeDefinition.
+/// fn `fields_as_written(self)` -> [(Quoted, Type, Quoted)]
+/// Returns (name, type) pairs of each field of this `TypeDefinition`.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
@@ -976,12 +982,19 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
+    let typ = parse(
+        interpreter.elaborator,
+        argument,
+        Parser::parse_type_or_type_expression_or_error,
+        "a type",
+    )?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_type(typ, wildcard_allowed)
+            // `Kind::Any` so a numeric type expression (e.g. `quote { 4 }`) resolves to a
+            // `Type::Constant` rather than being rejected as a non-`Normal` kind.
+            elaborator.use_type_with_kind(typ, &Kind::Any, wildcard_allowed)
         });
     Ok(Value::Type(typ))
 }
@@ -1103,7 +1116,10 @@ fn to_le_radix(
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
-    assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
+    // `BigUint::to_radix_le` requires the radix to be in `2..=256` and only checks this in debug
+    // builds. The stdlib `static_assert`s the same bound for user code, so reaching here with an
+    // out-of-range radix is an internal precondition violation.
+    assert!((2..=256).contains(&radix), "ICE: radix must be in the range 2..=256, found {radix}");
 
     // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make
     // a zero value appear to require one limb. Decomposing zero requires no significant limbs,
@@ -1574,8 +1590,15 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat_n(element, length as usize).collect();
+                let array = if elem.contains_reference() {
+                    // A reference becomes a fresh `Value::Pointer`. Cloning one shares its
+                    // underlying cell, so build an independent zeroed value per slot instead
+                    // of repeating a single element, matching the `Tuple` arm below.
+                    (0..length).map(|_| zeroed(elem.as_ref().clone(), location)).collect()
+                } else {
+                    let element = zeroed(elem.as_ref().clone(), location);
+                    std::iter::repeat_n(element, length as usize).collect()
+                };
                 Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later
@@ -2129,7 +2152,7 @@ fn expr_as_lambda(
                 parameters,
                 Type::Vector(Box::new(Type::Tuple(vec![
                     Type::Quoted(QuotedType::Expr),
-                    Type::Quoted(QuotedType::UnresolvedType),
+                    option_unresolved_type.clone(),
                 ]))),
             ));
 
@@ -3090,7 +3113,7 @@ fn quoted_hash(
     // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
     let tokens_string = tokens_to_string(&tokens, interner, files);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = DeterministicHasher::new();
     tokens_string.hash(&mut hasher);
     Ok(Value::field(hasher.finish().into()))
 }
@@ -3250,10 +3273,32 @@ fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 #[cfg(test)]
 mod tests {
-    use super::field_less_than;
+    use super::{compute_to_radix_le, field_less_than};
     use crate::hir::comptime::value::Value;
     use acvm::FieldElement;
     use noirc_errors::Location;
+
+    #[test]
+    fn compute_to_radix_le_decomposes_in_range() {
+        // 6 in base 2 (little endian) is 0,1,1.
+        assert_eq!(compute_to_radix_le(FieldElement::from(6u128), 2), vec![0, 1, 1]);
+        // Zero decomposes into no significant limbs.
+        assert_eq!(compute_to_radix_le(FieldElement::from(0u128), 2), Vec::<u8>::new());
+        // Largest supported radix is accepted.
+        assert_eq!(compute_to_radix_le(FieldElement::from(255u128), 256), vec![255]);
+    }
+
+    #[test]
+    #[should_panic(expected = "radix must be in the range 2..=256")]
+    fn compute_to_radix_le_rejects_radix_below_two() {
+        compute_to_radix_le(FieldElement::from(6u128), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "radix must be in the range 2..=256")]
+    fn compute_to_radix_le_rejects_radix_above_256() {
+        compute_to_radix_le(FieldElement::from(6u128), 300);
+    }
 
     fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
         vec![(a, Location::dummy()), (b, Location::dummy())]

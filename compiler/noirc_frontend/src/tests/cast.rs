@@ -101,6 +101,29 @@ fn cast_numeric_to_bool() {
 }
 
 #[test]
+fn cast_field_and_integers_to_bool() {
+    let src = "
+    fn main() {
+        let x = 1;
+        let _ = x as bool;
+                ^^^^^^^^^ Cannot cast `Field` as `bool`
+                ~~~~~~~~~ Compare with zero instead: ` != 0`
+
+        let x: i32 = 1;
+        let _ = x as bool;
+                ^^^^^^^^^ Cannot cast `i32` as `bool`
+                ~~~~~~~~~ Compare with zero instead: ` != 0`
+
+        let x: u64 = 1;
+        let _ = x as bool;
+                ^^^^^^^^^ Cannot cast `u64` as `bool`
+                ~~~~~~~~~ Compare with zero instead: ` != 0`
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
 fn cast_numeric_to_bool_comptime() {
     let src = "
     fn main() {

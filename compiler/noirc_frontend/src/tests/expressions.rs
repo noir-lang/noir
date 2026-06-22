@@ -71,6 +71,20 @@ fn resolve_fmt_strings() {
 }
 
 #[test]
+fn comptime_fmt_string_with_duplicate_name_keeps_all_captures() {
+    let src = r#"
+    fn main() {
+        let s = comptime {
+            let n: u8 = 7;
+            f"a{n}b{n}c"
+        };
+        let _: fmtstr<9, (u8, u8)> = s;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn resolve_fmt_string_with_global() {
     let src = r#"
     global VALUE: u32 = 42;
@@ -373,6 +387,20 @@ fn let_comptime_block_inner_semicolon_unused_warning() {
         fn main() {
             let _ = comptime { 1 + 2; };
                                ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_var_not_defined() {
+    let src = r#"
+        fn main() {
+            comptime {
+                foo();
+                ^^^ cannot find `foo` in this scope
+                ~~~ not found in this scope
+            }
         }
     "#;
     check_errors(src);

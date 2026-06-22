@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 /// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.
 /// A first pass collects all memory blocks which are initialized but discards the ones
-/// which are used in a MemoryOp or as input to a BrilligCall.
+/// which are used in a `MemoryOp` or as input to a `BrilligCall`.
 /// The second pass removes the opcodes tagged as unused by the first pass.
 pub(crate) struct UnusedMemoryOptimizer<F: AcirField> {
     unused_memory_initializations: HashSet<BlockId>,
@@ -16,6 +16,7 @@ pub(crate) struct UnusedMemoryOptimizer<F: AcirField> {
 impl<F: AcirField> UnusedMemoryOptimizer<F> {
     /// Creates a new `UnusedMemoryOptimizer ` by collecting unused memory init
     /// opcodes from `Circuit`.
+    #[tracing::instrument(level = "trace", name = "unused_memory_collect", skip_all)]
     pub(crate) fn new(circuit: Circuit<F>) -> Self {
         let unused_memory_initializations = Self::collect_unused_memory_initializations(&circuit);
         Self { circuit, unused_memory_initializations }
@@ -49,6 +50,7 @@ impl<F: AcirField> UnusedMemoryOptimizer<F> {
     }
 
     /// Returns a `Circuit` where [`Opcode::MemoryInit`]s for unused memory blocks are dropped.
+    #[tracing::instrument(level = "trace", name = "unused_memory_remove", skip_all)]
     pub(crate) fn remove_unused_memory_initializations(
         self,
         order_list: Vec<usize>,

@@ -32,7 +32,7 @@ impl ReferenceId {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct DefinitionId(pub(super) usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
@@ -50,7 +50,7 @@ impl fmt::Display for FuncId {
     }
 }
 
-/// A [TypeId] wraps a [ModuleId], because types are represented by an anonymous module.
+/// A [`TypeId`] wraps a [`ModuleId`], because types are represented by an anonymous module.
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeId(pub(super) ModuleId);
 
@@ -85,6 +85,10 @@ pub struct TraitAssociatedTypeId(pub usize);
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
 
+/// Identifies an inherent `impl` block (i.e. one that does not implement a trait).
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
+pub struct ImplId(pub usize);
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TraitItemId {
     pub trait_id: TraitId,
@@ -95,15 +99,15 @@ pub struct TraitItemId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(pub(super) Index);
 
-/// The ID of an [crate::ast::ExpressionKind] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
+/// The ID of an [`crate::ast::ExpressionKind`] that's been pushed into the [`NodeInterner`][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedExpressionKind(pub(super) Index);
 
-/// The ID of a [crate::ast::StatementKind] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
+/// The ID of a [`crate::ast::StatementKind`] that's been pushed into the [`NodeInterner`][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedStatementKind(pub(super) Index);
 
-/// The ID of a [crate::ast::UnresolvedTypeData] that's been pushed into the [NodeInterner][crate::node_interner::NodeInterner].
+/// The ID of a [`crate::ast::UnresolvedTypeData`] that's been pushed into the [`NodeInterner`][crate::node_interner::NodeInterner].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedUnresolvedTypeData(pub(super) Index);
 

@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::token::SecondaryAttribute;
 
 use super::{
-    Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
+    DocComment, Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
     UnresolvedTypeData,
 };
 
@@ -63,6 +63,7 @@ pub struct TypeImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(Documented<NoirFunction>, Location)>,
+    pub doc_comments: Vec<DocComment>,
 }
 
 /// Ast node for an implementation of a trait for a particular type

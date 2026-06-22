@@ -1,0 +1,6 @@
+[package]
+name = "associated_constant_as_array_length"
+type = "bin"
+authors = [""]
+
+[dependencies]

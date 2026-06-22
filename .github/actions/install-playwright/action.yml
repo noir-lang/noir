@@ -21,11 +21,17 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}
 
+    # Composite-action steps do not support `timeout-minutes`, so each `npx` call
+    # is bounded with coreutils `timeout`: a stalled download or apt mirror fails
+    # fast (exit 124) and the retry wrapper takes a fresh, near-independent draw
+    # rather than hanging until the job-level limit.
     - name: Install Playwright browsers
       if: steps.playwright-cache.outputs.cache-hit != 'true'
-      shell: bash
-      run: npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
+      uses: ./.github/actions/retry
+      with:
+        run: timeout 240 npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
 
     - name: Install Playwright system dependencies
-      shell: bash
-      run: npx -y playwright@${{ inputs.playwright-version }} install-deps ${{ inputs.browsers }}
+      uses: ./.github/actions/retry
+      with:
+        run: timeout 120 npx -y playwright@${{ inputs.playwright-version }} install-deps ${{ inputs.browsers }}

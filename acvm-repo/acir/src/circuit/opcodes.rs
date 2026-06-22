@@ -50,7 +50,7 @@ impl BlockType {
 
 /// Defines an operation within an ACIR circuit
 ///
-/// Expects a type parameter `F` which implements [AcirField].
+/// Expects a type parameter `F` which implements [`AcirField`].
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize, MsgpackTagged)]
@@ -86,7 +86,7 @@ pub enum Opcode<F: AcirField> {
     /// Often used for exposing more efficient implementations of
     /// SNARK-unfriendly computations.
     ///
-    /// All black box function inputs are specified as [FunctionInput],
+    /// All black box function inputs are specified as [`FunctionInput`],
     /// and they have one or several witnesses as output.
     ///
     /// Some more advanced computations assume that the proving system has an
@@ -101,10 +101,10 @@ pub enum Opcode<F: AcirField> {
     /// Atomic operation on a block of memory
     ///
     /// ACIR is able to address any array of witnesses. Each array is assigned
-    /// an id ([BlockId]) and needs to be initialized with the [Opcode::MemoryInit] opcode.
+    /// an id ([`BlockId`]) and needs to be initialized with the [`Opcode::MemoryInit`] opcode.
     /// Then it is possible to read and write from/to an array by providing the
     /// index and the value we read/write as arithmetic expressions. Note that
-    /// ACIR arrays all have a known fixed length (given in the [Opcode::MemoryInit]
+    /// ACIR arrays all have a known fixed length (given in the [`Opcode::MemoryInit`]
     /// opcode below)
     #[tag(2)]
     MemoryOp {
@@ -118,8 +118,8 @@ pub enum Opcode<F: AcirField> {
 
     /// Initialize an ACIR array from a vector of witnesses.
     ///
-    /// There must be only one MemoryInit per block_id, and MemoryOp opcodes must
-    /// come after the MemoryInit.
+    /// There must be only one `MemoryInit` per `block_id`, and `MemoryOp` opcodes must
+    /// come after the `MemoryInit`.
     #[tag(3)]
     MemoryInit {
         /// Identifier of the array

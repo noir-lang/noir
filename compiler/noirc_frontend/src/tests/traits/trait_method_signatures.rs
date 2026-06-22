@@ -18,13 +18,13 @@ fn check_trait_implementation_duplicate_method() {
     impl Default2 for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ~~~~~~~ First trait associated item found here
+           ~~~~~~~ First definition found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
            ^^^^^^^ Duplicate definitions of trait associated item with name default found
-           ~~~~~~~ Second trait associated item found here
+           ~~~~~~~ Second definition found here
             x + 2 * y
         }
     }
@@ -368,4 +368,20 @@ fn returns_self_in_trait_method_2() {
     }
     ";
     assert_no_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_trait_method_signature() {
+    let src = r#"
+    pub trait Trait {
+        fn trait_method(_: [_; _]) -> [_; _];
+                            ^ The placeholder `_` is not allowed in function parameter types
+                               ^ The placeholder `_` is not allowed in function parameter types
+                                       ^ The placeholder `_` is not allowed in function return types
+                                          ^ The placeholder `_` is not allowed in function return types
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
 }

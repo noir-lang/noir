@@ -147,6 +147,6 @@ test.describe('Noir Web App', () => {
     await page.click('#submit');
 
     // Should show error
-    await expect(page.locator('#logs')).toContainText('Oh 💔', { timeout: 30000 });
+    await expect(page.locator('#logs')).toContainText('Something went wrong', { timeout: 30000 });
   });
 });

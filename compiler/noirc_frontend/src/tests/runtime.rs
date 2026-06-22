@@ -1,7 +1,7 @@
 //! Noir supports multiple runtime environments. This module contains tests related to runtime boundaries and entry point creation.
 //! "Runtime boundaries" can refer to calls across the unconstrained/constrained boundary, valid attributes in vanilla programs vs. contracts, defining program entry points, etc.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn cannot_call_unconstrained_function_outside_of_unsafe() {
@@ -340,6 +340,19 @@ fn allow_abi_attribute_on_global_inside_contract() {
 }
 
 #[test]
+fn deny_abi_attribute_on_global_with_non_abi_type() {
+    let src = r#"
+    contract moo {
+        #[abi(foo)]
+        global foo: () = ();
+                    ^^ Globals marked with `#[abi(tag)]` must have an ABI-compatible type
+                    ~~ Unit is not a valid ABI type
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn break_and_continue_in_constrained_fn() {
     let src = r#"
         fn main() {
@@ -468,6 +481,45 @@ fn user_defined_verify_proof_with_type_is_allowed_in_brillig() {
     ) {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn cannot_return_vector_from_unconstrained_to_constrained() {
+    let src = r#"
+    unconstrained fn clear() -> [u32] {
+        @[1, 2, 3]
+    }
+
+    fn main() {
+        // Safety: testing
+        let _x = unsafe { clear() };
+                          ^^^^^^^ Vectors cannot be returned from an unconstrained runtime to a constrained runtime
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10259() {
+    let src = r#"
+    unconstrained fn foo<T>(x: T) -> T {
+        x
+    }
+
+    fn bar<T>(x: T) -> T {
+        // Safety: testing
+        unsafe {
+            foo(x)
+            ^^^^^^ Vector `[Field]` cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    fn main(x: Field) {
+        let xs = @[x, x + 1, x + 2];
+        let _ = bar(xs);
+    }
+    "#;
+    check_monomorphization_error(src);
 }
 
 /// Globals are evaluated in a `comptime` context so they can call unconstrained functions without `unsafe` blocks
