@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782138875021,
+  "lastUpdate": 1782139420911,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23225,48 +23225,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "d86117e4989269496b09b1acc575f9da6041ce75",
-          "message": "chore(deps-dev): bump unzipit from 2.0.1 to 2.0.3 (#13081)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-16T15:13:38Z",
-          "tree_id": "fed71d9a9079dea8c888ee818ab66dc8033cb926",
-          "url": "https://github.com/noir-lang/noir/commit/d86117e4989269496b09b1acc575f9da6041ce75"
-        },
-        "date": 1781624266674,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127752,
-            "range": "± 556",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112928,
-            "range": "± 1002",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040841,
-            "range": "± 2501",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "b9e47aa0f153f9c3882b6c21f998aa0adfda9b1a",
           "message": "chore(deps): bump siphasher from 0.3.11 to 1.0.3 (#13077)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
@@ -25309,6 +25267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654180,
             "range": "± 2425",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b29262404ff3a07d9793a1d68b192a82e298dad6",
+          "message": "chore: fix clippy lints surfaced by clippy 1.96 (#13139)",
+          "timestamp": "2026-06-22T14:21:59Z",
+          "tree_id": "4ee081f291ac96c37eb529a2ce5010f01365c02a",
+          "url": "https://github.com/noir-lang/noir/commit/b29262404ff3a07d9793a1d68b192a82e298dad6"
+        },
+        "date": 1782139371355,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 68485,
+            "range": "± 807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 62350,
+            "range": "± 594",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1742863,
+            "range": "± 23081",
             "unit": "ns/iter"
           }
         ]
