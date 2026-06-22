@@ -267,7 +267,6 @@ impl Value {
                 // block expression.
                 let mut statements = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
-                let mut has_values = false;
                 let mut seen_names: HashSet<String> = HashSet::default();
                 for fragment in fragments.iter() {
                     let new_fragment = match fragment {
@@ -275,8 +274,6 @@ impl Value {
                             FmtStrFragment::String(string.clone())
                         }
                         FormatStringFragment::Value { name, value } => {
-                            has_values = true;
-
                             // A name might be interpolated multiple times. In that case it will always
                             // have the same value: we just need one `let` for it. We must still emit an
                             // interpolation fragment per occurrence so the lowered format string keeps
@@ -305,7 +302,7 @@ impl Value {
                     new_fragments.push(new_fragment);
                 }
                 let fmtstr = Literal(FmtStr(new_fragments, length));
-                if has_values {
+                if !statements.is_empty() {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
                         location,
