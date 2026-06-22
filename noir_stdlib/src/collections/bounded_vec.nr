@@ -209,8 +209,13 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len
     }
 
-    /// Allows user to update the length of the vector once
-    /// after doing multiple pushes.
+    /// Sets the length of the vector to any value between `0` and `MaxLen`.
+    ///
+    /// Increasing the length exposes elements that were written past the current
+    /// length (e.g. with `set_unchecked`); decreasing it discards trailing
+    /// elements. Note that this does not zero out any element of the backing storage,
+    /// so elements beyond the new length remain readable through `storage`.
+    ///
     /// Example:
     ///
     /// ```noir
@@ -222,10 +227,13 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.set_unchecked(7, 8);
     /// v.set_len(8);
     /// assert(v.len() == 8);
+    ///
+    /// // The length can also be reduced.
+    /// v.set_len(2);
+    /// assert(v.len() == 2);
     /// ```
     pub fn set_len(&mut self, len: u32) {
         assert(len <= MaxLen, "set_len out of bounds");
-        assert(len >= self.len(), "can not set_len to a length shorter than the current length");
         self.len = len;
     }
 
@@ -750,17 +758,32 @@ mod bounded_vec_tests {
             vec.set_unchecked(3, 44);
             vec.set_unchecked(4, 55);
             vec.set_unchecked(5, 66);
-            vec.set_unchecked(6, 77);
+            // Index 6 is intentionally left untouched: it stays zeroed.
             vec.set_len(8);
             assert_eq(vec.len(), 8);
+
+            // The explicitly written elements are exposed at their indices...
+            assert_eq(vec.get(3), 44);
+            assert_eq(vec.get(4), 55);
+            assert_eq(vec.get(5), 66);
+            // ...while the gap between the last write and the new length is zeroed.
+            assert_eq(vec.get(6), 0);
+            assert_eq(vec.get(7), 0);
+
             vec.extend_from_array([88, 99]);
             assert_eq(vec.len(), 10);
         }
 
-        #[test(should_fail_with = "can not set_len to a length shorter than the current length")]
-        fn panics_when_set_len_to_shorter_length() {
-            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+        #[test]
+        fn set_len_can_reduce_the_length() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
             vec.set_len(2);
+            assert_eq(vec.len(), 2);
+            // Reducing the length does not zero the backing storage, so the
+            // discarded elements remain readable through `storage`.
+            assert_eq(vec.storage()[2], 3);
+            assert_eq(vec.storage()[3], 4);
+            assert_eq(vec.storage()[4], 5);
         }
 
         #[test(should_fail_with = "set_len out of bounds")]
