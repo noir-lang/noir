@@ -27,18 +27,24 @@ impl Elaborator<'_> {
         object_type: &Type,
         name: &Ident,
     ) {
-        if !method_call_is_visible(
+        if !self.method_call_is_visible(func_id, object_type) {
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                name.clone(),
+            )));
+        }
+    }
+
+    /// Returns whether calling the method `func_id` on an object of type `object_type` is
+    /// allowed from the current location, without reporting any error.
+    pub(super) fn method_call_is_visible(&self, func_id: FuncId, object_type: &Type) -> bool {
+        method_call_is_visible(
             self.self_type.as_ref(),
             object_type,
             func_id,
             self.module_id(),
             self.interner,
             self.def_maps,
-        ) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                name.clone(),
-            )));
-        }
+        )
     }
 
     /// Checks that a public struct does not have fields with more private types.

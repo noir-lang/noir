@@ -1162,8 +1162,10 @@ impl<'a> NodeFinder<'a> {
                 let typ = self.get_lvalue_type(array)?;
                 get_array_element_type(typ)
             }
-            LValue::Dereference(expr, ..) => LValue::from_expression(expr.as_ref().clone())
-                .and_then(|lvalue| self.get_lvalue_type(&lvalue)),
+            LValue::Dereference(expr, ..) => {
+                let lvalue = LValue::from_expression(expr.as_ref().clone())?;
+                self.get_lvalue_type(&lvalue)
+            }
             LValue::Interned(..) => None,
         }
     }

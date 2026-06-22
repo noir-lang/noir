@@ -12,7 +12,6 @@ use crate::{
     },
     parser::ParserErrorReason,
 };
-use acvm::AcirField;
 
 use noirc_errors::{Location, Span};
 
@@ -315,7 +314,7 @@ impl Parser<'_> {
                     let int_location = self.previous_token_location;
                     self.eat_or_error(Token::RightParen);
                     let location = self.location_since(start_location);
-                    let id = int.try_to_u32().unwrap_or_else(|| {
+                    let id = u32::try_from(&int).unwrap_or_else(|_| {
                         self.push_error(ParserErrorReason::CallDataIdMustFitInU32, int_location);
                         0
                     });

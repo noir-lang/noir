@@ -8,6 +8,7 @@ use im::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) use similarly_named_types::SimilarlyNamedType;
@@ -21,7 +22,7 @@ use crate::{
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
-        comptime::{Integer, Value, evaluate_cast_one_step},
+        comptime::{Integer, Value, bigint_to_field, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, Namespace, fully_qualified_module_path},
         resolution::{
@@ -1069,7 +1070,7 @@ impl Elaborator<'_> {
                     return Type::Error;
                 }
 
-                let Some(int) = Integer::try_from_type_suffix(int, suffix) else {
+                let Some(int) = Integer::try_from_bigint_and_type_suffix(&int, suffix) else {
                     let min = typ.integral_minimum_size().unwrap();
                     let max = typ.integral_maximum_size().unwrap();
                     self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
@@ -1150,7 +1151,7 @@ impl Elaborator<'_> {
                     }
                     rhs => {
                         let kind = rhs.kind().into_numeric_type_or_error();
-                        let int = Integer::try_from_type(FieldElement::zero(), &kind)
+                        let int = Integer::try_from_bigint(&BigInt::ZERO, &kind)
                             .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
                         let zero = Type::Constant(int);
                         let sub = BinaryTypeOperator::Subtraction;
@@ -2393,15 +2394,15 @@ impl Elaborator<'_> {
 
         // Warn if a user casts to an integer from a negative field literal.
         // `-1 as i8 == 0`, not `-1` which can be confusing.
-        if let Some(value) = from_value_opt
-            && -value < value
+        if let Some(value) = &from_value_opt
+            && *value < BigInt::ZERO
             && to.is_integer()
             && (from_follow_bindings.is_field() || from_follow_bindings.is_bindable())
             && let Ok(Value::Integer(result)) =
-                evaluate_cast_one_step(&to, location, Value::field(value))
+                evaluate_cast_one_step(&to, location, Value::field(bigint_to_field(value)))
         {
             self.push_err(TypeCheckError::NegativeLiteralCastToInteger {
-                value,
+                value: value.clone(),
                 result: result.to_string(),
                 to: to.clone(),
                 location,
@@ -2413,8 +2414,9 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value.fits_in_u128()
-            && from_value > to_maximum_size.into()
+            && from_value >= BigInt::ZERO
+            && from_value <= BigInt::from(u128::MAX)
+            && from_value > BigInt::from(to_maximum_size)
         {
             let from = from.clone();
             let to = to.clone();
@@ -3035,9 +3037,14 @@ impl Elaborator<'_> {
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
-        // First search in the type methods. If there is one, that's the one.
-        if let Some(method_id) =
-            self.lookup_direct_method(object_type, method_name, check_self_param)
+        // First search in the type methods. A directly-defined (inherent) method that is
+        // visible from here always wins. If it exists but is not visible, we do not commit to
+        // it yet: an accessible trait method may exist that should be called instead. We keep
+        // the inherent method around as a fallback so that, if no trait method resolves, the
+        // caller still reports the appropriate "private" visibility error against it.
+        let direct_method = self.lookup_direct_method(object_type, method_name, check_self_param);
+        if let Some(method_id) = direct_method
+            && self.method_call_is_visible(method_id, object_type)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
@@ -3056,6 +3063,12 @@ impl Elaborator<'_> {
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
+        }
+
+        // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
+        // caller reports its visibility error rather than a misleading "method not found".
+        if let Some(method_id) = direct_method {
+            return Some(HirMethodReference::FuncId(method_id));
         }
 
         // It could be that this type is a composite type that is bound to a trait,
@@ -3633,9 +3646,22 @@ impl Elaborator<'_> {
         (expr_location, empty_function)
     }
 
-    /// Insert the ordered generics and associated types from the trait bound.
-    /// If the constraint is `assumed`, it also inserts the binding to the `Self`
-    /// type to whatever type the constraint is defined on.
+    /// Seed `bindings` (the instantiation bindings) from a trait constraint so that, when the
+    /// called method's type is instantiated, the trait's type variables resolve to the right
+    /// types instead of being replaced by fresh, unconstrained ones.
+    ///
+    /// For a normal constraint like `T: Foo<u32, Bar = bool>`, this records `Foo`'s generics
+    /// and associated types as the concrete arguments (`u32`, `bool`).
+    ///
+    /// For an `assumed` constraint the arguments are the trait's own variables, so each one is
+    /// mapped to itself. That looks like a no-op but isn't: an entry tells instantiation "leave
+    /// this variable alone". With no entry, instantiation mints a fresh variable for the slot
+    /// and the link back to the trait's variable is lost, which breaks in three ways:
+    /// - `Self` lost: the caller is forced to write a redundant type annotation.
+    /// - A generic lost: it renders as `_` and unsoundly unifies with any type.
+    /// - An associated type/constant lost: with a shared default-method body it gets bound to
+    ///   the first impl resolved at dispatch and then leaks into the next (e.g. a second impl's
+    ///   `Self::N` reads the first impl's constant).
     pub fn bind_generics_from_trait_constraint(
         &self,
         constraint: &TraitConstraint,
@@ -3644,39 +3670,48 @@ impl Elaborator<'_> {
     ) {
         self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
 
-        // A trait method's signature may reference an associated type inherited from a parent
-        // trait (e.g. `fn get(self) -> Self::A` on `Trait: Parent` where `Parent` defines `A`).
-        // Binding only this trait's associated types would leave such inherited associated types
-        // as unresolved `<T as Parent>::A` placeholders, so walk the parent hierarchy and bind
-        // their associated types too.
+        // Also bind associated types inherited from parent traits, e.g. a method returning
+        // `Self::A` where `A` is defined on a parent trait rather than this one. Without this
+        // they'd be left as unresolved `<T as Parent>::A` placeholders.
         self.bind_parent_trait_associated_types(
             &constraint.trait_bound,
             bindings,
             &mut BTreeSet::new(),
         );
 
-        // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-        // to specify a redundant type annotation.
+        // An `assumed` constraint is one we get for free inside a trait method, where the body
+        // may call other methods on `Self`. Its "arguments" are just the trait's own variables
+        // (`Self`, its generics, its associated types), so the loops below map each variable to
+        // itself. See the doc comment for why those self-mappings are not no-ops.
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+
             let self_type = the_trait.self_type_typevar.clone();
             let kind = the_trait.self_type_typevar.kind();
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
 
-            // When the constraint is `assumed` (e.g. for a call on `self` inside a trait
-            // default method), the trait's generics in the bound point back at the trait's
-            // own type variables, so `bind_generic`'s occurs check skips them as `t = t`.
-            // Without these bindings, instantiating the called method replaces its forall'd
-            // `T` with a fresh type variable, leaving the result rendered as `_` and
-            // unsoundly unifying with any type. Pin each trait generic to its own
-            // `NamedGeneric` here so the method's `T` resolves to the trait's `T`.
             for (param, arg) in
                 the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
             {
                 bindings.insert(
                     param.type_var.id(),
                     (param.type_var.clone(), param.kind(), arg.clone()),
+                );
+            }
+
+            for associated in &the_trait.associated_types {
+                let Some(arg) = constraint
+                    .trait_bound
+                    .trait_generics
+                    .named
+                    .iter()
+                    .find(|named| named.name.as_str() == associated.name.as_str())
+                else {
+                    continue;
+                };
+                bindings.insert(
+                    associated.type_var.id(),
+                    (associated.type_var.clone(), associated.kind(), arg.typ.clone()),
                 );
             }
         }
