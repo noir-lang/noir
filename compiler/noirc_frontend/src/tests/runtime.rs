@@ -281,6 +281,21 @@ fn deny_inline_attribute_on_unconstrained() {
 }
 
 #[test]
+fn deny_inline_attribute_on_unconstrained_trait_method() {
+    let src = r#"
+        pub trait Foo {
+            #[no_predicates]
+            ^^^^^^^^^^^^^^^^ misplaced #[no_predicates] attribute on unconstrained function foo. Only allowed on constrained functions
+            ~~~~~~~~~~~~~~~~ misplaced #[no_predicates] attribute
+            unconstrained fn foo(x: Field, y: Field) {
+                assert(x != y);
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_fold_attribute_on_unconstrained() {
     let src = r#"
         #[fold]
