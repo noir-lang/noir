@@ -168,16 +168,16 @@ enum IntermediatePathResolutionItem {
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
-enum MethodLookupResult {
+enum MethodLookupResult<Item> {
     /// The method could not be found. There might be trait methods that could be imported,
     /// but none of them are.
     NotFound(Vec<TraitId>),
     /// Found a method.
-    FoundMethod(PerNs),
+    FoundMethod(Item),
     /// Found a trait method and it's currently in scope.
-    FoundTraitMethod(PerNs, Ident),
+    FoundTraitMethod(Item, Ident),
     /// There's only one trait method that matches, but it's not in scope.
-    FoundOneTraitMethodButNotInScope(PerNs, TraitId),
+    FoundOneTraitMethodButNotInScope(Item, TraitId),
     /// Multiple (ambiguous) trait method matches were found and they are all in scope.
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
@@ -909,7 +909,7 @@ impl Elaborator<'_> {
         importing_module_id: ModuleId,
         current_module: &ModuleData,
         ident: &Ident,
-    ) -> MethodLookupResult {
+    ) -> MethodLookupResult<PerNs> {
         // If the current module is a type, next we need to find a function for it.
         // The function could be in the type itself, or it could be defined in traits.
         let item_scope = current_module.scope();
@@ -917,47 +917,62 @@ impl Elaborator<'_> {
             return MethodLookupResult::NotFound(vec![]);
         };
 
-        // First search if the function is defined in the type itself
-        if let Some(item) = values.get(&None) {
-            return MethodLookupResult::FoundMethod(PerNs { types: None, values: Some(*item) });
+        let to_per_ns = |item: &_| PerNs { types: None, values: Some(*item) };
+        let inherent = values.get(&None).map(to_per_ns);
+        let trait_candidates = values
+            .iter()
+            .filter_map(|(trait_id, item)| (*trait_id).map(|trait_id| (trait_id, to_per_ns(item))))
+            .collect();
+
+        self.classify_method_candidates(inherent, trait_candidates, importing_module_id)
+    }
+
+    /// Classify the candidates found for a method name into a [`MethodLookupResult`].
+    ///
+    /// An inherent method takes precedence over any trait methods. Otherwise the trait
+    /// methods are split by whether their trait is in scope: a single in-scope match is
+    /// resolved, several are ambiguous, and when none are in scope we return the candidate
+    /// traits so the caller can suggest importing them.
+    fn classify_method_candidates<Item>(
+        &self,
+        inherent: Option<Item>,
+        trait_candidates: Vec<(TraitId, Item)>,
+        importing_module_id: ModuleId,
+    ) -> MethodLookupResult<Item> {
+        if let Some(item) = inherent {
+            return MethodLookupResult::FoundMethod(item);
         }
 
-        // Otherwise, the function could be defined in zero, one or more traits.
         let starting_module = self.get_module(importing_module_id);
 
-        // Gather a list of items for which their trait is in scope.
-        let mut results = Vec::new();
-
-        for (trait_id, item) in values {
-            let trait_id = trait_id.expect("The None option was already considered before");
+        // Split the trait methods by whether their trait is currently in scope.
+        let total = trait_candidates.len();
+        let mut in_scope = Vec::new();
+        let mut out_of_scope = Vec::new();
+        for (trait_id, item) in trait_candidates {
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
-                results.push((trait_id, name, item));
-            }
-        }
-
-        if results.is_empty() {
-            if values.len() == 1 {
-                // This is the backwards-compatible case where there's a single trait method but it's not in scope
-                let (trait_id, item) = values.iter().next().expect("Expected an item");
-                let trait_id = trait_id.expect("The None option was already considered before");
-                let per_ns = PerNs { types: None, values: Some(*item) };
-                return MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id);
+                in_scope.push((trait_id, name.clone(), item));
             } else {
-                let trait_ids = vecmap(values, |(trait_id, _)| {
-                    trait_id.expect("The none option was already considered before")
-                });
-                return MethodLookupResult::NotFound(trait_ids);
+                out_of_scope.push((trait_id, item));
             }
         }
 
-        if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, name, _)| (trait_id, name.clone()));
-            return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
+        match in_scope.len() {
+            // The backwards-compatible case where there's a single trait method but it's not in scope.
+            0 if total == 1 => {
+                let (trait_id, item) = out_of_scope.into_iter().next().expect("total == 1");
+                MethodLookupResult::FoundOneTraitMethodButNotInScope(item, trait_id)
+            }
+            0 => MethodLookupResult::NotFound(vecmap(out_of_scope, |(trait_id, _)| trait_id)),
+            1 => {
+                let (_, name, item) = in_scope.into_iter().next().expect("len == 1");
+                MethodLookupResult::FoundTraitMethod(item, name)
+            }
+            _ => MethodLookupResult::FoundMultipleTraitMethods(vecmap(
+                in_scope,
+                |(trait_id, name, _)| (trait_id, name),
+            )),
         }
-
-        let (_, name, item) = results.remove(0);
-        let per_ns = PerNs { types: None, values: Some(*item) };
-        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 
     /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
@@ -1125,65 +1140,47 @@ impl Elaborator<'_> {
         importing_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
     ) -> Result<FuncId, PathResolutionError> {
-        // Note: the logic here is similar to that of resolve_method, except that that one works by
-        // searching through modules, and this one works by searching through primitive types.
-        // It would be nice to refactor this to a common logic though it's a bit hard.
-        // That said, the logic is "just" searching through direct methods, then through trait methods
-        // checking which ones are in scope, and is unlikely to change.
-
         let method_name = method_name_ident.as_str();
 
-        // First check for a direct (inherent) method
-        if let Some(func_id) = self.lookup_direct_method(&typ, method_name, false) {
-            return Ok(func_id);
-        }
+        let inherent = self.lookup_direct_method(&typ, method_name, false);
+        let trait_candidates = vecmap(
+            self.lookup_trait_methods(&typ, method_name, false),
+            |(func_id, trait_id, _)| (trait_id, func_id),
+        );
 
-        // Otherwise look through trait methods
-        let trait_methods = self.lookup_trait_methods(&typ, method_name, false);
-        let starting_module = self.get_module(importing_module_id);
-
-        let mut results = Vec::new();
-        for (func_id, trait_id, _) in &trait_methods {
-            if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
-                results.push((*trait_id, *func_id, name));
+        let ident = || method_name_ident.clone();
+        match self.classify_method_candidates(inherent, trait_candidates, importing_module_id) {
+            MethodLookupResult::FoundMethod(func_id)
+            | MethodLookupResult::FoundTraitMethod(func_id, _) => Ok(func_id),
+            MethodLookupResult::FoundOneTraitMethodButNotInScope(func_id, trait_id) => {
+                let trait_name = self.fully_qualified_trait_path(self.interner.get_trait(trait_id));
+                errors.push(PathResolutionError::TraitMethodNotInScope {
+                    ident: ident(),
+                    trait_name,
+                });
+                Ok(func_id)
             }
-        }
-
-        if results.is_empty() {
-            if trait_methods.len() == 1 {
-                let (func_id, trait_id, _) = trait_methods.first().expect("Expected an item");
-                let trait_ = self.interner.get_trait(*trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
-                let ident = method_name_ident.clone();
-                errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
-                return Ok(*func_id);
-            } else if trait_methods.is_empty() {
-                return Err(PathResolutionError::Unresolved(method_name_ident.clone()));
-            } else {
-                let traits = vecmap(trait_methods, |(_, trait_id, _)| {
+            MethodLookupResult::FoundMultipleTraitMethods(traits) => {
+                let traits = vecmap(traits, |(trait_id, name)| {
+                    let trait_ = self.interner.get_trait(trait_id);
+                    self.usage_tracker.mark_as_used(importing_module_id, &name, Namespace::Type);
+                    self.fully_qualified_trait_path(trait_)
+                });
+                Err(PathResolutionError::MultipleTraitsInScope { ident: ident(), traits })
+            }
+            MethodLookupResult::NotFound(trait_ids) if trait_ids.is_empty() => {
+                Err(PathResolutionError::Unresolved(ident()))
+            }
+            MethodLookupResult::NotFound(trait_ids) => {
+                let traits = vecmap(trait_ids, |trait_id| {
                     self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
                 });
-                let ident = method_name_ident.clone();
-                return Err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
-                    ident,
+                Err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                    ident: ident(),
                     traits,
-                });
+                })
             }
         }
-
-        if results.len() > 1 {
-            let traits = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
-            let traits = vecmap(traits, |(trait_id, name)| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.usage_tracker.mark_as_used(importing_module_id, &name, Namespace::Type);
-                self.fully_qualified_trait_path(trait_)
-            });
-            let ident = method_name_ident.clone();
-            return Err(PathResolutionError::MultipleTraitsInScope { ident, traits });
-        }
-
-        let (_, func_id, _) = results.remove(0);
-        Ok(func_id)
     }
 }
 

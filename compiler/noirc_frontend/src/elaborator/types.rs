@@ -17,8 +17,8 @@ use crate::{
     BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
+        UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
@@ -2380,6 +2380,24 @@ impl Elaborator<'_> {
     /// or not. A value of false indicates the caller to use a primitive operation for this
     /// operator, while a true value indicates a user-provided trait impl is required.
     #[tracing::instrument(level = "trace", skip_all)]
+    /// Checks that two integer operands of a binary operator agree in both
+    /// signedness and bit width, reporting the first mismatch as an error.
+    fn check_integer_operands_match(
+        sign_x: Signedness,
+        bit_width_x: IntegerBitSize,
+        sign_y: Signedness,
+        bit_width_y: IntegerBitSize,
+        location: Location,
+    ) -> Result<(), TypeCheckError> {
+        if sign_x != sign_y {
+            return Err(TypeCheckError::IntegerSignedness { sign_x, sign_y, location });
+        }
+        if bit_width_x != bit_width_y {
+            return Err(TypeCheckError::IntegerBitWidth { bit_width_x, bit_width_y, location });
+        }
+        Ok(())
+    }
+
     fn comparator_operand_type_rules(
         &mut self,
         lhs_type: &Type,
@@ -2408,20 +2426,9 @@ impl Elaborator<'_> {
                 Ok((Bool, use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
-                if sign_x != sign_y {
-                    return Err(TypeCheckError::IntegerSignedness {
-                        sign_x: *sign_x,
-                        sign_y: *sign_y,
-                        location,
-                    });
-                }
-                if bit_width_x != bit_width_y {
-                    return Err(TypeCheckError::IntegerBitWidth {
-                        bit_width_x: *bit_width_x,
-                        bit_width_y: *bit_width_y,
-                        location,
-                    });
-                }
+                Self::check_integer_operands_match(
+                    *sign_x, *bit_width_x, *sign_y, *bit_width_y, location,
+                )?;
                 Ok((Bool, false))
             }
             (FieldElement, FieldElement) => {
@@ -2522,20 +2529,9 @@ impl Elaborator<'_> {
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
-                if sign_x != sign_y {
-                    return Err(TypeCheckError::IntegerSignedness {
-                        sign_x: *sign_x,
-                        sign_y: *sign_y,
-                        location,
-                    });
-                }
-                if bit_width_x != bit_width_y {
-                    return Err(TypeCheckError::IntegerBitWidth {
-                        bit_width_x: *bit_width_x,
-                        bit_width_y: *bit_width_y,
-                        location,
-                    });
-                }
+                Self::check_integer_operands_match(
+                    *sign_x, *bit_width_x, *sign_y, *bit_width_y, location,
+                )?;
                 Ok((Integer(*sign_x, *bit_width_x), false))
             }
             // The result of two Fields is always a witness
