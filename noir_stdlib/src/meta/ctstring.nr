@@ -48,21 +48,18 @@ pub trait AsCtString {
 // docs:end:as-ctstring
 
 impl<let N: u32> AsCtString for str<N> {
-    comptime fn as_ctstring(self) -> CtString {
-        str_as_ctstring(self)
-    }
+    #[builtin(str_as_ctstring)]
+    comptime fn as_ctstring(self) -> CtString {}
 }
 
 impl<let N: u32, T> AsCtString for fmtstr<N, T> {
-    comptime fn as_ctstring(self) -> CtString {
-        fmtstr_as_ctstring(self)
-    }
+    #[builtin(fmtstr_as_ctstring)]
+    comptime fn as_ctstring(self) -> CtString {}
 }
 
 impl crate::cmp::Eq for CtString {
-    comptime fn eq(self, other: Self) -> bool {
-        ctstring_eq(self, other)
-    }
+    #[builtin(ctstring_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl crate::hash::Hash for CtString {
@@ -73,15 +70,6 @@ impl crate::hash::Hash for CtString {
         state.write(ctstring_hash(self));
     }
 }
-
-#[builtin(str_as_ctstring)]
-comptime fn str_as_ctstring<let N: u32>(_s: str<N>) -> CtString {}
-
-#[builtin(fmtstr_as_ctstring)]
-comptime fn fmtstr_as_ctstring<let N: u32, T>(_s: fmtstr<N, T>) -> CtString {}
-
-#[builtin(ctstring_eq)]
-comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
 
 #[builtin(ctstring_hash)]
 comptime fn ctstring_hash(_string: CtString) -> Field {}
