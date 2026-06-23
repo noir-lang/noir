@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782220597020,
+  "lastUpdate": 1782220607372,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4968,105 +4968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "cdf34f676b7f38b1bb4210971622441e6308e772",
-          "message": "chore(ci): run fuzz_with_arbtest tests in their own job (#13076)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-17T16:46:28Z",
-          "tree_id": "f9e2f8990d6385c36291d897ef03a15548da93d1",
-          "url": "https://github.com/noir-lang/noir/commit/cdf34f676b7f38b1bb4210971622441e6308e772"
-        },
-        "date": 1781716834182,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.954,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 19.24,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 3.864,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.302,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.258,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 265,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 269,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.388,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 19.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 110,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.162,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.319,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 2.097,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "4870148ebe98d152f3bff82de5e4e9ff0b6fe00b",
           "message": "chore(ci): retry flaky browser tests on a clean relaunch (#13095)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
           "timestamp": "2026-06-17T16:46:01Z",
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.95,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5b02de00b0d592cdb2096fbf286a82bc253fb6b0",
+          "message": "fix(frontend): disallow `#[fuzz]` attribute on `impl` methods (#13143)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-23T12:41:17Z",
+          "tree_id": "fd2b1d172ab865b8ff9f9f849c9a2a2780135958",
+          "url": "https://github.com/noir-lang/noir/commit/5b02de00b0d592cdb2096fbf286a82bc253fb6b0"
+        },
+        "date": 1782220534413,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 6.328,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 15.4,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.806,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.182,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.33,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 259,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 252,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 16.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 115.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.618,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.963,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.674,
             "unit": "s"
           }
         ]
