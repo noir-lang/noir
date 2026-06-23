@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782220450688,
+  "lastUpdate": 1782220580457,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cdf34f676b7f38b1bb4210971622441e6308e772",
-          "message": "chore(ci): run fuzz_with_arbtest tests in their own job (#13076)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-17T16:46:28Z",
-          "tree_id": "f9e2f8990d6385c36291d897ef03a15548da93d1",
-          "url": "https://github.com/noir-lang/noir/commit/cdf34f676b7f38b1bb4210971622441e6308e772"
-        },
-        "date": 1781716115811,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167069,
-            "range": "± 670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136528,
-            "range": "± 10297",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2651394,
-            "range": "± 10287",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1662492,
             "range": "± 20740",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e90d85243e254b79ccaa2a3f19eed46cce3d800",
+          "message": "chore(ci): fix cargo-binstall rate-limit slowdowns in JS workflows (#13138)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-23T12:55:12Z",
+          "tree_id": "75665d25e85a7931fc63bdc076a2630d3b4e76c2",
+          "url": "https://github.com/noir-lang/noir/commit/3e90d85243e254b79ccaa2a3f19eed46cce3d800"
+        },
+        "date": 1782220506632,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 181041,
+            "range": "± 246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 148589,
+            "range": "± 261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2658172,
+            "range": "± 1201",
             "unit": "ns/iter"
           }
         ]
