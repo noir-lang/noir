@@ -1133,7 +1133,6 @@ impl Elaborator<'_> {
             return Ok(func_id);
         }
 
-<<<<<<< Updated upstream
         // Otherwise look through trait methods
         let trait_methods = self.lookup_trait_methods(&typ, method_name, false);
         let starting_module = self.get_module(importing_module_id);
@@ -1142,45 +1141,13 @@ impl Elaborator<'_> {
         for (func_id, trait_id, _) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
-=======
-        let ident = || method_name_ident.clone();
-        match self.classify_method_candidates(inherent, trait_candidates, importing_module_id) {
-            MethodLookupResult::FoundMethod(func_id)
-            | MethodLookupResult::FoundTraitMethod(func_id, _) => Ok(func_id),
-            MethodLookupResult::FoundOneTraitMethodButNotInScope(func_id, trait_id) => {
-                let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
-                errors.push(PathResolutionError::TraitMethodNotInScope {
-                    ident: ident(),
-                    trait_name,
-                });
-                Ok(func_id)
-            }
-            MethodLookupResult::FoundMultipleTraitMethods(traits) => {
-                let traits = vecmap(traits, |(trait_id, name)| {
-                    self.usage_tracker.mark_as_used(importing_module_id, &name, Namespace::Type);
-                    self.fully_qualified_trait_path_by_id(trait_id)
-                });
-                Err(PathResolutionError::MultipleTraitsInScope { ident: ident(), traits })
-            }
-            MethodLookupResult::NotFound(trait_ids) if trait_ids.is_empty() => {
-                Err(PathResolutionError::Unresolved(ident()))
-            }
-            MethodLookupResult::NotFound(trait_ids) => {
-                let traits =
-                    vecmap(trait_ids, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
-                Err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
-                    ident: ident(),
-                    traits,
-                })
->>>>>>> Stashed changes
             }
         }
 
         if results.is_empty() {
             if trait_methods.len() == 1 {
                 let (func_id, trait_id, _) = trait_methods.first().expect("Expected an item");
-                let trait_ = self.interner.get_trait(*trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
+                let trait_name = self.fully_qualified_trait_path_by_id(*trait_id);
                 let ident = method_name_ident.clone();
                 errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
                 return Ok(*func_id);
