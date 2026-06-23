@@ -2154,13 +2154,15 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&expr_id);
+        let typ = Rc::new(Self::convert_type(&function_type, location)?);
+
         let Definition::Function(func_id) =
             self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
         else {
             unreachable!();
         };
 
-        let location = self.interner.expr_location(&expr_id);
         let name = self.interner.definition_name(trait_item_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
@@ -2168,7 +2170,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ: Rc::new(Self::convert_type(&function_type, location)?),
+            typ,
             id: self.next_ident_id(),
         }))
     }
