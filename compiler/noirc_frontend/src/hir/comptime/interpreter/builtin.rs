@@ -88,6 +88,7 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
+            "ctstring_append" => ctstring_append(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -3207,6 +3208,17 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
+}
+
+// fn append(self, other: CtString) -> CtString
+fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_argument, other_argument) = check_two_arguments(arguments, location)?;
+    let self_bytes = get_ctstring(self_argument)?;
+    let other_bytes = get_ctstring(other_argument)?;
+
+    let mut bytes = self_bytes.as_ref().clone();
+    bytes.extend_from_slice(&other_bytes);
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

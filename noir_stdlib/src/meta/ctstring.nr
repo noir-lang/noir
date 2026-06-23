@@ -12,13 +12,13 @@ impl CtString {
     // docs:start:append_str
     pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
         // docs:end:append_str
-        f"{self}{s}".as_ctstring()
+        self.append(s.as_ctstring())
     }
 
     // docs:start:append_fmtstr
     pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
         // docs:end:append_fmtstr
-        f"{self}{s}".as_ctstring()
+        self.append(s.as_ctstring())
     }
 
     /// CtString cannot directly return a str since the size would not be known.
@@ -36,9 +36,8 @@ impl Append for CtString {
         "".as_ctstring()
     }
 
-    comptime fn append(self, other: Self) -> Self {
-        f"{self}{other}".as_ctstring()
-    }
+    #[builtin(ctstring_append)]
+    comptime fn append(self, other: Self) -> Self {}
 }
 
 // docs:start:as-ctstring
