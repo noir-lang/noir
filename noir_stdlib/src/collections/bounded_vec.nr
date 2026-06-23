@@ -237,6 +237,30 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len = len;
     }
 
+    /// Shortens the vector to `len`, keeping the first `len` elements.
+    ///
+    /// If `len` is greater than or equal to the current length, the vector is
+    /// left unchanged. Regardless of the current length, after this call the
+    /// vector is guaranteed to hold no more than `len` elements.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let mut v: BoundedVec<Field, 10> = BoundedVec::from([1, 2, 3, 4, 5]);
+    ///
+    /// v.truncate(3);
+    /// assert(v.len() == 3);
+    ///
+    /// // Truncating to a length greater than the current length is a no-op.
+    /// v.truncate(8);
+    /// assert(v.len() == 3);
+    /// ```
+    pub fn truncate(&mut self, len: u32) {
+        if len < self.len() {
+            self.len = len;
+        }
+    }
+
     /// Returns the maximum length of this vector. This is always
     /// equal to the `MaxLen` parameter this vector was initialized with.
     ///
@@ -790,6 +814,70 @@ mod bounded_vec_tests {
         fn panics_when_set_len_beyond_max_len() {
             let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
             vec.set_len(6);
+        }
+    }
+
+    mod truncate {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn truncate_shortens_to_len() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.truncate(3);
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.storage()[0], 1);
+            assert_eq(vec.storage()[1], 2);
+            assert_eq(vec.storage()[2], 3);
+        }
+
+        #[test]
+        fn truncate_to_zero_empties_the_vec() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(0);
+            assert_eq(vec.len(), 0);
+        }
+
+        #[test]
+        fn truncate_to_equal_len_is_noop() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(3);
+            assert_eq(vec.len(), 3);
+        }
+
+        #[test]
+        fn truncate_to_greater_len_is_noop() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(8);
+            assert_eq(vec.len(), 3);
+        }
+
+        #[test]
+        fn truncate_beyond_max_len_is_noop() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(100);
+            assert_eq(vec.len(), 3);
+        }
+
+        #[test]
+        fn truncate_does_not_zero_remaining_storage() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.truncate(2);
+            assert_eq(vec.len(), 2);
+            // Items beyond the new length are left untouched in the backing storage.
+            assert_eq(vec.storage()[2], 3);
+            assert_eq(vec.storage()[3], 4);
+            assert_eq(vec.storage()[4], 5);
+        }
+
+        #[test]
+        fn truncate_then_push_continues_from_new_len() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.truncate(2);
+            vec.push(30);
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.storage()[0], 1);
+            assert_eq(vec.storage()[1], 2);
+            assert_eq(vec.storage()[2], 30);
         }
     }
 

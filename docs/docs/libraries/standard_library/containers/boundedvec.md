@@ -194,6 +194,20 @@ Example:
 
 #include_code bounded-vec-set-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
+### truncate
+
+```rust
+pub fn truncate(&mut self, len: u32) {
+```
+
+Shortens the BoundedVec to `len`, keeping the first `len` elements. If `len` is greater than or
+equal to the current length, the vector is left unchanged. Regardless of the current length, after
+this call the vector is guaranteed to hold no more than `len` elements.
+
+Example:
+
+#include_code bounded-vec-truncate-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+
 ### storage
 
 ```rust
