@@ -70,13 +70,9 @@ impl crate::hash::Hash for FunctionDefinition {
 }
 
 impl crate::cmp::Eq for FunctionDefinition {
-    comptime fn eq(self, other: Self) -> bool {
-        function_def_eq(self, other)
-    }
+    #[builtin(function_def_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(function_def_eq)]
-comptime fn function_def_eq(_first: FunctionDefinition, _second: FunctionDefinition) -> bool {}
 
 #[builtin(function_def_hash)]
 comptime fn function_def_hash(_function: FunctionDefinition) -> Field {}
