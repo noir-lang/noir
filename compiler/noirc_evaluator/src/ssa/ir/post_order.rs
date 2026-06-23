@@ -5,6 +5,8 @@
 
 use std::collections::HashSet;
 
+use rustc_hash::FxHashMap as HashMap;
+
 use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 
 use super::cfg::ControlFlowGraph;
@@ -55,8 +57,10 @@ impl PostOrder {
 
     /// Return blocks in reverse-post-order (RPO).
     ///
-    /// In RPO, each block is visited before any of its successors.
-    /// Notably, this is not the same as topological sorting.
+    /// In RPO, each block is visited only after all of its predecessors, except for the
+    /// back-edge predecessors of loop headers. Blocks are ordered by the maximum cost to reach
+    /// them from the entry block (the longest path once back-edges are removed), with ties
+    /// broken by block id.
     ///
     /// Take this CFG for example:
     /// ```text
@@ -66,18 +70,76 @@ impl PostOrder {
     ///     /  \ |
     ///    b3   b2
     /// ```
-    /// Intuitively we would like to see `[b0, b1, b2, b3]`,
-    /// but the actual RPO is `[b0, b1, b3, b2]`.
+    /// The RPO is `[b0, b1, b2, b3]`: the loop body `b2` is ordered before the loop exit `b3`.
     pub(crate) fn into_vec_reverse(self) -> Vec<BasicBlockId> {
         let mut blocks = self.into_vec();
         blocks.reverse();
         blocks
     }
 
+    /// Computes the post-order of the CFG so that, in the reverse-post-order, each block is
+    /// visited only after all of its non-back-edge predecessors.
+    ///
+    /// A plain depth-first post-order already has this property for back-edge-free CFGs, but it
+    /// can order a loop exit ahead of the loop body (see
+    /// <https://github.com/noir-lang/noir/issues/9771>). To get a deterministic, well-behaved
+    /// order we rank each block by the *maximum cost to reach it* from a root: the length of the
+    /// longest path once back-edges are removed. Sorting by `(cost, block id)` is always a valid
+    /// topological order of the back-edge-free CFG, since any forward edge `u -> v` forces
+    /// `cost(v) >= cost(u) + 1`.
+    ///
+    /// Each block is visited at most once during the depth-first traversal; the cost of each
+    /// block is then computed in a single linear scan before a final sort.
+    fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
+        let post_order = Self::depth_first_post_order(cfg, roots);
+
+        // A block's index in the depth-first reverse-post-order. Crucially, every non-back edge
+        // points forwards in this order (smaller index -> larger index) while every back edge
+        // points backwards. So a predecessor `u` of `v` is a non-back-edge ("forward")
+        // predecessor exactly when `rpo_index[u] < rpo_index[v]`; no explicit edge classification
+        // is needed.
+        let rpo_index: HashMap<BasicBlockId, u32> = post_order
+            .iter()
+            .rev()
+            .enumerate()
+            .map(|(index, block)| (*block, index as u32))
+            .collect();
+
+        // The maximum cost to reach each block: `cost(v) = max(cost(u) + 1)` over the forward
+        // predecessors `u` of `v`, or 0 for a root. Iterating in reverse-post-order guarantees
+        // every forward predecessor has already been assigned its cost. Predecessors that are
+        // unreachable from the roots have no `rpo_index` and are ignored, as are back-edge
+        // predecessors (which have a larger `rpo_index`).
+        let mut cost: HashMap<BasicBlockId, u32> = HashMap::default();
+        for &block in post_order.iter().rev() {
+            let block_index = rpo_index[&block];
+            let block_cost = cfg
+                .predecessors(block)
+                .filter_map(|predecessor| {
+                    let predecessor_index = *rpo_index.get(&predecessor)?;
+                    (predecessor_index < block_index).then(|| cost[&predecessor] + 1)
+                })
+                .max()
+                .unwrap_or(0);
+            cost.insert(block, block_cost);
+        }
+
+        // Order by ascending cost (ties broken by block id) to get the reverse-post-order, then
+        // reverse it to recover the post-order.
+        let mut reverse_post_order = post_order;
+        reverse_post_order.reverse();
+        reverse_post_order.sort_by_key(|block| (cost[block], *block));
+        reverse_post_order.reverse();
+        reverse_post_order
+    }
+
     // Computes the post-order of the CFG by doing a depth-first traversal of the given
     // root blocks' previously unvisited children. Each block is sequenced according
     // to when the traversal exits it.
-    fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
+    fn depth_first_post_order(
+        cfg: &ControlFlowGraph,
+        roots: Vec<BasicBlockId>,
+    ) -> Vec<BasicBlockId> {
         let mut stack = vec![];
         let mut visited: HashSet<BasicBlockId> = HashSet::new();
         let mut post_order: Vec<BasicBlockId> = Vec::new();
@@ -201,7 +263,10 @@ mod tests {
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         let block_a_id = func.entry_block();
-        assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
+        // Blocks are ordered by their maximum cost to reach them from the entry block.
+        // Costs (longest path from A, ignoring the D->B back-edge): A=0, B=1, E=2, D=3, F=3.
+        // The reverse-post-order is therefore [A, B, E, D, F], so the post-order is its reverse.
+        assert_eq!(post_order.0, [block_f_id, block_d_id, block_e_id, block_b_id, block_a_id]);
     }
 
     /// Helper to construct a `BasicBlockId` with a syntax resembling the `b0`
@@ -210,7 +275,8 @@ mod tests {
         BasicBlockId::test_new(id)
     }
 
-    /// Documents the somewhat odd behavior from <https://github.com/noir-lang/noir/issues/9771>
+    /// Regression test for <https://github.com/noir-lang/noir/issues/9771>: the loop exit `b3`
+    /// must be ordered after the loop body `b2` (and thus appear first in post-order).
     #[test]
     fn loop_regression() {
         // b0 -> b1 <-> b2
@@ -240,8 +306,10 @@ mod tests {
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
 
-        // [3, 2, 1, 0] would be the ideal but we currently get the following:
-        assert_eq!(post_order.0, [b2, b3, b1, b0]);
+        // Costs (longest path from b0, ignoring the b2->b1 back-edge): b0=0, b1=1, b2=2, b3=2.
+        // The reverse-post-order is [b0, b1, b2, b3] (b2 before b3 by block-id tie-break), so
+        // the loop exit b3 is now correctly ordered last in RPO / first in post-order.
+        assert_eq!(post_order.0, [b3, b2, b1, b0]);
     }
 
     #[test]
@@ -265,8 +333,9 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
-        // Ordering of b1, b2 is arbitrary
-        assert_eq!(post_order.0, [b(3), b(1), b(2), b(0)]);
+        // Costs (longest path from b0): b0=0, b1=1, b2=1, b3=2. b1 and b2 tie on cost, so the
+        // block-id tie-break orders b1 before b2 in RPO, giving post-order [b3, b2, b1, b0].
+        assert_eq!(post_order.0, [b(3), b(2), b(1), b(0)]);
     }
 
     #[test]
@@ -349,16 +418,16 @@ mod tests {
         //
         // [b1, b2, b4, b5, b7, b8, b6]
         //
-        // And finally to the original program to get:
+        // Blocks are instead ordered by their maximum cost to reach them from the entry block,
+        // i.e. the longest path from b0 once the back-edges (b6->b1 and b8->b4) are removed:
         //
-        // [b0, b1, b2, b4, b5, b7, b8, b6, b3]
+        //   b0=0, b1=1, b2=2, b3=2, b4=3, b5=4, b6=4, b7=5, b8=6
         //
-        // And the expected post-order is simply the reverse of this topological ordering:
-        //
-        // [b3, b6, b8, b7, b5, b4, b2, b1, b0]
-        //
-        // But we currently get:
-        let expected_post_order = [b(8), b(7), b(5), b(6), b(4), b(2), b(3), b(1), b(0)];
+        // Sorting by (cost, block-id) ascending gives the reverse-post-order
+        // [b0, b1, b2, b3, b4, b5, b6, b7, b8]. This still visits every block only after all of
+        // its (non-back-edge) predecessors, which is what #9771 requires; the loop exit b3 is no
+        // longer hoisted ahead of the loop body. The expected post-order is the reverse:
+        let expected_post_order = [b(8), b(7), b(6), b(5), b(4), b(3), b(2), b(1), b(0)];
 
         let ssa = Ssa::from_str(src).unwrap();
 

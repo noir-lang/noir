@@ -444,14 +444,14 @@ fn for_loop_exclusive() {
         v4 = lt v0, u32 5
         jmpif v4 then: b2(), else: b3()
       b2():
-        v6 = load v1 -> u32
-        v7 = add v6, v0
-        store v7 at v1
-        v9 = unchecked_add v0, u32 1
-        jmp b1(v9)
-      b3():
         v5 = load v1 -> u32
-        return v5
+        v6 = add v5, v0
+        store v6 at v1
+        v8 = unchecked_add v0, u32 1
+        jmp b1(v8)
+      b3():
+        v9 = load v1 -> u32
+        return v9
     }
     ");
 }
@@ -487,22 +487,22 @@ fn for_loop_inclusive_max_value_without_break() {
         v6 = lt v0, u8 255
         jmpif v6 then: b2(), else: b3()
       b2():
-        v11 = load v1 -> u8
-        v12 = add v11, v0
-        store v12 at v1
-        v14 = unchecked_add v0, u8 1
-        jmp b1(v14)
+        v7 = load v1 -> u8
+        v8 = add v7, v0
+        store v8 at v1
+        v10 = unchecked_add v0, u8 1
+        jmp b1(v10)
       b3():
-        v7 = load v3 -> u1
-        jmpif v7 then: b4(), else: b5()
+        v11 = load v3 -> u1
+        jmpif v11 then: b4(), else: b5()
       b4():
-        v8 = load v1 -> u8
-        v9 = add v8, u8 255
-        store v9 at v1
+        v12 = load v1 -> u8
+        v13 = add v12, u8 255
+        store v13 at v1
         jmp b5()
       b5():
-        v10 = load v1 -> u8
-        return v10
+        v14 = load v1 -> u8
+        return v14
     }
     ");
 }
@@ -531,14 +531,14 @@ fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
         v4 = lt v0, u8 255
         jmpif v4 then: b2(), else: b3()
       b2():
-        v6 = load v1 -> u8
-        v7 = add v6, v0
-        store v7 at v1
-        v9 = unchecked_add v0, u8 1
-        jmp b1(v9)
-      b3():
         v5 = load v1 -> u8
-        return v5
+        v6 = add v5, v0
+        store v6 at v1
+        v8 = unchecked_add v0, u8 1
+        jmp b1(v8)
+      b3():
+        v9 = load v1 -> u8
+        return v9
     }
     ");
 }
@@ -572,14 +572,14 @@ fn for_loop_inclusive_signed_negative_end_is_not_a_maximum() {
         v4 = lt v0, i16 0
         jmpif v4 then: b2(), else: b3()
       b2():
-        v6 = load v1 -> i16
-        v7 = add v6, v0
-        store v7 at v1
-        v9 = unchecked_add v0, i16 1
-        jmp b1(v9)
-      b3():
         v5 = load v1 -> i16
-        return v5
+        v6 = add v5, v0
+        store v6 at v1
+        v8 = unchecked_add v0, i16 1
+        jmp b1(v8)
+      b3():
+        v9 = load v1 -> i16
+        return v9
     }
     ");
 }
@@ -630,11 +630,11 @@ fn for_loop_inclusive_max_value_with_break() {
         store u1 0 at v4
         jmp b3()
       b5():
-        v8 = load v2 -> u8
-        v9 = add v8, v1
-        store v9 at v2
-        v11 = unchecked_add v1, u8 1
-        jmp b1(v11)
+        v9 = load v2 -> u8
+        v10 = add v9, v1
+        store v10 at v2
+        v12 = unchecked_add v1, u8 1
+        jmp b1(v12)
       b6():
         jmpif v0 then: b8(), else: b9()
       b7():
@@ -694,11 +694,11 @@ fn for_loop_inclusive_unknown_range_with_break() {
         store u1 0 at v5
         jmp b3()
       b5():
-        v10 = load v3 -> u8
-        v11 = add v10, v2
-        store v11 at v3
-        v13 = unchecked_add v2, u8 1
-        jmp b1(v13)
+        v11 = load v3 -> u8
+        v12 = add v11, v2
+        store v12 at v3
+        v14 = unchecked_add v2, u8 1
+        jmp b1(v14)
       b6():
         v19 = eq v1, u8 10
         jmpif v19 then: b8(), else: b9()
@@ -739,11 +739,11 @@ fn for_loop_inclusive_with_continue() {
         v5 = lt v0, u8 255
         jmpif v5 then: b2(), else: b3()
       b2():
-        v8 = unchecked_add v0, u8 1
-        jmp b1(v8)
+        v7 = unchecked_add v0, u8 1
+        jmp b1(v7)
       b3():
-        v6 = load v1 -> u1
-        jmpif v6 then: b4(), else: b5()
+        v8 = load v1 -> u1
+        jmpif v8 then: b4(), else: b5()
       b4():
         jmp b5()
       b5():
@@ -778,22 +778,22 @@ fn for_loop_inclusive_max_value_to_max_value() {
         v6 = lt v0, u8 255
         jmpif v6 then: b2(), else: b3()
       b2():
-        v11 = load v1 -> u8
-        v12 = add v11, v0
-        store v12 at v1
-        v14 = unchecked_add v0, u8 1
-        jmp b1(v14)
+        v7 = load v1 -> u8
+        v8 = add v7, v0
+        store v8 at v1
+        v10 = unchecked_add v0, u8 1
+        jmp b1(v10)
       b3():
-        v7 = load v3 -> u1
-        jmpif v7 then: b4(), else: b5()
+        v11 = load v3 -> u1
+        jmpif v11 then: b4(), else: b5()
       b4():
-        v8 = load v1 -> u8
-        v9 = add v8, u8 255
-        store v9 at v1
+        v12 = load v1 -> u8
+        v13 = add v12, u8 255
+        store v13 at v1
         jmp b5()
       b5():
-        v10 = load v1 -> u8
-        return v10
+        v14 = load v1 -> u8
+        return v14
     }
     ");
 }

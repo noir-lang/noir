@@ -4036,19 +4036,19 @@ mod tests {
             v12 = eq v1, u32 1
             jmpif v12 then: b5(), else: b6()
           b5():
-            v16 = unchecked_add v0, u32 1
-            jmp b1(v16)
+            v13 = unchecked_add v0, u32 1
+            jmp b1(v13)
           b6():
-            v13 = unchecked_add v1, u32 1
-            jmp b7(v13, u32 0)
+            v14 = unchecked_add v1, u32 1
+            jmp b7(v14, u32 0)
           b7(v2: u32, v3: u32):
-            v14 = eq v3, u32 1
-            jmpif v14 then: b8(), else: b9()
+            v15 = eq v3, u32 1
+            jmpif v15 then: b8(), else: b9()
           b8():
             jmp b4(v2)
           b9():
-            v15 = add v3, u32 1
-            jmp b7(v2, v15)
+            v16 = add v3, u32 1
+            jmp b7(v2, v16)
           b10(v4: u32, v5: u32):
             v10 = eq v5, u32 1
             jmpif v10 then: b11(), else: b12()
