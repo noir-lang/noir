@@ -968,9 +968,54 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Forward CFG walk from after the `array_set` looking for a
-    /// non-terminator instruction that reads a value still in the alias
-    /// use-set.
+    /// Run the coverage narrowing + forward reachable-use walk for a single
+    /// potential in-place mutation of `source` at `(block, idx)` (the
+    /// instruction `mutator_id`). Returns the aliased use that would observe
+    /// the mutation, or `None` when `source` has no unprotected alias with a
+    /// forward-reachable read.
+    ///
+    /// `write_index_const` and `initial_derived` are forwarded to
+    /// [`Context::find_reachable_aliased_use`]: for an `array_set` they are the
+    /// (optional) constant write index and the singleton of the `array_set`'s
+    /// result; for a `call` argument they are `None` and the empty set.
+    fn aliased_use_for_source(
+        &self,
+        source: ValueId,
+        block: BasicBlockId,
+        idx: usize,
+        mutator_id: InstructionId,
+        write_index_const: Option<FieldElement>,
+        initial_derived: im::HashSet<ValueId>,
+    ) -> Option<AliasedUse> {
+        let alias_set = self.alias_set_for(source, block, idx);
+
+        // Narrow the alias-set to the members not provably protected on every
+        // path to the mutation. An empty result means every member is RC-bumped
+        // or freshly allocated beforehand on all paths, so the in-place
+        // mutation is never observable — accept without the forward walk.
+        let use_set = self.unprotected_aliases(&alias_set, source, block, idx);
+        if use_set.is_empty() {
+            return None;
+        }
+
+        // Expensive: forward CFG walk looking for an aliased read. A hit means
+        // the mutation may happen in place (RC=1) and a downstream instruction
+        // will observe the pre-mutation contents through an aliased name.
+        self.find_reachable_aliased_use(
+            &use_set,
+            source,
+            mutator_id,
+            block,
+            idx,
+            write_index_const,
+            initial_derived,
+        )
+    }
+
+    /// Forward CFG walk from after the *mutating instruction* — an
+    /// `array_set`, or a `call` that may mutate an array argument in place at
+    /// runtime — looking for a non-terminator instruction that reads a value
+    /// still in the alias use-set.
     ///
     /// **Use-set evolution.** Starts as `alias_set` — which is **already
     /// narrowed** to the uncovered members by [`Context::unprotected_aliases`]
@@ -985,7 +1030,7 @@ impl<'f> Context<'f> {
     /// the next block where it is re-bound to that block's parameter. The
     /// kill logic already accounts for these args.
     ///
-    /// The original `array_set` itself is also skipped, in case a cycle
+    /// The mutating instruction itself is also skipped, in case a cycle
     /// re-enters its block — it is, by construction, a use of its own
     /// source, not a hazard.
     ///
@@ -993,11 +1038,13 @@ impl<'f> Context<'f> {
     /// `use_set` to make the filter sound in the presence of `array_set`
     /// chains:
     ///
-    /// - **`derived`** tracks values that may share the `array_set`'s source
-    ///   storage at runtime through transitive in-place mutations. Seeded
-    ///   with the `array_set`'s own result; grown on every later `array_set`
-    ///   whose `array` operand is already in `derived`; propagated across
-    ///   block-param edges the same way the alias use-set is.
+    /// - **`derived`** tracks values that may share the source storage at
+    ///   runtime through transitive in-place mutations. Seeded by the caller
+    ///   via `initial_derived` (the `array_set`'s own result for an
+    ///   `array_set`; empty for a `call`, which has no in-place result to
+    ///   chain from); grown on every later `array_set` whose `array` operand
+    ///   is already in `derived`; propagated across block-param edges the
+    ///   same way the alias use-set is.
     /// - **`tainted_indices`** tracks the set of storage positions any
     ///   chain link may have already written. `Some(set)` accumulates
     ///   constant write indices (seeded with `write_index_const`); set to
@@ -1028,14 +1075,16 @@ impl<'f> Context<'f> {
     /// unioned into the frontier on entry; for `tainted_indices`, `None`
     /// is the absorbing element (a previously-`None` frontier covers any
     /// re-entry).
+    #[allow(clippy::too_many_arguments)]
     fn find_reachable_aliased_use(
         &self,
         alias_set: &im::HashSet<ValueId>,
         source: ValueId,
-        array_set_id: InstructionId,
-        array_set_block: BasicBlockId,
-        array_set_idx: usize,
+        mutator_id: InstructionId,
+        mutator_block: BasicBlockId,
+        mutator_idx: usize,
         write_index_const: Option<FieldElement>,
+        initial_derived: im::HashSet<ValueId>,
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
@@ -1087,15 +1136,14 @@ impl<'f> Context<'f> {
         let use_set: im::HashSet<ValueId> =
             alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 
-        let array_set_result = self.function.dfg.instruction_results(array_set_id)[0];
         let initial_state = WalkState {
             use_set,
-            derived: im::HashSet::unit(array_set_result),
+            derived: initial_derived,
             tainted: write_index_const.map(im::HashSet::unit),
         };
         let mut worklist: Vec<WalkFrame> = vec![WalkFrame {
-            block: array_set_block,
-            start_idx: array_set_idx + 1,
+            block: mutator_block,
+            start_idx: mutator_idx + 1,
             state: initial_state,
         }];
 
@@ -1126,7 +1174,7 @@ impl<'f> Context<'f> {
 
             let instructions = self.function.dfg[block].instructions();
             for &inst_id in instructions.iter().skip(start_idx) {
-                if inst_id == array_set_id {
+                if inst_id == mutator_id {
                     continue;
                 }
                 let inst = &self.function.dfg[inst_id];
