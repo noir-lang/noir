@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782207184630,
+  "lastUpdate": 1782211883799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4b972fd171973e6e20f8e87bf1af3bfa861aed4b",
-          "message": "fix(ssa): Add constraint when simplifying zero-sized vector remove (#13069)",
-          "timestamp": "2026-06-16T16:39:08Z",
-          "tree_id": "49113cab2c027141dfd0dd002dc1d126642d5cae",
-          "url": "https://github.com/noir-lang/noir/commit/4b972fd171973e6e20f8e87bf1af3bfa861aed4b"
-        },
-        "date": 1781629230380,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166833,
-            "range": "± 1279",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134801,
-            "range": "± 4262",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650833,
-            "range": "± 16282",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8d3564e9bb0975607d0c36a70e96bdefc2eb15ea",
           "message": "fix(ssa): Do not deduplicate with instruction result potentially modified by vector intrinsic (#12993)",
           "timestamp": "2026-06-16T22:02:25Z",
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654260,
             "range": "± 1567",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "96542e53c9cea47cf4210d61fba6250e4e0c4b46",
+          "message": "feat(stdlib): Add `BoundedVec::truncate` (#13137)",
+          "timestamp": "2026-06-23T10:29:49Z",
+          "tree_id": "27bf78ed4480b9befc14405195b3358ae90a5e21",
+          "url": "https://github.com/noir-lang/noir/commit/96542e53c9cea47cf4210d61fba6250e4e0c4b46"
+        },
+        "date": 1782211784334,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166430,
+            "range": "± 660",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135951,
+            "range": "± 1747",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652096,
+            "range": "± 4859",
             "unit": "ns/iter"
           }
         ]
