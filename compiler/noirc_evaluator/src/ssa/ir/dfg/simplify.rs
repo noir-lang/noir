@@ -461,23 +461,11 @@ fn trap_on_constant_out_of_bounds(
     if !dfg.runtime().is_brillig() {
         return false;
     }
-    let Some(index_constant) = dfg.get_numeric_constant(index) else {
-        return false;
-    };
     // Only known-length arrays have a compile-time bound; vectors do not.
     let Some(length) = dfg.try_get_array_length(array) else {
         return false;
     };
-    let semi_flattened_length = u128::from((length * dfg.type_of_value(array).element_size()).0);
-
-    // Constant Brillig array indices are shifted past the array header (see
-    // `brillig_array_get_and_set`); undo the shift to recover the logical index before comparing.
-    let offset = u128::from(dfg.array_offset(array, index).to_u32());
-    let in_bounds = index_constant
-        .to_u128()
-        .checked_sub(offset)
-        .is_some_and(|logical_index| logical_index < semi_flattened_length);
-    if in_bounds {
+    if !dfg.constant_index_is_out_of_bounds(array, index, length) {
         return false;
     }
 
