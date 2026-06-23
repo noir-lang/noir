@@ -4073,6 +4073,81 @@ mod tests {
         assert_verifier_rejects(src);
     }
 
+    /// Regression for noir-lang/noir-claude#1426. The ownership pass clones
+    /// (`inc_rc`s) every non-last use of an array, so a well-formed program
+    /// that reuses an array across a call always RC-protects it. This
+    /// hand-written SSA omits those bumps: a pure identity callee (`f2`)
+    /// returns the array input unchanged, `f1` then `array_set`s the returned
+    /// alias — mutating its caller's array in place at RC 1 — and `main`
+    /// reuses the same array across two calls to `f1`. The in-place mutation
+    /// is therefore observable to `main` (the first call's mutation is seen by
+    /// the second), which is exactly the precondition `purity_analysis`
+    /// relies on being absent. The verifier must reject: both the reused arg
+    /// in `main` and the reused-then-read arg in `f1` lack a preceding
+    /// `inc_rc`.
+    #[test]
+    fn end_to_end_array_reused_across_call_without_inc_rc_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = call f1(v0) -> Field
+                v2 = call f1(v0) -> Field
+                return v1, v2
+            }
+            brillig(inline) fn bump_via_identity f1 {
+              b0(v0: [Field; 2]):
+                v1 = call f2(v0) -> [Field; 2]
+                v2 = array_get v0, index u32 0 -> Field
+                v3 = add v2, Field 1
+                v4 = array_set v1, index u32 0, value v3
+                return v3
+            }
+            brillig(inline) fn identity f2 {
+              b0(v0: [Field; 2]):
+                return v0
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// The well-formed counterpart of
+    /// [`end_to_end_array_reused_across_call_without_inc_rc_is_rejected`]: the
+    /// `inc_rc`s the ownership pass emits are present — in `main` before the
+    /// reused call arg, and in `f1` before the array escapes to `identity` and
+    /// is read again. Every reused array call-arg is now RC-protected, so the
+    /// in-place mutation cannot be observed through an alias and the verifier
+    /// accepts. This pins down that the call-arg check credits a preceding
+    /// `inc_rc` rather than flagging every reused call arg unconditionally.
+    #[test]
+    fn end_to_end_array_reused_across_call_with_inc_rc_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                inc_rc v0
+                v1 = call f1(v0) -> Field
+                v2 = call f1(v0) -> Field
+                return v1, v2
+            }
+            brillig(inline) fn bump_via_identity f1 {
+              b0(v0: [Field; 2]):
+                inc_rc v0
+                v1 = call f2(v0) -> [Field; 2]
+                v2 = array_get v0, index u32 0 -> Field
+                v3 = add v2, Field 1
+                v4 = array_set v1, index u32 0, value v3
+                return v3
+            }
+            brillig(inline) fn identity f2 {
+              b0(v0: [Field; 2]):
+                return v0
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "every reused array call-arg is protected by a preceding inc_rc",
+        );
+    }
+
     /// A located `array_set` plus everything the per-array_set verifier
     /// checks would need. Returned by [`find_array_sets`] / [`first_array_set`]
     /// / [`last_array_set`] so each test reads one struct rather than a
