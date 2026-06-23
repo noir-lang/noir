@@ -253,7 +253,7 @@
 <a href=#253 id=253 data-nosnippet>253</a>/// must be skipped before the `can_flatten_in_conditional` call, which treats
 <a href=#254 id=254 data-nosnippet>254</a>/// reaching them as an ICE.) Hoisting an `inc_rc` only ever raises a reference
 <a href=#255 id=255 data-nosnippet>255</a>/// count, so the later `array_set` copies rather than mutating in place — sound,
-<a href=#256 id=256 data-nosnippet>256</a>/// and guarded by the `array_set_rc_invariant` validator.
+<a href=#256 id=256 data-nosnippet>256</a>/// and guarded by the `rc_invariant::array_set` validator.
 <a href=#257 id=257 data-nosnippet>257</a></span><span class="kw">fn </span>block_flatten_cost(block: BasicBlockId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
 <a href=#258 id=258 data-nosnippet>258</a>    <span class="kw">let </span><span class="kw-2">mut </span>cost: u32 = <span class="number">0</span>;
 <a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">for </span>instruction_id <span class="kw">in </span>dfg[block].instructions() {

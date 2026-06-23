@@ -9,5 +9,5 @@ influence the flatten/not-flatten decision. (<code>Allocate</code> and <code>Inc
 must be skipped before the <code>can_flatten_in_conditional</code> call, which treats
 reaching them as an ICE.) Hoisting an <code>inc_rc</code> only ever raises a reference
 count, so the later <code>array_set</code> copies rather than mutating in place — sound,
-and guarded by the <code>array_set_rc_invariant</code> validator.</p>
+and guarded by the <code>rc_invariant::array_set</code> validator.</p>
 </div></details></section></div></main></body></html>
