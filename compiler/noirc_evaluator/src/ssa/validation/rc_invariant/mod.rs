@@ -160,6 +160,7 @@ use crate::ssa::{
 };
 
 pub(crate) mod array_set;
+pub(crate) mod call;
 
 /// Pre-computed indices over a Brillig function. The verifier's per-array_set
 /// checks read from these structures rather than re-scanning the function.
@@ -1530,4 +1531,40 @@ struct AliasedUse {
     /// The alias-set member that was used. Names *which* alias triggered
     /// the flag — useful when the alias-set has more than one member.
     value: ValueId,
+}
+
+/// Test support shared by both submodules' `tests`. The reject helpers stay
+/// per-module (each asserts its own error variant), but acceptance is the same
+/// property for both — *neither* verifier rejects — so it lives here.
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::{array_set, call};
+    use crate::{errors::RtResult, ssa::ssa_gen::Ssa};
+
+    /// Run the full `rc_invariant` check — every submodule verifier — over
+    /// `ssa`, returning the first violation.
+    pub(crate) fn verify_all(ssa: &Ssa) -> RtResult<()> {
+        array_set::verify(ssa)?;
+        call::verify(ssa)?;
+        Ok(())
+    }
+
+    /// Assert the full `rc_invariant` check ([`verify_all`]) accepts `src`.
+    pub(crate) fn assert_verifier_accepts(src: &str) {
+        assert_verifier_accepts_because(src, "");
+    }
+
+    /// Same as [`assert_verifier_accepts`] but includes `reason` in the panic
+    /// message — useful for documenting why the SSA is *expected* to be
+    /// accepted (e.g. "loop exit reads a rebound block-param").
+    pub(crate) fn assert_verifier_accepts_because(src: &str, reason: &str) {
+        let ssa = Ssa::from_str(src).expect("SSA parses");
+        if let Err(err) = verify_all(&ssa) {
+            if reason.is_empty() {
+                panic!("expected the verifier to accept, but it rejected: {err:?}");
+            } else {
+                panic!("expected the verifier to accept ({reason}), but it rejected: {err:?}");
+            }
+        }
+    }
 }

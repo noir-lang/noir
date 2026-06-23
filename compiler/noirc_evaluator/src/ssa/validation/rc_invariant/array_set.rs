@@ -105,6 +105,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
 mod tests {
     use acvm::FieldElement;
 
+    use super::super::tests::{assert_verifier_accepts, assert_verifier_accepts_because};
     use super::Context;
     use crate::ssa::{
         ir::{
@@ -116,29 +117,11 @@ mod tests {
         ssa_gen::Ssa,
     };
 
-    /// Parse `src`, run the verifier, and require it to accept the SSA.
-    /// Panics with the unexpected error otherwise.
-    fn assert_verifier_accepts(src: &str) {
-        assert_verifier_accepts_because(src, "");
-    }
-
-    /// Same as [`assert_verifier_accepts`] but includes `reason` in the
-    /// panic message — useful for documenting why the SSA is *expected*
-    /// to be accepted (e.g. "loop exit reads a rebound block-param").
-    fn assert_verifier_accepts_because(src: &str, reason: &str) {
-        let ssa = Ssa::from_str(src).expect("SSA parses");
-        if let Err(err) = super::verify(&ssa) {
-            if reason.is_empty() {
-                panic!("expected the verifier to accept, but it rejected: {err:?}");
-            } else {
-                panic!("expected the verifier to accept ({reason}), but it rejected: {err:?}");
-            }
-        }
-    }
-
-    /// Parse `src`, run the verifier, and require it to reject the SSA
-    /// with an [`crate::errors::RuntimeError::ArraySetAliasViolation`].
-    /// Panics on any other outcome.
+    /// Parse `src`, run the `array_set` verifier, and require it to reject the
+    /// SSA with an [`crate::errors::RuntimeError::ArraySetAliasViolation`].
+    /// Panics on any other outcome. Runs `array_set::verify` directly (not the
+    /// combined check) so the assertion proves the *array_set* verifier is the
+    /// one that caught the hazard.
     fn assert_verifier_rejects(src: &str) {
         let ssa = Ssa::from_str(src).expect("SSA parses");
         let err = super::verify(&ssa).expect_err("expected the verifier to reject");
@@ -2558,89 +2541,6 @@ mod tests {
                 return
             }"#;
         assert_verifier_rejects(src);
-    }
-
-    /// Regression for noir-lang/noir-claude#1426. The ownership pass clones
-    /// (`inc_rc`s) every non-last use of an array, so a well-formed program
-    /// that reuses an array across a call always RC-protects it. This
-    /// hand-written SSA omits those bumps: a pure identity callee (`f2`)
-    /// returns the array input unchanged, `f1` then `array_set`s the returned
-    /// alias — mutating its caller's array in place at RC 1 — and `main`
-    /// reuses the same array across two calls to `f1`. The in-place mutation
-    /// is therefore observable to `main` (the first call's mutation is seen by
-    /// the second), which is exactly the precondition `purity_analysis`
-    /// relies on being absent. The verifier must reject: both the reused arg
-    /// in `main` and the reused-then-read arg in `f1` lack a preceding
-    /// `inc_rc`.
-    ///
-    // TODO(noir-lang/noir-claude#1426): this exercises the call-argument
-    // verifier, which is not implemented yet. `array_set::verify` alone does
-    // not reject this SSA, so the test currently panics inside
-    // `assert_verifier_rejects`; `should_panic` marks that placeholder state.
-    // Move this test into the `call` submodule and drop `should_panic` once
-    // the call-argument check lands.
-    #[test]
-    #[should_panic(expected = "expected the verifier to reject")]
-    fn end_to_end_array_reused_across_call_without_inc_rc_is_rejected() {
-        let src = r#"
-            brillig(inline) fn main f0 {
-              b0():
-                v0 = make_array [Field 1, Field 2] : [Field; 2]
-                v1 = call f1(v0) -> Field
-                v2 = call f1(v0) -> Field
-                return v1, v2
-            }
-            brillig(inline) fn bump_via_identity f1 {
-              b0(v0: [Field; 2]):
-                v1 = call f2(v0) -> [Field; 2]
-                v2 = array_get v0, index u32 0 -> Field
-                v3 = add v2, Field 1
-                v4 = array_set v1, index u32 0, value v3
-                return v3
-            }
-            brillig(inline) fn identity f2 {
-              b0(v0: [Field; 2]):
-                return v0
-            }"#;
-        assert_verifier_rejects(src);
-    }
-
-    /// The well-formed counterpart of
-    /// [`end_to_end_array_reused_across_call_without_inc_rc_is_rejected`]: the
-    /// `inc_rc`s the ownership pass emits are present — in `main` before the
-    /// reused call arg, and in `f1` before the array escapes to `identity` and
-    /// is read again. Every reused array call-arg is now RC-protected, so the
-    /// in-place mutation cannot be observed through an alias and the verifier
-    /// accepts. This pins down that the call-arg check credits a preceding
-    /// `inc_rc` rather than flagging every reused call arg unconditionally.
-    #[test]
-    fn end_to_end_array_reused_across_call_with_inc_rc_is_accepted() {
-        let src = r#"
-            brillig(inline) fn main f0 {
-              b0():
-                v0 = make_array [Field 1, Field 2] : [Field; 2]
-                inc_rc v0
-                v1 = call f1(v0) -> Field
-                v2 = call f1(v0) -> Field
-                return v1, v2
-            }
-            brillig(inline) fn bump_via_identity f1 {
-              b0(v0: [Field; 2]):
-                inc_rc v0
-                v1 = call f2(v0) -> [Field; 2]
-                v2 = array_get v0, index u32 0 -> Field
-                v3 = add v2, Field 1
-                v4 = array_set v1, index u32 0, value v3
-                return v3
-            }
-            brillig(inline) fn identity f2 {
-              b0(v0: [Field; 2]):
-                return v0
-            }"#;
-        assert_verifier_accepts_because(
-            src,
-            "every reused array call-arg is protected by a preceding inc_rc",
-        );
     }
 
     /// A located `array_set` plus everything the per-array_set verifier
