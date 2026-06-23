@@ -610,7 +610,14 @@ impl<'interner> Monomorphizer<'interner> {
             return Err(MonomorphizationError::ComptimeFnInRuntimeCode { name, location });
         }
 
-        let body_expr_id = self.interner.function(&f).as_expr();
+        // A disabled function (`FunctionDefinition::disable`) has its body marked resolved without
+        // being elaborated, so it has no interned expression. A call to it should have been rejected
+        // during elaboration by the `deprecated(deny, _)` lint; if one still reaches here (e.g. a
+        // call constructed via `as_typed_expr` that bypasses that lint), error cleanly instead of
+        // panicking on the missing body.
+        let Some(body_expr_id) = self.interner.function(&f).try_as_expr() else {
+            return Err(MonomorphizationError::CalledDisabledFunction { name, location });
+        };
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_target_type = match meta.return_type() {
             Type::TraitAsType(..) => &body_return_type,
