@@ -929,176 +929,201 @@
 <a href=#929 id=929 data-nosnippet>929</a>        }
 <a href=#930 id=930 data-nosnippet>930</a>    }
 <a href=#931 id=931 data-nosnippet>931</a>
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="doccomment">/// Check if the results of an instruction are used in the databus to return a value..
-<a href=#933 id=933 data-nosnippet>933</a>    ///
-<a href=#934 id=934 data-nosnippet>934</a>    /// This only applies to ACIR, as in Brillig the databus will always be empty.
-<a href=#935 id=935 data-nosnippet>935</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_returned_in_databus(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction_id: InstructionId) -&gt; bool {
-<a href=#936 id=936 data-nosnippet>936</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data <span class="kw">else </span>{
-<a href=#937 id=937 data-nosnippet>937</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#938 id=938 data-nosnippet>938</a>        };
-<a href=#939 id=939 data-nosnippet>939</a>        <span class="kw">let </span>results = <span class="self">self</span>.instruction_results(instruction_id);
-<a href=#940 id=940 data-nosnippet>940</a>        results.contains(<span class="kw-2">&amp;</span>return_data)
-<a href=#941 id=941 data-nosnippet>941</a>    }
-<a href=#942 id=942 data-nosnippet>942</a>
-<a href=#943 id=943 data-nosnippet>943</a>    <span class="doccomment">/// Computes the number of flattened values returned by the SSA terminator.
-<a href=#944 id=944 data-nosnippet>944</a>    ///
-<a href=#945 id=945 data-nosnippet>945</a>    /// Returns [`RuntimeError::ReturnLimitExceeded`] if it exceeds [`MAX_ELEMENTS`].
-<a href=#946 id=946 data-nosnippet>946</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_num_return_witnesses(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="prelude-ty">Result</span>&lt;usize, RuntimeError&gt; {
-<a href=#947 id=947 data-nosnippet>947</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Return { return_values, call_stack }) =
-<a href=#948 id=948 data-nosnippet>948</a>            func.return_instruction()
-<a href=#949 id=949 data-nosnippet>949</a>        {
-<a href=#950 id=950 data-nosnippet>950</a>            <span class="kw">let </span>num_return_values: usize = return_values
-<a href=#951 id=951 data-nosnippet>951</a>                .iter()
-<a href=#952 id=952 data-nosnippet>952</a>                .map(|result_id| <span class="self">self</span>.type_of_value(<span class="kw-2">*</span>result_id).flattened_size().to_usize())
-<a href=#953 id=953 data-nosnippet>953</a>                .sum();
-<a href=#954 id=954 data-nosnippet>954</a>
-<a href=#955 id=955 data-nosnippet>955</a>            <span class="kw">if </span>num_return_values &gt; MAX_ELEMENTS {
-<a href=#956 id=956 data-nosnippet>956</a>                <span class="kw">let </span>call_stack = func.dfg.call_stack_data.get_call_stack(<span class="kw-2">*</span>call_stack);
-<a href=#957 id=957 data-nosnippet>957</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::ReturnLimitExceeded {
-<a href=#958 id=958 data-nosnippet>958</a>                    num_witnesses: num_return_values,
-<a href=#959 id=959 data-nosnippet>959</a>                    max_witnesses: MAX_ELEMENTS,
-<a href=#960 id=960 data-nosnippet>960</a>                    call_stack,
-<a href=#961 id=961 data-nosnippet>961</a>                });
-<a href=#962 id=962 data-nosnippet>962</a>            }
-<a href=#963 id=963 data-nosnippet>963</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(num_return_values);
-<a href=#964 id=964 data-nosnippet>964</a>        }
-<a href=#965 id=965 data-nosnippet>965</a>
-<a href=#966 id=966 data-nosnippet>966</a>        <span class="prelude-val">Ok</span>(<span class="number">0</span>)
-<a href=#967 id=967 data-nosnippet>967</a>    }
-<a href=#968 id=968 data-nosnippet>968</a>}
-<a href=#969 id=969 data-nosnippet>969</a>
-<a href=#970 id=970 data-nosnippet>970</a><span class="kw">impl </span>std::ops::Index&lt;InstructionId&gt; <span class="kw">for </span>DataFlowGraph {
-<a href=#971 id=971 data-nosnippet>971</a>    <span class="kw">type </span>Output = Instruction;
-<a href=#972 id=972 data-nosnippet>972</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#973 id=973 data-nosnippet>973</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.instructions[id]
-<a href=#974 id=974 data-nosnippet>974</a>    }
-<a href=#975 id=975 data-nosnippet>975</a>}
-<a href=#976 id=976 data-nosnippet>976</a>
-<a href=#977 id=977 data-nosnippet>977</a><span class="kw">impl </span>std::ops::IndexMut&lt;InstructionId&gt; <span class="kw">for </span>DataFlowGraph {
-<a href=#978 id=978 data-nosnippet>978</a>    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.instructions[id]
-<a href=#980 id=980 data-nosnippet>980</a>    }
-<a href=#981 id=981 data-nosnippet>981</a>}
-<a href=#982 id=982 data-nosnippet>982</a>
-<a href=#983 id=983 data-nosnippet>983</a><span class="kw">impl </span>std::ops::Index&lt;ValueId&gt; <span class="kw">for </span>DataFlowGraph {
-<a href=#984 id=984 data-nosnippet>984</a>    <span class="kw">type </span>Output = Value;
-<a href=#985 id=985 data-nosnippet>985</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ValueId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#986 id=986 data-nosnippet>986</a>        <span class="kw">let </span>value = <span class="kw-2">&amp;</span><span class="self">self</span>.values[id];
-<a href=#987 id=987 data-nosnippet>987</a>        <span class="kw">if </span><span class="macro">matches!</span>(value, Value::Global(<span class="kw">_</span>)) {
-<a href=#988 id=988 data-nosnippet>988</a>            <span class="kw">return </span><span class="kw-2">&amp;</span><span class="self">self</span>.globals[id];
+<a href=#932 id=932 data-nosnippet>932</a>    <span class="doccomment">/// Returns `true` when `index` is a compile-time constant that is provably out of bounds for
+<a href=#933 id=933 data-nosnippet>933</a>    /// `array`, given its statically known `length`. Returns `false` for non-constant indices and
+<a href=#934 id=934 data-nosnippet>934</a>    /// for in-bounds accesses.
+<a href=#935 id=935 data-nosnippet>935</a>    ///
+<a href=#936 id=936 data-nosnippet>936</a>    /// In Brillig a constant array/vector index is shifted past the in-memory header (see
+<a href=#937 id=937 data-nosnippet>937</a>    /// `brillig_array_gets`); [`Self::array_offset`] is that shift in Brillig and `None` (`0`) in
+<a href=#938 id=938 data-nosnippet>938</a>    /// ACIR, so subtracting it recovers the logical index and the same check serves both runtimes.
+<a href=#939 id=939 data-nosnippet>939</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>constant_index_is_out_of_bounds(
+<a href=#940 id=940 data-nosnippet>940</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#941 id=941 data-nosnippet>941</a>        array: ValueId,
+<a href=#942 id=942 data-nosnippet>942</a>        index: ValueId,
+<a href=#943 id=943 data-nosnippet>943</a>        length: SemanticLength,
+<a href=#944 id=944 data-nosnippet>944</a>    ) -&gt; bool {
+<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(index_constant) = <span class="self">self</span>.get_numeric_constant(index) <span class="kw">else </span>{
+<a href=#946 id=946 data-nosnippet>946</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#947 id=947 data-nosnippet>947</a>        };
+<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span>semi_flattened_length =
+<a href=#949 id=949 data-nosnippet>949</a>            u128::from((length * <span class="self">self</span>.type_of_value(array).element_size()).<span class="number">0</span>);
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">let </span>offset = u128::from(<span class="self">self</span>.array_offset(array, index).to_u32());
+<a href=#951 id=951 data-nosnippet>951</a>        index_constant
+<a href=#952 id=952 data-nosnippet>952</a>            .to_u128()
+<a href=#953 id=953 data-nosnippet>953</a>            .checked_sub(offset)
+<a href=#954 id=954 data-nosnippet>954</a>            .is_none_or(|logical_index| logical_index &gt;= semi_flattened_length)
+<a href=#955 id=955 data-nosnippet>955</a>    }
+<a href=#956 id=956 data-nosnippet>956</a>
+<a href=#957 id=957 data-nosnippet>957</a>    <span class="doccomment">/// Check if the results of an instruction are used in the databus to return a value..
+<a href=#958 id=958 data-nosnippet>958</a>    ///
+<a href=#959 id=959 data-nosnippet>959</a>    /// This only applies to ACIR, as in Brillig the databus will always be empty.
+<a href=#960 id=960 data-nosnippet>960</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_returned_in_databus(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction_id: InstructionId) -&gt; bool {
+<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(return_data) = <span class="self">self</span>.data_bus.return_data <span class="kw">else </span>{
+<a href=#962 id=962 data-nosnippet>962</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#963 id=963 data-nosnippet>963</a>        };
+<a href=#964 id=964 data-nosnippet>964</a>        <span class="kw">let </span>results = <span class="self">self</span>.instruction_results(instruction_id);
+<a href=#965 id=965 data-nosnippet>965</a>        results.contains(<span class="kw-2">&amp;</span>return_data)
+<a href=#966 id=966 data-nosnippet>966</a>    }
+<a href=#967 id=967 data-nosnippet>967</a>
+<a href=#968 id=968 data-nosnippet>968</a>    <span class="doccomment">/// Computes the number of flattened values returned by the SSA terminator.
+<a href=#969 id=969 data-nosnippet>969</a>    ///
+<a href=#970 id=970 data-nosnippet>970</a>    /// Returns [`RuntimeError::ReturnLimitExceeded`] if it exceeds [`MAX_ELEMENTS`].
+<a href=#971 id=971 data-nosnippet>971</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_num_return_witnesses(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="prelude-ty">Result</span>&lt;usize, RuntimeError&gt; {
+<a href=#972 id=972 data-nosnippet>972</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Return { return_values, call_stack }) =
+<a href=#973 id=973 data-nosnippet>973</a>            func.return_instruction()
+<a href=#974 id=974 data-nosnippet>974</a>        {
+<a href=#975 id=975 data-nosnippet>975</a>            <span class="kw">let </span>num_return_values: usize = return_values
+<a href=#976 id=976 data-nosnippet>976</a>                .iter()
+<a href=#977 id=977 data-nosnippet>977</a>                .map(|result_id| <span class="self">self</span>.type_of_value(<span class="kw-2">*</span>result_id).flattened_size().to_usize())
+<a href=#978 id=978 data-nosnippet>978</a>                .sum();
+<a href=#979 id=979 data-nosnippet>979</a>
+<a href=#980 id=980 data-nosnippet>980</a>            <span class="kw">if </span>num_return_values &gt; MAX_ELEMENTS {
+<a href=#981 id=981 data-nosnippet>981</a>                <span class="kw">let </span>call_stack = func.dfg.call_stack_data.get_call_stack(<span class="kw-2">*</span>call_stack);
+<a href=#982 id=982 data-nosnippet>982</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::ReturnLimitExceeded {
+<a href=#983 id=983 data-nosnippet>983</a>                    num_witnesses: num_return_values,
+<a href=#984 id=984 data-nosnippet>984</a>                    max_witnesses: MAX_ELEMENTS,
+<a href=#985 id=985 data-nosnippet>985</a>                    call_stack,
+<a href=#986 id=986 data-nosnippet>986</a>                });
+<a href=#987 id=987 data-nosnippet>987</a>            }
+<a href=#988 id=988 data-nosnippet>988</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(num_return_values);
 <a href=#989 id=989 data-nosnippet>989</a>        }
-<a href=#990 id=990 data-nosnippet>990</a>        value
-<a href=#991 id=991 data-nosnippet>991</a>    }
-<a href=#992 id=992 data-nosnippet>992</a>}
-<a href=#993 id=993 data-nosnippet>993</a>
-<a href=#994 id=994 data-nosnippet>994</a><span class="kw">impl </span>std::ops::Index&lt;BasicBlockId&gt; <span class="kw">for </span>DataFlowGraph {
-<a href=#995 id=995 data-nosnippet>995</a>    <span class="kw">type </span>Output = BasicBlock;
-<a href=#996 id=996 data-nosnippet>996</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#997 id=997 data-nosnippet>997</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.blocks[id]
-<a href=#998 id=998 data-nosnippet>998</a>    }
-<a href=#999 id=999 data-nosnippet>999</a>}
-<a href=#1000 id=1000 data-nosnippet>1000</a>
-<a href=#1001 id=1001 data-nosnippet>1001</a><span class="kw">impl </span>std::ops::IndexMut&lt;BasicBlockId&gt; <span class="kw">for </span>DataFlowGraph {
-<a href=#1002 id=1002 data-nosnippet>1002</a>    <span class="doccomment">/// Get a mutable reference to a function's basic block for the given id.
-<a href=#1003 id=1003 data-nosnippet>1003</a>    </span><span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
-<a href=#1004 id=1004 data-nosnippet>1004</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.blocks[id]
+<a href=#990 id=990 data-nosnippet>990</a>
+<a href=#991 id=991 data-nosnippet>991</a>        <span class="prelude-val">Ok</span>(<span class="number">0</span>)
+<a href=#992 id=992 data-nosnippet>992</a>    }
+<a href=#993 id=993 data-nosnippet>993</a>}
+<a href=#994 id=994 data-nosnippet>994</a>
+<a href=#995 id=995 data-nosnippet>995</a><span class="kw">impl </span>std::ops::Index&lt;InstructionId&gt; <span class="kw">for </span>DataFlowGraph {
+<a href=#996 id=996 data-nosnippet>996</a>    <span class="kw">type </span>Output = Instruction;
+<a href=#997 id=997 data-nosnippet>997</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#998 id=998 data-nosnippet>998</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.instructions[id]
+<a href=#999 id=999 data-nosnippet>999</a>    }
+<a href=#1000 id=1000 data-nosnippet>1000</a>}
+<a href=#1001 id=1001 data-nosnippet>1001</a>
+<a href=#1002 id=1002 data-nosnippet>1002</a><span class="kw">impl </span>std::ops::IndexMut&lt;InstructionId&gt; <span class="kw">for </span>DataFlowGraph {
+<a href=#1003 id=1003 data-nosnippet>1003</a>    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
+<a href=#1004 id=1004 data-nosnippet>1004</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.instructions[id]
 <a href=#1005 id=1005 data-nosnippet>1005</a>    }
 <a href=#1006 id=1006 data-nosnippet>1006</a>}
 <a href=#1007 id=1007 data-nosnippet>1007</a>
-<a href=#1008 id=1008 data-nosnippet>1008</a><span class="kw">impl </span>std::ops::Index&lt;ValueId&gt; <span class="kw">for </span>GlobalsGraph {
+<a href=#1008 id=1008 data-nosnippet>1008</a><span class="kw">impl </span>std::ops::Index&lt;ValueId&gt; <span class="kw">for </span>DataFlowGraph {
 <a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="kw">type </span>Output = Value;
 <a href=#1010 id=1010 data-nosnippet>1010</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ValueId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#1011 id=1011 data-nosnippet>1011</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.values[id]
-<a href=#1012 id=1012 data-nosnippet>1012</a>    }
-<a href=#1013 id=1013 data-nosnippet>1013</a>}
-<a href=#1014 id=1014 data-nosnippet>1014</a>
-<a href=#1015 id=1015 data-nosnippet>1015</a><span class="kw">impl </span>std::ops::Index&lt;InstructionId&gt; <span class="kw">for </span>GlobalsGraph {
-<a href=#1016 id=1016 data-nosnippet>1016</a>    <span class="kw">type </span>Output = Instruction;
-<a href=#1017 id=1017 data-nosnippet>1017</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.instructions[id]
-<a href=#1019 id=1019 data-nosnippet>1019</a>    }
-<a href=#1020 id=1020 data-nosnippet>1020</a>}
-<a href=#1021 id=1021 data-nosnippet>1021</a>
-<a href=#1022 id=1022 data-nosnippet>1022</a><span class="comment">// The result of calling DataFlowGraph::insert_instruction can
-<a href=#1023 id=1023 data-nosnippet>1023</a>// be a list of results or a single ValueId if the instruction was simplified
-<a href=#1024 id=1024 data-nosnippet>1024</a>// to an existing value.
-<a href=#1025 id=1025 data-nosnippet>1025</a></span><span class="attr">#[derive(Debug)]
-<a href=#1026 id=1026 data-nosnippet>1026</a></span><span class="kw">pub enum </span>InsertInstructionResult&lt;<span class="lifetime">'dfg</span>&gt; {
-<a href=#1027 id=1027 data-nosnippet>1027</a>    <span class="doccomment">/// Results is the standard case containing the instruction id and the results of that instruction.
-<a href=#1028 id=1028 data-nosnippet>1028</a>    </span>Results(InstructionId, <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span>[ValueId]),
-<a href=#1029 id=1029 data-nosnippet>1029</a>    SimplifiedTo(ValueId),
-<a href=#1030 id=1030 data-nosnippet>1030</a>    SimplifiedToMultiple(Vec&lt;ValueId&gt;),
-<a href=#1031 id=1031 data-nosnippet>1031</a>    InstructionRemoved,
-<a href=#1032 id=1032 data-nosnippet>1032</a>}
-<a href=#1033 id=1033 data-nosnippet>1033</a>
-<a href=#1034 id=1034 data-nosnippet>1034</a><span class="kw">impl</span>&lt;<span class="lifetime">'dfg</span>&gt; InsertInstructionResult&lt;<span class="lifetime">'dfg</span>&gt; {
-<a href=#1035 id=1035 data-nosnippet>1035</a>    <span class="doccomment">/// Retrieve the first (and expected to be the only) result.
-<a href=#1036 id=1036 data-nosnippet>1036</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>first(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValueId {
-<a href=#1037 id=1037 data-nosnippet>1037</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#1038 id=1038 data-nosnippet>1038</a>            InsertInstructionResult::SimplifiedTo(value) =&gt; <span class="kw-2">*</span>value,
-<a href=#1039 id=1039 data-nosnippet>1039</a>            InsertInstructionResult::SimplifiedToMultiple(values) =&gt; values[<span class="number">0</span>],
-<a href=#1040 id=1040 data-nosnippet>1040</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; {
-<a href=#1041 id=1041 data-nosnippet>1041</a>                <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
-<a href=#1042 id=1042 data-nosnippet>1042</a>                results[<span class="number">0</span>]
-<a href=#1043 id=1043 data-nosnippet>1043</a>            }
-<a href=#1044 id=1044 data-nosnippet>1044</a>            InsertInstructionResult::InstructionRemoved =&gt; {
-<a href=#1045 id=1045 data-nosnippet>1045</a>                <span class="macro">panic!</span>(<span class="string">"Instruction was removed, no results"</span>)
-<a href=#1046 id=1046 data-nosnippet>1046</a>            }
-<a href=#1047 id=1047 data-nosnippet>1047</a>        }
-<a href=#1048 id=1048 data-nosnippet>1048</a>    }
-<a href=#1049 id=1049 data-nosnippet>1049</a>
-<a href=#1050 id=1050 data-nosnippet>1050</a>    <span class="doccomment">/// Return all the results contained in the internal results array.
-<a href=#1051 id=1051 data-nosnippet>1051</a>    /// This is used for instructions returning multiple results like function calls.
-<a href=#1052 id=1052 data-nosnippet>1052</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>results(<span class="self">self</span>) -&gt; Cow&lt;<span class="lifetime">'dfg</span>, [ValueId]&gt; {
-<a href=#1053 id=1053 data-nosnippet>1053</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#1054 id=1054 data-nosnippet>1054</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; Cow::Borrowed(results),
-<a href=#1055 id=1055 data-nosnippet>1055</a>            InsertInstructionResult::SimplifiedTo(result) =&gt; Cow::Owned(<span class="macro">vec!</span>[result]),
-<a href=#1056 id=1056 data-nosnippet>1056</a>            InsertInstructionResult::SimplifiedToMultiple(results) =&gt; Cow::Owned(results),
-<a href=#1057 id=1057 data-nosnippet>1057</a>            InsertInstructionResult::InstructionRemoved =&gt; Cow::Owned(<span class="macro">vec!</span>[]),
-<a href=#1058 id=1058 data-nosnippet>1058</a>        }
-<a href=#1059 id=1059 data-nosnippet>1059</a>    }
-<a href=#1060 id=1060 data-nosnippet>1060</a>
-<a href=#1061 id=1061 data-nosnippet>1061</a>    <span class="doccomment">/// Returns the amount of `ValueIds` contained
-<a href=#1062 id=1062 data-nosnippet>1062</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-<a href=#1063 id=1063 data-nosnippet>1063</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#1064 id=1064 data-nosnippet>1064</a>            InsertInstructionResult::SimplifiedTo(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
-<a href=#1065 id=1065 data-nosnippet>1065</a>            InsertInstructionResult::SimplifiedToMultiple(results) =&gt; results.len(),
-<a href=#1066 id=1066 data-nosnippet>1066</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; results.len(),
-<a href=#1067 id=1067 data-nosnippet>1067</a>            InsertInstructionResult::InstructionRemoved =&gt; <span class="number">0</span>,
-<a href=#1068 id=1068 data-nosnippet>1068</a>        }
-<a href=#1069 id=1069 data-nosnippet>1069</a>    }
-<a href=#1070 id=1070 data-nosnippet>1070</a>}
-<a href=#1071 id=1071 data-nosnippet>1071</a>
-<a href=#1072 id=1072 data-nosnippet>1072</a><span class="kw">impl </span>std::ops::Index&lt;usize&gt; <span class="kw">for </span>InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#1073 id=1073 data-nosnippet>1073</a>    <span class="kw">type </span>Output = ValueId;
+<a href=#1011 id=1011 data-nosnippet>1011</a>        <span class="kw">let </span>value = <span class="kw-2">&amp;</span><span class="self">self</span>.values[id];
+<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">if </span><span class="macro">matches!</span>(value, Value::Global(<span class="kw">_</span>)) {
+<a href=#1013 id=1013 data-nosnippet>1013</a>            <span class="kw">return </span><span class="kw-2">&amp;</span><span class="self">self</span>.globals[id];
+<a href=#1014 id=1014 data-nosnippet>1014</a>        }
+<a href=#1015 id=1015 data-nosnippet>1015</a>        value
+<a href=#1016 id=1016 data-nosnippet>1016</a>    }
+<a href=#1017 id=1017 data-nosnippet>1017</a>}
+<a href=#1018 id=1018 data-nosnippet>1018</a>
+<a href=#1019 id=1019 data-nosnippet>1019</a><span class="kw">impl </span>std::ops::Index&lt;BasicBlockId&gt; <span class="kw">for </span>DataFlowGraph {
+<a href=#1020 id=1020 data-nosnippet>1020</a>    <span class="kw">type </span>Output = BasicBlock;
+<a href=#1021 id=1021 data-nosnippet>1021</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#1022 id=1022 data-nosnippet>1022</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.blocks[id]
+<a href=#1023 id=1023 data-nosnippet>1023</a>    }
+<a href=#1024 id=1024 data-nosnippet>1024</a>}
+<a href=#1025 id=1025 data-nosnippet>1025</a>
+<a href=#1026 id=1026 data-nosnippet>1026</a><span class="kw">impl </span>std::ops::IndexMut&lt;BasicBlockId&gt; <span class="kw">for </span>DataFlowGraph {
+<a href=#1027 id=1027 data-nosnippet>1027</a>    <span class="doccomment">/// Get a mutable reference to a function's basic block for the given id.
+<a href=#1028 id=1028 data-nosnippet>1028</a>    </span><span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
+<a href=#1029 id=1029 data-nosnippet>1029</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.blocks[id]
+<a href=#1030 id=1030 data-nosnippet>1030</a>    }
+<a href=#1031 id=1031 data-nosnippet>1031</a>}
+<a href=#1032 id=1032 data-nosnippet>1032</a>
+<a href=#1033 id=1033 data-nosnippet>1033</a><span class="kw">impl </span>std::ops::Index&lt;ValueId&gt; <span class="kw">for </span>GlobalsGraph {
+<a href=#1034 id=1034 data-nosnippet>1034</a>    <span class="kw">type </span>Output = Value;
+<a href=#1035 id=1035 data-nosnippet>1035</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ValueId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.values[id]
+<a href=#1037 id=1037 data-nosnippet>1037</a>    }
+<a href=#1038 id=1038 data-nosnippet>1038</a>}
+<a href=#1039 id=1039 data-nosnippet>1039</a>
+<a href=#1040 id=1040 data-nosnippet>1040</a><span class="kw">impl </span>std::ops::Index&lt;InstructionId&gt; <span class="kw">for </span>GlobalsGraph {
+<a href=#1041 id=1041 data-nosnippet>1041</a>    <span class="kw">type </span>Output = Instruction;
+<a href=#1042 id=1042 data-nosnippet>1042</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#1043 id=1043 data-nosnippet>1043</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.instructions[id]
+<a href=#1044 id=1044 data-nosnippet>1044</a>    }
+<a href=#1045 id=1045 data-nosnippet>1045</a>}
+<a href=#1046 id=1046 data-nosnippet>1046</a>
+<a href=#1047 id=1047 data-nosnippet>1047</a><span class="comment">// The result of calling DataFlowGraph::insert_instruction can
+<a href=#1048 id=1048 data-nosnippet>1048</a>// be a list of results or a single ValueId if the instruction was simplified
+<a href=#1049 id=1049 data-nosnippet>1049</a>// to an existing value.
+<a href=#1050 id=1050 data-nosnippet>1050</a></span><span class="attr">#[derive(Debug)]
+<a href=#1051 id=1051 data-nosnippet>1051</a></span><span class="kw">pub enum </span>InsertInstructionResult&lt;<span class="lifetime">'dfg</span>&gt; {
+<a href=#1052 id=1052 data-nosnippet>1052</a>    <span class="doccomment">/// Results is the standard case containing the instruction id and the results of that instruction.
+<a href=#1053 id=1053 data-nosnippet>1053</a>    </span>Results(InstructionId, <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span>[ValueId]),
+<a href=#1054 id=1054 data-nosnippet>1054</a>    SimplifiedTo(ValueId),
+<a href=#1055 id=1055 data-nosnippet>1055</a>    SimplifiedToMultiple(Vec&lt;ValueId&gt;),
+<a href=#1056 id=1056 data-nosnippet>1056</a>    InstructionRemoved,
+<a href=#1057 id=1057 data-nosnippet>1057</a>}
+<a href=#1058 id=1058 data-nosnippet>1058</a>
+<a href=#1059 id=1059 data-nosnippet>1059</a><span class="kw">impl</span>&lt;<span class="lifetime">'dfg</span>&gt; InsertInstructionResult&lt;<span class="lifetime">'dfg</span>&gt; {
+<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="doccomment">/// Retrieve the first (and expected to be the only) result.
+<a href=#1061 id=1061 data-nosnippet>1061</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>first(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValueId {
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#1063 id=1063 data-nosnippet>1063</a>            InsertInstructionResult::SimplifiedTo(value) =&gt; <span class="kw-2">*</span>value,
+<a href=#1064 id=1064 data-nosnippet>1064</a>            InsertInstructionResult::SimplifiedToMultiple(values) =&gt; values[<span class="number">0</span>],
+<a href=#1065 id=1065 data-nosnippet>1065</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; {
+<a href=#1066 id=1066 data-nosnippet>1066</a>                <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
+<a href=#1067 id=1067 data-nosnippet>1067</a>                results[<span class="number">0</span>]
+<a href=#1068 id=1068 data-nosnippet>1068</a>            }
+<a href=#1069 id=1069 data-nosnippet>1069</a>            InsertInstructionResult::InstructionRemoved =&gt; {
+<a href=#1070 id=1070 data-nosnippet>1070</a>                <span class="macro">panic!</span>(<span class="string">"Instruction was removed, no results"</span>)
+<a href=#1071 id=1071 data-nosnippet>1071</a>            }
+<a href=#1072 id=1072 data-nosnippet>1072</a>        }
+<a href=#1073 id=1073 data-nosnippet>1073</a>    }
 <a href=#1074 id=1074 data-nosnippet>1074</a>
-<a href=#1075 id=1075 data-nosnippet>1075</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#1077 id=1077 data-nosnippet>1077</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; <span class="kw-2">&amp;</span>results[index],
-<a href=#1078 id=1078 data-nosnippet>1078</a>            InsertInstructionResult::SimplifiedTo(result) =&gt; {
-<a href=#1079 id=1079 data-nosnippet>1079</a>                <span class="macro">assert_eq!</span>(index, <span class="number">0</span>);
-<a href=#1080 id=1080 data-nosnippet>1080</a>                result
-<a href=#1081 id=1081 data-nosnippet>1081</a>            }
-<a href=#1082 id=1082 data-nosnippet>1082</a>            InsertInstructionResult::SimplifiedToMultiple(results) =&gt; <span class="kw-2">&amp;</span>results[index],
-<a href=#1083 id=1083 data-nosnippet>1083</a>            InsertInstructionResult::InstructionRemoved =&gt; {
-<a href=#1084 id=1084 data-nosnippet>1084</a>                <span class="macro">panic!</span>(<span class="string">"Cannot index into InsertInstructionResult::InstructionRemoved"</span>)
-<a href=#1085 id=1085 data-nosnippet>1085</a>            }
-<a href=#1086 id=1086 data-nosnippet>1086</a>        }
-<a href=#1087 id=1087 data-nosnippet>1087</a>    }
-<a href=#1088 id=1088 data-nosnippet>1088</a>}
-<a href=#1089 id=1089 data-nosnippet>1089</a>
-<a href=#1090 id=1090 data-nosnippet>1090</a><span class="attr">#[cfg(test)]
-<a href=#1091 id=1091 data-nosnippet>1091</a></span><span class="kw">mod </span>tests {
-<a href=#1092 id=1092 data-nosnippet>1092</a>    <span class="kw">use </span><span class="kw">super</span>::DataFlowGraph;
-<a href=#1093 id=1093 data-nosnippet>1093</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::Instruction, types::Type};
-<a href=#1094 id=1094 data-nosnippet>1094</a>
-<a href=#1095 id=1095 data-nosnippet>1095</a>    <span class="attr">#[test]
-<a href=#1096 id=1096 data-nosnippet>1096</a>    </span><span class="kw">fn </span>make_instruction() {
-<a href=#1097 id=1097 data-nosnippet>1097</a>        <span class="kw">let </span><span class="kw-2">mut </span>dfg = DataFlowGraph::default();
-<a href=#1098 id=1098 data-nosnippet>1098</a>        <span class="kw">let </span>ins = Instruction::Allocate;
-<a href=#1099 id=1099 data-nosnippet>1099</a>        <span class="kw">let </span>ins_id = dfg.make_instruction(ins, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[Type::field()]));
-<a href=#1100 id=1100 data-nosnippet>1100</a>
-<a href=#1101 id=1101 data-nosnippet>1101</a>        <span class="kw">let </span>results = dfg.instruction_results(ins_id);
-<a href=#1102 id=1102 data-nosnippet>1102</a>        <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
-<a href=#1103 id=1103 data-nosnippet>1103</a>    }
-<a href=#1104 id=1104 data-nosnippet>1104</a>}</code></pre></div></section></main></body></html>
+<a href=#1075 id=1075 data-nosnippet>1075</a>    <span class="doccomment">/// Return all the results contained in the internal results array.
+<a href=#1076 id=1076 data-nosnippet>1076</a>    /// This is used for instructions returning multiple results like function calls.
+<a href=#1077 id=1077 data-nosnippet>1077</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>results(<span class="self">self</span>) -&gt; Cow&lt;<span class="lifetime">'dfg</span>, [ValueId]&gt; {
+<a href=#1078 id=1078 data-nosnippet>1078</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#1079 id=1079 data-nosnippet>1079</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; Cow::Borrowed(results),
+<a href=#1080 id=1080 data-nosnippet>1080</a>            InsertInstructionResult::SimplifiedTo(result) =&gt; Cow::Owned(<span class="macro">vec!</span>[result]),
+<a href=#1081 id=1081 data-nosnippet>1081</a>            InsertInstructionResult::SimplifiedToMultiple(results) =&gt; Cow::Owned(results),
+<a href=#1082 id=1082 data-nosnippet>1082</a>            InsertInstructionResult::InstructionRemoved =&gt; Cow::Owned(<span class="macro">vec!</span>[]),
+<a href=#1083 id=1083 data-nosnippet>1083</a>        }
+<a href=#1084 id=1084 data-nosnippet>1084</a>    }
+<a href=#1085 id=1085 data-nosnippet>1085</a>
+<a href=#1086 id=1086 data-nosnippet>1086</a>    <span class="doccomment">/// Returns the amount of `ValueIds` contained
+<a href=#1087 id=1087 data-nosnippet>1087</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+<a href=#1088 id=1088 data-nosnippet>1088</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#1089 id=1089 data-nosnippet>1089</a>            InsertInstructionResult::SimplifiedTo(<span class="kw">_</span>) =&gt; <span class="number">1</span>,
+<a href=#1090 id=1090 data-nosnippet>1090</a>            InsertInstructionResult::SimplifiedToMultiple(results) =&gt; results.len(),
+<a href=#1091 id=1091 data-nosnippet>1091</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; results.len(),
+<a href=#1092 id=1092 data-nosnippet>1092</a>            InsertInstructionResult::InstructionRemoved =&gt; <span class="number">0</span>,
+<a href=#1093 id=1093 data-nosnippet>1093</a>        }
+<a href=#1094 id=1094 data-nosnippet>1094</a>    }
+<a href=#1095 id=1095 data-nosnippet>1095</a>}
+<a href=#1096 id=1096 data-nosnippet>1096</a>
+<a href=#1097 id=1097 data-nosnippet>1097</a><span class="kw">impl </span>std::ops::Index&lt;usize&gt; <span class="kw">for </span>InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
+<a href=#1098 id=1098 data-nosnippet>1098</a>    <span class="kw">type </span>Output = ValueId;
+<a href=#1099 id=1099 data-nosnippet>1099</a>
+<a href=#1100 id=1100 data-nosnippet>1100</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#1101 id=1101 data-nosnippet>1101</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#1102 id=1102 data-nosnippet>1102</a>            InsertInstructionResult::Results(<span class="kw">_</span>, results) =&gt; <span class="kw-2">&amp;</span>results[index],
+<a href=#1103 id=1103 data-nosnippet>1103</a>            InsertInstructionResult::SimplifiedTo(result) =&gt; {
+<a href=#1104 id=1104 data-nosnippet>1104</a>                <span class="macro">assert_eq!</span>(index, <span class="number">0</span>);
+<a href=#1105 id=1105 data-nosnippet>1105</a>                result
+<a href=#1106 id=1106 data-nosnippet>1106</a>            }
+<a href=#1107 id=1107 data-nosnippet>1107</a>            InsertInstructionResult::SimplifiedToMultiple(results) =&gt; <span class="kw-2">&amp;</span>results[index],
+<a href=#1108 id=1108 data-nosnippet>1108</a>            InsertInstructionResult::InstructionRemoved =&gt; {
+<a href=#1109 id=1109 data-nosnippet>1109</a>                <span class="macro">panic!</span>(<span class="string">"Cannot index into InsertInstructionResult::InstructionRemoved"</span>)
+<a href=#1110 id=1110 data-nosnippet>1110</a>            }
+<a href=#1111 id=1111 data-nosnippet>1111</a>        }
+<a href=#1112 id=1112 data-nosnippet>1112</a>    }
+<a href=#1113 id=1113 data-nosnippet>1113</a>}
+<a href=#1114 id=1114 data-nosnippet>1114</a>
+<a href=#1115 id=1115 data-nosnippet>1115</a><span class="attr">#[cfg(test)]
+<a href=#1116 id=1116 data-nosnippet>1116</a></span><span class="kw">mod </span>tests {
+<a href=#1117 id=1117 data-nosnippet>1117</a>    <span class="kw">use </span><span class="kw">super</span>::DataFlowGraph;
+<a href=#1118 id=1118 data-nosnippet>1118</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::Instruction, types::Type};
+<a href=#1119 id=1119 data-nosnippet>1119</a>
+<a href=#1120 id=1120 data-nosnippet>1120</a>    <span class="attr">#[test]
+<a href=#1121 id=1121 data-nosnippet>1121</a>    </span><span class="kw">fn </span>make_instruction() {
+<a href=#1122 id=1122 data-nosnippet>1122</a>        <span class="kw">let </span><span class="kw-2">mut </span>dfg = DataFlowGraph::default();
+<a href=#1123 id=1123 data-nosnippet>1123</a>        <span class="kw">let </span>ins = Instruction::Allocate;
+<a href=#1124 id=1124 data-nosnippet>1124</a>        <span class="kw">let </span>ins_id = dfg.make_instruction(ins, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[Type::field()]));
+<a href=#1125 id=1125 data-nosnippet>1125</a>
+<a href=#1126 id=1126 data-nosnippet>1126</a>        <span class="kw">let </span>results = dfg.instruction_results(ins_id);
+<a href=#1127 id=1127 data-nosnippet>1127</a>        <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
+<a href=#1128 id=1128 data-nosnippet>1128</a>    }
+<a href=#1129 id=1129 data-nosnippet>1129</a>}</code></pre></div></section></main></body></html>
