@@ -2427,7 +2427,11 @@ impl Elaborator<'_> {
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 Self::check_integer_operands_match(
-                    *sign_x, *bit_width_x, *sign_y, *bit_width_y, location,
+                    *sign_x,
+                    *bit_width_x,
+                    *sign_y,
+                    *bit_width_y,
+                    location,
                 )?;
                 Ok((Bool, false))
             }
@@ -2530,7 +2534,11 @@ impl Elaborator<'_> {
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 Self::check_integer_operands_match(
-                    *sign_x, *bit_width_x, *sign_y, *bit_width_y, location,
+                    *sign_x,
+                    *bit_width_x,
+                    *sign_y,
+                    *bit_width_y,
+                    location,
                 )?;
                 Ok((Integer(*sign_x, *bit_width_x), false))
             }
