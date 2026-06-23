@@ -3533,7 +3533,7 @@ dependencies = [
  "test-case",
  "thiserror 2.0.18",
  "toml 0.8.23",
- "toml_edit 0.22.27",
+ "toml_edit 0.25.11+spec-1.1.0",
  "tracing",
  "url",
 ]
@@ -6357,6 +6357,7 @@ dependencies = [
  "indexmap 2.14.0",
  "toml_datetime 1.1.1+spec-1.1.0",
  "toml_parser",
+ "toml_writer",
  "winnow 1.0.2",
 ]
 
