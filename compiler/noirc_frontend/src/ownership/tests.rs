@@ -1775,14 +1775,14 @@ fn no_confirmed_move_for_assignment_rhs_that_can_break() {
         let mut x$l2 = [1];
         loop {
             x$l2 = if cond$l0 {
-                let mut y$l3 = x$l2;
+                let mut y$l3 = x$l2.clone();
                 y$l3[0] = 9;
                 if should_break$l1 {
                     break
                 };
                 [0]
             } else {
-                x$l2
+                x$l2.clone()
             }
         };
         use_var$f1(x$l2);

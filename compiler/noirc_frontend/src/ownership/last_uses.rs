@@ -76,6 +76,16 @@ struct LastUseContext {
     /// By preventing moves of aliased variables, we ensure that subsequent copies increment
     /// the refcount, so that writes through the reference correctly trigger COW.
     referenced_variables: HashSet<LocalId>,
+
+    /// Whether a `break`/`continue` targeting the current loop has been seen in the
+    /// portion of the current scope traversed so far.
+    ///
+    /// Used by `find_last_uses_in_assign`: a use of `x` in the RHS of `x = ... x ...`
+    /// is normally a confirmed move (the assignment kills the old value). But if the RHS
+    /// can `break`/`continue` before the assignment commits, the old value of `x` is still
+    /// live after the loop, so the move must not be confirmed. Loop boundaries save/restore
+    /// this flag so a `break` targeting a nested loop inside the RHS doesn't count.
+    has_break: bool,
 }
 
 impl Context {
@@ -92,6 +102,7 @@ impl Context {
             loop_depth: 0,
             killed: HashSet::default(),
             referenced_variables: HashSet::default(),
+            has_break: false,
         };
 
         for (parameter, ..) in &function.parameters {
@@ -186,6 +197,7 @@ impl LastUseContext {
                 // break/continue can skip assignments that were processed earlier in
                 // the reverse traversal, making those assignments conditional.
                 self.killed.clear();
+                self.has_break = true;
             }
         }
     }
@@ -240,6 +252,11 @@ impl LastUseContext {
         // Kills inside the loop don't propagate outward (the loop may execute 0 times).
         let saved_killed = std::mem::take(&mut self.killed);
 
+        // A `break`/`continue` inside this loop targets this loop, not any enclosing one,
+        // so it must not be observed outside the loop body (e.g. by an assignment whose
+        // RHS contains this loop as a nested loop).
+        let saved_has_break = std::mem::take(&mut self.has_break);
+
         let loop_body_depth = self.loop_depth + 1;
         self.loop_depth = loop_body_depth;
         for expr in body_exprs.iter().rev() {
@@ -265,6 +282,7 @@ impl LastUseContext {
             }
         }
         self.killed = saved_killed;
+        self.has_break = saved_has_break;
     }
 
     fn find_last_uses_in_if(&mut self, if_expr: &ast::If) {
@@ -381,14 +399,25 @@ impl LastUseContext {
             self.seen.remove(local_id);
             let pending_before = self.pending_last_uses.get(local_id).map_or(0, |v| v.len());
 
+            // Detect whether the RHS itself can `break`/`continue` before the assignment
+            // commits. Reset the flag so we only observe breaks introduced by the RHS, then
+            // restore it (propagating upward) afterwards.
+            let saved_has_break = std::mem::replace(&mut self.has_break, false);
             self.find_last_uses_in_expression(&assign.expression);
+            let rhs_has_break = self.has_break;
+            self.has_break = saved_has_break || rhs_has_break;
 
-            // Any uses of the variable added while processing the RHS (e.g. `x = f(x)`)
-            // are confirmed as last uses of the old value being killed by this assignment.
-            // Confirmed moves survive loop-exit truncation.
-            if let Some(uses) = self.pending_last_uses.get_mut(local_id)
+            if rhs_has_break {
+                // The RHS can `break`/`continue` before the assignment commits, leaving the
+                // old value of `x` live after the loop. Leave any RHS uses in
+                // `pending_last_uses` so loop-exit truncation can force a clone, and do not
+                // mark `x` as killed since the kill is not guaranteed.
+            } else if let Some(uses) = self.pending_last_uses.get_mut(local_id)
                 && uses.len() > pending_before
             {
+                // Any uses of the variable added while processing the RHS (e.g. `x = f(x)`)
+                // are confirmed as last uses of the old value being killed by this assignment.
+                // Confirmed moves survive loop-exit truncation.
                 let confirmed: Vec<_> = uses.drain(pending_before..).collect();
                 self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
             } else {
