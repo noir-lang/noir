@@ -1,29 +1,38 @@
-//! Verifies the implicit invariant that Brillig SSA must satisfy around
-//! `array_set` and reference counts.
+//! Shared machinery for the Brillig reference-count aliasing invariant,
+//! applied by the [`array_set`] and [`call`] submodule verifiers.
 //!
 //! # The invariant
 //!
-//! In Brillig, `array_set vX, i, x` may modify `vX`'s storage in place at runtime
-//! when `vX`'s reference count is 1. SSA-level semantics still says `vX` is unchanged
-//! and the `array_set` produces a fresh value; the in-place mutation is a runtime
-//! optimization that's only sound when no later use can observe `vX`'s pre-mutation
-//! contents through aliasing.
+//! In Brillig, an operation may modify an array's storage in place at runtime
+//! when that storage's reference count is 1: an `array_set vX, i, x` whose
+//! source `vX` has RC 1 (see [`array_set`]), or a `call` whose callee mutates
+//! an argument it received at RC 1 — directly, or by returning an alias the
+//! caller then mutates (see [`call`]). SSA-level semantics still treat the
+//! source array value as unchanged, and a mutating instruction as producing a
+//! fresh value; the in-place mutation is a runtime optimization that's only
+//! sound when no later use can observe the source's pre-mutation contents
+//! through aliasing.
 //!
 //! Two mechanisms keep the optimization invisible to SSA semantics:
 //!
-//! 1. **`inc_rc`** before the `array_set` forces RC ≥ 2 at runtime so `array_set`
-//!    copies rather than mutating in place.
-//! 2. **Block-parameter threading** routes the post-mutation value forward as a new
-//!    SSA value (the `array_set`'s result), so no later instruction references
-//!    `vX` after the mutation.
+//! 1. **`inc_rc`** before the mutation forces RC ≥ 2 at runtime, so the
+//!    operation copies rather than mutating in place.
+//! 2. **Block-parameter threading** routes the post-mutation value forward as a
+//!    new SSA value, so no later instruction references the source after the
+//!    mutation.
 //!
-//! The frontend uses whichever mechanism the program needs. This pass verifies
-//! that one of them is in place for every `array_set` whose source has an
-//! aliased use reachable forward in the CFG.
+//! The frontend uses whichever mechanism the program needs. Each submodule
+//! identifies its own *mutation sites* and uses the shared [`Context`] to
+//! verify that one of these mechanisms is in place for every source whose
+//! storage has an aliased use reachable forward in the CFG.
 //!
 //! # Algorithm
 //!
-//! For each `array_set vX, …`:
+//! Driven by [`Context::aliased_use_for_source`] for a mutation of a *source*
+//! value `vX` at a given program point. The steps below use `array_set` as the
+//! canonical mutation site; the [`call`] verifier applies the same machinery to
+//! a call's array argument, seeding the chain state in step 5 empty (a call has
+//! no in-place result or known write index to chain from).
 //!
 //! 1. **Backward alias-set.** Compute the set of values that may share `vX`'s
 //!    storage *at the `array_set`'s program point* by walking block-parameter →
@@ -83,7 +92,9 @@
 //!    crossing we both **kill** params that the predecessor rebinds to a
 //!    non-alias and **add** params whose arg is still an alias (so alias
 //!    propagation stays accurate as the walk crosses joins and loops). The
-//!    walk maintains two additional pieces of state:
+//!    walk maintains two additional pieces of state, both seeded by the caller
+//!    — the [`array_set`] verifier from the write; the [`call`] verifier leaves
+//!    them empty / "all positions":
 //!
 //!    - **`derived`**, the set of values that may share the source's storage
 //!      through transitive in-place chain mutations. Seeded with the

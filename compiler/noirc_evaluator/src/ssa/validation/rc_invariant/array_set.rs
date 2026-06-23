@@ -4,6 +4,13 @@
 //! when the in-place mutation could be observed through an aliased read on a
 //! forward path. The aliasing/coverage/forward-walk machinery it drives lives
 //! in the parent [`super`] module.
+//!
+//! This is the canonical mutation site the shared algorithm is written around:
+//! the source is the `array_set`'s `array` operand, and the chain state is
+//! seeded from the write — `derived` with the `array_set`'s own result (which
+//! shares the source's storage at runtime) and `tainted_indices` with its
+//! constant write index — so chains of `array_set`s on the same storage are
+//! tracked index-aware.
 
 use crate::{
     errors::{RtResult, RuntimeError},
