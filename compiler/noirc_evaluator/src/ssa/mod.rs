@@ -214,7 +214,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_redundant_params)
             .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                validation::rc_invariant::array_set::verify(ssa)?;
                 Ok(())
             }),
         SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
