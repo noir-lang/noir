@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782215736327,
+  "lastUpdate": 1782215866609,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7294c91fad48221c8afbe8d94c87de31f755467c",
-          "message": "chore: use persistent data structure to avoid clones (#13097)",
-          "timestamp": "2026-06-17T07:40:09Z",
-          "tree_id": "d1ff239b48c6496ad6868f6435428b41d40416f5",
-          "url": "https://github.com/noir-lang/noir/commit/7294c91fad48221c8afbe8d94c87de31f755467c"
-        },
-        "date": 1781683174533,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126484,
-            "range": "± 1208",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 115885,
-            "range": "± 2480",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042422,
-            "range": "± 4433",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3046003,
             "range": "± 1815",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4030f156b3cca04ddfff4894f13e4065aa08f7e4",
+          "message": "chore(deps): bump insta from 1.47.2 to 1.48.0 (#13150)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-23T11:37:12Z",
+          "tree_id": "10dc158d8802431881957528b5704e5e8e65c3a0",
+          "url": "https://github.com/noir-lang/noir/commit/4030f156b3cca04ddfff4894f13e4065aa08f7e4"
+        },
+        "date": 1782215806254,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 97972,
+            "range": "± 439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87159,
+            "range": "± 1261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2357438,
+            "range": "± 2573",
             "unit": "ns/iter"
           }
         ]
