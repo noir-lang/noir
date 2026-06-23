@@ -39,6 +39,7 @@
 <li><a href="#pop">pop</a></li>
 <li><a href="#push">push</a></li>
 <li><a href="#set">set</a></li>
+<li><a href="#set_len">set_len</a></li>
 <li><a href="#set_unchecked">set_unchecked</a></li>
 <li><a href="#storage">storage</a></li>
 </ul>
@@ -207,6 +208,27 @@ v.push(<span class="number">400</span>);
 
 <span class="kw">let</span> _ = v.pop();
 <span class="kw">let</span> _ = v.pop();
+<span class="kw">assert</span>(v.len() == <span class="number">2</span>);</code></pre></div>
+</div><code id="set_len" class="code-header">pub fn <a href="#set_len"><span class="fn">set_len</span></a>(&mut self, len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>)</code>
+
+<div class="padded-description"><div class="comments">
+<p>Sets the length of the vector to any value between <code>0</code> and <code>MaxLen</code>.</p>
+<p>Increasing the length exposes elements that were written past the current
+length (e.g. with <code>set_unchecked</code>); decreasing it discards trailing
+elements. Note that this does not zero out any element of the backing storage,
+so elements beyond the new length remain readable through <code>storage</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> v: BoundedVec&lt;Field, <span class="number">10</span>&gt; = BoundedVec::from([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>]);
+
+<span class="kw">assert</span>(v.len() == <span class="number">5</span>);
+v.set_unchecked(<span class="number">5</span>, <span class="number">6</span>);
+v.set_unchecked(<span class="number">6</span>, <span class="number">7</span>);
+v.set_unchecked(<span class="number">7</span>, <span class="number">8</span>);
+v.set_len(<span class="number">8</span>);
+<span class="kw">assert</span>(v.len() == <span class="number">8</span>);
+
+<span class="comment">// The length can also be reduced.</span>
+v.set_len(<span class="number">2</span>);
 <span class="kw">assert</span>(v.len() == <span class="number">2</span>);</code></pre></div>
 </div><code id="max_len" class="code-header">pub fn <a href="#max_len"><span class="fn">max_len</span></a>(_self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
