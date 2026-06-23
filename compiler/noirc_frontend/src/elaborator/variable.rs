@@ -13,7 +13,6 @@ use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
-use crate::hir::comptime::Value;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
@@ -22,7 +21,7 @@ use crate::hir_def::expr::{
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, GlobalValue, TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -296,10 +295,7 @@ impl Elaborator<'_> {
             // variant segment (`Foo::Spam::<u32>`); both denote the same enum generics.
             let is_enum_variant_global =
                 if let Some(DefinitionKind::Global(global_id)) = &definition_kind {
-                    matches!(
-                        self.interner.get_global(*global_id).value,
-                        GlobalValue::Resolved(Value::Enum(..))
-                    )
+                    self.interner.is_enum_variant_global(*global_id)
                 } else {
                     false
                 };
@@ -626,6 +622,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
         };

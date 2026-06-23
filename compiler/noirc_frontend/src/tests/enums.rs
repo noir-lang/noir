@@ -951,6 +951,25 @@ fn fieldless_enum_variant_segment_turbofish_count_mismatch() {
 }
 
 #[test]
+fn turbofish_not_allowed_on_global_holding_enum_value() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    global Bar: Foo<u32> = Foo::Spam;
+
+    fn main() {
+        let _ = Bar::<bool>;
+                   ^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
 fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
     let src = r#"
     enum Foo {
