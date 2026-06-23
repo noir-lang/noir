@@ -49,7 +49,7 @@
 //! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
-use crate::hir::comptime::InterpreterError;
+use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
@@ -610,7 +610,14 @@ impl<'interner> Monomorphizer<'interner> {
             return Err(MonomorphizationError::ComptimeFnInRuntimeCode { name, location });
         }
 
-        let body_expr_id = self.interner.function(&f).as_expr();
+        // A disabled function (`FunctionDefinition::disable`) has its body marked resolved without
+        // being elaborated, so it has no interned expression. A call to it should have been rejected
+        // during elaboration by the `deprecated(deny, _)` lint; if one still reaches here (e.g. a
+        // call constructed via `as_typed_expr` that bypasses that lint), error cleanly instead of
+        // panicking on the missing body.
+        let Some(body_expr_id) = self.interner.function(&f).try_as_expr() else {
+            return Err(MonomorphizationError::CalledDisabledFunction { name, location });
+        };
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_target_type = match meta.return_type() {
             Type::TraitAsType(..) => &body_return_type,
@@ -776,7 +783,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                Literal(Integer(value, typ, location))
+                Literal(Integer(bigint_to_field(&value), typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
@@ -1611,6 +1618,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
+        let global_location = global.location;
 
         // Follow bindings otherwise it's not safe to use it as a hash map key.
         let typ = typ.follow_bindings();
@@ -1655,7 +1663,18 @@ impl<'interner> Monomorphizer<'interner> {
             // just with an extra step of indirection through a global variable.
             // For simplicity, we chose to instead inline closures at their callsite as we do not expect
             // placing a closure in the global context to change the final result of the program.
-            if !contains_function {
+            if contains_function {
+                // Value has a closure, for simplicity we chose to inline closures at their
+                // callsite as we do not expect placing a closure in the global context
+                // to change the final result of the program.
+                expr
+            } else if typ.contains_function() {
+                // Type indicates function pointer which is invalid in the global context.
+                return Err(MonomorphizationError::GlobalContainsFunctionPointer {
+                    typ: typ.to_string(),
+                    location: global_location,
+                });
+            } else {
                 let new_id = self.next_global_id();
                 self.globals.entry(id).or_default().insert(typ.clone(), new_id);
                 let typ = Self::convert_type(&typ, location)?;
@@ -1669,8 +1688,6 @@ impl<'interner> Monomorphizer<'interner> {
                     id: self.next_ident_id(),
                 };
                 ast::Expression::Ident(ident)
-            } else {
-                expr
             }
         };
         Ok(expr)
@@ -2137,13 +2154,15 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&expr_id);
+        let typ = Rc::new(Self::convert_type(&function_type, location)?);
+
         let Definition::Function(func_id) =
             self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
         else {
             unreachable!();
         };
 
-        let location = self.interner.expr_location(&expr_id);
         let name = self.interner.definition_name(trait_item_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
@@ -2151,7 +2170,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ: Rc::new(Self::convert_type(&function_type, location)?),
+            typ,
             id: self.next_ident_id(),
         }))
     }

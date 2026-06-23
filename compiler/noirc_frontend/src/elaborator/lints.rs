@@ -21,6 +21,7 @@ use crate::{
 };
 
 use noirc_errors::Location;
+use num_bigint::BigInt;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -134,6 +135,32 @@ pub(super) fn oracle_not_marked_unconstrained(
         let ident = func_meta_name_ident(func, modifiers);
         let location = attribute.location;
         Some(ResolverError::OracleMarkedAsConstrained { ident, location })
+    } else {
+        None
+    }
+}
+
+/// Oracle definitions (functions with the `#[oracle]` attribute) must be free functions.
+///
+/// An oracle defined as a method of a regular impl or a trait impl is rejected here.
+/// Generic dispatch through a trait-impl oracle method panics during monomorphization, and
+/// binding an oracle to a `Self` type has no meaningful semantics: the `#[oracle(name)]`
+/// attribute already names the single foreign call the function lowers to.
+///
+/// `self_type` is set for both regular and trait impls; the parser already rejects attributes
+/// on trait method declarations, so a trait that is not an impl never reaches here.
+pub(super) fn oracle_must_be_a_free_function(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    if func.self_type.is_some() {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleNotAFreeFunction { ident, location: attribute.location })
     } else {
         None
     }
@@ -553,7 +580,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = bit_size.into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value > max.into() {
+                if value < BigInt::ZERO || value > BigInt::from(max) {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
                         ty: typ,
@@ -567,19 +594,13 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 let modulus = 2u128.pow(bit_count - 1);
                 let max = modulus - 1;
 
-                if value > max.into() {
-                    // FieldElement negatives are very large values, to test if this is a negative
-                    // within range, add the bit modulus back to it and check if it is within range
-                    // now or not.
-                    let wrapped = value + modulus.into();
-                    if wrapped > max.into() {
-                        return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
-                            expr: value,
-                            ty: typ,
-                            range: format!("-{modulus}..={max}"),
-                            location,
-                        });
-                    }
+                if value > BigInt::from(max) || value < -BigInt::from(modulus) {
+                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: value,
+                        ty: typ,
+                        range: format!("-{modulus}..={max}"),
+                        location,
+                    });
                 }
             }
             _ => (),

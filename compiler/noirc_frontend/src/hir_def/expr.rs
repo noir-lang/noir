@@ -2,6 +2,7 @@ use acvm::FieldElement;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
@@ -128,7 +129,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Vector(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement),
+    Integer(BigInt),
     Str(Vec<u8>),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,

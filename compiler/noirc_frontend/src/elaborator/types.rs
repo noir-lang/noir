@@ -8,6 +8,7 @@ use im::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) use similarly_named_types::SimilarlyNamedType;
@@ -21,7 +22,7 @@ use crate::{
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
-        comptime::{Integer, Value, evaluate_cast_one_step},
+        comptime::{Integer, Value, bigint_to_field, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, Namespace, fully_qualified_module_path},
         resolution::{
@@ -1069,7 +1070,7 @@ impl Elaborator<'_> {
                     return Type::Error;
                 }
 
-                let Some(int) = Integer::try_from_type_suffix(int, suffix) else {
+                let Some(int) = Integer::try_from_bigint_and_type_suffix(&int, suffix) else {
                     let min = typ.integral_minimum_size().unwrap();
                     let max = typ.integral_maximum_size().unwrap();
                     self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
@@ -1173,7 +1174,7 @@ impl Elaborator<'_> {
                     }
                     rhs => {
                         let kind = rhs.kind().into_numeric_type_or_error();
-                        let int = Integer::try_from_type(FieldElement::zero(), &kind)
+                        let int = Integer::try_from_bigint(&BigInt::ZERO, &kind)
                             .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
                         let zero = Type::Constant(int);
                         let sub = BinaryTypeOperator::Subtraction;
@@ -1460,6 +1461,36 @@ impl Elaborator<'_> {
         let method = TraitPathResolutionMethod::TraitItem(trait_method);
         let item = Some(path_resolution.item);
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
+    }
+
+    /// This resolves `TraitName::SOME_CONSTANT` to the trait's associated constant.
+    ///
+    /// An associated constant is not a function, so `resolve_path_as_type` fails on the full
+    /// path (it only resolves paths ending in a type or function). Instead we resolve the
+    /// leading segments to a trait and look the constant up by name. The resulting `TraitItem`
+    /// is lowered to the selected impl's value during monomorphization, mirroring how
+    /// `Self::SOME_CONSTANT` is handled by `resolve_trait_static_method_by_self`.
+    fn resolve_trait_static_constant(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
+        if path.segments.len() < 2 {
+            return None;
+        }
+
+        self.speculatively(|this| {
+            let mut trait_path = path.clone();
+            let constant = trait_path.pop().ident;
+
+            let resolution = this.resolve_path_as_type(trait_path).ok()?;
+            let PathResolutionItem::Trait(trait_id) = resolution.item else {
+                return None;
+            };
+
+            let the_trait = this.interner.get_trait(trait_id);
+            let definition = the_trait.associated_constant_ids.get(constant.as_str()).copied()?;
+            let constraint = the_trait.as_constraint(path.location);
+            let trait_item = TraitItem { definition, constraint, assumed: true };
+            let method = TraitPathResolutionMethod::TraitItem(trait_item);
+            Some(TraitPathResolution { method, item: None, errors: resolution.errors })
+        })
     }
 
     /// For path resolutions that went through a typed item (e.g. `MyStruct::method`,
@@ -1993,6 +2024,7 @@ impl Elaborator<'_> {
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
             .or_else(|| self.resolve_type_method_or_trait_method(path))
+            .or_else(|| self.resolve_trait_static_constant(path))
     }
 
     /// Unify two types, modifying both in the process.
@@ -2301,15 +2333,15 @@ impl Elaborator<'_> {
 
         // Warn if a user casts to an integer from a negative field literal.
         // `-1 as i8 == 0`, not `-1` which can be confusing.
-        if let Some(value) = from_value_opt
-            && -value < value
+        if let Some(value) = &from_value_opt
+            && *value < BigInt::ZERO
             && to.is_integer()
             && (from_follow_bindings.is_field() || from_follow_bindings.is_bindable())
             && let Ok(Value::Integer(result)) =
-                evaluate_cast_one_step(&to, location, Value::field(value))
+                evaluate_cast_one_step(&to, location, Value::field(bigint_to_field(value)))
         {
             self.push_err(TypeCheckError::NegativeLiteralCastToInteger {
-                value,
+                value: value.clone(),
                 result: result.to_string(),
                 to: to.clone(),
                 location,
@@ -2321,8 +2353,9 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value.fits_in_u128()
-            && from_value > to_maximum_size.into()
+            && from_value >= BigInt::ZERO
+            && from_value <= BigInt::from(u128::MAX)
+            && from_value > BigInt::from(to_maximum_size)
         {
             let from = from.clone();
             let to = to.clone();
