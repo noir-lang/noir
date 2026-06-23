@@ -1,5 +1,5 @@
-use acvm::FieldElement;
 use noirc_errors::{Location, Span};
+use num_bigint::BigInt;
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -174,7 +174,7 @@ pub trait Visitor {
 
     fn visit_literal_integer(
         &mut self,
-        _value: FieldElement,
+        _value: &BigInt,
         _suffix: Option<IntegerTypeSuffix>,
         _: Span,
     ) {
@@ -472,7 +472,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: &FieldElement,
+        _value: &BigInt,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -1011,7 +1011,7 @@ impl Literal {
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
             Literal::Integer(value, suffix) => {
-                visitor.visit_literal_integer(*value, *suffix, span);
+                visitor.visit_literal_integer(value, *suffix, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),

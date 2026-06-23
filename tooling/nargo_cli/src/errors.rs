@@ -33,6 +33,11 @@ pub enum CliError {
     #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
     CantWatchStdin,
 
+    #[error(
+        "Error: cannot determine which package to add the dependency to.\nUse `--package <name>` to select a single workspace member."
+    )]
+    AddRequiresPackageSelection,
+
     /// Artifact CLI error
     #[error(transparent)]
     ArtifactError(#[from] noir_artifact_cli::errors::CliError),

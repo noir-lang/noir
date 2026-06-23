@@ -127,6 +127,8 @@ Marks the functions for fuzzing. See [Fuzzer](../../tooling/fuzzer.md) for more 
 
 Mark a function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./unconstrained.md) for more details.
 
+The attribute is only valid on free functions (functions declared at the top level of a module). Applying `#[oracle(...)]` to a method inside an `impl` or trait `impl` block is rejected with `Usage of the `#[oracle]` function attribute is only valid on free functions`. See [Oracles](./oracles.mdx) for how to expose an oracle through a trait.
+
 ### `fold`
 
 Marks a function for ACIR fold optimization. The compiler will generate a separate circuit for this function which is then recursively verified at runtime. This can reduce total circuit size when a function is called multiple times or contains a large number of constraints.

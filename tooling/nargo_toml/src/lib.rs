@@ -10,6 +10,7 @@ use std::{
 use errors::SemverError;
 use fm::{FILE_EXTENSION, NormalizePath};
 use nargo::{
+    constants::PKG_FILE,
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
@@ -137,7 +138,7 @@ pub fn find_package_manifest(
 ///
 /// Returns a [`ManifestError`] if `current_path` does not contain a manifest file.
 pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
-    let toml_path = current_path.join("Nargo.toml");
+    let toml_path = current_path.join(PKG_FILE);
     if toml_path.exists() {
         Ok(toml_path)
     } else {
@@ -161,14 +162,14 @@ impl PackageConfig {
     ) -> Result<Package, ManifestError> {
         let name = &self.package.name;
         let name: CrateName = name.parse().map_err(|_| ManifestError::InvalidPackageName {
-            toml: root_dir.join("Nargo.toml"),
+            toml: root_dir.join(PKG_FILE),
             name: name.into(),
         })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in &self.dependencies {
             let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
-                toml: root_dir.join("Nargo.toml"),
+                toml: root_dir.join(PKG_FILE),
                 name: name.into(),
             })?;
             let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed)?;
@@ -182,11 +183,11 @@ impl PackageConfig {
             Some("contract") => PackageType::Contract,
             Some(invalid) => {
                 return Err(ManifestError::InvalidPackageType(
-                    root_dir.join("Nargo.toml"),
+                    root_dir.join(PKG_FILE),
                     invalid.to_string(),
                 ));
             }
-            None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
+            None => return Err(ManifestError::MissingPackageType(root_dir.join(PKG_FILE))),
         };
 
         let entry_path = if let Some(entry_path) = &self.package.entry {
@@ -195,7 +196,7 @@ impl PackageConfig {
                 custom_entry_path
             } else {
                 return Err(ManifestError::MissingEntryFile {
-                    toml: root_dir.join("Nargo.toml"),
+                    toml: root_dir.join(PKG_FILE),
                     entry: custom_entry_path,
                 });
             }
@@ -213,7 +214,7 @@ impl PackageConfig {
                 default_entry_path
             } else {
                 return Err(ManifestError::MissingDefaultEntryFile {
-                    toml: root_dir.join("Nargo.toml"),
+                    toml: root_dir.join(PKG_FILE),
                     entry: default_entry_path,
                     package_type,
                 });
@@ -335,7 +336,7 @@ impl DependencyConfig {
                     let internal_path = dir_path.join(directory).normalize();
                     if !internal_path.starts_with(&dir_path) {
                         return Err(ManifestError::InvalidDirectory {
-                            toml: pkg_root.join("Nargo.toml"),
+                            toml: pkg_root.join(PKG_FILE),
                             directory: directory.into(),
                         });
                     }
@@ -343,13 +344,13 @@ impl DependencyConfig {
                 } else {
                     dir_path
                 };
-                let toml_path = project_path.join("Nargo.toml");
+                let toml_path = project_path.join(PKG_FILE);
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Remote { package }
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
-                let toml_path = dir_path.join("Nargo.toml");
+                let toml_path = dir_path.join(PKG_FILE);
                 let package = resolve_package_from_toml(&toml_path, processed)?;
                 Dependency::Local { package }
             }
@@ -363,6 +364,68 @@ impl DependencyConfig {
             Ok(dep)
         }
     }
+}
+
+/// Resolves a single dependency relative to `pkg_root`, downloading it into the global cache
+/// if it is a git dependency that hasn't been fetched yet.
+///
+/// This performs the same validation as workspace resolution for one entry: it checks that the
+/// dependency's `Nargo.toml` exists and that it is not a binary package. The returned
+/// [`Dependency`] carries the on-disk [`Package`], whose `root_dir` is where the source lives.
+pub fn resolve_dependency(
+    pkg_root: &Path,
+    dep: &DependencyConfig,
+) -> Result<Dependency, ManifestError> {
+    let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
+    dep.resolve_to_dependency(pkg_root, &mut Vec::new())
+}
+
+/// Adds a dependency named `name` to the `[dependencies]` table of the manifest at `toml_path`,
+/// preserving the file's existing formatting and comments.
+///
+/// If a dependency with the same name is already present and `overwrite` is `false`, this returns
+/// [`ManifestError::DependencyAlreadyExists`] and leaves the file untouched.
+pub fn add_dependency_to_manifest(
+    toml_path: &Path,
+    name: &str,
+    dep: &DependencyConfig,
+    overwrite: bool,
+) -> Result<(), ManifestError> {
+    use toml_edit::{DocumentMut, Item, Table};
+
+    let contents = std::fs::read_to_string(toml_path)
+        .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
+    let mut doc = contents.parse::<DocumentMut>()?;
+
+    let dependencies = doc
+        .entry("dependencies")
+        .or_insert_with(|| Item::Table(Table::new()))
+        .as_table_mut()
+        .ok_or_else(|| ManifestError::InvalidDependenciesTable(toml_path.to_path_buf()))?;
+
+    if dependencies.contains_key(name) && !overwrite {
+        return Err(ManifestError::DependencyAlreadyExists(name.to_string()));
+    }
+
+    let mut entry = toml_edit::InlineTable::new();
+    match dep {
+        DependencyConfig::Path { path } => {
+            entry.insert("path", path.as_str().into());
+        }
+        DependencyConfig::Git { git, tag, directory } => {
+            entry.insert("git", git.as_str().into());
+            entry.insert("tag", tag.as_str().into());
+            if let Some(directory) = directory {
+                entry.insert("directory", directory.as_str().into());
+            }
+        }
+    }
+    dependencies[name] = toml_edit::value(entry);
+
+    std::fs::write(toml_path, doc.to_string())
+        .map_err(|_| ManifestError::WriteFailed(toml_path.to_path_buf()))?;
+
+    Ok(())
 }
 
 fn toml_to_workspace(
@@ -397,7 +460,7 @@ fn toml_to_workspace(
             let mut selected_package_index = None;
             for (index, member_path) in workspace_config.members.into_iter().enumerate() {
                 let package_root_dir = nargo_toml.root_dir.join(&member_path);
-                let package_toml_path = package_root_dir.join("Nargo.toml");
+                let package_toml_path = package_root_dir.join(PKG_FILE);
                 let member = resolve_package_from_toml(&package_toml_path, &mut resolved)?;
 
                 match &package_selection {
@@ -564,7 +627,213 @@ mod tests {
 
     use test_case::test_matrix;
 
-    use crate::{Config, ManifestError, find_root};
+    use nargo::constants::PKG_FILE;
+
+    use crate::{Config, DependencyConfig, ManifestError, add_dependency_to_manifest, find_root};
+
+    /// Writes `contents` to a `Nargo.toml` in a fresh temp dir and returns the temp dir and the
+    /// manifest path. The temp dir must be kept alive for the duration of the test.
+    fn manifest_with(contents: &str) -> (tempfile::TempDir, PathBuf) {
+        let tmp = tempfile::tempdir().unwrap();
+        let toml_path = tmp.path().join(PKG_FILE);
+        std::fs::write(&toml_path, contents).unwrap();
+        (tmp, toml_path)
+    }
+
+    #[test]
+    fn add_path_dependency_preserves_existing_content() {
+        let (_tmp, toml_path) = manifest_with(
+            r#"[package]
+name = "demo"
+type = "bin"
+authors = [""]
+
+[dependencies]
+# keep me around
+existing = { path = "../existing" }
+"#,
+        );
+
+        add_dependency_to_manifest(
+            &toml_path,
+            "my_lib",
+            &DependencyConfig::Path { path: "../my_lib".to_string() },
+            false,
+        )
+        .unwrap();
+
+        insta::assert_snapshot!(std::fs::read_to_string(&toml_path).unwrap(), @r#"
+        [package]
+        name = "demo"
+        type = "bin"
+        authors = [""]
+
+        [dependencies]
+        # keep me around
+        existing = { path = "../existing" }
+        my_lib = { path = "../my_lib" }
+        "#);
+    }
+
+    #[test]
+    fn add_git_dependency_with_directory() {
+        let (_tmp, toml_path) = manifest_with(
+            r#"[package]
+name = "demo"
+type = "bin"
+authors = [""]
+
+[dependencies]
+"#,
+        );
+
+        add_dependency_to_manifest(
+            &toml_path,
+            "bignum",
+            &DependencyConfig::Git {
+                git: "https://github.com/noir-lang/noir-bignum".to_string(),
+                tag: "v0.4.2".to_string(),
+                directory: Some("crates/bignum".to_string()),
+            },
+            false,
+        )
+        .unwrap();
+
+        insta::assert_snapshot!(std::fs::read_to_string(&toml_path).unwrap(), @r#"
+        [package]
+        name = "demo"
+        type = "bin"
+        authors = [""]
+
+        [dependencies]
+        bignum = { git = "https://github.com/noir-lang/noir-bignum", tag = "v0.4.2", directory = "crates/bignum" }
+        "#);
+    }
+
+    #[test]
+    fn add_dependency_creates_dependencies_section_when_absent() {
+        let (_tmp, toml_path) = manifest_with(
+            r#"[package]
+name = "demo"
+type = "bin"
+authors = [""]
+"#,
+        );
+
+        add_dependency_to_manifest(
+            &toml_path,
+            "my_lib",
+            &DependencyConfig::Path { path: "../my_lib".to_string() },
+            false,
+        )
+        .unwrap();
+
+        insta::assert_snapshot!(std::fs::read_to_string(&toml_path).unwrap(), @r#"
+        [package]
+        name = "demo"
+        type = "bin"
+        authors = [""]
+
+        [dependencies]
+        my_lib = { path = "../my_lib" }
+        "#);
+    }
+
+    #[test]
+    fn add_existing_dependency_without_override_errors_and_leaves_file_unchanged() {
+        let original = r#"[package]
+name = "demo"
+type = "bin"
+authors = [""]
+
+[dependencies]
+my_lib = { path = "../my_lib" }
+"#;
+        let (_tmp, toml_path) = manifest_with(original);
+
+        let error = add_dependency_to_manifest(
+            &toml_path,
+            "my_lib",
+            &DependencyConfig::Path { path: "../somewhere_else".to_string() },
+            false,
+        )
+        .expect_err("adding an existing dependency without --override should fail");
+
+        assert!(matches!(error, ManifestError::DependencyAlreadyExists(name) if name == "my_lib"));
+        assert_eq!(
+            std::fs::read_to_string(&toml_path).unwrap(),
+            original,
+            "the manifest must be left byte-for-byte unchanged"
+        );
+    }
+
+    #[test]
+    fn add_existing_dependency_with_override_replaces_entry() {
+        let (_tmp, toml_path) = manifest_with(
+            r#"[package]
+name = "demo"
+type = "bin"
+authors = [""]
+
+[dependencies]
+my_lib = { path = "../my_lib" }
+"#,
+        );
+
+        add_dependency_to_manifest(
+            &toml_path,
+            "my_lib",
+            &DependencyConfig::Path { path: "../somewhere_else".to_string() },
+            true,
+        )
+        .unwrap();
+
+        insta::assert_snapshot!(std::fs::read_to_string(&toml_path).unwrap(), @r#"
+        [package]
+        name = "demo"
+        type = "bin"
+        authors = [""]
+
+        [dependencies]
+        my_lib = { path = "../somewhere_else" }
+        "#);
+    }
+
+    #[test]
+    fn resolve_path_dependency_yields_package_name_and_rejects_binaries() {
+        use crate::resolve_dependency;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // Create a package of the given `type` whose declared name differs from its directory,
+        // so the test exercises name discovery rather than assuming the two coincide.
+        let write_pkg = |dir: &str, name: &str, package_type: &str| {
+            let pkg_dir = root.join(dir);
+            std::fs::create_dir_all(pkg_dir.join("src")).unwrap();
+            std::fs::write(
+                pkg_dir.join(PKG_FILE),
+                format!(
+                    "[package]\nname = \"{name}\"\ntype = \"{package_type}\"\nauthors = [\"\"]\n"
+                ),
+            )
+            .unwrap();
+            let entry = if package_type == "lib" { "lib.nr" } else { "main.nr" };
+            std::fs::write(pkg_dir.join("src").join(entry), "").unwrap();
+        };
+
+        write_pkg("the_lib", "cool_lib", "lib");
+        write_pkg("the_bin", "cool_bin", "bin");
+
+        let dep = resolve_dependency(root, &DependencyConfig::Path { path: "the_lib".to_string() })
+            .expect("a library path dependency should resolve");
+        assert_eq!(dep.package_name().to_string(), "cool_lib");
+
+        match resolve_dependency(root, &DependencyConfig::Path { path: "the_bin".to_string() }) {
+            Err(ManifestError::BinaryDependency(name)) => assert_eq!(name.to_string(), "cool_bin"),
+            _ => panic!("a binary path dependency should be rejected"),
+        }
+    }
 
     #[test]
     fn parse_standard_toml() {
@@ -768,7 +1037,7 @@ mod tests {
             let dir = root.join(name);
             std::fs::create_dir_all(dir.join("src")).unwrap();
             std::fs::write(
-                dir.join("Nargo.toml"),
+                dir.join(PKG_FILE),
                 format!(
                     "[package]\nname = \"{name}\"\ntype = \"lib\"\nauthors = [\"\"]\n\n[dependencies]\n{dep_name} = {{ path = \"{dep_path}\" }}\n"
                 ),

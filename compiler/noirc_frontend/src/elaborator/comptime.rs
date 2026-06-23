@@ -104,13 +104,32 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let (source_crate, source_module, all_generics) = elaborator
-                    .with_function_meta(function, |meta| {
-                        (meta.source_crate, meta.source_module, meta.all_generics.clone())
-                    });
+                let (
+                    source_crate,
+                    source_module,
+                    all_generics,
+                    self_type,
+                    trait_impl,
+                    trait_id,
+                    trait_bounds,
+                ) = elaborator.with_function_meta(function, |meta| {
+                    (
+                        meta.source_crate,
+                        meta.source_module,
+                        meta.all_generics.clone(),
+                        meta.self_type.clone(),
+                        meta.trait_impl,
+                        meta.trait_id,
+                        meta.all_trait_constraints().cloned().collect(),
+                    )
+                });
                 elaborator.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = source_crate;
                 elaborator.local_module = Some(source_module);
+                elaborator.self_type = self_type;
+                elaborator.current_trait_impl = trait_impl;
+                elaborator.current_trait = trait_id;
+                elaborator.trait_bounds = trait_bounds;
                 elaborator.introduce_generics_into_scope(all_generics);
             }
         })
