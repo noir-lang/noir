@@ -1141,8 +1141,11 @@ impl Elaborator<'_> {
                             | crate::token::IntegerTypeSuffix::I64
                     )
                 {
-                    let folded =
-                        UnresolvedTypeExpression::Constant(-*int, Some(*suffix), *const_location);
+                    let folded = UnresolvedTypeExpression::Constant(
+                        -(int.clone()),
+                        Some(*suffix),
+                        *const_location,
+                    );
                     return self.convert_expression_type(
                         folded,
                         expected_kind,
