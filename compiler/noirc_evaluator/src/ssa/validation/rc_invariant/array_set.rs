@@ -17,11 +17,6 @@ use super::Context;
 
 /// Verifies the `array_set` / `inc_rc` aliasing invariant on every Brillig
 /// function in `ssa`. See the [`super`] module docs for details.
-///
-/// The entire module containing this function is gated behind
-/// `#[cfg(debug_assertions)]`, so it is a no-op (and absent at the linker
-/// level) in release builds — see the pipeline wiring in
-/// [`crate::ssa::primary_passes`].
 pub(crate) fn verify(ssa: &Ssa) -> RtResult<()> {
     for function in ssa.functions.values() {
         verify_function(function)?;

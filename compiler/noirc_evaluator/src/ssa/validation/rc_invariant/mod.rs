@@ -146,21 +146,38 @@ use std::collections::BTreeSet;
 
 use acvm::FieldElement;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        cfg::ControlFlowGraph,
-        dom::DominatorTree,
-        function::Function,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
-        value::ValueId,
+use crate::{
+    errors::RtResult,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            cfg::ControlFlowGraph,
+            dom::DominatorTree,
+            function::Function,
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
+            post_order::PostOrder,
+            value::ValueId,
+        },
+        opt::{LoopOrder, Loops},
+        ssa_gen::Ssa,
     },
-    opt::{LoopOrder, Loops},
 };
 
 pub(crate) mod array_set;
 pub(crate) mod call;
+
+/// Run the full `rc_invariant` check — every submodule verifier — over
+/// `ssa`, returning the first violation.
+///
+/// The entire module containing this function is gated behind
+/// `#[cfg(debug_assertions)]`, so it is a no-op (and absent at the linker
+/// level) in release builds — see the pipeline wiring in
+/// [`crate::ssa::primary_passes`].
+pub(crate) fn verify_all(ssa: &Ssa) -> RtResult<()> {
+    array_set::verify(ssa)?;
+    call::verify(ssa)?;
+    Ok(())
+}
 
 /// Pre-computed indices over a Brillig function. The verifier's per-array_set
 /// checks read from these structures rather than re-scanning the function.
@@ -1586,16 +1603,7 @@ struct AliasedUse {
 /// property for both — *neither* verifier rejects — so it lives here.
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{array_set, call};
-    use crate::{errors::RtResult, ssa::ssa_gen::Ssa};
-
-    /// Run the full `rc_invariant` check — every submodule verifier — over
-    /// `ssa`, returning the first violation.
-    pub(crate) fn verify_all(ssa: &Ssa) -> RtResult<()> {
-        array_set::verify(ssa)?;
-        call::verify(ssa)?;
-        Ok(())
-    }
+    use crate::ssa::ssa_gen::Ssa;
 
     /// Assert the full `rc_invariant` check ([`verify_all`]) accepts `src`.
     pub(crate) fn assert_verifier_accepts(src: &str) {
@@ -1607,7 +1615,7 @@ pub(crate) mod tests {
     /// accepted (e.g. "loop exit reads a rebound block-param").
     pub(crate) fn assert_verifier_accepts_because(src: &str, reason: &str) {
         let ssa = Ssa::from_str(src).expect("SSA parses");
-        if let Err(err) = verify_all(&ssa) {
+        if let Err(err) = super::verify_all(&ssa) {
             if reason.is_empty() {
                 panic!("expected the verifier to accept, but it rejected: {err:?}");
             } else {
