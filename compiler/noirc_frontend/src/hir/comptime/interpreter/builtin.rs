@@ -41,7 +41,7 @@ use crate::{
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
-                builtin::builtin_helpers::fragments_to_string,
+                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
                 builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
@@ -2571,8 +2571,7 @@ fn fmtstr_as_ctstring(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner, files);
-    let bytes = string.bytes().collect();
+    let bytes = fragments_to_bytes(&fragments, interner, files);
     Ok(Value::CtString(Rc::new(bytes)))
 }
 
