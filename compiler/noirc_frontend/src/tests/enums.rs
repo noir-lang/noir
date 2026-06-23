@@ -836,3 +836,152 @@ fn comptime_generic_enum_variant() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn enum_variant_with_fields_type_turbofish() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Eggs(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_with_fields_type_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Eggs(true);
+                                 ^^^^ Expected type u32, found type bool
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_with_fields_multiple_type_turbofish() {
+    let src = r#"
+    enum Foo<A, B> {
+        Spam(A),
+        Eggs(B),
+    }
+
+    fn main() {
+        let _ = Foo::<bool, u32>::Eggs(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_segment_turbofish_still_works() {
+    let src = r#"
+    enum Foo<A, B> {
+        Spam(A),
+        Eggs(B),
+    }
+
+    fn main() {
+        let _ = Foo::Eggs::<bool, u32>(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_type_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Spam;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32>;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32, bool>;
+                ^^^^^^^^^^^^^^^^^^^^^^ enum `Foo` expects 1 generic but 2 were given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_not_allowed_on_global_holding_enum_value() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    global Bar: Foo<u32> = Foo::Spam;
+
+    fn main() {
+        let _ = Bar::<bool>;
+                   ^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
+    let src = r#"
+    enum Foo {
+        Spam,
+        Eggs(bool),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Spam;
+                ^^^^^^^^^^^^^^^^ enum `Foo` expects 0 generics but 1 was given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}

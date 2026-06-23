@@ -1515,6 +1515,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::TraitConstant(..) => None,
         };
         self.push_errors(errors);
@@ -1736,6 +1737,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
             | PathResolutionItem::SelfMethod(..)
