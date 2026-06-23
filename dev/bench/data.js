@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782229236932,
+  "lastUpdate": 1782229372469,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23130,48 +23130,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b2351bb07ac6c442be58dc84654316e063766d36",
-          "message": "chore(deps): bump regex from 1.12.3 to 1.12.4 (#13079)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-18T07:59:32Z",
-          "tree_id": "aa0b368f9742b298860231d550cb8e8ac16bda4c",
-          "url": "https://github.com/noir-lang/noir/commit/b2351bb07ac6c442be58dc84654316e063766d36"
-        },
-        "date": 1781772829768,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 161685,
-            "range": "± 2173",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 131992,
-            "range": "± 1106",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2119226,
-            "range": "± 6399",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "a4f260ff7cc22d0ca70522fefc266029146ed3ae",
           "message": "chore(deps): bump redis from 1.2.1 to 1.2.3 (#13078)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2081570,
             "range": "± 24845",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4123bd2111aff3d3091187aa751f4fc41ec8d684",
+          "message": "fix(ssa): trap constant out-of-bounds Brillig array ops instead of al… (#13114)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-06-23T15:21:54Z",
+          "tree_id": "f3d2b21f0e31c83099588ca1e84bb7d5105f7610",
+          "url": "https://github.com/noir-lang/noir/commit/4123bd2111aff3d3091187aa751f4fc41ec8d684"
+        },
+        "date": 1782229286525,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 164188,
+            "range": "± 558",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144637,
+            "range": "± 2690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2128121,
+            "range": "± 4786",
             "unit": "ns/iter"
           }
         ]
