@@ -556,6 +556,7 @@ impl ModCollector<'_> {
                         is_unconstrained,
                         visibility: _,
                         is_comptime,
+                        attributes,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
                         if !method_ids.contains_key(name.as_str()) {
@@ -566,8 +567,7 @@ impl ModCollector<'_> {
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: trait_definition.visibility,
-                            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-                            attributes: crate::token::Attributes::empty(),
+                            attributes: attributes.clone(),
                             generic_count: generics.len(),
                             is_comptime: *is_comptime,
                             name_location: location,
@@ -594,16 +594,17 @@ impl ModCollector<'_> {
                         ) {
                             Ok(()) => {
                                 if let Some(body) = body {
-                                    let impl_method =
-                                        NoirFunction::normal(FunctionDefinition::normal(
-                                            name,
-                                            *is_unconstrained,
-                                            generics,
-                                            parameters,
-                                            body.clone(),
-                                            where_clause.clone(),
-                                            return_type,
-                                        ));
+                                    let mut def = FunctionDefinition::normal(
+                                        name,
+                                        *is_unconstrained,
+                                        generics,
+                                        parameters,
+                                        body.clone(),
+                                        where_clause.clone(),
+                                        return_type,
+                                    );
+                                    def.attributes = attributes.clone();
+                                    let impl_method = NoirFunction::normal(def);
                                     unresolved_functions.push_fn(
                                         self.module_id,
                                         func_id,
