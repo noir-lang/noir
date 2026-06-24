@@ -388,6 +388,25 @@ table tbody tr:nth-child(2n) {
   :target {
     scroll-margin-top: var(--sidebar-toggle-height);
   }
+
+  /* The three-column grid would overflow on narrow screens, so stack each result instead:
+     "kind name" on one line, the summary on the line below. */
+  ul.search-result-list {
+    display: block;
+  }
+
+  ul.search-result-list>li {
+    display: block;
+    margin-bottom: 1em;
+  }
+
+  .search-result-kind {
+    margin-right: 0.5em;
+  }
+
+  .search-result-desc {
+    display: block;
+  }
 }
 
 /* desktop */
