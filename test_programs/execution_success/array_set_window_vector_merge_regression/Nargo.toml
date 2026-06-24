@@ -1,0 +1,6 @@
+[package]
+name = "array_set_window_vector_merge_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]
