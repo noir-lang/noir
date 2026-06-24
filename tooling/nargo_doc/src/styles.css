@@ -132,7 +132,8 @@ ul.search-result-list>li {
     padding: 4px 0;
 }
 
-ul.search-result-list>li.active {
+ul.search-result-list>li.active,
+ul.search-result-list>li:hover {
     background-color: var(--search-result-active-color);
 }
 
@@ -165,6 +166,10 @@ a {
     text-decoration: none;
 }
 
+a:hover, a:focus-visible {
+    text-decoration: underline;
+}
+
 pre {
     padding: 14px;
     background-color: var(--code-color);
@@ -180,6 +185,7 @@ code {
     animation-name: highlight-target;
     animation-duration: 0.5s;
     background-color: var(--target-color);
+    scroll-margin-top: 1rem;
 }
 
 @keyframes highlight-target {
@@ -305,7 +311,7 @@ ul.item-list, ul.sidebar-list {
 .sidebar {
     scrollbar-width: thin;
     background-color: var(--sidebar-color);
-    overflow-y: scroll;
+    overflow-y: auto;
     overscroll-behavior: contain;
     position: sticky;
     height: 100vh;
