@@ -112,7 +112,10 @@ main {
    while navigating with the keyboard. */
 ul.search-result-list {
     display: grid;
-    grid-template-columns: max-content minmax(12em, max-content) minmax(0, 1fr);
+    /* The name column is capped so a very long qualified name wraps within it instead of
+       stretching the column and starving the summary; the summary takes the rest and is
+       truncated with an ellipsis. */
+    grid-template-columns: max-content minmax(12em, 28em) minmax(0, 1fr);
     row-gap: 0.5em;
     list-style-type: none;
     width: 100%;
@@ -141,10 +144,16 @@ ul.search-result-list>li.active {
 
 .search-result-name {
     color: var(--main-color);
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .search-result-desc {
     font-family: "Source Serif 4", NanumBarunGothic, serif;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .search-guidance {
