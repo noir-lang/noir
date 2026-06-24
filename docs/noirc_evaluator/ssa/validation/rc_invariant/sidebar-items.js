@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compute_backward_aliases"],"mod":["array_set","call"],"struct":["AliasedUse","Context","WalkFrame","WalkState"]};
+window.SIDEBAR_ITEMS = {"fn":["compute_backward_aliases","verify_all"],"mod":["array_set","call"],"struct":["AliasedUse","Context","WalkFrame","WalkState"]};

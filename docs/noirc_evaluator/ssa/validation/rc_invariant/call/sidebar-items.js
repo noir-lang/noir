@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["verify"]};
+window.SIDEBAR_ITEMS = {"fn":["callee_may_mutate_args","compute_may_mutate_args","intrinsic_may_mutate_args","verify","verify_function"]};
