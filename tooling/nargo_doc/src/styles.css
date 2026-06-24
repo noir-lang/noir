@@ -106,14 +106,13 @@ main {
     outline: 2px solid var(--link-color);
 }
 
-/* Search results are a three-column grid (kind, name, summary). `display: contents` on each
-   `li` promotes its three children into the grid so every column lines up across rows. */
+/* Search results are a three-column grid (kind, name, summary). Each `li` is a subgrid row, so
+   every column lines up across rows while each row is still a single box that can be highlighted
+   while navigating with the keyboard. */
 ul.search-result-list {
     display: grid;
     grid-template-columns: max-content minmax(12em, max-content) minmax(0, 1fr);
-    column-gap: 1.5em;
     row-gap: 0.5em;
-    align-items: baseline;
     list-style-type: none;
     width: 100%;
     margin: 0;
@@ -121,7 +120,16 @@ ul.search-result-list {
 }
 
 ul.search-result-list>li {
-    display: contents;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    column-gap: 1.5em;
+    align-items: baseline;
+    padding: 4px 0;
+}
+
+ul.search-result-list>li.active {
+    background-color: var(--code-color);
 }
 
 /* The kind label and path prefix stay neutral; only the last name segment, which carries its

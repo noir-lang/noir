@@ -10,6 +10,27 @@ const searchResults = document.getElementById('search-results');
 const pageContent = document.getElementById('page-content');
 const index = window.searchIndex || [];
 
+// Index of the result row currently highlighted with the keyboard (-1 = none).
+let activeIndex = -1;
+
+function resultRows() {
+  return searchResults.querySelectorAll('.search-result-list > li');
+}
+
+// Highlight the result row at `index` (clamped to the available rows) and scroll it into view.
+function setActiveResult(index) {
+  const rows = resultRows();
+  if (rows.length === 0) {
+    return;
+  }
+  if (activeIndex >= 0 && rows[activeIndex]) {
+    rows[activeIndex].classList.remove('active');
+  }
+  activeIndex = Math.max(0, Math.min(index, rows.length - 1));
+  rows[activeIndex].classList.add('active');
+  rows[activeIndex].scrollIntoView({ block: 'nearest' });
+}
+
 // Show search results and hide the page content.
 function showResults() {
   pageContent.hidden = true;
@@ -76,6 +97,8 @@ function renderResults(query, items) {
     return;
   }
 
+  activeIndex = -1;
+
   // Each result is a row in a three-column grid: the kind ("struct", "fn", ...), the qualified
   // name, and the doc summary. Putting the kind in its own column keeps every name aligned.
   const list = document.createElement('ul');
@@ -116,6 +139,7 @@ function renderResults(query, items) {
 
 // Shown in the results pane before anything has been typed.
 function renderGuidance() {
+  activeIndex = -1;
   searchResults.replaceChildren();
   const hint = document.createElement('p');
   hint.className = 'search-guidance';
@@ -166,6 +190,19 @@ if (searchInput && searchToggle) {
   searchInput.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeSearch();
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveResult(activeIndex + 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveResult(activeIndex - 1);
+    } else if (event.key === 'Enter') {
+      const rows = resultRows();
+      const row = rows[activeIndex >= 0 ? activeIndex : 0];
+      const link = row && row.querySelector('a');
+      if (link) {
+        window.location.href = link.href;
+      }
     }
   });
 
