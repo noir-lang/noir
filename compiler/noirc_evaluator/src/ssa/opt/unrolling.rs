@@ -381,6 +381,20 @@ impl Function {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> LoopUnrollResult {
+        // A loop whose induction step is known to miss the bound (`NotEqual` guard)
+        // cannot terminate, so we do not unroll in that case.
+        if let Ok(pre_header) = loop_.get_pre_header(self, &loops.cfg)
+            && loop_.induction_step_must_miss_bound(self, pre_header)
+        {
+            if self.runtime().is_acir() {
+                return LoopUnrollResult::Failed(
+                    loop_.header,
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::empty() },
+                );
+            }
+            return LoopUnrollResult::Skipped;
+        }
+
         // Only unroll small loops in Brillig.
         if self.runtime().is_brillig()
             && !loop_.should_unroll_in_brillig(
@@ -1559,14 +1573,6 @@ impl Loop {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> bool {
-        // A loop whose induction step is known to miss the bound (`NotEqual` guard)
-        // cannot terminate, so we do not unroll in that case.
-        if let Ok(pre_header) = self.get_pre_header(function, &loops.cfg)
-            && self.induction_step_must_miss_bound(function, pre_header)
-        {
-            return false;
-        }
-
         self.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).is_some_and(
             |s| {
                 let within_iteration_limit = s.iterations <= max_unroll_iterations;
@@ -2523,8 +2529,8 @@ mod tests {
     #[test]
     fn acir_not_equal_guard_overshooting_bound_bails() {
         // The step (2) overshoots the `!= 5` bound (visits 0,2,4,6,… never landing on 5), so the
-        // loop never exits. We cannot prove it terminates, so it is unrolled under the runaway cap
-        // and bails with `UnknownLoopBound` rather than unrolling forever.
+        // loop can only exit via wraparound, which the unroller cannot fold. ACIR detects this up
+        // front and bails with `UnknownLoopBound` rather than peeling toward the runaway cap.
         let ssa = Ssa::from_str(ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND).unwrap();
         let (_ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 1, "should bail on the overshooting loop, not unroll it");
