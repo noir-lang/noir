@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use crate::hir::comptime::bigint_to_field;
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
@@ -392,7 +393,7 @@ fn checked_transmute(
 ) -> IResult<Value> {
     let (value, location) = check_one_argument(arguments, location)?;
 
-    if value.get_type().as_ref() != &return_type {
+    if value.get_type().try_unify_with_default_bindings(&return_type).is_err() {
         return Err(InterpreterError::CheckedTransmuteFailed {
             actual: value.get_type().into_owned(),
             expected: return_type,
@@ -2102,12 +2103,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::field(field))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(value, _suffix))) => {
+            Some(Value::field(bigint_to_field(&value)))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::field(field))
+            if let HirExpression::Literal(HirLiteral::Integer(value)) = interner.expression(&id) {
+                Some(Value::field(bigint_to_field(&value)))
             } else {
                 None
             }
@@ -2733,9 +2734,12 @@ fn function_def_disable(
 
     let func_meta = interpreter.elaborator.function_meta_mut(func_id);
 
-    // Lie and say that the body of this function is resolved in order to avoid any
-    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
-    // above should ensure it is never called.
+    // Mark the body resolved so it is never elaborated: macro authors disable functions whose
+    // bodies are placeholders or are no longer valid, and type-checking those would raise spurious
+    // errors. The `deprecated(deny, _)` attribute added above makes calls error during elaboration.
+    // A disabled function therefore has no interned `HirFunction`; monomorphization rejects any that
+    // it still manages to reach via `MonomorphizationError::CalledDisabledFunction` rather than
+    // reading the missing body and panicking.
     func_meta.function_body = FunctionBody::Resolved;
     Ok(Value::Unit)
 }

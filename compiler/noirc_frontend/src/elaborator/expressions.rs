@@ -2,9 +2,9 @@
 
 use std::collections::HashMap;
 
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigInt;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -300,9 +300,7 @@ impl Elaborator<'_> {
                 break_or_continue_location = Some(location);
             }
 
-            if i + 1 == statements.len() {
-                block_type = stmt_type;
-            }
+            block_type = stmt_type;
         }
 
         self.pop_scope();
@@ -477,7 +475,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(BigInt::ZERO, None, location)
                     },
                 );
 

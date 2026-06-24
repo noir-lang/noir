@@ -214,7 +214,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_redundant_params)
             .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                validation::rc_invariant::verify_all(ssa)?;
                 Ok(())
             }),
         SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
@@ -399,10 +399,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::remove_redundant_inc_rc, "Remove Redundant Inc Rc").and_then_validate(
             |#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                validation::rc_invariant::array_set::verify(ssa)?;
                 Ok(())
             },
         ),
+        // Remove any side effect enabling instructions if all instructions which require
+        // predicates have been removed from under them by the previous DIE or made redundant
+        // by constant folding. The next DIE can remove the side effect variable as well.
+        SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions)
