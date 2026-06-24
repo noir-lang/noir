@@ -57,11 +57,17 @@ main {
     flex-grow: 1;
 }
 
+#search-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
 #search-input {
-    width: 100%;
+    flex: 1;
     box-sizing: border-box;
     padding: 8px 12px;
-    margin-bottom: 24px;
+    margin-right: 1em;
     font-size: 1rem;
     font-family: inherit;
     color: var(--main-color);
@@ -72,6 +78,21 @@ main {
 
 #search-input:focus {
     outline: 2px solid var(--link-color);
+}
+
+#search-toggle {
+    margin-left: auto;
+    padding: 8px 12px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--main-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+#search-toggle:hover {
+    color: var(--link-color);
 }
 
 /* Search results are a three-column grid (kind, name, summary). `display: contents` on each

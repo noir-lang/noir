@@ -5,6 +5,7 @@
 // clicked, so the page you were looking at is simply hidden and shown again, never rebuilt.
 
 const searchInput = document.getElementById('search-input');
+const searchToggle = document.getElementById('search-toggle');
 const searchResults = document.getElementById('search-results');
 const pageContent = document.getElementById('page-content');
 const index = window.searchIndex || [];
@@ -123,20 +124,41 @@ function onInput() {
   showResults();
 }
 
-if (searchInput) {
+// Reveal the search box and turn the toggle into an "Exit" button.
+function openSearch() {
+  searchInput.hidden = false;
+  searchToggle.textContent = 'Exit';
+  searchInput.focus();
+}
+
+// Hide the search box, clear the query, restore the page and reset the toggle.
+function closeSearch() {
+  searchInput.hidden = true;
+  searchInput.value = '';
+  searchToggle.textContent = 'Search';
+  restorePage();
+}
+
+if (searchInput && searchToggle) {
   searchInput.addEventListener('input', onInput);
 
-  searchInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      searchInput.value = '';
-      restorePage();
-      searchInput.blur();
+  searchToggle.addEventListener('click', () => {
+    if (searchInput.hidden) {
+      openSearch();
+    } else {
+      closeSearch();
     }
   });
 
-  // Pressing "/" anywhere focuses the search box, like rustdoc.
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeSearch();
+    }
+  });
+
+  // Pressing "s" or "/" anywhere opens the search box, like rustdoc.
   document.addEventListener('keydown', (event) => {
-    if (event.key !== '/') {
+    if (event.key !== '/' && event.key !== 's' && event.key !== 'S') {
       return;
     }
     const active = document.activeElement;
@@ -145,6 +167,6 @@ if (searchInput) {
       return;
     }
     event.preventDefault();
-    searchInput.focus();
+    openSearch();
   });
 }
