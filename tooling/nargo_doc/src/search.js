@@ -176,6 +176,14 @@ function closeSearch() {
   restorePage();
 }
 
+// Go to a result. Search is closed first so the page is visible; otherwise a result that links to
+// an anchor on the current page would just update the hash behind the still-shown results pane,
+// making it look like nothing happened.
+function goToResult(href) {
+  closeSearch();
+  window.location.href = href;
+}
+
 if (searchInput && searchToggle) {
   searchInput.addEventListener('input', onInput);
 
@@ -201,8 +209,20 @@ if (searchInput && searchToggle) {
       const row = rows[activeIndex >= 0 ? activeIndex : 0];
       const link = row && row.querySelector('a');
       if (link) {
-        window.location.href = link.href;
+        goToResult(link.href);
       }
+    }
+  });
+
+  searchResults.addEventListener('click', (event) => {
+    // Leave modified clicks (e.g. open in a new tab) to the browser.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    const link = event.target.closest('a');
+    if (link) {
+      event.preventDefault();
+      goToResult(link.href);
     }
   });
 
