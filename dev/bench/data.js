@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782308375335,
+  "lastUpdate": 1782308384586,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "494d16854cda13b27ba03f992539834383d230f5",
-          "message": "chore: small refactor in flatten_cfg (#13111)",
-          "timestamp": "2026-06-18T12:59:28Z",
-          "tree_id": "a93bb6e8f7e7a85aa0021340395c9040079fec7e",
-          "url": "https://github.com/noir-lang/noir/commit/494d16854cda13b27ba03f992539834383d230f5"
-        },
-        "date": 1781788785340,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127047,
-            "range": "± 407",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112526,
-            "range": "± 2012",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042434,
-            "range": "± 2245",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656886,
             "range": "± 15296",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "83edc2a94d0ada2dbaacb67e64473afe741be0e8",
+          "message": "fix(ownership): Do not confirm/kill on assignment when `break` or `continue` is present (#13153)",
+          "timestamp": "2026-06-24T13:17:48Z",
+          "tree_id": "4f9738a9629190c3a18a8f6859076b95b8a0be6d",
+          "url": "https://github.com/noir-lang/noir/commit/83edc2a94d0ada2dbaacb67e64473afe741be0e8"
+        },
+        "date": 1782308308341,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 170066,
+            "range": "± 495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139050,
+            "range": "± 728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650967,
+            "range": "± 1732",
             "unit": "ns/iter"
           }
         ]
