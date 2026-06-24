@@ -550,6 +550,9 @@ impl LoopBounds {
                     IntegerConstant::Unsigned { value: step, .. },
                 ) = (self.lower, self.upper, step)
                 {
+                    // The check `upper >= lower` both ensures that:
+                    // - `upper - lower` does not underflow, and
+                    // - induction variable does not overflow and reaches the bound after.
                     return upper >= lower && (upper - lower) % step == 0;
                 }
                 false
