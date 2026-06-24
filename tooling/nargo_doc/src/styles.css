@@ -78,7 +78,7 @@ main {
     gap: 0.4em;
     margin-left: 1em;
     padding: 0;
-    font-size: 1rem;
+    font-size: inherit;
     font-family: inherit;
     color: var(--main-color);
     background: none;
@@ -90,12 +90,24 @@ main {
     opacity: 0.7;
 }
 
+/* The icon is a background image sized in `em` so it scales with the toggle's text (which is
+   larger on mobile). The image itself is set per color scheme below. */
+#search-toggle::before {
+    content: "";
+    display: inline-block;
+    width: 1.1em;
+    height: 1.1em;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
 #search-input {
     width: 100%;
     box-sizing: border-box;
     margin-bottom: 24px;
-    padding: 8px 12px;
-    font-size: 1rem;
+    padding: 0.5em 0.75em;
+    font-size: inherit;
     font-family: inherit;
     color: var(--main-color);
     background-color: var(--code-color);
@@ -501,11 +513,11 @@ table tbody tr:nth-child(2n) {
     }
 
     #search-toggle::before {
-        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
     }
 
     #search-toggle.exit::before {
-        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
     }
 }
 
@@ -515,10 +527,10 @@ table tbody tr:nth-child(2n) {
     }
 
     #search-toggle::before {
-        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
     }
 
     #search-toggle.exit::before {
-        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
     }
 }
