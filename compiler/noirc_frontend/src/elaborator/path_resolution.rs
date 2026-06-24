@@ -48,6 +48,10 @@ pub(crate) enum PathResolutionItem {
     // These are values
     /// A reference to a global value.
     Global(GlobalId),
+    /// A fieldless enum variant such as `Foo::Spam`, which is lowered to a global. Unlike an
+    /// ordinary global it may carry the enum's generics, so a turbofish is allowed (e.g.
+    /// `Foo::Spam::<u32>`); the generics are bound when the variable is elaborated.
+    EnumVariant(GlobalId),
     /// A function call on a module, for example `some::module::function()`.
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
@@ -85,6 +89,7 @@ impl PathResolutionItem {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::TraitConstant(..) => None,
         }
     }
@@ -125,6 +130,10 @@ impl PathResolutionItem {
             PathResolutionItem::Global(id) => {
                 let global = interner.get_global_definition(*id);
                 format!("global `{}`", global.name)
+            }
+            PathResolutionItem::EnumVariant(id) => {
+                let global = interner.get_global_definition(*id);
+                format!("enum variant `{}`", global.name)
             }
             PathResolutionItem::ModuleFunction(func_id)
             | PathResolutionItem::Method(_, _, func_id)
@@ -478,6 +487,9 @@ impl Elaborator<'_> {
 
         result.map(|mut resolution| {
             match resolution.item {
+                // A fieldless enum variant may carry the enum's generics, so a turbofish is
+                // allowed (e.g. `Foo::Spam::<u32>`); it is bound when the variable is elaborated.
+                PathResolutionItem::EnumVariant(..) => {}
                 PathResolutionItem::Global(..) => {
                     resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                         item: "globals".to_string(),
@@ -798,10 +810,18 @@ impl Elaborator<'_> {
         let location = name.location();
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
 
-        let item = merge_intermediate_path_resolution_item_with_module_def_id(
+        let mut item = merge_intermediate_path_resolution_item_with_module_def_id(
             intermediate_item,
             module_def_id,
         );
+
+        // Fieldless enum variants are lowered to globals; surface them as a dedicated variant
+        // so callers (e.g. the turbofish check) can tell them apart from ordinary globals.
+        if let PathResolutionItem::Global(global_id) = item
+            && self.interner.is_enum_variant_global(global_id)
+        {
+            item = PathResolutionItem::EnumVariant(global_id);
+        }
 
         // For inherent impl methods, check visibility against the impl's defining module
         // (source_module), not just the type's module where the method was declared for lookup.

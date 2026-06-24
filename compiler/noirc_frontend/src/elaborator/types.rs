@@ -1128,6 +1128,32 @@ impl Elaborator<'_> {
                 }
             }
             UnresolvedTypeExpression::Negation(rhs, location) => {
+                // Fold `-<magnitude>` of a signed integer literal into a single constant so the
+                // range check sees the negative value instead of rejecting the magnitude (e.g.
+                // `128` is out of `i8` range, but `-128` is `i8::MIN`).
+                if let UnresolvedTypeExpression::Constant(int, Some(suffix), const_location) =
+                    rhs.as_ref()
+                    && matches!(
+                        suffix,
+                        crate::token::IntegerTypeSuffix::I8
+                            | crate::token::IntegerTypeSuffix::I16
+                            | crate::token::IntegerTypeSuffix::I32
+                            | crate::token::IntegerTypeSuffix::I64
+                    )
+                {
+                    let folded = UnresolvedTypeExpression::Constant(
+                        -(int.clone()),
+                        Some(*suffix),
+                        *const_location,
+                    );
+                    return self.convert_expression_type(
+                        folded,
+                        expected_kind,
+                        location,
+                        wildcard_allowed,
+                    );
+                }
+
                 let rhs_location = rhs.location();
                 let rhs = self.convert_expression_type(
                     *rhs,
@@ -1440,6 +1466,36 @@ impl Elaborator<'_> {
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
+    /// This resolves `TraitName::SOME_CONSTANT` to the trait's associated constant.
+    ///
+    /// An associated constant is not a function, so `resolve_path_as_type` fails on the full
+    /// path (it only resolves paths ending in a type or function). Instead we resolve the
+    /// leading segments to a trait and look the constant up by name. The resulting `TraitItem`
+    /// is lowered to the selected impl's value during monomorphization, mirroring how
+    /// `Self::SOME_CONSTANT` is handled by `resolve_trait_static_method_by_self`.
+    fn resolve_trait_static_constant(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
+        if path.segments.len() < 2 {
+            return None;
+        }
+
+        self.speculatively(|this| {
+            let mut trait_path = path.clone();
+            let constant = trait_path.pop().ident;
+
+            let resolution = this.resolve_path_as_type(trait_path).ok()?;
+            let PathResolutionItem::Trait(trait_id) = resolution.item else {
+                return None;
+            };
+
+            let the_trait = this.interner.get_trait(trait_id);
+            let definition = the_trait.associated_constant_ids.get(constant.as_str()).copied()?;
+            let constraint = the_trait.as_constraint(path.location);
+            let trait_item = TraitItem { definition, constraint, assumed: true };
+            let method = TraitPathResolutionMethod::TraitItem(trait_item);
+            Some(TraitPathResolution { method, item: None, errors: resolution.errors })
+        })
+    }
+
     /// For path resolutions that went through a typed item (e.g. `MyStruct::method`,
     /// `i32::method`), return that concrete type. This is used so that a `Trait::method`
     /// constraint built from one of these paths can be anchored on the concrete type rather
@@ -1485,6 +1541,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::TraitConstant(..) => None,
         };
         self.push_errors(errors);
@@ -1887,6 +1944,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
             | PathResolutionItem::SelfMethod(..)
@@ -2086,6 +2144,7 @@ impl Elaborator<'_> {
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
             .or_else(|| self.resolve_type_method_or_trait_method(path))
+            .or_else(|| self.resolve_trait_static_constant(path))
     }
 
     /// Unify two types, modifying both in the process.
