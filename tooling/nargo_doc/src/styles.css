@@ -15,6 +15,7 @@
     --fn-color: light-dark(#ad7c37, #2bab63);
     --primitive-color: var(--struct-color);
     --sidebar-color: light-dark(#f5f5f5, #505050);
+    --search-result-active-color: light-dark(#ccc, #4f4f4f);
     --comment-color: light-dark(#8e908c, #8d8d8b);
     --target-color: light-dark(#fdffd3, #494a3d);
     --target-highlight-color: light-dark(#9b7b14, #ad7c37);
@@ -129,7 +130,7 @@ ul.search-result-list>li {
 }
 
 ul.search-result-list>li.active {
-    background-color: var(--code-color);
+    background-color: var(--search-result-active-color);
 }
 
 /* The kind label and path prefix stay neutral; only the last name segment, which carries its
