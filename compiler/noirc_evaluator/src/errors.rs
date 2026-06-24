@@ -107,6 +107,17 @@ pub enum RuntimeError {
         /// label so the user can see both the write and the read.
         aliased_use_call_stack: CallStack,
     },
+    #[error("{message}")]
+    CallArgAliasViolation {
+        message: String,
+        /// Location of the `call` whose callee may mutate an array argument
+        /// in place.
+        call_stack: CallStack,
+        /// Location of the downstream instruction that reads the same
+        /// argument storage through an alias. Rendered as a secondary
+        /// diagnostic label so the user can see both the call and the read.
+        aliased_use_call_stack: CallStack,
+    },
     #[error(
         "The return value has {num_witnesses} elements which exceeds the limit of {max_witnesses}"
     )]
@@ -165,6 +176,7 @@ impl RuntimeError {
             | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
             | RuntimeError::SsaValidationError { call_stack, .. }
             | RuntimeError::ArraySetAliasViolation { call_stack, .. }
+            | RuntimeError::CallArgAliasViolation { call_stack, .. }
             | RuntimeError::ReturnLimitExceeded { call_stack, .. } => call_stack,
         }
     }
@@ -226,6 +238,26 @@ impl RuntimeError {
                 if !secondary.is_dummy() {
                     diagnostic.add_secondary(
                         "aliased read of the same storage".to_string(),
+                        secondary,
+                    );
+                }
+                diagnostic
+            }
+            RuntimeError::CallArgAliasViolation {
+                message,
+                call_stack,
+                aliased_use_call_stack,
+            } => {
+                let primary = call_stack.last_or_dummy();
+                let secondary = aliased_use_call_stack.last_or_dummy();
+                let mut diagnostic = CustomDiagnostic::simple_error(
+                    message,
+                    "call whose callee may mutate an array argument in place".to_string(),
+                    primary,
+                );
+                if !secondary.is_dummy() {
+                    diagnostic.add_secondary(
+                        "aliased read of the same argument storage".to_string(),
                         secondary,
                     );
                 }

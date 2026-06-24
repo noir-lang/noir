@@ -4,6 +4,13 @@
 //! when the in-place mutation could be observed through an aliased read on a
 //! forward path. The aliasing/coverage/forward-walk machinery it drives lives
 //! in the parent [`super`] module.
+//!
+//! This is the canonical mutation site the shared algorithm is written around:
+//! the source is the `array_set`'s `array` operand, and the chain state is
+//! seeded from the write — `derived` with the `array_set`'s own result (which
+//! shares the source's storage at runtime) and `tainted_indices` with its
+//! constant write index — so chains of `array_set`s on the same storage are
+//! tracked index-aware.
 
 use crate::{
     errors::{RtResult, RuntimeError},
@@ -17,11 +24,6 @@ use super::Context;
 
 /// Verifies the `array_set` / `inc_rc` aliasing invariant on every Brillig
 /// function in `ssa`. See the [`super`] module docs for details.
-///
-/// The entire module containing this function is gated behind
-/// `#[cfg(debug_assertions)]`, so it is a no-op (and absent at the linker
-/// level) in release builds — see the pipeline wiring in
-/// [`crate::ssa::primary_passes`].
 pub(crate) fn verify(ssa: &Ssa) -> RtResult<()> {
     for function in ssa.functions.values() {
         verify_function(function)?;
@@ -42,25 +44,12 @@ fn verify_function(function: &Function) -> RtResult<()> {
 
     for block_id in function.reachable_blocks() {
         for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
+            let instruction_id = *instruction_id;
             let Instruction::ArraySet { array, index: write_index, .. } =
-                function.dfg[*instruction_id]
+                function.dfg[instruction_id]
             else {
                 continue;
             };
-
-            let alias_set = ctx.alias_set_for(array, block_id, idx);
-
-            // Narrow the alias-set to the members that are *not* provably
-            // protected on every path to this `array_set`. An empty result
-            // means every member is RC-bumped or freshly allocated before the
-            // array_set on all paths, so the in-place mutation is never
-            // observable — accept without the forward walk. A covered member
-            // (e.g. an `inc_rc`'d sibling) is dropped so the forward walk does
-            // not falsely flag a read of storage the array_set never mutates.
-            let use_set = ctx.unprotected_aliases(&alias_set, array, block_id, idx);
-            if use_set.is_empty() {
-                continue;
-            }
 
             // The array_set's index, if constant — lets the walk skip
             // `array_get`s on disjoint constant indices (the pedersen-style
@@ -68,34 +57,33 @@ fn verify_function(function: &Function) -> RtResult<()> {
             // flag every aliased read.
             let write_index_const = function.dfg.get_numeric_constant(write_index);
 
-            // Expensive: forward CFG walk looking for an aliased read.
-            // A hit means the `array_set` may mutate storage in place
-            // (RC=1) and a downstream instruction will observe the
-            // pre-mutation contents through an aliased name.
-            if let Some(hit) = ctx.find_reachable_aliased_use(
-                &use_set,
+            // The array_set's own result seeds the chain-tracking `derived`
+            // set — it shares the source's storage at runtime.
+            let result = function.dfg.instruction_results(instruction_id)[0];
+
+            let Some(hit) = ctx.aliased_use_for_source(
                 array,
-                *instruction_id,
                 block_id,
                 idx,
+                instruction_id,
                 write_index_const,
-            ) {
-                let call_stack = function.dfg.get_instruction_call_stack(*instruction_id);
-                let aliased_use_call_stack =
-                    function.dfg.get_instruction_call_stack(hit.instruction);
-                let message = format!(
-                    "array_set in function {} on array {array} has an aliased read of {} on a \
-                     forward path with no preceding `inc_rc`; the in-place mutation would be \
-                     observable through that alias",
-                    function.name(),
-                    hit.value,
-                );
-                return Err(RuntimeError::ArraySetAliasViolation {
-                    message,
-                    call_stack,
-                    aliased_use_call_stack,
-                });
-            }
+                im::HashSet::unit(result),
+            ) else {
+                continue;
+            };
+
+            let message = format!(
+                "array_set in function {} on array {array} has an aliased read of {} on a \
+                 forward path with no preceding `inc_rc`; the in-place mutation would be \
+                 observable through that alias",
+                function.name(),
+                hit.value,
+            );
+            return Err(RuntimeError::ArraySetAliasViolation {
+                message,
+                call_stack: function.dfg.get_instruction_call_stack(instruction_id),
+                aliased_use_call_stack: function.dfg.get_instruction_call_stack(hit.instruction),
+            });
         }
     }
     Ok(())
@@ -2259,6 +2247,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
+                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2304,6 +2293,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
+                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2357,6 +2347,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
+                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2460,6 +2451,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
+                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
