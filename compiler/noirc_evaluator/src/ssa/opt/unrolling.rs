@@ -927,7 +927,7 @@ impl Loop {
     /// The loop header's condition, but only when its operand is actually a header parameter — i.e. the
     /// comparison tests the induction variable rather than some unrelated value. Returns `None`
     /// otherwise. See [`Loop::parse_header_guard`] for `resolve_value`.
-    fn get_header_induction_condition(
+    fn induction_variable_guard(
         &self,
         dfg: &DataFlowGraph,
         resolve_value: impl Fn(ValueId) -> ValueId,
@@ -952,7 +952,7 @@ impl Loop {
     /// ```
     /// Here `v1` is the induction variable.
     pub(super) fn induction_variable(&self, dfg: &DataFlowGraph) -> Option<ValueId> {
-        self.get_header_induction_condition(dfg, |v| v).map(|guard| guard.operand())
+        self.induction_variable_guard(dfg, |v| v).map(|guard| guard.operand())
     }
 
     /// Position of the [induction variable](Loop::induction_variable) among the loop header's
@@ -1022,7 +1022,7 @@ impl Loop {
         };
         let then_branch_is_body = self.blocks.contains(then_destination);
 
-        let guard = self.get_header_induction_condition(dfg, resolve_value)?;
+        let guard = self.induction_variable_guard(dfg, resolve_value)?;
         match guard {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
