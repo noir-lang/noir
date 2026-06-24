@@ -16,10 +16,12 @@ unconstrained fn main(cond: bool) -> pub [Field; 2] {
             y[0] = 10;
             z = y;
             let mut j = 0;
-            while ({
-                break;
-                j < 3
-            }) {
+            while (
+                {
+                    break;
+                    j < 3
+                }
+            ) {
                 j = j + 1;
             }
             [4, 5]

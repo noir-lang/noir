@@ -10,11 +10,13 @@ unconstrained fn main(n: u32) -> pub Field {
     let mut x = [1, 2, 3];
     let mut i = 0;
     let mut total = 0;
-    while ({
-        let mut y = x;
-        y[0] = 9;
-        i < n
-    }) {
+    while (
+        {
+            let mut y = x;
+            y[0] = 9;
+            i < n
+        }
+    ) {
         total = total + x[0];
         i = i + 1;
         x = [4, 5, 6];
