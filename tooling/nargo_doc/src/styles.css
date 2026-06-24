@@ -74,11 +74,8 @@ main {
 
 #search-bar.active {
     float: none;
-    margin-top: 0;
     margin-left: 0;
     margin-bottom: 24px;
-    padding-top: 0;
-    min-height: 0;
 }
 
 #search-input {
