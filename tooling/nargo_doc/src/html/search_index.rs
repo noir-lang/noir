@@ -1,4 +1,5 @@
 use noirc_frontend::ast::ItemVisibility;
+use serde::Serialize;
 
 use crate::{
     html::{has_class::HasClass, has_uri::HasUri, markdown_utils::markdown_summary},
@@ -6,7 +7,7 @@ use crate::{
 };
 
 /// A single searchable item in the generated documentation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(super) struct SearchEntry {
     /// The item's name, e.g. `BoundedVec`.
     pub(super) name: String,
@@ -17,6 +18,7 @@ pub(super) struct SearchEntry {
     /// The URL of the item's page, relative to the documentation root.
     pub(super) url: String,
     /// A short, single-line plain-text summary taken from the item's doc comments.
+    #[serde(rename = "desc")]
     pub(super) description: String,
 }
 
@@ -257,37 +259,14 @@ fn description(comments: Option<&Comments>) -> String {
 pub(super) fn render_search_index_js(entries: &[SearchEntry]) -> String {
     let mut output = String::from("window.searchIndex = [\n");
     for entry in entries {
-        output.push_str("  {\"name\":");
-        push_json_string(&mut output, &entry.name);
-        output.push_str(",\"path\":");
-        push_json_string(&mut output, &entry.path);
-        output.push_str(",\"kind\":");
-        push_json_string(&mut output, &entry.kind);
-        output.push_str(",\"url\":");
-        push_json_string(&mut output, &entry.url);
-        output.push_str(",\"desc\":");
-        push_json_string(&mut output, &entry.description);
-        output.push_str("},\n");
+        output.push_str("  ");
+        output.push_str(
+            &serde_json::to_string(entry).expect("a search entry is always serializable"),
+        );
+        output.push_str(",\n");
     }
     output.push_str("];\n");
     output
-}
-
-/// Appends `string` to `output` as a JSON string literal, including the surrounding quotes.
-fn push_json_string(output: &mut String, string: &str) {
-    output.push('"');
-    for c in string.chars() {
-        match c {
-            '"' => output.push_str("\\\""),
-            '\\' => output.push_str("\\\\"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            c if (c as u32) < 0x20 => output.push_str(&format!("\\u{:04x}", c as u32)),
-            c => output.push(c),
-        }
-    }
-    output.push('"');
 }
 
 #[cfg(test)]
