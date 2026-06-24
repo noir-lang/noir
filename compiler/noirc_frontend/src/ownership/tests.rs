@@ -1782,10 +1782,110 @@ fn no_confirmed_move_for_assignment_rhs_that_can_break() {
                 };
                 [0]
             } else {
-                x$l2.clone()
+                x$l2
             }
         };
         use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
+// Companion to `no_confirmed_move_for_assignment_rhs_that_can_break`: the breaking branch
+// is the `else` here. Only the use on the breaking path must clone; the non-breaking `then`
+// use can still be moved. This confirms the per-branch break tracking is not order-dependent.
+#[test]
+fn confirmed_move_only_on_non_breaking_branch_of_assignment_rhs() {
+    let src = "
+    unconstrained fn main(cond: bool, should_break: bool) {
+        let mut x = [1];
+        loop {
+            x = if cond {
+                x
+            } else {
+                let mut y = x;
+                y[0] = 9;
+                if should_break {
+                    break;
+                }
+                [0]
+            };
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // The `then` use of `x` is moved; only the `else` use (which can `break`) is cloned.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, should_break$l1: bool) -> () {
+        let mut x$l2 = [1];
+        loop {
+            x$l2 = if cond$l0 {
+                x$l2
+            } else {
+                let mut y$l3 = x$l2.clone();
+                y$l3[0] = 9;
+                if should_break$l1 {
+                    break
+                };
+                [0]
+            }
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
+// A loop-local variable reassigned with a breaking RHS keeps the move (no clone): its old
+// value cannot be observed after the loop, so the break doesn't make the move unsafe. This
+// is the loop-local counterpart to `no_confirmed_move_for_assignment_rhs_that_can_break`,
+// and confirms the break-dependent use stays a move candidate rather than being cloned.
+#[test]
+fn loop_local_assignment_rhs_with_break_keeps_move() {
+    let src = "
+    unconstrained fn main(cond: bool, should_break: bool) {
+        loop {
+            let mut x = [1];
+            x = if cond {
+                let mut y = x;
+                y[0] = 9;
+                if should_break {
+                    break;
+                }
+                [0]
+            } else {
+                x
+            };
+            use_var(x);
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` is declared inside the loop, so `let mut y = x` is moved (no `.clone()`) even though
+    // the RHS can `break`.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, should_break$l1: bool) -> () {
+        loop {
+            let mut x$l2 = [1];
+            x$l2 = if cond$l0 {
+                let mut y$l3 = x$l2;
+                y$l3[0] = 9;
+                if should_break$l1 {
+                    break
+                };
+                [0]
+            } else {
+                x$l2
+            };
+            use_var$f1(x$l2);
+        }
     }
     unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
     }

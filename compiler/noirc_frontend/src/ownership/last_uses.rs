@@ -77,15 +77,23 @@ struct LastUseContext {
     /// the refcount, so that writes through the reference correctly trigger COW.
     referenced_variables: HashSet<LocalId>,
 
-    /// Whether a `break`/`continue` targeting the current loop has been seen in the
-    /// portion of the current scope traversed so far.
+    /// Whether a `break`/`continue` targeting the current loop is reachable *after* the
+    /// point currently being traversed (in forward order), within the current scope.
     ///
-    /// Used by `find_last_uses_in_assign`: a use of `x` in the RHS of `x = ... x ...`
-    /// is normally a confirmed move (the assignment kills the old value). But if the RHS
-    /// can `break`/`continue` before the assignment commits, the old value of `x` is still
-    /// live after the loop, so the move must not be confirmed. Loop boundaries save/restore
-    /// this flag so a `break` targeting a nested loop inside the RHS doesn't count.
+    /// Because traversal is in reverse, this is set when a `break`/`continue` is reached and
+    /// remains set for the code that precedes it. The `if`/`match` handlers save/restore it
+    /// per branch (a `break` in one branch doesn't apply to the others) and loop boundaries
+    /// save/restore it (a `break` targeting a nested loop doesn't escape that loop).
     has_break: bool,
+
+    /// Uses recorded while [`Self::has_break`] was set, i.e. uses on a path where a
+    /// `break`/`continue` can fire before the surrounding scope completes.
+    ///
+    /// Such a use cannot be promoted to a [confirmed move](Self::confirmed_moves) by an
+    /// enclosing assignment: if the assignment is skipped by the `break`, the old value is
+    /// still live after the loop, so it must be cloned rather than moved. The use stays in
+    /// `pending_last_uses` instead, where loop-exit truncation forces the clone.
+    break_dependent_uses: HashSet<IdentId>,
 }
 
 impl Context {
@@ -103,6 +111,7 @@ impl Context {
             killed: HashSet::default(),
             referenced_variables: HashSet::default(),
             has_break: false,
+            break_dependent_uses: HashSet::default(),
         };
 
         for (parameter, ..) in &function.parameters {
@@ -123,6 +132,9 @@ impl LastUseContext {
     fn use_variable(&mut self, id: LocalId, ident_id: IdentId) {
         if self.seen.insert(id) {
             self.pending_last_uses.entry(id).or_default().push(ident_id);
+            if self.has_break {
+                self.break_dependent_uses.insert(ident_id);
+            }
         }
     }
 
@@ -288,11 +300,15 @@ impl LastUseContext {
     fn find_last_uses_in_if(&mut self, if_expr: &ast::If) {
         let saved_seen = self.seen.clone();
         let saved_killed = self.killed.clone();
+        let saved_has_break = self.has_break;
 
         // Process the then-branch
         self.find_last_uses_in_expression(&if_expr.consequence);
         let mut merged = std::mem::replace(&mut self.seen, saved_seen.clone());
         let then_killed = std::mem::replace(&mut self.killed, saved_killed);
+        // Reset to the incoming value so a `break` in the then-branch doesn't apply to the
+        // else-branch (each branch's reachable breaks are independent).
+        let then_has_break = std::mem::replace(&mut self.has_break, saved_has_break);
 
         // Process the else-branch, or use saved_seen for the implicit "do nothing" path
         if let Some(alt) = &if_expr.alternative {
@@ -304,6 +320,8 @@ impl LastUseContext {
 
         // A variable is killed only if it is reassigned on ALL paths
         self.killed.retain(|id| then_killed.contains(id));
+        // A break is reachable through the `if` if it is reachable through either branch.
+        self.has_break |= then_has_break;
 
         self.seen = merged;
 
@@ -317,17 +335,22 @@ impl LastUseContext {
         // happens at its actual use sites.
         let saved_seen = self.seen.clone();
         let saved_killed = self.killed.clone();
+        let saved_has_break = self.has_break;
         let mut merged = HashSet::default();
         let mut all_killed: Option<HashSet<LocalId>> = None;
+        // A break is reachable through the match if it is reachable through any arm.
+        let mut any_has_break = saved_has_break;
 
         for case in &match_expr.cases {
             self.seen = saved_seen.clone();
             self.killed = saved_killed.clone();
+            self.has_break = saved_has_break;
             for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
             }
             self.find_last_uses_in_expression(&case.branch);
             merged.extend(&self.seen);
+            any_has_break |= self.has_break;
             match &mut all_killed {
                 None => all_killed = Some(self.killed.clone()),
                 Some(acc) => acc.retain(|id| self.killed.contains(id)),
@@ -337,8 +360,10 @@ impl LastUseContext {
         if let Some(default_case) = &match_expr.default_case {
             self.seen = saved_seen;
             self.killed = saved_killed.clone();
+            self.has_break = saved_has_break;
             self.find_last_uses_in_expression(default_case);
             merged.extend(&self.seen);
+            any_has_break |= self.has_break;
             match &mut all_killed {
                 None => all_killed = Some(self.killed.clone()),
                 Some(acc) => acc.retain(|id| self.killed.contains(id)),
@@ -354,6 +379,7 @@ impl LastUseContext {
 
         self.seen = merged;
         self.killed = all_killed.unwrap_or(saved_killed);
+        self.has_break = any_has_break;
     }
 
     fn find_last_uses_in_call(&mut self, call: &ast::Call) {
@@ -407,22 +433,42 @@ impl LastUseContext {
             let rhs_has_break = self.has_break;
             self.has_break = saved_has_break || rhs_has_break;
 
-            if rhs_has_break {
-                // The RHS can `break`/`continue` before the assignment commits, leaving the
-                // old value of `x` live after the loop. Leave any RHS uses in
-                // `pending_last_uses` so loop-exit truncation can force a clone, and do not
-                // mark `x` as killed since the kill is not guaranteed.
-            } else if let Some(uses) = self.pending_last_uses.get_mut(local_id)
-                && uses.len() > pending_before
-            {
-                // Any uses of the variable added while processing the RHS (e.g. `x = f(x)`)
-                // are confirmed as last uses of the old value being killed by this assignment.
-                // Confirmed moves survive loop-exit truncation.
-                let confirmed: Vec<_> = uses.drain(pending_before..).collect();
-                self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
-            } else {
-                // x does not appear in RHS: fresh value, safe to treat as killed
-                self.killed.insert(*local_id);
+            let new_uses = self
+                .pending_last_uses
+                .get_mut(local_id)
+                .filter(|uses| uses.len() > pending_before)
+                .map(|uses| uses.split_off(pending_before));
+
+            match new_uses {
+                Some(new_uses) => {
+                    // Uses of the variable added while processing the RHS (e.g. `x = f(x)`) are
+                    // confirmed as last uses of the old value killed by this assignment, except
+                    // those on a path that can `break`/`continue` before the assignment commits.
+                    // Confirmed moves survive loop-exit truncation.
+                    let (breakable, confirmed): (Vec<_>, Vec<_>) =
+                        new_uses.into_iter().partition(|id| self.break_dependent_uses.contains(id));
+
+                    self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
+
+                    // Break-dependent uses go back to `pending_last_uses` rather than being
+                    // confirmed or dropped. They are never confirmed: their `IdentId` stays in
+                    // `break_dependent_uses`, so this partition excludes them from every
+                    // assignment, not just this one. Keeping them pending lets the normal
+                    // last-use rules apply — loop-exit truncation drops them for variables
+                    // declared outside the loop (forcing a clone, since the old value is still
+                    // live on the break path), while a loop-local variable keeps the move (its
+                    // old value cannot be observed after the loop). Dropping them here instead
+                    // would needlessly clone loop-local variables.
+                    if !breakable.is_empty() {
+                        self.pending_last_uses.entry(*local_id).or_default().extend(breakable);
+                    }
+                }
+                // x does not appear in RHS: fresh value, safe to treat as killed — unless the
+                // RHS can break before committing, in which case the kill is not guaranteed.
+                None if !rhs_has_break => {
+                    self.killed.insert(*local_id);
+                }
+                None => {}
             }
             return;
         }
