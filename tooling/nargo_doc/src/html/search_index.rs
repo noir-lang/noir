@@ -43,6 +43,17 @@ pub(super) fn compute_search_index(workspace: &Workspace) -> Vec<SearchEntry> {
         current_path.pop();
     }
 
+    // Sort for a stable order. Members such as trait-impl methods are gathered in a
+    // non-deterministic order, which would otherwise make the generated file differ between runs.
+    // The order only affects how equally-ranked results tie-break at search time.
+    entries.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.path.cmp(&b.path))
+            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.url.cmp(&b.url))
+    });
+
     entries
 }
 
@@ -401,6 +412,20 @@ mod tests {
         assert_eq!(bar.path, "mylib::submod");
         assert_eq!(bar.kind, "fn");
         assert_eq!(bar.url, "mylib/submod/fn.bar.html");
+    }
+
+    #[test]
+    fn entries_are_sorted() {
+        let root = vec![
+            (ItemVisibility::Public, function_item("zebra")),
+            (ItemVisibility::Public, function_item("alpha")),
+            (ItemVisibility::Public, function_item("mango")),
+        ];
+
+        let entries = compute_search_index(&workspace(vec![krate("mylib", root)]));
+
+        let names: Vec<_> = entries.iter().map(|entry| entry.name.as_str()).collect();
+        assert_eq!(names, ["alpha", "mango", "zebra"]);
     }
 
     #[test]
