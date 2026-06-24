@@ -470,7 +470,9 @@ table tbody tr:nth-child(2n) {
 
   .sidebar {
       font-size: 0.875em;
-      width: 306px;
+      /* Fixed basis with no grow/shrink so the sidebar keeps the same width on every page,
+         regardless of how wide the main content or the sidebar's own entries are. */
+      flex: 0 0 306px;
   }
 
   #sidebar-toggle {
