@@ -115,21 +115,32 @@ function renderResults(query, items) {
   searchResults.appendChild(list);
 }
 
-function onInput() {
-  const query = searchInput.value.trim().toLowerCase();
-  if (query === '') {
-    restorePage();
-    return;
-  }
-  renderResults(searchInput.value.trim(), search(query));
-  showResults();
+// Shown in the results pane before anything has been typed.
+function renderGuidance() {
+  searchResults.replaceChildren();
+  const hint = document.createElement('p');
+  hint.className = 'search-guidance';
+  hint.textContent = 'Type to search for items by name.';
+  searchResults.appendChild(hint);
 }
 
-// Reveal the search box and turn the toggle into an "Exit" button.
+function onInput() {
+  const query = searchInput.value.trim();
+  if (query === '') {
+    renderGuidance();
+    return;
+  }
+  renderResults(query, search(query.toLowerCase()));
+}
+
+// Reveal the search box, switch to the (initially empty) results pane and turn the toggle into
+// an "Exit" button.
 function openSearch() {
   searchBar.classList.add('active');
   searchInput.hidden = false;
   searchToggle.textContent = 'Exit';
+  showResults();
+  renderGuidance();
   searchInput.focus();
 }
 

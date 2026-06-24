@@ -137,6 +137,10 @@ ul.search-result-list>li {
     font-family: "Source Serif 4", NanumBarunGothic, serif;
 }
 
+.search-guidance {
+    color: var(--comment-color);
+}
+
 a {
     color: var(--link-color);
     text-decoration: none;
