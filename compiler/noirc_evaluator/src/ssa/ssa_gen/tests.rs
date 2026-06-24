@@ -630,11 +630,11 @@ fn for_loop_inclusive_max_value_with_break() {
         store u1 0 at v4
         jmp b3()
       b5():
-        v9 = load v2 -> u8
-        v10 = add v9, v1
-        store v10 at v2
-        v12 = unchecked_add v1, u8 1
-        jmp b1(v12)
+        v8 = load v2 -> u8
+        v9 = add v8, v1
+        store v9 at v2
+        v11 = unchecked_add v1, u8 1
+        jmp b1(v11)
       b6():
         jmpif v0 then: b8(), else: b9()
       b7():
@@ -694,11 +694,11 @@ fn for_loop_inclusive_unknown_range_with_break() {
         store u1 0 at v5
         jmp b3()
       b5():
-        v11 = load v3 -> u8
-        v12 = add v11, v2
-        store v12 at v3
-        v14 = unchecked_add v2, u8 1
-        jmp b1(v14)
+        v10 = load v3 -> u8
+        v11 = add v10, v2
+        store v11 at v3
+        v13 = unchecked_add v2, u8 1
+        jmp b1(v13)
       b6():
         v19 = eq v1, u8 10
         jmpif v19 then: b8(), else: b9()

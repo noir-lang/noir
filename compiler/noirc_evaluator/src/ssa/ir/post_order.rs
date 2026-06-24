@@ -60,7 +60,9 @@ impl PostOrder {
     /// In RPO, each block is visited only after all of its predecessors, except for the
     /// back-edge predecessors of loop headers. Blocks are ordered by the maximum cost to reach
     /// them from the entry block (the longest path once back-edges are removed), with ties
-    /// broken by block id.
+    /// broken by block id. A loop's exit is additionally ranked by the maximum cost *within the
+    /// loop it exits*, so loop bodies stay contiguous and an exit follows the entire loop (this
+    /// cascades through nested loops).
     ///
     /// Take this CFG for example:
     /// ```text
@@ -78,18 +80,24 @@ impl PostOrder {
     }
 
     /// Computes the post-order of the CFG so that, in the reverse-post-order, each block is
-    /// visited only after all of its non-back-edge predecessors.
+    /// visited only after all of its non-back-edge predecessors, and a loop's exit is visited
+    /// only after every block of the loop it exits.
     ///
-    /// A plain depth-first post-order already has this property for back-edge-free CFGs, but it
-    /// can order a loop exit ahead of the loop body (see
+    /// A plain depth-first post-order already visits successors before predecessors for
+    /// back-edge-free CFGs, but it can order a loop exit ahead of the loop body (see
     /// <https://github.com/noir-lang/noir/issues/9771>). To get a deterministic, well-behaved
     /// order we rank each block by the *maximum cost to reach it* from a root: the length of the
     /// longest path once back-edges are removed. Sorting by `(cost, block id)` is always a valid
     /// topological order of the back-edge-free CFG, since any forward edge `u -> v` forces
     /// `cost(v) >= cost(u) + 1`.
     ///
-    /// Each block is visited at most once during the depth-first traversal; the cost of each
-    /// block is then computed in a single linear scan before a final sort.
+    /// The forward-path cost alone is not enough for loops whose exit branches directly off the
+    /// header: such an exit sits one step from the header yet should follow the whole loop body,
+    /// which can extend much deeper. To account for this we add a virtual forward edge from every
+    /// block of a loop to each block reached on leaving the loop, so the exit's cost is forced
+    /// past the maximum cost within the loop. The longest path over this augmented DAG keeps loop
+    /// bodies contiguous and orders exits after the entire loop, cascading correctly through
+    /// nested loops.
     fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
         let post_order = Self::depth_first_post_order(cfg, roots);
 
@@ -105,24 +113,52 @@ impl PostOrder {
             .map(|(index, block)| (*block, index as u32))
             .collect();
 
-        // The maximum cost to reach each block: `cost(v) = max(cost(u) + 1)` over the forward
-        // predecessors `u` of `v`, or 0 for a root. Iterating in reverse-post-order guarantees
-        // every forward predecessor has already been assigned its cost. Predecessors that are
-        // unreachable from the roots have no `rpo_index` and are ignored, as are back-edge
-        // predecessors (which have a larger `rpo_index`).
-        let mut cost: HashMap<BasicBlockId, u32> = HashMap::default();
-        for &block in post_order.iter().rev() {
+        // Augmented predecessor sets, seeded with the forward CFG edges. Back-edge predecessors
+        // (larger `rpo_index`) and predecessors unreachable from the roots (no `rpo_index`) are
+        // excluded. Loop-exit virtual edges are added below.
+        let mut predecessors: HashMap<BasicBlockId, HashSet<BasicBlockId>> = HashMap::default();
+        for &block in &post_order {
             let block_index = rpo_index[&block];
-            let block_cost = cfg
-                .predecessors(block)
-                .filter_map(|predecessor| {
-                    let predecessor_index = *rpo_index.get(&predecessor)?;
-                    (predecessor_index < block_index).then(|| cost[&predecessor] + 1)
-                })
-                .max()
-                .unwrap_or(0);
-            cost.insert(block, block_cost);
+            let block_predecessors = predecessors.entry(block).or_default();
+            for predecessor in cfg.predecessors(block) {
+                if rpo_index.get(&predecessor).is_some_and(|&index| index < block_index) {
+                    block_predecessors.insert(predecessor);
+                }
+            }
         }
+
+        // Group each loop's back edges by header. A back edge `start -> header` is a predecessor
+        // with a larger `rpo_index` than the block it points at.
+        let mut back_edges: HashMap<BasicBlockId, Vec<BasicBlockId>> = HashMap::default();
+        for &block in &post_order {
+            let block_index = rpo_index[&block];
+            for predecessor in cfg.predecessors(block) {
+                if rpo_index.get(&predecessor).is_some_and(|&index| index > block_index) {
+                    back_edges.entry(block).or_default().push(predecessor);
+                }
+            }
+        }
+
+        // For each loop, add a virtual forward edge from every block in the loop to each block
+        // reached on leaving it, forcing the exit's cost past the maximum cost within the loop.
+        for (&header, back_edge_starts) in &back_edges {
+            let body = Self::loop_body(cfg, header, back_edge_starts);
+            let mut exits: HashSet<BasicBlockId> = HashSet::default();
+            for &block in &body {
+                for successor in cfg.successors(block) {
+                    if !body.contains(&successor) {
+                        exits.insert(successor);
+                    }
+                }
+            }
+            for &exit in &exits {
+                let exit_predecessors =
+                    predecessors.get_mut(&exit).expect("exit is reachable from a root");
+                exit_predecessors.extend(body.iter().copied());
+            }
+        }
+
+        let cost = Self::longest_paths(&post_order, &rpo_index, cfg, &predecessors);
 
         // Order by ascending cost (ties broken by block id) to get the reverse-post-order, then
         // reverse it to recover the post-order.
@@ -131,6 +167,104 @@ impl PostOrder {
         reverse_post_order.sort_by_key(|block| (cost[block], *block));
         reverse_post_order.reverse();
         reverse_post_order
+    }
+
+    /// The blocks of the natural loop whose header is `header` and whose back edges originate at
+    /// `back_edge_starts`: the header together with every block that can reach a back-edge start
+    /// without passing back through the header.
+    ///
+    /// Mirrors `Loop::find_blocks_in_loop` but is kept local to `post_order` so the IR layer does
+    /// not depend on the optimization passes (and to avoid recursing through `PostOrder`, which
+    /// `Loops::find_all` itself uses).
+    fn loop_body(
+        cfg: &ControlFlowGraph,
+        header: BasicBlockId,
+        back_edge_starts: &[BasicBlockId],
+    ) -> HashSet<BasicBlockId> {
+        // Insert the header first so the backward walk does not go past it.
+        let mut body: HashSet<BasicBlockId> = HashSet::default();
+        body.insert(header);
+
+        let mut stack = Vec::new();
+        for &start in back_edge_starts {
+            if body.insert(start) {
+                stack.push(start);
+            }
+        }
+        while let Some(block) = stack.pop() {
+            for predecessor in cfg.predecessors(block) {
+                if body.insert(predecessor) {
+                    stack.push(predecessor);
+                }
+            }
+        }
+        body
+    }
+
+    /// The maximum cost to reach each block: `cost(v) = max(cost(u) + 1)` over the augmented
+    /// predecessors `u` of `v`, or 0 for a root. Computed as a longest-path DP over the augmented
+    /// DAG, visiting blocks in a topological order (Kahn's algorithm) so every predecessor's cost
+    /// is known first.
+    fn longest_paths(
+        post_order: &[BasicBlockId],
+        rpo_index: &HashMap<BasicBlockId, u32>,
+        cfg: &ControlFlowGraph,
+        predecessors: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+    ) -> HashMap<BasicBlockId, u32> {
+        let mut successors: HashMap<BasicBlockId, Vec<BasicBlockId>> = HashMap::default();
+        let mut in_degree: HashMap<BasicBlockId, usize> = HashMap::default();
+        for &block in post_order {
+            successors.entry(block).or_default();
+        }
+        for (&block, block_predecessors) in predecessors {
+            in_degree.insert(block, block_predecessors.len());
+            for &predecessor in block_predecessors {
+                successors.entry(predecessor).or_default().push(block);
+            }
+        }
+
+        let mut cost: HashMap<BasicBlockId, u32> = HashMap::default();
+        let mut ready: Vec<BasicBlockId> =
+            in_degree.iter().filter(|&(_, &degree)| degree == 0).map(|(&block, _)| block).collect();
+        while let Some(block) = ready.pop() {
+            let block_cost = predecessors[&block]
+                .iter()
+                .map(|predecessor| cost[predecessor] + 1)
+                .max()
+                .unwrap_or(0);
+            cost.insert(block, block_cost);
+            for &successor in &successors[&block] {
+                let degree = in_degree.get_mut(&successor).expect("successor has an in-degree");
+                *degree -= 1;
+                if *degree == 0 {
+                    ready.push(successor);
+                }
+            }
+        }
+
+        // A block left uncosted can only arise from an irreducible cycle in the augmented graph.
+        // Fall back to the plain forward-path cost (in reverse-post-order) so every block still
+        // gets a value and the result remains a valid topological order of the forward CFG.
+        if cost.len() < post_order.len() {
+            for &block in post_order.iter().rev() {
+                if cost.contains_key(&block) {
+                    continue;
+                }
+                let block_index = rpo_index[&block];
+                let block_cost = cfg
+                    .predecessors(block)
+                    .filter_map(|predecessor| {
+                        let predecessor_index = *rpo_index.get(&predecessor)?;
+                        (predecessor_index < block_index)
+                            .then(|| cost.get(&predecessor).copied().unwrap_or(0) + 1)
+                    })
+                    .max()
+                    .unwrap_or(0);
+                cost.insert(block, block_cost);
+            }
+        }
+
+        cost
     }
 
     // Computes the post-order of the CFG by doing a depth-first traversal of the given
@@ -418,16 +552,18 @@ mod tests {
         //
         // [b1, b2, b4, b5, b7, b8, b6]
         //
-        // Blocks are instead ordered by their maximum cost to reach them from the entry block,
-        // i.e. the longest path from b0 once the back-edges (b6->b1 and b8->b4) are removed:
+        // Blocks are ordered by their maximum cost to reach them, where a loop's exit is ranked
+        // by the maximum cost within the loop it exits (a virtual edge from every loop block to
+        // its exit target). The inner loop {b4, b5, b7, b8} forces its exit b6 past b8, and the
+        // outer loop {b1, b2, b4, b5, b6, b7, b8} forces its exit b3 past all of them:
         //
-        //   b0=0, b1=1, b2=2, b3=2, b4=3, b5=4, b6=4, b7=5, b8=6
+        //   b0=0, b1=1, b2=2, b4=3, b5=4, b7=5, b8=6, b6=7, b3=8
         //
         // Sorting by (cost, block-id) ascending gives the reverse-post-order
-        // [b0, b1, b2, b3, b4, b5, b6, b7, b8]. This still visits every block only after all of
-        // its (non-back-edge) predecessors, which is what #9771 requires; the loop exit b3 is no
-        // longer hoisted ahead of the loop body. The expected post-order is the reverse:
-        let expected_post_order = [b(8), b(7), b(6), b(5), b(4), b(3), b(2), b(1), b(0)];
+        // [b0, b1, b2, b4, b5, b7, b8, b6, b3]. Every block is still visited only after all of its
+        // (non-back-edge) predecessors, which is what #9771 requires, and the loop bodies are now
+        // contiguous with their exits ordered last. The expected post-order is the reverse:
+        let expected_post_order = [b(3), b(6), b(8), b(7), b(5), b(4), b(2), b(1), b(0)];
 
         let ssa = Ssa::from_str(src).unwrap();
 

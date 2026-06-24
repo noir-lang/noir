@@ -3312,34 +3312,34 @@ mod test {
             v13 = array_get v12, index u32 0 -> u8
             jmp b8(u32 0)
           b3():
-            v14 = allocate -> &mut [u8; 1]
-            store v7 at v14
+            v19 = allocate -> &mut [u8; 1]
+            store v7 at v19
             jmp b4(u32 0)
           b4(v1: u32):
-            v15 = make_array [u8 0] : [u8; 1]
-            v16 = load v14 -> [u8; 1]
+            v20 = make_array [u8 0] : [u8; 1]
+            v21 = load v19 -> [u8; 1]
             jmp b5(u32 0)
           b5(v2: u32):
-            v18 = eq v2, u32 0
-            jmpif v18 then: b6(), else: b7()
+            v22 = eq v2, u32 0
+            jmpif v22 then: b6(), else: b7()
           b6():
-            v22 = array_get v16, index u32 0 -> u8
-            v23 = unchecked_add v2, u32 1
-            jmp b5(v23)
+            v23 = array_get v21, index u32 0 -> u8
+            v24 = unchecked_add v2, u32 1
+            jmp b5(v24)
           b7():
-            v24 = array_get v16, index u32 0 -> u8
-            v25 = unchecked_add v1, u32 1
-            jmp b4(v25)
+            v25 = array_get v21, index u32 0 -> u8
+            v26 = unchecked_add v1, u32 1
+            jmp b4(v26)
           b8(v3: u32):
-            v17 = eq v3, u32 0
-            jmpif v17 then: b9(), else: b10()
+            v14 = eq v3, u32 0
+            jmpif v14 then: b9(), else: b10()
           b9():
-            v20 = unchecked_add v3, u32 1
-            jmp b8(v20)
+            v16 = unchecked_add v3, u32 1
+            jmp b8(v16)
           b10():
-            inc_rc v7
-            v21 = unchecked_add v0, u32 1
-            jmp b1(v21)
+            v17 = make_array [u8 0] : [u8; 1]
+            v18 = unchecked_add v0, u32 1
+            jmp b1(v18)
         }
         ");
     }
