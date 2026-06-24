@@ -1942,6 +1942,49 @@ fn break_after_nested_assignment_taints_preceding_use() {
     ");
 }
 
+// A `break` that follows the assignment (in source order) does not prevent the RHS use from
+// being a confirmed move: the assignment has already committed before the break is reached, so
+// the old value is not live on the break path. This is the counterpart to
+// `break_after_nested_assignment_taints_preceding_use` and shows that the assignment resets the
+// break flag to `false` while analyzing its RHS, ignoring breaks reachable only afterwards.
+#[test]
+fn break_after_assignment_does_not_prevent_confirmed_move() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut x = @[1, 2, 3];
+        loop {
+            x = identity(x);
+            if cond {
+                break;
+            }
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` in `x = identity(x)` is moved (no clone): the later `break` cannot observe the old value.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut x$l1 = @[1, 2, 3];
+        loop {
+            x$l1 = identity$f1(x$l1);
+            if cond$l0 {
+                break
+            }
+        };
+        use_var$f2(x$l1);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}
+
 // Regression for issue https://github.com/noir-lang/noir-claude/issues/1069
 #[test]
 fn closure_captured_array_used_twice_clones_first_use() {
