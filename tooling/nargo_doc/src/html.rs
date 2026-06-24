@@ -1567,9 +1567,7 @@ impl HTMLCreator {
             "<input id=\"search-input\" type=\"search\" placeholder=\"Type 's' or '/' to search\" \
              autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\" hidden>\n",
         );
-        self.output.push_str(
-            "<button id=\"search-toggle\" type=\"button\" aria-label=\"Search\">Search</button>\n",
-        );
+        self.output.push_str("<button id=\"search-toggle\" type=\"button\">Search</button>\n");
         self.output.push_str("</div>\n");
         self.output.push_str("<div id=\"search-results\" hidden></div>\n");
         self.output.push_str("<div id=\"page-content\">\n");

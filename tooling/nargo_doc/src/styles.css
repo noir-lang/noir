@@ -92,6 +92,9 @@ main {
 
 #search-toggle {
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
     padding: 8px 12px;
     font-size: 1rem;
     font-family: inherit;
@@ -102,7 +105,7 @@ main {
 }
 
 #search-toggle:hover {
-    color: var(--link-color);
+    opacity: 0.7;
 }
 
 /* Search results are a three-column grid (kind, name, summary). `display: contents` on each
@@ -472,10 +475,26 @@ table tbody tr:nth-child(2n) {
     #sidebar-toggle button::before {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="black"> <path d="M3,5h16M3,11h16M3,17h16" stroke-width="2.75"/></svg>');
     }
+
+    #search-toggle::before {
+        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
+    }
+
+    #search-bar.active #search-toggle::before {
+        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
+    }
 }
 
 @media (prefers-color-scheme: dark) {
     #sidebar-toggle button::before {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="white"> <path d="M3,5h16M3,11h16M3,17h16" stroke-width="2.75"/></svg>');
+    }
+
+    #search-toggle::before {
+        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
+    }
+
+    #search-bar.active #search-toggle::before {
+        content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
     }
 }
