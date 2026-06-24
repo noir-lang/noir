@@ -1985,6 +1985,43 @@ fn break_after_assignment_does_not_prevent_confirmed_move() {
     ");
 }
 
+// A `while` evaluates its condition before the body, so a variable read in both has its last
+// use in the body. The condition's earlier read must therefore clone, while the body's read
+// (the last use before the loop-carried reassignment) can move. Listing the condition after the
+// body in `find_last_uses_in_loop_body` would wrongly treat the condition read as the last use
+// and skip the clone, which is unsound when the condition aliases and mutates the variable.
+#[test]
+fn while_condition_read_is_cloned_when_reused_in_body() {
+    let src = "
+    unconstrained fn main() {
+        let mut x = [1, 2, 3];
+        while peek(x) {
+            use_var(x);
+            x = [4, 5, 6];
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn peek(_x: [Field; 3]) -> bool { true }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // The condition read of `x` is cloned; the body read (last use before the reassignment) is moved.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut x$l0 = [1, 2, 3];
+        while peek$f1(x$l0.clone()) {
+            use_var$f2(x$l0);;
+            x$l0 = [4, 5, 6]
+        }
+    }
+    unconstrained fn peek$f1(_x$l1: [Field; 3]) -> bool {
+        true
+    }
+    unconstrained fn use_var$f2(_x$l2: [Field; 3]) -> () {
+    }
+    ");
+}
+
 // Regression for issue https://github.com/noir-lang/noir-claude/issues/1069
 #[test]
 fn closure_captured_array_used_twice_clones_first_use() {

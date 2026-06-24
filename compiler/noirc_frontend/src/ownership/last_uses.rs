@@ -180,8 +180,14 @@ impl LastUseContext {
             Expression::For(for_expr) => self.find_last_uses_in_for(for_expr),
             Expression::Loop(body) => self.find_last_uses_in_loop_body(&[body]),
             Expression::While(while_expr) => {
-                // Both condition and body are re-evaluated each iteration
-                self.find_last_uses_in_loop_body(&[&while_expr.body, &while_expr.condition]);
+                // Both condition and body are re-evaluated each iteration. `find_last_uses_in_loop_body`
+                // expects its expressions in forward evaluation order (it traverses them in reverse).
+                // The condition is evaluated before the body, so it is listed first. This matters when a
+                // variable is read in the condition and again in the body: its last use is the body read,
+                // so the body read becomes the move while the earlier condition read is cloned. Listing
+                // them the other way around would treat the condition read as the last use and skip the
+                // clone, which is unsound if the condition aliases and mutates the variable.
+                self.find_last_uses_in_loop_body(&[&while_expr.condition, &while_expr.body]);
             }
             Expression::If(if_expr) => self.find_last_uses_in_if(if_expr),
             Expression::Match(match_expr) => self.find_last_uses_in_match(match_expr),
