@@ -145,13 +145,12 @@ impl CoalescingMap {
                             param_side_targets.insert(*arg);
                         }
                     }
-                    Value::Param { .. } => {
+                    Value::Param { .. }
                         // Param-side: block parameter passthrough.
-                        if can_coalesce_param_side(arg, destination, dest_live_in, cfg) {
+                        if can_coalesce_param_side(arg, destination, dest_live_in, cfg) => {
                             coalesced.insert(*param, *arg);
                             param_side_targets.insert(*arg);
                         }
-                    }
                     _ => {} // constants, globals — skip
                 }
             }

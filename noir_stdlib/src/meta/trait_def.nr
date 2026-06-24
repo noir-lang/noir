@@ -14,9 +14,8 @@ impl TraitDefinition {
 }
 
 impl Eq for TraitDefinition {
-    comptime fn eq(self, other: Self) -> bool {
-        trait_def_eq(self, other)
-    }
+    #[builtin(trait_def_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl Hash for TraitDefinition {
@@ -27,9 +26,6 @@ impl Hash for TraitDefinition {
         state.write(trait_def_hash(self));
     }
 }
-
-#[builtin(trait_def_eq)]
-comptime fn trait_def_eq(_first: TraitDefinition, _second: TraitDefinition) -> bool {}
 
 #[builtin(trait_def_hash)]
 comptime fn trait_def_hash(_def: TraitDefinition) -> Field {}

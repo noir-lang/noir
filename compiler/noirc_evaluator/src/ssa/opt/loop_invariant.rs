@@ -709,7 +709,7 @@ impl<'f> LoopInvariantContext<'f> {
                 // for multi dimensional arrays, `let aij = a[i][j];` would make sure
                 // it only inserts clones at the last get; we shouldn't need more
                 // increments here. The presence of clones are checked by the
-                // `verify_array_set_rc_invariant` pass.
+                // `rc_invariant::array_set::verify` pass.
                 _ => false,
             }
         } else {

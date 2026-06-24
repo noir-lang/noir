@@ -83,13 +83,9 @@ impl crate::hash::Hash for TypeDefinition {
 }
 
 impl crate::cmp::Eq for TypeDefinition {
-    comptime fn eq(self, other: Self) -> bool {
-        type_def_eq(self, other)
-    }
+    #[builtin(type_def_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(type_def_eq)]
-comptime fn type_def_eq(_first: TypeDefinition, _second: TypeDefinition) -> bool {}
 
 #[builtin(type_def_hash)]
 comptime fn type_def_hash(_type: TypeDefinition) -> Field {}

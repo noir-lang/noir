@@ -506,12 +506,10 @@ impl LoopBounds {
     /// Whether the loop body is guaranteed to execute at least once.
     pub(super) fn loop_executes(self) -> bool {
         match self.kind {
-            // `lower < upper` for `LessThan`, and `lower != upper` for `NotEqual`; for an
-            // ascending induction variable starting at or below `upper` these coincide, so both
-            // reduce to `upper > lower`.
-            LoopBoundKind::LessThan | LoopBoundKind::NotEqual => {
-                self.upper.reduce(self.lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
-            }
+            // `lower < upper` so we can use the same comparison here
+            LoopBoundKind::LessThan => self.lower < self.upper,
+            // `lower != upper` so we can use the same comparison here
+            LoopBoundKind::NotEqual => self.lower != self.upper,
             // `lower == upper - 1`, expressed as `lower + 1 == upper` so a `lower` at the type's
             // maximum (where `inc` would overflow) correctly reads as "does not execute".
             LoopBoundKind::Equal => self.lower.inc() == Some(self.upper),
@@ -1493,19 +1491,17 @@ impl Loop {
         let mut cost = 0;
         for block_id in &self.blocks {
             match function.dfg[*block_id].unwrap_terminator() {
-                t @ TerminatorInstruction::Jmp { destination, .. } => {
-                    if self.blocks.contains(destination) || *destination == self.header {
+                t @ TerminatorInstruction::Jmp { destination, .. }
+                    if (self.blocks.contains(destination) || *destination == self.header) => {
                         cost += t.cost();
                     }
-                }
-                t @ TerminatorInstruction::JmpIf { then_destination, else_destination, .. } => {
+                t @ TerminatorInstruction::JmpIf { then_destination, else_destination, .. }
                     // If either branch targets a loop block, the whole JmpIf is boilerplate.
-                    if self.blocks.contains(then_destination)
-                        || self.blocks.contains(else_destination)
-                    {
+                    if (self.blocks.contains(then_destination)
+                        || self.blocks.contains(else_destination))
+                    => {
                         cost += t.cost();
                     }
-                }
                 _ => {}
             }
         }

@@ -287,19 +287,18 @@ pub(super) fn simplify_call(
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
                 let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let start = index.to_u128() as usize * elements.len();
 
-                // Do not simplify the index is greater than the vector capacity
+                // Do not simplify if the index is greater than the vector capacity
                 // or else we will panic inside of the im::Vector insert method
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
-                if index > vector.len() {
+                if start > vector.len() {
                     return SimplifyResult::None;
                 }
 
-                for elem in &arguments[3..] {
-                    vector.insert(index, *elem);
-                    index += 1;
+                for (offset, elem) in elements.iter().enumerate() {
+                    vector.insert(start + offset, *elem);
                 }
 
                 let new_vector_length =
