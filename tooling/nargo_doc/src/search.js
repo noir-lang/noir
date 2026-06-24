@@ -4,6 +4,7 @@
 // box (or pressing Escape) restores the original page. No navigation happens until a result is
 // clicked, so the page you were looking at is simply hidden and shown again, never rebuilt.
 
+const searchBar = document.getElementById('search-bar');
 const searchInput = document.getElementById('search-input');
 const searchToggle = document.getElementById('search-toggle');
 const searchResults = document.getElementById('search-results');
@@ -126,6 +127,7 @@ function onInput() {
 
 // Reveal the search box and turn the toggle into an "Exit" button.
 function openSearch() {
+  searchBar.classList.add('active');
   searchInput.hidden = false;
   searchToggle.textContent = 'Exit';
   searchInput.focus();
@@ -133,6 +135,7 @@ function openSearch() {
 
 // Hide the search box, clear the query, restore the page and reset the toggle.
 function closeSearch() {
+  searchBar.classList.remove('active');
   searchInput.hidden = true;
   searchInput.value = '';
   searchToggle.textContent = 'Search';

@@ -57,9 +57,19 @@ main {
     flex-grow: 1;
 }
 
+/* While inactive the bar holds only the toggle button, floated to the top-right so the page
+   content (breadcrumbs and title) flows up beside it instead of below an empty row. When active
+   it expands to a full-width flex row holding the search input and the Exit button. */
 #search-bar {
+    float: right;
+    margin-left: 1em;
+}
+
+#search-bar.active {
+    float: none;
     display: flex;
     align-items: center;
+    margin-left: 0;
     margin-bottom: 24px;
 }
 
