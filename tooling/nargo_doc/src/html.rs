@@ -13,6 +13,7 @@ use crate::{
         has_uri::HasUri,
         id_to_info::{ItemInfo, compute_id_to_info},
         markdown_utils::{fix_markdown, markdown_summary},
+        search_index::{compute_search_index, render_search_index_js},
         trait_impls::gather_all_trait_impls,
     },
     items::{
@@ -29,6 +30,7 @@ mod has_class;
 mod has_uri;
 mod id_to_info;
 mod markdown_utils;
+mod search_index;
 mod trait_impls;
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
@@ -90,6 +92,7 @@ impl HTMLCreator {
     fn process_workspace(&mut self, workspace: &Workspace) {
         self.create_styles();
         self.create_js();
+        self.create_search_index(workspace);
         self.create_all_items(workspace);
         self.create_index(workspace);
 
@@ -112,6 +115,16 @@ impl HTMLCreator {
         let contents = include_str!("nargo_doc.js");
         self.output.push_str(contents);
         self.push_file(PathBuf::from("nargo_doc.js"));
+
+        let contents = include_str!("search.js");
+        self.output.push_str(contents);
+        self.push_file(PathBuf::from("search.js"));
+    }
+
+    fn create_search_index(&mut self, workspace: &Workspace) {
+        let entries = compute_search_index(workspace);
+        self.output.push_str(&render_search_index_js(&entries));
+        self.push_file(PathBuf::from("search-index.js"));
     }
 
     fn create_all_items(&mut self, workspace: &Workspace) {
@@ -1523,14 +1536,14 @@ impl HTMLCreator {
         }
 
         let nesting = self.current_path.len();
-        self.output.push_str(&format!(
-            "<link rel=\"stylesheet\" href=\"{}styles.css\">\n",
-            "../".repeat(nesting)
-        ));
-        self.output.push_str(&format!(
-            "<script defer src=\"{}nargo_doc.js\"></script>\n",
-            "../".repeat(nesting)
-        ));
+        let root = "../".repeat(nesting);
+        self.output.push_str(&format!("<link rel=\"stylesheet\" href=\"{root}styles.css\">\n"));
+        // `docRoot` lets the search results link to pages relative to the documentation root
+        // from any page, regardless of how deeply nested it is.
+        self.output.push_str(&format!("<script>window.docRoot = \"{root}\";</script>\n"));
+        self.output.push_str(&format!("<script defer src=\"{root}search-index.js\"></script>\n"));
+        self.output.push_str(&format!("<script defer src=\"{root}nargo_doc.js\"></script>\n"));
+        self.output.push_str(&format!("<script defer src=\"{root}search.js\"></script>\n"));
         self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
@@ -1549,10 +1562,17 @@ impl HTMLCreator {
 
     fn main_start(&mut self, last_breadcrumb_is_link: bool) {
         self.output.push_str("<main>\n");
+        self.output.push_str(
+            "<input id=\"search-input\" type=\"search\" placeholder=\"Search\" \
+             autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\">\n",
+        );
+        self.output.push_str("<div id=\"search-results\" hidden></div>\n");
+        self.output.push_str("<div id=\"page-content\">\n");
         self.render_breadcrumbs(last_breadcrumb_is_link);
     }
 
     fn main_end(&mut self) {
+        self.output.push_str("</div>\n");
         self.output.push_str("</main>\n");
     }
 

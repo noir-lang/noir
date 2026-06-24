@@ -21,3 +21,4 @@ regex.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+noirc_arena.workspace = true

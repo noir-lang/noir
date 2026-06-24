@@ -57,6 +57,55 @@ main {
     flex-grow: 1;
 }
 
+#search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    margin-bottom: 24px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--main-color);
+    background-color: var(--code-color);
+    border: 1px solid var(--header-border-color);
+    border-radius: 6px;
+}
+
+#search-input:focus {
+    outline: 2px solid var(--link-color);
+}
+
+/* Search results are a three-column grid (kind, name, summary). `display: contents` on each
+   `li` promotes its three children into the grid so every column lines up across rows. */
+ul.search-result-list {
+    display: grid;
+    grid-template-columns: max-content minmax(12em, max-content) minmax(0, 1fr);
+    column-gap: 1.5em;
+    row-gap: 0.5em;
+    align-items: baseline;
+    list-style-type: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+ul.search-result-list>li {
+    display: contents;
+}
+
+/* The kind label and path prefix stay neutral; only the last name segment, which carries its
+   own kind class (.struct, .fn, ...), is colored. */
+.search-result-kind {
+    color: var(--comment-color);
+}
+
+.search-result-name {
+    color: var(--main-color);
+}
+
+.search-result-desc {
+    font-family: "Source Serif 4", NanumBarunGothic, serif;
+}
+
 a {
     color: var(--link-color);
     text-decoration: none;

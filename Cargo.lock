@@ -3477,6 +3477,7 @@ dependencies = [
  "insta",
  "iter-extended",
  "markdown",
+ "noirc_arena",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
