@@ -963,7 +963,7 @@ impl Loop {
     /// returns `0`; for inner loops whose header forwards outer-loop values as earlier parameters
     /// it can be a later position.
     pub(super) fn induction_variable_index(&self, dfg: &DataFlowGraph) -> Option<usize> {
-        let operand = self.parse_header_guard(dfg, |v| v)?.operand();
+        let operand = self.induction_variable(dfg)?;
         dfg.block_parameters(self.header).iter().position(|param| *param == operand)
     }
 
