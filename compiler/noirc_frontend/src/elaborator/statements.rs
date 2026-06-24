@@ -562,14 +562,18 @@ impl Elaborator<'_> {
             });
         }
 
+        // The condition is the loop guard, evaluated outside the while's loop scope (like a
+        // `for` range). Both SSA codegen and the comptime interpreter treat a `break`/`continue`
+        // in it as targeting the enclosing loop, so it is elaborated under the enclosing loop's
+        // context — yielding a `JumpOutsideLoop` error rather than a backend panic when there is
+        // no enclosing loop.
+        let location = while_.condition.type_location();
+        let (condition, cond_type) = self.elaborate_expression(while_.condition);
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
+
         let old_loop = std::mem::take(&mut self.current_loop);
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
-
-        let location = while_.condition.type_location();
-        let (condition, cond_type) = self.elaborate_expression(while_.condition);
-
-        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);
