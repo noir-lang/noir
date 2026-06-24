@@ -2671,7 +2671,16 @@ impl Elaborator<'_> {
                         Ok((FieldElement, false))
                     }
 
-                    Bool => Ok((Bool, false)),
+                    Bool => {
+                        if *op == UnaryOp::Minus {
+                            return Err(TypeCheckError::InvalidUnaryOp {
+                                typ: rhs_type.to_string(),
+                                operator: "-",
+                                location,
+                            });
+                        }
+                        Ok((Bool, false))
+                    }
 
                     _ => Ok((rhs_type.clone(), true)),
                 }
