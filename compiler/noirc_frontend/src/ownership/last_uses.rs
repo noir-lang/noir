@@ -178,16 +178,15 @@ impl LastUseContext {
             }
             Expression::Cast(cast) => self.find_last_uses_in_expression(&cast.lhs),
             Expression::For(for_expr) => self.find_last_uses_in_for(for_expr),
-            Expression::Loop(body) => self.find_last_uses_in_loop_body(&[body]),
+            Expression::Loop(body) => self.find_last_uses_in_loop_body(body, None),
             Expression::While(while_expr) => {
-                // Both condition and body are re-evaluated each iteration. `find_last_uses_in_loop_body`
-                // expects its expressions in forward evaluation order (it traverses them in reverse).
-                // The condition is evaluated before the body, so it is listed first. This matters when a
-                // variable is read in the condition and again in the body: its last use is the body read,
-                // so the body read becomes the move while the earlier condition read is cloned. Listing
-                // them the other way around would treat the condition read as the last use and skip the
-                // clone, which is unsound if the condition aliases and mutates the variable.
-                self.find_last_uses_in_loop_body(&[&while_expr.condition, &while_expr.body]);
+                // The body and condition are both re-evaluated each iteration, so both are
+                // analyzed at the loop's depth. A variable read in the condition and again in the
+                // body has its last use in the body (the condition runs first), so the body read
+                // becomes the move and the condition read is cloned. The condition is also where a
+                // `break` escapes to the enclosing loop, which `find_last_uses_in_loop_body`
+                // accounts for.
+                self.find_last_uses_in_loop_body(&while_expr.body, Some(&while_expr.condition));
             }
             Expression::If(if_expr) => self.find_last_uses_in_if(if_expr),
             Expression::Match(match_expr) => self.find_last_uses_in_match(match_expr),
@@ -254,15 +253,21 @@ impl LastUseContext {
     fn find_last_uses_in_for(&mut self, for_expr: &ast::For) {
         // The body is inside the loop scope; start/end ranges are evaluated once before
         // the loop begins and are tracked outside the loop scope.
-        self.find_last_uses_in_loop_body(&[&for_expr.block]);
+        self.find_last_uses_in_loop_body(&for_expr.block, None);
         self.find_last_uses_in_expression(&for_expr.end_range);
         self.find_last_uses_in_expression(&for_expr.start_range);
     }
 
-    /// Process loop body expressions at an increased loop depth.
+    /// Process a loop body (and, for a `while`, its condition) at an increased loop depth.
     /// After processing, remove any pending last uses for variables declared outside the loop
     /// since they cannot be safely moved inside a loop that may execute multiple times.
-    fn find_last_uses_in_loop_body(&mut self, body_exprs: &[&Expression]) {
+    ///
+    /// The body is traversed first because, in the reverse traversal, an iteration's body runs
+    /// after its condition. A `break`/`continue` in the body targets this loop and must not be
+    /// observed outside it; but a `break`/`continue` in a `while` condition targets the
+    /// *enclosing* loop (consistent with SSA lowering and the comptime interpreter), so its
+    /// effect is propagated outward while the body's is not.
+    fn find_last_uses_in_loop_body(&mut self, body: &Expression, condition: Option<&Expression>) {
         let pending_lengths: HashMap<LocalId, usize> =
             self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
         let saved_seen = self.seen.clone();
@@ -270,16 +275,22 @@ impl LastUseContext {
         // Kills inside the loop don't propagate outward (the loop may execute 0 times).
         let saved_killed = std::mem::take(&mut self.killed);
 
-        // A `break`/`continue` inside this loop targets this loop, not any enclosing one,
-        // so it must not be observed outside the loop body (e.g. by an assignment whose
-        // RHS contains this loop as a nested loop).
         let saved_has_break = std::mem::take(&mut self.has_break);
 
         let loop_body_depth = self.loop_depth + 1;
         self.loop_depth = loop_body_depth;
-        for expr in body_exprs.iter().rev() {
-            self.find_last_uses_in_expression(expr);
+
+        self.find_last_uses_in_expression(body);
+
+        // The body's breaks target this loop, so discard them (the enclosing value is restored
+        // below). A `break` in a `while` condition targets the enclosing loop, so process the
+        // condition with a clean flag and let whatever it sets propagate outward.
+        self.has_break = false;
+        if let Some(condition) = condition {
+            self.find_last_uses_in_expression(condition);
         }
+        let condition_has_break = self.has_break;
+
         self.loop_depth = loop_body_depth - 1;
 
         // Variables declared outside this loop cannot be moved inside it — unless
@@ -300,7 +311,7 @@ impl LastUseContext {
             }
         }
         self.killed = saved_killed;
-        self.has_break = saved_has_break;
+        self.has_break = saved_has_break || condition_has_break;
     }
 
     fn find_last_uses_in_if(&mut self, if_expr: &ast::If) {

@@ -2022,6 +2022,73 @@ fn while_condition_read_is_cloned_when_reused_in_body() {
     ");
 }
 
+// A `break` in a `while` condition targets the *enclosing* loop, not the `while`. Here the inner
+// `while`'s condition can `break` out of the outer loop before the assignment `x = if ...` commits,
+// so the old value of `x` outlives the loop. `let mut y = x` must therefore clone: otherwise `y`
+// would alias `x` and `y[0] = ...` would corrupt the value observed after the loop.
+#[test]
+fn break_in_inner_while_condition_clones_outer_assignment_rhs() {
+    let src = "
+    unconstrained fn main(cond: bool, exit: bool) {
+        let mut x = [1, 2];
+        let mut i = 0;
+        while i < 3 {
+            x = if cond {
+                let mut y = x;
+                y[0] = 10;
+                let mut j = 0;
+                while ({
+                    if exit {
+                        break;
+                    }
+                    j < 3
+                }) {
+                    j = j + 1;
+                }
+                [4, 5]
+            } else {
+                x
+            };
+            i = i + 1;
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `let mut y = x` is cloned because the inner `while` condition can `break` out of the outer
+    // loop before the assignment to `x` commits.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, exit$l1: bool) -> () {
+        let mut x$l2 = [1, 2];
+        let mut i$l3 = 0;
+        while (i$l3 < 3) {
+            x$l2 = if cond$l0 {
+                let mut y$l4 = x$l2.clone();
+                y$l4[0] = 10;
+                let mut j$l5 = 0;
+                while {
+                    if exit$l1 {
+                        break
+                    };
+                    (j$l5 < 3)
+                } {
+                    j$l5 = (j$l5 + 1)
+                };
+                [4, 5]
+            } else {
+                x$l2
+            };
+            i$l3 = (i$l3 + 1)
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l6: [Field; 2]) -> () {
+    }
+    ");
+}
+
 // Regression for issue https://github.com/noir-lang/noir-claude/issues/1069
 #[test]
 fn closure_captured_array_used_twice_clones_first_use() {
