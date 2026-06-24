@@ -58,19 +58,27 @@ main {
 }
 
 /* While inactive the bar holds only the toggle button, floated to the top-right so the page
-   content (breadcrumbs and title) flows up beside it instead of below an empty row. When active
+   content (breadcrumbs and title) flows up beside it instead of below an empty row. The top
+   margin, top padding and min-height mirror the heading box (see the `h1, h2` rules) so the
+   toggle is vertically centered on the item's heading rather than floating above it. When active
    it expands to a full-width flex row holding the search input and the Exit button. */
 #search-bar {
     float: right;
+    display: flex;
+    align-items: center;
     margin-left: 1em;
+    margin-top: 25px;
+    padding-top: 3px;
+    min-height: 2.5em;
 }
 
 #search-bar.active {
     float: none;
-    display: flex;
-    align-items: center;
+    margin-top: 0;
     margin-left: 0;
     margin-bottom: 24px;
+    padding-top: 0;
+    min-height: 0;
 }
 
 #search-input {
