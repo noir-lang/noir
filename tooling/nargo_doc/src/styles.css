@@ -486,6 +486,7 @@ table tbody tr:nth-child(2n) {
 
   .search-result-desc {
     display: block;
+    padding-left: 1em;
   }
 }
 
