@@ -1562,6 +1562,9 @@ impl HTMLCreator {
 
     fn main_start(&mut self, last_breadcrumb_is_link: bool) {
         self.output.push_str("<main>\n");
+        // The breadcrumbs span the top; the floated search bar that follows then sits next to the
+        // item's heading rather than next to the breadcrumbs.
+        self.render_breadcrumbs(last_breadcrumb_is_link);
         self.output.push_str("<div id=\"search-bar\">\n");
         self.output.push_str(
             "<input id=\"search-input\" type=\"search\" placeholder=\"Type 's' or '/' to search\" \
@@ -1571,7 +1574,6 @@ impl HTMLCreator {
         self.output.push_str("</div>\n");
         self.output.push_str("<div id=\"search-results\" hidden></div>\n");
         self.output.push_str("<div id=\"page-content\">\n");
-        self.render_breadcrumbs(last_breadcrumb_is_link);
     }
 
     fn main_end(&mut self) {
