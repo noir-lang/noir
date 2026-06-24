@@ -232,6 +232,14 @@ ul.item-list, ul.sidebar-list {
     color: var(--primitive-color);
 }
 
+.method {
+    color: var(--fn-color);
+}
+
+.field {
+    color: var(--struct-color);
+}
+
 .padded-methods {
     padding-left: 2em;
 }

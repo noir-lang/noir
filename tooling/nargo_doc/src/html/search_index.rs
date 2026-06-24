@@ -2,7 +2,7 @@ use noirc_frontend::ast::ItemVisibility;
 
 use crate::{
     html::{has_class::HasClass, has_uri::HasUri, markdown_utils::markdown_summary},
-    items::{Comments, Item, ItemProperties, Workspace},
+    items::{Comments, Impl, Item, ItemProperties, TraitImpl, Workspace},
 };
 
 /// A single searchable item in the generated documentation.
@@ -71,9 +71,35 @@ fn gather_search_entries_in_item(
                 &struct_.uri(),
                 struct_,
             );
+
+            let context = TypeContext::new(current_path, &struct_.name, &struct_.uri());
+            for field in &struct_.fields {
+                push_member_entry(
+                    entries,
+                    &context,
+                    &field.name,
+                    "field",
+                    &format!("structfield.{}", field.name),
+                    &field.comments,
+                );
+            }
+            push_methods(entries, &context, &struct_.impls);
+            push_trait_impl_methods(entries, &context, &struct_.trait_impls);
         }
         Item::Trait(trait_) => {
             push_entry(entries, current_path, &trait_.name, trait_.class(), &trait_.uri(), trait_);
+
+            let context = TypeContext::new(current_path, &trait_.name, &trait_.uri());
+            for method in trait_.required_methods.iter().chain(&trait_.provided_methods) {
+                push_member_entry(
+                    entries,
+                    &context,
+                    &method.name,
+                    "method",
+                    &method.name,
+                    &method.comments,
+                );
+            }
         }
         Item::TypeAlias(type_alias) => {
             push_entry(
@@ -95,6 +121,10 @@ fn gather_search_entries_in_item(
                 &primitive_type.uri(),
                 primitive_type,
             );
+
+            let context = TypeContext::new(current_path, &name, &primitive_type.uri());
+            push_methods(entries, &context, &primitive_type.impls);
+            push_trait_impl_methods(entries, &context, &primitive_type.trait_impls);
         }
         Item::Global(global) => {
             push_entry(entries, current_path, &global.name, global.class(), &global.uri(), global);
@@ -129,6 +159,73 @@ fn push_entry(
         kind: kind.to_string(),
         url,
         description: description(item.comments()),
+    });
+}
+
+/// Identifies the type whose members are being indexed: its qualified path (e.g.
+/// `std::collections::bounded_vec::BoundedVec`) and the URL of its page.
+struct TypeContext {
+    path: String,
+    url: String,
+}
+
+impl TypeContext {
+    fn new(current_path: &[String], type_name: &str, type_uri: &str) -> Self {
+        Self {
+            path: format!("{}::{type_name}", current_path.join("::")),
+            url: format!("{}/{type_uri}", current_path.join("/")),
+        }
+    }
+}
+
+/// Indexes the methods of a type's inherent `impl` blocks. Each method's page is its type's
+/// page, anchored at the method name.
+fn push_methods(entries: &mut Vec<SearchEntry>, context: &TypeContext, impls: &[Impl]) {
+    for impl_ in impls {
+        for method in &impl_.methods {
+            push_member_entry(
+                entries,
+                context,
+                &method.name,
+                "method",
+                &method.name,
+                &method.comments,
+            );
+        }
+    }
+}
+
+/// Indexes the methods of a type's trait `impl` blocks. Trait-impl methods don't get their own
+/// anchor, so they link to the surrounding `impl` block on the type's page.
+fn push_trait_impl_methods(
+    entries: &mut Vec<SearchEntry>,
+    context: &TypeContext,
+    trait_impls: &[TraitImpl],
+) {
+    for trait_impl in trait_impls {
+        let anchor = super::trait_impl_anchor(trait_impl);
+        for method in &trait_impl.methods {
+            push_member_entry(entries, context, &method.name, "method", &anchor, &method.comments);
+        }
+    }
+}
+
+/// Adds an entry for a member (a field or method) of a type. Its qualified path includes the
+/// type name, and its URL is the type's page anchored at `anchor`.
+fn push_member_entry(
+    entries: &mut Vec<SearchEntry>,
+    context: &TypeContext,
+    name: &str,
+    kind: &str,
+    anchor: &str,
+    comments: &Option<Comments>,
+) {
+    entries.push(SearchEntry {
+        name: name.to_string(),
+        path: context.path.clone(),
+        kind: kind.to_string(),
+        url: format!("{}#{anchor}", context.url),
+        description: description(comments.as_ref()),
     });
 }
 
@@ -191,7 +288,8 @@ mod tests {
     use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
 
     use crate::items::{
-        Comments, Crate, Function, Item, ItemId, ItemKind, Module, Struct, Type, Workspace,
+        Comments, Crate, Function, Impl, Item, ItemId, ItemKind, Module, Struct, StructField,
+        Trait, Type, Workspace,
     };
 
     use super::*;
@@ -219,8 +317,8 @@ mod tests {
         })
     }
 
-    fn function_item(name: &str) -> Item {
-        Item::Function(Function {
+    fn function(name: &str) -> Function {
+        Function {
             id: dummy_item_id(name, ItemKind::Function),
             unconstrained: false,
             comptime: false,
@@ -231,7 +329,25 @@ mod tests {
             where_clause: Vec::new(),
             comments: None,
             deprecated: None,
-        })
+        }
+    }
+
+    fn function_item(name: &str) -> Item {
+        Item::Function(function(name))
+    }
+
+    fn field(name: &str) -> StructField {
+        StructField { name: name.to_string(), r#type: Type::Unit, comments: None }
+    }
+
+    fn impl_with_method(method_name: &str) -> Impl {
+        Impl {
+            generics: Vec::new(),
+            r#type: Type::Unit,
+            where_clause: Vec::new(),
+            methods: vec![function(method_name)],
+            comments: None,
+        }
     }
 
     fn module(name: &str, items: Vec<(ItemVisibility, Item)>) -> Module {
@@ -298,6 +414,57 @@ mod tests {
 
         assert!(entries.iter().any(|e| e.name == "Shown"));
         assert!(!entries.iter().any(|e| e.name == "Hidden"));
+    }
+
+    #[test]
+    fn collects_fields_and_methods() {
+        let foo = Struct {
+            id: dummy_item_id("Foo", ItemKind::Struct),
+            name: "Foo".to_string(),
+            generics: Vec::new(),
+            fields: vec![field("value")],
+            has_private_fields: false,
+            comptime: false,
+            impls: vec![impl_with_method("increment")],
+            trait_impls: Vec::new(),
+            comments: None,
+        };
+        let doubler = Trait {
+            id: dummy_item_id("Doubler", ItemKind::Trait),
+            name: "Doubler".to_string(),
+            generics: Vec::new(),
+            bounds: Vec::new(),
+            where_clause: Vec::new(),
+            associated_types: Vec::new(),
+            associated_constants: Vec::new(),
+            required_methods: vec![function("double")],
+            provided_methods: Vec::new(),
+            trait_impls: Vec::new(),
+            comments: None,
+        };
+        let root = vec![
+            (ItemVisibility::Public, Item::Struct(foo)),
+            (ItemVisibility::Public, Item::Trait(doubler)),
+        ];
+
+        let entries = compute_search_index(&workspace(vec![krate("mylib", root)]));
+
+        let value = entries.iter().find(|e| e.name == "value").expect("field should be indexed");
+        assert_eq!(value.path, "mylib::Foo");
+        assert_eq!(value.kind, "field");
+        assert_eq!(value.url, "mylib/struct.Foo.html#structfield.value");
+
+        let increment =
+            entries.iter().find(|e| e.name == "increment").expect("method should be indexed");
+        assert_eq!(increment.path, "mylib::Foo");
+        assert_eq!(increment.kind, "method");
+        assert_eq!(increment.url, "mylib/struct.Foo.html#increment");
+
+        let double =
+            entries.iter().find(|e| e.name == "double").expect("trait method should be indexed");
+        assert_eq!(double.path, "mylib::Doubler");
+        assert_eq!(double.kind, "method");
+        assert_eq!(double.url, "mylib/trait.Doubler.html#double");
     }
 
     #[test]
