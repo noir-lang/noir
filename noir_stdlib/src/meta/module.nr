@@ -57,13 +57,9 @@ impl crate::hash::Hash for Module {
 }
 
 impl crate::cmp::Eq for Module {
-    comptime fn eq(self, other: Self) -> bool {
-        module_eq(self, other)
-    }
+    #[builtin(module_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(module_eq)]
-comptime fn module_eq(_first: Module, _second: Module) -> bool {}
 
 #[builtin(module_hash)]
 comptime fn module_hash(_module: Module) -> Field {}

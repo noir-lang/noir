@@ -7,6 +7,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 use assert_fs::prelude::{FileWriteStr, PathAssert, PathChild};
+use nargo::constants::PKG_FILE;
 
 #[test]
 fn hello_world_example() {
@@ -30,7 +31,7 @@ fn hello_world_example() {
     )));
 
     project_dir.child("src").assert(predicate::path::is_dir());
-    project_dir.child("Nargo.toml").assert(predicate::path::is_file());
+    project_dir.child(PKG_FILE).assert(predicate::path::is_file());
 
     std::env::set_current_dir(&project_dir).unwrap();
 

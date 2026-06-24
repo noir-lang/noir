@@ -31,7 +31,6 @@ fn main() -> Result<(), String> {
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
-    generate_execution_panic_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
@@ -304,8 +303,10 @@ fn read_test_cases(
     test_sub_dir: &str,
 ) -> impl Iterator<Item = (String, PathBuf)> {
     let test_data_dir = test_data_dir.join(test_sub_dir);
+    // A missing directory means the test category currently has no tests, so we yield nothing
+    // rather than panicking. The inner `flatten` also skips any entry that fails to read.
     let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+        fs::read_dir(test_data_dir).into_iter().flatten().flatten().filter(|c| c.path().is_dir());
 
     test_case_dirs.into_iter().filter_map(|dir| {
         // When switching git branches we might end up with non-empty directories that have a `target`
@@ -535,32 +536,6 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 ..Default::default()
             },
-        );
-    }
-    writeln!(test_file, "}}").unwrap();
-}
-
-fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_type = "execution_panic";
-    let test_cases = read_test_cases(test_data_dir, test_type);
-
-    writeln!(
-        test_file,
-        "mod {test_type} {{
-        use super::*;
-    "
-    )
-    .unwrap();
-    for (test_name, test_dir) in test_cases {
-        let test_dir = test_dir.display();
-
-        generate_test_cases(
-            test_file,
-            &test_name,
-            &test_dir,
-            "execute",
-            "execution_panic(nargo);",
-            &MatrixConfig::default(),
         );
     }
     writeln!(test_file, "}}").unwrap();

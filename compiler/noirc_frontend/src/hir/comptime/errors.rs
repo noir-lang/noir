@@ -11,8 +11,9 @@ use crate::{
     parser::ParserError,
     token::Token,
 };
-use acvm::{BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+use num_bigint::BigInt;
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +40,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: FieldElement,
+        value: BigInt,
         typ: Type,
         location: Location,
     },

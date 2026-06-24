@@ -8,7 +8,11 @@ use noirc_errors::{
 
 use crate::{
     ParsedModule,
-    ast::{LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, TypeImpl, Visitor},
+    ast::{
+        BlockExpression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirTrait,
+        NoirTraitImpl, TypeImpl, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+        Visitor,
+    },
     hir::ParsedFiles,
     parser::ParsedSubModule,
 };
@@ -131,6 +135,29 @@ impl Visitor for FunctionLocationsCollector<'_> {
         let name = function.name().to_string();
         let full_name = self.fully_qualified_name(&name);
         self.function_locations.insert(function.location(), full_name);
+
+        false
+    }
+
+    fn visit_trait_item_function(
+        &mut self,
+        name: &Ident,
+        _generics: &UnresolvedGenerics,
+        _parameters: &[(Ident, UnresolvedType)],
+        _return_type: &FunctionReturnType,
+        _where_clause: &[UnresolvedTraitConstraint],
+        body: &Option<BlockExpression>,
+    ) -> bool {
+        // Only default methods (those with a body) produce call-stack frames; a bodiless
+        // trait method declaration has no code to attribute a diagnostic to.
+        if let Some(body) = body {
+            let location = match body.statements.last() {
+                Some(last_statement) => name.location().merge(last_statement.location),
+                None => name.location(),
+            };
+            let full_name = self.fully_qualified_name(name.as_str());
+            self.function_locations.insert(location, full_name);
+        }
 
         false
     }
