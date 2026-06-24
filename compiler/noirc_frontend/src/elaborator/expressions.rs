@@ -300,9 +300,7 @@ impl Elaborator<'_> {
                 break_or_continue_location = Some(location);
             }
 
-            if i + 1 == statements.len() {
-                block_type = stmt_type;
-            }
+            block_type = stmt_type;
         }
 
         self.pop_scope();

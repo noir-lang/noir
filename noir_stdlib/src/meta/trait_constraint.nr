@@ -2,9 +2,8 @@ use crate::cmp::Eq;
 use crate::hash::{Hash, Hasher};
 
 impl Eq for TraitConstraint {
-    comptime fn eq(self, other: Self) -> bool {
-        constraint_eq(self, other)
-    }
+    #[builtin(trait_constraint_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl Hash for TraitConstraint {
@@ -15,9 +14,6 @@ impl Hash for TraitConstraint {
         state.write(constraint_hash(self));
     }
 }
-
-#[builtin(trait_constraint_eq)]
-comptime fn constraint_eq(_first: TraitConstraint, _second: TraitConstraint) -> bool {}
 
 #[builtin(trait_constraint_hash)]
 comptime fn constraint_hash(_constraint: TraitConstraint) -> Field {}

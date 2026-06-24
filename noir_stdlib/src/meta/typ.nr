@@ -200,9 +200,8 @@ impl Eq for Type {
     /// Note that this is syntactic equality, this is not the same as whether two types will type check
     /// to be the same type. Unless type inference or generics are being used however, users should not
     /// typically have to worry about this distinction.
-    comptime fn eq(self, other: Self) -> bool {
-        type_eq(self, other)
-    }
+    #[builtin(type_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl crate::hash::Hash for Type {
@@ -213,9 +212,6 @@ impl crate::hash::Hash for Type {
         state.write(type_hash(self))
     }
 }
-
-#[builtin(type_eq)]
-comptime fn type_eq(_first: Type, _second: Type) -> bool {}
 
 #[builtin(type_hash)]
 comptime fn type_hash(_typ: Type) -> Field {}

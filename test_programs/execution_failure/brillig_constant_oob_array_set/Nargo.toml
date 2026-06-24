@@ -1,0 +1,7 @@
+[package]
+name = "brillig_constant_oob_array_set"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]
