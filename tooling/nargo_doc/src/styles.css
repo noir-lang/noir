@@ -57,50 +57,26 @@ main {
     flex-grow: 1;
 }
 
-/* While inactive the bar holds only the toggle button, floated to the top-right so the page
-   content (breadcrumbs and title) flows up beside it instead of below an empty row. The top
-   margin, top padding and min-height mirror the heading box (see the `h1, h2` rules) so the
-   toggle is vertically centered on the item's heading rather than floating above it. When active
-   it expands to a full-width flex row holding the search input and the Exit button. */
-#search-bar {
-    float: right;
+/* The heading and the search toggle sit in one flex row so the toggle aligns with the item's
+   name; baseline alignment lines the toggle up with the heading text. The search input is a
+   separate full-width row revealed below the heading when search is active. */
+.heading-row {
     display: flex;
-    align-items: center;
-    margin-left: 1em;
-    margin-top: 25px;
-    padding-top: 3px;
-    min-height: 2.5em;
+    align-items: baseline;
 }
 
-#search-bar.active {
-    float: none;
-    margin-left: 0;
-    margin-bottom: 24px;
-}
-
-#search-input {
+.heading-content {
     flex: 1;
-    box-sizing: border-box;
-    padding: 8px 12px;
-    margin-right: 1em;
-    font-size: 1rem;
-    font-family: inherit;
-    color: var(--main-color);
-    background-color: var(--code-color);
-    border: 1px solid var(--header-border-color);
-    border-radius: 6px;
-}
-
-#search-input:focus {
-    outline: 2px solid var(--link-color);
+    min-width: 0;
 }
 
 #search-toggle {
-    margin-left: auto;
+    flex: none;
     display: inline-flex;
     align-items: center;
     gap: 0.4em;
-    padding: 8px 12px;
+    margin-left: 1em;
+    padding: 0;
     font-size: 1rem;
     font-family: inherit;
     color: var(--main-color);
@@ -111,6 +87,23 @@ main {
 
 #search-toggle:hover {
     opacity: 0.7;
+}
+
+#search-input {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 24px;
+    padding: 8px 12px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--main-color);
+    background-color: var(--code-color);
+    border: 1px solid var(--header-border-color);
+    border-radius: 6px;
+}
+
+#search-input:focus {
+    outline: 2px solid var(--link-color);
 }
 
 /* Search results are a three-column grid (kind, name, summary). `display: contents` on each
@@ -485,7 +478,7 @@ table tbody tr:nth-child(2n) {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
     }
 
-    #search-bar.active #search-toggle::before {
+    #search-toggle.exit::before {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="black" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
     }
 }
@@ -499,7 +492,7 @@ table tbody tr:nth-child(2n) {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.5"><circle cx="9" cy="9" r="6.5"/><path d="M14,14l6,6" stroke-linecap="round"/></svg>');
     }
 
-    #search-bar.active #search-toggle::before {
+    #search-toggle.exit::before {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="white" stroke-width="2.75" stroke-linecap="round"><path d="M4,4l14,14M18,4L4,18"/></svg>');
     }
 }
