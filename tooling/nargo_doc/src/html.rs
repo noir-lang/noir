@@ -1128,18 +1128,19 @@ impl HTMLCreator {
             self.output.push_str("comptime ");
         }
         self.output.push_str("fn ");
-        if link {
-            self.output.push_str(&format!("<a href=\"#{}\">", function.name));
-        }
-        if color_name {
-            self.output.push_str("<span class=\"fn\">");
-            self.output.push_str(&function.name);
-            self.output.push_str("</span>");
-        } else {
-            self.output.push_str(&function.name);
-        }
-        if link {
-            self.output.push_str("</a>");
+        // Put the `fn` color class on the link itself (rather than a nested span) so the hover
+        // underline, which takes the link's color, matches the name's color.
+        match (link, color_name) {
+            (true, true) => self
+                .output
+                .push_str(&format!("<a href=\"#{0}\" class=\"fn\">{0}</a>", function.name)),
+            (true, false) => {
+                self.output.push_str(&format!("<a href=\"#{0}\">{0}</a>", function.name));
+            }
+            (false, true) => {
+                self.output.push_str(&format!("<span class=\"fn\">{}</span>", function.name));
+            }
+            (false, false) => self.output.push_str(&function.name),
         }
         self.render_generics(&function.generics);
         self.output.push('(');
