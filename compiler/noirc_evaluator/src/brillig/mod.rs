@@ -176,7 +176,6 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) {
         let obj = self.convert_ssa_function(
@@ -184,7 +183,6 @@ impl Brillig {
             options,
             globals,
             hoisted_global_constants,
-            is_entry_point,
             check_max_stack_depth,
         );
         self.ssa_function_to_brillig.insert(func.id(), obj);
@@ -217,7 +215,6 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) -> BrilligArtifact<FieldElement> {
         let (function_context, brillig_context) = self.build_function_contexts(
@@ -225,7 +222,6 @@ impl Brillig {
             options,
             globals,
             hoisted_global_constants,
-            is_entry_point,
             check_max_stack_depth,
         );
 
@@ -249,11 +245,10 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) -> (FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut function_context =
-            FunctionContext::new(func, is_entry_point, options.layout.max_stack_frame_size());
+            FunctionContext::new(func, options.layout.max_stack_frame_size());
 
         let mut brillig_context = BrilligContext::new(func.name(), options);
 
@@ -356,7 +351,6 @@ impl Ssa {
                 brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
-            let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
             let check_max_stack_depth = max_call_depths[&brillig_function_id]
                 .is_none_or(|max_depth| max_depth >= options.layout.num_stack_frames());
 
@@ -365,7 +359,6 @@ impl Ssa {
                 options,
                 globals_allocations,
                 hoisted_constant_allocations,
-                is_entry_point,
                 check_max_stack_depth,
             );
         }

@@ -50,9 +50,6 @@ pub(crate) struct FunctionContext {
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
-    /// True if this function is a brillig entry point
-    #[allow(dead_code)]
-    pub(crate) is_entry_point: bool,
     /// Manages spilling of register values to the heap spill region when register pressure
     /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
     /// Present only when the function may need spilling (based on liveness analysis).
@@ -79,11 +76,7 @@ impl FunctionContext {
     /// It can be tuned if it proves too aggressive or too conservative in practice.
     const SPILL_MARGIN: usize = 32;
 
-    pub(crate) fn new(
-        function: &Function,
-        is_entry_point: bool,
-        max_stack_frame_size: usize,
-    ) -> Self {
+    pub(crate) fn new(function: &Function, max_stack_frame_size: usize) -> Self {
         let id = function.id();
 
         let post_order = PostOrder::with_function(function).into_vec();
@@ -107,7 +100,6 @@ impl FunctionContext {
             ssa_value_allocations: HashMap::default(),
             blocks: post_order,
             liveness,
-            is_entry_point,
             constant_allocation: constants,
             spill_manager,
             coalescing,

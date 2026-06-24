@@ -39,6 +39,23 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
     }
 
+    /// Registers the current location as a per-site copy site and returns the global memory
+    /// address of its counter, or `None` when copy-counting is disabled, no registry is attached,
+    /// or the site is beyond [`MAX_TRACK_SITES`](crate::brillig::MAX_TRACK_SITES).
+    ///
+    /// Sites are deduplicated by `CallStackId`, so the same call site compiled more than once
+    /// shares a single counter.
+    fn register_per_site_counter(&self) -> Option<MemoryAddress> {
+        use crate::brillig::MAX_TRACK_SITES;
+
+        if !self.count_arrays_copied {
+            return None;
+        }
+        let registry = self.copy_site_registry.clone()?;
+        let site_index = registry.register_site(self.current_call_stack_id());
+        (site_index < MAX_TRACK_SITES).then(|| self.per_site_counter_address(site_index))
+    }
+
     /// If the `count_array_copies` flag is set, registers this as a per-site copy location and
     /// emits runtime code that increments the per-site counter whenever a copy actually occurred
     /// (i.e. `source_pointer != dest_pointer` after a copy procedure call).
@@ -47,24 +64,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_pointer: MemoryAddress,
         dest_pointer: MemoryAddress,
     ) {
-        use crate::brillig::MAX_TRACK_SITES;
-
-        if !self.count_arrays_copied {
-            return;
-        }
-        let Some(registry) = self.copy_site_registry.clone() else {
+        let Some(counter_addr) = self.register_per_site_counter() else {
             return;
         };
-
-        // Deduplicate by CallStackId: the same call site compiled more than once shares a counter.
-        let call_stack_id = self.current_call_stack_id();
-        let site_index = registry.register_site(call_stack_id);
-
-        if site_index >= MAX_TRACK_SITES {
-            return;
-        }
-
-        let counter_addr = self.per_site_counter_address(site_index);
 
         // Emit: if source_pointer != dest_pointer { counter_addr += 1 }
         // We use: did_not_copy = (source == dest); if did_not_copy => skip increment
@@ -84,23 +86,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// rather than a pointer comparison. Registers this as a per-site copy location and emits
     /// runtime code that increments the per-site counter when `flag != 0`.
     pub(crate) fn codegen_count_if_nonzero(&mut self, flag: MemoryAddress) {
-        use crate::brillig::MAX_TRACK_SITES;
-
-        if !self.count_arrays_copied {
-            return;
-        }
-        let Some(registry) = self.copy_site_registry.clone() else {
+        let Some(counter_addr) = self.register_per_site_counter() else {
             return;
         };
-
-        let call_stack_id = self.current_call_stack_id();
-        let site_index = registry.register_site(call_stack_id);
-
-        if site_index >= MAX_TRACK_SITES {
-            return;
-        }
-
-        let counter_addr = self.per_site_counter_address(site_index);
 
         // if flag != 0 { counter_addr += 1 }
         self.codegen_if(flag, |ctx| {

@@ -4,11 +4,12 @@ use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::foreign_calls::OracleResolverUrl;
+use nargo::ops::{compile_program, optimize_program, report_errors};
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
 
-use super::compile_cmd::compile_workspace_full;
+use super::compile_cmd::{compile_workspace_full, parse_workspace};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use crate::cli::execute_cmd::interpret::run_comptime;
 use crate::errors::CliError;
@@ -67,6 +68,15 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         return run_comptime(args, workspace);
     }
 
+    // `--count-array-copies` instruments the compiled Brillig with copy-counting code, which
+    // changes the output artifact. The compilation cache is keyed on the AST and cannot tell an
+    // instrumented build apart from a normal one, so persisting an instrumented artifact would
+    // poison the cache for later, un-instrumented runs. Compile and execute entirely in memory
+    // so the flag neither reads a cached artifact nor writes one to disk.
+    if args.compile_options.count_array_copies {
+        return execute_without_artifacts(args, workspace);
+    }
+
     // Compile the full workspace in order to generate any build artifacts.
     let debug_compile_stdin = None;
     compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
@@ -92,6 +102,49 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         };
 
         noir_artifact_cli::commands::execute_cmd::run(cmd)?;
+    }
+    Ok(())
+}
+
+/// Compile and execute each binary package in memory, without reading or writing any
+/// compilation artifact. Used for `--count-array-copies`, whose Brillig instrumentation must
+/// not be persisted to (or served from) the artifact cache.
+fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
+    let (file_manager, parsed_files) = parse_workspace(&workspace, None);
+
+    for package in workspace.into_iter().filter(|package| package.is_binary()) {
+        // Pass no cached program so a previously persisted, un-instrumented artifact is ignored.
+        let compilation_result = compile_program(
+            &file_manager,
+            &parsed_files,
+            &workspace,
+            package,
+            &args.compile_options,
+            None,
+        );
+        let program = report_errors(
+            compilation_result,
+            &file_manager,
+            &parsed_files,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
+        )?;
+        let program = optimize_program(program);
+
+        let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
+        let circuit_name = package.name.to_string();
+        let witness_name = args.witness_name.clone().unwrap_or_else(|| circuit_name.clone());
+        // Save the witness as a normal `execute` would, but never the program artifact.
+        noir_artifact_cli::commands::execute_cmd::execute_program(
+            &program,
+            &circuit_name,
+            &prover_file,
+            Some(&workspace.target_directory_path()),
+            Some(&witness_name),
+            args.overwrite_return,
+            args.oracle_file.as_deref(),
+            args.oracle_resolver.as_ref(),
+        )?;
     }
     Ok(())
 }
