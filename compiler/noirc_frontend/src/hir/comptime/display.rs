@@ -15,7 +15,7 @@ use crate::{
         Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
         WhileStatement,
     },
-    hir::comptime::interpreter::builtin_helpers::fragments_to_string,
+    hir::comptime::interpreter::builtin_helpers::fragments_to_bytes,
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
@@ -418,184 +418,223 @@ pub struct ValuePrinter<'value, 'interner> {
 
 impl Display for ValuePrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.value {
-            Value::Unit => write!(f, "()"),
-            Value::Bool(value) => {
-                let msg = if *value { "true" } else { "false" };
-                write!(f, "{msg}")
-            }
-            Value::Integer(int) => write!(f, "{int}"),
-            Value::String(bytes) | Value::CtString(bytes) => {
-                let string = String::from_utf8_lossy(bytes);
-                write!(f, "{string}")
-            }
-            Value::FormatString(fragments, _, _) => {
-                let string = fragments_to_string(fragments, self.interner, self.files);
-                write!(f, "{string}")
-            }
-            Value::Function(..) => write!(f, "(function)"),
-            Value::Closure(..) => write!(f, "(closure)"),
-            Value::Tuple(fields) => {
-                let fields = vecmap(fields, |field| {
-                    field.borrow().display(self.interner, self.files).to_string()
-                });
-                if fields.len() == 1 {
-                    write!(f, "({},)", fields[0])
-                } else {
-                    write!(f, "({})", fields.join(", "))
+        let bytes = value_to_bytes(self.value, self.interner, self.files);
+        write!(f, "{}", String::from_utf8_lossy(&bytes))
+    }
+}
+
+/// Renders a comptime value to bytes.
+pub(crate) fn value_to_bytes(value: &Value, interner: &NodeInterner, files: &FileMap) -> Vec<u8> {
+    let mut result = Vec::new();
+    write_value_bytes(&mut result, value, interner, files);
+    result
+}
+
+fn write_value_bytes(out: &mut Vec<u8>, value: &Value, interner: &NodeInterner, files: &FileMap) {
+    // Append a value that cannot contain non-UTF-8 bytes, formatted through its `Display` impl.
+    macro_rules! push_display {
+        ($($arg:tt)*) => {
+            out.extend_from_slice(format!($($arg)*).as_bytes())
+        };
+    }
+
+    match value {
+        Value::Unit => push_display!("()"),
+        Value::Bool(value) => out.extend_from_slice(if *value { b"true" } else { b"false" }),
+        Value::Integer(int) => push_display!("{int}"),
+        Value::String(bytes) | Value::CtString(bytes) => {
+            out.extend_from_slice(bytes);
+        }
+        Value::FormatString(fragments, _, _) => {
+            out.extend_from_slice(&fragments_to_bytes(fragments, interner, files));
+        }
+        Value::Function(..) => push_display!("(function)"),
+        Value::Closure(..) => push_display!("(closure)"),
+        Value::Tuple(fields) => {
+            out.push(b'(');
+            for (index, field) in fields.iter().enumerate() {
+                if index > 0 {
+                    out.extend_from_slice(b", ");
                 }
+                write_value_bytes(out, &field.borrow(), interner, files);
             }
-            Value::Struct(fields, typ) => {
-                let data_type = match typ.follow_bindings() {
-                    Type::DataType(def, _) => def,
-                    other => unreachable!("Expected data type, found {other}"),
-                };
-                let data_type = data_type.borrow();
-                let typename = data_type.name.to_string();
-
-                // Display fields in the order they are defined in the struct.
-                // Some fields might not be there if they were missing in the constructor.
-                let fields = data_type
-                    .fields_raw()
-                    .unwrap()
-                    .iter()
-                    .filter_map(|field| {
-                        let name = field.name.as_string();
-                        fields.get(name).map(|value| {
-                            format!(
-                                "{}: {}",
-                                name,
-                                value.borrow().display(self.interner, self.files)
-                            )
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                write!(f, "{typename} {{ {} }}", fields.join(", "))
+            if fields.len() == 1 {
+                out.push(b',');
             }
-            Value::Enum(tag, args, typ) => {
-                let args = vecmap(args, |arg| arg.display(self.interner, self.files).to_string())
-                    .join(", ");
+            out.push(b')');
+        }
+        Value::Struct(fields, typ) => {
+            let data_type = match typ.follow_bindings() {
+                Type::DataType(def, _) => def,
+                other => unreachable!("Expected data type, found {other}"),
+            };
+            let data_type = data_type.borrow();
+            out.extend_from_slice(data_type.name.to_string().as_bytes());
+            out.extend_from_slice(b" { ");
 
-                match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(def, _) => {
-                        let def = def.borrow();
-                        let variant = def.variant_at(*tag);
-                        if variant.is_function {
-                            write!(f, "{}::{}({args})", def.name, variant.name)
-                        } else {
-                            write!(f, "{}::{}", def.name, variant.name)
-                        }
+            // Display fields in the order they are defined in the struct.
+            // Some fields might not be there if they were missing in the constructor.
+            let mut first = true;
+            for field in data_type.fields_raw().unwrap() {
+                let name = field.name.as_string();
+                if let Some(value) = fields.get(name) {
+                    if !first {
+                        out.extend_from_slice(b", ");
                     }
-                    other => write!(f, "{other}(args)"),
+                    first = false;
+                    out.extend_from_slice(name.as_bytes());
+                    out.extend_from_slice(b": ");
+                    write_value_bytes(out, &value.borrow(), interner, files);
                 }
             }
-            Value::Pointer(value, _, mutable) => {
-                if *mutable {
-                    write!(f, "&mut {}", value.borrow().display(self.interner, self.files))
-                } else {
-                    write!(f, "&{}", value.borrow().display(self.interner, self.files))
-                }
-            }
-            Value::Array(values, _) => {
-                let values =
-                    vecmap(values, |value| value.display(self.interner, self.files).to_string());
-                write!(f, "[{}]", values.join(", "))
-            }
-            Value::Vector(values, _) => {
-                let values =
-                    vecmap(values, |value| value.display(self.interner, self.files).to_string());
-                write!(f, "@[{}]", values.join(", "))
-            }
-            Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, self.files, f),
-            Value::TypeDefinition(id) => {
-                let def = self.interner.get_type(*id);
+            out.extend_from_slice(b" }");
+        }
+        Value::Enum(tag, args, typ) => match typ.follow_bindings_shallow().as_ref() {
+            Type::DataType(def, _) => {
                 let def = def.borrow();
-                write!(f, "{}", def.name)
-            }
-            Value::TraitConstraint(trait_id, generics) => {
-                let trait_ = self.interner.get_trait(*trait_id);
-                write!(f, "{}{generics}", trait_.name)
-            }
-            Value::TraitDefinition(trait_id) => {
-                let trait_ = self.interner.get_trait(*trait_id);
-                write!(f, "{}", trait_.name)
-            }
-            Value::TraitImpl(trait_impl_id) => {
-                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-                let trait_impl = trait_impl.borrow();
-                let ordered_generics = self.interner.get_ordered_generics_for_impl(*trait_impl_id);
-
-                let generic_string = vecmap(ordered_generics, ToString::to_string).join(", ");
-                let generic_string = if generic_string.is_empty() {
-                    generic_string
+                let variant = def.variant_at(*tag);
+                if variant.is_function {
+                    push_display!("{}::{}(", def.name, variant.name);
+                    for (index, arg) in args.iter().enumerate() {
+                        if index > 0 {
+                            out.extend_from_slice(b", ");
+                        }
+                        write_value_bytes(out, arg, interner, files);
+                    }
+                    out.push(b')');
                 } else {
-                    format!("<{generic_string}>")
-                };
+                    push_display!("{}::{}", def.name, variant.name);
+                }
+            }
+            other => push_display!("{other}(args)"),
+        },
+        Value::Pointer(value, _, mutable) => {
+            out.extend_from_slice(if *mutable { b"&mut " } else { b"&" });
+            write_value_bytes(out, &value.borrow(), interner, files);
+        }
+        Value::Array(values, _) => {
+            out.push(b'[');
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    out.extend_from_slice(b", ");
+                }
+                write_value_bytes(out, value, interner, files);
+            }
+            out.push(b']');
+        }
+        Value::Vector(values, _) => {
+            out.extend_from_slice(b"@[");
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    out.extend_from_slice(b", ");
+                }
+                write_value_bytes(out, value, interner, files);
+            }
+            out.push(b']');
+        }
+        Value::Quoted(tokens) => {
+            out.extend_from_slice(QuotedPrinter { tokens, interner, files }.to_string().as_bytes());
+        }
+        Value::TypeDefinition(id) => {
+            let def = interner.get_type(*id);
+            let def = def.borrow();
+            push_display!("{}", def.name);
+        }
+        Value::TraitConstraint(trait_id, generics) => {
+            let trait_ = interner.get_trait(*trait_id);
+            push_display!("{}{generics}", trait_.name);
+        }
+        Value::TraitDefinition(trait_id) => {
+            let trait_ = interner.get_trait(*trait_id);
+            push_display!("{}", trait_.name);
+        }
+        Value::TraitImpl(trait_impl_id) => {
+            let trait_impl = interner.get_trait_implementation(*trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            let ordered_generics = interner.get_ordered_generics_for_impl(*trait_impl_id);
 
-                let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
-                    display_trait_constraint(self.interner, trait_constraint)
-                });
-                let where_clause = where_clause.join(", ");
-                let where_clause = if where_clause.is_empty() {
-                    where_clause
-                } else {
-                    format!(" where {where_clause}")
-                };
+            let generic_string = vecmap(ordered_generics, ToString::to_string).join(", ");
+            let generic_string = if generic_string.is_empty() {
+                generic_string
+            } else {
+                format!("<{generic_string}>")
+            };
 
-                write!(
-                    f,
-                    "impl {}{} for {}{}",
-                    trait_impl.ident, generic_string, trait_impl.typ, where_clause
-                )
-            }
-            Value::FunctionDefinition(function_id) => {
-                write!(f, "{}", self.interner.function_name(function_id))
-            }
-            Value::ModuleDefinition(module_id) => {
-                if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
-                    write!(f, "{}", attributes.name)
-                } else {
-                    write!(f, "(crate root)")
-                }
-            }
-            Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{typ}"),
-            Value::Expr(expr) => match expr.as_ref() {
-                ExprValue::Expression(expr) => {
-                    let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                    write!(f, "{expr}")
-                }
-                ExprValue::Statement(statement) => {
-                    write!(
-                        f,
-                        "{}",
-                        remove_interned_in_statement_kind(self.interner, statement.clone())
-                    )
-                }
-                ExprValue::LValue(lvalue) => {
-                    write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
-                }
-                ExprValue::Pattern(pattern) => {
-                    write!(f, "{}", remove_interned_in_pattern(self.interner, pattern.clone()))
-                }
-            },
-            Value::TypedExpr(TypedExpr::ExprId(id)) => {
-                let hir_expr = self.interner.expression(id);
-                let expr = hir_expr.to_display_ast(self.interner, Location::dummy());
-                write!(f, "{}", expr.kind)
-            }
-            Value::TypedExpr(TypedExpr::StmtId(id)) => {
-                let hir_statement = self.interner.statement(id);
-                let stmt = hir_statement.to_display_ast(self.interner, Location::dummy());
-                write!(f, "{}", stmt.kind)
-            }
-            Value::UnresolvedType(typ) => {
-                write!(f, "{}", remove_interned_in_unresolved_type_data(self.interner, typ.clone()))
-            }
-            Value::Location(location) => {
-                write!(f, "{}", display_location(location, self.files))
+            let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
+                display_trait_constraint(interner, trait_constraint)
+            });
+            let where_clause = where_clause.join(", ");
+            let where_clause = if where_clause.is_empty() {
+                where_clause
+            } else {
+                format!(" where {where_clause}")
+            };
+
+            push_display!(
+                "impl {}{} for {}{}",
+                trait_impl.ident,
+                generic_string,
+                trait_impl.typ,
+                where_clause
+            );
+        }
+        Value::FunctionDefinition(function_id) => {
+            push_display!("{}", interner.function_name(function_id));
+        }
+        Value::ModuleDefinition(module_id) => {
+            if let Some(attributes) = interner.try_module_attributes(*module_id) {
+                push_display!("{}", attributes.name);
+            } else {
+                push_display!("(crate root)");
             }
         }
+        Value::Zeroed(typ) => push_display!("(zeroed {typ})"),
+        Value::Type(typ) => push_display!("{typ}"),
+        Value::Expr(expr) => match expr.as_ref() {
+            ExprValue::Expression(expr) => {
+                let expr = remove_interned_in_expression_kind(interner, expr.clone());
+                push_display!("{expr}");
+            }
+            ExprValue::Statement(statement) => {
+                push_display!("{}", remove_interned_in_statement_kind(interner, statement.clone()));
+            }
+            ExprValue::LValue(lvalue) => {
+                push_display!("{}", remove_interned_in_lvalue(interner, lvalue.clone()));
+            }
+            ExprValue::Pattern(pattern) => {
+                push_display!("{}", remove_interned_in_pattern(interner, pattern.clone()));
+            }
+        },
+        Value::TypedExpr(TypedExpr::ExprId(id)) => {
+            let hir_expr = interner.expression(id);
+            let expr = hir_expr.to_display_ast(interner, Location::dummy());
+            push_display!("{}", expr.kind);
+        }
+        Value::TypedExpr(TypedExpr::StmtId(id)) => {
+            let hir_statement = interner.statement(id);
+            let stmt = hir_statement.to_display_ast(interner, Location::dummy());
+            push_display!("{}", stmt.kind);
+        }
+        Value::UnresolvedType(typ) => {
+            push_display!("{}", remove_interned_in_unresolved_type_data(interner, typ.clone()));
+        }
+        Value::Location(location) => {
+            push_display!("{}", display_location(location, files));
+        }
+    }
+}
+
+/// Renders a quoted value's tokens (with the surrounding `quote { ... }`) so it can be appended
+/// to a byte buffer. Token output is always valid UTF-8.
+struct QuotedPrinter<'a> {
+    tokens: &'a [LocatedToken],
+    interner: &'a NodeInterner,
+    files: &'a FileMap,
+}
+
+impl Display for QuotedPrinter<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        display_quoted(self.tokens, 0, self.interner, self.files, f)
     }
 }
 
