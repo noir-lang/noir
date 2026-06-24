@@ -15,7 +15,7 @@
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::tokens_to_string;
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::{tokens_to_string, value_to_bytes};
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::unwrap_rc;
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::{FormatStringFragment, StructFields};
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
@@ -916,163 +916,167 @@
 <a href=#916 id=916 data-nosnippet>916</a>    Value::Quoted(Rc::new(tokens))
 <a href=#917 id=917 data-nosnippet>917</a>}
 <a href=#918 id=918 data-nosnippet>918</a>
-<a href=#919 id=919 data-nosnippet>919</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fragments_to_string(
-<a href=#920 id=920 data-nosnippet>920</a>    fragments: <span class="kw-2">&amp;</span>[FormatStringFragment],
-<a href=#921 id=921 data-nosnippet>921</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#922 id=922 data-nosnippet>922</a>    files: <span class="kw-2">&amp;</span>FileMap,
-<a href=#923 id=923 data-nosnippet>923</a>) -&gt; String {
-<a href=#924 id=924 data-nosnippet>924</a>    <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-<a href=#925 id=925 data-nosnippet>925</a>    <span class="kw">for </span>fragment <span class="kw">in </span>fragments {
-<a href=#926 id=926 data-nosnippet>926</a>        <span class="kw">match </span>fragment {
-<a href=#927 id=927 data-nosnippet>927</a>            FormatStringFragment::String(string) =&gt; {
-<a href=#928 id=928 data-nosnippet>928</a>                result.push_str(string);
-<a href=#929 id=929 data-nosnippet>929</a>            }
-<a href=#930 id=930 data-nosnippet>930</a>            FormatStringFragment::Value { name: <span class="kw">_</span>, value } =&gt; {
-<a href=#931 id=931 data-nosnippet>931</a>                <span class="kw">match </span>value {
-<a href=#932 id=932 data-nosnippet>932</a>                    Value::Quoted(tokens) =&gt; {
-<a href=#933 id=933 data-nosnippet>933</a>                        <span class="comment">// When interpolating a quoted value inside a format string, we don't include the
-<a href=#934 id=934 data-nosnippet>934</a>                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
-<a href=#935 id=935 data-nosnippet>935</a>                        </span><span class="kw">for </span>(index, token) <span class="kw">in </span>tokens.iter().enumerate() {
-<a href=#936 id=936 data-nosnippet>936</a>                            <span class="kw">if </span>index &gt; <span class="number">0 </span>{
-<a href=#937 id=937 data-nosnippet>937</a>                                result.push(<span class="string">' '</span>);
-<a href=#938 id=938 data-nosnippet>938</a>                            }
-<a href=#939 id=939 data-nosnippet>939</a>                            result.push_str(<span class="kw-2">&amp;</span>token.token().display(interner, files).to_string());
-<a href=#940 id=940 data-nosnippet>940</a>                        }
-<a href=#941 id=941 data-nosnippet>941</a>                    }
-<a href=#942 id=942 data-nosnippet>942</a>                    Value::FormatString(fragments, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-<a href=#943 id=943 data-nosnippet>943</a>                        <span class="comment">// Nested format strings might have quoted values inside them,
-<a href=#944 id=944 data-nosnippet>944</a>                        // so we need to recurse here instead of calling `value.display`.
-<a href=#945 id=945 data-nosnippet>945</a>                        </span><span class="kw">let </span>inner_string = fragments_to_string(fragments, interner, files);
-<a href=#946 id=946 data-nosnippet>946</a>                        result.push_str(<span class="kw-2">&amp;</span>inner_string);
-<a href=#947 id=947 data-nosnippet>947</a>                    }
-<a href=#948 id=948 data-nosnippet>948</a>                    <span class="kw">_ </span>=&gt; {
-<a href=#949 id=949 data-nosnippet>949</a>                        result.push_str(<span class="kw-2">&amp;</span>value.display(interner, files).to_string());
-<a href=#950 id=950 data-nosnippet>950</a>                    }
-<a href=#951 id=951 data-nosnippet>951</a>                }
-<a href=#952 id=952 data-nosnippet>952</a>            }
-<a href=#953 id=953 data-nosnippet>953</a>        }
-<a href=#954 id=954 data-nosnippet>954</a>    }
-<a href=#955 id=955 data-nosnippet>955</a>    result
-<a href=#956 id=956 data-nosnippet>956</a>}
-<a href=#957 id=957 data-nosnippet>957</a>
-<a href=#958 id=958 data-nosnippet>958</a><span class="doccomment">/// Converts a `Value` of noir type `Option&lt;T&gt;`, to a `Option&lt;Value&gt;` where the noir type is `T`
-<a href=#959 id=959 data-nosnippet>959</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_option((value, value_location): (Value, Location)) -&gt; IResult&lt;<span class="prelude-ty">Option</span>&lt;Value&gt;&gt; {
-<a href=#960 id=960 data-nosnippet>960</a>    <span class="kw">let </span>Value::Struct(fields, <span class="kw">_</span>) = value <span class="kw">else </span>{
-<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-<a href=#962 id=962 data-nosnippet>962</a>            expected: <span class="string">"Option&lt;_&gt;"</span>.to_string(),
-<a href=#963 id=963 data-nosnippet>963</a>            actual: Type::Error,
-<a href=#964 id=964 data-nosnippet>964</a>            location: value_location,
-<a href=#965 id=965 data-nosnippet>965</a>        });
-<a href=#966 id=966 data-nosnippet>966</a>    };
-<a href=#967 id=967 data-nosnippet>967</a>    <span class="kw">let </span>is_some = fields.iter().find(|(name, <span class="kw">_</span>)| name.as_str() == <span class="string">"_is_some"</span>).unwrap().<span class="number">1</span>;
-<a href=#968 id=968 data-nosnippet>968</a>    <span class="kw">let </span>Value::Bool(is_some) = is_some.borrow().clone() <span class="kw">else </span>{
-<a href=#969 id=969 data-nosnippet>969</a>        <span class="macro">panic!</span>(<span class="string">"Expected `_is_some` field of Option to be a boolean"</span>);
+<a href=#919 id=919 data-nosnippet>919</a><span class="doccomment">/// Renders format string fragments to bytes.
+<a href=#920 id=920 data-nosnippet>920</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fragments_to_bytes(
+<a href=#921 id=921 data-nosnippet>921</a>    fragments: <span class="kw-2">&amp;</span>[FormatStringFragment],
+<a href=#922 id=922 data-nosnippet>922</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#923 id=923 data-nosnippet>923</a>    files: <span class="kw-2">&amp;</span>FileMap,
+<a href=#924 id=924 data-nosnippet>924</a>) -&gt; Vec&lt;u8&gt; {
+<a href=#925 id=925 data-nosnippet>925</a>    <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
+<a href=#926 id=926 data-nosnippet>926</a>    <span class="kw">for </span>fragment <span class="kw">in </span>fragments {
+<a href=#927 id=927 data-nosnippet>927</a>        <span class="kw">match </span>fragment {
+<a href=#928 id=928 data-nosnippet>928</a>            FormatStringFragment::String(string) =&gt; {
+<a href=#929 id=929 data-nosnippet>929</a>                result.extend_from_slice(string.as_bytes());
+<a href=#930 id=930 data-nosnippet>930</a>            }
+<a href=#931 id=931 data-nosnippet>931</a>            FormatStringFragment::Value { name: <span class="kw">_</span>, value } =&gt; {
+<a href=#932 id=932 data-nosnippet>932</a>                <span class="kw">match </span>value {
+<a href=#933 id=933 data-nosnippet>933</a>                    Value::Quoted(tokens) =&gt; {
+<a href=#934 id=934 data-nosnippet>934</a>                        <span class="comment">// When interpolating a quoted value inside a format string, we don't include the
+<a href=#935 id=935 data-nosnippet>935</a>                        // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
+<a href=#936 id=936 data-nosnippet>936</a>                        </span><span class="kw">for </span>(index, token) <span class="kw">in </span>tokens.iter().enumerate() {
+<a href=#937 id=937 data-nosnippet>937</a>                            <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+<a href=#938 id=938 data-nosnippet>938</a>                                result.push(<span class="string">b' '</span>);
+<a href=#939 id=939 data-nosnippet>939</a>                            }
+<a href=#940 id=940 data-nosnippet>940</a>                            <span class="kw">let </span>token = token.token().display(interner, files).to_string();
+<a href=#941 id=941 data-nosnippet>941</a>                            result.extend_from_slice(token.as_bytes());
+<a href=#942 id=942 data-nosnippet>942</a>                        }
+<a href=#943 id=943 data-nosnippet>943</a>                    }
+<a href=#944 id=944 data-nosnippet>944</a>                    <span class="kw">_ </span>=&gt; {
+<a href=#945 id=945 data-nosnippet>945</a>                        result.extend_from_slice(<span class="kw-2">&amp;</span>value_to_bytes(value, interner, files));
+<a href=#946 id=946 data-nosnippet>946</a>                    }
+<a href=#947 id=947 data-nosnippet>947</a>                }
+<a href=#948 id=948 data-nosnippet>948</a>            }
+<a href=#949 id=949 data-nosnippet>949</a>        }
+<a href=#950 id=950 data-nosnippet>950</a>    }
+<a href=#951 id=951 data-nosnippet>951</a>    result
+<a href=#952 id=952 data-nosnippet>952</a>}
+<a href=#953 id=953 data-nosnippet>953</a>
+<a href=#954 id=954 data-nosnippet>954</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fragments_to_string(
+<a href=#955 id=955 data-nosnippet>955</a>    fragments: <span class="kw-2">&amp;</span>[FormatStringFragment],
+<a href=#956 id=956 data-nosnippet>956</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#957 id=957 data-nosnippet>957</a>    files: <span class="kw-2">&amp;</span>FileMap,
+<a href=#958 id=958 data-nosnippet>958</a>) -&gt; String {
+<a href=#959 id=959 data-nosnippet>959</a>    String::from_utf8_lossy(<span class="kw-2">&amp;</span>fragments_to_bytes(fragments, interner, files)).into_owned()
+<a href=#960 id=960 data-nosnippet>960</a>}
+<a href=#961 id=961 data-nosnippet>961</a>
+<a href=#962 id=962 data-nosnippet>962</a><span class="doccomment">/// Converts a `Value` of noir type `Option&lt;T&gt;`, to a `Option&lt;Value&gt;` where the noir type is `T`
+<a href=#963 id=963 data-nosnippet>963</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_option((value, value_location): (Value, Location)) -&gt; IResult&lt;<span class="prelude-ty">Option</span>&lt;Value&gt;&gt; {
+<a href=#964 id=964 data-nosnippet>964</a>    <span class="kw">let </span>Value::Struct(fields, <span class="kw">_</span>) = value <span class="kw">else </span>{
+<a href=#965 id=965 data-nosnippet>965</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
+<a href=#966 id=966 data-nosnippet>966</a>            expected: <span class="string">"Option&lt;_&gt;"</span>.to_string(),
+<a href=#967 id=967 data-nosnippet>967</a>            actual: Type::Error,
+<a href=#968 id=968 data-nosnippet>968</a>            location: value_location,
+<a href=#969 id=969 data-nosnippet>969</a>        });
 <a href=#970 id=970 data-nosnippet>970</a>    };
-<a href=#971 id=971 data-nosnippet>971</a>    <span class="kw">if </span>!is_some {
-<a href=#972 id=972 data-nosnippet>972</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#973 id=973 data-nosnippet>973</a>    }
-<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">let </span>value = fields.iter().find(|(name, <span class="kw">_</span>)| name.as_str() == <span class="string">"_value"</span>).unwrap().<span class="number">1</span>;
-<a href=#975 id=975 data-nosnippet>975</a>    <span class="kw">let </span>value = value.borrow().clone();
-<a href=#976 id=976 data-nosnippet>976</a>    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(value))
-<a href=#977 id=977 data-nosnippet>977</a>}
-<a href=#978 id=978 data-nosnippet>978</a>
-<a href=#979 id=979 data-nosnippet>979</a><span class="attr">#[cfg(test)]
-<a href=#980 id=980 data-nosnippet>980</a></span><span class="kw">mod </span>tests {
-<a href=#981 id=981 data-nosnippet>981</a>    <span class="kw">use </span>std::hash::Hasher;
+<a href=#971 id=971 data-nosnippet>971</a>    <span class="kw">let </span>is_some = fields.iter().find(|(name, <span class="kw">_</span>)| name.as_str() == <span class="string">"_is_some"</span>).unwrap().<span class="number">1</span>;
+<a href=#972 id=972 data-nosnippet>972</a>    <span class="kw">let </span>Value::Bool(is_some) = is_some.borrow().clone() <span class="kw">else </span>{
+<a href=#973 id=973 data-nosnippet>973</a>        <span class="macro">panic!</span>(<span class="string">"Expected `_is_some` field of Option to be a boolean"</span>);
+<a href=#974 id=974 data-nosnippet>974</a>    };
+<a href=#975 id=975 data-nosnippet>975</a>    <span class="kw">if </span>!is_some {
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#977 id=977 data-nosnippet>977</a>    }
+<a href=#978 id=978 data-nosnippet>978</a>    <span class="kw">let </span>value = fields.iter().find(|(name, <span class="kw">_</span>)| name.as_str() == <span class="string">"_value"</span>).unwrap().<span class="number">1</span>;
+<a href=#979 id=979 data-nosnippet>979</a>    <span class="kw">let </span>value = value.borrow().clone();
+<a href=#980 id=980 data-nosnippet>980</a>    <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(value))
+<a href=#981 id=981 data-nosnippet>981</a>}
 <a href=#982 id=982 data-nosnippet>982</a>
-<a href=#983 id=983 data-nosnippet>983</a>    <span class="kw">use </span>siphasher::sip::SipHasher13;
-<a href=#984 id=984 data-nosnippet>984</a>
-<a href=#985 id=985 data-nosnippet>985</a>    <span class="kw">use </span>im::Vector;
-<a href=#986 id=986 data-nosnippet>986</a>    <span class="kw">use </span>noirc_errors::Location;
-<a href=#987 id=987 data-nosnippet>987</a>
-<a href=#988 id=988 data-nosnippet>988</a>    <span class="kw">use </span><span class="kw">super</span>::DeterministicHasher;
-<a href=#989 id=989 data-nosnippet>989</a>    <span class="kw">use super</span>::{check_return_type_shape, type_shape};
-<a href=#990 id=990 data-nosnippet>990</a>    <span class="kw">use </span><span class="kw">crate</span>::Shared;
-<a href=#991 id=991 data-nosnippet>991</a>    <span class="kw">use </span><span class="kw">crate</span>::Type;
-<a href=#992 id=992 data-nosnippet>992</a>    <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
-<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
-<a href=#994 id=994 data-nosnippet>994</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::Value;
-<a href=#995 id=995 data-nosnippet>995</a>    <span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
-<a href=#996 id=996 data-nosnippet>996</a>
-<a href=#997 id=997 data-nosnippet>997</a>    <span class="attr">#[test]
-<a href=#998 id=998 data-nosnippet>998</a>    </span><span class="kw">fn </span>matching_shapes_pass() {
-<a href=#999 id=999 data-nosnippet>999</a>        <span class="kw">let </span>loc = Location::dummy();
-<a href=#1000 id=1000 data-nosnippet>1000</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::Bool(<span class="bool-val">true</span>), type_shape(<span class="kw-2">&amp;</span>Type::Bool), loc).unwrap();
-<a href=#1001 id=1001 data-nosnippet>1001</a>
-<a href=#1002 id=1002 data-nosnippet>1002</a>        <span class="kw">let </span>u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-<a href=#1003 id=1003 data-nosnippet>1003</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::u32(<span class="number">0</span>), type_shape(<span class="kw-2">&amp;</span>u32), loc).unwrap();
-<a href=#1004 id=1004 data-nosnippet>1004</a>
-<a href=#1005 id=1005 data-nosnippet>1005</a>        <span class="comment">// Arrays and slices share a shape, so an array value satisfies a slice-declared return.
-<a href=#1006 id=1006 data-nosnippet>1006</a>        </span><span class="kw">let </span>array = Value::Array(
-<a href=#1007 id=1007 data-nosnippet>1007</a>            Vector::new(),
-<a href=#1008 id=1008 data-nosnippet>1008</a>            Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(<span class="number">0</span>))),
-<a href=#1009 id=1009 data-nosnippet>1009</a>        );
-<a href=#1010 id=1010 data-nosnippet>1010</a>        <span class="kw">let </span>slice = Type::Vector(Box::new(Type::Bool));
-<a href=#1011 id=1011 data-nosnippet>1011</a>        check_return_type_shape(<span class="kw-2">&amp;</span>array, type_shape(<span class="kw-2">&amp;</span>slice), loc).unwrap();
-<a href=#1012 id=1012 data-nosnippet>1012</a>    }
-<a href=#1013 id=1013 data-nosnippet>1013</a>
-<a href=#1014 id=1014 data-nosnippet>1014</a>    <span class="attr">#[test]
-<a href=#1015 id=1015 data-nosnippet>1015</a>    </span><span class="kw">fn </span>unjudgeable_expected_shape_passes() {
-<a href=#1016 id=1016 data-nosnippet>1016</a>        <span class="comment">// A return type without a known shape (e.g. `Type::Error`) must never be flagged.
-<a href=#1017 id=1017 data-nosnippet>1017</a>        </span><span class="kw">let </span>loc = Location::dummy();
-<a href=#1018 id=1018 data-nosnippet>1018</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::Bool(<span class="bool-val">true</span>), type_shape(<span class="kw-2">&amp;</span>Type::Error), loc).unwrap();
-<a href=#1019 id=1019 data-nosnippet>1019</a>    }
-<a href=#1020 id=1020 data-nosnippet>1020</a>
-<a href=#1021 id=1021 data-nosnippet>1021</a>    <span class="attr">#[test]
-<a href=#1022 id=1022 data-nosnippet>1022</a>    </span><span class="kw">fn </span>conflicting_shapes_fail() {
-<a href=#1023 id=1023 data-nosnippet>1023</a>        <span class="kw">let </span>loc = Location::dummy();
-<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="macro">assert!</span>(
-<a href=#1025 id=1025 data-nosnippet>1025</a>            check_return_type_shape(<span class="kw-2">&amp;</span>Value::Bool(<span class="bool-val">true</span>), type_shape(<span class="kw-2">&amp;</span>Type::FieldElement), loc)
-<a href=#1026 id=1026 data-nosnippet>1026</a>                .is_err()
-<a href=#1027 id=1027 data-nosnippet>1027</a>        );
-<a href=#1028 id=1028 data-nosnippet>1028</a>
-<a href=#1029 id=1029 data-nosnippet>1029</a>        <span class="kw">let </span>u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-<a href=#1030 id=1030 data-nosnippet>1030</a>        <span class="kw">let </span>u8_value = Value::Integer(Integer::U8(<span class="number">0</span>));
-<a href=#1031 id=1031 data-nosnippet>1031</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>u8_value, type_shape(<span class="kw-2">&amp;</span>u32), loc).is_err());
+<a href=#983 id=983 data-nosnippet>983</a><span class="attr">#[cfg(test)]
+<a href=#984 id=984 data-nosnippet>984</a></span><span class="kw">mod </span>tests {
+<a href=#985 id=985 data-nosnippet>985</a>    <span class="kw">use </span>std::hash::Hasher;
+<a href=#986 id=986 data-nosnippet>986</a>
+<a href=#987 id=987 data-nosnippet>987</a>    <span class="kw">use </span>siphasher::sip::SipHasher13;
+<a href=#988 id=988 data-nosnippet>988</a>
+<a href=#989 id=989 data-nosnippet>989</a>    <span class="kw">use </span>im::Vector;
+<a href=#990 id=990 data-nosnippet>990</a>    <span class="kw">use </span>noirc_errors::Location;
+<a href=#991 id=991 data-nosnippet>991</a>
+<a href=#992 id=992 data-nosnippet>992</a>    <span class="kw">use </span><span class="kw">super</span>::DeterministicHasher;
+<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">use super</span>::{check_return_type_shape, type_shape};
+<a href=#994 id=994 data-nosnippet>994</a>    <span class="kw">use </span><span class="kw">crate</span>::Shared;
+<a href=#995 id=995 data-nosnippet>995</a>    <span class="kw">use </span><span class="kw">crate</span>::Type;
+<a href=#996 id=996 data-nosnippet>996</a>    <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
+<a href=#997 id=997 data-nosnippet>997</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
+<a href=#998 id=998 data-nosnippet>998</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::Value;
+<a href=#999 id=999 data-nosnippet>999</a>    <span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
+<a href=#1000 id=1000 data-nosnippet>1000</a>
+<a href=#1001 id=1001 data-nosnippet>1001</a>    <span class="attr">#[test]
+<a href=#1002 id=1002 data-nosnippet>1002</a>    </span><span class="kw">fn </span>matching_shapes_pass() {
+<a href=#1003 id=1003 data-nosnippet>1003</a>        <span class="kw">let </span>loc = Location::dummy();
+<a href=#1004 id=1004 data-nosnippet>1004</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::Bool(<span class="bool-val">true</span>), type_shape(<span class="kw-2">&amp;</span>Type::Bool), loc).unwrap();
+<a href=#1005 id=1005 data-nosnippet>1005</a>
+<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">let </span>u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+<a href=#1007 id=1007 data-nosnippet>1007</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::u32(<span class="number">0</span>), type_shape(<span class="kw-2">&amp;</span>u32), loc).unwrap();
+<a href=#1008 id=1008 data-nosnippet>1008</a>
+<a href=#1009 id=1009 data-nosnippet>1009</a>        <span class="comment">// Arrays and slices share a shape, so an array value satisfies a slice-declared return.
+<a href=#1010 id=1010 data-nosnippet>1010</a>        </span><span class="kw">let </span>array = Value::Array(
+<a href=#1011 id=1011 data-nosnippet>1011</a>            Vector::new(),
+<a href=#1012 id=1012 data-nosnippet>1012</a>            Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(<span class="number">0</span>))),
+<a href=#1013 id=1013 data-nosnippet>1013</a>        );
+<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="kw">let </span>slice = Type::Vector(Box::new(Type::Bool));
+<a href=#1015 id=1015 data-nosnippet>1015</a>        check_return_type_shape(<span class="kw-2">&amp;</span>array, type_shape(<span class="kw-2">&amp;</span>slice), loc).unwrap();
+<a href=#1016 id=1016 data-nosnippet>1016</a>    }
+<a href=#1017 id=1017 data-nosnippet>1017</a>
+<a href=#1018 id=1018 data-nosnippet>1018</a>    <span class="attr">#[test]
+<a href=#1019 id=1019 data-nosnippet>1019</a>    </span><span class="kw">fn </span>unjudgeable_expected_shape_passes() {
+<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="comment">// A return type without a known shape (e.g. `Type::Error`) must never be flagged.
+<a href=#1021 id=1021 data-nosnippet>1021</a>        </span><span class="kw">let </span>loc = Location::dummy();
+<a href=#1022 id=1022 data-nosnippet>1022</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::Bool(<span class="bool-val">true</span>), type_shape(<span class="kw-2">&amp;</span>Type::Error), loc).unwrap();
+<a href=#1023 id=1023 data-nosnippet>1023</a>    }
+<a href=#1024 id=1024 data-nosnippet>1024</a>
+<a href=#1025 id=1025 data-nosnippet>1025</a>    <span class="attr">#[test]
+<a href=#1026 id=1026 data-nosnippet>1026</a>    </span><span class="kw">fn </span>conflicting_shapes_fail() {
+<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw">let </span>loc = Location::dummy();
+<a href=#1028 id=1028 data-nosnippet>1028</a>        <span class="macro">assert!</span>(
+<a href=#1029 id=1029 data-nosnippet>1029</a>            check_return_type_shape(<span class="kw-2">&amp;</span>Value::Bool(<span class="bool-val">true</span>), type_shape(<span class="kw-2">&amp;</span>Type::FieldElement), loc)
+<a href=#1030 id=1030 data-nosnippet>1030</a>                .is_err()
+<a href=#1031 id=1031 data-nosnippet>1031</a>        );
 <a href=#1032 id=1032 data-nosnippet>1032</a>
-<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="kw">let </span>pair =
-<a href=#1034 id=1034 data-nosnippet>1034</a>            Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Bool(<span class="bool-val">true</span>)), Shared::new(Value::Bool(<span class="bool-val">true</span>))]);
-<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">let </span>triple = Type::Tuple(<span class="macro">vec!</span>[Type::Bool, Type::Bool, Type::Bool]);
-<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>pair, type_shape(<span class="kw-2">&amp;</span>triple), loc).is_err());
-<a href=#1037 id=1037 data-nosnippet>1037</a>    }
-<a href=#1038 id=1038 data-nosnippet>1038</a>
-<a href=#1039 id=1039 data-nosnippet>1039</a>    <span class="kw">fn </span>hash_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; u64 {
-<a href=#1040 id=1040 data-nosnippet>1040</a>        <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
-<a href=#1041 id=1041 data-nosnippet>1041</a>        hasher.write(bytes);
-<a href=#1042 id=1042 data-nosnippet>1042</a>        hasher.finish()
-<a href=#1043 id=1043 data-nosnippet>1043</a>    }
-<a href=#1044 id=1044 data-nosnippet>1044</a>
-<a href=#1045 id=1045 data-nosnippet>1045</a>    <span class="doccomment">/// The hasher must be exactly SipHash-1-3 keyed with the fixed reference key, so the
-<a href=#1046 id=1046 data-nosnippet>1046</a>    /// value a given compiler version produces can never silently drift across builds or
-<a href=#1047 id=1047 data-nosnippet>1047</a>    /// refactors. Cross-checking against `siphasher` directly pins both the algorithm and
-<a href=#1048 id=1048 data-nosnippet>1048</a>    /// the key without depending on a hand-copied magic constant.
-<a href=#1049 id=1049 data-nosnippet>1049</a>    </span><span class="attr">#[test]
-<a href=#1050 id=1050 data-nosnippet>1050</a>    </span><span class="kw">fn </span>matches_fixed_keyed_siphash13() {
-<a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="kw">for </span>input <span class="kw">in </span>[<span class="string">b""</span>.as_slice(), <span class="string">b"a"</span>, <span class="string">b"foobar"</span>] {
-<a href=#1052 id=1052 data-nosnippet>1052</a>            <span class="kw">let </span><span class="kw-2">mut </span>reference =
-<a href=#1053 id=1053 data-nosnippet>1053</a>                SipHasher13::new_with_keys(DeterministicHasher::KEY0, DeterministicHasher::KEY1);
-<a href=#1054 id=1054 data-nosnippet>1054</a>            reference.write(input);
-<a href=#1055 id=1055 data-nosnippet>1055</a>            <span class="macro">assert_eq!</span>(hash_bytes(input), reference.finish());
-<a href=#1056 id=1056 data-nosnippet>1056</a>        }
-<a href=#1057 id=1057 data-nosnippet>1057</a>    }
-<a href=#1058 id=1058 data-nosnippet>1058</a>
-<a href=#1059 id=1059 data-nosnippet>1059</a>    <span class="doccomment">/// Integers must hash at a fixed width and endianness so the result is identical on
-<a href=#1060 id=1060 data-nosnippet>1060</a>    /// targets of differing pointer width (e.g. native 64-bit vs the wasm32 build).
-<a href=#1061 id=1061 data-nosnippet>1061</a>    </span><span class="attr">#[test]
-<a href=#1062 id=1062 data-nosnippet>1062</a>    </span><span class="kw">fn </span>integer_writes_are_width_and_endianness_stable() {
-<a href=#1063 id=1063 data-nosnippet>1063</a>        <span class="kw">let </span>via_usize = {
-<a href=#1064 id=1064 data-nosnippet>1064</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
-<a href=#1065 id=1065 data-nosnippet>1065</a>            hasher.write_usize(<span class="number">0x0102_0304</span>);
-<a href=#1066 id=1066 data-nosnippet>1066</a>            hasher.finish()
-<a href=#1067 id=1067 data-nosnippet>1067</a>        };
-<a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="kw">let </span>via_u64 = {
-<a href=#1069 id=1069 data-nosnippet>1069</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
-<a href=#1070 id=1070 data-nosnippet>1070</a>            hasher.write_u64(<span class="number">0x0102_0304</span>);
-<a href=#1071 id=1071 data-nosnippet>1071</a>            hasher.finish()
-<a href=#1072 id=1072 data-nosnippet>1072</a>        };
-<a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">let </span>via_le_bytes = hash_bytes(<span class="kw-2">&amp;</span><span class="number">0x0102_0304_u64</span>.to_le_bytes());
-<a href=#1074 id=1074 data-nosnippet>1074</a>
-<a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="macro">assert_eq!</span>(via_usize, via_u64);
-<a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="macro">assert_eq!</span>(via_usize, via_le_bytes);
-<a href=#1077 id=1077 data-nosnippet>1077</a>    }
-<a href=#1078 id=1078 data-nosnippet>1078</a>}</code></pre></div></section></main></body></html>
+<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="kw">let </span>u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+<a href=#1034 id=1034 data-nosnippet>1034</a>        <span class="kw">let </span>u8_value = Value::Integer(Integer::U8(<span class="number">0</span>));
+<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>u8_value, type_shape(<span class="kw-2">&amp;</span>u32), loc).is_err());
+<a href=#1036 id=1036 data-nosnippet>1036</a>
+<a href=#1037 id=1037 data-nosnippet>1037</a>        <span class="kw">let </span>pair =
+<a href=#1038 id=1038 data-nosnippet>1038</a>            Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Bool(<span class="bool-val">true</span>)), Shared::new(Value::Bool(<span class="bool-val">true</span>))]);
+<a href=#1039 id=1039 data-nosnippet>1039</a>        <span class="kw">let </span>triple = Type::Tuple(<span class="macro">vec!</span>[Type::Bool, Type::Bool, Type::Bool]);
+<a href=#1040 id=1040 data-nosnippet>1040</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>pair, type_shape(<span class="kw-2">&amp;</span>triple), loc).is_err());
+<a href=#1041 id=1041 data-nosnippet>1041</a>    }
+<a href=#1042 id=1042 data-nosnippet>1042</a>
+<a href=#1043 id=1043 data-nosnippet>1043</a>    <span class="kw">fn </span>hash_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; u64 {
+<a href=#1044 id=1044 data-nosnippet>1044</a>        <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
+<a href=#1045 id=1045 data-nosnippet>1045</a>        hasher.write(bytes);
+<a href=#1046 id=1046 data-nosnippet>1046</a>        hasher.finish()
+<a href=#1047 id=1047 data-nosnippet>1047</a>    }
+<a href=#1048 id=1048 data-nosnippet>1048</a>
+<a href=#1049 id=1049 data-nosnippet>1049</a>    <span class="doccomment">/// The hasher must be exactly SipHash-1-3 keyed with the fixed reference key, so the
+<a href=#1050 id=1050 data-nosnippet>1050</a>    /// value a given compiler version produces can never silently drift across builds or
+<a href=#1051 id=1051 data-nosnippet>1051</a>    /// refactors. Cross-checking against `siphasher` directly pins both the algorithm and
+<a href=#1052 id=1052 data-nosnippet>1052</a>    /// the key without depending on a hand-copied magic constant.
+<a href=#1053 id=1053 data-nosnippet>1053</a>    </span><span class="attr">#[test]
+<a href=#1054 id=1054 data-nosnippet>1054</a>    </span><span class="kw">fn </span>matches_fixed_keyed_siphash13() {
+<a href=#1055 id=1055 data-nosnippet>1055</a>        <span class="kw">for </span>input <span class="kw">in </span>[<span class="string">b""</span>.as_slice(), <span class="string">b"a"</span>, <span class="string">b"foobar"</span>] {
+<a href=#1056 id=1056 data-nosnippet>1056</a>            <span class="kw">let </span><span class="kw-2">mut </span>reference =
+<a href=#1057 id=1057 data-nosnippet>1057</a>                SipHasher13::new_with_keys(DeterministicHasher::KEY0, DeterministicHasher::KEY1);
+<a href=#1058 id=1058 data-nosnippet>1058</a>            reference.write(input);
+<a href=#1059 id=1059 data-nosnippet>1059</a>            <span class="macro">assert_eq!</span>(hash_bytes(input), reference.finish());
+<a href=#1060 id=1060 data-nosnippet>1060</a>        }
+<a href=#1061 id=1061 data-nosnippet>1061</a>    }
+<a href=#1062 id=1062 data-nosnippet>1062</a>
+<a href=#1063 id=1063 data-nosnippet>1063</a>    <span class="doccomment">/// Integers must hash at a fixed width and endianness so the result is identical on
+<a href=#1064 id=1064 data-nosnippet>1064</a>    /// targets of differing pointer width (e.g. native 64-bit vs the wasm32 build).
+<a href=#1065 id=1065 data-nosnippet>1065</a>    </span><span class="attr">#[test]
+<a href=#1066 id=1066 data-nosnippet>1066</a>    </span><span class="kw">fn </span>integer_writes_are_width_and_endianness_stable() {
+<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span>via_usize = {
+<a href=#1068 id=1068 data-nosnippet>1068</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
+<a href=#1069 id=1069 data-nosnippet>1069</a>            hasher.write_usize(<span class="number">0x0102_0304</span>);
+<a href=#1070 id=1070 data-nosnippet>1070</a>            hasher.finish()
+<a href=#1071 id=1071 data-nosnippet>1071</a>        };
+<a href=#1072 id=1072 data-nosnippet>1072</a>        <span class="kw">let </span>via_u64 = {
+<a href=#1073 id=1073 data-nosnippet>1073</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
+<a href=#1074 id=1074 data-nosnippet>1074</a>            hasher.write_u64(<span class="number">0x0102_0304</span>);
+<a href=#1075 id=1075 data-nosnippet>1075</a>            hasher.finish()
+<a href=#1076 id=1076 data-nosnippet>1076</a>        };
+<a href=#1077 id=1077 data-nosnippet>1077</a>        <span class="kw">let </span>via_le_bytes = hash_bytes(<span class="kw-2">&amp;</span><span class="number">0x0102_0304_u64</span>.to_le_bytes());
+<a href=#1078 id=1078 data-nosnippet>1078</a>
+<a href=#1079 id=1079 data-nosnippet>1079</a>        <span class="macro">assert_eq!</span>(via_usize, via_u64);
+<a href=#1080 id=1080 data-nosnippet>1080</a>        <span class="macro">assert_eq!</span>(via_usize, via_le_bytes);
+<a href=#1081 id=1081 data-nosnippet>1081</a>    }
+<a href=#1082 id=1082 data-nosnippet>1082</a>}</code></pre></div></section></main></body></html>
