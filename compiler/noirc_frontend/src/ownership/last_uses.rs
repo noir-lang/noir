@@ -463,7 +463,7 @@ impl LastUseContext {
                         self.pending_last_uses.entry(*local_id).or_default().extend(breakable);
                     }
                 }
-                // x does not appear in RHS: fresh value, safe to treat as killed — unless the
+                // `x` does not appear in RHS: fresh value, safe to treat as killed — unless the
                 // RHS can break before committing, in which case the kill is not guaranteed.
                 None if !rhs_has_break => {
                     self.killed.insert(*local_id);

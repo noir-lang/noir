@@ -1892,6 +1892,56 @@ fn loop_local_assignment_rhs_with_break_keeps_move() {
     ");
 }
 
+// A `break` reachable *after* a nested assignment must still taint uses that precede the
+// nested assignment. The nested assignment (`w = [3]`, whose own RHS does not break) resets
+// the break flag while its RHS is analyzed; that flag must be restored afterwards so the
+// earlier `let mut y = x` is recognized as break-dependent and cloned. Otherwise the break
+// would leave `x` mutated through `y`.
+#[test]
+fn break_after_nested_assignment_taints_preceding_use() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut x = [1];
+        loop {
+            x = {
+                let mut y = x;
+                y[0] = 9;
+                let mut w = [0];
+                w = [3];
+                if cond {
+                    break;
+                }
+                w
+            };
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut x$l1 = [1];
+        loop {
+            x$l1 = {
+                let mut y$l2 = x$l1.clone();
+                y$l2[0] = 9;
+                let mut w$l3 = [0];
+                w$l3 = [3];
+                if cond$l0 {
+                    break
+                };
+                w$l3
+            }
+        };
+        use_var$f1(x$l1);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
 // Regression for issue https://github.com/noir-lang/noir-claude/issues/1069
 #[test]
 fn closure_captured_array_used_twice_clones_first_use() {
