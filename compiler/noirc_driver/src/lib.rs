@@ -147,7 +147,7 @@ pub struct CompileOptions {
     pub show_brillig_opcode_advisories: bool,
 
     /// Display the ACIR for compiled circuit, including the Brillig bytecode.
-    #[arg(long)]
+    #[arg(long, hide = true)]
     pub print_acir: bool,
 
     /// Pretty print benchmark times of each code generation pass
