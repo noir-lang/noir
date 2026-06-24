@@ -292,7 +292,7 @@ impl LoopContext {
         // Otherwise using them as a value range (e.g. to fold a comparison or prove an add cannot
         // overflow) would be unsound.
         let induction_variable =
-            induction.filter(|(_, bounds, step)| bounds.visited_values_stay_within_bounds(*step));
+            induction.filter(|(_, bounds, step)| bounds.iterator_reach_bounds(*step));
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -481,7 +481,7 @@ impl<'f> LoopInvariantContext<'f> {
         // using them as a value range would be unsound.
         if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
-            && bounds.visited_values_stay_within_bounds(step)
+            && bounds.iterator_reach_bounds(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }

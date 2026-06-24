@@ -410,7 +410,7 @@ impl Function {
         // If we could not find the induction variable, the unroll will stop
         // after MAX_UNROLL_ITERATIONS_WITHOUT_INDUCTION_VARIABLE iterations
         // to cover for infinite loops.
-        match loop_.unroll(self, &loops.cfg, &loops.dom) {
+        match loop_.unroll(self, &loops.cfg, &loops.dom, RUNAWAY_UNROLL_LIMIT) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -518,21 +518,14 @@ impl LoopBounds {
         }
     }
 
-    /// Whether every value the induction variable takes on stays inside `[lower, upper)`, given
-    /// its per-iteration `step`. When this holds we can safely use the bounds as the variable's
-    /// value range (e.g. to fold a comparison or prove an arithmetic operation cannot overflow).
-    /// - Returns `True` when the induction variable is ensured to stays within the bounds.
-    /// - Returns `False` if it may escape the bounds.
-    ///
-    /// `LessThan` and `Equal` keep the variable inside the bounds for any step: their guards stop
-    /// the loop at or before `upper`. A `NotEqual` guard only stops the loop when the variable
-    /// lands exactly on `upper`; a step larger than `1` stays within the bounds iff it *does* land
-    /// on `upper` (and stops there) rather than jumping past it and running on with out-of-bounds
-    /// values. The variable lands on `upper` iff `upper` is a whole number of steps above `lower`,
-    /// so for an unsigned induction with constant bounds we decide this exactly via divisibility;
-    /// for other shapes (signed, or a non-constant bound) we stay conservative. A step of `0` (the
-    /// variable never moves) or `1` (it cannot skip over `upper`) always stays within the bounds.
-    pub(super) fn visited_values_stay_within_bounds(self, step: IntegerConstant) -> bool {
+    /// Indicates whether the iteration variable will reach the loop bounds, ensuring a proper termination.
+    /// We assume the loop bounds are constants, the iteration variable is known and
+    /// incremented at each iteration by a constant step.
+    /// The function is conservative and may returns false although the iterator may reach
+    /// the bounds after all.
+    /// - Returns `True` when the induction variable is ensured to stay within the bounds.
+    /// - Returns `False` if it may escape the bounds, for `NotEqual` condition with a non unit step
+    pub(super) fn iterator_reach_bounds(self, step: IntegerConstant) -> bool {
         match self.kind {
             LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
             LoopBoundKind::NotEqual => {
@@ -836,7 +829,31 @@ impl Loop {
             return true;
         };
         // Use the step to see if the bounds are reached.
-        !bounds.visited_values_stay_within_bounds(step)
+        !bounds.iterator_reach_bounds(step)
+    }
+
+    /// Same as `induction_step_may_miss_bound` but returns `false` when the
+    /// step is unknown, rather than assuming it may miss.
+    fn induction_step_must_miss_bound(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> bool {
+        let Some(bounds) = self.get_const_bounds(&function.dfg, pre_header, |v| v) else {
+            return false;
+        };
+        if bounds.kind != LoopBoundKind::NotEqual {
+            return false;
+        }
+        let Some(induction_variable) = self.induction_variable(&function.dfg) else {
+            return false;
+        };
+        let Some(step) =
+            self.monotonic_back_edge_step(&function.dfg, induction_variable, bounds.upper)
+        else {
+            return false;
+        };
+        !bounds.iterator_reach_bounds(step)
     }
 
     /// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
@@ -892,10 +909,10 @@ impl Loop {
         }
     }
 
-    /// The loop header's guard, but only when its operand is actually a header parameter — i.e. the
+    /// The loop header's condition, but only when its operand is actually a header parameter — i.e. the
     /// comparison tests the induction variable rather than some unrelated value. Returns `None`
     /// otherwise. See [`Loop::parse_header_guard`] for `resolve_value`.
-    fn get_header_guard(
+    fn get_header_induction_condition(
         &self,
         dfg: &DataFlowGraph,
         resolve_value: impl Fn(ValueId) -> ValueId,
@@ -920,7 +937,7 @@ impl Loop {
     /// ```
     /// Here `v1` is the induction variable.
     pub(super) fn induction_variable(&self, dfg: &DataFlowGraph) -> Option<ValueId> {
-        self.get_header_guard(dfg, |v| v).map(|guard| guard.operand())
+        self.get_header_induction_condition(dfg, |v| v).map(|guard| guard.operand())
     }
 
     /// Position of the [induction variable](Loop::induction_variable) among the loop header's
@@ -990,7 +1007,7 @@ impl Loop {
         };
         let then_branch_is_body = self.blocks.contains(then_destination);
 
-        let guard = self.get_header_guard(dfg, resolve_value)?;
+        let guard = self.get_header_induction_condition(dfg, resolve_value)?;
         match guard {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
@@ -1138,6 +1155,7 @@ impl Loop {
         function: &mut Function,
         cfg: &ControlFlowGraph,
         dom: &DominatorTree,
+        unroll_limit: usize,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -1174,7 +1192,7 @@ impl Loop {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
 
             iterations += 1;
-            if termination_unproven && iterations >= RUNAWAY_UNROLL_LIMIT {
+            if termination_unproven && iterations >= unroll_limit {
                 return Err(CallStack::empty());
             }
         }
@@ -1545,6 +1563,14 @@ impl Loop {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> bool {
+        // A loop whose induction step is known to miss the bound (`NotEqual` guard)
+        // cannot terminate, so we do not unroll in that case.
+        if let Ok(pre_header) = self.get_pre_header(function, &loops.cfg)
+            && self.induction_step_must_miss_bound(function, pre_header)
+        {
+            return false;
+        }
+
         self.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).is_some_and(
             |s| {
                 let within_iteration_limit = s.iterations <= max_unroll_iterations;
@@ -2520,6 +2546,34 @@ mod tests {
     }
 
     #[test]
+    fn brillig_not_equal_does_not_partial_unroll() {
+        // The Brillig counterpart of `partial_unroll_with_error`:
+        // `should_unroll_in_brillig` must not partial unroll, because it does not reduce
+        // the code size.
+        let src =
+            ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND.replace("acir(inline)", "brillig(inline)");
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
+
+        // The loop is left as a runtime loop: re-entered at `u32 0`, not peeled to a large value.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = eq v0, u32 5
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = add v0, u32 2
+            jmp b1(v5)
+          b3():
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn acir_or_guard_pinned_true_bails_at_iteration_cap() {
         // With no induction variable and a guard that folds to a constant `true` forever, the
         // runaway backstop (`RUNAWAY_UNROLL_LIMIT`) makes unrolling bail with `UnknownLoopBound`
@@ -2528,6 +2582,46 @@ mod tests {
         let (_ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 1, "should bail at the cap, not unroll forever");
         assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn partial_unroll_with_error() {
+        // When `unroll` hits the limit, it returns an error *after* having peeled,
+        // leaving the function partially unrolled. This must still be a valid program.
+        // For this test, we use a small limit of 5 (instead of `RUNAWAY_UNROLL_LIMIT`).
+        let mut ssa = Ssa::from_str(ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND).unwrap();
+
+        let result = {
+            let function = ssa.main_mut();
+            let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+            let loop_ = &loops.yet_to_unroll[0];
+            loop_.unroll(function, &loops.cfg, &loops.dom, 5)
+        };
+
+        // The cap fired: unrolling could not prove termination and bailed instead of looping.
+        assert!(result.is_err(), "expected the runaway cap to bail");
+
+        // The partially-unrolled function is well-formed: it round-trips through the SSA parser.
+        Ssa::from_str(&ssa.to_string()).expect("partially-unrolled SSA must be well-formed");
+
+        // The five peeled iterations (induction values 0, 2, 4, 6, 8) have no side effects, so the
+        // inserter constant-folds them away as it copies them, leaving no dead blocks behind. The
+        // original loop is re-entered at the next induction value: `u32 10` (`0 + 5 * 2`) witnesses
+        // that exactly five iterations were peeled before the cap bailed.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 10)
+          b1(v0: u32):
+            v3 = eq v0, u32 5
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = add v0, u32 2
+            jmp b1(v5)
+          b3():
+            return
+        }
+        ");
     }
 
     #[test]
