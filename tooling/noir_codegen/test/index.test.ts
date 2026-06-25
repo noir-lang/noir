@@ -1,9 +1,12 @@
 import { expect } from 'chai';
+import { CompiledCircuit } from '@noir-lang/types';
+import { codegen } from '../src/index.js';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore File is codegenned at test time.
 import {
   exported_function_foo,
   exported_function_baz,
+  exported_function_void,
   MyStruct,
   u64,
   u32,
@@ -115,4 +118,26 @@ it('allows passing a custom foreign call handler', async () => {
 it('codegens a callable argless function', async () => {
   const val: u64 = await exported_function_baz();
   expect(val).to.be.eq('0x01');
+});
+
+it('codegens a callable function with no return value', async () => {
+  const result = await exported_function_void('1');
+  expect(result).to.be.undefined;
+});
+
+it('codegens `Promise<void>` for functions with no return value', () => {
+  const program: CompiledCircuit = {
+    abi: {
+      parameters: [{ name: 'x', type: { kind: 'integer', sign: 'unsigned', width: 64 }, visibility: 'private' }],
+      return_type: null,
+      error_types: {},
+    },
+    bytecode: '',
+  } as unknown as CompiledCircuit;
+
+  const generated = codegen([['my_void_fn', program]], false, false);
+
+  expect(generated).to.include('Promise<void>');
+  expect(generated).to.not.include('Promise<null>');
+  expect(generated).to.not.include('as null');
 });
