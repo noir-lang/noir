@@ -43,6 +43,27 @@ pub(crate) enum VariableResolution {
     TypeAlias(TypeAliasId),
 }
 
+/// Outcome of [`Elaborator::resolve_variable_with_prefix`] for a path that has a prefix. A `None`
+/// result from that method means the path names no item accessed through its prefix, so the
+/// caller falls back to plain value resolution; a `Some` distinguishes the two handled outcomes.
+#[allow(clippy::large_enum_variant)]
+enum PrefixedVariable {
+    /// The path resolved to this item.
+    Resolved(VariableResolution),
+    /// The path named a prefixed item but it could not be resolved unambiguously; an error was
+    /// already reported, so no value-resolution fallback should be attempted.
+    Errored,
+}
+
+impl PrefixedVariable {
+    fn into_option(self) -> Option<VariableResolution> {
+        match self {
+            PrefixedVariable::Resolved(resolution) => Some(resolution),
+            PrefixedVariable::Errored => None,
+        }
+    }
+}
+
 impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
@@ -479,59 +500,20 @@ impl Elaborator<'_> {
 
     /// Resolve a [`TypedPath`] used as an expression to the item it names.
     ///
-    /// This is the single place that enumerates every form a path-as-expression can take. The
-    /// forms are tried in the order below; the order is significant, as it decides which
-    /// interpretation wins when a path is ambiguous:
-    ///
-    /// 1. `Self::AssocType::method`, `Self::CONST`, or `Self::method` (primitive `Self`), inside
-    ///    a trait impl — elaborated directly to an expression
-    ///    (see [`Self::elaborate_variable_as_self_method_or_associated_constant`]).
-    /// 2. A trait item reached through `Self`, a trait, a concrete type, or an in-scope generic
-    ///    bound — e.g. `Self::item` in a trait definition, `Trait::method`, `Type::method`,
-    ///    `T::method` where `T: Trait`, or `Trait::CONST`
-    ///    (see [`Self::resolve_trait_generic_path`] for the individual forms).
-    /// 3. A local variable, a definition (global, function, enum-variant global), or a numeric
-    ///    type alias (see [`Self::get_ident_from_path`]).
+    /// A path with a prefix (more than one segment) may name an item accessed *through* that
+    /// prefix: a `Self`-prefixed associated item (elaborated directly to an expression), or a
+    /// trait item reached through `Self`, a trait, a concrete type, or an in-scope generic bound
+    /// (see [`Self::resolve_variable_with_prefix`]). A single-segment path — or a prefixed path
+    /// that names no such item — resolves to a local variable, a definition (global, function,
+    /// enum-variant global), or a numeric type alias (see [`Self::get_ident_from_path`]).
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
-        // Case 1
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(&path)
+        if path.segments.len() > 1
+            && let Some(resolution) = self.resolve_variable_with_prefix(&path)
         {
-            return Some(VariableResolution::Expression(expr_id, typ));
+            return resolution.into_option();
         }
 
-        // Case 2
-        if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
-            self.push_errors(trait_path_resolution.errors);
-
-            return match trait_path_resolution.method {
-                TraitPathResolutionMethod::NotATraitMethod(func_id) => {
-                    let ident = HirIdent {
-                        location: path.location,
-                        id: self.interner.function_definition_id(func_id),
-                        impl_kind: ImplKind::NotATraitMethod,
-                    };
-                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
-                }
-
-                TraitPathResolutionMethod::TraitItem(item) => {
-                    let ident = HirIdent {
-                        location: path.location,
-                        id: item.definition,
-                        impl_kind: ImplKind::TraitItem(item),
-                    };
-                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
-                }
-
-                TraitPathResolutionMethod::MultipleTraitsInScope => {
-                    // An error has already been pushed, don't return an identifier
-                    None
-                }
-            };
-        }
-
-        // Case 3.
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
@@ -553,6 +535,53 @@ impl Elaborator<'_> {
                 VariableResolution::Ident(hir_ident, Some(item))
             }
             IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
+        })
+    }
+
+    /// Resolve a path that has a prefix (more than one segment) to an item accessed *through* that
+    /// prefix. Returns `None` if the path names no such item, so the caller falls back to plain
+    /// value resolution.
+    fn resolve_variable_with_prefix(&mut self, path: &TypedPath) -> Option<PrefixedVariable> {
+        // A `Self`-prefixed associated item inside a trait impl, elaborated directly.
+        if let Some((expr_id, typ)) =
+            self.elaborate_variable_as_self_method_or_associated_constant(path)
+        {
+            return Some(PrefixedVariable::Resolved(VariableResolution::Expression(expr_id, typ)));
+        }
+
+        // A trait item reached through the prefix.
+        let trait_path_resolution = self.resolve_trait_generic_path(path)?;
+        self.push_errors(trait_path_resolution.errors);
+
+        Some(match trait_path_resolution.method {
+            TraitPathResolutionMethod::NotATraitMethod(func_id) => {
+                let ident = HirIdent {
+                    location: path.location,
+                    id: self.interner.function_definition_id(func_id),
+                    impl_kind: ImplKind::NotATraitMethod,
+                };
+                PrefixedVariable::Resolved(VariableResolution::Ident(
+                    ident,
+                    trait_path_resolution.item,
+                ))
+            }
+
+            TraitPathResolutionMethod::TraitItem(item) => {
+                let ident = HirIdent {
+                    location: path.location,
+                    id: item.definition,
+                    impl_kind: ImplKind::TraitItem(item),
+                };
+                PrefixedVariable::Resolved(VariableResolution::Ident(
+                    ident,
+                    trait_path_resolution.item,
+                ))
+            }
+
+            TraitPathResolutionMethod::MultipleTraitsInScope => {
+                // An error has already been pushed, don't return an identifier
+                PrefixedVariable::Errored
+            }
         })
     }
 
