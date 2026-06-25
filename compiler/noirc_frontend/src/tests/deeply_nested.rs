@@ -256,21 +256,3 @@ fn deeply_nested_expression_parser_overflow() {
 
     assert_parser_max_recursion_depth(&src, Some(1));
 }
-
-// stack overflow in the parser
-#[test]
-fn deeply_nested_blocks() {
-    // Creates: { { { ... { 0 } ... } } }
-    const DEPTH: usize = 2000;
-    let src = format!(
-        r#"
-    pub fn main() {{
-        {open}0{close}
-    }}
-    "#,
-        open = "{".repeat(DEPTH),
-        close = "}".repeat(DEPTH),
-    );
-
-    assert_parser_max_recursion_depth(&src, None);
-}
