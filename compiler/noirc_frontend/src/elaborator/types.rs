@@ -1480,15 +1480,7 @@ impl Elaborator<'_> {
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
         let method = the_trait.find_method(path.last_name(), self.interner)?;
-        let mut constraint = the_trait.as_constraint(path.location);
-        // If the path went through a concrete type (e.g. `i32::method`, `Struct::trait_method`),
-        // override the constraint's `Self` type variable with that type so the impl gets
-        // selected at the call site rather than leaving `Self` unbound (which would force the
-        // user to add a type annotation). For the literal `Trait::method` form there is no
-        // concrete type available, so `Self` stays as the trait's type variable.
-        if let Some(concrete_self) = self.concrete_self_type_for_path_item(&path_resolution.item) {
-            constraint.typ = concrete_self;
-        }
+        let constraint = the_trait.as_constraint(path.location);
         let trait_method = TraitItem { definition: method, constraint, assumed: false };
         let method = TraitPathResolutionMethod::TraitItem(trait_method);
         let item = Some(path_resolution.item);
@@ -1584,58 +1576,6 @@ impl Elaborator<'_> {
         let trait_item = TraitItem { definition, constraint, assumed: true };
         let method = TraitPathResolutionMethod::TraitItem(trait_item);
         Some(TraitPathResolution { method, item: None, errors: resolution.errors })
-    }
-
-    /// For path resolutions that went through a typed item (e.g. `MyStruct::method`,
-    /// `i32::method`), return that concrete type. This is used so that a `Trait::method`
-    /// constraint built from one of these paths can be anchored on the concrete type rather
-    /// than the trait's unbound `Self` type variable.
-    fn concrete_self_type_for_path_item(&mut self, item: &PathResolutionItem) -> Option<Type> {
-        let mut errors = Vec::new();
-        let result = match item {
-            PathResolutionItem::PrimitiveFunction(primitive_type, _, _) => {
-                Some(primitive_type.to_type())
-            }
-            PathResolutionItem::TypeTraitFunction(self_type, _, _) => Some(self_type.clone()),
-            PathResolutionItem::Method(type_id, turbofish, _) => {
-                let generics = self.resolve_struct_id_turbofish_generics(
-                    *type_id,
-                    turbofish.clone(),
-                    &mut errors,
-                );
-                let datatype = self.get_type(*type_id);
-                Some(Type::DataType(datatype, generics))
-            }
-            PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, _) => {
-                let generics = self.resolve_type_alias_id_turbofish_generics(
-                    *type_alias_id,
-                    turbofish.clone(),
-                    &mut errors,
-                );
-                let type_alias = self.interner.get_type_alias(*type_alias_id);
-                let type_alias = type_alias.borrow();
-                Some(type_alias.get_type(&generics))
-            }
-            // `Self::method` inside an impl. Use the impl's self type so the trait constraint
-            // is anchored on it.
-            PathResolutionItem::SelfMethod(_) => self.self_type.clone(),
-            // `TraitFunction` is the bare `Trait::method` form — Self isn't pinned by the path.
-            // `ModuleFunction` and non-function variants don't carry a concrete self type that
-            // should override the trait constraint.
-            PathResolutionItem::TraitFunction(..)
-            | PathResolutionItem::ModuleFunction(_)
-            | PathResolutionItem::Module(..)
-            | PathResolutionItem::Type(..)
-            | PathResolutionItem::TypeAlias(..)
-            | PathResolutionItem::PrimitiveType(..)
-            | PathResolutionItem::Trait(..)
-            | PathResolutionItem::TraitAssociatedType(..)
-            | PathResolutionItem::Global(..)
-            | PathResolutionItem::EnumVariant(..)
-            | PathResolutionItem::TraitConstant(..) => None,
-        };
-        self.push_errors(errors);
-        result
     }
 
     /// This resolves a static trait method `T::trait_method` by iterating over the where clause
