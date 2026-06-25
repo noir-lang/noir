@@ -55,7 +55,7 @@
 //! deduplicated across instructions. Doing this during Brillig codegen would be too late, as at
 //! that time we have a read-only DFG and we would be forced to generate more Brillig opcodes.
 
-use acvm::AcirField;
+use acvm::{AcirField, brillig_vm::MAX_MEMORY_SIZE};
 
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -127,11 +127,13 @@ fn compute_offset_index(
     let offset = context.dfg.array_offset(array_or_vector, index);
     let shifted_index = constant_index + offset.to_u32().into();
 
-    // The shifted index is stored under the Brillig addressing type. If shifting an
-    // out-of-bounds index pushes it past that type's range, leave the access unshifted
-    // so it is handled by the normal runtime out-of-bounds path instead of producing a
-    // malformed constant that Brillig codegen would reject.
-    if shifted_index.num_bits() > BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
+    // A shifted index that doesn't fit the u32 addressing type, or that lands outside the
+    // addressable Brillig memory range, can never be a valid address. Leave the access
+    // unshifted and let the normal runtime out-of-bounds path handle it instead of
+    // producing a constant the backend would reject.
+    let fits_in_memory =
+        shifted_index.try_to_u32().is_some_and(|index| index as usize <= MAX_MEMORY_SIZE);
+    if !fits_in_memory {
         return None;
     }
 
@@ -340,6 +342,33 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
             v2 = array_get v0, index u32 4294967295 minus 3 -> Field
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_offset_vector_when_shifted_index_exceeds_max_memory_size() {
+        // 2147483647 (i32::MAX) fits the 32-bit addressing type, but shifting it by
+        // the vector offset lands above the maximum addressable memory slot
+        // (MAX_MEMORY_SIZE == i32::MAX), so it can never be a valid address. The pass
+        // must leave it unshifted for the runtime out-of-bounds path. The printed value
+        // stays at 2147483647 rather than the unaddressable 2147483650.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 2147483647 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_array_get_and_set();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 2147483647 minus 3 -> Field
             return v2
         }
         ");

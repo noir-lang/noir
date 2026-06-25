@@ -33,7 +33,7 @@ use black_box::evaluate_black_box;
 pub use acir::brillig;
 use memory::MemoryTypeError;
 pub use memory::{
-    FREE_MEMORY_POINTER_ADDRESS, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
+    FREE_MEMORY_POINTER_ADDRESS, MAX_MEMORY_SIZE, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
     STACK_POINTER_ADDRESS, offsets,
 };
 
