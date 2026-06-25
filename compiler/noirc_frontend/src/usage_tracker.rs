@@ -71,13 +71,24 @@ pub struct UsageTracker {
     /// type's method set — so they're tracked by id and removed when the method is called or
     /// otherwise referenced. The `Ident` is the method name, used to locate the unused warning.
     unused_impl_functions: HashMap<FuncId, Ident>,
-    /// The undo log of the speculative transaction in progress, if any. `None` means no
-    /// transaction is open; `Some` records every entry removed from `unused_items`/`unused_imports`
-    /// while it is open, so they can be restored on rollback. This lets a speculative
-    /// path-resolution probe (which marks segments as used/referenced while resolving) undo those
-    /// marks when it turns out the path wasn't what it was probing for. Only one transaction may be
-    /// open at a time — see [`begin_speculative`](Self::begin_speculative).
-    speculative_undo: Option<Vec<SpeculativeUndo>>,
+    /// A stack of resolution-mode frames. The top frame decides how removals from
+    /// `unused_items`/`unused_imports` are treated; an empty stack means they are committed (the
+    /// default outside any probe):
+    ///
+    /// * [`Journal::Speculative`] records every removal so it can be undone on rollback. This lets a
+    ///   speculative path-resolution probe (which marks segments as used/referenced while resolving)
+    ///   undo those marks when the path turns out not to be what it was probing for.
+    /// * [`Journal::Suspended`] commits removals unconditionally, used to run a committed side
+    ///   effect — e.g. resolving a function's [`FuncMeta`] — from inside a probe without its marks
+    ///   being rolled back when the probe fails.
+    ///
+    /// Frames nest and interleave freely: a probe may suspend, and a suspended resolution may itself
+    /// open a probe. Each frame is entered and exited in pairs — `begin`/`commit`/`rollback` for
+    /// speculative frames, `suspend`/`resume` for suspended ones — so the stay-balanced invariant is
+    /// what keeps the stack consistent.
+    ///
+    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
+    journal: Vec<Journal>,
 }
 
 /// A single removal recorded during a speculative transaction, kept so it can be re-inserted on
@@ -88,6 +99,16 @@ enum SpeculativeUndo {
     Import(ModuleId, (Ident, Location), HashSet<Namespace>),
 }
 
+/// A resolution-mode frame on the [`UsageTracker`]'s journal stack. The top frame determines how
+/// removals from the unused maps are treated; see [`UsageTracker::journal`].
+#[derive(Debug)]
+enum Journal {
+    /// Removals are committed unconditionally (not recorded for rollback).
+    Suspended,
+    /// Removals are recorded here so they can be undone if the probe is rolled back.
+    Speculative(Vec<SpeculativeUndo>),
+}
+
 /// Proof that a speculative transaction is open, returned by [`UsageTracker::begin_speculative`]
 /// and consumed by [`UsageTracker::commit_speculative`] / [`UsageTracker::rollback_speculative`].
 /// It can only be constructed here, so a transaction cannot be started without going through
@@ -95,6 +116,14 @@ enum SpeculativeUndo {
 /// [`Elaborator::speculatively`](crate::elaborator::Elaborator) rather than by hand.
 #[must_use]
 pub(crate) struct SpeculativeTx {
+    _private: (),
+}
+
+/// Proof that a suspended frame is open, returned by [`UsageTracker::suspend_speculative`] and
+/// consumed by [`UsageTracker::resume_speculative`]. Like [`SpeculativeTx`], it can only be
+/// constructed here and `#[must_use]` nudges callers to pair the suspend with a resume.
+#[must_use]
+pub(crate) struct SuspendTx {
     _private: (),
 }
 
@@ -153,7 +182,7 @@ impl UsageTracker {
         name: &Ident,
         namespace: Namespace,
     ) {
-        let recording = self.speculative_undo.is_some();
+        let recording = matches!(self.journal.last(), Some(Journal::Speculative(_)));
         let Some(imports) = self.unused_imports.get_mut(&current_mod_id) else {
             return;
         };
@@ -165,7 +194,7 @@ impl UsageTracker {
             }
             !remove
         });
-        if let Some(undo) = &mut self.speculative_undo {
+        if let Some(Journal::Speculative(undo)) = self.journal.last_mut() {
             for (key, namespaces) in removed {
                 undo.push(SpeculativeUndo::Import(current_mod_id, key, namespaces));
             }
@@ -227,35 +256,60 @@ impl UsageTracker {
         key: (Namespace, Ident),
         item: UnusedItem,
     ) {
-        if let Some(undo) = &mut self.speculative_undo {
+        if let Some(Journal::Speculative(undo)) = self.journal.last_mut() {
             undo.push(SpeculativeUndo::Item(module_id, key, item));
         }
     }
 
-    /// Begin a speculative transaction: until it is committed or rolled back, every removal from
-    /// `unused_items`/`unused_imports` is recorded so it can be undone. Panics if one is already
-    /// open — transactions don't nest. Prefer [`Elaborator::speculatively`] over calling this
-    /// directly.
+    /// Begin a speculative transaction by pushing a [`Journal::Speculative`] frame: until it is
+    /// committed or rolled back, every removal from `unused_items`/`unused_imports` made while it is
+    /// on top of the stack is recorded so it can be undone. Prefer [`Elaborator::speculatively`]
+    /// over calling this directly.
     ///
     /// [`Elaborator::speculatively`]: crate::elaborator::Elaborator
     pub(crate) fn begin_speculative(&mut self) -> SpeculativeTx {
-        assert!(
-            self.speculative_undo.is_none(),
-            "a speculative transaction is already in progress; they do not nest"
-        );
-        self.speculative_undo = Some(Vec::new());
+        self.journal.push(Journal::Speculative(Vec::new()));
         SpeculativeTx { _private: () }
     }
 
     /// Commit a speculative transaction, keeping every change made while it was open.
     pub(crate) fn commit_speculative(&mut self, _tx: SpeculativeTx) {
-        self.speculative_undo = None;
+        match self.journal.pop() {
+            Some(Journal::Speculative(_)) => {}
+            other => {
+                panic!("commit_speculative expected a speculative frame on top, found {other:?}")
+            }
+        }
+    }
+
+    /// Suspend rollback recording by pushing a [`Journal::Suspended`] frame: while it is on top,
+    /// removals from the unused maps are committed unconditionally (never recorded for rollback).
+    /// Used to run a committed side effect — e.g. resolving a function's [`FuncMeta`], which
+    /// structurally strikes the function off the to-be-resolved list and so cannot be undone — from
+    /// inside a speculative probe without its usage-marks being rolled back when the probe fails.
+    /// Pair with [`resume_speculative`](Self::resume_speculative).
+    ///
+    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
+    pub(crate) fn suspend_speculative(&mut self) -> SuspendTx {
+        self.journal.push(Journal::Suspended);
+        SuspendTx { _private: () }
+    }
+
+    /// Resume after a [`suspend_speculative`](Self::suspend_speculative), popping its suspended frame.
+    pub(crate) fn resume_speculative(&mut self, _tx: SuspendTx) {
+        match self.journal.pop() {
+            Some(Journal::Suspended) => {}
+            other => {
+                panic!("resume_speculative expected a suspended frame on top, found {other:?}")
+            }
+        }
     }
 
     /// Roll back a speculative transaction, restoring every entry removed while it was open.
     pub(crate) fn rollback_speculative(&mut self, _tx: SpeculativeTx) {
-        let undo =
-            self.speculative_undo.take().expect("speculative transaction must be in progress");
+        let Some(Journal::Speculative(undo)) = self.journal.pop() else {
+            panic!("rollback_speculative expected a speculative frame on top");
+        };
         for entry in undo.into_iter().rev() {
             match entry {
                 SpeculativeUndo::Item(module_id, key, item) => {

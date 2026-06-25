@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Function embedded_curve_add documentation</title>
 </head>
 <body>
@@ -30,7 +33,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">embedded_curve_ops</a></div>
-<h1>Function <span class="fn">embedded_curve_add</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Function <span class="fn">embedded_curve_add</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub fn embedded_curve_add(
     point1: <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a>,
     point2: <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a>,
@@ -45,6 +54,7 @@ IMPORTANT: this function is expected to perform a full addition in order to hand
 <li>point at infinity
 As a result, you may not get optimal performance, depending on the assumptions of your inputs.</li>
 </ul>
+</div>
 </div>
 </main>
 </span>

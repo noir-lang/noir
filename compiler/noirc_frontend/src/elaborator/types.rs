@@ -17,8 +17,8 @@ use crate::{
     BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
+        UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
@@ -951,26 +951,26 @@ impl Elaborator<'_> {
                 return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
-            if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some()
-            {
-                self.push_err(ResolverError::GenericsOnAssociatedType {
-                    location: last_segment.turbofish_location(),
-                });
-            }
+            self.error_if_generics_on_associated_type(path);
             return Some(typ);
         } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
-            if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some()
-            {
-                self.push_err(ResolverError::GenericsOnAssociatedType {
-                    location: last_segment.turbofish_location(),
-                });
-            }
+            self.error_if_generics_on_associated_type(path);
             return Some(typ);
         }
 
         None
+    }
+
+    /// Associated types cannot carry turbofish generics; report an error if the path's last
+    /// segment has any.
+    fn error_if_generics_on_associated_type(&mut self, path: &TypedPath) {
+        if let Some(last_segment) = path.segments.last()
+            && last_segment.generics.is_some()
+        {
+            self.push_err(ResolverError::GenericsOnAssociatedType {
+                location: last_segment.turbofish_location(),
+            });
+        }
     }
 
     /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
@@ -1602,10 +1602,8 @@ impl Elaborator<'_> {
         if matches.len() > 1 {
             let location = path.location;
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |(_, trait_id)| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits =
+                vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
             let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
             return Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::MultipleTraitsInScope,
@@ -2403,6 +2401,24 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Checks that two integer operands of a binary operator agree in both
+    /// signedness and bit width, reporting the first mismatch as an error.
+    fn check_integer_operands_match(
+        sign_x: Signedness,
+        bit_width_x: IntegerBitSize,
+        sign_y: Signedness,
+        bit_width_y: IntegerBitSize,
+        location: Location,
+    ) -> Result<(), TypeCheckError> {
+        if sign_x != sign_y {
+            return Err(TypeCheckError::IntegerSignedness { sign_x, sign_y, location });
+        }
+        if bit_width_x != bit_width_y {
+            return Err(TypeCheckError::IntegerBitWidth { bit_width_x, bit_width_y, location });
+        }
+        Ok(())
+    }
+
     /// Given a binary comparison operator and another type. This method will produce the output type
     /// and a boolean indicating whether to use the trait impl corresponding to the operator
     /// or not. A value of false indicates the caller to use a primitive operation for this
@@ -2436,20 +2452,13 @@ impl Elaborator<'_> {
                 Ok((Bool, use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
-                if sign_x != sign_y {
-                    return Err(TypeCheckError::IntegerSignedness {
-                        sign_x: *sign_x,
-                        sign_y: *sign_y,
-                        location,
-                    });
-                }
-                if bit_width_x != bit_width_y {
-                    return Err(TypeCheckError::IntegerBitWidth {
-                        bit_width_x: *bit_width_x,
-                        bit_width_y: *bit_width_y,
-                        location,
-                    });
-                }
+                Self::check_integer_operands_match(
+                    *sign_x,
+                    *bit_width_x,
+                    *sign_y,
+                    *bit_width_y,
+                    location,
+                )?;
                 Ok((Bool, false))
             }
             (FieldElement, FieldElement) => {
@@ -2550,20 +2559,13 @@ impl Elaborator<'_> {
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
-                if sign_x != sign_y {
-                    return Err(TypeCheckError::IntegerSignedness {
-                        sign_x: *sign_x,
-                        sign_y: *sign_y,
-                        location,
-                    });
-                }
-                if bit_width_x != bit_width_y {
-                    return Err(TypeCheckError::IntegerBitWidth {
-                        bit_width_x: *bit_width_x,
-                        bit_width_y: *bit_width_y,
-                        location,
-                    });
-                }
+                Self::check_integer_operands_match(
+                    *sign_x,
+                    *bit_width_x,
+                    *sign_y,
+                    *bit_width_y,
+                    location,
+                )?;
                 Ok((Integer(*sign_x, *bit_width_x), false))
             }
             // The result of two Fields is always a witness
@@ -3076,8 +3078,7 @@ impl Elaborator<'_> {
             if traits.len() == 1 {
                 // This is the backwards-compatible case where there's a single trait but it's not in scope
                 let trait_id = *traits.iter().next().unwrap();
-                let trait_ = self.interner.get_trait(trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
+                let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
                 let method =
                     self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
                 let error = PathResolutionError::TraitMethodNotInScope {
@@ -3086,10 +3087,8 @@ impl Elaborator<'_> {
                 };
                 return (Some(method), Some(error));
             } else {
-                let traits = vecmap(traits, |trait_id| {
-                    let trait_ = self.interner.get_trait(trait_id);
-                    self.fully_qualified_trait_path(trait_)
-                });
+                let traits =
+                    vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
                 let method_not_found = None;
                 let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), location),
@@ -3100,10 +3099,7 @@ impl Elaborator<'_> {
         }
 
         if traits_in_scope.len() > 1 {
-            let traits = vecmap(traits, |trait_id| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits = vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
             let method_not_found = None;
             let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), location),
@@ -3260,10 +3256,8 @@ impl Elaborator<'_> {
 
         if matches.len() > 1 {
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |method| {
-                let trait_ = self.interner.get_trait(method.trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits =
+                vecmap(matches, |method| self.fully_qualified_trait_path_by_id(method.trait_id));
             self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
             return None;
         }
@@ -3363,22 +3357,53 @@ impl Elaborator<'_> {
             lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
+        let crossing_runtime_boundary =
+            self.check_call_runtime_boundary(call.func, &func_type, &args, location);
+
+        let return_type = self.bind_function_type(func_type, args, location);
+
+        if crossing_runtime_boundary {
+            self.check_unconstrained_call_return(&return_type, location);
+        }
+
+        return_type
+    }
+
+    /// Re-runs the runtime-mode-dependent validity checks for a call against the *current*
+    /// elaboration context: that `verify_proof_with_type` is not reached from an unconstrained
+    /// context, and that a constrained function only reaches an unconstrained one from within an
+    /// `unsafe` block (with its arguments suitably constrained).
+    ///
+    /// Returns whether the call crosses the constrained/unconstrained boundary, in which case the
+    /// caller must also validate the return type with [`Self::check_unconstrained_call_return`]
+    /// once it is known.
+    ///
+    /// This is shared between regular call type-checking and the revalidation of resolved
+    /// expressions spliced in from a comptime `Expr::resolve`, which were originally elaborated in
+    /// a different context (see [`Self::revalidate_resolved_expression`]).
+    pub(super) fn check_call_runtime_boundary(
+        &mut self,
+        func: ExprId,
+        func_type: &Type,
+        args: &[(Type, ExprId, Location)],
+        location: Location,
+    ) -> bool {
         let is_current_func_constrained = self.in_constrained_function();
         if !is_current_func_constrained {
             // Check if we're calling verify_proof_with_type in an unconstrained context
             self.run_lint(|elaborator| {
-                lints::error_if_verify_proof_with_type(elaborator.interner, call.func, location)
+                lints::error_if_verify_proof_with_type(elaborator.interner, func, location)
             });
         }
 
         let func_type_is_unconstrained =
-            if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {
+            if let Type::Function(_args, _ret, _env, unconstrained) = func_type {
                 *unconstrained
             } else {
                 false
             };
 
-        let func_is_unconstrained_call = match self.is_unconstrained_call(call.func, location) {
+        let func_is_unconstrained_call = match self.is_unconstrained_call(func, location) {
             Ok(result) => result,
             Err(error) => {
                 self.push_err(error);
@@ -3407,24 +3432,28 @@ impl Elaborator<'_> {
             // the check reports a spurious "mutable reference" error. This
             // matters inside recursive `elaborate_items` (from `run_attributes`)
             // where outer-pending structs haven't been drained yet.
-            for (typ, _, _) in &args {
+            for (typ, _, _) in args {
                 self.define_deferred_data_types_in(typ);
             }
 
-            let errors = lints::unconstrained_function_args(&args);
+            let errors = lints::unconstrained_function_args(args);
             self.push_errors(errors);
         }
 
-        let return_type = self.bind_function_type(func_type, args, location);
+        crossing_runtime_boundary
+    }
 
-        if crossing_runtime_boundary {
-            self.define_deferred_data_types_in(&return_type);
-            self.run_lint(|_| {
-                lints::unconstrained_function_return(&return_type, location).map(Into::into)
-            });
-        }
-
-        return_type
+    /// Companion to [`Self::check_call_runtime_boundary`]: validates the return type of a call that
+    /// crosses the constrained/unconstrained boundary.
+    pub(super) fn check_unconstrained_call_return(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) {
+        self.define_deferred_data_types_in(return_type);
+        self.run_lint(|_| {
+            lints::unconstrained_function_return(return_type, location).map(Into::into)
+        });
     }
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
@@ -3722,6 +3751,10 @@ impl Elaborator<'_> {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
         }
+    }
+
+    pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {
+        self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
     }
 
     pub(crate) fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
