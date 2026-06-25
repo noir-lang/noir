@@ -3212,3 +3212,75 @@ fn resolve_allows_unconstrained_call_spliced_into_unsafe_block() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
+
+// An assignment target referencing a comptime local must be revalidated just like a read: the
+// `Assign` lvalue is walked so the comptime local cannot escape into runtime code (where it would
+// otherwise reach monomorphization with no value).
+#[test]
+fn resolve_does_not_let_comptime_local_escape_via_assignment_lvalue() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let mut secret = 42;
+        secret = 0;
+        let _ = secret;
+        let typed = quote { { secret = 1; } }.as_expr().unwrap().resolve(Option::none());
+                              ^^^^^^ Comptime variable `secret` cannot be used in runtime code
+                              ~~~~~~ `secret` was resolved in a comptime scope that is no longer in scope here
+        quote {
+            fn generated() {
+                $typed
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Revalidation must preserve the unsafe-block context of a resolved expression: an unconstrained
+// call wrapped in an `unsafe` block *inside* the resolved expression crosses the boundary legally,
+// so it must not be reported as needing an `unsafe` block at the splice site.
+#[test]
+fn resolve_allows_unconstrained_call_in_resolved_unsafe_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let scope = quote { constrained_scope }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::none())
+            .as_function_definition()
+            .unwrap();
+
+        let call = quote {
+            // Safety: test
+            unsafe { helper() }
+        }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::some(scope));
+
+        quote {
+            fn generated() -> Field {
+                $call
+            }
+        }
+    }
+
+    fn constrained_scope() {}
+
+    #[emit]
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}

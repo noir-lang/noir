@@ -2055,20 +2055,7 @@ impl Elaborator<'_> {
     pub(super) fn revalidate_resolved_expression(&mut self, expr_id: ExprId) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(ident, _) => {
-                // A reference to a comptime local is normally replaced by its value when used in
-                // runtime code (see `elaborate_variable`). A resolved expression bypasses that, so
-                // a raw reference to a comptime local can only have come from a scope that is no
-                // longer live here.
-                if !self.in_comptime_context()
-                    && let Some(definition) = self.interner.try_definition(ident.id)
-                    && definition.is_comptime_local()
-                {
-                    let name = definition.name.clone();
-                    self.push_err(ResolverError::ComptimeVariableEscapesScope {
-                        name,
-                        location: ident.location,
-                    });
-                }
+                self.revalidate_resolved_comptime_local(&ident);
             }
             HirExpression::Call(call) => {
                 self.revalidate_resolved_expression(call.func);
@@ -2112,8 +2099,18 @@ impl Elaborator<'_> {
                 | HirLiteral::Str(_)
                 | HirLiteral::Unit => {}
             },
-            HirExpression::Block(block) | HirExpression::Unsafe(block) => {
+            HirExpression::Block(block) => {
                 self.revalidate_resolved_block(&block);
+            }
+            HirExpression::Unsafe(block) => {
+                // Mirror `elaborate_unsafe_block`: an unconstrained call inside the block crosses
+                // the runtime boundary legally, so the boundary check must see that we are inside an
+                // unsafe block rather than reporting a spurious error.
+                let old_status = self.unsafe_block_status;
+                self.unsafe_block_status =
+                    UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
+                self.revalidate_resolved_block(&block);
+                self.unsafe_block_status = old_status;
             }
             HirExpression::Prefix(prefix) => {
                 self.revalidate_resolved_expression(prefix.rhs);
@@ -2185,6 +2182,7 @@ impl Elaborator<'_> {
                     self.revalidate_resolved_expression(let_statement.expression);
                 }
                 HirStatement::Assign(assign) => {
+                    self.revalidate_resolved_lvalue(&assign.lvalue);
                     self.revalidate_resolved_expression(assign.expression);
                 }
                 HirStatement::For(for_statement) => {
@@ -2223,6 +2221,37 @@ impl Elaborator<'_> {
         if self.in_constrained_function() {
             let location = self.interner.statement_location(statement);
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, location });
+        }
+    }
+
+    /// Reject a reference to a comptime local that escapes into runtime code.
+    ///
+    /// A reference to a comptime local is normally replaced by its value when used in runtime code
+    /// (see `elaborate_variable`). A resolved expression bypasses that, so a raw reference to a
+    /// comptime local can only have come from a scope that is no longer live here.
+    fn revalidate_resolved_comptime_local(&mut self, ident: &HirIdent) {
+        if !self.in_comptime_context()
+            && let Some(definition) = self.interner.try_definition(ident.id)
+            && definition.is_comptime_local()
+        {
+            let name = definition.name.clone();
+            self.push_err(ResolverError::ComptimeVariableEscapesScope {
+                name,
+                location: ident.location,
+            });
+        }
+    }
+
+    fn revalidate_resolved_lvalue(&mut self, lvalue: &HirLValue) {
+        match lvalue {
+            HirLValue::Ident(ident, _) => self.revalidate_resolved_comptime_local(ident),
+            HirLValue::MemberAccess { object, .. } => self.revalidate_resolved_lvalue(object),
+            HirLValue::Index { array, index, .. } => {
+                self.revalidate_resolved_lvalue(array);
+                self.revalidate_resolved_expression(*index);
+            }
+            HirLValue::Dereference { lvalue, .. } => self.revalidate_resolved_lvalue(lvalue),
+            HirLValue::Error { .. } => {}
         }
     }
 
