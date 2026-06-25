@@ -73,40 +73,33 @@ pub(super) enum TraitPathResolutionMethod {
     MultipleTraitsInScope,
 }
 
-/// How a path used as an expression resolves to a trait item, keyed by what the path's prefix
-/// (every segment but the last) is. Produced by [`Elaborator::resolve_path_prefix`], which
-/// classifies the path into exactly one of these so [`Elaborator::resolve_trait_generic_path`]
-/// is a single dispatch rather than a chain of fallible probes.
-///
-/// The first three forms cannot be recognized from the prefix alone — they depend on elaborator
-/// context (the current trait, in-scope bounds) or on resolving the whole path — so for them
-/// detection and resolution are inseparable and the resolved [`TraitPathResolution`] is carried
-/// directly. The last three are distinguished purely by resolving the prefix.
+/// What the prefix of a path (every segment but the last) is, when the path is used as an
+/// expression. Produced by [`Elaborator::resolve_path_prefix`]; [`Elaborator::resolve_trait_generic_path`]
+/// then resolves the last segment against it. Only the data needed to resolve the last segment is
+/// carried — this describes *what the prefix is*, not the already-resolved item.
 #[derive(Debug)]
 pub(super) enum PathPrefixKind {
-    /// `Self::item` inside a trait *definition*, resolved as an assumed constraint on `Self`.
-    SelfInTraitDefinition(TraitPathResolution),
-    /// The whole path canonically names a trait method, e.g. `Trait::method` or
-    /// `Type::trait_method` resolved through the module system.
-    CanonicalTraitMethod(TraitPathResolution),
-    /// `T::method` where a `T: Trait` bound on the generic `T` is in scope.
-    BoundedGeneric(TraitPathResolution),
-    /// The prefix is a trait, e.g. the `Trait` in `Trait::CONST`. The last segment is an
-    /// associated constant.
+    /// `Self` inside a trait *definition*: the prefix is the current trait (an assumed `Self`
+    /// constraint). The last segment is a method or associated constant of that trait or a
+    /// supertrait.
+    SelfTrait,
+    /// A generic parameter with a `: Trait` bound in scope (e.g. `T` in `T::method`). The last
+    /// segment is a method or associated constant reached through one of those bounds.
+    BoundedGeneric,
+    /// A trait (e.g. `Trait` in `Trait::CONST`). The last segment is an associated constant.
+    /// (`Trait::method` is handled earlier as a canonical trait method.)
     Trait { trait_id: TraitId, last_segment: TypedPathSegment, resolution: PathResolution },
-    /// The prefix is a concrete type, type alias, primitive type, or `Self` bound to a data
-    /// type — e.g. the `Type` in `Type::method`. The last segment is an inherent or qualified
-    /// trait method.
+    /// A concrete type, type alias, primitive type, or `Self` bound to a data type (e.g. `Type`
+    /// in `Type::method`). The last segment is an inherent or qualified trait method.
     Type {
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
         is_self_prefix: bool,
         resolution: PathResolution,
     },
-    /// The prefix is a module, or anything else that cannot prefix an associated item (e.g.
-    /// `foo::bar` in `foo::bar::GLOBAL`). The last segment is an ordinary value item, resolved
-    /// elsewhere.
-    Other,
+    /// A module, or anything else that cannot prefix an associated item (e.g. `foo::bar` in
+    /// `foo::bar::GLOBAL`). The last segment is an ordinary value item, resolved elsewhere.
+    Module,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1502,36 +1495,37 @@ impl Elaborator<'_> {
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
-    /// Classify a path used as an expression into the single [`PathPrefixKind`] that describes how
-    /// to resolve it to a trait item. Returns `None` if the path names no trait item (so the caller
-    /// falls back to plain value resolution).
+    /// Classify the prefix (every segment but the last) of a path used as an expression. This does
+    /// not resolve the last segment — it only answers "what is the prefix?", which the caller uses
+    /// to decide how to resolve the last segment. Returns `None` if the path has no prefix.
     ///
     /// The classification order is significant: it decides which interpretation wins when a path
-    /// is ambiguous, and mirrors the historical probe order. The first three forms cannot be told
-    /// apart from the prefix alone — their detection requires resolving against the current trait,
-    /// the in-scope bounds, or the whole path — so they are attempted first and carry their result.
-    /// Only if none of them match is the prefix (every segment but the last) resolved as a type to
-    /// distinguish the trait-, type-, and module-prefixed forms.
+    /// is ambiguous, and mirrors the historical probe order. `Self` inside a trait definition and a
+    /// bounded generic are recognized from context (the current trait, the in-scope bounds) before
+    /// the prefix is resolved as a type to tell trait-, type-, and module-prefixed forms apart.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_prefix(&mut self, path: &TypedPath) -> Option<PathPrefixKind> {
-        // `Self::item` inside a trait definition (assumed constraint on `Self`).
-        if let Some(resolution) = self.resolve_trait_static_method_by_self(path) {
-            return Some(PathPrefixKind::SelfInTraitDefinition(resolution));
-        }
-        // The whole path canonically names a trait method (`Trait::method`, `Type::trait_method`).
-        if let Some(resolution) = self.resolve_trait_static_method(path) {
-            return Some(PathPrefixKind::CanonicalTraitMethod(resolution));
-        }
-        // `T::method` via a `T: Trait` bound on the generic `T`.
-        if let Some(resolution) = self.resolve_trait_method_by_named_generic(path) {
-            return Some(PathPrefixKind::BoundedGeneric(resolution));
-        }
-
-        // The remaining forms are distinguished by resolving the prefix as a type.
         if path.segments.len() < 2 {
             return None;
         }
 
+        // `Self` inside a trait definition: `Self` is the current trait, not a concrete type.
+        if path.kind == PathKind::Plain
+            && path.segments.len() == 2
+            && path.segments[0].ident.is_self_type_name()
+            && self.current_trait_impl.is_none()
+            && self.current_trait.is_some()
+        {
+            return Some(PathPrefixKind::SelfTrait);
+        }
+
+        // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in the
+        // module namespace, so this must be recognized from the in-scope bounds, not by resolution.
+        if path.segments.len() == 2 && self.path_head_is_bounded_generic(path) {
+            return Some(PathPrefixKind::BoundedGeneric);
+        }
+
+        // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
         let mut path = path.clone();
         let last_segment = path.pop();
         let turbofish = path.last_segment().turbofish();
@@ -1554,7 +1548,17 @@ impl Elaborator<'_> {
         } else if is_type_prefix {
             PathPrefixKind::Type { last_segment, turbofish, is_self_prefix, resolution }
         } else {
-            PathPrefixKind::Other
+            PathPrefixKind::Module
+        })
+    }
+
+    /// Whether the path's first segment names a generic parameter that has a `: Trait` bound in
+    /// scope (so `Head::item` resolves through that bound). Mirrors the constraint scan in
+    /// [`Self::resolve_trait_method_by_named_generic`].
+    fn path_head_is_bounded_generic(&self, path: &TypedPath) -> bool {
+        let head = path.segments[0].ident.as_str();
+        self.trait_bounds.iter().any(|constraint| {
+            matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
         })
     }
 
@@ -2212,21 +2216,27 @@ impl Elaborator<'_> {
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     ///
-    /// [`Self::resolve_path_prefix`] classifies the path into one [`PathPrefixKind`], so this is a
-    /// single dispatch. The classification order (which interpretation wins when a path is
-    /// ambiguous) lives in `resolve_path_prefix`; here each kind maps to the way its last segment
-    /// is turned into a [`TraitPathResolution`].
+    /// A `Type::method`/`Trait::method` whose whole path canonically names a trait method is
+    /// resolved first: that resolution goes through the module system and takes precedence over
+    /// the prefix-classified forms (and is a no-op for `Self`-in-a-definition and bare generics,
+    /// so it does not disturb their precedence). Otherwise [`Self::resolve_path_prefix`] classifies
+    /// the prefix once and the last segment is resolved against that classification.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &TypedPath,
     ) -> Option<TraitPathResolution> {
-        match self.resolve_path_prefix(path)? {
-            // These forms were resolved as they were classified (see `resolve_path_prefix`).
-            PathPrefixKind::SelfInTraitDefinition(resolution)
-            | PathPrefixKind::CanonicalTraitMethod(resolution)
-            | PathPrefixKind::BoundedGeneric(resolution) => Some(resolution),
+        if let Some(resolution) = self.resolve_trait_static_method(path) {
+            return Some(resolution);
+        }
 
+        match self.resolve_path_prefix(path)? {
+            // `Self` in a trait definition: a method/constant of the current trait, falling back to
+            // a supertrait reached through the assumed `Self` bound.
+            PathPrefixKind::SelfTrait => self
+                .resolve_trait_static_method_by_self(path)
+                .or_else(|| self.resolve_trait_method_by_named_generic(path)),
+            PathPrefixKind::BoundedGeneric => self.resolve_trait_method_by_named_generic(path),
             PathPrefixKind::Type { last_segment, turbofish, is_self_prefix, resolution } => self
                 .resolve_method_on_type_prefix(
                     path.location,
@@ -2242,7 +2252,7 @@ impl Elaborator<'_> {
                     last_segment,
                     resolution,
                 ),
-            PathPrefixKind::Other => None,
+            PathPrefixKind::Module => None,
         }
     }
 
