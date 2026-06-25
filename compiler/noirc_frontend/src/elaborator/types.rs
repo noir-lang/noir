@@ -2216,20 +2216,13 @@ impl Elaborator<'_> {
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     ///
-    /// A `Type::method`/`Trait::method` whose whole path canonically names a trait method is
-    /// resolved first: that resolution goes through the module system and takes precedence over
-    /// the prefix-classified forms (and is a no-op for `Self`-in-a-definition and bare generics,
-    /// so it does not disturb their precedence). Otherwise [`Self::resolve_path_prefix`] classifies
-    /// the prefix once and the last segment is resolved against that classification.
+    /// [`Self::resolve_path_prefix`] classifies the prefix once; here the last segment is resolved
+    /// against that classification.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &TypedPath,
     ) -> Option<TraitPathResolution> {
-        if let Some(resolution) = self.resolve_trait_static_method(path) {
-            return Some(resolution);
-        }
-
         match self.resolve_path_prefix(path)? {
             // `Self` in a trait definition: a method/constant of the current trait, falling back to
             // a supertrait reached through the assumed `Self` bound.
@@ -2245,13 +2238,18 @@ impl Elaborator<'_> {
                     is_self_prefix,
                     resolution,
                 ),
-            PathPrefixKind::Trait { trait_id, last_segment, resolution } => self
-                .resolve_trait_constant_on_prefix(
-                    trait_id,
-                    path.location,
-                    last_segment,
-                    resolution,
-                ),
+            // A trait prefix: the last segment is either a trait static method (`Trait::method`)
+            // or an associated constant (`Trait::CONST`).
+            PathPrefixKind::Trait { trait_id, last_segment, resolution } => {
+                self.resolve_trait_static_method(path).or_else(|| {
+                    self.resolve_trait_constant_on_prefix(
+                        trait_id,
+                        path.location,
+                        last_segment,
+                        resolution,
+                    )
+                })
+            }
             PathPrefixKind::Module => None,
         }
     }
