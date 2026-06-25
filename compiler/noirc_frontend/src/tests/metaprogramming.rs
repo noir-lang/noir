@@ -3092,7 +3092,8 @@ fn resolve_revalidates_while_loop_spliced_into_constrained() {
     let src = r#"
     comptime fn emit(_f: FunctionDefinition) -> Quoted {
         let body = quote { { while true {} } }.as_expr().unwrap().resolve(Option::none());
-                          ^^^^^^^^^^^^^^^^^^^^ `while` is only allowed in unconstrained functions
+                             ^^^^^^^^^^^^^ `while` is only allowed in unconstrained functions
+                             ~~~~~~~~~~~~~ Constrained code must always have a known number of loop iterations
         quote {
             fn generated() {
                 $body
@@ -3101,6 +3102,7 @@ fn resolve_revalidates_while_loop_spliced_into_constrained() {
     }
 
     #[emit]
+    ~~~~~~~ While running this function attribute
     fn main() {
         generated()
     }
@@ -3113,7 +3115,10 @@ fn resolve_revalidates_loop_spliced_into_constrained() {
     let src = r#"
     comptime fn emit(_f: FunctionDefinition) -> Quoted {
         let body = quote { { loop { break; } } }.as_expr().unwrap().resolve(Option::none());
-                          ^^^^^^^^^^^^^^^^^^^^^^ `loop` is only allowed in unconstrained functions
+                             ^^^^^^^^^^^^^^^ `loop` is only allowed in unconstrained functions
+                             ~~~~~~~~~~~~~~~ Constrained code must always have a known number of loop iterations
+                                    ^^^^^^ break is only allowed in unconstrained functions
+                                    ~~~~~~ Constrained code must always have a known number of loop iterations
         quote {
             fn generated() {
                 $body
@@ -3122,6 +3127,7 @@ fn resolve_revalidates_loop_spliced_into_constrained() {
     }
 
     #[emit]
+    ~~~~~~~ While running this function attribute
     fn main() {
         generated()
     }
@@ -3134,7 +3140,8 @@ fn resolve_revalidates_break_spliced_into_constrained() {
     let src = r#"
     comptime fn emit(_f: FunctionDefinition) -> Quoted {
         let body = quote { { for _ in 0..3 { break; } } }.as_expr().unwrap().resolve(Option::none());
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ break is only allowed in unconstrained functions
+                                             ^^^^^^ break is only allowed in unconstrained functions
+                                             ~~~~~~ Constrained code must always have a known number of loop iterations
         quote {
             fn generated() {
                 $body
@@ -3143,6 +3150,7 @@ fn resolve_revalidates_break_spliced_into_constrained() {
     }
 
     #[emit]
+    ~~~~~~~ While running this function attribute
     fn main() {
         generated()
     }

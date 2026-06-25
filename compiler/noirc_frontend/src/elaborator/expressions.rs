@@ -2192,20 +2192,37 @@ impl Elaborator<'_> {
                     self.revalidate_resolved_expression(for_statement.end_range);
                     self.revalidate_resolved_expression(for_statement.block);
                 }
-                HirStatement::Loop(block) => self.revalidate_resolved_expression(block),
+                HirStatement::Loop(block) => {
+                    if self.in_constrained_function() {
+                        let location = self.interner.statement_location(*statement);
+                        self.push_err(ResolverError::LoopInConstrainedFn { location });
+                    }
+                    self.revalidate_resolved_expression(block);
+                }
                 HirStatement::While(condition, block) => {
+                    if self.in_constrained_function() {
+                        let location = self.interner.statement_location(*statement);
+                        self.push_err(ResolverError::WhileInConstrainedFn { location });
+                    }
                     self.revalidate_resolved_expression(condition);
                     self.revalidate_resolved_expression(block);
                 }
                 HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
                     self.revalidate_resolved_expression(expr);
                 }
-                HirStatement::Break
-                | HirStatement::Continue
-                | HirStatement::Comptime(_)
+                HirStatement::Break => self.revalidate_resolved_jump(*statement, true),
+                HirStatement::Continue => self.revalidate_resolved_jump(*statement, false),
+                HirStatement::Comptime(_)
                 | HirStatement::TraitAssociatedConstant
                 | HirStatement::Error => {}
             }
+        }
+    }
+
+    fn revalidate_resolved_jump(&mut self, statement: StmtId, is_break: bool) {
+        if self.in_constrained_function() {
+            let location = self.interner.statement_location(statement);
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, location });
         }
     }
 
