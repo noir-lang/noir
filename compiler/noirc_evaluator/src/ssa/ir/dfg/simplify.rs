@@ -675,7 +675,7 @@ mod tests {
     ///
     /// `from_str_simplifying` performs the out-of-bounds rewrite; `array_get_optimization` then
     /// folds the in-bounds constant-index get to its element, which is where a wrongly-typed slot
-    /// would surface. Validating the terminators afterwards must not panic.
+    /// would surface. Validating the SSA afterwards must not panic.
     #[test]
     fn oob_constant_array_get_on_tuple_array_stays_well_typed() {
         let src = "
@@ -691,9 +691,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         let ssa = ssa.array_get_optimization();
-        for function in ssa.functions.values() {
-            crate::ssa::validation::validate_terminators(function);
-        }
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
     }
 
     #[test]
