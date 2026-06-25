@@ -828,16 +828,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_numeric_generic(value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
-                let associated_types =
-                    self.elaborator.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-
+                let typ =
+                    self.elaborator.interner.find_associated_type_for_impl(*trait_impl_id, name);
+                let typ = typ.expect("Expected to find associated type");
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
-                {
+                match typ.evaluate_to_integer(&typ.kind(), location) {
                     Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),

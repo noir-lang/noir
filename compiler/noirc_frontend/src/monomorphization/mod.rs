@@ -1494,13 +1494,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
-                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
-                {
+                let assoc_typ = self.interner.find_associated_type_for_impl(*trait_impl_id, name);
+                let assoc_typ = assoc_typ.expect("Expected to find associated type");
+                match assoc_typ.evaluate_to_integer(&assoc_typ.kind(), location) {
                     Ok(value) => {
                         let typ = Self::convert_type(&typ, location)?;
                         Ok(ast::Expression::Literal(ast::Literal::Integer(

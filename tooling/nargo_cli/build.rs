@@ -250,7 +250,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 10] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -271,6 +271,9 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
     // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
     // directly importable when the expansion is recompiled as a standalone program.
     "comptime_as_typed_expr_public_type_trait_method",
+    // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
+    // directly importable when the expansion is recompiled as a standalone program.
+    "comptime_transitive_public_dependency_type",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
