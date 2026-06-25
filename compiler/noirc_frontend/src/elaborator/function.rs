@@ -241,14 +241,7 @@ impl Elaborator<'_> {
         let Some(info) = self.unresolved_function_metas.remove(&func_id) else {
             return;
         };
-        // Removing the function from `unresolved_function_metas` is permanent: it will never be
-        // re-resolved. The usage its signature records (e.g. an import used only in a parameter
-        // type) is therefore a committed fact, so it must survive even when this runs inside a
-        // failing speculative probe — which rolls back usage-marks but cannot undo the structural
-        // removal above. Suspend the probe's undo log so those marks are kept.
-        let suspended = self.usage_tracker.suspend_speculative();
         self.resolve_unresolved_function_meta(func_id, info);
-        self.usage_tracker.resume_speculative(suspended);
     }
 
     /// Lazily resolves a function's [`FuncMeta`] if needed, then returns it.

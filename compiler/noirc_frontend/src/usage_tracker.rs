@@ -71,27 +71,6 @@ pub struct UsageTracker {
     /// type's method set — so they're tracked by id and removed when the method is called or
     /// otherwise referenced. The `Ident` is the method name, used to locate the unused warning.
     unused_impl_functions: HashMap<FuncId, Ident>,
-    /// A stack of [`Journal::Suspended`] frames. Each marks a region where removals from
-    /// `unused_items`/`unused_imports` are committed unconditionally, used to run a committed side
-    /// effect — e.g. resolving a function's [`FuncMeta`] — without its marks being rolled back.
-    ///
-    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
-    journal: Vec<Journal>,
-}
-
-/// A resolution-mode frame on the [`UsageTracker`]'s journal stack.
-#[derive(Debug)]
-enum Journal {
-    /// Removals are committed unconditionally.
-    Suspended,
-}
-
-/// Proof that a suspended frame is open, returned by [`UsageTracker::suspend_speculative`] and
-/// consumed by [`UsageTracker::resume_speculative`]. It can only be constructed here, and
-/// `#[must_use]` nudges callers to pair the suspend with a resume.
-#[must_use]
-pub(crate) struct SuspendTx {
-    _private: (),
 }
 
 impl UsageTracker {
@@ -191,29 +170,6 @@ impl UsageTracker {
         let key = (namespace, name.clone());
         if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
             items.remove(&key);
-        }
-    }
-
-    /// Suspend rollback recording by pushing a [`Journal::Suspended`] frame: while it is on top,
-    /// removals from the unused maps are committed unconditionally (never recorded for rollback).
-    /// Used to run a committed side effect — e.g. resolving a function's [`FuncMeta`], which
-    /// structurally strikes the function off the to-be-resolved list and so cannot be undone — from
-    /// inside a speculative probe without its usage-marks being rolled back when the probe fails.
-    /// Pair with [`resume_speculative`](Self::resume_speculative).
-    ///
-    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
-    pub(crate) fn suspend_speculative(&mut self) -> SuspendTx {
-        self.journal.push(Journal::Suspended);
-        SuspendTx { _private: () }
-    }
-
-    /// Resume after a [`suspend_speculative`](Self::suspend_speculative), popping its suspended frame.
-    pub(crate) fn resume_speculative(&mut self, _tx: SuspendTx) {
-        match self.journal.pop() {
-            Some(Journal::Suspended) => {}
-            other => {
-                panic!("resume_speculative expected a suspended frame on top, found {other:?}")
-            }
         }
     }
 
