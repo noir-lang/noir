@@ -3086,3 +3086,121 @@ fn resolve_revalidates_verify_proof_spliced_into_unconstrained() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB, stdlib]);
 }
+
+#[test]
+fn resolve_revalidates_while_loop_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { while true {} } }.as_expr().unwrap().resolve(Option::none());
+                          ^^^^^^^^^^^^^^^^^^^^ `while` is only allowed in unconstrained functions
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_loop_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { loop { break; } } }.as_expr().unwrap().resolve(Option::none());
+                          ^^^^^^^^^^^^^^^^^^^^^^ `loop` is only allowed in unconstrained functions
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_break_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { for _ in 0..3 { break; } } }.as_expr().unwrap().resolve(Option::none());
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ break is only allowed in unconstrained functions
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// The revalidation walk recurses into the structure of a resolved expression, so a
+// boundary-crossing call nested inside a block is caught the same as a top-level one.
+#[test]
+fn resolve_revalidates_unconstrained_call_nested_in_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { helper() } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        quote {
+            fn generated() -> Field {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Revalidation must not reject a resolved unconstrained call that is spliced into an
+// `unsafe` block: the boundary is crossed legally there, exactly as for hand-written code.
+#[test]
+fn resolve_allows_unconstrained_call_spliced_into_unsafe_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let call = quote { helper() }.as_expr().unwrap().resolve(Option::none());
+        quote {
+            fn generated() -> Field {
+                // Safety: test
+                unsafe { $call }
+            }
+        }
+    }
+
+    #[emit]
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
