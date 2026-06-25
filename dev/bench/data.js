@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782398736453,
+  "lastUpdate": 1782399037118,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23076,48 +23076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6150bbc97e8036f64f93bf3aecfca2e40da49d70",
-          "message": "fix: unify in comptime checked_transmute (#13011)",
-          "timestamp": "2026-06-19T12:46:23Z",
-          "tree_id": "a72b050e7c6910ecdb0fa82fb7c6446e5fb88eff",
-          "url": "https://github.com/noir-lang/noir/commit/6150bbc97e8036f64f93bf3aecfca2e40da49d70"
-        },
-        "date": 1781874386706,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166927,
-            "range": "± 202",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137328,
-            "range": "± 2823",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652556,
-            "range": "± 1572",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25169,6 +25127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041418,
             "range": "± 3937",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5490f4730a1ad4bb51275a63830bb956590865cc",
+          "message": "chore: Factor out some duplicated code (#13166)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-06-25T14:28:51Z",
+          "tree_id": "6b7f2fc82f2ad3952bb311cee0b63da2f9868e4f",
+          "url": "https://github.com/noir-lang/noir/commit/5490f4730a1ad4bb51275a63830bb956590865cc"
+        },
+        "date": 1782398962395,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175468,
+            "range": "± 352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144353,
+            "range": "± 4400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2654178,
+            "range": "± 13028",
             "unit": "ns/iter"
           }
         ]
