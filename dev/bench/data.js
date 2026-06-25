@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782382627113,
+  "lastUpdate": 1782382790495,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23106,48 +23106,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bc46fb64db31c220b3fdaaca4542c0fbe9b71276",
-          "message": "fix(frontend): pin associated types in assumed trait constraints (#13015)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-18T18:38:02Z",
-          "tree_id": "11a4570b03598738a377dbac97a8614072347ff2",
-          "url": "https://github.com/noir-lang/noir/commit/bc46fb64db31c220b3fdaaca4542c0fbe9b71276"
-        },
-        "date": 1781809538005,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166448,
-            "range": "± 982",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137179,
-            "range": "± 5113",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652026,
-            "range": "± 7432",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25199,6 +25157,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2359272,
             "range": "± 2168",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3c8a12a72f29690c6046a53d9b5c30a70f775de8",
+          "message": "chore: Factor out more duplicate code (#13167)",
+          "timestamp": "2026-06-25T09:59:54Z",
+          "tree_id": "674ec41be1704c96a0e9edb928aa4ab14ee73d2e",
+          "url": "https://github.com/noir-lang/noir/commit/3c8a12a72f29690c6046a53d9b5c30a70f775de8"
+        },
+        "date": 1782382714418,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128332,
+            "range": "± 435",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 114319,
+            "range": "± 2239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3044194,
+            "range": "± 3608",
             "unit": "ns/iter"
           }
         ]
