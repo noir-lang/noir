@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ItemScope"],"type":["Scope"]};
+window.SIDEBAR_ITEMS = {"struct":["ItemScope","NamespaceItem"]};

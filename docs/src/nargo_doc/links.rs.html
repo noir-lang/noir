@@ -413,12 +413,12 @@
 <a href=#413 id=413 data-nosnippet>413</a>
 <a href=#414 id=414 data-nosnippet>414</a>        <span class="comment">// We are at the last segment so we can return the item if it's public
 <a href=#415 id=415 data-nosnippet>415</a>        </span><span class="kw">if </span>index == segments.len() - <span class="number">1 </span>{
-<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let </span>(module_def_id, <span class="kw">_</span>, <span class="kw">_</span>) = per_ns.iter_items().next()<span class="question-mark">?</span>;
+<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">let </span>module_def_id = per_ns.iter_items().next()<span class="question-mark">?</span>.id;
 <a href=#417 id=417 data-nosnippet>417</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(LinkTarget::TopLevelItem(module_def_id));
 <a href=#418 id=418 data-nosnippet>418</a>        }
 <a href=#419 id=419 data-nosnippet>419</a>
 <a href=#420 id=420 data-nosnippet>420</a>        <span class="comment">// We are not at the last segment. Find a module, type or trait to continue.
-<a href=#421 id=421 data-nosnippet>421</a>        </span><span class="kw">let </span>(module_def_id, <span class="kw">_</span>, <span class="kw">_</span>) = per_ns.types<span class="question-mark">?</span>;
+<a href=#421 id=421 data-nosnippet>421</a>        </span><span class="kw">let </span>module_def_id = per_ns.types<span class="question-mark">?</span>.id;
 <a href=#422 id=422 data-nosnippet>422</a>        <span class="kw">match </span>module_def_id {
 <a href=#423 id=423 data-nosnippet>423</a>            ModuleDefId::ModuleId(module_id) =&gt; {
 <a href=#424 id=424 data-nosnippet>424</a>                current_module = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span>module_id.krate][module_id.local_id];

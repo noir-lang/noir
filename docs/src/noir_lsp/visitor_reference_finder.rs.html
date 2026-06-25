@@ -305,7 +305,7 @@
 <a href=#305 id=305 data-nosnippet>305</a>
 <a href=#306 id=306 data-nosnippet>306</a>        <span class="comment">// The path here must resolve to a function and it's a simple path (can't have turbofish)
 <a href=#307 id=307 data-nosnippet>307</a>        // so it can (and must) be solved as an import.
-<a href=#308 id=308 data-nosnippet>308</a>        </span><span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((module_def_id, <span class="kw">_</span>, <span class="kw">_</span>))) = resolve_import(
+<a href=#308 id=308 data-nosnippet>308</a>        </span><span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(scope)) = resolve_import(
 <a href=#309 id=309 data-nosnippet>309</a>            path,
 <a href=#310 id=310 data-nosnippet>310</a>            <span class="self">self</span>.module_id,
 <a href=#311 id=311 data-nosnippet>311</a>            <span class="self">self</span>.args.def_maps,
@@ -316,7 +316,7 @@
 <a href=#316 id=316 data-nosnippet>316</a>            <span class="kw">return </span><span class="bool-val">true</span>;
 <a href=#317 id=317 data-nosnippet>317</a>        };
 <a href=#318 id=318 data-nosnippet>318</a>
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="self">self</span>.reference_id = <span class="prelude-val">Some</span>((module_def_id_to_reference_id(module_def_id), <span class="prelude-val">None</span>));
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="self">self</span>.reference_id = <span class="prelude-val">Some</span>((module_def_id_to_reference_id(scope.id), <span class="prelude-val">None</span>));
 <a href=#320 id=320 data-nosnippet>320</a>
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="bool-val">true
 <a href=#322 id=322 data-nosnippet>322</a>    </span>}

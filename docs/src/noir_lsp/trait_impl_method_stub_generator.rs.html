@@ -193,8 +193,8 @@
 <a href=#193 id=193 data-nosnippet>193</a>
 <a href=#194 id=194 data-nosnippet>194</a>                <span class="comment">// Check if the struct type is already imported/visible in this module
 <a href=#195 id=195 data-nosnippet>195</a>                </span><span class="kw">let </span>per_ns = current_module_data.find_name(<span class="kw-2">&amp;</span>struct_type.name);
-<a href=#196 id=196 data-nosnippet>196</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>((module_def_id, <span class="kw">_</span>, <span class="kw">_</span>)) = per_ns.types
-<a href=#197 id=197 data-nosnippet>197</a>                    &amp;&amp; module_def_id == ModuleDefId::TypeId(struct_type.id)
+<a href=#196 id=196 data-nosnippet>196</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(scope) = per_ns.types
+<a href=#197 id=197 data-nosnippet>197</a>                    &amp;&amp; scope.id == ModuleDefId::TypeId(struct_type.id)
 <a href=#198 id=198 data-nosnippet>198</a>                {
 <a href=#199 id=199 data-nosnippet>199</a>                    <span class="self">self</span>.string.push_str(struct_type.name.as_str());
 <a href=#200 id=200 data-nosnippet>200</a>                    <span class="self">self</span>.append_generics(generics);
@@ -228,8 +228,8 @@
 <a href=#228 id=228 data-nosnippet>228</a>
 <a href=#229 id=229 data-nosnippet>229</a>                <span class="comment">// Check if the alias type is already imported/visible in this module
 <a href=#230 id=230 data-nosnippet>230</a>                </span><span class="kw">let </span>per_ns = current_module_data.find_name(<span class="kw-2">&amp;</span>type_alias.name);
-<a href=#231 id=231 data-nosnippet>231</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>((module_def_id, <span class="kw">_</span>, <span class="kw">_</span>)) = per_ns.types
-<a href=#232 id=232 data-nosnippet>232</a>                    &amp;&amp; module_def_id == ModuleDefId::TypeAliasId(type_alias.id)
+<a href=#231 id=231 data-nosnippet>231</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(scope) = per_ns.types
+<a href=#232 id=232 data-nosnippet>232</a>                    &amp;&amp; scope.id == ModuleDefId::TypeAliasId(type_alias.id)
 <a href=#233 id=233 data-nosnippet>233</a>                {
 <a href=#234 id=234 data-nosnippet>234</a>                    <span class="self">self</span>.string.push_str(type_alias.name.as_str());
 <a href=#235 id=235 data-nosnippet>235</a>                    <span class="self">self</span>.append_generics(generics);
