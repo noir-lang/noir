@@ -3357,22 +3357,53 @@ impl Elaborator<'_> {
             lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
+        let crossing_runtime_boundary =
+            self.check_call_runtime_boundary(call.func, &func_type, &args, location);
+
+        let return_type = self.bind_function_type(func_type, args, location);
+
+        if crossing_runtime_boundary {
+            self.check_unconstrained_call_return(&return_type, location);
+        }
+
+        return_type
+    }
+
+    /// Re-runs the runtime-mode-dependent validity checks for a call against the *current*
+    /// elaboration context: that `verify_proof_with_type` is not reached from an unconstrained
+    /// context, and that a constrained function only reaches an unconstrained one from within an
+    /// `unsafe` block (with its arguments suitably constrained).
+    ///
+    /// Returns whether the call crosses the constrained/unconstrained boundary, in which case the
+    /// caller must also validate the return type with [`Self::check_unconstrained_call_return`]
+    /// once it is known.
+    ///
+    /// This is shared between regular call type-checking and the revalidation of resolved
+    /// expressions spliced in from a comptime `Expr::resolve`, which were originally elaborated in
+    /// a different context (see [`Self::revalidate_resolved_expression`]).
+    pub(super) fn check_call_runtime_boundary(
+        &mut self,
+        func: ExprId,
+        func_type: &Type,
+        args: &[(Type, ExprId, Location)],
+        location: Location,
+    ) -> bool {
         let is_current_func_constrained = self.in_constrained_function();
         if !is_current_func_constrained {
             // Check if we're calling verify_proof_with_type in an unconstrained context
             self.run_lint(|elaborator| {
-                lints::error_if_verify_proof_with_type(elaborator.interner, call.func, location)
+                lints::error_if_verify_proof_with_type(elaborator.interner, func, location)
             });
         }
 
         let func_type_is_unconstrained =
-            if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {
+            if let Type::Function(_args, _ret, _env, unconstrained) = func_type {
                 *unconstrained
             } else {
                 false
             };
 
-        let func_is_unconstrained_call = match self.is_unconstrained_call(call.func, location) {
+        let func_is_unconstrained_call = match self.is_unconstrained_call(func, location) {
             Ok(result) => result,
             Err(error) => {
                 self.push_err(error);
@@ -3401,24 +3432,28 @@ impl Elaborator<'_> {
             // the check reports a spurious "mutable reference" error. This
             // matters inside recursive `elaborate_items` (from `run_attributes`)
             // where outer-pending structs haven't been drained yet.
-            for (typ, _, _) in &args {
+            for (typ, _, _) in args {
                 self.define_deferred_data_types_in(typ);
             }
 
-            let errors = lints::unconstrained_function_args(&args);
+            let errors = lints::unconstrained_function_args(args);
             self.push_errors(errors);
         }
 
-        let return_type = self.bind_function_type(func_type, args, location);
+        crossing_runtime_boundary
+    }
 
-        if crossing_runtime_boundary {
-            self.define_deferred_data_types_in(&return_type);
-            self.run_lint(|_| {
-                lints::unconstrained_function_return(&return_type, location).map(Into::into)
-            });
-        }
-
-        return_type
+    /// Companion to [`Self::check_call_runtime_boundary`]: validates the return type of a call that
+    /// crosses the constrained/unconstrained boundary.
+    pub(super) fn check_unconstrained_call_return(
+        &mut self,
+        return_type: &Type,
+        location: Location,
+    ) {
+        self.define_deferred_data_types_in(return_type);
+        self.run_lint(|_| {
+            lints::unconstrained_function_return(return_type, location).map(Into::into)
+        });
     }
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
