@@ -159,7 +159,10 @@ impl Elaborator<'_> {
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
             }
-            ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
+            ExpressionKind::Resolved(id) => {
+                self.revalidate_resolved_expression(id);
+                return (id, self.interner.id_type(id));
+            }
             ExpressionKind::Interned(id) => {
                 let expr_kind = self.interner.get_expression_kind(id);
                 let expr = Expression::new(expr_kind.clone(), expr.location);
@@ -2037,5 +2040,192 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
+    }
+
+    /// Re-validate an already-elaborated expression that is being spliced into the current context
+    /// via an unquote marker (an `ExpressionKind::Resolved`).
+    ///
+    /// `Expr::resolve` elaborates a quoted expression eagerly, in whatever function/runtime-mode/
+    /// module context it was given, and stores the resulting `ExprId` inside a `TypedExpr`. When
+    /// that `TypedExpr` is later unquoted into a different expansion the context-sensitive checks
+    /// performed during the original elaboration no longer hold. Without revalidation a constrained
+    /// function could reach an unconstrained one without an `unsafe` block, `verify_proof_with_type`
+    /// could end up in Brillig, or a reference to a comptime local could escape its defining scope
+    /// and reach later compiler phases. We re-run those checks here against the splice site.
+    pub(super) fn revalidate_resolved_expression(&mut self, expr_id: ExprId) {
+        match self.interner.expression(&expr_id) {
+            HirExpression::Ident(ident, _) => {
+                // A reference to a comptime local is normally replaced by its value when used in
+                // runtime code (see `elaborate_variable`). A resolved expression bypasses that, so
+                // a raw reference to a comptime local can only have come from a scope that is no
+                // longer live here.
+                if !self.in_comptime_context()
+                    && let Some(definition) = self.interner.try_definition(ident.id)
+                    && definition.is_comptime_local()
+                {
+                    let name = definition.name.clone();
+                    self.push_err(ResolverError::ComptimeVariableEscapesScope {
+                        name,
+                        location: ident.location,
+                    });
+                }
+            }
+            HirExpression::Call(call) => {
+                self.revalidate_resolved_expression(call.func);
+                for argument in &call.arguments {
+                    self.revalidate_resolved_expression(*argument);
+                }
+
+                let func_type = self.interner.id_type(call.func);
+                let args = vecmap(&call.arguments, |argument| {
+                    (
+                        self.interner.id_type(*argument),
+                        *argument,
+                        self.interner.expr_location(argument),
+                    )
+                });
+                let crossing_runtime_boundary =
+                    self.check_call_runtime_boundary(call.func, &func_type, &args, call.location);
+                if crossing_runtime_boundary {
+                    let return_type = self.interner.id_type(expr_id);
+                    self.check_unconstrained_call_return(&return_type, call.location);
+                }
+            }
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Array(array) | HirLiteral::Vector(array) => match array {
+                    HirArrayLiteral::Standard(elements) => {
+                        for element in elements {
+                            self.revalidate_resolved_expression(element);
+                        }
+                    }
+                    HirArrayLiteral::Repeated { repeated_element, length: _ } => {
+                        self.revalidate_resolved_expression(repeated_element);
+                    }
+                },
+                HirLiteral::FmtStr(_, exprs, _) => {
+                    for expr in exprs {
+                        self.revalidate_resolved_expression(expr);
+                    }
+                }
+                HirLiteral::Bool(_)
+                | HirLiteral::Integer(_)
+                | HirLiteral::Str(_)
+                | HirLiteral::Unit => {}
+            },
+            HirExpression::Block(block) | HirExpression::Unsafe(block) => {
+                self.revalidate_resolved_block(&block);
+            }
+            HirExpression::Prefix(prefix) => {
+                self.revalidate_resolved_expression(prefix.rhs);
+            }
+            HirExpression::Infix(infix) => {
+                self.revalidate_resolved_expression(infix.lhs);
+                self.revalidate_resolved_expression(infix.rhs);
+            }
+            HirExpression::Index(index) => {
+                self.revalidate_resolved_expression(index.collection);
+                self.revalidate_resolved_expression(index.index);
+            }
+            HirExpression::Constructor(constructor) => {
+                for (_, field) in constructor.fields {
+                    self.revalidate_resolved_expression(field);
+                }
+            }
+            HirExpression::EnumConstructor(constructor) => {
+                for argument in constructor.arguments {
+                    self.revalidate_resolved_expression(argument);
+                }
+            }
+            HirExpression::MemberAccess(member_access) => {
+                self.revalidate_resolved_expression(member_access.lhs);
+            }
+            HirExpression::Constrain(constrain) => {
+                self.revalidate_resolved_expression(constrain.0);
+                if let Some(message) = constrain.2 {
+                    self.revalidate_resolved_expression(message);
+                }
+            }
+            HirExpression::Cast(cast) => {
+                self.revalidate_resolved_expression(cast.lhs);
+            }
+            HirExpression::If(if_expr) => {
+                self.revalidate_resolved_expression(if_expr.condition);
+                self.revalidate_resolved_expression(if_expr.consequence);
+                if let Some(alternative) = if_expr.alternative {
+                    self.revalidate_resolved_expression(alternative);
+                }
+            }
+            HirExpression::Tuple(elements) => {
+                for element in elements {
+                    self.revalidate_resolved_expression(element);
+                }
+            }
+            HirExpression::Lambda(lambda) => {
+                // A lambda body has its own runtime mode, so re-run the checks with that mode in
+                // effect rather than the enclosing function's.
+                self.lambda_stack.push(LambdaContext {
+                    captures: Vec::new(),
+                    scope_index: 0,
+                    unconstrained: lambda.unconstrained,
+                });
+                self.revalidate_resolved_expression(lambda.body);
+                self.lambda_stack.pop();
+            }
+            HirExpression::Match(match_expr) => {
+                self.revalidate_resolved_match(&match_expr);
+            }
+            HirExpression::Quote(_) | HirExpression::Unquote(_) | HirExpression::Error => {}
+        }
+    }
+
+    fn revalidate_resolved_block(&mut self, block: &HirBlockExpression) {
+        for statement in &block.statements {
+            match self.interner.statement(statement) {
+                HirStatement::Let(let_statement) => {
+                    self.revalidate_resolved_expression(let_statement.expression);
+                }
+                HirStatement::Assign(assign) => {
+                    self.revalidate_resolved_expression(assign.expression);
+                }
+                HirStatement::For(for_statement) => {
+                    self.revalidate_resolved_expression(for_statement.start_range);
+                    self.revalidate_resolved_expression(for_statement.end_range);
+                    self.revalidate_resolved_expression(for_statement.block);
+                }
+                HirStatement::Loop(block) => self.revalidate_resolved_expression(block),
+                HirStatement::While(condition, block) => {
+                    self.revalidate_resolved_expression(condition);
+                    self.revalidate_resolved_expression(block);
+                }
+                HirStatement::Expression(expr) | HirStatement::Semi(expr) => {
+                    self.revalidate_resolved_expression(expr);
+                }
+                HirStatement::Break
+                | HirStatement::Continue
+                | HirStatement::Comptime(_)
+                | HirStatement::TraitAssociatedConstant
+                | HirStatement::Error => {}
+            }
+        }
+    }
+
+    fn revalidate_resolved_match(&mut self, match_expr: &HirMatch) {
+        match match_expr {
+            HirMatch::Success(expr) => self.revalidate_resolved_expression(*expr),
+            HirMatch::Failure { .. } => {}
+            HirMatch::Guard { cond, body, otherwise } => {
+                self.revalidate_resolved_expression(*cond);
+                self.revalidate_resolved_expression(*body);
+                self.revalidate_resolved_match(otherwise);
+            }
+            HirMatch::Switch(_, cases, default) => {
+                for case in cases {
+                    self.revalidate_resolved_match(&case.body);
+                }
+                if let Some(default) = default {
+                    self.revalidate_resolved_match(default);
+                }
+            }
+        }
     }
 }
