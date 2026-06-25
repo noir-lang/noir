@@ -535,8 +535,10 @@ impl LoopBounds {
     /// incremented at each iteration by a constant step.
     /// The function is conservative and may returns false although the iterator may reach
     /// the bounds after all.
-    /// - Returns `True` when the induction variable is ensured to stay within the bounds.
-    /// - Returns `False` if it may escape the bounds, for `NotEqual` condition with a non unit step
+    /// - Returns `True` when the induction variable is ensured to 'falsify the guard', so the loop
+    ///   terminates.
+    /// - Returns `False` if it may escape the bounds, for `NotEqual` condition with a non unit step.
+    ///   In that case, escaping the bounds can lead to infinite loop.
     pub(super) fn iterator_reach_bounds(self, step: IntegerConstant) -> bool {
         match self.kind {
             LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
