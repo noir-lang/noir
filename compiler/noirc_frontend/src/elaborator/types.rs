@@ -2129,10 +2129,24 @@ impl Elaborator<'_> {
         TraitPathResolution { method, item: Some(item), errors }
     }
 
-    /// Try to resolve a [`TypedPath`] to a trait method path.
+    /// Try to resolve a [`TypedPath`] to a trait item (method or associated constant).
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    ///
+    /// The forms are tried in order; the order is significant, as it decides which interpretation
+    /// wins when a path is ambiguous:
+    ///
+    /// 1. `Self::item` inside a trait *definition*, resolved as an assumed constraint on `Self`
+    ///    ([`Self::resolve_trait_static_method_by_self`]).
+    /// 2. `Trait::static_method` or `Type::trait_method`
+    ///    ([`Self::resolve_trait_static_method`]).
+    /// 3. `T::method` where a `T: Trait` bound is in scope
+    ///    ([`Self::resolve_trait_method_by_named_generic`]).
+    /// 4. `Type::method` or `Type::<..>::method`, an inherent or qualified trait method
+    ///    ([`Self::resolve_type_method_or_trait_method`]).
+    /// 5. `Trait::CONST`, a trait's associated constant
+    ///    ([`Self::resolve_trait_static_constant`]).
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_generic_path(
         &mut self,

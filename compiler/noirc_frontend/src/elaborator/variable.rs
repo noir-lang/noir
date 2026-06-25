@@ -27,10 +27,17 @@ use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
 use noirc_errors::{Located, Location};
 
-/// The result of [`Elaborator::resolve_variable`].
+/// The result of [`Elaborator::resolve_variable`]: what a path used as an expression resolves
+/// to. See [`Elaborator::resolve_variable`] for the full, ordered list of the path forms each
+/// variant covers.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum VariableResolution {
-    /// The path resolved to a variable or a definition.
+    /// The path was elaborated straight to an expression. This happens for the `Self::*` forms
+    /// handled inside a trait impl: an associated constant, an associated-type method, or a
+    /// method when `Self` is a primitive type.
+    Expression(ExprId, Type),
+    /// The path resolved to a local variable, a definition (global, function, enum-variant
+    /// global), or a trait item (method or associated constant).
     Ident(HirIdent, Option<PathResolutionItem>),
     /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
     TypeAlias(TypeAliasId),
@@ -67,11 +74,6 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_variable_inner(&mut self, variable: Path) -> (ExprId, Type, bool, Location) {
         let variable = self.validate_path(variable);
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(&variable)
-        {
-            return (expr_id, typ, false, variable.location);
-        }
 
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
@@ -86,6 +88,7 @@ impl Elaborator<'_> {
         let variable_resolution = self.resolve_variable(variable);
 
         let (hir_ident, item) = match variable_resolution {
+            Some(VariableResolution::Expression(id, typ)) => return (id, typ, false, location),
             Some(VariableResolution::TypeAlias(type_alias_id)) => {
                 // A type alias to a numeric generics is considered like a variable,
                 // but it is not a real variable so it does not resolve to a valid Identifier.
@@ -474,9 +477,31 @@ impl Elaborator<'_> {
         (id, numeric_type)
     }
 
-    /// Resolve a [`TypedPath`] to a [`HirIdent`] of either some trait method, or a local or global variable.
+    /// Resolve a [`TypedPath`] used as an expression to the item it names.
+    ///
+    /// This is the single place that enumerates every form a path-as-expression can take. The
+    /// forms are tried in the order below; the order is significant, as it decides which
+    /// interpretation wins when a path is ambiguous:
+    ///
+    /// 1. `Self::AssocType::method`, `Self::CONST`, or `Self::method` (primitive `Self`), inside
+    ///    a trait impl — elaborated directly to an expression
+    ///    (see [`Self::elaborate_variable_as_self_method_or_associated_constant`]).
+    /// 2. A trait item reached through `Self`, a trait, a concrete type, or an in-scope generic
+    ///    bound — e.g. `Self::item` in a trait definition, `Trait::method`, `Type::method`,
+    ///    `T::method` where `T: Trait`, or `Trait::CONST`
+    ///    (see [`Self::resolve_trait_generic_path`] for the individual forms).
+    /// 3. A local variable, a definition (global, function, enum-variant global), or a numeric
+    ///    type alias (see [`Self::get_ident_from_path`]).
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
+        // Case 1
+        if let Some((expr_id, typ)) =
+            self.elaborate_variable_as_self_method_or_associated_constant(&path)
+        {
+            return Some(VariableResolution::Expression(expr_id, typ));
+        }
+
+        // Case 2
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
 
@@ -506,6 +531,7 @@ impl Elaborator<'_> {
             };
         }
 
+        // Case 3.
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
