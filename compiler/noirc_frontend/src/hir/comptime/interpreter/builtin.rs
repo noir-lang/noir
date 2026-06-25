@@ -41,7 +41,7 @@ use crate::{
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
-                builtin::builtin_helpers::fragments_to_string,
+                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
                 builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
@@ -88,6 +88,7 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
+            "ctstring_append" => ctstring_append(arguments, location),
             "ctstring_eq" => eq_item(arguments, location, get_ctstring),
             "ctstring_hash" => hash_item(arguments, location, get_ctstring),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -2534,8 +2535,7 @@ fn fmtstr_as_ctstring(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner, files);
-    let bytes = string.bytes().collect();
+    let bytes = fragments_to_bytes(&fragments, interner, files);
     Ok(Value::CtString(Rc::new(bytes)))
 }
 
@@ -3145,6 +3145,17 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
+}
+
+// fn append(self, other: CtString) -> CtString
+fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_argument, other_argument) = check_two_arguments(arguments, location)?;
+    let self_bytes = get_ctstring(self_argument)?;
+    let other_bytes = get_ctstring(other_argument)?;
+
+    let mut bytes = self_bytes.as_ref().clone();
+    bytes.extend_from_slice(&other_bytes);
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 fn derive_generators(

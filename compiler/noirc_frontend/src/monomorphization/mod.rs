@@ -1494,13 +1494,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
-                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
-                {
+                let assoc_typ = self.interner.find_associated_type_for_impl(*trait_impl_id, name);
+                let assoc_typ = assoc_typ.expect("Expected to find associated type");
+                match assoc_typ.evaluate_to_integer(&assoc_typ.kind(), location) {
                     Ok(value) => {
                         let typ = Self::convert_type(&typ, location)?;
                         Ok(ast::Expression::Literal(ast::Literal::Integer(
@@ -2154,13 +2150,15 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&expr_id);
+        let typ = Rc::new(Self::convert_type(&function_type, location)?);
+
         let Definition::Function(func_id) =
             self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
         else {
             unreachable!();
         };
 
-        let location = self.interner.expr_location(&expr_id);
         let name = self.interner.definition_name(trait_item_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
@@ -2168,7 +2166,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ: Rc::new(Self::convert_type(&function_type, location)?),
+            typ,
             id: self.next_ident_id(),
         }))
     }

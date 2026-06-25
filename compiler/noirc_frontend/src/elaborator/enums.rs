@@ -332,8 +332,9 @@ impl Elaborator<'_> {
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        self.interner.get_global_mut(global_id).value =
-            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
+        let global = self.interner.get_global_mut(global_id);
+        global.value = GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
+        global.is_enum_variant = true;
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -788,7 +789,7 @@ impl Elaborator<'_> {
         if let Ok(resolution) = self.resolve_path_or_error(typed_path, PathResolutionTarget::Value)
         {
             return match &resolution {
-                PathResolutionItem::Global(id) => {
+                PathResolutionItem::Global(id) | PathResolutionItem::EnumVariant(id) => {
                     let global = self.interner.get_global(*id);
                     let typ = self.interner.definition_type(global.definition_id);
                     let inner = match &typ {
@@ -884,7 +885,7 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let (actual_type, expected_arg_types, variant_index) = match &resolution {
-            PathResolutionItem::Global(id) => {
+            PathResolutionItem::Global(id) | PathResolutionItem::EnumVariant(id) => {
                 // variant constant
                 self.elaborate_global_if_unresolved(id);
                 let global = self.interner.get_global(*id);

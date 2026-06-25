@@ -225,6 +225,17 @@ fn negate_unsigned() {
 }
 
 #[test]
+fn negate_bool() {
+    let src = r#"
+    fn main() {
+        let _var = -true;
+                   ^^^^^ Cannot apply unary operator `-` to type `bool`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn tuple_mismatch() {
     let src = r#"
     fn main() {
