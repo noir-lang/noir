@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782403416401,
+  "lastUpdate": 1782407231813,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "d6418faa90647a607f06e27b58314774676f5a28",
-          "message": "fix: incorrect empty-loop condition for `!=` loops (#13057)",
-          "timestamp": "2026-06-19T13:03:35Z",
-          "tree_id": "d3da8a6c4b931c8bab73f9901b416617d93a21fc",
-          "url": "https://github.com/noir-lang/noir/commit/d6418faa90647a607f06e27b58314774676f5a28"
-        },
-        "date": 1781875389379,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167449,
-            "range": "± 394",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137514,
-            "range": "± 5460",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2660977,
-            "range": "± 4798",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "79c9b2c559c265640ee10f073857a24a0533e4b0",
           "message": "fix: avoid constant-folding ICE on const Brillig calls with ZST array arguments (#13119)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
           "timestamp": "2026-06-19T13:08:38Z",
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657410,
             "range": "± 7180",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "61b3eeef4b37c3669c574cf8f68c2308ebe6fe99",
+          "message": "fix: revalidate resolved TypedExpr values in their final expansion context (#13179)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-25T16:45:22Z",
+          "tree_id": "ef201f0066e17f141be1ba36a53300bddc37f9b5",
+          "url": "https://github.com/noir-lang/noir/commit/61b3eeef4b37c3669c574cf8f68c2308ebe6fe99"
+        },
+        "date": 1782407154007,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 132621,
+            "range": "± 857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 115840,
+            "range": "± 2020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043881,
+            "range": "± 19385",
             "unit": "ns/iter"
           }
         ]
