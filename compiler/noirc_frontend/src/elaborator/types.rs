@@ -73,6 +73,39 @@ pub(super) enum TraitPathResolutionMethod {
     MultipleTraitsInScope,
 }
 
+/// What the prefix of a path (every segment but the last) resolves to, used to decide how the
+/// last segment should be interpreted when the path is used as an expression. Only meaningful
+/// for paths with at least two segments; a single-segment path has no prefix.
+#[derive(Debug)]
+pub(super) enum PathPrefixKind {
+    /// A trait, e.g. the `Trait` in `Trait::CONST`. The last segment is one of the trait's items.
+    Trait(TraitId),
+    /// A concrete type, type alias, primitive type, or `Self` bound to a data type — e.g. the
+    /// `Type` in `Type::method`. The last segment is an inherent method, a qualified trait
+    /// method, or an associated constant.
+    Type,
+    /// A module, or anything else that cannot prefix an associated item (e.g. `foo::bar` in
+    /// `foo::bar::GLOBAL`). The last segment is an ordinary value item, resolved elsewhere.
+    Other,
+}
+
+/// The prefix of a path used as an expression, resolved once so the last segment can be
+/// interpreted without re-resolving the leading segments. Produced by
+/// [`Elaborator::resolve_path_prefix`].
+#[derive(Debug)]
+pub(super) struct ResolvedPathPrefix {
+    /// The path's last segment: the item being accessed on the prefix.
+    last_segment: TypedPathSegment,
+    /// Turbofish on the segment immediately before the last (the prefix's own turbofish).
+    turbofish: Option<Turbofish>,
+    /// Whether the prefix is exactly `Self`.
+    is_self_prefix: bool,
+    /// The resolved prefix and any errors gathered while resolving it.
+    resolution: PathResolution,
+    /// The classified kind of the resolved prefix.
+    kind: PathPrefixKind,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WildcardAllowed {
     Yes,
@@ -1466,34 +1499,56 @@ impl Elaborator<'_> {
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
-    /// This resolves `TraitName::SOME_CONSTANT` to the trait's associated constant.
+    /// Resolve the prefix of a path used as an expression: every segment but the last, resolved
+    /// as a type. The result lets the caller interpret the last segment based on what the prefix
+    /// is, without re-resolving the leading segments for each candidate interpretation.
     ///
-    /// An associated constant is not a function, so `resolve_path_as_type` fails on the full
-    /// path (it only resolves paths ending in a type or function). Instead we resolve the
-    /// leading segments to a trait and look the constant up by name. The resulting `TraitItem`
-    /// is lowered to the selected impl's value during monomorphization, mirroring how
-    /// `Self::SOME_CONSTANT` is handled by `resolve_trait_static_method_by_self`.
-    fn resolve_trait_static_constant(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
+    /// Returns `None` if the path has fewer than two segments (so there is no prefix) or the
+    /// prefix cannot be resolved as a type or module.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_path_prefix(&mut self, path: &TypedPath) -> Option<ResolvedPathPrefix> {
         if path.segments.len() < 2 {
             return None;
         }
 
-        self.speculatively(|this| {
-            let mut trait_path = path.clone();
-            let constant = trait_path.pop().ident;
+        let mut path = path.clone();
+        let last_segment = path.pop();
+        let turbofish = path.last_segment().turbofish();
+        let is_self_prefix = path.first_name() == Some(SELF_TYPE_NAME);
 
-            let resolution = this.resolve_path_as_type(trait_path).ok()?;
-            let PathResolutionItem::Trait(trait_id) = resolution.item else {
-                return None;
-            };
+        let resolution = self.use_path_as_type(path).ok()?;
+        let kind = match &resolution.item {
+            PathResolutionItem::Trait(trait_id) => PathPrefixKind::Trait(*trait_id),
+            PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type,
+            _ => PathPrefixKind::Other,
+        };
 
-            let the_trait = this.interner.get_trait(trait_id);
-            let definition = the_trait.associated_constant_ids.get(constant.as_str()).copied()?;
-            let constraint = the_trait.as_constraint(path.location);
-            let trait_item = TraitItem { definition, constraint, assumed: true };
-            let method = TraitPathResolutionMethod::TraitItem(trait_item);
-            Some(TraitPathResolution { method, item: None, errors: resolution.errors })
-        })
+        Some(ResolvedPathPrefix { last_segment, turbofish, is_self_prefix, resolution, kind })
+    }
+
+    /// Resolves `Trait::SOME_CONSTANT` to the trait's associated constant, given a prefix that has
+    /// already been resolved to a trait.
+    ///
+    /// An associated constant is not a function, so resolving the full path as a type fails (only
+    /// paths ending in a type or function resolve that way). Instead the trait prefix is resolved
+    /// separately and the constant looked up by name. The resulting `TraitItem` is lowered to the
+    /// selected impl's value during monomorphization, mirroring how `Self::SOME_CONSTANT` is
+    /// handled by [`Self::resolve_trait_static_method_by_self`].
+    fn resolve_trait_constant_on_prefix(
+        &self,
+        trait_id: TraitId,
+        location: Location,
+        prefix: ResolvedPathPrefix,
+    ) -> Option<TraitPathResolution> {
+        let the_trait = self.interner.get_trait(trait_id);
+        let definition =
+            the_trait.associated_constant_ids.get(prefix.last_segment.ident.as_str()).copied()?;
+        let constraint = the_trait.as_constraint(location);
+        let trait_item = TraitItem { definition, constraint, assumed: true };
+        let method = TraitPathResolutionMethod::TraitItem(trait_item);
+        Some(TraitPathResolution { method, item: None, errors: prefix.resolution.errors })
     }
 
     /// For path resolutions that went through a typed item (e.g. `MyStruct::method`,
@@ -1701,32 +1756,24 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolves `Type::method` (or `Type::<..>::method`) given a prefix already resolved to a type,
+    /// type alias, or primitive type.
     ///
     /// When turbofish generics are present, uses type-directed lookup to select the correct impl
     /// (e.g. `S::<u32, u64>::foo` picks the impl whose self type unifies with `S<u32, u64>`).
     /// Without turbofish, returns `None` so the caller falls back to module-based lookup, which
     /// handles `Self::method`, visibility checks, and associated constants correctly.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_type_method_or_trait_method(
+    fn resolve_method_on_type_prefix(
         &mut self,
-        path: &TypedPath,
+        location: Location,
+        prefix: ResolvedPathPrefix,
     ) -> Option<TraitPathResolution> {
-        if path.segments.len() < 2 {
-            return None;
-        }
-
-        let mut path = path.clone();
-        let location = path.location;
-        let last_segment = path.pop();
-        let before_last_segment = path.last_segment();
-        let turbofish = before_last_segment.turbofish();
-
         // `Self::method` must anchor on the impl's own `self_type` and produce a `SelfMethod`, so it
         // gets dedicated handling (in `resolve_self_or_inherent_method`) distinct from a plain
         // `TypeName::method`.
-        let is_self_prefix = path.first_name() == Some(SELF_TYPE_NAME);
-
-        let path_resolution = self.use_path_as_type(path).ok()?;
+        let ResolvedPathPrefix { last_segment, turbofish, is_self_prefix, resolution, .. } = prefix;
+        let path_resolution = resolution;
 
         let mut errors = Vec::new();
         let typ = self.path_resolution_item_to_type(
@@ -2143,20 +2190,42 @@ impl Elaborator<'_> {
     ///    ([`Self::resolve_trait_static_method`]).
     /// 3. `T::method` where a `T: Trait` bound is in scope
     ///    ([`Self::resolve_trait_method_by_named_generic`]).
-    /// 4. `Type::method` or `Type::<..>::method`, an inherent or qualified trait method
-    ///    ([`Self::resolve_type_method_or_trait_method`]).
-    /// 5. `Trait::CONST`, a trait's associated constant
-    ///    ([`Self::resolve_trait_static_constant`]).
+    ///
+    /// The remaining forms are distinguished by what the path's *prefix* (every segment but the
+    /// last) resolves to, so the prefix is resolved once ([`Self::resolve_path_prefix`]) and the
+    /// last segment is interpreted accordingly:
+    ///
+    /// 4. prefix is a type/alias/primitive ⇒ `Type::method` / `Type::<..>::method`, an inherent or
+    ///    qualified trait method ([`Self::resolve_method_on_type_prefix`]).
+    /// 5. prefix is a trait ⇒ `Trait::CONST`, a trait's associated constant
+    ///    ([`Self::resolve_trait_constant_on_prefix`]).
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &TypedPath,
     ) -> Option<TraitPathResolution> {
-        self.resolve_trait_static_method_by_self(path)
-            .or_else(|| self.resolve_trait_static_method(path))
-            .or_else(|| self.resolve_trait_method_by_named_generic(path))
-            .or_else(|| self.resolve_type_method_or_trait_method(path))
-            .or_else(|| self.resolve_trait_static_constant(path))
+        // Forms the module resolver can't classify from the prefix alone: an assumed `Self`
+        // constraint inside a trait definition, a trait method reached through the canonical
+        // trait/type path, or a method on a generic with an in-scope bound.
+        if let Some(resolution) = self.resolve_trait_static_method_by_self(path) {
+            return Some(resolution);
+        }
+        if let Some(resolution) = self.resolve_trait_static_method(path) {
+            return Some(resolution);
+        }
+        if let Some(resolution) = self.resolve_trait_method_by_named_generic(path) {
+            return Some(resolution);
+        }
+
+        // Forms distinguished by what the prefix resolves to.
+        let prefix = self.resolve_path_prefix(path)?;
+        match prefix.kind {
+            PathPrefixKind::Type => self.resolve_method_on_type_prefix(path.location, prefix),
+            PathPrefixKind::Trait(trait_id) => {
+                self.resolve_trait_constant_on_prefix(trait_id, path.location, prefix)
+            }
+            PathPrefixKind::Other => None,
+        }
     }
 
     /// Unify two types, modifying both in the process.
