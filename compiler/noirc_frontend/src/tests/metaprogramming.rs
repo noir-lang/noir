@@ -2524,6 +2524,11 @@ const META_API_STDLIB: &str = r#"
         #[builtin(function_def_as_typed_expr)]
         pub comptime fn as_typed_expr(self) -> TypedExpr {}
     }
+
+    impl TypedExpr {
+        #[builtin(typed_expr_as_function_definition)]
+        pub comptime fn as_function_definition(self) -> Option<FunctionDefinition> {}
+    }
 "#;
 
 #[test]
@@ -2976,4 +2981,108 @@ fn qualified_self_assoc_in_macro_inside_comptime_block_inside_impl_method() {
     }
     "#;
     assert_no_errors(src);
+}
+
+// `Expr::resolve` elaborates a quoted expression eagerly and stores the resulting `ExprId`
+// inside a `TypedExpr`. When that `TypedExpr` is later unquoted into a different context the
+// elaborator must revalidate it against the splice site rather than trusting the context it
+// was originally resolved in. The following tests pin that revalidation.
+
+#[test]
+fn resolve_does_not_let_comptime_local_escape_into_runtime() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let secret = 42;
+        let _ = secret;
+        let typed = quote { secret }.as_expr().unwrap().resolve(Option::none());
+                            ^^^^^^ Comptime variable `secret` cannot be used in runtime code
+                            ~~~~~~ `secret` was resolved in a comptime scope that is no longer in scope here
+        quote {
+            fn generated() -> Field {
+                $typed
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_unconstrained_call_spliced_into_constrained() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let call = quote { helper() }.as_expr().unwrap().resolve(Option::none());
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        quote {
+            fn generated() -> Field {
+                $call
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_verify_proof_spliced_into_unconstrained() {
+    let stdlib = r#"
+    pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+        _verification_key: [Field; N],
+        _proof: [Field; M],
+        _public_inputs: [Field; K],
+        _key_hash: Field,
+        _proof_type: u32,
+    ) {}
+    "#;
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let scope = quote { safe_scope }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::none())
+            .as_function_definition()
+            .unwrap();
+
+        let call = quote {
+            crate::verify_proof_with_type([0; 114], [0; 94], [0], 0, 0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot call `std::verify_proof_with_type` in unconstrained context
+        }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::some(scope));
+
+        quote {
+            unconstrained fn generated() {
+                $call
+            }
+        }
+    }
+
+    fn safe_scope() {}
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        safe_scope();
+        // Safety: test
+        unsafe { generated() };
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB, stdlib]);
 }
