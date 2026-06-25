@@ -34,9 +34,8 @@ impl Quoted {
 }
 
 impl Eq for Quoted {
-    comptime fn eq(self, other: Quoted) -> bool {
-        quoted_eq(self, other)
-    }
+    #[builtin(quoted_eq)]
+    comptime fn eq(self, other: Quoted) -> bool {}
 }
 
 impl crate::hash::Hash for Quoted {
@@ -47,9 +46,6 @@ impl crate::hash::Hash for Quoted {
         state.write(quoted_hash(self))
     }
 }
-
-#[builtin(quoted_eq)]
-comptime fn quoted_eq(_first: Quoted, _second: Quoted) -> bool {}
 
 #[builtin(quoted_hash)]
 comptime fn quoted_hash(_quoted: Quoted) -> Field {}

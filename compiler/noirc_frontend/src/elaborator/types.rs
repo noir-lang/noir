@@ -8,6 +8,7 @@ use im::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) use similarly_named_types::SimilarlyNamedType;
@@ -21,7 +22,7 @@ use crate::{
     },
     elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
-        comptime::{Integer, Value, evaluate_cast_one_step},
+        comptime::{Integer, Value, bigint_to_field, evaluate_cast_one_step},
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, ModuleId, Namespace, fully_qualified_module_path},
         resolution::{
@@ -950,26 +951,26 @@ impl Elaborator<'_> {
                 return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
-            if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some()
-            {
-                self.push_err(ResolverError::GenericsOnAssociatedType {
-                    location: last_segment.turbofish_location(),
-                });
-            }
+            self.error_if_generics_on_associated_type(path);
             return Some(typ);
         } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
-            if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some()
-            {
-                self.push_err(ResolverError::GenericsOnAssociatedType {
-                    location: last_segment.turbofish_location(),
-                });
-            }
+            self.error_if_generics_on_associated_type(path);
             return Some(typ);
         }
 
         None
+    }
+
+    /// Associated types cannot carry turbofish generics; report an error if the path's last
+    /// segment has any.
+    fn error_if_generics_on_associated_type(&mut self, path: &TypedPath) {
+        if let Some(last_segment) = path.segments.last()
+            && last_segment.generics.is_some()
+        {
+            self.push_err(ResolverError::GenericsOnAssociatedType {
+                location: last_segment.turbofish_location(),
+            });
+        }
     }
 
     /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
@@ -1069,7 +1070,7 @@ impl Elaborator<'_> {
                     return Type::Error;
                 }
 
-                let Some(int) = Integer::try_from_type_suffix(int, suffix) else {
+                let Some(int) = Integer::try_from_bigint_and_type_suffix(&int, suffix) else {
                     let min = typ.integral_minimum_size().unwrap();
                     let max = typ.integral_maximum_size().unwrap();
                     self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
@@ -1127,6 +1128,32 @@ impl Elaborator<'_> {
                 }
             }
             UnresolvedTypeExpression::Negation(rhs, location) => {
+                // Fold `-<magnitude>` of a signed integer literal into a single constant so the
+                // range check sees the negative value instead of rejecting the magnitude (e.g.
+                // `128` is out of `i8` range, but `-128` is `i8::MIN`).
+                if let UnresolvedTypeExpression::Constant(int, Some(suffix), const_location) =
+                    rhs.as_ref()
+                    && matches!(
+                        suffix,
+                        crate::token::IntegerTypeSuffix::I8
+                            | crate::token::IntegerTypeSuffix::I16
+                            | crate::token::IntegerTypeSuffix::I32
+                            | crate::token::IntegerTypeSuffix::I64
+                    )
+                {
+                    let folded = UnresolvedTypeExpression::Constant(
+                        -(int.clone()),
+                        Some(*suffix),
+                        *const_location,
+                    );
+                    return self.convert_expression_type(
+                        folded,
+                        expected_kind,
+                        location,
+                        wildcard_allowed,
+                    );
+                }
+
                 let rhs_location = rhs.location();
                 let rhs = self.convert_expression_type(
                     *rhs,
@@ -1150,7 +1177,7 @@ impl Elaborator<'_> {
                     }
                     rhs => {
                         let kind = rhs.kind().into_numeric_type_or_error();
-                        let int = Integer::try_from_type(FieldElement::zero(), &kind)
+                        let int = Integer::try_from_bigint(&BigInt::ZERO, &kind)
                             .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
                         let zero = Type::Constant(int);
                         let sub = BinaryTypeOperator::Subtraction;
@@ -1439,6 +1466,36 @@ impl Elaborator<'_> {
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
+    /// This resolves `TraitName::SOME_CONSTANT` to the trait's associated constant.
+    ///
+    /// An associated constant is not a function, so `resolve_path_as_type` fails on the full
+    /// path (it only resolves paths ending in a type or function). Instead we resolve the
+    /// leading segments to a trait and look the constant up by name. The resulting `TraitItem`
+    /// is lowered to the selected impl's value during monomorphization, mirroring how
+    /// `Self::SOME_CONSTANT` is handled by `resolve_trait_static_method_by_self`.
+    fn resolve_trait_static_constant(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
+        if path.segments.len() < 2 {
+            return None;
+        }
+
+        self.speculatively(|this| {
+            let mut trait_path = path.clone();
+            let constant = trait_path.pop().ident;
+
+            let resolution = this.resolve_path_as_type(trait_path).ok()?;
+            let PathResolutionItem::Trait(trait_id) = resolution.item else {
+                return None;
+            };
+
+            let the_trait = this.interner.get_trait(trait_id);
+            let definition = the_trait.associated_constant_ids.get(constant.as_str()).copied()?;
+            let constraint = the_trait.as_constraint(path.location);
+            let trait_item = TraitItem { definition, constraint, assumed: true };
+            let method = TraitPathResolutionMethod::TraitItem(trait_item);
+            Some(TraitPathResolution { method, item: None, errors: resolution.errors })
+        })
+    }
+
     /// For path resolutions that went through a typed item (e.g. `MyStruct::method`,
     /// `i32::method`), return that concrete type. This is used so that a `Trait::method`
     /// constraint built from one of these paths can be anchored on the concrete type rather
@@ -1484,6 +1541,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::TraitConstant(..) => None,
         };
         self.push_errors(errors);
@@ -1544,10 +1602,8 @@ impl Elaborator<'_> {
         if matches.len() > 1 {
             let location = path.location;
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |(_, trait_id)| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits =
+                vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
             let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
             return Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::MultipleTraitsInScope,
@@ -1705,6 +1761,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
+            | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
             | PathResolutionItem::SelfMethod(..)
@@ -1970,6 +2027,7 @@ impl Elaborator<'_> {
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
             .or_else(|| self.resolve_type_method_or_trait_method(path))
+            .or_else(|| self.resolve_trait_static_constant(path))
     }
 
     /// Unify two types, modifying both in the process.
@@ -2278,15 +2336,15 @@ impl Elaborator<'_> {
 
         // Warn if a user casts to an integer from a negative field literal.
         // `-1 as i8 == 0`, not `-1` which can be confusing.
-        if let Some(value) = from_value_opt
-            && -value < value
+        if let Some(value) = &from_value_opt
+            && *value < BigInt::ZERO
             && to.is_integer()
             && (from_follow_bindings.is_field() || from_follow_bindings.is_bindable())
             && let Ok(Value::Integer(result)) =
-                evaluate_cast_one_step(&to, location, Value::field(value))
+                evaluate_cast_one_step(&to, location, Value::field(bigint_to_field(value)))
         {
             self.push_err(TypeCheckError::NegativeLiteralCastToInteger {
-                value,
+                value: value.clone(),
                 result: result.to_string(),
                 to: to.clone(),
                 location,
@@ -2298,8 +2356,9 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value.fits_in_u128()
-            && from_value > to_maximum_size.into()
+            && from_value >= BigInt::ZERO
+            && from_value <= BigInt::from(u128::MAX)
+            && from_value > BigInt::from(to_maximum_size)
         {
             let from = from.clone();
             let to = to.clone();
@@ -2610,7 +2669,16 @@ impl Elaborator<'_> {
                         Ok((FieldElement, false))
                     }
 
-                    Bool => Ok((Bool, false)),
+                    Bool => {
+                        if *op == UnaryOp::Minus {
+                            return Err(TypeCheckError::InvalidUnaryOp {
+                                typ: rhs_type.to_string(),
+                                operator: "-",
+                                location,
+                            });
+                        }
+                        Ok((Bool, false))
+                    }
 
                     _ => Ok((rhs_type.clone(), true)),
                 }
@@ -3006,8 +3074,7 @@ impl Elaborator<'_> {
             if traits.len() == 1 {
                 // This is the backwards-compatible case where there's a single trait but it's not in scope
                 let trait_id = *traits.iter().next().unwrap();
-                let trait_ = self.interner.get_trait(trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
+                let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
                 let method =
                     self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
                 let error = PathResolutionError::TraitMethodNotInScope {
@@ -3016,10 +3083,8 @@ impl Elaborator<'_> {
                 };
                 return (Some(method), Some(error));
             } else {
-                let traits = vecmap(traits, |trait_id| {
-                    let trait_ = self.interner.get_trait(trait_id);
-                    self.fully_qualified_trait_path(trait_)
-                });
+                let traits =
+                    vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
                 let method_not_found = None;
                 let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), location),
@@ -3030,10 +3095,7 @@ impl Elaborator<'_> {
         }
 
         if traits_in_scope.len() > 1 {
-            let traits = vecmap(traits, |trait_id| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits = vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
             let method_not_found = None;
             let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), location),
@@ -3190,10 +3252,8 @@ impl Elaborator<'_> {
 
         if matches.len() > 1 {
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |method| {
-                let trait_ = self.interner.get_trait(method.trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits =
+                vecmap(matches, |method| self.fully_qualified_trait_path_by_id(method.trait_id));
             self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
             return None;
         }
@@ -3652,6 +3712,10 @@ impl Elaborator<'_> {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
         }
+    }
+
+    pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {
+        self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
     }
 
     pub(crate) fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {

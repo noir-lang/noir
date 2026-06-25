@@ -1257,19 +1257,17 @@ impl Loop {
         let mut cost = 0;
         for block_id in &self.blocks {
             match function.dfg[*block_id].unwrap_terminator() {
-                t @ TerminatorInstruction::Jmp { destination, .. } => {
-                    if self.blocks.contains(destination) || *destination == self.header {
+                t @ TerminatorInstruction::Jmp { destination, .. }
+                    if (self.blocks.contains(destination) || *destination == self.header) => {
                         cost += t.cost();
                     }
-                }
-                t @ TerminatorInstruction::JmpIf { then_destination, else_destination, .. } => {
+                t @ TerminatorInstruction::JmpIf { then_destination, else_destination, .. }
                     // If either branch targets a loop block, the whole JmpIf is boilerplate.
-                    if self.blocks.contains(then_destination)
-                        || self.blocks.contains(else_destination)
-                    {
+                    if (self.blocks.contains(then_destination)
+                        || self.blocks.contains(else_destination))
+                    => {
                         cost += t.cost();
                     }
-                }
                 _ => {}
             }
         }

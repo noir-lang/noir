@@ -6,6 +6,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 use assert_fs::prelude::{FileWriteStr, PathChild};
+use nargo::constants::PKG_FILE;
 
 /// A freshly created project has no dependencies, so `nargo fetch` should succeed
 /// without producing any output.
@@ -47,7 +48,7 @@ fn fetch_with_local_dependency() {
     cmd.assert().success();
 
     app_dir
-        .child("Nargo.toml")
+        .child(PKG_FILE)
         .write_str(
             "[package]\n\
              name = \"my_app\"\n\

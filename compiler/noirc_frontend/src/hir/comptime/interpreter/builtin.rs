@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use crate::hir::comptime::bigint_to_field;
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
@@ -40,7 +41,7 @@ use crate::{
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
-                builtin::builtin_helpers::fragments_to_string,
+                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
                 builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
@@ -87,6 +88,7 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
+            "ctstring_append" => ctstring_append(arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
@@ -2102,12 +2104,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::field(field))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(value, _suffix))) => {
+            Some(Value::field(bigint_to_field(&value)))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::field(field))
+            if let HirExpression::Literal(HirLiteral::Integer(value)) = interner.expression(&id) {
+                Some(Value::field(bigint_to_field(&value)))
             } else {
                 None
             }
@@ -2570,8 +2572,7 @@ fn fmtstr_as_ctstring(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner, files);
-    let bytes = string.bytes().collect();
+    let bytes = fragments_to_bytes(&fragments, interner, files);
     Ok(Value::CtString(Rc::new(bytes)))
 }
 
@@ -2733,9 +2734,12 @@ fn function_def_disable(
 
     let func_meta = interpreter.elaborator.function_meta_mut(func_id);
 
-    // Lie and say that the body of this function is resolved in order to avoid any
-    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
-    // above should ensure it is never called.
+    // Mark the body resolved so it is never elaborated: macro authors disable functions whose
+    // bodies are placeholders or are no longer valid, and type-checking those would raise spurious
+    // errors. The `deprecated(deny, _)` attribute added above makes calls error during elaboration.
+    // A disabled function therefore has no interned `HirFunction`; monomorphization rejects any that
+    // it still manages to reach via `MonomorphizationError::CalledDisabledFunction` rather than
+    // reading the missing body and panicking.
     func_meta.function_body = FunctionBody::Resolved;
     Ok(Value::Unit)
 }
@@ -3204,6 +3208,17 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
+}
+
+// fn append(self, other: CtString) -> CtString
+fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_argument, other_argument) = check_two_arguments(arguments, location)?;
+    let self_bytes = get_ctstring(self_argument)?;
+    let other_bytes = get_ctstring(other_argument)?;
+
+    let mut bytes = self_bytes.as_ref().clone();
+    bytes.extend_from_slice(&other_bytes);
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

@@ -184,11 +184,11 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     scalars,
                     predicate,
                     ..
-                }) => {
+                })
                     // When predicate is 1, the scalar inputs must be valid Grumpkin scalars.
                     // Barretenberg implementation of the blackbox will implicitly constrain them to not overflow the Grumpkin scalar field modulus,
                     // so we can assume that the low scalars are constrained to 128 bits and the high scalars to 126 bits.
-                    if predicate == &FunctionInput::Constant(F::one()) {
+                    if predicate == &FunctionInput::Constant(F::one()) => {
                         let mut scalar_iters = scalars.iter();
                         let mut lo = scalar_iters.next();
                         while lo.is_some() {
@@ -205,7 +205,6 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                             lo = scalar_iters.next();
                         }
                     }
-                }
 
                 _ => {}
             }

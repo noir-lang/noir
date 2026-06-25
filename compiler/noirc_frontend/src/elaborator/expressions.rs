@@ -1,10 +1,10 @@
 //! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigInt;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -300,9 +300,7 @@ impl Elaborator<'_> {
                 break_or_continue_location = Some(location);
             }
 
-            if i + 1 == statements.len() {
-                block_type = stmt_type;
-            }
+            block_type = stmt_type;
         }
 
         self.pop_scope();
@@ -477,7 +475,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(BigInt::ZERO, None, location)
                     },
                 );
 
@@ -1326,9 +1324,12 @@ impl Elaborator<'_> {
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
 
-            if unseen_fields.remove(&field_name) {
-                seen_fields.insert(field_name.clone());
-
+            if self.check_constructor_field(
+                &field_name,
+                &mut seen_fields,
+                &mut unseen_fields,
+                &struct_type,
+            ) {
                 self.unify_with_coercions(
                     &field_type,
                     expected_type,
@@ -1342,15 +1343,6 @@ impl Elaborator<'_> {
                         ))
                     },
                 );
-            } else if seen_fields.contains(&field_name) {
-                // duplicate field
-                self.push_err(ResolverError::DuplicateField { field: field_name.clone() });
-            } else {
-                // field not required by struct
-                self.push_err(ResolverError::NoSuchField {
-                    field: field_name.clone(),
-                    struct_definition: struct_type.borrow().name.clone(),
-                });
             }
 
             if let Some((index, visibility)) = expected_index_and_visibility {
@@ -1370,6 +1362,42 @@ impl Elaborator<'_> {
             ret.push((field_name, resolved));
         }
 
+        self.report_missing_fields(unseen_fields, location, &struct_type);
+        ret
+    }
+
+    /// Check if `field` has already been seen or not in a constructor expression.
+    /// Returns `true` if the field hasn't been seen yet (moving it from unseen to seen).
+    /// Otherwise pushes a `DuplicateField` or `NoSuchField` error and returns `false`.
+    pub(super) fn check_constructor_field(
+        &mut self,
+        field: &Ident,
+        seen_fields: &mut HashSet<Ident>,
+        unseen_fields: &mut BTreeSet<Ident>,
+        struct_type: &Shared<DataType>,
+    ) -> bool {
+        if unseen_fields.remove(field) {
+            seen_fields.insert(field.clone());
+            true
+        } else if seen_fields.contains(field) {
+            self.push_err(ResolverError::DuplicateField { field: field.clone() });
+            false
+        } else {
+            self.push_err(ResolverError::NoSuchField {
+                field: field.clone(),
+                struct_definition: struct_type.borrow().name.clone(),
+            });
+            false
+        }
+    }
+
+    /// Push a `MissingFields` error for any struct fields not provided by a constructor.
+    pub(super) fn report_missing_fields(
+        &mut self,
+        unseen_fields: BTreeSet<Ident>,
+        location: Location,
+        struct_type: &Shared<DataType>,
+    ) {
         if !unseen_fields.is_empty() {
             self.push_err(ResolverError::MissingFields {
                 location,
@@ -1377,8 +1405,6 @@ impl Elaborator<'_> {
                 struct_definition: struct_type.borrow().name.clone(),
             });
         }
-
-        ret
     }
 
     /// This method also returns whether or not its lhs still needs to be dereferenced depending on
