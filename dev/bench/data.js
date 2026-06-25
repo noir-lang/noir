@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782330015798,
+  "lastUpdate": 1782381776308,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23106,48 +23106,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a5195d4b0fe4025cc2054c75e76a8c26fba0b67d",
-          "message": "chore(test): Large nested array baseline tests (#13108)",
-          "timestamp": "2026-06-18T16:59:20Z",
-          "tree_id": "994214186eb91c78feaf880ef8807d45c340f340",
-          "url": "https://github.com/noir-lang/noir/commit/a5195d4b0fe4025cc2054c75e76a8c26fba0b67d"
-        },
-        "date": 1781803591328,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166974,
-            "range": "± 970",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136973,
-            "range": "± 531",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2651430,
-            "range": "± 8256",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25199,6 +25157,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654752,
             "range": "± 12349",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "04903a399c7532a3f7ea24b4ec29fa2eba50c49c",
+          "message": "fix(ci): skip playwright install-deps for chromium-only jobs (#13173)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-25T09:41:18Z",
+          "tree_id": "3cc9eac4791ac9d6cea6490c29110cff600c37be",
+          "url": "https://github.com/noir-lang/noir/commit/04903a399c7532a3f7ea24b4ec29fa2eba50c49c"
+        },
+        "date": 1782381715685,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 99405,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87854,
+            "range": "± 1068",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2359272,
+            "range": "± 2168",
             "unit": "ns/iter"
           }
         ]
