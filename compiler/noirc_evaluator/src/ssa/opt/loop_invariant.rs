@@ -95,7 +95,6 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
-        integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -105,7 +104,7 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops};
+use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops, Step};
 
 mod simplify;
 
@@ -213,7 +212,7 @@ struct LoopContext {
     pre_header: BasicBlockId,
     /// Maps current loop induction variable with its bounds and step.
     /// If the loop doesn't have constant bounds with then it's `None`.
-    induction_variable: Option<(ValueId, LoopBounds, IntegerConstant)>,
+    induction_variable: Option<(ValueId, LoopBounds, Step)>,
 
     /// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
     does_loop_execute: bool,
@@ -292,7 +291,7 @@ impl LoopContext {
         // Otherwise using them as a value range (e.g. to fold a comparison or prove an add cannot
         // overflow) would be unsound.
         let induction_variable =
-            induction.filter(|(_, bounds, step)| bounds.iterator_reach_bounds(*step));
+            induction.filter(|(_, bounds, step)| bounds.iterator_in_bounds(*step));
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -324,7 +323,7 @@ impl LoopContext {
     }
 
     /// Get the induction variable's per-iteration step if the current variable matches `id`.
-    fn get_current_induction_step(&self, id: ValueId) -> Option<IntegerConstant> {
+    fn get_current_induction_step(&self, id: ValueId) -> Option<Step> {
         self.induction_variable.filter(|(val, _, _)| *val == id).map(|(_, _, step)| step)
     }
 
@@ -481,7 +480,7 @@ impl<'f> LoopInvariantContext<'f> {
         // using them as a value range would be unsound.
         if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
-            && bounds.iterator_reach_bounds(step)
+            && bounds.iterator_in_bounds(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }
@@ -810,7 +809,7 @@ fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
     pre_header: BasicBlockId,
-) -> Option<(ValueId, LoopBounds, IntegerConstant)> {
+) -> Option<(ValueId, LoopBounds, Step)> {
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;

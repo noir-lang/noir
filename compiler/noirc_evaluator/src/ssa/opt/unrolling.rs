@@ -49,7 +49,7 @@
 //!     of each function should increase by no more than that percentage compared to before the pass.
 use std::collections::{BTreeSet, HashSet};
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::acir::AcirField;
 use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::{
@@ -530,28 +530,31 @@ impl LoopBounds {
         }
     }
 
-    /// Indicates whether the iteration variable will reach the loop bounds, ensuring a proper termination.
+    /// Indicates whether the iteration variable will stay within loop bounds, ensuring a proper termination.
     /// We assume the loop bounds are constants, the iteration variable is known and
     /// incremented at each iteration by a constant step.
-    /// The function is conservative and may returns false although the iterator may reach
-    /// the bounds after all.
+    /// The function is conservative and may returns false if it could not prove.
     /// - Returns `True` when the induction variable is ensured to 'falsify the guard', so the loop
     ///   terminates.
-    /// - Returns `False` if it may escape the bounds, for `NotEqual` condition with a non unit step.
-    ///   In that case, escaping the bounds can lead to infinite loop.
-    pub(super) fn iterator_reach_bounds(self, step: IntegerConstant) -> bool {
+    /// - Returns `False` if it may escape the bounds:
+    ///   for `NotEqual` condition with a non unit step, in which case escaping the bounds can lead to infinite loop.
+    ///   for `LessThan` or `Equal` conditions where upper < lower.
+    pub(super) fn iterator_in_bounds(self, step: Step) -> bool {
         match self.kind {
-            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => self.lower <= self.upper,
             LoopBoundKind::NotEqual => {
+                if self.upper < self.lower {
+                    return false;
+                }
                 if step.is_zero() || step.is_one() {
                     return true;
                 }
                 if let (
                     IntegerConstant::Unsigned { value: lower, .. },
                     IntegerConstant::Unsigned { value: upper, .. },
-                    IntegerConstant::Unsigned { value: step, .. },
-                ) = (self.lower, self.upper, step)
+                ) = (self.lower, self.upper)
                 {
+                    let step = step.value();
                     // The check `upper >= lower` both ensures that:
                     // - `upper - lower` does not underflow, and
                     // - induction variable does not overflow and reaches the bound after.
@@ -560,6 +563,29 @@ impl LoopBounds {
                 false
             }
         }
+    }
+}
+
+/// Iteration step in a loop, constructed by [`Loop::monotonic_back_edge_step`].
+///
+///The step is constant and non-negative, and the induction variable is ensured not to overflow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Step(u128);
+
+impl Step {
+    /// The induction variable is constant at `lower`: it never advances.
+    pub(crate) fn is_zero(self) -> bool {
+        self.0 == 0
+    }
+
+    /// A unit step visits every integer in `[lower, upper)`.
+    pub(crate) fn is_one(self) -> bool {
+        self.0 == 1
+    }
+
+    /// The step magnitude.
+    fn value(self) -> u128 {
+        self.0
     }
 }
 
@@ -753,7 +779,7 @@ impl Loop {
         dfg: &DataFlowGraph,
         induction_variable: ValueId,
         upper: IntegerConstant,
-    ) -> Option<IntegerConstant> {
+    ) -> Option<Step> {
         let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
             dfg[self.back_edge_start].terminator()
         else {
@@ -769,7 +795,7 @@ impl Loop {
         let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
         if back_edge_value == induction_variable {
             // The induction variable is constant at `lower`: a zero step.
-            return IntegerConstant::from_numeric_constant(FieldElement::zero(), operand_type);
+            return Some(Step(0));
         }
         let instruction = dfg.get_local_or_global_instruction(back_edge_value)?;
         let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
@@ -804,7 +830,10 @@ impl Loop {
                 }
             }
         }
-        Some(step)
+        match step {
+            IntegerConstant::Signed { value, .. } => u128::try_from(value).ok().map(Step),
+            IntegerConstant::Unsigned { value, .. } => Some(Step(value)),
+        }
     }
 
     /// Whether this loop may fail to terminate by stepping *past* a `NotEqual` bound — its
@@ -846,7 +875,7 @@ impl Loop {
             return true;
         };
         // Use the step to see if the bounds are reached.
-        !bounds.iterator_reach_bounds(step)
+        !bounds.iterator_in_bounds(step)
     }
 
     /// Same as `induction_step_may_miss_bound` but returns `false` when the
@@ -870,7 +899,7 @@ impl Loop {
         else {
             return false;
         };
-        !bounds.iterator_reach_bounds(step)
+        !bounds.iterator_in_bounds(step)
     }
 
     /// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
